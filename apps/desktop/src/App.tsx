@@ -825,10 +825,8 @@ function useWorkspace(props: WorkspaceProps) {
         query={ui.query}
         setQuery={ui.setQuery}
         portCount={model.entries.length}
-        libraryCount={data.catalog ? model.overview.installed : undefined}
-        onAddGames={
-          ui.view === "library" && model.overview.installed > 0 ? openAddGames : undefined
-        }
+        libraryCount={data.catalog ? model.libraryCount : undefined}
+        onAddGames={ui.view === "library" && model.libraryCount > 0 ? openAddGames : undefined}
       />
     ));
   const renderPreferenceFailure = () =>
@@ -1128,7 +1126,7 @@ function WorkspaceSidebar({ model }: { model: Omit<WorkspaceModel, "workspace"> 
       view={model.ui.view}
       setView={model.setPrimaryView}
       controller={model.controller}
-      installedCount={model.model.overview.installed}
+      libraryCount={model.model.libraryCount}
       updateCount={
         model.data.statuses.filter((status) => {
           const check = currentUpdateSnapshot(status)?.check;
@@ -1460,12 +1458,16 @@ function useAppModel(
   );
   const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
   const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);
-  const searchableGames = useMemo(() => {
-    const library = new Set(
-      filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id),
-    );
-    return entries.map((port) => ({ port, inLibrary: library.has(port.id) }));
-  }, [entries, statusMap]);
+  // Library membership includes Core's add-only entries. Keep this unfiltered
+  // total separate from installation/readiness counts and organization choices.
+  const libraryPortIds = useMemo(
+    () => new Set(filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id)),
+    [entries, statusMap],
+  );
+  const searchableGames = useMemo(
+    () => entries.map((port) => ({ port, inLibrary: libraryPortIds.has(port.id) })),
+    [entries, libraryPortIds],
+  );
   const sourceNeeds = useMemo(
     () =>
       requiredSourceNeeds(
@@ -1509,6 +1511,7 @@ function useAppModel(
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
+    libraryCount: libraryPortIds.size,
     overview,
     recent,
     searchableGames,
@@ -1737,6 +1740,7 @@ function CurrentView({
       setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
       overview={model.overview}
+      libraryCount={model.libraryCount}
       recent={model.recent}
       filter={ui.filter}
       query={ui.query}

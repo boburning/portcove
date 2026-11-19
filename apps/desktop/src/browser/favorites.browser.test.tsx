@@ -38,6 +38,7 @@ function Fixture({ generation = 1, renamed = false }: { generation?: number; ren
             ports={filter === "all" ? ports : evaluateCatalogQuery(ports, filter).ports}
             catalogFilterCandidates={ports}
             statuses={new Map()}
+            libraryCount={2}
             overview={{ installed: 2, ready: 0, needsSetup: 2, staged: 0 }}
             filter={filter}
             setFilter={setFilter}
@@ -208,6 +209,7 @@ it("keeps focus on a failed retry and uses the empty Library action after succes
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}

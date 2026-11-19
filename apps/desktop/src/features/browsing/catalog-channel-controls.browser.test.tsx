@@ -62,6 +62,7 @@ function Fixture({ initial }: { initial?: BrowsingInputs }) {
       setLibraryReadiness={shell.setLibraryReadiness}
       libraryFilterCandidates={filterPorts(ports, statuses, "library", "all", shell.query)}
       statuses={statuses}
+      libraryCount={summarizeLibrary(ports, statuses).installed}
       overview={summarizeLibrary(ports, statuses)}
       filter={shell.filter}
       query={shell.query}

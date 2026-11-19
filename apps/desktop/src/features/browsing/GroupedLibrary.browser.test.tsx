@@ -417,6 +417,7 @@ it.each([
         catalogUniverse={[first, second]}
         ports={[first, second]}
         statuses={statuses}
+        libraryCount={2}
         overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}

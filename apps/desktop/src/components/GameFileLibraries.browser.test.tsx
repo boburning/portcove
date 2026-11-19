@@ -298,7 +298,7 @@ it.each(
                 <Sidebar
                   view="settings"
                   setView={vi.fn()}
-                  installedCount={1}
+                  libraryCount={1}
                   updateCount={0}
                   activities={[]}
                 />
@@ -477,7 +477,7 @@ it.each(["dark", "light"] as const)(
                 <Sidebar
                   view="settings"
                   setView={vi.fn()}
-                  installedCount={0}
+                  libraryCount={0}
                   updateCount={0}
                   activities={[]}
                 />

@@ -210,7 +210,7 @@ it.for([
       <Sidebar
         view="library"
         setView={setView}
-        installedCount={3}
+        libraryCount={3}
         updateCount={0}
         activities={[]}
       />,

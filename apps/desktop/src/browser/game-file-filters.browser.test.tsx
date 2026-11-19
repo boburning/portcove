@@ -194,6 +194,7 @@ function Session({ library, catalog }: { library: string; catalog: CatalogDocume
           queryContext={context}
           gameFileQuery={observation}
           statuses={empty}
+          libraryCount={summarizeLibrary(ports, empty).installed}
           overview={summarizeLibrary(ports, empty)}
           filter={ui.filter}
           query={ui.query}

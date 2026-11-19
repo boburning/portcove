@@ -34,6 +34,7 @@ function Fixture() {
         ports={filterPorts(ports, statuses, "catalog", filter, "")}
         catalogFilterCandidates={ports}
         statuses={statuses}
+        libraryCount={summarizeLibrary(ports, statuses).installed}
         overview={summarizeLibrary(ports, statuses)}
         filter={filter}
         setFilter={setFilter}

@@ -172,6 +172,7 @@ function Session({ library }: { library: string }) {
           libraryReadiness={ui.libraryReadiness}
           setLibraryReadiness={ui.setLibraryReadiness}
           statuses={statuses}
+          libraryCount={summarizeLibrary(facts ? snapshotPorts : [], statuses).installed}
           overview={summarizeLibrary(facts ? snapshotPorts : [], statuses)}
           filter={ui.filter}
           query={ui.query}
