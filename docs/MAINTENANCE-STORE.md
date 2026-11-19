@@ -715,7 +715,15 @@ publication has been verified.
     The identity stays the same when integrity or an asset arrives under the
     same release. This records upstream candidate evidence for history. Actual
     client availability, repair publication and human interventions require
-    separate receipts.
+    separate receipts. The JSON report's `managed_release_eligibility` uses
+    the last 30 days of retained complete and partial collection observations.
+    It counts each candidate published in that window once, using its latest
+    recorded state. A missing publication time is reported separately. Pending
+    age uses publication time. Publication-to-recorded-eligibility lag uses
+    the first retained eligible observation. Evidence can start partway through
+    the window. The report's existing source freshness and gaps still describe
+    coverage. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
