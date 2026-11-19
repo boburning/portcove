@@ -16,6 +16,10 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
+  compactN64RecompPersistence,
+  projectN64RecompPersistence,
+} from "./catalog-n64-recomp-persistence.mts";
+import {
   compactPsxManagedWindows,
   projectPsxManagedWindows,
 } from "./catalog-psx-managed-windows.mts";
@@ -1086,6 +1090,43 @@ void test("GBA preparation compacts exact layouts and retains explicit writer di
     custom.integration!.runtime_mutable_paths = ["recomp_coverage_XXXX.json"];
     assert.equal(compactGbaArchive(custom), custom);
   }
+});
+
+void test("N64 recomp persistence compacts exact layouts and preserves explicit differences", () => {
+  const { catalog, records } = readCatalogSource(catalogRoot);
+  const consumers = records.filter((entry) => entry.n64_recomp_persistence_v1);
+  assert.ok(consumers.length > 0);
+  for (const record of consumers) {
+    const explicit = projectN64RecompPersistence(record);
+    delete explicit.n64_recomp_persistence_v1;
+    assert.deepEqual(compactN64RecompPersistence(explicit), record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(catalog.ports.find((port) => port.id === record.listing.id)),
+      record.listing.id,
+    );
+    const differentWrites = structuredClone(explicit);
+    differentWrites.integration!.persistent_paths = ["custom-saves"];
+    assert.equal(compactN64RecompPersistence(differentWrites), differentWrites);
+    assert.throws(
+      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      /already own persistent_paths/u,
+    );
+  }
+
+  const nested = records.find((record) => record.listing.id === "beetle-recomp")!;
+  const otherProvider = records.find((record) => record.listing.id === "extreme-g-recompiled")!;
+  for (const explicit of [nested, otherProvider]) {
+    assert.equal(compactN64RecompPersistence(explicit), explicit);
+    assert.throws(
+      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      /requires? the reviewed root-level GitHub recomp layout/u,
+    );
+  }
+
+  const unsafe = structuredClone(consumers[0]!);
+  unsafe.integration!.runtime_source_filename = "../alias.z64";
+  assert.throws(() => checkedAuthoredPort(unsafe), /reviewed root-level GitHub recomp layout/u);
 });
 
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {

@@ -29,6 +29,7 @@ import {
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
@@ -168,6 +169,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
       next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001, SCPH-5552 or SCPH-5500 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+    });
+  }
+  if (record.n64_recomp_persistence_v1) {
+    projections.push({
+      field: "n64_recomp_persistence_v1",
+      scope: "Managed N64Recomp player data and original-file paths in the installation root.",
+      next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
     });
   }
   return {
@@ -937,7 +945,9 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
-    const compact = compactGbaArchive(compactPsxManagedWindows(record));
+    const compact = compactN64RecompPersistence(
+      compactGbaArchive(compactPsxManagedWindows(record)),
+    );
     if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);

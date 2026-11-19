@@ -33,6 +33,7 @@
       ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -50,22 +51,6 @@
     "executable_hints": {
       "windows-x86-64": ["RevengeRecompiled.exe"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "wcw.nwo.revenge.us.z64"
-    ],
     "runtime_source_filename": "wcw.nwo.revenge.us.z64",
     "presentation": {
       "installation_method": "portable-recompilation",
