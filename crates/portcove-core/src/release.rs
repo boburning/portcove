@@ -106,6 +106,11 @@ pub trait ReleaseProvider: Send + Sync {
         Ok(crate::RequestCostForecast::default())
     }
 
+    /// Provider request budget for a check that must enforce a reviewed package choice.
+    fn forecast_saved_variant_request_cost(&self, _scoped: bool) -> crate::RequestCostForecast {
+        crate::RequestCostForecast::default()
+    }
+
     /// Informational release notes between the installed and offered versions, read
     /// only from metadata this provider already persisted. Never makes a request.
     /// `None` means the provider has no hosted release list for this port.
@@ -288,6 +293,8 @@ const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
 const PROVIDER_PAGE_SIZE: usize = 100;
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
+const GITHUB_SAVED_RELEASE_INVENTORY_LIMIT: usize = 10;
+const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 3;
 // Small provider metadata and authentication requests get an overall deadline;
 // streamed downloads intentionally use only connection and read-idle bounds.
 const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -1430,6 +1437,19 @@ impl ReleaseProvider for GithubReleaseProvider {
         ))
     }
 
+    fn forecast_saved_variant_request_cost(&self, scoped: bool) -> crate::RequestCostForecast {
+        // Budget the full metadata path. Cached conditional responses can cost
+        // less, and a stale inline list cannot predict which inventories we need.
+        let counted_requests = (1
+            + GITHUB_MAX_RELEASE_PAGES
+            + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_ASSET_INVENTORY_PAGE_LIMIT)
+            as u32;
+        crate::RequestCostForecast {
+            counted_requests,
+            sign_in_relief_requests: if scoped { 0 } else { counted_requests },
+        }
+    }
+
     fn cached_release_notes(
         &self,
         port: &PortDefinition,
@@ -1558,7 +1578,7 @@ impl GithubReleaseProvider {
                 .find(|release| release.id == Some(release_id))
                 .unwrap();
             release.assets = self
-                .release_assets_scoped(&port.release.repository, release_id, scope)
+                .saved_release_assets(&port.release.repository, release_id, scope, refreshed.len())
                 .await?;
         }
         if let Some(hold) = port.managed_acquisition_hold.as_ref()
@@ -1574,27 +1594,45 @@ impl GithubReleaseProvider {
                 let release_id = fresh_release_id(release)?;
                 if refreshed.insert(release_id) {
                     release.assets = self
-                        .release_assets_scoped(&port.release.repository, release_id, scope)
+                        .saved_release_assets(
+                            &port.release.repository,
+                            release_id,
+                            scope,
+                            refreshed.len(),
+                        )
                         .await?;
                 }
             }
         }
-        for release in releases
-            .iter()
-            .filter(|release| release.id.is_some_and(|id| refreshed.contains(&id)))
-        {
-            let mut ids = std::collections::BTreeSet::new();
-            if release
-                .assets
-                .iter()
-                .any(|asset| !asset.id.is_some_and(|id| id != 0 && ids.insert(id)))
-            {
-                return Err(PortcoveError::verification(
-                    "the complete saved package inventory contains missing or repeated asset identities",
-                ));
-            }
-        }
         Ok(())
+    }
+
+    async fn saved_release_assets(
+        &self,
+        repository: &str,
+        release_id: u64,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        refresh_count: usize,
+    ) -> Result<Vec<GithubAsset>> {
+        if refresh_count > GITHUB_SAVED_RELEASE_INVENTORY_LIMIT {
+            return Err(PortcoveError::verification(
+                "the saved package check exceeds the supported release inventory limit",
+            )
+            .detail("saved_package_variant", "release-inventory-limit"));
+        }
+        let assets = self
+            .release_assets_scoped(repository, release_id, scope)
+            .await?;
+        let mut ids = std::collections::BTreeSet::new();
+        if assets
+            .iter()
+            .any(|asset| !asset.id.is_some_and(|id| id != 0 && ids.insert(id)))
+        {
+            return Err(PortcoveError::verification(
+                "the complete saved package inventory contains missing or repeated asset identities",
+            ));
+        }
+        Ok(assets)
     }
 
     async fn resolve_scoped_selection(
@@ -1811,7 +1849,11 @@ impl GithubReleaseProvider {
                 self.refresh_saved_release_assets(port, channel, platform, scope, &mut releases),
             )
             .await
-            .map_err(|_| PortcoveError::network("saved package asset inventory did not complete within the provider request budget"))??;
+            .map_err(|_| {
+                PortcoveError::network(
+                    "saved package asset inventory did not complete within the provider request budget",
+                )
+            })??;
         }
         if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
             // Failover-capable records only: classify an accepted release or asset

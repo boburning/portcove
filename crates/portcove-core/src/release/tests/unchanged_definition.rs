@@ -1624,7 +1624,7 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
         asset["id"] = id.into();
         asset
     };
-    let identified_release = |tag, id: u64, candidates| {
+    let identified_release = |tag: &str, id: u64, candidates| {
         let mut release = release(tag, candidates);
         release["id"] = id.into();
         release
@@ -1700,6 +1700,38 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
     assert!(refreshed[1].contains("/releases/20/assets?"));
     assert!(refreshed[3].contains("page=2"));
     assert_eq!(refreshed[3], refreshed[5]);
+
+    let recent = (3..3 + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT as u64)
+        .rev()
+        .map(|number| {
+            identified_release(
+                &format!("v{number}.0.0"),
+                10 * number,
+                first_page[..1].to_vec(),
+            )
+        })
+        .chain([older])
+        .collect::<Vec<_>>();
+    let mut replies = vec![repository(), releases(&recent)];
+    replies.extend((0..GITHUB_SAVED_RELEASE_INVENTORY_LIMIT).map(|_| assets(&first_page[..1])));
+    let (origin, requests, server) = serve_http(replies);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let held = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Verification);
+    assert_eq!(
+        held.details["saved_package_variant"],
+        "release-inventory-limit"
+    );
+    server.join().unwrap();
+    let refreshed = requests
+        .try_iter()
+        .filter(|path| path.contains("/assets?"))
+        .collect::<Vec<_>>();
+    assert_eq!(refreshed.len(), GITHUB_SAVED_RELEASE_INVENTORY_LIMIT);
+    assert!(!refreshed.iter().any(|path| path.contains("/releases/20/")));
 }
 
 #[tokio::test]

@@ -3194,9 +3194,17 @@ impl PortcoveService {
         port_ids: impl IntoIterator<Item = String>,
     ) -> Result<crate::UpdateCheckForecast> {
         let platform = Platform::current()?;
+        let ports = port_ids
+            .into_iter()
+            .map(|id| {
+                let port = self.catalog.port(&id)?;
+                Ok((id, default_channel(port)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let (statuses, _) = self.status_rows_with_recommendations(&self.catalog, &ports, false)?;
         let mut forecast = crate::UpdateCheckForecast::default();
-        for port_id in port_ids {
-            let port = self.catalog.port(&port_id)?;
+        for status in statuses {
+            let port = self.catalog.port(&status.port_id)?;
             // An admitted publisher scope sends no credential; a scope that cannot be
             // established here fails the real check, so it is treated as ordinary.
             let scoped = crate::definition_repository::publisher_policy::acquisition_scope(
@@ -3207,10 +3215,17 @@ impl PortcoveService {
             .ok()
             .flatten()
             .is_some();
-            let cost = self
-                .releases
-                .forecast_request_cost(port, platform, scoped)
-                .await?;
+            // The individual check reports an invalid retained manifest. That
+            // failure should not prevent estimating other games in the batch.
+            let cost = if Self::saved_package_variant(port, status.channel, platform, &status)
+                .is_ok_and(|variant| variant.is_some())
+            {
+                self.releases.forecast_saved_variant_request_cost(scoped)
+            } else {
+                self.releases
+                    .forecast_request_cost(port, platform, scoped)
+                    .await?
+            };
             forecast.games = forecast.games.saturating_add(1);
             forecast.counted_requests = forecast
                 .counted_requests

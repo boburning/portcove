@@ -523,6 +523,35 @@ async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
     active.manifest_sha256 = hash;
     service.library.register_install(&active, true).unwrap();
 
+    let provider = crate::release::GithubReleaseProvider::with_api_root_and_library(
+        "https://example.invalid",
+        service.library.clone(),
+    )
+    .unwrap();
+    let saved_budget = provider.forecast_saved_variant_request_cost(false);
+    assert_eq!(saved_budget.counted_requests, 41);
+    assert_eq!(saved_budget.sign_in_relief_requests, 41);
+    let scoped_budget = provider.forecast_saved_variant_request_cost(true);
+    assert_eq!(scoped_budget.counted_requests, 41);
+    assert_eq!(scoped_budget.sign_in_relief_requests, 0);
+    service.releases = Arc::new(provider);
+    let repository = "https://example.invalid/repos/fixture/game";
+    let releases = crate::release::paginated_url(repository, "releases", 1, 100).unwrap();
+    for (endpoint, body) in [(repository, "{}"), (&releases, "[]")] {
+        service
+            .library
+            .store_http_cache(endpoint, Some("\"fixture\""), None, body)
+            .unwrap();
+    }
+    let warm = service.forecast_update_checks([PORT.into()]).await.unwrap();
+    assert_eq!(warm.games, 1);
+    assert_eq!(warm.counted_requests, saved_budget.counted_requests);
+    assert_eq!(
+        warm.sign_in_relief_requests,
+        saved_budget.sign_in_relief_requests
+    );
+    assert!(warm.sign_in_would_help(40));
+
     let bytes = archive();
     let offered = ResolvedRelease {
         version: "v2.0.0".into(),

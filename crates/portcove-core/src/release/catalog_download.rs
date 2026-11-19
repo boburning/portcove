@@ -319,7 +319,7 @@ impl GithubReleaseProvider {
     ) -> Result<Vec<GithubAsset>> {
         let root = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
         let mut assets = Vec::new();
-        for page in 1..=3 {
+        for page in 1..=GITHUB_ASSET_INVENTORY_PAGE_LIMIT {
             let url = paginated_url(&root, "assets", page, 100)?;
             let current: Vec<GithubAsset> = match scope {
                 Some(scope) => self.scoped_json(&url, scope).await?,
