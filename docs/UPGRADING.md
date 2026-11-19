@@ -102,10 +102,14 @@ changed it differently, the affected installation stays staged. The player's
 file remains in place and the staged installation retains its shipped default.
 
 A reviewed backup restore can record the removal of a declared settings file.
-The receipt requires a snapshot that binds the exact active persistence policy,
+The receipt requires a snapshot that covers the exact active persistence policy,
 a verified package default, and a matching file before the restore. Portcove
 records the outcome after it verifies that the canonical file and active copy
-are absent. Activation still holds when the player file is missing.
+are absent. On supported Windows native installs, the next staged version
+preserves that deletion when Portcove can verify the receipt and both paths
+remain absent. It removes only the packaged runtime copy and keeps the verified
+incoming default in the install receipt. An unexplained absence or a concurrent
+edit holds activation for that installation.
 
 ### Required desktop runtime
 

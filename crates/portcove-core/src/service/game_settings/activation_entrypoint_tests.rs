@@ -50,6 +50,10 @@ fn fixture() -> Fixture {
 }
 
 fn settings_fixture(partitioned: bool) -> Fixture {
+    settings_fixture_with_stage(partitioned, true)
+}
+
+fn settings_fixture_with_stage(partitioned: bool, register_staged: bool) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let inputs = [
@@ -135,7 +139,9 @@ fn settings_fixture(partitioned: bool) -> Fixture {
                 manifest_sha256,
                 selected_executable,
             };
-            library.register_install(&install, index == 0).unwrap();
+            if index == 0 || register_staged {
+                library.register_install(&install, index == 0).unwrap();
+            }
             install
         })
         .collect::<Vec<_>>();
@@ -347,4 +353,129 @@ fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
         fs::read(canonical.join("progress.sav")).unwrap(),
         b"owned saved progress"
     );
+}
+
+#[test]
+fn staged_activation_keeps_reviewed_deletion_and_recovers_only_its_owned_default() {
+    let fixture = settings_fixture_with_stage(false, false);
+    let canonical = fixture.library.user_dir(PORT).join(FILE);
+    let previous = fixture.old.path.join(FILE);
+    let incoming = fixture.staged.path.join(FILE);
+    fs::remove_file(&canonical).unwrap();
+    fs::remove_file(&previous).unwrap();
+    let backup = fixture.service.create_backup(PORT).unwrap();
+    fs::write(&canonical, PLAYER).unwrap();
+    fs::write(&previous, PLAYER).unwrap();
+    let preview = fixture
+        .service
+        .preview_backup_action(PORT, &backup.id, BackupAction::Restore)
+        .unwrap();
+    let authorization = fixture
+        .service
+        .authorize_backup_action(
+            PORT,
+            &backup.id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    fixture
+        .service
+        .restore_backup(PORT, &backup.id, &authorization.token)
+        .unwrap();
+    assert!(!canonical.exists());
+    assert!(!previous.exists());
+    assert_eq!(fs::read(&incoming).unwrap(), NEW);
+    fixture
+        .library
+        .register_install(&fixture.staged, false)
+        .unwrap();
+
+    let store = OperationStore::new(fixture.library.clone());
+    let interrupted = fixture.service.activate_staged(PORT).unwrap_err();
+    assert!(
+        interrupted
+            .message
+            .contains("interrupted staged settings fixture"),
+        "{interrupted}"
+    );
+    let operation = store
+        .all()
+        .unwrap()
+        .into_iter()
+        .find(|item| {
+            item.settings_activation
+                .as_ref()
+                .is_some_and(|settings| settings.deletion.is_some())
+        })
+        .unwrap();
+    assert_eq!(operation.phase, LifecyclePhase::Prepared);
+    let (_, quarantine) =
+        crate::operation::game_settings::owned_names(&incoming, &operation.id, "runtime").unwrap();
+    assert!(!incoming.exists());
+    assert_eq!(fs::read(&quarantine).unwrap(), NEW);
+
+    // A concurrent player edit stays untouched and holds this operation.
+    fs::write(&canonical, PLAYER).unwrap();
+    let mut reopened =
+        PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults)).unwrap();
+    reopened.replace_catalog_for_test(fixture.catalog.clone());
+    reopened.recover_pending_operations().unwrap();
+    assert_eq!(fs::read(&canonical).unwrap(), PLAYER);
+    assert_eq!(fs::read(&quarantine).unwrap(), NEW);
+    assert!(store.get(&operation.id).unwrap().is_some());
+    assert_eq!(
+        fixture
+            .library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .id,
+        fixture.old.id
+    );
+
+    fs::remove_file(&canonical).unwrap();
+    reopened.recover_pending_operations().unwrap();
+    reopened.recover_pending_operations().unwrap();
+    assert_eq!(
+        fixture
+            .library
+            .status(PORT, ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .id,
+        fixture.staged.id
+    );
+    assert!(store.get(&operation.id).unwrap().is_none());
+    for path in [&canonical, &previous, &incoming, &quarantine] {
+        assert!(!path.exists(), "{}", path.display());
+    }
+    let installer = Installer::new(fixture.library.clone()).unwrap();
+    let defaults = installer
+        .retained_settings_defaults(&fixture.staged)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        defaults.shipped[FILE]
+            .verified_bytes(&defaults.contract.files[0])
+            .unwrap(),
+        NEW
+    );
+    let successor_evidence: Vec<u8> = fixture.library.connection().unwrap().query_row(
+        "SELECT evidence FROM settings_restore_deletions WHERE install_id=?1 AND pending_id IS NULL",
+        [&fixture.staged.id], |row| row.get(0)
+    ).unwrap();
+    let successor_evidence: serde_json::Value =
+        serde_json::from_slice(&successor_evidence).unwrap();
+    assert_eq!(
+        successor_evidence["install_manifest_sha256"],
+        fixture.staged.manifest_sha256
+    );
+    assert_eq!(
+        successor_evidence["shipped_sha256"],
+        hex::encode(Sha256::digest(NEW))
+    );
+    assert!(successor_evidence["predecessor_receipt"].is_string());
 }

@@ -1,6 +1,6 @@
 //! Exact settings deletion evidence from the existing reviewed backup restore.
-//! Retained evidence records an observed outcome. It does not authorize an
-//! activation to remove an incoming file or treat later absence as unchanged.
+//! Only a verified local NativePortable receipt with unchanged directory
+//! evidence can authorize preserving that absence at successor activation.
 
 use super::*;
 use crate::game_settings::observe_player_settings_copy;
@@ -22,6 +22,19 @@ struct RestoreDeletion {
     reviewed_manifest_sha256: String,
     shipped_sha256: String,
     player_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    native_absence: Option<RestoreAbsence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    predecessor_receipt: Option<String>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct RestoreAbsence {
+    canonical_parent: String,
+    canonical_change_time: i64,
+    runtime_parent: String,
+    runtime_change_time: i64,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -211,6 +224,8 @@ impl PortcoveService {
                 reviewed_manifest_sha256: digest(reviewed_manifest),
                 shipped_sha256: coordinate.shipped_sha256,
                 player_sha256: digest(&previous),
+                native_absence: None,
+                predecessor_receipt: None,
             }))
         })();
         // Optional evidence cannot widen or prevent the already-reviewed
@@ -246,7 +261,7 @@ impl PortcoveService {
         {
             return Ok(());
         }
-        let mut connection = self.library.connection()?;
+        let connection = self.library.connection()?;
         let evidence: Option<Vec<u8>> = connection
             .query_row(
                 "SELECT evidence FROM settings_restore_deletions WHERE pending_id=?1 AND port_id=?2",
@@ -258,6 +273,8 @@ impl PortcoveService {
             return Ok(());
         };
         let proof: RestoreDeletion = serde_json::from_slice(&evidence)?;
+        #[cfg(windows)]
+        let mut proof = proof;
         let unchanged = (|| {
             let Some(manifest) = reviewed_manifest_path else {
                 return Ok(false);
@@ -301,30 +318,32 @@ impl PortcoveService {
             {
                 return Ok(false);
             }
+            #[cfg(windows)]
+            if !partitioned && let Some(runtime_root) = &coordinate.runtime_root {
+                use crate::game_settings::windows::HeldAbsence;
+                let canonical = HeldAbsence::open(&canonical.join(&file.path))?;
+                let runtime = HeldAbsence::open(&runtime_root.join(&file.path))?;
+                proof.native_absence = Some(RestoreAbsence::capture(&canonical, &runtime)?);
+            }
             Ok::<_, PortcoveError>(true)
         })();
         if !matches!(unchanged, Ok(true)) {
             return Ok(());
         }
 
-        // Retain the most recent proof per installation/file. On recovery an
+        // A later successful restore is a new decision. Retain the older
+        // evidence for successors that may already refer to it. On recovery an
         // already-promoted row has no pending ID, so promotion is idempotent.
-        let transaction = connection.transaction()?;
-        transaction.execute(
-            "DELETE FROM settings_restore_deletions
-             WHERE pending_id IS NULL AND port_id=?1 AND install_id=?2 AND file_id=?3",
-            params![proof.port_id, proof.install_id, proof.file_id],
-        )?;
-        let promoted = transaction.execute(
-            "UPDATE settings_restore_deletions SET pending_id=NULL WHERE pending_id=?1 AND port_id=?2",
-            params![operation.id, operation.port_id],
+        let promoted = connection.execute(
+            "UPDATE settings_restore_deletions SET pending_id=NULL, evidence=?3
+             WHERE pending_id=?1 AND port_id=?2",
+            params![operation.id, operation.port_id, serde_json::to_vec(&proof)?],
         )?;
         if promoted != 1 {
             return Err(PortcoveError::conflict(
                 "the settings restore evidence changed before it could be retained",
             ));
         }
-        transaction.commit()?;
         Ok(())
     }
 }
@@ -347,4 +366,157 @@ impl RestoreCoordinate {
 
 fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
+}
+
+#[cfg(windows)]
+impl RestoreAbsence {
+    fn capture(
+        canonical: &crate::game_settings::windows::HeldAbsence,
+        runtime: &crate::game_settings::windows::HeldAbsence,
+    ) -> Result<Self> {
+        let snapshot = Self {
+            canonical_parent: canonical.parent_identity.clone(),
+            canonical_change_time: canonical.change_time()?,
+            runtime_parent: runtime.parent_identity.clone(),
+            runtime_change_time: runtime.change_time()?,
+        };
+        canonical.confirm()?;
+        runtime.confirm()?;
+        Ok(snapshot)
+    }
+}
+
+#[cfg(windows)]
+impl PortcoveService {
+    pub(in crate::service) fn recorded_settings_restore_deletion(
+        &self,
+        previous: &InstallRecord,
+        file: &GameSettingsFile,
+        shipped_sha256: &str,
+        absences: [&crate::game_settings::windows::HeldAbsence; 2],
+        expected_restore: Option<&str>,
+    ) -> Result<Option<String>> {
+        let connection = self.library.connection()?;
+        let row: Option<(String, Vec<u8>)> = connection
+            .query_row(
+                "SELECT restore_id, evidence FROM settings_restore_deletions
+             WHERE pending_id IS NULL AND port_id=?1 AND install_id=?2 AND file_id=?3",
+                params![previous.port_id, previous.id, file.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let Some((restore_id, evidence)) = row else {
+            return Ok(None);
+        };
+        if expected_restore.is_some_and(|id| id != restore_id) {
+            return Ok(None);
+        }
+        let proof: RestoreDeletion = serde_json::from_slice(&evidence)?;
+        let RestoreSettingsScope::Native { policy_sha256 } = &proof.scope else {
+            return Ok(None);
+        };
+        let Some(absence) = &proof.native_absence else {
+            return Ok(None);
+        };
+        let contract = self.persistence_contract_for_install(previous)?;
+        if proof.port_id != previous.port_id
+            || proof.install_id != previous.id
+            || proof.install_manifest_sha256 != previous.manifest_sha256
+            || proof.archive_sha256 != previous.artifact.sha256
+            || proof.file_id != file.id
+            || proof.format != file.format
+            || proof.relative_path != file.path
+            || proof.shipped_sha256 != shipped_sha256
+            || &crate::archive_data::policy_sha256(&contract.port)? != policy_sha256
+            || absence.canonical_parent != absences[0].parent_identity
+            || absence.runtime_parent != absences[1].parent_identity
+        {
+            return Ok(None);
+        }
+        if expected_restore.is_none()
+            && (absence.canonical_change_time != absences[0].change_time()?
+                || absence.runtime_change_time != absences[1].change_time()?)
+        {
+            return Ok(None);
+        }
+        absences[0].confirm()?;
+        absences[1].confirm()?;
+        Ok(Some(restore_id))
+    }
+
+    /// Carry the restore provenance to the exact committed successor only when
+    /// its quarantined packaged default is retired and both live paths are absent.
+    pub(in crate::service) fn inherit_native_settings_deletion(
+        &self,
+        operation: &LifecycleOperation,
+        restore_id: &str,
+        target: &InstallRecord,
+        incoming_sha256: String,
+        canonical: &crate::game_settings::windows::HeldAbsence,
+        runtime: &crate::game_settings::windows::HeldAbsence,
+    ) -> Result<()> {
+        if operation.kind != LifecycleOperationKind::Activate
+            || operation.phase != LifecyclePhase::CleanupPending
+            || operation.port_id != target.port_id
+        {
+            return Err(PortcoveError::state(
+                "settings deletion successor is not committed",
+            ));
+        }
+        let connection = self.library.connection()?;
+        let evidence: Vec<u8> = connection.query_row(
+            "SELECT evidence FROM settings_restore_deletions
+             WHERE restore_id=?1 AND pending_id IS NULL AND port_id=?2",
+            params![restore_id, target.port_id],
+            |row| row.get(0),
+        )?;
+        let mut carried: RestoreDeletion = serde_json::from_slice(&evidence)?;
+        let catalog = self.persistence_contract_for_install(target)?;
+        carried.scope = RestoreSettingsScope::Native {
+            policy_sha256: crate::archive_data::policy_sha256(&catalog.port)?,
+        };
+        carried.install_id.clone_from(&target.id);
+        carried
+            .install_manifest_sha256
+            .clone_from(&target.manifest_sha256);
+        carried.archive_sha256.clone_from(&target.artifact.sha256);
+        carried.shipped_sha256 = incoming_sha256;
+        carried.native_absence = Some(RestoreAbsence::capture(canonical, runtime)?);
+        carried.predecessor_receipt = Some(restore_id.into());
+        let evidence = serde_json::to_vec(&carried)?;
+        connection.execute(
+            "INSERT INTO settings_restore_deletions
+             (restore_id, pending_id, port_id, install_id, file_id, evidence)
+             VALUES (?1, NULL, ?2, ?3, ?4, ?5)
+             ON CONFLICT(restore_id) DO NOTHING",
+            params![
+                operation.id,
+                target.port_id,
+                target.id,
+                carried.file_id,
+                evidence
+            ],
+        )?;
+        let observed: Vec<u8> = connection.query_row(
+            "SELECT evidence FROM settings_restore_deletions
+             WHERE restore_id=?1 AND pending_id IS NULL AND port_id=?2 AND install_id=?3 AND file_id=?4",
+            params![operation.id, target.port_id, target.id, carried.file_id],
+            |row| row.get(0),
+        )?;
+        let retained: RestoreDeletion = serde_json::from_slice(&observed)?;
+        if retained.predecessor_receipt.as_deref() != Some(restore_id)
+            || retained.port_id != carried.port_id
+            || retained.install_id != carried.install_id
+            || retained.install_manifest_sha256 != carried.install_manifest_sha256
+            || retained.archive_sha256 != carried.archive_sha256
+            || retained.relative_path != carried.relative_path
+            || retained.format != carried.format
+            || retained.shipped_sha256 != carried.shipped_sha256
+        {
+            return Err(PortcoveError::conflict(
+                "settings deletion successor receipt changed",
+            ));
+        }
+        Ok(())
+    }
 }

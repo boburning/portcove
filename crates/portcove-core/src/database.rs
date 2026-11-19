@@ -464,6 +464,8 @@ fn migration_71(transaction: &Transaction<'_>) -> Result<()> {
             file_id TEXT NOT NULL,
             evidence BLOB NOT NULL CHECK(length(evidence) BETWEEN 1 AND 4096)
         );
+        CREATE INDEX committed_settings_deletion_by_install
+        ON settings_restore_deletions (port_id, install_id, file_id) WHERE pending_id IS NULL;
         CREATE TABLE settings_backup_coverage (
             backup_id TEXT PRIMARY KEY NOT NULL,
             port_id TEXT NOT NULL,

@@ -27,7 +27,10 @@ impl SettingsActivationWriter<'_> {
     pub(crate) fn begin(&self, operation: &mut LifecycleOperation) -> Result<()> {
         let payload = operation.settings_activation.as_ref().ok_or_else(invalid)?;
         if operation.phase != LifecyclePhase::Preparing
-            || payload.canonical.replacement_identity.is_some()
+            || payload
+                .canonical
+                .as_ref()
+                .is_some_and(|leg| leg.replacement_identity.is_some())
             || payload
                 .runtime
                 .as_ref()
@@ -68,7 +71,7 @@ impl SettingsActivationWriter<'_> {
         let mut next = operation.clone();
         let payload = next.settings_activation.as_mut().ok_or_else(invalid)?;
         let leg = match role {
-            "canonical" => &mut payload.canonical,
+            "canonical" => payload.canonical.as_mut().ok_or_else(invalid)?,
             "runtime" => payload.runtime.as_mut().ok_or_else(invalid)?,
             _ => return Err(invalid()),
         };

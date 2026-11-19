@@ -42,8 +42,29 @@ pub(crate) struct ActivationSettingsJournal {
     pub relative_path: String,
     pub maximum_bytes: u64,
     pub previous_runtime: Option<SettingsFileWitness>,
-    pub canonical: FileCustody,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical: Option<FileCustody>,
     pub runtime: Option<FileCustody>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion: Option<ActivationSettingsDeletion>,
+}
+
+/// A positively recorded absence has no writable canonical leg. Only the
+/// pristine incoming runtime file can be moved into this operation's custody.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ActivationSettingsDeletion {
+    pub restore_id: String,
+    pub canonical: SettingsAbsenceWitness,
+    pub previous_runtime: SettingsAbsenceWitness,
+    pub incoming: SettingsFileWitness,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SettingsAbsenceWitness {
+    pub path: PathBuf,
+    pub parent_identity: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -315,11 +336,6 @@ fn validate_activation(
         || previous.path == target.path
         || previous.staged
         || !target.staged
-        || payload.canonical.path
-            != library
-                .user_dir(&operation.port_id)
-                .join(&payload.relative_path)
-        || payload.canonical.previous_sha256 == payload.canonical.proposed_sha256
     {
         return Err(invalid());
     }
@@ -336,6 +352,46 @@ fn validate_activation(
         }
         crate::output_root::validate_install_path(library, &operation.port_id, &install.path)?;
     }
+    let canonical_path = library
+        .user_dir(&operation.port_id)
+        .join(&payload.relative_path);
+    if let Some(deletion) = &payload.deletion {
+        if payload.canonical.is_some()
+            || payload.runtime.is_some()
+            || payload.previous_runtime.is_some()
+            || !Uuid::parse_str(&deletion.restore_id)
+                .is_ok_and(|id| id.to_string() == deletion.restore_id)
+            || deletion.canonical.path != canonical_path
+            || !identity(&deletion.canonical.parent_identity)
+            || !identity(&deletion.previous_runtime.parent_identity)
+            || !identity(&deletion.incoming.parent_identity)
+            || !identity(&deletion.incoming.original_identity)
+            || deletion.canonical.parent_identity == deletion.previous_runtime.parent_identity
+            || deletion.canonical.parent_identity == deletion.incoming.parent_identity
+            || deletion.previous_runtime.parent_identity == deletion.incoming.parent_identity
+        {
+            return Err(invalid());
+        }
+        for (path, root) in [
+            (&deletion.previous_runtime.path, &previous.path),
+            (&deletion.incoming.path, &target.path),
+        ] {
+            let relative = path.strip_prefix(root).map_err(|_| invalid())?;
+            crate::archive::validate_relative_path(
+                &relative.to_string_lossy().replace('\\', "/"),
+                false,
+            )?;
+            if !relative.ends_with(&payload.relative_path) {
+                return Err(invalid());
+            }
+        }
+        owned_names(&deletion.incoming.path, &operation.id, "runtime")?;
+        return Ok(());
+    }
+    let canonical = payload.canonical.as_ref().ok_or_else(invalid)?;
+    if canonical.path != canonical_path || canonical.previous_sha256 == canonical.proposed_sha256 {
+        return Err(invalid());
+    }
     if let Some(runtime) = &payload.runtime {
         let relative = runtime
             .path
@@ -345,10 +401,10 @@ fn validate_activation(
             &relative.to_string_lossy().replace('\\', "/"),
             false,
         )?;
-        if runtime.path == payload.canonical.path
+        if runtime.path == canonical.path
             || !relative.ends_with(&payload.relative_path)
-            || runtime.parent_identity == payload.canonical.parent_identity
-            || duplicate_physical_objects(&payload.canonical, runtime)
+            || runtime.parent_identity == canonical.parent_identity
+            || duplicate_physical_objects(canonical, runtime)
         {
             return Err(invalid());
         }
@@ -366,7 +422,7 @@ fn validate_activation(
         if !relative.ends_with(&payload.relative_path)
             || !identity(&witness.parent_identity)
             || !identity(&witness.original_identity)
-            || std::iter::once(&payload.canonical)
+            || std::iter::once(canonical)
                 .chain(payload.runtime.iter())
                 .any(|leg| {
                     leg.path == witness.path
@@ -378,13 +434,8 @@ fn validate_activation(
             return Err(invalid());
         }
     }
-    owned_names(&payload.canonical.path, &operation.id, "canonical")?;
-    validate_legs(
-        operation.phase,
-        &payload.canonical,
-        payload.runtime.as_ref(),
-        true,
-    )
+    owned_names(&canonical.path, &operation.id, "canonical")?;
+    validate_legs(operation.phase, canonical, payload.runtime.as_ref(), true)
 }
 
 fn duplicate_physical_objects(left: &FileCustody, right: &FileCustody) -> bool {
@@ -498,8 +549,9 @@ pub(crate) mod tests {
                 parent_identity: format!("win128:{:016x}:{:032x}", 3, 11),
                 original_identity: format!("win128:{:016x}:{:032x}", 3, 22),
             }),
-            canonical: scalar.canonical,
+            canonical: Some(scalar.canonical),
             runtime: Some(runtime),
+            deletion: None,
             previous,
         });
         activation
@@ -526,7 +578,7 @@ pub(crate) mod tests {
         let encoded = serde_json::to_string(&activation.settings_activation).unwrap();
         let payload = activation.settings_activation.as_ref().unwrap();
         for path in [
-            &payload.canonical.path,
+            &payload.canonical.as_ref().unwrap().path,
             &payload.runtime.as_ref().unwrap().path,
         ] {
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -568,7 +620,7 @@ pub(crate) mod tests {
         let _service = crate::PortcoveService::new(library.clone()).unwrap();
         assert!(store.get(&activation.id).unwrap().is_some());
         assert_eq!(
-            std::fs::read(&payload.canonical.path).unwrap(),
+            std::fs::read(&payload.canonical.as_ref().unwrap().path).unwrap(),
             b"owned preimage"
         );
         assert_eq!(
@@ -592,7 +644,14 @@ pub(crate) mod tests {
                 1 => payload.previous.path = changed.install.as_ref().unwrap().path.clone(),
                 2 => runtime.path = payload.previous.path.join(&payload.relative_path),
                 3 => {
-                    runtime.replacement_identity = Some(payload.canonical.original_identity.clone())
+                    runtime.replacement_identity = Some(
+                        payload
+                            .canonical
+                            .as_ref()
+                            .unwrap()
+                            .original_identity
+                            .clone(),
+                    )
                 }
                 4 => runtime.previous_sha256 = "f".repeat(64),
                 5 => {
@@ -601,8 +660,12 @@ pub(crate) mod tests {
                 }
                 6 => changed.kind = LifecycleOperationKind::Install,
                 _ => {
-                    payload.previous_runtime.as_mut().unwrap().original_identity =
-                        payload.canonical.original_identity.clone()
+                    payload.previous_runtime.as_mut().unwrap().original_identity = payload
+                        .canonical
+                        .as_ref()
+                        .unwrap()
+                        .original_identity
+                        .clone()
                 }
             }
             assert!(

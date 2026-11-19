@@ -28,7 +28,7 @@ fn stage(
 ) -> Result<()> {
     let payload = operation.settings_activation.as_ref().unwrap();
     let file = (if role == "canonical" {
-        &payload.canonical
+        payload.canonical.as_ref().unwrap()
     } else {
         payload.runtime.as_ref().unwrap()
     })
@@ -59,7 +59,7 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
     let target = operation.install.as_ref().unwrap().clone();
     let payload = operation.settings_activation.as_mut().unwrap();
     let previous = payload.previous.clone();
-    let user_path = payload.canonical.path.clone();
+    let user_path = payload.canonical.as_ref().unwrap().path.clone();
     let target_path = payload.runtime.as_ref().unwrap().path.clone();
     let player_path = previous.path.join(&payload.relative_path);
     for path in [&user_path, &target_path, &player_path] {
@@ -67,7 +67,7 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
         fs::write(path, OLD).unwrap();
     }
     let build_custody = |path| custody(&HeldFile::open(path).unwrap(), &hash(OLD), &hash(NEW));
-    payload.canonical = build_custody(&user_path);
+    payload.canonical = Some(build_custody(&user_path));
     payload.runtime = Some(build_custody(&target_path));
     let witness = HeldFile::open(&player_path).unwrap();
     payload.previous_runtime = Some(SettingsFileWitness {
@@ -131,12 +131,17 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
 
     let payload = operation.settings_activation.as_ref().unwrap().clone();
     {
-        let mut canonical =
-            Leg::open(&payload.canonical, &operation.id, "canonical", 1024).unwrap();
+        let mut canonical = Leg::open(
+            payload.canonical.as_ref().unwrap(),
+            &operation.id,
+            "canonical",
+            1024,
+        )
+        .unwrap();
         assert!(
             canonical
                 .publish(
-                    &payload.canonical,
+                    payload.canonical.as_ref().unwrap(),
                     &operation.id,
                     "canonical",
                     1024,
@@ -150,12 +155,17 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
     operation = store.get(&operation.id).unwrap().unwrap();
     assert_eq!(operation.phase, LifecyclePhase::Prepared);
     {
-        let mut canonical =
-            Leg::open(&payload.canonical, &operation.id, "canonical", 1024).unwrap();
+        let mut canonical = Leg::open(
+            payload.canonical.as_ref().unwrap(),
+            &operation.id,
+            "canonical",
+            1024,
+        )
+        .unwrap();
         assert!(canonical.state == LegState::Gap);
         canonical
             .publish(
-                &payload.canonical,
+                payload.canonical.as_ref().unwrap(),
                 &operation.id,
                 "canonical",
                 1024,
@@ -208,7 +218,10 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
     writer
         .advance(&mut operation, LifecyclePhase::CleanupPending)
         .unwrap();
-    for (role, custody) in [("canonical", &payload.canonical), ("runtime", runtime)] {
+    for (role, custody) in [
+        ("canonical", payload.canonical.as_ref().unwrap()),
+        ("runtime", runtime),
+    ] {
         let mut leg = Leg::open(custody, &operation.id, role, 1024).unwrap();
         leg.retire_preimage(custody, 1024).unwrap();
     }

@@ -41,10 +41,18 @@ impl PortcoveService {
     ) -> Result<()> {
         self.require_completed_backup_restore(&operation.port_id)?;
         self.require_completed_backup_deletion(&operation.port_id)?;
+        if operation
+            .settings_activation
+            .as_ref()
+            .is_some_and(|journal| journal.deletion.is_some())
+        {
+            return self.recover_recorded_settings_deletion(writer, operation);
+        }
         for _ in 0..7 {
             writer.confirm(operation)?;
             let target = operation.install.clone().ok_or_else(conflict)?;
             let payload = operation.settings_activation.clone().ok_or_else(conflict)?;
+            let canonical = payload.canonical.as_ref().ok_or_else(conflict)?;
             let status = self.library.status(&operation.port_id, target.channel)?;
             if activation_pointer(operation, &status)? == SettingsActivationPointer::PreviousActive
             {
@@ -62,7 +70,7 @@ impl PortcoveService {
             match held.next {
                 PublishCanonical => {
                     held.canonical.publish(
-                        &payload.canonical,
+                        canonical,
                         &operation.id,
                         "canonical",
                         maximum,
@@ -94,8 +102,7 @@ impl PortcoveService {
                         writer.advance(operation, LifecyclePhase::CleanupPending)?;
                         checkpoint(self.faults.as_ref(), SettingsFaultPoint::CleanupPending)?;
                     }
-                    held.canonical
-                        .retire_preimage(&payload.canonical, maximum)?;
+                    held.canonical.retire_preimage(canonical, maximum)?;
                     checkpoint(self.faults.as_ref(), SettingsFaultPoint::CanonicalRetired)?;
                     if let Some((leg, custody)) =
                         held.runtime.as_mut().zip(payload.runtime.as_ref())
@@ -136,14 +143,15 @@ impl PortcoveService {
             }
             Ok(held)
         };
-        let canonical = open_original("canonical", &payload.canonical)?;
+        let canonical_custody = payload.canonical.as_ref().ok_or_else(conflict)?;
+        let canonical = open_original("canonical", canonical_custody)?;
         let runtime = payload
             .runtime
             .as_ref()
             .map(|custody| open_original("runtime", custody))
             .transpose()?;
         for (role, original, custody) in
-            std::iter::once(("canonical", &canonical, &payload.canonical)).chain(
+            std::iter::once(("canonical", &canonical, canonical_custody)).chain(
                 runtime
                     .as_ref()
                     .zip(payload.runtime.as_ref())
@@ -180,18 +188,14 @@ impl PortcoveService {
             .settings_activation
             .as_ref()
             .ok_or_else(conflict)?;
-        let canonical = Leg::open(
-            &payload.canonical,
-            &operation.id,
-            "canonical",
-            payload.maximum_bytes,
-        )?;
+        let custody = payload.canonical.as_ref().ok_or_else(conflict)?;
+        let canonical = Leg::open(custody, &operation.id, "canonical", payload.maximum_bytes)?;
         let runtime = payload
             .runtime
             .as_ref()
             .map(|leg| Leg::open(leg, &operation.id, "runtime", payload.maximum_bytes))
             .transpose()?;
-        for (leg, custody) in std::iter::once((&canonical, &payload.canonical))
+        for (leg, custody) in std::iter::once((&canonical, custody))
             .chain(runtime.as_ref().zip(payload.runtime.as_ref()))
         {
             if leg
@@ -261,9 +265,8 @@ impl PortcoveService {
             .ok_or_else(conflict)?;
         let old = retained_default_bytes(&prior_defaults, prior_file)?;
         let new = retained_default_bytes(&incoming_defaults, incoming_file)?;
-        if hash(&old) != payload.canonical.previous_sha256
-            || hash(&new) != payload.canonical.proposed_sha256
-        {
+        let canonical = payload.canonical.as_ref().ok_or_else(conflict)?;
+        if hash(&old) != canonical.previous_sha256 || hash(&new) != canonical.proposed_sha256 {
             return Err(conflict());
         }
 

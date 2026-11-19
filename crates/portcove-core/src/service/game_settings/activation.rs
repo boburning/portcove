@@ -1,7 +1,9 @@
 //! Freeze one whole-file default replacement for activation custody.
 //! This preparation does not stage, publish or rename any file.
 
-use super::{HeldSettingsCopies, transaction::custody, *};
+use super::{
+    HeldSettingsCopies, activation_deletion::PreparedSettingsDeletion, transaction::custody, *,
+};
 use crate::game_settings::windows::HeldFile;
 use crate::game_settings::{
     PlayerSettings, RetainedSettingsDefaults, SettingsFileUpdate, SettingsPreimage, SettingsUpdate,
@@ -17,7 +19,12 @@ pub(in crate::service) struct PreparedSettingsDefaultActivation {
     pub(in crate::service) file_id: String,
     pub(in crate::service) relative_path: String,
     pub(in crate::service) maximum_bytes: u64,
-    pub(in crate::service) files: HeldDefaultReplacement,
+    files: PreparedSettingsFiles,
+}
+
+enum PreparedSettingsFiles {
+    Replace(Box<HeldDefaultReplacement>),
+    Delete(Box<PreparedSettingsDeletion>),
 }
 
 pub(in crate::service) struct HeldDefaultReplacement {
@@ -47,22 +54,37 @@ impl PreparedSettingsDefaultActivation {
                 "settings custody does not match the pending staged activation",
             ));
         }
-        operation.settings_activation = Some(ActivationSettingsJournal {
+        let mut journal = ActivationSettingsJournal {
             format_version: 1,
             previous: self.previous.clone(),
             file_id: self.file_id.clone(),
             relative_path: self.relative_path.clone(),
             maximum_bytes: self.maximum_bytes,
-            previous_runtime: self.files.previous_runtime.as_ref().map(|held| {
-                SettingsFileWitness {
-                    path: held.path.clone(),
-                    parent_identity: held.parent_identity.clone(),
-                    original_identity: held.identity.clone(),
-                }
-            }),
-            canonical: self.files.canonical.clone(),
-            runtime: self.files.runtime.clone(),
-        });
+            previous_runtime: None,
+            canonical: None,
+            runtime: None,
+            deletion: None,
+        };
+        match &self.files {
+            PreparedSettingsFiles::Replace(files) => {
+                journal.previous_runtime =
+                    files
+                        .previous_runtime
+                        .as_ref()
+                        .map(|held| SettingsFileWitness {
+                            path: held.path.clone(),
+                            parent_identity: held.parent_identity.clone(),
+                            original_identity: held.identity.clone(),
+                        });
+                journal.canonical = Some(files.canonical.clone());
+                journal.runtime = files.runtime.clone();
+            }
+            PreparedSettingsFiles::Delete(files) => {
+                files.confirm()?;
+                journal.deletion = Some(files.journal.clone());
+            }
+        }
+        operation.settings_activation = Some(journal);
         Ok(())
     }
 }
@@ -245,11 +267,45 @@ impl PortcoveService {
         {
             return Err(hold(file, "divergent-player-settings-copies"));
         }
-        let recorded = PlayerSettings::Present(
-            player
-                .as_deref()
-                .ok_or_else(|| hold(file, "missing-player-evidence"))?,
-        );
+        let Some(player) = player.as_deref() else {
+            if prior_contract.port.adapter != AdapterKind::NativePortable
+                || target_contract.port.adapter != AdapterKind::NativePortable
+            {
+                return Err(hold(file, "missing-player-evidence"));
+            }
+            let (Some(prior_root), Some(target_root)) =
+                (prior_root.as_deref(), target_root.as_deref())
+            else {
+                return Err(hold(file, "missing-player-evidence"));
+            };
+            let prior = prior
+                .as_ref()
+                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+            let old_file = prior
+                .contract
+                .files
+                .iter()
+                .find(|old| old.id == file.id && old.path == file.path && old.format == file.format)
+                .ok_or_else(|| hold(file, "missing-verified-default"))?;
+            let old = prior.shipped[&file.path].verified_bytes(old_file)?;
+            let new = incoming.shipped[&file.path].verified_bytes(file)?;
+            let files = self.freeze_recorded_settings_deletion(
+                active,
+                old_file,
+                file,
+                [&canonical_root, prior_root, target_root],
+                [&old, &new],
+            )?;
+            return Ok(Some(PreparedSettingsDefaultActivation {
+                previous: active.clone(),
+                target: staged.clone(),
+                file_id: file.id.clone(),
+                relative_path: file.path.clone(),
+                maximum_bytes: file.maximum_bytes,
+                files: PreparedSettingsFiles::Delete(Box::new(files)),
+            }));
+        };
+        let recorded = PlayerSettings::Present(player);
         let plans = incoming.plan_update(
             prior.as_ref(),
             &std::collections::BTreeMap::from([(file.path.clone(), recorded)]),
@@ -275,7 +331,7 @@ impl PortcoveService {
                     file_id: file.id.clone(),
                     relative_path: file.path.clone(),
                     maximum_bytes: file.maximum_bytes,
-                    files,
+                    files: PreparedSettingsFiles::Replace(Box::new(files)),
                 }))
             }
             SettingsUpdate::KeepPlayerAndDefault(_) => {
