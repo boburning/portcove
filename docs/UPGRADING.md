@@ -6,44 +6,44 @@ reverse a library database migration.
 
 ## Before upgrading
 
-1. Finish or recover unfinished tasks and close all games.
+1. Finish or recover unfinished tasks. Close all games.
 2. Identify the library folder and all managed game folders. For a port with
    custom output, `portcove paths PORT_ID` shows the active, previous and staged
    folders. With a CLI that offers `installation retained`, run
    `portcove --library LIBRARY_PATH --json installation retained PORT_ID` to see
    every retained build's `install.path`. Repeat for each installed port. The
    destination from `output show` applies to future installs.
-3. In versions that offer it, open **Settings → Library and storage → Recovery
+3. If your version offers the recovery guide, open **Settings → Library and storage → Recovery
    copies and library location → Prepare a recovery copy**. You can export
    library information here. Export refuses a registered installation outside
-   the library root. In that case keep a manual copy and a record of every
+   the library root. If export refuses, keep a manual copy and a record of every
    custom folder's original location.
-4. Close every client using the library. Copy the library directory, including
-   its database, saved data and backups, and separately copy any managed game
-   folders outside it, including inactive versions. Keep the copies together.
+4. Close every client that uses the library. Copy the library directory with
+   its database, saved data, and backups. Copy managed game folders outside it
+   separately. Include inactive versions. Keep the copies together.
    Check the source and backup inventories before replacing the application.
 
-Copy original game files, BIOS files, external installations and external saves
-separately when they are outside the library. Do not include protected
-`retroachievements.credentials` files or their numeric temporary files; follow
-the recovery guide’s sign-out and preservation instructions. A library information
-export alone contains no games, saves or backups. Keep the original library and
-check a restore into a new or empty destination before relying on the copy.
+If originals, BIOS files, external installations, or external saves are outside
+the library, copy them separately. Exclude `retroachievements.credentials` and
+its numeric temporary files. Follow the recovery guide's steps for signing out
+and keeping data. A library information export contains no games, saves, or
+backups. Keep the original library. Before you rely on the copy, test a restore
+to a new or empty location.
 Backing up one game's managed saved data is a separate operation.
 
 ## Upgrade Portcove
 
-In updater-enabled Desktop releases, open **Settings → Updates**. Use **Check for
-updates** and review the offered version and release notes. Choose **Download and
-restart** when you are ready to close the application and finish any operating-system
-installer prompts. Beta is the default channel in current previews. Choose Preview
-to receive preview versions earlier. If the installed package uses a package manager,
-update through that same manager.
+If you installed Portcove with a package manager, use that manager to update it.
+If your Desktop release has an updater, open **Settings → Updates**. Choose
+**Check for updates**. Review the version and release notes. When you are ready
+to close Portcove, choose **Download and restart**. Complete any prompts from
+your operating system. Current previews use the Beta channel by default.
+Choose Preview to receive preview versions earlier.
 
-For a manual upgrade, including the standalone CLI, choose and verify the
-[matching package](DOWNLOADS.md). Reopen the same library and check your games,
-saved locations, data, backups, and active and previous versions. Keep the
-pre-upgrade copy until these checks pass.
+If you upgrade manually, choose the [matching package](DOWNLOADS.md) and verify
+its checksum. Use this process for the standalone CLI as well. Reopen the same
+library. Check your games, saved locations, data, backups, and both active and
+previous versions. Keep the pre-upgrade copy until these checks pass.
 
 ### Historical Alpha 1 to Alpha 2 migration
 
@@ -84,38 +84,38 @@ for the rootless path, desktop entry, and uninstall steps.
 
 ## Restore saved data
 
-To return one game's managed saves, settings, and other persistent files to a
-selected backup, use Portcove's saved-data restore for that game. Portcove
-checks the backup and backs up current managed files, when present, before
-replacing them. The review says whether a safety backup will be created. Review
-the selected backup and current data first; a
-restore changes saved data, not the installed game version or the whole library.
-Only declared managed locations are covered. A backup does not prove that saved
-data from one game version will be compatible with another.
+To recover one game's saves, settings, and other persistent files, open the
+saved-data restore for that game. Review the selected backup and current files.
+The review tells you whether Portcove will make a safety backup. Portcove checks
+the backup. If current managed files exist, Portcove backs them up before
+replacing them.
+
+Restore covers only the managed locations that the port declares. The installed
+game version stays the same. Check whether your
+installed version can use saves from the version that created the backup.
 
 ## Return to a previous game version
 
-Use game release rollback when that game has a retained previous installed
-version. Portcove synchronizes the game's managed persistent data before
-switching the active version. This changes the selected game version; it does
-not restore an older saved-data backup, replace Portcove itself, or prove save
-compatibility with the previous version. If saved data must also be restored,
-review and perform that separate task explicitly.
+If Portcove kept a previous installed version, use game release rollback.
+Portcove synchronizes the game's managed persistent data before it switches
+the active version. Your Portcove application and saved-data backups stay as
+they are. Check whether the previous game version can read your saves. If you
+also need to restore saved data, review and run that restore separately.
 
 ## Recover when Portcove will not open
 
-First close Portcove and any installer that has finished. Record the version,
-operating system and error. Preserve the library and any managed folders on
-other drives. Reinstall the application from the matching
+Close Portcove and any installer that finished. Record the version,
+operating system, and error. Keep the library and any managed folders on
+other drives. Reinstall Portcove from the matching
 [verified release package](DOWNLOADS.md#verify-a-download):
 
-- **Windows:** rerun the per-user Desktop installer for the same or a newer
-  compatible version. Complete the operating system's prompts, then reopen Portcove.
-- **Linux AppImage:** with the app closed, put the verified AppImage at its previous
-  location, restore its executable permission, and start it directly. For a DEB
-  or RPM, use the package manager and source that installed it.
-- **macOS:** open the verified DMG and copy Portcove back into the Applications
-  folder where it was installed. Follow your system's normal security policy.
+- On Windows, rerun the per-user Desktop installer for the same or a newer
+  compatible version. Complete the operating system's prompts. Reopen Portcove.
+- On Linux, if you use an AppImage, close Portcove first. Put the AppImage at
+  its previous location. Restore its executable permission and start it
+  directly. For a DEB or RPM, use the package manager and source that installed it.
+- On macOS, open the DMG. Copy Portcove back to the Applications folder where
+  you installed it. Follow your system's normal security policy.
 
 Reopen the same library and verify that its games and saves are present. If
 startup still fails, [report the version, package and error](https://github.com/boburning/portcove/issues/new/choose).
@@ -125,10 +125,10 @@ Share redacted diagnostics. Keep private game and save files on your computer.
 
 If you need the pre-upgrade library, keep a separate copy of the post-upgrade
 library so you can recover newer saves and activity. Restore the
-pre-upgrade library copy to a separate location. If it references custom
-managed output, its database may still refer to the original absolute paths.
-Keep the live folders protected and verify recovery in an isolated environment
-with copies at the recorded paths before launching games or performing updates.
+pre-upgrade library copy to a separate location. If you used a custom install
+folder, the database can still point to its original path. Protect the live
+folders. In an isolated environment, put copies at the recorded paths. Check
+the restored library before you launch games or run updates.
 Use the application version that created the pre-upgrade copy. Keep the two
 databases separate and retain both states until you have checked the recovered
 games and saves.

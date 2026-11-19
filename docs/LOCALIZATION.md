@@ -1,16 +1,16 @@
 # Desktop localization
 
-Saved-location impact distinguishes entry counts from game titles and includes
-game/port identity for affected entries. The host resolves its own native-dialog
-names. Full Unicode paths remain visible and wrap inline. A bounded native
-summary points to the complete inline set instead of silently omitting entries.
+Count affected entries separately from game titles. Show the game and port for
+each affected entry. The host supplies the names in native dialogs. Show the
+full Unicode path and wrap it across lines. If the native summary has a size
+limit, point readers to the complete list.
 
-Library distinguishes game title, port project/variant and library entry count.
-Separate ports for one game remain separate entries. Search labels identify
-Library or Discover. Covers/Compact rows preserve full identity; expanding
-strings wrap without changing artwork proportions. Current update decisions stay
-distinct from Future update preferences. These English labels add no supported
-locale; engineering pseudo-locales remain tests.
+In Library, keep the game title, port project or variant, and entry count
+distinct. Keep separate entries for different ports of one game. Search labels
+name Library or Discover. Covers and Compact rows show the full identity. Wrap
+long text without changing artwork proportions. Keep the current update
+decision separate from Future update preferences. English remains the
+supported language. Engineering pseudo-locales are for tests.
 
 Navigation copy is Library / Discover / Activity / Settings. Activity sections are Tasks, Game updates and History, as specified by the [current composition contract](INTEGRATED-UI-DESIGN.md) and [design system](DESIGN-SYSTEM.md#activity-and-contextual-task-feedback). These display labels do not rename serialized route IDs. Contextual task messages must retain complete action and target identity; an operation ID is not translated or inferred from a display name. English remains the supported product language; engineering locales do not become release commitments through this presentation change. Preserve the existing bounded namespace-migration scope below.
 

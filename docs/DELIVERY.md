@@ -2,10 +2,11 @@
 
 Game release streams are independent of application update feeds. See [game release channels](CLI.md#release-channels).
 
-This document records delivery design decisions and earlier proposals. Operators
-should use the [current release process](RELEASING.md#current-release-process)
-for production tags, packaging, signing and publication, and the
-[current updater contract](UPDATER-TRUST.md) for installed application behavior.
+This document records delivery decisions and earlier proposals. For production
+tags, packaging, signing, and publication, follow the
+[current release process](RELEASING.md#current-release-process).
+For updates to an installed app, read the
+[current updater contract](UPDATER-TRUST.md).
 GitHub issues and the [Project](https://github.com/users/boburning/projects/1)
 track acceptance and remaining work.
 
