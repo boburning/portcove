@@ -712,6 +712,9 @@ pub struct ReleaseSpec {
     pub repository: String,
     #[serde(default)]
     pub rolling_tag: Option<String>,
+    /// Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub github_other_stream_tag_prefixes: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
@@ -753,6 +756,47 @@ pub struct AcceptedUploader {
 }
 
 impl ReleaseSpec {
+    pub(crate) fn github_stream_exclusions(&self, platform: Platform) -> &[String] {
+        self.github_other_stream_tag_prefixes
+            .get(&platform)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn validate_github_streams(&self, platforms: &[Platform]) -> crate::Result<()> {
+        for (platform, prefixes) in &self.github_other_stream_tag_prefixes {
+            let mut seen = std::collections::BTreeSet::new();
+            if self.provider != ReleaseSource::Github
+                || !platforms.contains(platform)
+                || self.curated.contains_key(platform)
+                || prefixes.is_empty()
+                || prefixes.len() > 8
+                || prefixes.iter().any(|prefix| {
+                    prefix.len() < 3
+                        || prefix.len() > 64
+                        || !prefix.ends_with('-')
+                        || !prefix
+                            .bytes()
+                            .next()
+                            .is_some_and(|byte| byte.is_ascii_lowercase())
+                        || !prefix.bytes().all(|byte| {
+                            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+                        })
+                        || !seen.insert(prefix)
+                        || self
+                            .rolling_tag
+                            .as_ref()
+                            .is_some_and(|tag| tag.starts_with(prefix))
+                })
+            {
+                return Err(crate::PortcoveError::verification(
+                    "invalid managed GitHub release stream exclusions",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn requires_tar_xz(&self, platform: Platform) -> bool {
         (self.linux_tar_xz && platform == Platform::LinuxX86_64)
             || self.tar_xz_platforms.contains(&platform)

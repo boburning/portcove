@@ -178,6 +178,7 @@ it.for(["paired", "unavailable", "local"] as const)(
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -266,6 +267,7 @@ it.for([
               view={view}
               ports={ports}
               statuses={statuses}
+              libraryCount={5}
               overview={{ installed: 5, ready: 3, needsSetup: 2, staged: 0 }}
               filter="all"
               setFilter={() => {}}
@@ -365,6 +367,7 @@ it.for(["library", "catalog"] as const)(
           view={view}
           ports={many}
           statuses={new Map()}
+          libraryCount={100}
           overview={{ installed: 100, ready: 0, needsSetup: 100, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -493,6 +496,7 @@ function NavigableCards({ view, onSelect }: { view: "library" | "catalog"; onSel
         view={view}
         ports={navigationPorts}
         statuses={ready}
+        libraryCount={4}
         overview={{ installed: 4, ready: 4, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}
@@ -833,6 +837,7 @@ it.for([2, 4] as const)(
               view={view}
               ports={[port]}
               statuses={view === "library" ? installed : new Map<string, PortStatus>()}
+              libraryCount={view === "library" ? 1 : 0}
               overview={{
                 installed: view === "library" ? 1 : 0,
                 ready: view === "library" ? 1 : 0,
@@ -1119,6 +1124,7 @@ it.for(["local", "unavailable-local", "partial"] as const)(
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -1196,6 +1202,7 @@ it("invalidates in-flight collection previews when only a member mapping changes
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}

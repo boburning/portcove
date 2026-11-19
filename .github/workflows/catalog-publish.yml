@@ -258,6 +258,7 @@ jobs:
           done
           echo "::error::Could not publish the catalog to gh-pages"; exit 1
       - name: Read the published timestamp and generated browse pages back
+        id: readback
         run: |
           set -euo pipefail
           expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/metadata/timestamp.json" | cut -d' ' -f1)
@@ -284,10 +285,29 @@ jobs:
             inputs_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" 8192)
             sample_actual=empty
             if [ -n "$sample" ]; then sample_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" 67108864); fi
-            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then echo "Pages serves the published timestamp and generated catalog pages."; exit 0; fi
+            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then
+              echo "Pages serves the published timestamp and generated catalog pages."
+              if node scripts/catalog-publication-receipt.mts --work "$RUNNER_TEMP/catalog-work" \
+                --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \
+                --browse-index-sha256 "$browse_actual" --browse-inputs-sha256 "$inputs_actual"; then
+                echo "receipt=true" >> "$GITHUB_OUTPUT"
+              else
+                echo "::warning::Catalog publication succeeded, but the exact immutable readback receipt was unavailable."
+              fi
+              exit 0
+            fi
             remaining=$((deadline - SECONDS))
             if [ "$remaining" -le 0 ]; then break; fi
             if [ "$remaining" -gt 30 ]; then remaining=30; fi
             sleep "$remaining"
           done
           echo "::warning::Pages did not serve the complete new timestamp and browse output within 15 minutes; check the Pages build."
+      - name: Retain the successful public catalog readback
+        if: steps.readback.outputs.receipt == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-publication-live-readback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog-publication-live-readback.json
+          retention-days: 7
+          if-no-files-found: error

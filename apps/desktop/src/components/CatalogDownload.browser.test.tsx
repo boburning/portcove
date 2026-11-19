@@ -1144,6 +1144,7 @@ it("counts a pending listing under Needs attention beside a ready registration w
         libraryReadiness={selectedReadiness}
         setLibraryReadiness={setSelectedReadiness}
         statuses={statuses}
+        libraryCount={summarizeLibrary(members, statuses).installed}
         overview={summarizeLibrary(members, statuses)}
         filter="all"
         setFilter={() => {}}
@@ -1893,6 +1894,7 @@ it("renders accepted GitLab listing observations through the shared descriptive 
         view="catalog"
         ports={ordered}
         statuses={statuses}
+        libraryCount={summarizeLibrary(ordered, statuses).installed}
         overview={summarizeLibrary(ordered, statuses)}
         filter="all"
         setFilter={vi.fn()}

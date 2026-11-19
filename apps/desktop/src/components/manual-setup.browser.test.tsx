@@ -47,6 +47,7 @@ it(
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}

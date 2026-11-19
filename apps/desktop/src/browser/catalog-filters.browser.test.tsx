@@ -193,6 +193,7 @@ function Session({ library }: { library: string }) {
           }
           queryContext={context}
           statuses={selectedStatuses}
+          libraryCount={summarizeLibrary(ports, statuses).installed}
           overview={summarizeLibrary(ports, statuses)}
           filter={ui.filter}
           query={ui.query}

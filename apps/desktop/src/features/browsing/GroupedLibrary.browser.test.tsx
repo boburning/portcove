@@ -571,6 +571,7 @@ it.each([
         catalogUniverse={[first, second]}
         ports={[first, second]}
         statuses={statuses}
+        libraryCount={2}
         overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -1373,6 +1374,7 @@ async function renderFilteredUnifiedFavorite(view: "catalog" | "library") {
       ports={[selected]}
       catalogUniverse={[selected, first]}
       catalogFilterCandidates={[selected, first]}
+      libraryCount={1}
       statuses={new Map()}
       overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
       filter="all"

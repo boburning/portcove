@@ -2287,6 +2287,13 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+For a managed GitHub route, `release.github_other_stream_tag_prefixes` can
+exclude a reviewed upstream stream on a specific supported platform. Use it
+for independently published add-ons or other platform streams with documented
+tag prefixes. Core excludes these tags even before asset collection. Releases
+in the selected stream with incomplete package evidence still hold. Review the
+existing tag history before adding a prefix and retain exact package verification.
+
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
 let the existing provider observe each release's version, asset ID, exact name,
@@ -3565,6 +3572,13 @@ asset selectors and executable hints in the integration. A nested layout,
 different provider, optional settings declaration or different writer set uses
 an explicit integration. URL preparation proposes the family form when its
 expanded integration reproduces the reviewed explicit bytes.
+
+Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
+shared portable-root persistence list for the reviewed ReflectionHLE route.
+Keep the original editions, platform packages, launch arguments and reviewed
+package layouts explicit. Preparation proposes the shared form only when it
+can reproduce the exact reviewed integration bytes. A different writer scope
+or additional runtime layout declaration uses explicit paths.
 
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its

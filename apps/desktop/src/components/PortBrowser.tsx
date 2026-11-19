@@ -352,6 +352,7 @@ function usePortBrowser({
   setLibraryReadiness,
   statuses,
   overview,
+  libraryCount,
   recent,
   filter,
   query = "",
@@ -395,6 +396,8 @@ function usePortBrowser({
   setLibraryReadiness?: (readiness: string) => void;
   statuses: Map<string, PortStatus>;
   overview: LibraryOverview;
+  /** Unfiltered canonical Core Library members, including add-only entries. */
+  libraryCount: number;
   filter: Filter | CatalogQuery;
   query?: string;
   setQuery?: Dispatch<SetStateAction<string>> | undefined;
@@ -552,6 +555,7 @@ function usePortBrowser({
     setLibraryReadiness,
     statuses,
     overview,
+    libraryCount,
     recent: visibleRecentPort(recent, organization, catalogUniverse ?? ports, statuses),
     filter,
     query,
@@ -2002,7 +2006,7 @@ function CollectionResultSummary({
     | "query"
     | "visiblePorts"
     | "reset"
-    | "overview"
+    | "libraryCount"
   >;
 }) {
   const { constrainedLibrary, count, showCount, hasContext } = collectionSummary(model);
@@ -2038,7 +2042,7 @@ function collectionSummary(model: Parameters<typeof CollectionResultSummary>[0][
   const constrainedLibrary =
     model.view === "library" && (model.constrained || model.query.trim().length > 0);
   const count = constrainedLibrary
-    ? libraryResultCount(model.visiblePorts.length, model.overview.installed)
+    ? libraryResultCount(model.visiblePorts.length, model.libraryCount)
     : model.resultCount;
   // The unfiltered library total already appears under the page heading.
   const showCount =
@@ -2059,8 +2063,8 @@ function collectionViewLabel(
   return organization?.snapshot?.collections[view.slice(11)]?.name ?? "Unavailable collection";
 }
 
-function libraryResultCount(visible: number, installed: number) {
-  return `${visible} of ${installed} ${installed === 1 ? "port" : "ports"} in your library`;
+function libraryResultCount(visible: number, total: number) {
+  return `${visible} of ${total} ${total === 1 ? "port" : "ports"} in your library`;
 }
 
 function CollectionLayoutToggle({

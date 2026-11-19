@@ -100741,14 +100741,14 @@
           }
         ]
       },
-      "summary": "An unofficial native PC port of Wario Land 4. Upstream offers Windows and Linux x64 beta packages. Its launcher needs your own unmodified US Game Boy Advance ROM.",
+      "summary": "An unofficial native PC port of Wario Land 4. The upstream launcher needs your own unmodified US Game Boy Advance ROM.",
       "listed_at": "2026-11-19",
       "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
       "original_game_title": "Wario Land 4",
       "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "windows-x86-64"
       ],
       "availability": "packages",
       "download_asset_hints": {

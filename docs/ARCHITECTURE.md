@@ -13,6 +13,10 @@ Core migration or membership authority. Covers and rows reuse identity,
 readiness, actions and the shared exclusion selector. Changing layout preserves
 query, filters and durable entries.
 
+Desktop Library totals use the unfiltered Core membership projection, including
+add-only entries. Header, sidebar and filtered-result denominators share that
+total; installation and readiness summaries retain their separate meanings.
+
 Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
 
 The workspace snapshot is one pure local-IPC TanStack Query in

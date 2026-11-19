@@ -33,12 +33,12 @@
         }
       ]
     },
-    "summary": "An unofficial native PC port of Wario Land 4. Upstream offers Windows and Linux x64 beta packages. Its launcher needs your own unmodified US Game Boy Advance ROM.",
+    "summary": "An unofficial native PC port of Wario Land 4. The upstream launcher needs your own unmodified US Game Boy Advance ROM.",
     "listed_at": "2026-11-19",
     "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
     "original_game_title": "Wario Land 4",
     "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "download_asset_hints": {
       "windows-x86-64": ["WarioLand4-Native-PC-Port-", "Windows-x64.zip"],
@@ -74,6 +74,35 @@
         "the Windows user registry entry for the original ROM path",
         "Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides)"
       ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["linux-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "user_prepared": {
+        "linux-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Download the official Linux x64 AppImage and mark it executable. Add the AppImage to Portcove with its containing folder. Use --appimage-extract-and-run as an argument if FUSE is unavailable. In the upstream launcher, choose your own unmodified US Game Boy Advance ROM. Portcove leaves the AppImage, the ROM and your XDG save and settings folders in place. Use upstream’s releases to replace the AppImage yourself."
     }
   }
 }

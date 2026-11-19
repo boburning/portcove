@@ -24,7 +24,9 @@ import { installInteractiveTransport } from "../dev-scenarios/interactive/transp
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { portDefinition, portStatus } from "../test-fixtures";
-import type { ExternalRuntimeRecord, PortListing } from "../types";
+import { catalogEntries } from "../features/browsing/catalog-entry";
+import { indexStatuses, summarizeLibrary } from "../view-model";
+import type { ExternalRuntimeRecord, PortListing, PortListingStatus } from "../types";
 import "../styles/index.css";
 
 vi.mock("../native-source-drop", { spy: true });
@@ -47,6 +49,7 @@ async function mount(
   journey: "collection" | "collection-large" = "collection",
   expectedLibraryEntries = journey === "collection-large" ? 60 : 12,
   seed?: () => Promise<void>,
+  afterRender?: () => Promise<void>,
 ) {
   localStorage.clear();
   const root = document.createElement("div");
@@ -64,6 +67,7 @@ async function mount(
     </LocalizationProvider>,
     { container: root },
   );
+  await afterRender?.();
   await expect
     .poll(() =>
       Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
@@ -87,6 +91,93 @@ function groupedCollectionSnapshot() {
   }
   return snapshot;
 }
+
+it.each([1, 0])(
+  "keeps saved-only Library totals independent of collections and search with %i installations",
+  async (installedCount) => {
+    const snapshot = workspace("collection");
+    snapshot.catalog.ports = snapshot.catalog.ports.slice(0, 3);
+    snapshot.statuses = snapshot.statuses.slice(0, installedCount);
+    snapshot.listing_statuses = snapshot.catalog.ports
+      .slice(installedCount)
+      .map((port): PortListingStatus => ({
+        port_id: port.id,
+        status: { ...portStatus(), port_id: port.id },
+        actions: [],
+        library_membership: {
+          format_version: 1,
+          port_id: port.id,
+          added_at: 1,
+          origin: "manual",
+          sources: [],
+        },
+      }));
+    const entries = catalogEntries(
+      snapshot.catalog,
+      snapshot.listing_catalog ?? undefined,
+      snapshot.listing_statuses,
+      snapshot.pending_setups ?? [],
+    );
+    const statuses = indexStatuses([
+      ...snapshot.listing_statuses.map(({ status }) => status),
+      ...snapshot.statuses,
+    ]);
+    expect(summarizeLibrary(entries, statuses).installed).toBe(installedCount);
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    vi.spyOn(desktopApi, "organizationPreferences").mockResolvedValue({
+      revision: 0,
+      collections: {
+        counts: { name: "Membership counts", port_ids: ["collection-0", "collection-1"] },
+      },
+      hidden_port_ids: [],
+      saved_game_ids: [],
+      followed_port_ids: [],
+      followed_release_acknowledgments: {},
+      update_notices: {},
+      setup_confirmations: [],
+    });
+    await page.viewport(1280, 800);
+    await mount("dark", "collection", 3, undefined, async () => {
+      // A first-run profile with no installations opens Discover. Exercise the
+      // Library explicitly without changing that separate landing policy.
+      await page.getByRole("button", { name: /^Library/ }).click();
+    });
+    const globalTotal = async () => {
+      await expect
+        .poll(() => document.querySelector("[data-library-header] p")?.textContent?.trim())
+        .toMatch(/^3(?: ports)? in your library$/);
+      expect(document.querySelector('aside [aria-label="3 in library"]')).not.toBeNull();
+    };
+    await globalTotal();
+    await expect
+      .element(page.getByRole("button", { name: "Add games", exact: true }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "Collection: Membership counts", exact: true }).click();
+    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
+    const summary = () =>
+      document.querySelector(".collection-result-summary > span")?.textContent?.trim();
+    await expect.poll(summary).toMatch(/^2 of 3(?: ports)? in your library$/);
+    const saved = document
+      .querySelector('[data-detail-game-id="collection-1"]')!
+      .closest<HTMLElement>(".collection-entry")!;
+    expect(
+      [...saved.querySelectorAll("button")].some((button) =>
+        /^(Play|Try launch)/.test(button.textContent?.trim() ?? ""),
+      ),
+    ).toBe(false);
+    const search = page.getByRole("textbox", { name: "Search your library", exact: true });
+    await userEvent.fill(search, "modern");
+    await expect.poll(summary).toMatch(/^1 of 3(?: ports)? in your library$/);
+    await globalTotal();
+    await userEvent.fill(search, "no-such-library-game");
+    await expect.poll(summary).toMatch(/^0 of 3(?: ports)? in your library$/);
+    await globalTotal();
+    await page.getByRole("button", { name: "Clear search", exact: true }).click();
+    await expect.poll(summary).toMatch(/^2 of 3(?: ports)? in your library$/);
+    await globalTotal();
+    expect(summarizeLibrary(entries, statuses).installed).toBe(installedCount);
+  },
+);
 
 function expectContainedCover(card: HTMLElement) {
   const art = card.querySelector<HTMLElement>(".collection-art")!;
@@ -752,6 +843,7 @@ it("keeps an unknown external record distinct from managed readiness and reviews
       view="library"
       ports={[port]}
       statuses={new Map([[port.id, status]])}
+      libraryCount={1}
       overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
       filter="all"
       setFilter={() => {}}

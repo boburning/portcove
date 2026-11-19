@@ -36,6 +36,7 @@ describe("Library card overflow", () => {
           view="library"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={1}
           overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}
@@ -80,6 +81,7 @@ describe("Library card overflow", () => {
     const props = {
       view: "library" as const,
       ports: [port],
+      libraryCount: 1,
       overview: { installed: 1, ready: 0, needsSetup: 1, staged: 0 },
       filter: "all" as const,
       setFilter: vi.fn(),
@@ -127,6 +129,7 @@ describe("Library card overflow", () => {
           view="library"
           ports={[port]}
           statuses={new Map([[port.id, status]])}
+          libraryCount={1}
           overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}
@@ -169,6 +172,7 @@ describe("Library empty browsing context", () => {
             view="library"
             ports={query ? [] : [portDefinition()]}
             statuses={new Map()}
+            libraryCount={1}
             overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
             filter="all"
             query={query}
@@ -217,6 +221,7 @@ describe("Library empty browsing context", () => {
             view="catalog"
             ports={[port]}
             statuses={new Map()}
+            libraryCount={installed}
             overview={{ installed, ready: 0, needsSetup: 0, staged: 0 }}
             filter="all"
             setFilter={vi.fn()}
@@ -263,6 +268,7 @@ describe("Library empty browsing context", () => {
             view="library"
             ports={[]}
             statuses={new Map()}
+            libraryCount={0}
             overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
             filter={filter}
             query={query}
@@ -335,6 +341,7 @@ it.each([
             view="library"
             ports={[]}
             statuses={new Map()}
+            libraryCount={0}
             overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
             filter="all"
             setFilter={vi.fn()}

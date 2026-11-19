@@ -22,6 +22,8 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isRecord } from "./runtime-values.mts";
+import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
   batchedStatements,
@@ -53,6 +55,7 @@ import {
 } from "./maintenance-release-content.mts";
 import {
   readUpstreamObservations,
+  readObserverOperatingUsage,
   upstreamAttention,
   upstreamObservation,
   managedReleaseEligibilityWindow,
@@ -230,11 +233,14 @@ function committedOperationalDefinition(revision: string) {
   const catalog = JSON.parse(
     git(["show", `${revision}:crates/portcove-core/catalog/catalog.json`]),
   ) as {
-    ports: { id: string }[];
+    ports: { id: string; release?: { curated?: Record<string, unknown> } }[];
     source_catalog?: { qualification?: { scope?: { port_id?: string } }[] };
   };
   return {
     ids: new Set(catalog.ports.map((port) => port.id)),
+    curated: new Map(
+      catalog.ports.map((port) => [port.id, Object.keys(port.release?.curated ?? {})]),
+    ),
     qualification: catalog.source_catalog?.qualification ?? [],
   };
 }
@@ -403,6 +409,8 @@ export interface CollectedSubject {
   record: unknown;
   operational: boolean;
   qualification: unknown[];
+  observationDefinitionSha256?: string | undefined;
+  curatedPlatforms?: string[] | undefined;
   /** Null when a selective run reused the subject's unchanged Core result without calling Core. */
   capabilities: CapabilityObservation | null;
 }
@@ -555,12 +563,19 @@ export function planReassessment(input: {
 
 /** The authored catalog fact of one subject, as stored by `catalog-records`. */
 export function catalogFactOf(
-  subject: Pick<CollectedSubject, "record" | "operational" | "qualification">,
+  subject: Pick<
+    CollectedSubject,
+    "record" | "operational" | "qualification" | "observationDefinitionSha256" | "curatedPlatforms"
+  >,
 ) {
   return {
     authored_record: subject.record,
     operational_definition: subject.operational,
     scoped_qualification: subject.qualification,
+    ...(subject.observationDefinitionSha256
+      ? { observation_definition_sha256: subject.observationDefinitionSha256 }
+      : {}),
+    ...(subject.curatedPlatforms?.length ? { curated_platforms: subject.curatedPlatforms } : {}),
   };
 }
 
@@ -1220,6 +1235,7 @@ export function collectionSql(input: {
   targets?: {
     facts: ReadonlyMap<string, unknown>;
     expected: number;
+    catalogBytesVerified?: boolean;
     failure?: SourceGap;
   };
   issues?: {
@@ -1621,21 +1637,22 @@ export function collectionSql(input: {
   if (input.targets) {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Target-route collection requires --all");
+    const targetRevision = `${coreRevision};catalog=${input.targets.catalogBytesVerified ? "verified" : "unverified"}`;
     lines.push(
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(targetRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     const targetFacts = new Map<string, Fact>();
     for (const [key, payload] of input.targets.facts)
       targetFacts.set(key, {
         digest: sha256(canonicalJson(payload)),
         scope: { source: "core-target-routes", policy, isolation: "fresh-library" },
-        revision: coreRevision,
+        revision: targetRevision,
         payload,
       });
     runs.push([
       targetsRun,
-      coreRevision,
+      targetRevision,
       input.targets.failure ? "failed" : "complete",
       input.targets.failure ? [input.targets.failure] : [],
       targetFacts,
@@ -1893,14 +1910,35 @@ export async function collect(options: {
   const requested = options.reassess ?? "full";
   if (requested === "changed" && (!options.all || !options.targets))
     throw new MaintenanceStoreError("--reassess changed requires --all and --targets");
+  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
+  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
+  const reviewedCatalogBytes = bindingVerified
+    ? committedBytes(revision, "crates/portcove-core/catalog/catalog.json")
+    : null;
+  const catalogBytesVerified =
+    reviewedCatalogBytes !== null &&
+    sha256(reviewedCatalogBytes) === producer?.embedded_catalog_sha256;
+  const currentDefinitionHashes =
+    options.upstream && catalogBytesVerified
+      ? await sourceOutcome(async () => {
+          const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
+          try {
+            return await inspectCatalogDefinitions(options.cli, root, reviewedCatalogBytes);
+          } finally {
+            rmSync(root, { recursive: true, force: true });
+          }
+        })
+      : undefined;
   const authored = ids.map((id) => ({
     id,
     record: committedRecord(revision, id),
     operational: definitions.ids.has(id),
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
+    observationDefinitionSha256: currentDefinitionHashes?.ok
+      ? currentDefinitionHashes.value.get(id)
+      : undefined,
+    curatedPlatforms: definitions.curated.get(id),
   }));
-  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
-  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
   const reuseKey =
     producer && bindingVerified
       ? coreReuseKey({
@@ -2077,7 +2115,11 @@ export async function collect(options: {
       ...(targetsRead
         ? {
             targets: targetsRead.ok
-              ? { facts: targetsRead.value.facts, expected: targetsRead.value.facts.size }
+              ? {
+                  facts: targetsRead.value.facts,
+                  expected: targetsRead.value.facts.size,
+                  catalogBytesVerified,
+                }
               : {
                   facts: new Map(),
                   expected: 0,
@@ -2267,7 +2309,7 @@ const reportQuery = (from: string, through: string) => `WITH latest_issue AS (
       WHERE r.source = 'release-content' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
-    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload, o.content_sha256
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
@@ -2385,6 +2427,17 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'managed_route_inputs', (SELECT coalesce(json_agg(json_build_object(
+        'port_key', c.subject_key, 'targets', t.payload, 'upstream', u.payload,
+        'definition_sha256', c.payload ->> 'observation_definition_sha256',
+        'curated_platforms', c.payload -> 'curated_platforms')
+        ORDER BY c.subject_key), '[]')
+      FROM latest_catalog c
+      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
+      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key
+      WHERE c.payload -> 'operational_definition' = 'true'::jsonb),
+  'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
+      FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
   'managed_release_observations', (
     SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at)
                              ORDER BY o.observed_at, o.observation_id), '[]')
@@ -2515,6 +2568,7 @@ export interface InventoryReport {
   runs: unknown[];
   progress?: ReturnType<typeof visibleProgress>;
   managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
+  managed_route_observation_coverage?: ReturnType<typeof managedRouteObservationCoverage>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2768,6 +2822,176 @@ export interface HostedIntakeEntry {
   issues: { number: number; state: string | null; status: string | null }[];
 }
 
+interface ManagedRouteCoverageRun {
+  source: string;
+  source_revision: string | null;
+  acquisition: number;
+  completed_at: string;
+  coverage: string;
+  expected_count: number | null;
+  observed_count: number;
+  member_count: number | null;
+  member_digest: string | null;
+  gaps: { subject_key: string; code: string }[];
+}
+
+interface ManagedRouteCoverageInput {
+  port_key: string;
+  targets: TargetRoutesFact | null;
+  upstream: unknown;
+  definition_sha256: string | null;
+  curated_platforms?: string[] | null;
+}
+
+/** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
+export function managedRouteObservationCoverage(
+  ports: readonly ManagedRouteCoverageInput[],
+  runs: readonly ManagedRouteCoverageRun[],
+  upstreamPresentMembers: Readonly<Record<string, string>>,
+) {
+  const catalog = runs.find(({ source }) => source === "catalog-records");
+  const targets = runs.find(({ source }) => source === "core-target-routes");
+  const upstream = runs.find(({ source }) => source === "upstream-observations");
+  const targetScopeKnown =
+    catalog?.coverage === "complete" &&
+    catalog.member_digest !== null &&
+    targets?.coverage === "complete" &&
+    targets.member_digest !== null &&
+    targets.acquisition === catalog.acquisition &&
+    targets.observed_count === catalog.observed_count &&
+    catalog.source_revision !== null &&
+    targets.source_revision?.includes(`;source=${catalog.source_revision};`) === true &&
+    targets.source_revision.endsWith(";binding=verified;catalog=verified");
+
+  const gaps = new Map(upstream?.gaps.map(({ subject_key, code }) => [subject_key, code]));
+  // Partial collections retain older rows. Remove precisely the reported gaps
+  // and verify the original collection digest before counting any inherited row.
+  const members = new Map(
+    Object.entries(upstreamPresentMembers).filter(([port]) => !gaps.has(port)),
+  );
+  const membershipVerified =
+    upstream !== undefined &&
+    ["complete", "partial"].includes(upstream.coverage) &&
+    upstream.member_count === members.size &&
+    upstream.member_digest === membershipDigest(members);
+  const observerFailure = !upstream
+    ? "no-observer-collection"
+    : upstream.coverage === "failed"
+      ? "observer-collection-failed"
+      : membershipVerified
+        ? null
+        : "observer-membership-unverified";
+
+  let missingTargets = 0;
+  let retainedCandidates = 0;
+  const platforms = new Map<
+    string,
+    { offered: number; fixed: number; candidate_observed: number }
+  >();
+  const reasons = new Map<string, number>();
+  for (const port of ports) {
+    if (!targetScopeKnown || port.targets?.presence !== "operational") {
+      missingTargets++;
+      continue;
+    }
+    const offered = new Map(
+      port.targets.targets
+        .filter(({ routes }) =>
+          routes.some(({ action, offered }) => action === "install" && offered),
+        )
+        .map(({ platform, qualification }) => [
+          platform,
+          qualification.offered_artifact.state === "fixed" ||
+            port.curated_platforms?.includes(platform) === true,
+        ]),
+    );
+    const observed = new Set<string>();
+    const retained = new Set<string>();
+    if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
+      const sources = port.upstream.sources;
+      if (Array.isArray(sources))
+        for (const source of sources)
+          if (isRecord(source) && Array.isArray(source.managed_release_candidates))
+            for (const candidate of source.managed_release_candidates)
+              if (
+                isRecord(candidate) &&
+                typeof candidate.platform === "string" &&
+                typeof candidate.candidate_key === "string" &&
+                /^[a-f0-9]{64}$/u.test(candidate.candidate_key) &&
+                (candidate.state === "eligible" || candidate.state === "pending")
+              ) {
+                retained.add(candidate.platform);
+                if (
+                  port.definition_sha256 &&
+                  source.catalog_definition_sha256 === port.definition_sha256
+                )
+                  observed.add(candidate.platform);
+              }
+    }
+    for (const [platform, fixed] of offered) {
+      const counts = platforms.get(platform) ?? { offered: 0, fixed: 0, candidate_observed: 0 };
+      counts.offered++;
+      if (fixed) counts.fixed++;
+      else {
+        if (retained.has(platform)) retainedCandidates++;
+        if (observed.has(platform)) counts.candidate_observed++;
+        else {
+          const reason =
+            observerFailure ??
+            gaps.get(port.port_key) ??
+            (retained.has(platform)
+              ? port.definition_sha256
+                ? "definition-scope-unverified"
+                : "current-definition-unbound"
+              : members.has(port.port_key)
+                ? "no-managed-candidate"
+                : "outside-observer-scope");
+          reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+        }
+      }
+      platforms.set(platform, counts);
+    }
+  }
+
+  const completeOffering = targetScopeKnown && missingTargets === 0;
+  const byPlatform = [...platforms.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([platform, { offered, fixed, candidate_observed }]) => ({
+      platform,
+      offered,
+      fixed,
+      candidate_observed: membershipVerified ? candidate_observed : null,
+    }));
+  return {
+    catalog_collection_complete: catalog?.coverage === "complete" && catalog.member_digest !== null,
+    target_scope_known: completeOffering,
+    operational_definitions: ports.length,
+    operational_definitions_without_target_projection: missingTargets,
+    offered_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered }) => total + offered, 0)
+      : null,
+    offered_following_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered, fixed }) => total + offered - fixed, 0)
+      : null,
+    fixed_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { fixed }) => total + fixed, 0)
+      : null,
+    platforms_with_candidate_observed:
+      membershipVerified && completeOffering
+        ? byPlatform.reduce((total, { candidate_observed }) => total + (candidate_observed ?? 0), 0)
+        : null,
+    platforms_with_retained_candidate:
+      membershipVerified && completeOffering ? retainedCandidates : null,
+    by_platform: byPlatform,
+    gaps: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, offered_platforms]) => ({ reason, offered_platforms })),
+    observer_revision: upstream?.source_revision ?? null,
+    observer_checkpoint_imported_at: upstream?.completed_at ?? null,
+    observer_membership_verified: membershipVerified,
+  };
+}
+
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const { from, through } = managedReleaseEligibilityWindow([], now);
   const data = JSON.parse(runSql(environment, reportQuery(from, through)).trim()) as {
@@ -2777,9 +3001,11 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       issues: Record<string, unknown>;
       intake: Record<string, unknown>;
     };
-    runs: unknown[];
+    runs: ManagedRouteCoverageRun[];
     progress?: StoredProgress[];
     managed_release_observations: unknown[];
+    managed_route_inputs: ManagedRouteCoverageInput[];
+    upstream_present_members: Record<string, string>;
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2922,6 +3148,11 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     managed_release_eligibility: managedReleaseEligibilityWindow(
       data.managed_release_observations,
       now,
+    ),
+    managed_route_observation_coverage: managedRouteObservationCoverage(
+      data.managed_route_inputs,
+      data.runs,
+      data.upstream_present_members,
     ),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
@@ -3463,6 +3694,12 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
+${
+  report.managed_route_observation_coverage
+    ? `<h2>Managed installation observation coverage</h2>
+<p>The latest checkpoint recorded candidates that match the current definition for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(report.managed_route_observation_coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
+    : ""
+}
 ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
@@ -3745,6 +3982,8 @@ commands:
                                        abandon planned operations whose handoff moved on (executor
                                        role, local store only; never dispatches)
 
+  observer-usage --report FILE --output FILE
+
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
   --database-env-file PATH   read that variable from an env file
@@ -3754,6 +3993,25 @@ PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each colle
 export async function main(argv = process.argv.slice(2)) {
   const args = [...argv];
   const command = args.shift();
+  if (command === "observer-usage") {
+    const report = option(args, "--report");
+    const output = option(args, "--output");
+    if (!report || !output || args.length)
+      throw new MaintenanceStoreError("observer-usage requires --report FILE --output FILE");
+    const source = path.resolve(report);
+    const bytes = await readBoundedPublicBuildInputFile(
+      path.dirname(source),
+      path.basename(source),
+      64 * 1024 * 1024,
+    );
+    const usage = await readObserverOperatingUsage(
+      parseJson(new TextDecoder("utf-8", { fatal: true }).decode(bytes), "maintenance report"),
+    );
+    const evidence = { ...usage, inventory_sha256: sha256(bytes) };
+    writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
+    return;
+  }
+
   if (!command || command === "--help" || command === "-h") {
     console.log(usage);
     return command ? 0 : 2;
