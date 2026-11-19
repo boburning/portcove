@@ -953,8 +953,9 @@ remain required. An indexed empty object is not a usable execution contract.
 `DefinitionContentIndex::inspect_catalog_projection` interprets supplied entry
 and contract bytes through the existing core validators. Its terminal record has
 exactly `contract_schema: 1`, `representation: "catalog_projection"` and `catalog`.
-The catalog is the complete authoritative schema-1 or schema-2 document. Schema 2
-omits derived `source_profiles`; the existing loader reconstructs that projection.
+The catalog is an authoritative schema-1, schema-2 or schema-3 document.
+Schemas 2 and 3 omit derived `source_profiles`. The catalog loader reconstructs
+those profiles from the supplied source graph.
 Every field emitted by the authoritative serializer must be present, including
 default-valued port fields. Unknown, missing or discarded semantics and duplicate
 decoded JSON keys fail closed. Whitespace and object-key order are immaterial;
@@ -998,6 +999,15 @@ recaptures the complete record. Format 2 stays readable as supplied successor
 content but gains no invented authentication. Writer protocols 25 and 27 prevent
 older clients from dropping exact successor bytes or the authenticated admission
 record.
+At authenticated selection and reopen, Core can add a new identity from a
+legacy schema-2 projection that supplies one port and its source graph to a
+schema-3 baseline. Core validates the combined graph and applies the existing
+scope checks, including source ownership and collision checks. The effective
+catalog keeps the baseline schema and unrelated ports, and the receipt retains
+the exact verified projection bytes. Other transitions still require the
+complete scoped replacement graph. Clients built before this compatibility
+change require a complete projection matching their baseline schema and scope.
+
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant
 provisioning remain required before automatic public delivery can use this path.
