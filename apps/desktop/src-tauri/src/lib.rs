@@ -1257,7 +1257,7 @@ async fn get_port_intents(
     .await
 }
 
-/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+/// Reassesses remembered choices against current files, catalog and tools, saving scan progress.
 #[tauri::command]
 async fn assess_port_intents(
     state: tauri::State<'_, DesktopState>,
