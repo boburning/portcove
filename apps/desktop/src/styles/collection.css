@@ -1273,21 +1273,6 @@
     padding: var(--space-2);
   }
 
-  [data-layout="covers"] .mod-catalog-project {
-    grid-column: 1 / -1;
-    grid-row: 1;
-  }
-
-  [data-layout="covers"] .mod-catalog-status {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  [data-layout="covers"] :is(.mod-catalog-action, .mod-catalog-metric) {
-    grid-row: 3;
-    align-self: center;
-  }
-
   [data-layout="rows"] .mod-catalog-item {
     grid-template-columns: minmax(12rem, 1fr) minmax(6rem, 0.35fr) 5rem minmax(5rem, auto);
     gap: var(--space-3);
@@ -1367,6 +1352,21 @@
     align-items: center;
     justify-content: end;
     gap: var(--space-1);
+  }
+
+  [data-layout="covers"] .mod-catalog-project {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  [data-layout="covers"] .mod-catalog-status {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  [data-layout="covers"] :is(.mod-catalog-action, .mod-catalog-metric) {
+    grid-row: 3;
+    align-self: center;
   }
 
   @container library-query (width <= 34rem) {

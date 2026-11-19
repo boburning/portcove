@@ -4327,7 +4327,10 @@ adds no managed GitLab authority and leaves unsupported package layouts incomple
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact
-clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+clock, expiry and complete/incomplete/unavailable/failed attempt state. Discover
+uses the same assessment for rank and detail. Only a fresh complete observation
+with a recognized package platform can raise a listing's rank over its authored
+availability. An empty
 or incomplete bounded window never means source-only, unsupported or unavailable
 upstream. Provider digest claims remain unverified. The renderer does not query
 providers, update action permissions or rewrite acquisition links.

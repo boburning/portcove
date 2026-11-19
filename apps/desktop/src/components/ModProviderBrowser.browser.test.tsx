@@ -306,6 +306,24 @@ it("offers a second same-port source and labels cached results and failed refres
   ]);
 });
 
+it("offers Thunderstore's community link when the catalog exceeds Core's limits", async () => {
+  const url = "https://thunderstore.io/c/zelda-64-recompiled/";
+  vi.spyOn(desktopApi, "modProviderCatalog").mockRejectedValue({
+    presentation: {
+      summary: "The catalog is too large to load.",
+      technical_message: "The community exceeds its package limit.",
+      mutation_state: "read_only",
+      technical_context: { provider_browse_url: url },
+      recovery_actions: [],
+    },
+  });
+  await render({ sources: ["thunderstore"] });
+  await expect.element(page.getByRole("alert")).toHaveTextContent("Could not refresh");
+  await expect
+    .element(page.getByRole("link", { name: /Thunderstore/ }))
+    .toHaveAttribute("href", url);
+});
+
 it("captures Discover and Browse mods at the same 833px and 320px widths", async () => {
   vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(
     catalog([

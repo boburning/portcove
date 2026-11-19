@@ -8,11 +8,14 @@ import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { execFileSync } from "node:child_process";
 import {
   addWithdrawn,
+  appReleaseMatrix,
+  appReleaseProfile,
   assertAppReleaseAssets,
   assertNewerThanTags,
   assertVersionUnclaimed,
   buildFeed,
   classifyRelease,
+  collectAppReleaseBundles,
   findRelease,
   listReleases,
   readReleaseById,
@@ -442,6 +445,7 @@ function nightlyRunner(state: {
   describe?: string | null;
   history?: string[];
   tagged?: Record<string, string>;
+  preProfile?: string[];
   workspace?: string;
 }) {
   const head = "c".repeat(40);
@@ -453,7 +457,13 @@ function nightlyRunner(state: {
     if (args[0] === "rev-parse") return head;
     if (args[0] === "rev-list") return history.join("\n");
     if (args[0] === "show") {
-      shown.push(args[1]!);
+      const spec = args[1]!;
+      if (spec.endsWith(":scripts/app-release.mts")) {
+        return state.preProfile?.some((sha) => spec.startsWith(sha))
+          ? 'command === "stamp"'
+          : 'command === "build-matrix"; command === "collect-bundles"';
+      }
+      shown.push(spec);
       return `[workspace]\nmembers = []\n\n[workspace.package]\nversion = "${state.workspace ?? "0.1.0"}"\n`;
     }
     if (args[0] === "tag" && args[1] === "--points-at")
@@ -474,6 +484,15 @@ const conclusions =
   (map: Record<string, string>) =>
   (sha: string): Promise<string> =>
     Promise.resolve(map[sha] ?? "");
+
+void test("a green pre-profile ancestor cannot strand a nightly preview tag", async () => {
+  const old = "d".repeat(40);
+  const fake = nightlyRunner({ preProfile: [old] });
+  const result = await nightlyPreview(conclusions({ [old]: "success" }), fake.run);
+  assert.ok("skipped" in result);
+  assert.match(result.skipped, /ddddddddd predates the release profile/u);
+  assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
+});
 
 void test("the nightly preview tags a CI-green untagged main once and lists its new commits", async () => {
   const ok = nightlyRunner({});
@@ -997,7 +1016,7 @@ type WorkflowStep = {
 };
 type WorkflowJob = {
   if?: string;
-  strategy?: { matrix?: { include?: Array<{ label: string; os: string }> } };
+  strategy?: { matrix?: string };
   uses?: string;
   secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
@@ -1067,12 +1086,86 @@ void test("the release requires every desktop bundle, signature and standalone C
   );
 });
 
+void test("collects the universal bundle and preserves a one-platform CLI inventory", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-app-profile-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const version = "0.1.0-preview.7";
+  const dist = path.join(root, "dist");
+  const bundle = path.join(root, "target/universal-apple-darwin/release/bundle");
+  await mkdir(path.join(bundle, "macos"), { recursive: true });
+  await mkdir(path.join(bundle, "dmg"));
+  await writeFile(path.join(bundle, "macos/Portcove.app.tar.gz"), "archive");
+  const dmg = `Portcove_${version}_universal.dmg`;
+  const updater = `Portcove_${version}_universal.app.tar.gz`;
+  await writeFile(path.join(bundle, "dmg", dmg), "disk image");
+  assert.throws(
+    () => collectAppReleaseBundles(root, dist, "macos-universal", version),
+    /Portcove\.app\.tar\.gz\.sig/u,
+  );
+  const signaturePath = path.join(bundle, "macos/Portcove.app.tar.gz.sig");
+  await writeFile(signaturePath, "  \n");
+  assert.throws(
+    () => collectAppReleaseBundles(root, dist, "macos-universal", version),
+    /missing signed updater asset signature/u,
+  );
+  await writeFile(signaturePath, "signature");
+  collectAppReleaseBundles(root, dist, "macos-universal", version);
+  assert.deepEqual((await readdir(dist)).sort(), [dmg, updater, `${updater}.sig`].sort());
+
+  const mac = appReleaseProfile.find(({ label }) => label === "macos-universal")!;
+  const feed = buildFeed({
+    version,
+    notes: "",
+    pubDate: "",
+    assetsDir: dist,
+    downloadBase: "https://example.test",
+    profile: [mac],
+  });
+  assert.deepEqual(feed.platforms, {
+    "darwin-aarch64": { signature: "signature", url: `https://example.test/${updater}` },
+    "darwin-x86_64": { signature: "signature", url: `https://example.test/${updater}` },
+  });
+
+  const profile = appReleaseProfile.map((target) =>
+    target.label === "windows-x86_64" ? target : { ...target, cliTargets: {} },
+  );
+  const names = [
+    dmg,
+    updater,
+    `${updater}.sig`,
+    "SHA256SUMS",
+    `portcove-cli-${version}-windows-x86_64.zip`,
+    `Portcove_${version}_x64-setup.exe`,
+    `Portcove_${version}_x64-setup.exe.sig`,
+    `Portcove_${version}_amd64.AppImage`,
+    `Portcove_${version}_amd64.AppImage.sig`,
+  ];
+  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, profile);
+  assert.equal(notes.match(/Standalone CLI \(extract and run\)/gu)?.length, 1);
+  assert.match(notes, /Standalone CLI.*windows-x86_64\.zip/u);
+  assert.match(notes, /Apple Silicon and Intel.*Desktop disk image/u);
+  await assert.rejects(
+    assertAppReleaseAssets(
+      version,
+      [...names, `portcove-cli-${version}-linux-x86_64.tar.gz`],
+      profile,
+    ),
+    /unexpected:/u,
+  );
+});
+
 void test("the Linux AppImage build checks its WebKitGTK floor before bundling", async () => {
   const workflow = await readWorkflow("app-release-build.yml");
   const build = workflow.jobs.build!;
   assert.equal(
-    build.strategy?.matrix?.include?.find(({ label }) => label === "linux-x86_64")?.os,
+    appReleaseMatrix().include.find(({ label }) => label === "linux-x86_64")?.os,
     "ubuntu-24.04",
+  );
+  assert.equal(build.strategy?.matrix, "${{ fromJSON(needs.plan.outputs.matrix) }}");
+  assert.match(workflow.jobs.plan!.steps!.at(-1)?.run ?? "", /app-release\.mts build-matrix/u);
+  assert.match(
+    build.steps!.find(({ name }) => name === "Collect release assets")?.run ?? "",
+    /collect-bundles/u,
   );
   const steps = build.steps!;
   const prerequisites = steps.findIndex(

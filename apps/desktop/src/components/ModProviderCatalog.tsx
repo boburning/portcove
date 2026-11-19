@@ -6,6 +6,7 @@ import { useAppTranslation } from "../localization";
 import type { ProviderCatalog, ProviderProjectView } from "../types";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { CollectionLayoutToggle } from "./CollectionLayoutToggle";
+import { ExternalLink } from "./ExternalLink";
 import { PortSearch } from "./PortSearch";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -75,6 +76,7 @@ export function ModProviderCatalog({
   locked,
   loading,
   failed,
+  browseUrl,
   setSource,
   refresh,
   installed,
@@ -89,6 +91,7 @@ export function ModProviderCatalog({
   locked: boolean;
   loading: boolean;
   failed: boolean;
+  browseUrl?: string | undefined;
   setSource: (source: string) => void;
   refresh: () => void;
   installed: ReadonlySet<string>;
@@ -382,6 +385,11 @@ export function ModProviderCatalog({
       {catalog?.freshness === "stale" && <p role="status">{t("mods.workspace.cached")}</p>}
       {catalog && !catalog.complete && <p role="status">{t("mods.workspace.partial")}</p>}
       {failed && <p role="alert">{t("mods.workspace.refreshFailed")}</p>}
+      {browseUrl && (
+        <ExternalLink href={browseUrl}>
+          {t("mods.browse.sourcePage", { provider: providerLabel(source) })}
+        </ExternalLink>
+      )}
       {loading && (
         <p role="status">{t("mods.browse.checking", { provider: providerLabel(source) })}</p>
       )}

@@ -97,14 +97,25 @@ impl ThunderstoreClient {
         let url = reqwest::Url::parse(&format!("{}/c/{community}/api/v1/package/", self.web_root))
             .map_err(|error| PortcoveError::state(error.to_string()))?;
         let web_root = self.web_root.clone();
-        let community = community.to_owned();
+        let requested_community = community.to_owned();
         self.http
             .observe(url, move |value| {
-                let projects = parse_listing(value, &community, &web_root)?;
+                let projects = parse_listing(value, &requested_community, &web_root)?;
                 let total = value.as_array().map_or(0, Vec::len);
                 Ok((projects, total))
             })
             .await
+            .map_err(|mut error| {
+                if error.details.contains_key("response_byte_limit")
+                    || error.details.contains_key("community_package_limit")
+                {
+                    let url = format!("{WEB_ROOT}/c/{community}/");
+                    error.message =
+                        format!("{}. Browse the full community at {url}", error.message);
+                    error.details.insert("provider_browse_url".into(), url);
+                }
+                error
+            })
     }
 
     /// One page of a community, `per_page` packages at a time.
@@ -397,7 +408,8 @@ pub(crate) fn parse_listing(
     if packages.len() > MAX_PACKAGES {
         return Err(PortcoveError::verification(
             "the Thunderstore listing exceeds the number of packages this client can review",
-        ));
+        )
+        .detail("community_package_limit", MAX_PACKAGES.to_string()));
     }
     Ok(packages
         .iter()

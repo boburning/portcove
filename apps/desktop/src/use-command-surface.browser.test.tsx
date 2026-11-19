@@ -67,12 +67,16 @@ it("focuses Browse mods search and respects an open sort popup", async () => {
   const search = page.getByRole("searchbox", { name: "Search mods" });
   await expect.element(search).toHaveFocus();
 
-  page.getByRole("combobox", { name: "Sort" }).element().focus();
+  page
+    .getByRole("combobox", { name: /^Sort\b/ })
+    .element()
+    .focus();
   await userEvent.keyboard("{Enter}");
   const popup = page.getByRole("listbox");
   await expect.element(popup).toBeVisible();
+  const surface = popup.element().closest("[data-portcove-focus-scope]");
+  await expect.poll(() => surface?.contains(document.activeElement)).toBe(true);
   const focused = document.activeElement;
-  expect(popup.element().contains(focused)).toBe(true);
   await userEvent.keyboard("{Control>}f{/Control}");
   await expect.element(popup).toBeVisible();
   expect(document.activeElement).toBe(focused);

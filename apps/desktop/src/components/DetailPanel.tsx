@@ -609,7 +609,7 @@ function DetailBody(model: {
       installation={detailInstallationLabel(model.status, directInstall)}
       action={(reveal) =>
         model.installed && model.launchReady ? (
-          <div className="grid justify-items-end gap-1">
+          <div className="detail-hero-primary grid justify-items-end gap-1">
             <DetailHeaderAction
               {...{
                 model,
@@ -618,7 +618,7 @@ function DetailBody(model: {
             />
             {modsAvailable && modPlay && (
               <>
-                <span className="text-xs text-pc-muted-foreground">
+                <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
                   <Trans
                     t={tMods}
                     i18nKey="mods.workspace.playUses"

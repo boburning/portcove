@@ -87,7 +87,9 @@ export function ModProviderBrowser({
   const [sourceChoice, setSource] = useState(sources[0]);
   const source = sourceChoice && sources.includes(sourceChoice) ? sourceChoice : sources[0];
   const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
-  const [failedSources, setFailedSources] = useState<string[]>([]);
+  const [catalogFailures, setCatalogFailures] = useState<
+    Record<string, { browseUrl?: string } | undefined>
+  >({});
   const [catalogLoading, setCatalogLoading] = useState<string>();
   const [project, setProject] = useState<Project>();
   const [updateFiles, setUpdateFiles] = useState<readonly string[]>();
@@ -164,14 +166,23 @@ export function ModProviderBrowser({
     if (catalogInFlight.current.has(provider)) return;
     catalogInFlight.current.add(provider);
     setCatalogLoading(provider);
-    setFailedSources((current) => current.filter((value) => value !== provider));
+    setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
     void desktopApi
       .modProviderCatalog(portId, provider, generation)
       .then((result) => {
         if (alive.current) setCatalogs((current) => ({ ...current, [provider]: result }));
       })
-      .catch(() => {
-        if (alive.current) setFailedSources((current) => [...current, provider]);
+      .catch((error: unknown) => {
+        if (!alive.current) return;
+        const url = failurePresentation(error)?.technical_context.provider_browse_url;
+        const verifiedUrl =
+          provider === "thunderstore" &&
+          typeof url === "string" &&
+          /^https:\/\/thunderstore\.io\/c\/[a-zA-Z0-9_-]{1,128}\/$/u.test(url);
+        setCatalogFailures((current) => ({
+          ...current,
+          [provider]: verifiedUrl ? { browseUrl: url } : {},
+        }));
       })
       .finally(() => {
         catalogInFlight.current.delete(provider);
@@ -180,7 +191,7 @@ export function ModProviderBrowser({
       });
   };
   useEffect(() => {
-    if (active && browsing && source && !catalogs[source] && !failedSources.includes(source))
+    if (active && browsing && source && !catalogs[source] && !catalogFailures[source])
       loadCatalog(source);
     // Catalog results and pending requests are keyed by reviewed source.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -481,7 +492,8 @@ export function ModProviderBrowser({
             source={source}
             sources={sources}
             loading={catalogLoading === source}
-            failed={failedSources.includes(source)}
+            failed={Boolean(catalogFailures[source])}
+            browseUrl={catalogFailures[source]?.browseUrl}
             locked={disabled}
             setSource={setSource}
             refresh={() => loadCatalog(source)}
