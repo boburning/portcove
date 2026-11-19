@@ -127,7 +127,7 @@ it("serializes one viewport pointer action sequence at the verified center", asy
   assert.equal(state.actions.length, 1);
   const [devices] = state.actions;
   assert.ok(Array.isArray(devices) && devices.length === 1);
-  const [mouse] = devices;
+  const mouse: unknown = devices[0];
   assert.ok(isRecord(mouse) && Array.isArray(mouse.actions) && mouse.actions.length === 3);
   assert.partialDeepStrictEqual(state.actions, [
     [
