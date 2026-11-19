@@ -73,7 +73,16 @@
         "https://github.com/Matteo842/CrashBandicoot-Launcher",
         "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-bandicoot-playstation",
+          "title": "Crash Bandicoot (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+          ]
+        }
+      ]
     }
   }
 }

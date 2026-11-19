@@ -22,6 +22,7 @@ export type IdentityProbeRunner = (
 export interface ProcessIdentityOptions {
   platform?: string;
   spawnSync?: IdentityProbeRunner;
+  signalZero?: (pid: number, signal: 0) => unknown;
   readFileSync?: (file: string, encoding: "utf8") => string;
   processToken?: string | undefined;
 }
@@ -175,6 +176,21 @@ export function readProcessIdentity(
     }
   }
   if (platform === "win32") {
+    // Fixture platforms/runners must not probe unrelated PIDs on the test host.
+    const signalZero: ProcessIdentityOptions["signalZero"] =
+      options.signalZero ??
+      (process.platform === "win32" && options.spawnSync === undefined
+        ? (target) => process.kill(target, 0)
+        : undefined);
+    if (signalZero) {
+      try {
+        signalZero(pid, 0);
+      } catch (error) {
+        if (errorCode(error) === "ESRCH") return null;
+        // Permissions and other failures are uncertain: retain the CIM probe.
+      }
+    }
+    // Existence alone never establishes the recorded process creation identity.
     const inspected = runIdentityProbe(
       run,
       "pwsh.exe",

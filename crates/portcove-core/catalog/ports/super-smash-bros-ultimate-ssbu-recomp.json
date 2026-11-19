@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-smash-bros-ultimate",
-      "evidence_urls": [
-        "https://github.com/OpenSmash-Ultimate/ssbu-recomp"
-      ],
+      "evidence_urls": ["https://github.com/OpenSmash-Ultimate/ssbu-recomp"],
       "source_editions": []
     }
   },

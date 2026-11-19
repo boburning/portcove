@@ -65,7 +65,16 @@
         "https://github.com/power-pudu/egg-of-time#readme",
         "https://github.com/power-pudu/egg-of-time"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chrono-trigger-nintendo-ds",
+          "title": "Chrono Trigger (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/power-pudu/egg-of-time/blob/ed0b61101f3e18cefc5bee9894717dd480747964/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

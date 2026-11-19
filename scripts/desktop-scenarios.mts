@@ -1051,6 +1051,27 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Run44395050884/job135122626818 took749.558s with one staged case still
+  // unrun. Give only this six-case aggregate finite headroom for that case,
+  // debug IPC variance and owned cleanup; standalone/product waits stay intact.
+  const installSteamArtwork = [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+  ];
+  if (
+    selection.setup_scenarios.length === 0 &&
+    selection.selected_scenarios.length === installSteamArtwork.length &&
+    installSteamArtwork.every((id) => selection.selected_scenarios.includes(id))
+  )
+    return 1_800_000;
+  // On Windows, 26a0748b reached the repaired workspace and began its final
+  // restart before the 180 s watchdog stopped the driver. Allow time to check
+  // the saved preferences after restart and join the owned processes.
+  if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
   // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
   if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.

@@ -72,7 +72,16 @@
         "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
         "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-burst-limit-xbox-360",
+          "title": "Dragon Ball Z: Burst Limit (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/40aaa4d6bf212239f9cdadebb85bf96e8e57b03c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

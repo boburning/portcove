@@ -55,7 +55,16 @@
         "https://github.com/1oom-fork/1oom",
         "https://github.com/1oom-fork/1oom/tree/a956a6f73f75e6cd26b701afcd04bd4973650520"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "master-of-orion-pc",
+          "title": "Master of Orion (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/1oom-fork/1oom/blob/42e9c0b316963dd891f3a8e031bacb36f8c5994e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

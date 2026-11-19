@@ -53,7 +53,16 @@
         "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
         "https://github.com/doc-haz/infinite-undiscovery-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "infinite-undiscovery-xbox-360",
+          "title": "Infinite Undiscovery (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

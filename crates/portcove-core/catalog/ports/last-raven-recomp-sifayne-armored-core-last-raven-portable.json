@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "armored-core-last-raven-portable",
       "evidence_urls": ["https://github.com/Sifayne/last-raven-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "armored-core-last-raven-portable-playstation-portable",
+          "title": "Armored Core: Last Raven Portable (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Sifayne/last-raven-recomp/blob/23d4ccf7936056059179e945307282ebb7ad3234/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

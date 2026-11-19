@@ -132,6 +132,7 @@
     "website": "Project website"
   },
   "section": {
+    "configuration": "Game settings & mods",
     "files": "Game files",
     "label": "Game detail sections",
     "manage": "Manage",

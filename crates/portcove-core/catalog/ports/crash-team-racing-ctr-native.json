@@ -51,7 +51,16 @@
         "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
         "https://github.com/CTR-tools/ctr-native"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-team-racing-playstation",
+          "title": "Crash Team Racing (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/CTR-tools/ctr-native/blob/8e21ed5dc347907f657914b0d61177a7ca7135e2/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

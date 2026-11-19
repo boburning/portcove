@@ -58,7 +58,16 @@
         "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/README.md",
         "https://github.com/Gumpolas/TooTawersRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-two-towers-xbox",
+          "title": "The Lord of the Rings: The Two Towers (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Gumpolas/TooTawersRecomp/blob/ba43e2226b6d3eabfead404b55cc008d3b45bc06/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

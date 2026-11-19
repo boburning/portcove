@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "dark-souls",
-      "evidence_urls": [
-        "https://github.com/Nishikori-Yui/lordran-native"
-      ],
+      "evidence_urls": ["https://github.com/Nishikori-Yui/lordran-native"],
       "source_editions": []
     }
   },

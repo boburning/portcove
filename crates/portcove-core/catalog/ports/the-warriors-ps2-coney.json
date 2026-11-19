@@ -58,7 +58,16 @@
         "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
         "https://github.com/Ryubara/coney"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-warriors-playstation-2",
+          "title": "The Warriors (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

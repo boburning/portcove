@@ -529,16 +529,20 @@ async function inspectCoreJson(
   argumentsFor: (input: string) => string[],
   bounds?: InspectionBounds,
 ): Promise<unknown> {
-  if (bytes.length > 4 * 1024 * 1024)
+  const inputLimit = command === "catalog.inspect-proposal" ? 16 * 1024 * 1024 : 4 * 1024 * 1024;
+  if (bytes.length > inputLimit)
     throw new ObservationFailure(
       "core-input-size",
       "Core inspection input exceeds its existing byte boundary",
     );
   const input = path.join(directory, `core-inspection-${randomUUID()}.json`);
   await mkdir(path.dirname(input), { recursive: true });
+  let batchTimeout = false;
   try {
     await writeFile(input, bytes, { flag: "wx" });
-    const timeout = bounds ? Math.min(30000, Math.floor(bounds.deadline - bounds.now())) : 30000;
+    const remaining = bounds ? Math.floor(bounds.deadline - bounds.now()) : Infinity;
+    batchTimeout = remaining < 30000;
+    const timeout = Math.min(30000, remaining);
     if (!Number.isFinite(timeout) || timeout < 1)
       throw new ObservationFailure("budget", "Core inspection admission exhausted");
     const output = execFileSync(cli, argumentsFor(input), {
@@ -555,6 +559,13 @@ async function inspectCoreJson(
         "Core did not return the expected successful inspection",
       );
     return envelope.data;
+  } catch (error) {
+    if (batchTimeout && errorCode(error) === "ETIMEDOUT")
+      throw new ObservationFailure(
+        "budget",
+        "Observation opportunity exhausted during Core inspection",
+      );
+    throw error;
   } finally {
     await rm(input, { force: true });
   }
@@ -721,7 +732,7 @@ async function main(args: string[]) {
       throw new Error("existing report belongs to another operation or configuration");
     const catalog = await boundedJson(
       path.join(repositoryRoot, "crates/portcove-core/catalog/catalog.json"),
-      4 * 1024 * 1024,
+      16 * 1024 * 1024,
     );
     if (!isRecord(catalog) || !Array.isArray(catalog.ports))
       throw new Error("Invalid catalog ports");

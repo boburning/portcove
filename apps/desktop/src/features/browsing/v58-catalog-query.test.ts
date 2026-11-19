@@ -1,4 +1,6 @@
 import { expect, it } from "vite-plus/test";
+import fzeroGx from "../../../../../crates/portcove-core/catalog/ports/fzerogx-recomp-ethannicholas-ethannicholas-f-zero-gx.json";
+import type { PortListing } from "../../types";
 import catalog from "../../../../../crates/portcove-core/catalog/catalog.json";
 import { currentCatalogPort } from "../../catalog-test-fixtures";
 import { portDefinition, portStatus } from "../../test-fixtures";
@@ -350,4 +352,12 @@ it("keeps filter choices applicable to retained Core contexts after catalog chan
   expect(
     filterOptionsFor("platforms", [entry], { version: 1 }, { ...context, browsing: undefined }),
   ).toContain("macos-aarch64");
+});
+
+it("matches the saved GameCube filter against the authored F-Zero GX edition", () => {
+  const listing = fzeroGx.listing as PortListing;
+  const entries = catalogEntries(undefined, { format_version: 12, listings: [listing] }, [], []);
+  const saved = { version: 1, originalSystems: ["nintendo-gamecube"] };
+  expect(sourceSystemOptions(entries, saved)).toEqual(["nintendo-gamecube", "not-specified"]);
+  expect(ids(evaluateCatalogQuery(entries, saved))).toEqual([listing.id]);
 });

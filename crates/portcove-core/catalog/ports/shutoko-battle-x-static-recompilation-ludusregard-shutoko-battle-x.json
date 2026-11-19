@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "import-tuner-challenge",
       "evidence_urls": ["https://github.com/ludusregard/SBX-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "import-tuner-challenge-xbox-360",
+          "title": "Import Tuner Challenge (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ludusregard/SBX-Recomp/blob/12d08e1c2af29ec6caa8bd195d56d95219c06109/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

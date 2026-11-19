@@ -45,7 +45,16 @@
         "https://api.github.com/users/poopoocacacacaca",
         "https://api.github.com/repos/poopoocacacacaca/p3fes-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "persona-3-fes-playstation-2",
+          "title": "Persona 3 FES (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/ppkkkkk/p3fes-recompiled/blob/b53437748ded7e11a955ae79e94414d147a1ba17/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

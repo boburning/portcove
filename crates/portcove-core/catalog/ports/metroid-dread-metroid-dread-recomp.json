@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "metroid-dread",
-      "evidence_urls": [
-        "https://github.com/yozander2009-stack/Metroid-Dread-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/yozander2009-stack/Metroid-Dread-Recomp"],
       "source_editions": []
     }
   },

@@ -58,7 +58,16 @@
         "https://github.com/bluddy/rails",
         "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "railroad-tycoon-pc",
+          "title": "Railroad Tycoon (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/bluddy/rails/blob/38b7fb96e59682f1409f3f3615a626e368d530b4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

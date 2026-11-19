@@ -50,7 +50,6 @@
       "source_editions": []
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -78,5 +77,6 @@
         "executables": ["mylifeking.exe", "record-audio.bat"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

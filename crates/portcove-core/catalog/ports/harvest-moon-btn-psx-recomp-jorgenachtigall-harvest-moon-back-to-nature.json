@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "harvest-moon-back-to-nature",
       "evidence_urls": ["https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "harvest-moon-back-to-nature-playstation",
+          "title": "Harvest Moon: Back to Nature (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp/blob/e3bbd24f26b4a762b8c9d8aa901c761e0887cb59/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

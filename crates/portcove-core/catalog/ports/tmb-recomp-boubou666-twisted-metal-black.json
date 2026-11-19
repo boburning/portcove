@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "twisted-metal-black",
       "evidence_urls": ["https://github.com/TheBozos/TMB_Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "twisted-metal-black-playstation-2",
+          "title": "Twisted Metal: Black (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/TMB_Recomp/blob/a58a70226062c5323e8ac4ac78f71c95f4a57495/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

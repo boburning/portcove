@@ -49,7 +49,6 @@
       "source_editions": []
     }
   },
-  "listing_inherit_asset_hints": ["linux-x86-64", "macos-aarch64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -86,5 +85,6 @@
         "executables": ["contents/macos/openloco"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-aarch64"]
 }

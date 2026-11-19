@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "jet-set-radio-future",
       "evidence_urls": ["https://github.com/yacineolivier-maker/JSRF-PAL-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jet-set-radio-future-xbox",
+          "title": "Jet Set Radio Future (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp/blob/820daac390ab333ceecbc2502388886cda05f978/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

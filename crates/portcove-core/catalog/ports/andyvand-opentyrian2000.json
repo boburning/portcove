@@ -43,7 +43,7 @@
         },
         {
           "title": "Use the upstream Android package",
-          "instruction": "On Android 11 or newer, unpack opentyrian2000-android.zip and install its signed APK with the included Tyrian 2000 data. Review and grant the app\u2019s All files access permission to use its shared profile under Internal storage > Android > tyriandata. Back up that folder before replacing the app."
+          "instruction": "On Android 11 or newer, unpack opentyrian2000-android.zip and install its signed APK with the included Tyrian 2000 data. Review and grant the app’s All files access permission to use its shared profile under Internal storage > Android > tyriandata. Back up that folder before replacing the app."
         }
       ],
       "warnings": [

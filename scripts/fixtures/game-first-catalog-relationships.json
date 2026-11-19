@@ -1482,6 +1482,7 @@
     "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
     "wargus-war1gus",
     "wargus-wargus",
+    "warioland4",
     "warzone-2100-official-maintained-source-port",
     "wave-race-64-racewave46",
     "wave-race-64-recomp",
@@ -2553,6 +2554,16 @@
         "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt"
       ],
       "decision": "Pinned original-game evidence joins the two Blinx implementations and establishes three singleton games. Exact source requirements and all operational facts remain unchanged."
+    },
+    {
+      "target_revision": "50cad218e4a09548397add43443a43f4eb89e592",
+      "added_port_ids": ["warioland4"],
+      "assignment_proposal_sha256": "12ef1c0014a98bd6271fe5aadfa96c6dd6bc34e675ede7afbcb5aae12709764f",
+      "evidence_urls": [
+        "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Wario-Land-4-267596.html",
+        "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta"
+      ],
+      "decision": "Retain reviewed Wario Land 4 singleton and GBA US edition; preserve all prior canonical IDs and target source-edition additions. Every complete same-game family remains unchanged."
     }
   ]
 }

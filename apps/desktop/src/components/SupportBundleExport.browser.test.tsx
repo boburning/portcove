@@ -147,7 +147,7 @@ it("exports only on request after failed library startup and leaves recovery ava
     <StrictMode>
       <BootstrapRecovery
         error={startupFailure()}
-        chooseLibrary={chooseLibrary}
+        switchLibrary={chooseLibrary}
         resetLibrary={resetLibrary}
       />
     </StrictMode>,
@@ -337,7 +337,9 @@ it.each(["success", "failure"])(
       .mockResolvedValueOnce(replacement);
     await root.rerender(<App />);
     await click("Create a support report");
+    vi.spyOn(desktopApi, "defaultLibraryRoot").mockResolvedValue("E:/default");
     await click("Use platform default");
+    await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
     expect(button("Create a support report").disabled).toBe(false);
     await click("Create a support report");
     await act(async () => {

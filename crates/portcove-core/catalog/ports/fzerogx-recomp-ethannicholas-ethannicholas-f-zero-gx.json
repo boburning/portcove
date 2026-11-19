@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "f-zero-gx",
       "evidence_urls": ["https://github.com/ethannicholas/fzerogx-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "f-zero-gx-nintendo-gamecube",
+          "title": "F-Zero GX (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

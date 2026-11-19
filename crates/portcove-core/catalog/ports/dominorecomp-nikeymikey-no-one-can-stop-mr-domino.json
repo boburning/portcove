@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "no-one-can-stop-mr-domino",
       "evidence_urls": ["https://github.com/nikeymikey/DominoRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "no-one-can-stop-mr-domino-playstation",
+          "title": "No One Can Stop Mr. Domino (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nikeymikey/DominoRecomp/blob/c3e14bec9bc90723a7c5c53054b196015234e5cc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

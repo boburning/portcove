@@ -54,7 +54,16 @@
         "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md",
         "https://github.com/cookingwithsimon/Skate2Recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "skate-2-xbox-360",
+          "title": "Skate 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

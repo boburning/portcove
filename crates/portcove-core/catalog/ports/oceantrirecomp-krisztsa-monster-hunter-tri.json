@@ -36,13 +36,13 @@
       "game_slug": "monster-hunter-tri",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed.",
     "original_game": {
       "format_version": 1,
       "id": "monster-hunter-tri",
       "evidence_urls": ["https://github.com/krisztsa/OceanTriRecomp"],
       "source_editions": []
-    }
+    },
+    "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed."
   },
   "upstream_lineage": {
     "format_version": 1,

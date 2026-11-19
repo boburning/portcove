@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "bejeweled-blitz-live",
       "evidence_urls": ["https://github.com/thefixinhixon/Re-Jeweled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bejeweled-blitz-live-xbox-360",
+          "title": "Bejeweled Blitz Live (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

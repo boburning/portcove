@@ -36,6 +36,30 @@ type LiveRecoveryContext = RecoveryBase &
     ordinaryClose?: boolean;
   };
 type SQLRow = Record<string, SQLOutputValue>;
+
+/** Retain the asserted recovery scope, not unrelated catalog payloads. */
+export function preparationWorkspaceEvidence(
+  bootstrap: TransportOutputs["desktop_bootstrap_status"],
+  workspace: TransportOutputs["desktop_workspace_snapshot"],
+  status: PortStatus,
+  activity: ActivityRecord,
+) {
+  const serialized = JSON.stringify(workspace);
+  return {
+    report_kind: "asserted-preparation-workspace-projection",
+    bootstrap,
+    port_id: status.port_id,
+    operation_id: activity.id,
+    status,
+    activity,
+    full_snapshot: {
+      representation: "UTF-8 JSON.stringify of the full validated workspace, not raw wire bytes",
+      sha256: createHash("sha256").update(serialized).digest("hex"),
+      json_bytes: Buffer.byteLength(serialized),
+    },
+  };
+}
+
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== undefined && value !== null);
   return value;
@@ -456,18 +480,20 @@ export async function interruptedPreparationScenario({
     artifacts.push(evidence);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', row);
     const review = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"] > details`)),
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
       15_000,
     );
-    await review.findElement(By.css("summary")).click();
+    const recordDetails = await review.findElement(By.css("details"));
+    assert.equal(await recordDetails.getAttribute("open"), null);
     assert.match(await review.getText(), /Unfinished setup files/);
-    assert.ok((await review.getText()).includes(required(privatePath)));
-    assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
-    assert.equal((await review.findElements(By.css("button,a"))).length, 1);
+    assert.equal(await cleanupReview.isDisplayed(), true);
+    await recordDetails.findElement(By.css("summary")).click();
+    assert.ok((await recordDetails.getText()).includes(required(privatePath)));
+    assert.match(await recordDetails.getText(), /this interrupted setup cannot resume/);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', review);
     const recoveryAccessibility = await observeAccessibility(browser);
     const recoveryReport = path.join(output, "recovery-review-accessibility.json");
@@ -710,23 +736,11 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
-    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
-    let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
-    await recoveredReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await recoveredReview.getAttribute("open")) !== null,
-      5_000,
-      "The recovered preparation disclosure must be open before cleanup review",
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    const recoveredReview = await browser.wait(
+      until.elementLocated(recoveredReviewLocator),
+      15_000,
     );
-    recoveredReview = await browser.findElement(recoveredReviewLocator);
-    if ((await recoveredReview.getAttribute("open")) === null) {
-      await recoveredReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await recoveredReview.getAttribute("open")) !== null,
-        5_000,
-        "The current recovered preparation disclosure must be open before cleanup review",
-      );
-    }
     await clickVisible(
       browser,
       await recoveredReview.findElement(
@@ -807,9 +821,7 @@ export async function interruptedPreparationScenario({
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     controls = reviewControls(browser);
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-    const journalOnlyReviewLocator = By.css(
-      `[data-recovery-operation="${journalOnlyId}"] > details`,
-    );
+    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(
       async () =>
@@ -823,22 +835,7 @@ export async function interruptedPreparationScenario({
       15_000,
       "Recovery diagnostics must settle before journal-only cleanup review",
     );
-    let journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    await journalOnlyReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await journalOnlyReview.getAttribute("open")) !== null,
-      5_000,
-      "The journal-only recovery disclosure must be open before cleanup review",
-    );
-    journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    if ((await journalOnlyReview.getAttribute("open")) === null) {
-      await journalOnlyReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await journalOnlyReview.getAttribute("open")) !== null,
-        5_000,
-        "The current journal-only recovery disclosure must be open before cleanup review",
-      );
-    }
+    const journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
     const journalOnlyCleanupReview = await journalOnlyReview.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
@@ -1195,14 +1192,18 @@ export async function minimizedPreparationScenario({
       5_000,
       "Restore the actual native window without simulated visibility",
     );
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Play"]')),
-      15_000,
+    // Compatibility-unconfirmed owned inputs truthfully use Try launch; both
+    // captions represent this already launchable installation, not another setup.
+    assert.equal(required(prepared.readiness).pending_setup, false);
+    const launchControl = By.xpath(
+      '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Play" or normalize-space(.)="Try launch"]',
     );
+    const launch = await browser.wait(until.elementLocated(launchControl), 15_000);
     await browser.wait(
-      until.elementIsEnabled(
-        await browser.findElement(By.xpath('//button[normalize-space(.)="Play"]')),
-      ),
+      async () =>
+        (await launch.isDisplayed()) &&
+        (await launch.isEnabled()) &&
+        (await launch.getAttribute("aria-disabled")) !== "true",
       15_000,
     );
     assert.equal(
@@ -1371,7 +1372,7 @@ async function observeRecoveredPreparation({
       before.save_sha256,
     );
   }
-  let recoveredWorkspace;
+  let recoveredWorkspace: ReturnType<typeof preparationWorkspaceEvidence> | undefined;
   if (ordinaryClose || process.platform === "linux") {
     const nativeStatus = await status(port.id);
     assert.deepEqual(nativeStatus.active, recoveredStatus.active);
@@ -1385,14 +1386,20 @@ async function observeRecoveredPreparation({
       generation: bootstrapValue.generation,
     });
     assert.equal(workspace.ok, true);
-    recoveredWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
-    const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+    const fullWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
+    const workspaceStatus = fullWorkspace.statuses.find((item) => item.port_id === port.id);
     assert.ok(workspaceStatus);
     assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
     assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
-    assert.deepEqual(
-      recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
-      recovered,
+    const workspaceActivity = fullWorkspace.activities.records.find(
+      (item) => item.id === activity.id,
+    );
+    assert.deepEqual(workspaceActivity, recovered);
+    recoveredWorkspace = preparationWorkspaceEvidence(
+      bootstrapValue,
+      fullWorkspace,
+      workspaceStatus,
+      required(workspaceActivity),
     );
   }
   return { recovered, repair, recoveredStatus, recoveredWorkspace };

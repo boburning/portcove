@@ -98,6 +98,7 @@ export function VirtualCollectionRows({
   const reading = useRef<Anchor | undefined>(undefined);
   const lastAccepted = useRef({ structure, queryKey, generation, layout });
   const regroup = useRef<Anchor | undefined>(undefined);
+  const restoringRegroup = useRef<{ anchor: Anchor; token: number } | undefined>(undefined);
   const work = useRef(0);
   const mounting = useRef(0);
   const tabPending = useRef<{ origin: HTMLElement; direction: number } | undefined>(undefined);
@@ -143,6 +144,14 @@ export function VirtualCollectionRows({
   const virtualizer = documentOwner ? windowVirtualizer : elementVirtualizer;
   const latest = useRef({ virtualizer, geometry });
   latest.current = { virtualizer, geometry };
+
+  const retainRegroupAnchor = useCallback(() => {
+    const restoring = restoringRegroup.current;
+    const retained = restoring?.token === work.current ? restoring.anchor : undefined;
+    // A second layout change can invalidate a regroup before its focus returns.
+    // Reuse its original anchor, while leaving other navigation in charge.
+    if (!mounting.current || retained) regroup.current ??= retained ?? reading.current;
+  }, []);
 
   const capture = useCallback(() => {
     const element = root.current;
@@ -219,14 +228,13 @@ export function VirtualCollectionRows({
           return previous;
         if (
           previous.width &&
-          !mounting.current &&
           (previous.columns !== next.columns ||
             previous.width !== next.width ||
             previous.owner !== next.owner ||
             previous.font !== next.font ||
             Math.abs(previous.margin - next.margin) >= 0.5)
         )
-          regroup.current ??= reading.current;
+          retainRegroupAnchor();
         return next;
       });
     };
@@ -254,8 +262,13 @@ export function VirtualCollectionRows({
       intent.current++;
       latest.current.virtualizer.cancelScroll();
       regroup.current = undefined;
+      restoringRegroup.current = undefined;
     };
     const scroll = () => {
+      // A responsive owner switch can emit a scroll before the measured rows
+      // move to the new owner. Keep the anchor from the last committed layout.
+      const owner = workspaceScrollOwner(workspace()) ?? document.documentElement;
+      if (owner !== latest.current.geometry.owner) return;
       capture();
     };
     let measurementFrame = 0;
@@ -290,11 +303,12 @@ export function VirtualCollectionRows({
       for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
         document.removeEventListener(name, userIntent, true);
     };
-  }, [layout, capture]);
+  }, [layout, capture, retainRegroupAnchor]);
 
   useLayoutEffect(() => {
     intent.current++;
     regroup.current = undefined;
+    restoringRegroup.current = undefined;
     reading.current = undefined;
     capture();
   }, [generation, queryKey, capture]);
@@ -495,11 +509,10 @@ export function VirtualCollectionRows({
       before.structure !== structure &&
       before.queryKey === queryKey &&
       before.generation === generation &&
-      before.layout === layout &&
-      !mounting.current
+      before.layout === layout
     )
-      regroup.current ??= reading.current;
-  }, [ready, structure, queryKey, generation, layout]);
+      retainRegroupAnchor();
+  }, [ready, structure, queryKey, generation, layout, retainRegroupAnchor]);
 
   useLayoutEffect(() => {
     const anchor = regroup.current;
@@ -509,10 +522,16 @@ export function VirtualCollectionRows({
     }
     regroup.current = undefined;
     const epoch = intent.current;
-    void mount(
-      { groupKey: anchor.groupKey, viewportTop: anchor.top },
-      () => epoch === intent.current,
-    ).then((accepted) => {
+    const restoring = { anchor, token: work.current + 1 };
+    restoringRegroup.current = restoring;
+    const current = () =>
+      restoringRegroup.current === restoring &&
+      epoch === intent.current &&
+      latest.current.geometry === geometry &&
+      (workspaceScrollOwner(workspace()) ?? document.documentElement) === geometry.owner;
+    void mount({ groupKey: anchor.groupKey, viewportTop: anchor.top }, current).then((accepted) => {
+      if (!current() || work.current !== restoring.token) return;
+      restoringRegroup.current = undefined;
       if (!accepted) return;
       const card = [
         ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),

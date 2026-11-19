@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "spider-man-2-ps2",
       "evidence_urls": ["https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "spider-man-2-ps2-playstation-2",
+          "title": "Spider-Man 2 (PS2) (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp/blob/98aef964411fc355ff4ae59a710b1644222bfe6c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

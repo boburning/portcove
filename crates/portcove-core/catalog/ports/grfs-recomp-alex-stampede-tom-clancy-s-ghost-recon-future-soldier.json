@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tom-clancy-s-ghost-recon-future-soldier",
       "evidence_urls": ["https://github.com/alex-stampede/GRFS-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tom-clancy-s-ghost-recon-future-soldier-xbox-360",
+          "title": "Tom Clancy's Ghost Recon: Future Soldier (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/alex-stampede/GRFS-Recomp/blob/ec69cdc01bb5f2fc8012bf9a3cbe0216f2dd0334/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

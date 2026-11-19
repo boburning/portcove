@@ -58,7 +58,16 @@
         "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md",
         "https://github.com/geno55/wg3d-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wayne-gretzkys-3d-hockey-nintendo-64",
+          "title": "Wayne Gretzky's 3D Hockey (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

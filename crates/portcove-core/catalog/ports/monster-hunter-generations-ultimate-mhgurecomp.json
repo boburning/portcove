@@ -25,7 +25,16 @@
       "format_version": 1,
       "id": "monster-hunter-generations-ultimate",
       "evidence_urls": ["https://github.com/morerokk/MHGURecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-hunter-generations-ultimate-nintendo-switch",
+          "title": "Monster Hunter Generations Ultimate (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/morerokk/MHGURecomp/blob/0e4e158d17022e2a074653f8fc5918e6fa4be31d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

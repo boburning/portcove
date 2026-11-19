@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "xenogears",
       "evidence_urls": ["https://github.com/OpokXeno/xenogears-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "xenogears-playstation",
+          "title": "Xenogears (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/OpokXeno/xenogears-recomp/blob/131614f70abdc4e36c70e63e8f5be33f8dcd8013/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

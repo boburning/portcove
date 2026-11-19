@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "quest-64",
       "evidence_urls": ["https://github.com/Rainchus/Quest64-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "quest-64-nintendo-64",
+          "title": "Quest 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Rainchus/Quest64-Recomp/blob/ea94271a3ed1101628bfdac95e9966b31bd25f39/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

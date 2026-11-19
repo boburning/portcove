@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "sonic-and-the-black-knight",
       "evidence_urls": ["https://github.com/yunophilia/BlackKnightRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-and-the-black-knight-wii",
+          "title": "Sonic and the Black Knight (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/yunophilia/BlackKnightRecomp/blob/2a9613696556f097c4c706ccc1fe6094461e99f5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

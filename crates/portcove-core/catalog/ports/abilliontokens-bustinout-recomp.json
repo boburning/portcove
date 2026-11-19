@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "the-sims-bustin-out-console",
-      "evidence_urls": [
-        "https://github.com/abilliontokens/bustinout-recomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/abilliontokens/bustinout-recomp"],
+      "source_editions": [
+        {
+          "id": "the-sims-bustin-out-console-xbox",
+          "title": "The Sims: Bustin’ Out (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/bustinout-recomp/blob/e37436806c5107ee0ed4cb4d5c7a62b4c72eb613/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

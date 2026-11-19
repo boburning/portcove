@@ -53,7 +53,16 @@
         "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
         "https://github.com/GiZcesi/OpenTricky"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ssx-tricky-xbox",
+          "title": "SSX Tricky (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/GiZcesi/OpenTricky/blob/61a03bc392be14b4f40a2c29ccad2d02c9ec3167/README.md"
+          ]
+        }
+      ]
     }
   }
 }

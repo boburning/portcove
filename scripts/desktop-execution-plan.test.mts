@@ -2534,7 +2534,7 @@ void test("native keyboard replacement releases modifiers before separate text d
     "utf8",
   );
   const start = source.indexOf("export async function replaceKeyboardText(");
-  const end = source.indexOf("/** Reveal the retained log", start);
+  const end = source.indexOf("\n}\n", start);
   assert.ok(start >= 0 && end > start);
   const run = async (platform: string, text: string, failRelease = false) => {
     const calls: unknown[] = [];
@@ -2560,7 +2560,7 @@ void test("native keyboard replacement releases modifiers before separate text d
       },
     };
     await runInNewContext(
-      `${source.slice(start, end).replace("export ", "")}
+      `${source.slice(start, end + 2).replace("export ", "")}
 replaceKeyboardText(browser, element, text)`,
       {
         browser: { actions: () => actions },

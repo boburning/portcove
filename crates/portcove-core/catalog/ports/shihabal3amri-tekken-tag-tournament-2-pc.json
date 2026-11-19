@@ -14,6 +14,9 @@
     "summary": "A Tekken Tag Tournament 2 Windows 10/11 player installer. ttt2_setup.exe checks your own Xbox 360 disc and supported TU3, builds the PC version and prepares shaders. Separate ttt2-server Windows/Linux amd64 and Linux ARM64 packages host servers; they are not Linux players. The project’s claims of 59 fighters, rollback and ranked play are untested here. Its installer and server maintainers manage preparation, rather than Portcove. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Tekken Tag Tournament 2",
     "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+    "download_asset_hints": {
+      "windows-x86-64": ["ttt2_setup.exe"]
+    },
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",

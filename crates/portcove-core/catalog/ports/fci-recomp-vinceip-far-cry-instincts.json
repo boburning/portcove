@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "far-cry-instincts",
       "evidence_urls": ["https://github.com/VinceIP/fci-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-xbox",
+          "title": "Far Cry Instincts (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

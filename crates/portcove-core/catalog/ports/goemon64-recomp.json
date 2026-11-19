@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "mystical-ninja-starring-goemon",
       "evidence_urls": ["https://github.com/klorfmorf/Goemon64Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mystical-ninja-starring-goemon-nintendo-64",
+          "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

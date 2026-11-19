@@ -55,7 +55,16 @@
         "https://github.com/mstan/YoshiNESRecomp",
         "https://github.com/mstan/YoshiNESRecomp/blob/f219991df2e70d6bf41f4ba9a46c8ddf990b572e/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yoshi-nes",
+          "title": "Yoshi (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/YoshiNESRecomp/blob/f4cc2f23bbb7308de9fde3eeab8e74b4f5a52aab/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

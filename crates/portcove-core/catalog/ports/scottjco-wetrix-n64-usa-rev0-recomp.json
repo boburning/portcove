@@ -45,7 +45,16 @@
         "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
         "https://github.com/scottjco/Wetrix_Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wetrix-nintendo-64",
+          "title": "Wetrix (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+          ]
+        }
+      ]
     }
   },
   "route_facts_v1": {

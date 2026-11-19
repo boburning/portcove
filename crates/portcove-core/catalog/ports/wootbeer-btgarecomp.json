@@ -58,7 +58,16 @@
         "https://github.com/wootbeer/btgarecomp/blob/4afa89bcb21f38a010f63726ecf9f716fcb04fab/README.md",
         "https://github.com/wootbeer/btgarecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "battletanx-global-assault-nintendo-64",
+          "title": "BattleTanx: Global Assault (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/btgarecomp/blob/bcda2f71ee1f1f05988a88833cc004073e522ee8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

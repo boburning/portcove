@@ -55,7 +55,16 @@
         "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
         "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chameleon-twist-nintendo-64",
+          "title": "Chameleon Twist (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/f7d171462776e2dbf893206a96c2f55692bce559/README.md"
+          ]
+        }
+      ]
     }
   }
 }

@@ -18,6 +18,7 @@ import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { desktopApi } from "../../api";
 import { useOrganization } from "../organization/use-organization";
+import type { useFavorites } from "../favorites/use-favorites";
 import { PortBrowser } from "../../components/PortBrowser";
 import { install } from "../../dev-scenarios/interactive/scenarios";
 import { browserFixture } from "../../../test/browser-fixture";
@@ -234,7 +235,6 @@ it("a completed choice never navigates from a dismissed comparison", async () =>
       matching={[first, second]}
       statuses={new Map()}
       onSelect={select}
-      onFavoriteToggle={vi.fn()}
       organization={{
         snapshot: empty,
         busy: false,
@@ -462,7 +462,6 @@ it("presents grouped Discover cards and the comparison in the active locale", as
         matching={[first, second]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
@@ -498,7 +497,6 @@ it("names a chosen port in a multi-port group with its matching project and acti
         matching={[first]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
       />,
     );
     const identity = () =>
@@ -542,7 +540,6 @@ it("on a known device, replaces Discover platform chips with an exception for ex
       matching={ports}
       statuses={new Map()}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
       devicePlatform="windows-x86-64"
     />,
   );
@@ -555,13 +552,7 @@ it("on a known device, replaces Discover platform chips with an exception for ex
   expect(card("unlisted").textContent).not.toContain("Not available for");
 
   await screen.rerender(
-    <GroupedDiscover
-      all={ports}
-      matching={ports}
-      statuses={new Map()}
-      onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
-    />,
+    <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />,
   );
   // Without a known device, every card keeps listing its platforms.
   expect(platformChips("windows-only")).toEqual(["Windows"]);
@@ -585,7 +576,6 @@ it("names the device exception in the active locale", async () => {
         matching={[linuxOnly]}
         statuses={new Map()}
         onSelect={vi.fn()}
-        onFavoriteToggle={vi.fn()}
         devicePlatform="macos-aarch64"
       />,
     );
@@ -615,7 +605,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[bare]}
       statuses={new Map([[bare.id, { ...portStatus(), port_id: bare.id }]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -652,7 +641,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[described]}
       statuses={new Map([[described.id, installedLaunchStatus()]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -673,7 +661,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[optional]}
       statuses={new Map([[optional.id, installedLaunchStatus()]])}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Why this port?", exact: true }).click();
@@ -692,7 +679,6 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
       matching={[bare, other]}
       statuses={new Map()}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
@@ -729,7 +715,6 @@ it("keeps stable game presentation while selected actions and file drops use the
       organization={organization}
       nativeSourceDrag={{ active: true, pathCount: 1 }}
       onSelect={onSelect}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   const card = () => document.querySelector<HTMLElement>(".discover-game")!;
@@ -746,7 +731,6 @@ it("keeps stable game presentation while selected actions and file drops use the
       statuses={new Map()}
       organization={organization}
       onSelect={onSelect}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   expect(card().querySelector("h2")?.textContent).toBe("Original game");
@@ -780,7 +764,6 @@ it("reviews ambiguous grouped file drops without changing preferences or checkin
       organization={organization}
       nativeSourceDrag={{ active: true, pathCount: 1 }}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   expect(
@@ -799,7 +782,6 @@ it("reviews ambiguous grouped file drops without changing preferences or checkin
       onGameDropSelect={onGameDropSelect}
       onGameDropDismiss={onGameDropDismiss}
       onSelect={vi.fn()}
-      onFavoriteToggle={vi.fn()}
     />,
   );
   await expect.element(page.getByRole("dialog")).toBeVisible();
@@ -840,7 +822,7 @@ it("supplies a stable game presentation separately from the Library action targe
       renderPort={renderPort}
     />,
   );
-  expect(renderPort).toHaveBeenCalledWith(selected, first);
+  expect(renderPort).toHaveBeenCalledWith(selected, first, expect.any(Object));
   await expect
     .element(page.getByRole("button", { name: "Play second-port: Original game" }))
     .toBeVisible();
@@ -881,7 +863,6 @@ it("continues a choice while optional comparison evidence remains pending", asyn
             setDrop(undefined);
           }}
           onSelect={onSelect}
-          onFavoriteToggle={vi.fn()}
         />
       </OperationPresentationProvider>
     );
@@ -932,7 +913,6 @@ it.each(["close", "library generation"] as const)(
             pendingGameDrop={pendingGameDrop}
             onGameDropDismiss={() => setDrop(undefined)}
             onSelect={onSelect}
-            onFavoriteToggle={vi.fn()}
           />
         </OperationPresentationProvider>
       );
@@ -981,7 +961,6 @@ it("retains ambiguous dropped originals through an acknowledged eligible impleme
         pendingGameDrop={{ gameId: "game:original-game", paths: ["D:/Original.z64"] }}
         onGameDropSelect={onGameDropSelect}
         onSelect={onSelect}
-        onFavoriteToggle={vi.fn()}
       />
     </OperationPresentationProvider>,
   );
@@ -1089,7 +1068,6 @@ it.each([
           statuses={statuses}
           organization={organization}
           onSelect={select}
-          onFavoriteToggle={vi.fn()}
         />
       </OperationPresentationProvider>,
     );
@@ -1195,3 +1173,89 @@ it.each([
     expect(commit).not.toHaveBeenCalled();
   },
 );
+
+async function renderFilteredUnifiedFavorite(view: "catalog" | "library") {
+  const selected = {
+    ...second,
+    presentation: { ...second.presentation, original_game_title: "Regional alias" },
+  };
+  const commit = vi.fn(async (_change: OrganizationChange) => true);
+  const organization: Organization = {
+    snapshot: {
+      ...empty,
+      saved_game_ids: [`port-${first.id}`, "port-retired-port"],
+      preferred_port_by_game: { "original-game": selected.id },
+    },
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit,
+  };
+  const setPorts = vi.fn(
+    async (_ids: readonly string[], _favorite: boolean, before?: () => Promise<boolean>) =>
+      before ? before() : true,
+  );
+  const favorites: ReturnType<typeof useFavorites> = {
+    ids: new Set([first.id, "retired-port"]),
+    only: false,
+    setOnly: vi.fn(),
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    toggle: async () => true,
+    setPorts,
+  };
+  const onSelect = vi.fn();
+  await render(
+    <PortBrowser
+      view={view}
+      ports={[selected]}
+      catalogUniverse={[selected, first]}
+      catalogFilterCandidates={[selected, first]}
+      statuses={new Map()}
+      overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      loading={false}
+      organization={organization}
+      favorites={favorites}
+      onSelect={onSelect}
+    />,
+  );
+  return { selected, commit, setPorts, favorites, organization, onSelect };
+}
+
+it.each(["catalog", "library"] as const)(
+  "removes a unified Favorite across filtered-out siblings in %s without selecting their actions",
+  async (view) => {
+    const { selected, commit, setPorts, favorites, organization, onSelect } =
+      await renderFilteredUnifiedFavorite(view);
+    const favorite = page.getByRole("button", { name: "Favorite Original game", exact: true });
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect.poll(() => commit.mock.calls.length).toBe(1);
+    expect(setPorts).toHaveBeenCalledWith([first.id], false, expect.any(Function));
+    const change = commit.mock.calls[0]?.[0];
+    expect(change?.kind).toBe("set_saved_group");
+    if (change?.kind !== "set_saved_group") throw new Error("Expected exact game Favorite request");
+    expect(change.game_id).toBe("game-original-game");
+    expect(change.saved).toBe(false);
+    expect(change.legacy_port_ids).toHaveLength(2);
+    expect(change.legacy_port_ids).toEqual(expect.arrayContaining([first.id, selected.id]));
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(favorites.ids).toEqual(new Set([first.id, "retired-port"]));
+    expect(organization.snapshot?.saved_game_ids).toContain("port-retired-port");
+  },
+);
+
+it("names Library details with the visible stable game and exact project while opening the selected port", async () => {
+  const { selected, onSelect } = await renderFilteredUnifiedFavorite("library");
+  const details = page.getByRole("button", {
+    name: "View details for Original game Second project",
+    exact: true,
+  });
+  await expect.element(details).toHaveTextContent("Original game");
+  await expect.element(details).toHaveTextContent("Second project");
+  await details.click();
+  expect(onSelect).toHaveBeenCalledWith(selected.id, `library:card:${selected.id}`);
+});

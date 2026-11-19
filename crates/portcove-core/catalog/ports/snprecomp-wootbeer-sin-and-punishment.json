@@ -82,7 +82,6 @@
       ]
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -116,5 +115,6 @@
         "executables": ["snprecompiled", "snprecompiled.sh"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

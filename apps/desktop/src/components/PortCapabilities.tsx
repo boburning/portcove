@@ -269,11 +269,23 @@ export function PortCapabilities({
             })}
           </strong>
           {notice.launch_behavior && (
-            <dl>
-              <dt>{t("capabilities.launch.first")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}</dd>
-              <dt>{t("capabilities.launch.repeat")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}</dd>
+            <dl className="my-3 grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.first")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}
+                </dd>
+              </div>
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.repeat")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}
+                </dd>
+              </div>
             </dl>
           )}
           <p>{notice.explanation}</p>

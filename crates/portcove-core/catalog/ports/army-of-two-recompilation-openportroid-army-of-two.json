@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "army-of-two",
       "evidence_urls": ["https://github.com/OpenPortroid/ArmyOfTwoRecompilation"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "army-of-two-xbox-360",
+          "title": "Army of Two (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/OpenPortroid/ArmyOfTwoRecompilation/blob/8333f2b637d077fecc82c02741e665de539c1ac7/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

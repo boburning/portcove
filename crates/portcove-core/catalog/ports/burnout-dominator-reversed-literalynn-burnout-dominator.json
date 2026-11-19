@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "burnout-dominator",
       "evidence_urls": ["https://github.com/literalynn/BurnoutDominatorReversed"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "burnout-dominator-playstation-2",
+          "title": "Burnout Dominator (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/literalynn/BurnoutDominatorReversed/blob/4813d8adb218b74c2f35013d5643ffd300314db3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

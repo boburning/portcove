@@ -64,7 +64,6 @@
     },
     "decisions": []
   },
-  "listing_inherit_asset_hints": ["linux-x86-64", "macos-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -139,5 +138,6 @@
         "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
       ]
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-x86-64"]
 }

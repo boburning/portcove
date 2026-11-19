@@ -54,7 +54,16 @@
         "https://github.com/kandowontu2/UrbanRecomp",
         "https://github.com/kandowontu2/UrbanRecomp/blob/ba47b80a8887f6a3f15dd5ab173818d9aa2e8b55/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "simcity-super-nintendo",
+          "title": "SimCity (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/UrbanRecomp/blob/f1ac9045c13ca89c255c47e8545479755ecea241/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

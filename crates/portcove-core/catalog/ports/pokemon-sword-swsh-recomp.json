@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-sword",
-      "evidence_urls": [
-        "https://github.com/raulzrrs/swsh-recomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/raulzrrs/swsh-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-sword-nintendo-switch",
+          "title": "Pokémon Sword (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

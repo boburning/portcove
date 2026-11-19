@@ -47,7 +47,16 @@
         "https://api.github.com/orgs/God-Hand-Rearmed",
         "https://api.github.com/repos/kris-c-anderson/godhand-rearmed"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-hand-playstation-2",
+          "title": "God Hand (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

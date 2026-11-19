@@ -57,7 +57,16 @@
         "https://github.com/alondero/aerogauge-recomp#readme",
         "https://github.com/alondero/aerogauge-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "aerogauge-nintendo-64",
+          "title": "AeroGauge (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

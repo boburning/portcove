@@ -59,7 +59,16 @@
         "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/661d493ccf64bb8b0a957986d9630171c19b38ea/README.md",
         "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-darkness-xbox-360",
+          "title": "The Darkness (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/5234f331dc5178af4245cc43a31fc5e6f3e61bf9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

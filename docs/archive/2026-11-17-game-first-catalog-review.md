@@ -272,3 +272,35 @@ The independent fixture includes all four added records and both Blinx members.
 All newer package holds, release selectors, setup guidance and retained lineage
 facts remain intact. These are reviewed source expectations; native and published
 application consumption remain separate acceptance requirements under #8076.
+
+## November 19 current-target reconciliation and organization decision
+
+Target `50cad218e4a09548397add43443a43f4eb89e592` adds the reviewed
+[Wario Land 4 record](https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta).
+[Nintendo identifies the original GBA game](https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Wario-Land-4-267596.html).
+It remains a distinct `wario-land-4` singleton with its existing
+`wario-land-4-gba-us` source edition. The independent fixture includes the new
+record. Current target game IDs, evidence and source-edition facts agree with
+all previously reviewed canonical assignments. Keep target game metadata where
+present and fill its remaining mappings from the prior complete review; preserve
+every existing ID, title decision, variant and explicit project disposition.
+
+The composed source expectations are **1,564 records / 440 operational
+definitions**, **1,526 mapped records / 1,178 game IDs**, **245 multi-option
+families / 593 members**, **38 project entries** and **1,216 production groups**.
+There are **321 source-edition declarations on 316 records**, representing
+**300 distinct game/edition pairs**. All 29 multi-game, two framework, seven
+unresolved and eleven deliberate-separation decisions remain unchanged.
+New edition metadata describes source scope; it grants no file interchangeability,
+save compatibility, runtime ownership or qualification.
+
+On November 19 the owner explicitly chose: “Adopt the unified Favorite model”.
+This replaces the original mission's separate Saved/port-Favorite presentation
+requirement. Reuse the delivered one-game Favorite behavior and its read union of
+legacy Saved and port Favorite choices, acknowledged writes, uncertain-write
+readback and explicit retry. Keep current stores and unknown IDs, exact per-port
+update notices, hiding and collections, and explicit preferred implementation.
+A filtered-out sibling still contributes to the game's Favorite state; removal
+must receive the full family. Stable game presentation must not select a runtime
+action. Native and published-app observations remain separate outstanding
+acceptance under #8076.

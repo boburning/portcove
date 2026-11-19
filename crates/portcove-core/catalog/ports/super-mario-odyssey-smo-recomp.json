@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-odyssey",
-      "evidence_urls": [
-        "https://github.com/Coz-0/smo-recomp"
-      ],
+      "evidence_urls": ["https://github.com/Coz-0/smo-recomp"],
       "source_editions": []
     }
   },

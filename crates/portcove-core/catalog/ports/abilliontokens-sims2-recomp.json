@@ -59,7 +59,16 @@
         "https://github.com/abilliontokens/sims2-recomp",
         "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-sims-2-console-xbox",
+          "title": "The Sims 2 (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

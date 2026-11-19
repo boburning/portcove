@@ -2668,6 +2668,11 @@ routes, changed accepted bytes, failed integrity and unsafe operations still
 hold at their actual scope. Exact direct manifests retain their existing
 per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
+Hosted managed selection and listing download recommendations exclude packages
+whose names label them as dedicated servers. GitLab checks both the release-link
+label and the resolved registry filename. The server label supplies no evidence
+about a separate game client's platform, architecture, or integrity.
+
 GitLab generic-package links can use the same reusable project, channel and
 native-archive selectors. Core joins the selected versioned URL to independently
 published package names, versions, filenames, sizes and SHA-256 values. It reads
@@ -3024,6 +3029,14 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
+OS coverage. Add `--json` for per-port detail. An authored
+`original_game_review` records deliberate multi-game, framework or unresolved
+scope. The report counts these separately from missing edition facts. Update
+ownership stays with upstream for listing-only records. A same-title match is a
+research lead. Check the implementation's actual input edition against pinned
+upstream evidence before adding a source system.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
@@ -3395,6 +3408,11 @@ index derived from an accepted project or release repository identity, including
 retained and pending listing projections. Comparison is exact: extra queries,
 fragments, download paths and foreign repositories need their own reviewed URL.
 This navigation rule grants no package acquisition, registration or launch action.
+Desktop hands off selected download notes after Core resolves the same release
+and asset IDs and confirms the displayed release URL. Resuming a saved setup
+uses the matching download record for its release notes and retained setup
+links, even when the current directory describes a different package. Those
+retained links require the saved setup identity.
 
 ### Choose a reusable authoring route
 
@@ -3471,6 +3489,9 @@ Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
 
+`prepare-port.mts` proposes this family form when the reviewed diagnostic code
+is unique and the expanded integration matches the explicit bytes.
+
 Reuse the shared staging, declared-data preservation and rollback evidence
 when the official Windows archive uses the reviewed picker, stays within its
 tracked process lifetime and has the same writer and update ownership.
@@ -3514,6 +3535,10 @@ writes the `build-portcove` working coordinates, `--no-launcher`, overlay
 environment, owned save/settings/mod paths, and disposable diagnostic paths.
 It refuses duplicate fields. A different writer layout or setup contract
 needs the explicit form and applicable qualification.
+
+`prepare-port.mts` proposes the compact PSX form automatically when its
+expanded integration matches the explicit declaration byte for byte. A
+different layout, selector or setting stays explicit.
 
 Core's managed PS1 builder runs with `--no-toolchain-download` and with
 `HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
@@ -3838,6 +3863,7 @@ to each record. These checks add no runtime inheritance or shared policy registr
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
 ```
@@ -3853,6 +3879,22 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+The `--original-game` input uses the same reviewed object as
+`listing.original_game` in an authored record. It carries the stable game ID,
+evidence URLs and identified source editions. Paired with the official project
+URL, it starts issue-free preparation and collects the initial bounded GitHub
+release window by default. Use `--route listing` for identity-only preparation.
+When GitHub confirms the repository identity, the proposal records its
+immutable ID as the initial lineage. GitHub URL aliases reuse the existing
+authored origin. A repository ID already recorded under a different project
+URL needs lineage review before it can move.
+Use the existing `--id` if the upstream project names several implementations
+or the existing listing has no reviewed game identity.
+For a non-GitHub project, supply `--name` if the game identity has no single
+source edition to name the listing. Resolving a different previously reviewed
+game or edition requires a reviewed record edit. The observed release window
+is evidence for assessing a route and does not declare one.
 
 `--listing-observations` consumes a retained source handoff from the existing
 catalog observer. It prepares complete canonical records through the same
@@ -4425,3 +4467,14 @@ explicit CLI legacy exports flatten references without losing text. See
 uses the same source authority as schema 2; this presentation metadata does not
 change eligibility, runtime ownership or save compatibility. Do not add an unknown
 field to an older strict format or infer reference sections from heading text.
+
+### Reviewed upstream status
+
+The operational definition retains the legacy `upstream_status` values. Use
+`upstream_active_reviewed: true` to declare that an upstream project was
+reviewed as active. A legacy `active` value without this marker is unrecorded.
+Retired, superseded, and abandoned values are explicit declarations on their
+own. Repository activity observations retain their own dates and do not supply
+a catalog declaration. An indexed definition carrying this marker uses entry
+schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
+readers that only support schema 1.

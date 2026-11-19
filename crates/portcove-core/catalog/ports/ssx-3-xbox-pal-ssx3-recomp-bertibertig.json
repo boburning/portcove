@@ -23,7 +23,16 @@
       "format_version": 1,
       "id": "ssx-3",
       "evidence_urls": ["https://github.com/bertibertig/SSX3-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ssx-3-xbox",
+          "title": "SSX 3 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/bertibertig/SSX3-Recomp/blob/a4fb6ebd80776f18c86d4b221b419bedb4f8d2c1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

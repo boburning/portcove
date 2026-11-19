@@ -610,7 +610,16 @@
           "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md",
           "https://github.com/HarbourMasters/Lighthouse/blob/f757b547c8996ad0d67647560098c76bac0898a6/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "banjo-kazooie-nintendo-64",
+            "title": "Banjo-Kazooie (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -641,7 +650,16 @@
         "evidence_urls": [
           "https://github.com/RevoSucks/BM64Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "bomberman-64-nintendo-64",
+            "title": "Bomberman 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -703,7 +721,16 @@
           "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme",
           "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "harvest-moon-64-nintendo-64",
+            "title": "Harvest Moon 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp/blob/0470d52f2ed7d038b3098799a77d1d7eab187319/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -857,7 +884,16 @@
           "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
           "https://github.com/Rainchus/Donkey-Kong-64-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "donkey-kong-64-nintendo-64",
+            "title": "Donkey Kong 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/blob/f77cc642e22ee376956271ee54dfdaf8fce768a6/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -976,7 +1012,16 @@
           "https://github.com/alondero/aerogauge-recomp#readme",
           "https://github.com/alondero/aerogauge-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "aerogauge-nintendo-64",
+            "title": "AeroGauge (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -1603,7 +1648,16 @@
         "evidence_urls": [
           "https://github.com/Rainchus/Quest64-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "quest-64-nintendo-64",
+            "title": "Quest 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Rainchus/Quest64-Recomp/blob/ea94271a3ed1101628bfdac95e9966b31bd25f39/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -1987,7 +2041,16 @@
         "evidence_urls": [
           "https://github.com/birabittoh/NocturneRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "castlevania-symphony-of-the-night-xbox-360",
+            "title": "Castlevania: Symphony of the Night (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/birabittoh/NocturneRecomp/blob/d409a67c6be29592e96524de038a03593c199e4b/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -2087,7 +2150,16 @@
         "evidence_urls": [
           "https://github.com/RevoSucks/BMHeroRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "bomberman-hero-nintendo-64",
+            "title": "Bomberman Hero (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/RevoSucks/BMHeroRecomp/blob/400f4c005e9c2b155915b8f04ec7e0e4a95df9f4/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2149,7 +2221,16 @@
           "https://github.com/cdlewis/snowboardkids2-recomp#readme",
           "https://github.com/cdlewis/snowboardkids2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "snowboard-kids-2-nintendo-64",
+            "title": "Snowboard Kids 2 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/cdlewis/snowboardkids2-recomp/blob/59d16215526554b9fc51b18cd3612d6ef68bb2a8/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2180,7 +2261,16 @@
         "evidence_urls": [
           "https://github.com/ThiagoLira/trouble-makers-pc-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mischief-makers-nintendo-64",
+            "title": "Mischief Makers (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/ThiagoLira/trouble-makers-pc-recomp/blob/ef89277812f31895b2902cf4e61780f2dd021644/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2210,7 +2300,16 @@
         "evidence_urls": [
           "https://github.com/klorfmorf/Goemon64Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mystical-ninja-starring-goemon-nintendo-64",
+            "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2285,7 +2384,16 @@
         "evidence_urls": [
           "https://github.com/Cellenseres/SSSV_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "space-station-silicon-valley-nintendo-64",
+            "title": "Space Station Silicon Valley (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Cellenseres/SSSV_Recomp/blob/a4dbfe40e205bd804c76db62227e94f6d5858a9b/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -2831,7 +2939,16 @@
           "https://github.com/JackandBeans/Snap64Recomp#readme",
           "https://github.com/JackandBeans/Snap64Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-snap-nintendo-64",
+            "title": "Pokémon Snap (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/JackandBeans/Snap64Recomp/blob/1a4e208ad7e1551af9a9d38866bb998b71ccf4e6/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -4756,7 +4873,16 @@
           "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
           "https://github.com/mstan/SuperMarioWorldRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-world-super-nintendo",
+            "title": "Super Mario World (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -4781,7 +4907,16 @@
         "evidence_urls": [
           "https://github.com/mstan/ZeldaAlttPSNESRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+            "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -4810,7 +4945,16 @@
         "evidence_urls": [
           "https://github.com/mstan/SonicTheHedgehogRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "sonic-the-hedgehog-mega-drive-genesis",
+            "title": "Sonic the Hedgehog (Sega Genesis / Mega Drive)",
+            "system": "mega-drive-genesis",
+            "evidence_urls": [
+              "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -5004,7 +5148,16 @@
           "https://github.com/mstan/YoshisCookieRecomp/releases",
           "https://github.com/mstan/YoshisCookieRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yoshis-cookie-nes",
+            "title": "Yoshi's Cookie (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/mstan/YoshisCookieRecomp/blob/7d8f5d361e3c919ef802d8faa8e5ba22bff811bd/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -5069,7 +5222,16 @@
           "https://github.com/mstan/DrMarioNesRecomp/releases",
           "https://github.com/mstan/DrMarioNesRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dr-mario-nes",
+            "title": "Dr. Mario (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -5131,7 +5293,16 @@
           "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16",
           "https://github.com/mstan/SuperMetroidRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-metroid-super-nintendo",
+            "title": "Super Metroid (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -5209,7 +5380,16 @@
           "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md",
           "https://github.com/sergiomanzur/regaiden-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-gaiden-game-boy-color",
+            "title": "Resident Evil Gaiden (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -5538,7 +5718,16 @@
         "evidence_urls": [
           "https://github.com/mstan/DKC2Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+            "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/DKC2Recomp/blob/1967e411dd02bb17da79cfdbaf614ddc62f09f07/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -5599,7 +5788,16 @@
         "evidence_urls": [
           "https://github.com/TGP482/007FRWL-XBERecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "007-from-russia-with-love-xbox",
+            "title": "007: From Russia with Love (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/TGP482/007FRWL-XBERecomp/blob/1ff350a4902caa2cc733277087a788ed731cb9fb/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -5699,7 +5897,16 @@
         "evidence_urls": [
           "https://github.com/Wndwsqrrl/3on3NHL-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "3-on-3-nhl-arcade-xbox-360",
+            "title": "3 on 3 NHL Arcade (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -5871,7 +6078,16 @@
         "evidence_urls": [
           "https://github.com/abilliontokens/bustinout-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-sims-bustin-out-console-xbox",
+            "title": "The Sims: Bustin’ Out (console) (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/abilliontokens/bustinout-recomp/blob/e37436806c5107ee0ed4cb4d5c7a62b4c72eb613/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -5933,7 +6149,16 @@
           "https://github.com/abilliontokens/sims1-recomp",
           "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-sims-console-xbox",
+            "title": "The Sims (console) (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -5995,7 +6220,16 @@
           "https://github.com/abilliontokens/sims2-recomp",
           "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-sims-2-console-xbox",
+            "title": "The Sims 2 (console) (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -6056,7 +6290,16 @@
           "https://github.com/abilliontokens/urbz-recomp",
           "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-urbz-sims-in-the-city-console-xbox",
+            "title": "The Urbz: Sims in the City (console) (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -6451,7 +6694,16 @@
           "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md",
           "https://github.com/sal063/AC6_recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ace-combat-6-fires-of-liberation-xbox-360",
+            "title": "Ace Combat 6: Fires of Liberation (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sal063/AC6_recomp/blob/09144bb092ad871584808aeead69c395edbd5200/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -6714,7 +6966,16 @@
         "evidence_urls": [
           "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "aegis-wing-xbox-360",
+            "title": "Aegis Wing (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -6761,7 +7022,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/afterburner"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "after-burner-climax-xbox-360",
+            "title": "After Burner Climax (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -6853,7 +7123,16 @@
         "evidence_urls": [
           "https://github.com/jM5557/ailu-puzzle"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "felyne-puzzle-airu-de-puzzle-playstation-portable",
+            "title": "Felyne Puzzle / Airu de Puzzle (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/jM5557/ailu-puzzle/blob/ab0b5ba7ff1cf6d681bf25799276b3bce3ac4967/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -6916,7 +7195,24 @@
           "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/5e9744bdfbe99e6699be45cb0615112b0f44a693/README.md",
           "https://github.com/AjncSystem/ShadowOfTheColossus-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "shadow-of-the-colossus-2018-playstation-4-eu",
+            "title": "Shadow of the Colossus (2018) (PlayStation 4, EU 1.01, CUSA08809)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+            ]
+          },
+          {
+            "id": "shadow-of-the-colossus-2018-playstation-4-us",
+            "title": "Shadow of the Colossus (2018) (PlayStation 4, US 1.00, CUSA08034)",
+            "system": "playstation-4",
+            "evidence_urls": [
+              "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -14517,7 +14813,16 @@
         "evidence_urls": [
           "https://github.com/WNBDEV/alter-echo-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "alter-echo-xbox",
+            "title": "Alter Echo (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/WNBDEV/alter-echo-recomp/blob/284133bc633b775c10d2d2958ec70ae2ddb66e12/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -14639,7 +14944,16 @@
         "evidence_urls": [
           "https://github.com/bertibertig/Amped2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "amped-2-xbox",
+            "title": "Amped 2 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/bertibertig/Amped2-Recomp/blob/24a222b3b6962eccab9238a9cf1912e73fc25ea5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -14687,7 +15001,16 @@
         "evidence_urls": [
           "https://github.com/minty-hippo/amped3revamped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "amped-3-xbox-360",
+            "title": "Amped 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/minty-hippo/amped3revamped/blob/efb511a12e557ed1d91d0701ab5ac51584a2f162/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -15144,7 +15467,16 @@
         "evidence_urls": [
           "https://github.com/OpenPortroid/ArmyOfTwoRecompilation"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "army-of-two-xbox-360",
+            "title": "Army of Two (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/OpenPortroid/ArmyOfTwoRecompilation/blob/8333f2b637d077fecc82c02741e665de539c1ac7/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -15192,7 +15524,16 @@
         "evidence_urls": [
           "https://github.com/nikolaygorb/ArmyOfTwoRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "army-of-two-xbox-360",
+            "title": "Army of Two (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/nikolaygorb/ArmyOfTwoRecomp/blob/4847b5a9a3069f2a66872b17657f5bd6b9813a93/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -15346,7 +15687,16 @@
         "evidence_urls": [
           "https://github.com/MaChInEgUn3/God-of-War-Ascension-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "god-of-war-ascension-playstation-3",
+            "title": "God of War: Ascension (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/MaChInEgUn3/God-of-War-Ascension-Recompiled/blob/878cfab662f3b91f5cb88c2b37fdbcc15510c1be/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -15394,7 +15744,16 @@
         "evidence_urls": [
           "https://github.com/swaymun/AC-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "astral-chain-nintendo-switch",
+            "title": "Astral Chain (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/swaymun/AC-Recomp/blob/80c50158e51a9fe1d0ba9d4827bfd9e54c795a2d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -16119,7 +16478,16 @@
         "evidence_urls": [
           "https://github.com/RealAmethyst/BakuganBB-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "bakugan-battle-brawlers-xbox-360",
+            "title": "Bakugan: Battle Brawlers (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/RealAmethyst/BakuganBB-recomp/blob/c5312453db7a0c80ef2c615e8c80993559e29619/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -16644,7 +17012,16 @@
         "evidence_urls": [
           "https://github.com/salman95/BattleHunterRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "battle-hunter-playstation",
+            "title": "Battle Hunter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/salman95/BattleHunterRecomp/blob/70620a75936708442e1ac4c291271f3e5c99f7d5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -17075,7 +17452,16 @@
         "evidence_urls": [
           "https://github.com/JasonAdamHD/billy-and-mandy-decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-grim-adventures-of-billy-mandy-playstation-2",
+            "title": "The Grim Adventures of Billy & Mandy (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/JasonAdamHD/billy-and-mandy-decomp/blob/8d0d76177f6dfcd2dfc73983f599270b5351c52c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -17395,7 +17781,16 @@
         "evidence_urls": [
           "https://github.com/TGP482/BLACK-XBERecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "black-xbox",
+            "title": "BLACK (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/TGP482/BLACK-XBERecomp/blob/10b8464fa06ebd6e54e814b250e9e3554a48ef1c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -17442,7 +17837,16 @@
         "evidence_urls": [
           "https://github.com/yunophilia/BlackKnightRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "sonic-and-the-black-knight-wii",
+            "title": "Sonic and the Black Knight (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/yunophilia/BlackKnightRecomp/blob/2a9613696556f097c4c706ccc1fe6094461e99f5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -17519,7 +17923,16 @@
           "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
           "https://github.com/BlackLabelHQ/MediEvilRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "medievil-playstation",
+            "title": "MediEvil (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -17766,7 +18179,16 @@
           "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
           "https://github.com/SlaveOfIDO/blastcorps-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "blast-corps-nintendo-64",
+            "title": "Blast Corps (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -18394,7 +18816,16 @@
         "evidence_urls": [
           "https://github.com/bromurok/BloodyRoarExtremeRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "bloody-roar-extreme-xbox",
+            "title": "Bloody Roar Extreme (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/bromurok/BloodyRoarExtremeRecomp/blob/667bb7e8b6cb398bf42e8f582219b5dabe58656f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -18455,7 +18886,16 @@
           "https://github.com/bluddy/rails",
           "https://github.com/bluddy/rails/blob/3699efe2344cd2629ab84d0e6d0e2f8d561a3ee0/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "railroad-tycoon-pc",
+            "title": "Railroad Tycoon (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/bluddy/rails/blob/38b7fb96e59682f1409f3f3615a626e368d530b4/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -18661,7 +19101,16 @@
           "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
           "https://github.com/mcsoderh/BodyHarvestRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "body-harvest-nintendo-64",
+            "title": "Body Harvest (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -18709,7 +19158,16 @@
         "evidence_urls": [
           "https://github.com/plaught-armor/bof4-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "breath-of-fire-iv-playstation",
+            "title": "Breath of Fire IV (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/plaught-armor/bof4-recomp/blob/019605d2592b4a330ee6089747ef6fe855c0a00a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -18801,7 +19259,16 @@
         "evidence_urls": [
           "https://github.com/IshaanKalra2103/BotWRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-wii-u",
+            "title": "The Legend of Zelda: Breath of the Wild (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/IshaanKalra2103/BotWRecomp/blob/2b84b82dbe7efe41707d236fdbac9ec5e98c8d3d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -18985,7 +19452,16 @@
           "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
           "https://github.com/josiahg2502-glitch/BrawlRecompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-smash-bros-brawl-wii",
+            "title": "Super Smash Bros. Brawl (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/a77be8847ec9d8cf6128f086fe9c493d105ecbce/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -19195,7 +19671,16 @@
         "evidence_urls": [
           "https://github.com/oric212/BT2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-budokai-tenkaichi-2-playstation-2",
+            "title": "Dragon Ball Z: Budokai Tenkaichi 2 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/oric212/BT2-Recomp/blob/f4baf8999117622e8232220758794a641e4575c1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -19601,6 +20086,14 @@
           }
         ]
       },
+      "original_game": {
+        "format_version": 1,
+        "id": "burnout-3-takedown",
+        "evidence_urls": [
+          "https://github.com/danielgomesvieira2000/burnout3-pc"
+        ],
+        "source_editions": []
+      },
       "release_url": "https://github.com/danielgomesvieira2000/burnout3-pc/releases/tag/v0.9.0-alpha",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -19612,15 +20105,7 @@
           "linux-x64.tar.gz"
         ]
       },
-      "recommended_download_channel": "beta",
-      "original_game": {
-        "format_version": 1,
-        "id": "burnout-3-takedown",
-        "evidence_urls": [
-          "https://github.com/danielgomesvieira2000/burnout3-pc"
-        ],
-        "source_editions": []
-      }
+      "recommended_download_channel": "beta"
     },
     {
       "id": "burnout-crash-pc-recompilation-kiesxoxo-burnout-crash",
@@ -19666,7 +20151,16 @@
         "evidence_urls": [
           "https://github.com/kiesxoxo/burnout-crash-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-crash-xbox-360",
+            "title": "Burnout CRASH! (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/kiesxoxo/burnout-crash-recomp/blob/ac11bd1043e13db61bd0a8171043ac053a1ac88f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -19711,7 +20205,16 @@
         "evidence_urls": [
           "https://github.com/literalynn/BurnoutDominatorReversed"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-dominator-playstation-2",
+            "title": "Burnout Dominator (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/literalynn/BurnoutDominatorReversed/blob/4813d8adb218b74c2f35013d5643ffd300314db3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -19758,7 +20261,16 @@
         "evidence_urls": [
           "https://github.com/secretpray/burnout-revenge"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-revenge-xbox-360",
+            "title": "Burnout Revenge (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/secretpray/burnout-revenge/blob/0a6751f1ced138a2b2caaa6d51b4e1a891f1ff0d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -19817,7 +20329,16 @@
         "evidence_urls": [
           "https://github.com/Heromachine/Burnout-Recompilation"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-xbox",
+            "title": "Burnout (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20193,7 +20714,16 @@
         "evidence_urls": [
           "https://github.com/FrankHUN88453/CoD3Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "call-of-duty-3-xbox-360",
+            "title": "Call of Duty 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/FrankHUN88453/CoD3Recomp/blob/3c3178a85075cfa6e0703de5e553ff472acc7916/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20240,7 +20770,16 @@
         "evidence_urls": [
           "https://github.com/LucioXerus/bo1-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "call-of-duty-black-ops-xbox-360",
+            "title": "Call of Duty: Black Ops (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/LucioXerus/bo1-recomp/blob/0be5687d07d411644c7e878e841a54daa201328f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20676,7 +21215,16 @@
         "evidence_urls": [
           "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "captain-america-super-soldier-xbox-360",
+            "title": "Captain America: Super Soldier (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled/blob/362f6c305f20ae98645540b9a28e4b0433e7952e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20776,7 +21324,16 @@
         "evidence_urls": [
           "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cars-race-o-rama-xbox-360",
+            "title": "Cars Race-O-Rama (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled/blob/bd95c43a383bc9ccd9f8281bae7f31ac0deaeb3f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20821,7 +21378,16 @@
         "evidence_urls": [
           "https://github.com/DanielPerezL/CarsPSPRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cars-2006-psp-playstation-portable",
+            "title": "Cars (PSP) (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/DanielPerezL/CarsPSPRecomp/blob/6333b5e1049415ad1d8aadea76ae789342c0b59b/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -20928,7 +21494,16 @@
           "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
           "https://github.com/BlackLabelHQ/SymphonyRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "castlevania-symphony-of-the-night-playstation",
+            "title": "Castlevania: Symphony of the Night (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/2deead5dc5f03f656c4ed625c1865fad5a544b8f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -21218,7 +21793,16 @@
           "https://github.com/sciaschi/CBFD-Recompiled/blob/85d8c3bc617e2d8311f5f978b832006797bc8ac7/README.md",
           "https://github.com/sciaschi/CBFD-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "conker-s-bad-fur-day-nintendo-64",
+            "title": "Conker's Bad Fur Day (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/sciaschi/CBFD-Recompiled/blob/ed1b8bb7f3f036334124ec27eb28efa64e400178/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -21419,7 +22003,16 @@
         "evidence_urls": [
           "https://github.com/HenryKun55/celosia"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "shadow-of-the-colossus-playstation-2",
+            "title": "Shadow of the Colossus (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -21482,7 +22075,16 @@
           "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
           "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "chameleon-twist-nintendo-64",
+            "title": "Chameleon Twist (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/f7d171462776e2dbf893206a96c2f55692bce559/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -21636,7 +22238,16 @@
         "evidence_urls": [
           "https://github.com/Armandpro12/chibi-robo-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "chibi-robo-plug-into-adventure-nintendo-gamecube",
+            "title": "Chibi-Robo! Plug Into Adventure! (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -22010,7 +22621,16 @@
           "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
           "https://github.com/citrongames/Dora64"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "doraemon-nobita-to-mittsu-no-seireiseki-nintendo-64",
+            "title": "Doraemon: Nobita to Mittsu no Seireiseki (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/citrongames/Dora64/blob/680d81feb4c57309ba80536300d73725ea9dffaa/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64",
@@ -22230,7 +22850,16 @@
         "evidence_urls": [
           "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-code-veronica-x-playstation-3",
+            "title": "Resident Evil Code: Veronica X (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -22733,7 +23362,16 @@
         "evidence_urls": [
           "https://github.com/crazyriddler/Conan2007Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "conan-2007-xbox-360",
+            "title": "Conan (2007) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/crazyriddler/Conan2007Recomp/blob/ef2603b111290f52c4fbb3f8a2c1200efdf4c26c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -22912,7 +23550,16 @@
         "evidence_urls": [
           "https://github.com/yacineolivier-maker/ConkerLR-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "conker-live-reloaded-xbox",
+            "title": "Conker: Live & Reloaded (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/yacineolivier-maker/ConkerLR-Recomp/blob/2013160850c78dad4c2fd3f2517cbc2e11e094ed/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24171,7 +24818,16 @@
           "https://github.com/saulob/crackdown-xbox360-recompiled",
           "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crackdown-xbox-360",
+            "title": "Crackdown (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/crackdown-xbox360-recompiled/blob/33ab1b632e38cb5c1c39a3d56c479537b9e0d185/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24333,7 +24989,16 @@
           "https://github.com/Matteo842/CrashBandicoot-Launcher",
           "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crash-bandicoot-playstation",
+            "title": "Crash Bandicoot (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24387,7 +25052,16 @@
           "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
           "https://github.com/CTR-tools/ctr-native"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crash-team-racing-playstation",
+            "title": "Crash Team Racing (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/CTR-tools/ctr-native/blob/8e21ed5dc347907f657914b0d61177a7ca7135e2/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -24517,7 +25191,16 @@
         "evidence_urls": [
           "https://github.com/VitoMiguelF/crashott-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crash-of-the-titans-xbox-360",
+            "title": "Crash of the Titans (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/VitoMiguelF/crashott-pc/blob/8ee8b4e7bdea715d72281296288b5dffd427e6b3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24562,7 +25245,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/crazytaxi-ps3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crazy-taxi-playstation-3",
+            "title": "Crazy Taxi (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/crazytaxi-ps3/blob/94c5a3d6351f1d355cf24a9b08283856a67f0b22/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24609,7 +25301,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/ctxbla"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crazy-taxi-xbox-360",
+            "title": "Crazy Taxi (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/ctxbla/blob/2a667e74f6533f2b9b9ab8debae5d5e252b4771f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24674,7 +25375,16 @@
           "https://github.com/crazyriddler/FinestHourRemastered",
           "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "call-of-duty-finest-hour-xbox",
+            "title": "Call of Duty: Finest Hour (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/crazyriddler/FinestHourRemastered/blob/bd35ab60d8e927bdfd3c16e7bb9db0aabfe60a81/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -24722,7 +25432,16 @@
         "evidence_urls": [
           "https://github.com/Claudio5702/Cristalis"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "crystal-defenders-xbox-360",
+            "title": "Crystal Defenders (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Claudio5702/Cristalis/blob/48b91cbfca58e222dda743c7d56cd433b3d5fa42/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -25113,7 +25832,16 @@
           "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/d8ea30f220d7c1464997e6cdd013c16b204f81d8/README.md",
           "https://github.com/DahSidiAbdallah/ConkerBFDReloaded"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "conker-s-bad-fur-day-nintendo-64",
+            "title": "Conker's Bad Fur Day (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -25166,7 +25894,16 @@
           "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
           "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "beetle-adventure-racing-nintendo-64",
+            "title": "Beetle Adventure Racing! (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -25495,7 +26232,16 @@
           "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md",
           "https://github.com/darkuni/afterburner-climax-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "after-burner-climax-xbox-360",
+            "title": "After Burner Climax (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -25620,7 +26366,16 @@
           "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md",
           "https://github.com/darkuni/lode-runner-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "lode-runner-2009-xbox-360",
+            "title": "Lode Runner (2009) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/darkuni/lode-runner-recomp/blob/ccc191ba326e3d0cef0829a457bb9146a3eda22e/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -25805,7 +26560,16 @@
           "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md",
           "https://github.com/darkuni/outrun-arcade-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrun-online-arcade-xbox-360",
+            "title": "OutRun Online Arcade (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -25868,7 +26632,16 @@
           "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md",
           "https://github.com/darkuni/poker-smash-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "poker-smash-xbox-360",
+            "title": "Poker Smash (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -25927,7 +26700,16 @@
           "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md",
           "https://github.com/darkuni/target-terror-wii-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "target-terror-wii",
+            "title": "TARGET: Terror (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -26090,7 +26872,16 @@
         "evidence_urls": [
           "https://github.com/novapowers0/DB-Final-Bout-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-gt-final-bout-playstation",
+            "title": "Dragon Ball GT: Final Bout (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/novapowers0/DB-Final-Bout-Recomp/blob/5646617ee9339836f12a947cceb849ee07c1bad9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -26137,7 +26928,16 @@
         "evidence_urls": [
           "https://github.com/TheSlackbringer/dbziw-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-infinite-world-playstation-2",
+            "title": "Dragon Ball Z: Infinite World (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheSlackbringer/dbziw-recomp/blob/f272bd545cca2da826249b93666d01ea04519cef/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -26636,7 +27436,16 @@
         "evidence_urls": [
           "https://github.com/bifftannen1/Dead-Space-2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dead-space-2-xbox-360",
+            "title": "Dead Space 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/bifftannen1/Dead-Space-2-Recomp/blob/97b9dac62ad10175874774ea0dcc8a9fd632893f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -26964,7 +27773,16 @@
           "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md",
           "https://github.com/vyanhursky/DefJamFFNY-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "def-jam-fight-for-ny-xbox",
+            "title": "Def Jam: Fight for NY (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/a5479de7c62c4cf2801a006b56a3b30398475b37/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -27091,7 +27909,16 @@
         "evidence_urls": [
           "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "def-jam-fight-for-ny-nintendo-gamecube",
+            "title": "Def Jam: Fight for NY (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp/blob/1d6138134ce37eb2a0d6f7738dd29ab13a88e209/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -27185,7 +28012,16 @@
         "evidence_urls": [
           "https://github.com/Leonardorobertomotalvao/demons-souls-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "demon-s-souls-playstation-3",
+            "title": "Demon's Souls (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/Leonardorobertomotalvao/demons-souls-pc/blob/5aa4151ee52d54c9aed67471550d70424b7ce85e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -28560,7 +29396,16 @@
           "https://github.com/elliotttate/DKC1Recomp#readme",
           "https://github.com/elliotttate/DKC1Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "donkey-kong-country-super-nintendo",
+            "title": "Donkey Kong Country (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/elliotttate/DKC1Recomp/blob/3eb9a10c49cb210df2bd63addafe2a78cf9f4e22/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -28671,7 +29516,16 @@
         "evidence_urls": [
           "https://github.com/Gui-Tora/dmc-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "devil-may-cry-playstation-2",
+            "title": "Devil May Cry (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Gui-Tora/dmc-recomp/blob/529e9ed572241b15793ac47dd850a5b5c259b924/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -28859,7 +29713,16 @@
         "evidence_urls": [
           "https://github.com/nikeymikey/DominoRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "no-one-can-stop-mr-domino-playstation",
+            "title": "No One Can Stop Mr. Domino (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/nikeymikey/DominoRecomp/blob/c3e14bec9bc90723a7c5c53054b196015234e5cc/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -29971,7 +30834,16 @@
         "evidence_urls": [
           "https://github.com/Glasena/dotr-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yu-gi-oh-the-duelists-of-the-roses-playstation-2",
+            "title": "Yu-Gi-Oh! The Duelists of the Roses (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -30105,7 +30977,16 @@
         "evidence_urls": [
           "https://github.com/ekansh28/Recomp-Domination"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "downhill-domination-playstation-2",
+            "title": "Downhill Domination (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/ekansh28/Recomp-Domination/blob/2131704b5d56f8ad9bbf0baaa4581759a1aaf87a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -30202,7 +31083,16 @@
         "evidence_urls": [
           "https://github.com/96dot/Dragon-Age-Origins-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-age-origins-xbox-360",
+            "title": "Dragon Age: Origins (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/96dot/Dragon-Age-Origins-Recomp/blob/3ce7e37152be95b4458daf6d9bdda21d1d0a0bdb/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -30363,7 +31253,16 @@
           "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
           "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-burst-limit-xbox-360",
+            "title": "Dragon Ball Z: Burst Limit (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/40aaa4d6bf212239f9cdadebb85bf96e8e57b03c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -30613,7 +31512,16 @@
         "evidence_urls": [
           "https://github.com/boubou666/Drakengard_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "drakengard-playstation-2",
+            "title": "Drakengard (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/boubou666/Drakengard_Recomp/blob/d8cdbcb80809ca39ef1cdcfb0dcdc69bdeed04d8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -31444,7 +32352,16 @@
         "evidence_urls": [
           "https://github.com/TheSlackbringer/dw5xl-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dynasty-warriors-5-xtreme-legends-playstation-2",
+            "title": "Dynasty Warriors 5: Xtreme Legends (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheSlackbringer/dw5xl-recomp/blob/bb0fa760c190fb1f5b136e89a3e5afae1f0d49ec/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -31871,7 +32788,16 @@
         "evidence_urls": [
           "https://github.com/invisivel46/edf2027"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "earth-defense-force-2017-xbox-360",
+            "title": "Earth Defense Force 2017 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/invisivel46/edf2027/blob/b18f35b466ce150f944b8be188ae7e326304c81f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -31988,7 +32914,16 @@
           "https://github.com/power-pudu/egg-of-time#readme",
           "https://github.com/power-pudu/egg-of-time"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "chrono-trigger-nintendo-ds",
+            "title": "Chrono Trigger (Nintendo DS)",
+            "system": "nintendo-ds",
+            "evidence_urls": [
+              "https://github.com/power-pudu/egg-of-time/blob/ed0b61101f3e18cefc5bee9894717dd480747964/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32254,7 +33189,16 @@
         "evidence_urls": [
           "https://github.com/ElGuslml/KameoRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "kameo-elements-of-power-xbox-360",
+            "title": "Kameo: Elements of Power (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ElGuslml/KameoRecomp/blob/f56b5ca35daed1ca282e0a5e92a480fa85930b35/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32365,7 +33309,16 @@
           "https://github.com/elliotttate/DKC2Recomp#readme",
           "https://github.com/elliotttate/DKC2Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+            "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/elliotttate/DKC2Recomp/blob/3b386cb4a6b67472bc6693664ce61a11190e7b5d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32714,7 +33667,16 @@
         "evidence_urls": [
           "https://github.com/IAndrewJJ/EnchantedArmsRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "enchanted-arms-xbox-360",
+            "title": "Enchanted Arms (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/IAndrewJJ/EnchantedArmsRecomp/blob/2d812a23890053e940ca37dbdac45e7b5da04a3e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -32845,7 +33807,16 @@
           "https://github.com/erreib/pure-recomp",
           "https://github.com/erreib/pure-recomp/blob/13ac3986efccc87bc6ebe0218ca005ec838e0652/packaging/windows/README.txt"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wipeout-pure-playstation-portable",
+            "title": "Wipeout Pure (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -33900,7 +34871,16 @@
           "https://github.com/mstan/FaxanaduRecomp#quick-start",
           "https://github.com/mstan/FaxanaduRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "faxanadu-nes",
+            "title": "Faxanadu (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/mstan/FaxanaduRecomp/blob/e8ef305e0d36cdcc7b3689cfd3fdc695ff87c660/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -33945,7 +34925,16 @@
         "evidence_urls": [
           "https://github.com/VinceIP/fci-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "far-cry-instincts-xbox",
+            "title": "Far Cry Instincts (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -33990,7 +34979,16 @@
         "evidence_urls": [
           "https://github.com/VinceIP/fci-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "far-cry-instincts-evolution-xbox",
+            "title": "Far Cry Instincts: Evolution (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34287,7 +35285,16 @@
         "evidence_urls": [
           "https://github.com/Gabrick75/fh2-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-horizon-2-xbox-360",
+            "title": "Forza Horizon 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Gabrick75/fh2-recompiled/blob/ff062497da83f0c9ca8f9da924e90feab55ac416/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34334,7 +35341,16 @@
         "evidence_urls": [
           "https://github.com/ChunchunQ/fifa09-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "fifa-09-xbox-360",
+            "title": "FIFA 09 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ChunchunQ/fifa09-recomp/blob/4dba1063d742911a81c81aa53347e463c2dc75d5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34429,7 +35445,16 @@
         "evidence_urls": [
           "https://github.com/djultra64/Fight-Night-Round-3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "fight-night-round-3-xbox-360",
+            "title": "Fight Night Round 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/djultra64/Fight-Night-Round-3-Recomp/blob/176193a89ab44ec9bb158b42df8f33a6fa1ace72/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34722,7 +35747,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/flow"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "flow-playstation-3",
+            "title": "flOw (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/flow/blob/3163de5ae40c0515c329cc40f2236c5873d6de44/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34906,7 +35940,16 @@
         "evidence_urls": [
           "https://github.com/dawoodtogoo2020-code/folklore-native-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "folklore-playstation-3",
+            "title": "Folklore (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/dawoodtogoo2020-code/folklore-native-port/blob/1fc59432f3c1a069d70e265a399e527428961676/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -34951,7 +35994,16 @@
         "evidence_urls": [
           "https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-horizon-2-xbox-360",
+            "title": "Forza Horizon 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled/blob/b597d43b6f3a824f73dd5cfd0c51ff2d82fc4897/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35059,7 +36111,16 @@
         "evidence_urls": [
           "https://github.com/0herculabs/hl360-Forza2"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-motorsport-2-xbox-360",
+            "title": "Forza Motorsport 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/0herculabs/hl360-Forza2/blob/19400fe359214ce62f56cd4fa1f6c3605dca4b8e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35106,7 +36167,16 @@
         "evidence_urls": [
           "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-motorsport-2-xbox-360",
+            "title": "Forza Motorsport 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU/blob/feaef3259cf038a3e0236591beed9b8d882073ec/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35169,7 +36239,16 @@
           "https://github.com/0herculabs/hl360-forza3",
           "https://github.com/0herculabs/hl360-forza3/blob/861213069ae88042b573db099d9a5b42dcc78dd6/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-motorsport-3-xbox-360",
+            "title": "Forza Motorsport 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/0herculabs/hl360-forza3/blob/861213069ae88042b573db099d9a5b42dcc78dd6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35228,7 +36307,16 @@
           "https://github.com/Alexbeav/fm4-recomp",
           "https://github.com/Alexbeav/fm4-recomp/blob/d41c918759869f9175b898f9c010c4b123794031/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "forza-motorsport-4-xbox-360",
+            "title": "Forza Motorsport 4 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35633,7 +36721,16 @@
         "evidence_urls": [
           "https://github.com/ITSeniy/Front-Mission-3-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "front-mission-3-playstation",
+            "title": "Front Mission 3 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ITSeniy/Front-Mission-3-PC/blob/6d353c7a159efdbd09c42018eef1e627f2e7e79e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35726,7 +36823,16 @@
         "evidence_urls": [
           "https://github.com/nikolaygorb/FuseRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "fuse-xbox-360",
+            "title": "Fuse (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/nikolaygorb/FuseRecomp/blob/aed0bcb6c562565375f4b79024158aeb45bd75ed/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -35821,7 +36927,16 @@
         "evidence_urls": [
           "https://github.com/ethannicholas/fzerogx-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "f-zero-gx-nintendo-gamecube",
+            "title": "F-Zero GX (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -36170,7 +37285,16 @@
         "evidence_urls": [
           "https://github.com/santiquiroz/gears-of-war-2-pc-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gears-of-war-2-xbox-360",
+            "title": "Gears of War 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -36265,7 +37389,16 @@
         "evidence_urls": [
           "https://github.com/rafaelkenedy/genma-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "genma-onimusha-xbox",
+            "title": "Genma Onimusha (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -36593,7 +37726,16 @@
         "evidence_urls": [
           "https://github.com/erinxocon/gitaroo-man-native"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gitaroo-man-playstation-2",
+            "title": "Gitaroo Man (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/erinxocon/gitaroo-man-native/blob/36eb4d556213b106f900030053d7550ef381e9e2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -36654,7 +37796,16 @@
           "https://github.com/GiZcesi/OpenTricky/blob/b20f394f3fc11b684fbbe01ad70f795def4ae70b/README.md",
           "https://github.com/GiZcesi/OpenTricky"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ssx-tricky-xbox",
+            "title": "SSX Tricky (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/GiZcesi/OpenTricky/blob/61a03bc392be14b4f40a2c29ccad2d02c9ec3167/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -36884,7 +38035,16 @@
           "https://api.github.com/orgs/God-Hand-Rearmed",
           "https://api.github.com/repos/kris-c-anderson/godhand-rearmed"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "god-hand-playstation-2",
+            "title": "God Hand (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38157,13 +39317,6 @@
         "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
-      "download_asset_hints": {
-        "linux-x86-64": [
-          "GRAW360-Recompiled-",
-          "-Linux.zip"
-        ]
-      },
       "original_game": {
         "format_version": 1,
         "id": "tom-clancys-ghost-recon-advanced-warfighter-xbox-360",
@@ -38171,6 +39324,13 @@
           "https://github.com/Juansolo457/graw360-recomp"
         ],
         "source_editions": []
+      },
+      "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "GRAW360-Recompiled-",
+          "-Linux.zip"
+        ]
       }
     },
     {
@@ -38261,7 +39421,16 @@
         "evidence_urls": [
           "https://github.com/alex-stampede/GRFS-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tom-clancy-s-ghost-recon-future-soldier-xbox-360",
+            "title": "Tom Clancy's Ghost Recon: Future Soldier (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/alex-stampede/GRFS-Recomp/blob/ec69cdc01bb5f2fc8012bf9a3cbe0216f2dd0334/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38581,7 +39750,16 @@
         "evidence_urls": [
           "https://github.com/rashevskyv/guardian-heroes-recomp-public"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "guardian-heroes-xbox-360",
+            "title": "Guardian Heroes (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/rashevskyv/guardian-heroes-recomp-public/blob/22ec653d69ba369f4749e721751bdb615cd82b45/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38684,7 +39862,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/gh2"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "guitar-hero-ii-xbox-360",
+            "title": "Guitar Hero II (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/gh2/blob/507d2d442dc492dcba816ed66fe02f8776adcdc2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38817,7 +40004,16 @@
           "https://github.com/Gumpolas/TooTawersRecomp/blob/ac711ffb8d6c896573a19750250e4ddfa725ae12/README.md",
           "https://github.com/Gumpolas/TooTawersRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-lord-of-the-rings-the-two-towers-xbox",
+            "title": "The Lord of the Rings: The Two Towers (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Gumpolas/TooTawersRecomp/blob/ba43e2226b6d3eabfead404b55cc008d3b45bc06/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -38851,7 +40047,7 @@
           },
           {
             "title": "Start the Windows or Linux player",
-            "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+            "instruction": "The Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
           }
         ],
         "warnings": [
@@ -38860,7 +40056,7 @@
         "references": [
           {
             "title": "Open the universal Mac app",
-            "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+            "instruction": "Unzip the macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
           }
         ],
         "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
@@ -39166,7 +40362,16 @@
         "evidence_urls": [
           "https://github.com/summers-aaron/xenon-pc-comp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "halo-3-xbox-360",
+            "title": "Halo 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/summers-aaron/xenon-pc-comp/blob/30fd36f4d73d3ae53079dc1df6ae86a5c18e730c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39211,7 +40416,16 @@
         "evidence_urls": [
           "https://github.com/george0815/halo-3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "halo-3-xbox-360",
+            "title": "Halo 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/george0815/halo-3-recomp/blob/333df5d4bf5468cb524fb946d0abfb15834ce761/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39303,7 +40517,16 @@
         "evidence_urls": [
           "https://github.com/joojofc13-wq/HappyWarsRecompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "happy-wars-xbox-360",
+            "title": "Happy Wars (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/joojofc13-wq/HappyWarsRecompiled/blob/b889d862382568863829a72e4c3d2f64dc394896/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39471,7 +40694,16 @@
         "evidence_urls": [
           "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "harvest-moon-back-to-nature-playstation",
+            "title": "Harvest Moon: Back to Nature (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/JorgeNachtigall/harvest-moon-btn-psx-recomp/blob/e3bbd24f26b4a762b8c9d8aa901c761e0887cb59/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -39742,7 +40974,16 @@
         "evidence_urls": [
           "https://github.com/BigDaddyJRich/hctp-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-smackdown-here-comes-the-pain-playstation-2",
+            "title": "WWE SmackDown! Here Comes the Pain (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/BigDaddyJRich/hctp-recomp/blob/7b243fc85f0e1de7c8a18e9ac5516eb3e2188966/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -40090,7 +41331,16 @@
           "https://github.com/livmaster-dev/HommaRe-public/blob/v0.1-playable-457/README.md",
           "https://github.com/livmaster-dev/HommaRe-public"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "heroes-of-might-and-magic-v-pc",
+            "title": "Heroes of Might and Magic V (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/livmaster-dev/HommaRe-public/blob/d04e4ba07f7643e61924abe3995b10f93c8a5cc9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -40273,7 +41523,16 @@
         "evidence_urls": [
           "https://github.com/KunoDemetries/HG"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "haunting-ground-playstation-2",
+            "title": "Haunting Ground (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/KunoDemetries/HG/blob/d134af4970c15325b075e130d88be3ac17b20890/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -40482,7 +41741,16 @@
         "evidence_urls": [
           "https://github.com/l0rd92/HP1Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "harry-potter-and-the-sorcerers-stone-playstation-playstation",
+            "title": "Harry Potter and the Sorcerer's Stone (PlayStation) (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/l0rd92/HP1Recomp/blob/37d0b04494ad6e75a6de641c37d6c3b0da180c21/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -41097,7 +42365,16 @@
           "https://github.com/whompay/inFAMOUSreborn",
           "https://github.com/whompay/inFAMOUSreborn/blob/2a66df5010df8d3615b4f9d31885eeb1b28bd8f4/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "infamous-2009-ps3-playstation-3",
+            "title": "inFamous (2009 PS3) (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/whompay/inFAMOUSreborn/blob/d87a35dd90ae95176e2532ee2d43b2e33fb7276e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -41238,7 +42515,16 @@
         "evidence_urls": [
           "https://github.com/erikomis/infamous2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "infamous-2-playstation-3",
+            "title": "inFAMOUS 2 (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/erikomis/infamous2-recomp/blob/61ad6ffd826dc6d1f32bf78ccbaa4ab98352f980/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -41296,7 +42582,16 @@
           "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
           "https://github.com/doc-haz/infinite-undiscovery-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "infinite-undiscovery-xbox-360",
+            "title": "Infinite Undiscovery (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -41546,7 +42841,16 @@
           "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
           "https://github.com/Interkarma/daggerfall-unity"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-elder-scrolls-ii-daggerfall-pc",
+            "title": "The Elder Scrolls II: Daggerfall (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -41759,7 +43063,16 @@
         "evidence_urls": [
           "https://github.com/djultra64/ISS2000"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "international-superstar-soccer-2000-nintendo-64",
+            "title": "International Superstar Soccer 2000 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -41867,7 +43180,16 @@
           "https://github.com/itsbybanshee/wwe2k14-pc/blob/0386ce905f5707446a436ff30c5ae9e9d55f0a1b/README.md",
           "https://github.com/itsbybanshee/wwe2k14-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-2k14-xbox-360",
+            "title": "WWE 2K14 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/itsbybanshee/wwe2k14-pc/blob/0fff26e0cf4168e85a4064d8deb965f8cae7b325/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -42466,7 +43788,16 @@
           "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp",
           "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp#readme"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pac-man-championship-edition-xbox-360",
+            "title": "Pac-Man Championship Edition (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/jedeyesniv-art/Pacman-CE-PC-Recomp/blob/47d15962913edd4547afcbc396120a6a67b5c884/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -42508,13 +43839,6 @@
         "game_slug": "jersey-devil",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
-      "download_asset_hints": {
-        "windows-x86-64": [
-          "JerseyDevilRecomp-",
-          "-windows-x64.zip"
-        ]
-      },
       "original_game": {
         "format_version": 1,
         "id": "jersey-devil",
@@ -42522,6 +43846,13 @@
           "https://github.com/mstan/JerseyDevilRecomp"
         ],
         "source_editions": []
+      },
+      "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "JerseyDevilRecomp-",
+          "-windows-x64.zip"
+        ]
       }
     },
     {
@@ -42843,7 +44174,16 @@
         "evidence_urls": [
           "https://github.com/3dge7161/Jiggle-or-Physics"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dead-or-alive-playstation",
+            "title": "Dead or Alive (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/3dge7161/Jiggle-or-Physics/blob/9e42e3ba122249d14ec2acbcc22f9fca34330f68/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -42988,7 +44328,16 @@
           "https://github.com/JonathanDC64/FFCCEOT-Recomp",
           "https://github.com/JonathanDC64/FFCCEOT-Recomp/blob/5ca5221db2584621448465d983ba42ab9b5a40c1/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "final-fantasy-crystal-chronicles-echoes-of-time-nintendo-ds",
+            "title": "Final Fantasy Crystal Chronicles: Echoes of Time (Nintendo DS)",
+            "system": "nintendo-ds",
+            "evidence_urls": [
+              "https://github.com/JonathanDC64/FFCCEOT-Recomp/blob/934c7434c9a6c2866fea17fa36098ef9c0652fc4/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43036,7 +44385,16 @@
         "evidence_urls": [
           "https://github.com/jorjbarbosa/broken-bond-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "naruto-the-broken-bond-xbox-360",
+            "title": "Naruto: The Broken Bond (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/jorjbarbosa/broken-bond-recomp/blob/37b72e657c24022df8057f0cb1b718b81830c77a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43092,7 +44450,16 @@
           "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
           "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-paper-mario-wii",
+            "title": "Super Paper Mario (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43139,7 +44506,16 @@
         "evidence_urls": [
           "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "jet-set-radio-future-xbox",
+            "title": "Jet Set Radio Future (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp/blob/820daac390ab333ceecbc2502388886cda05f978/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43398,7 +44774,16 @@
           "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
           "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc/blob/34166525b72447515339edad3e46cd62ff7e1a86/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "buffy-the-vampire-slayer-chaos-bleeds-xbox",
+            "title": "Buffy the Vampire Slayer: Chaos Bleeds (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc/blob/34166525b72447515339edad3e46cd62ff7e1a86/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43446,7 +44831,16 @@
         "evidence_urls": [
           "https://github.com/KaikoClanworth1/wwe-svr2011-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+            "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -43566,7 +44960,16 @@
           "https://github.com/kandowontu2/UrbanRecomp",
           "https://github.com/kandowontu2/UrbanRecomp/blob/ba47b80a8887f6a3f15dd5ab173818d9aa2e8b55/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "simcity-super-nintendo",
+            "title": "SimCity (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/kandowontu2/UrbanRecomp/blob/f1ac9045c13ca89c255c47e8545479755ecea241/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -44256,7 +45659,16 @@
         "evidence_urls": [
           "https://github.com/drakolordx7/KillzoneRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "killzone-playstation-2",
+            "title": "Killzone (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -45056,7 +46468,16 @@
         "evidence_urls": [
           "https://github.com/elprogramadorloco-arch/korokoro-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "korokoro-post-nin-playstation",
+            "title": "KoroKoro Post nin (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/elprogramadorloco-arch/korokoro-recomp/blob/5dbb54a9df06d3a68a304e28b4e6ec5fed807fb6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -45329,7 +46750,16 @@
         "evidence_urls": [
           "https://github.com/Sifayne/last-raven-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "armored-core-last-raven-portable-playstation-portable",
+            "title": "Armored Core: Last Raven Portable (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/Sifayne/last-raven-recomp/blob/23d4ccf7936056059179e945307282ebb7ad3234/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -46172,7 +47602,16 @@
         "evidence_urls": [
           "https://github.com/benjidotsh/LittleBigRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "littlebigplanet-playstation-3",
+            "title": "LittleBigPlanet (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/benjidotsh/LittleBigRecomp/blob/10a129c06108304b5c74efbb5a21e6b323597698/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -46854,7 +48293,16 @@
         "evidence_urls": [
           "https://github.com/anishchandra24/MaddenNFL08-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "madden-nfl-08-xbox-360",
+            "title": "Madden NFL 08 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/anishchandra24/MaddenNFL08-Recompiled/blob/42aa83dbccad6c4ff930bfc5025420741b9604b4/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47019,7 +48467,16 @@
         "evidence_urls": [
           "https://github.com/waifoof/MagiciansQuest-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "magician-s-quest-mysterious-times-nintendo-ds",
+            "title": "Magician's Quest: Mysterious Times (Nintendo DS)",
+            "system": "nintendo-ds",
+            "evidence_urls": [
+              "https://github.com/waifoof/MagiciansQuest-Recomp/blob/c31b0e8002d58d9d34c6b105a2f83c4f8e512032/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47064,7 +48521,16 @@
         "evidence_urls": [
           "https://github.com/mahmoud-mess/tekken6-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tekken-6-xbox-360",
+            "title": "Tekken 6 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/mahmoud-mess/tekken6-recomp/blob/e5617817c8e5572e44b01ee88915f7e463b29b28/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47109,7 +48575,16 @@
         "evidence_urls": [
           "https://github.com/RetroRecompilations/MANXBurnout3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-3-takedown-xbox",
+            "title": "Burnout 3: Takedown (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47658,7 +49133,16 @@
           "https://github.com/patchzyy/Wiicompiled#installing",
           "https://github.com/patchzyy/Wiicompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-wii-wii",
+            "title": "Mario Kart Wii (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -47773,7 +49257,16 @@
         "evidence_urls": [
           "https://github.com/ethannicholas/mariokartdd-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mario-kart-double-dash-nintendo-gamecube",
+            "title": "Mario Kart: Double Dash!! (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47886,7 +49379,16 @@
           "https://github.com/1oom-fork/1oom",
           "https://github.com/1oom-fork/1oom/tree/a956a6f73f75e6cd26b701afcd04bd4973650520"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "master-of-orion-pc",
+            "title": "Master of Orion (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/1oom-fork/1oom/blob/42e9c0b316963dd891f3a8e031bacb36f8c5994e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -47978,7 +49480,16 @@
         "evidence_urls": [
           "https://github.com/cloudalister/mc3r"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "midnight-club-3-dub-edition-playstation-2",
+            "title": "Midnight Club 3: DUB Edition (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/cloudalister/mc3r/blob/f90e59f3ed91124b8ed747e1572e2c02477e62fd/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -49382,7 +50893,16 @@
         "evidence_urls": [
           "https://github.com/koaque/Metropolismania-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "metropolismania-playstation-2",
+            "title": "Metropolismania (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/koaque/Metropolismania-PC/blob/7b23b0188fa13e12a39577496043a9f19d641c62/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -49487,7 +51007,16 @@
         "evidence_urls": [
           "https://github.com/Mango77x/MHForever"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "monster-hunter-freedom-unite-playstation-portable",
+            "title": "Monster Hunter Freedom Unite (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/Mango77x/MHForever/blob/a62d8c6f21e5207f06077a383c1b5ca7d35a06e9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -49684,7 +51213,16 @@
           "https://github.com/holdmysocks/mcla-recomp",
           "https://github.com/holdmysocks/mcla-recomp/blob/f3104f553ddd90b251012cc1536d4158765acd93/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "midnight-club-los-angeles-xbox-360",
+            "title": "Midnight Club: Los Angeles (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/holdmysocks/mcla-recomp/blob/2ed208199fcab064e67a83c5ab8f7e8f2aece444/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -49729,7 +51267,16 @@
         "evidence_urls": [
           "https://github.com/coccofresco/mgsone-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "metal-gear-solid-playstation",
+            "title": "Metal Gear Solid (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/coccofresco/mgsone-recomp/blob/2ae09d4f9a29332a4058393dab0bc1435af27dc6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -50420,7 +51967,16 @@
         "evidence_urls": [
           "https://github.com/morerokk/MHGURecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "monster-hunter-generations-ultimate-nintendo-switch",
+            "title": "Monster Hunter Generations Ultimate (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/morerokk/MHGURecomp/blob/0e4e158d17022e2a074653f8fc5918e6fa4be31d/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -50700,7 +52256,16 @@
           "https://api.github.com/repositories/1423414457",
           "https://api.github.com/repos/OAleex/ShaolinMonksRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mortal-kombat-shaolin-monks-xbox",
+            "title": "Mortal Kombat: Shaolin Monks (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/OAleex/OpenShao/blob/bc43d6e28121c9f6b67e3cc00dfe747364f3a569/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -50832,7 +52397,16 @@
           "https://github.com/josiahg2502-glitch/Mother3Recomp",
           "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mother-3-game-boy-advance",
+            "title": "MOTHER 3 (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/josiahg2502-glitch/Mother3Recomp/blob/d50215580540f08d093c8decc478838f26b7e9ae/docs/PLAYER-README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -51518,7 +53092,16 @@
           "https://github.com/mstan/LegendOfZeldaNESRecomp",
           "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-nes",
+            "title": "The Legend of Zelda (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/b8b227065a96cc680f900410fafd9db6499148c1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -51635,7 +53218,16 @@
           "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
           "https://github.com/mstan/MegaManZeroRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mega-man-zero-game-boy-advance",
+            "title": "Mega Man Zero (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/mstan/MegaManZeroRecomp/blob/73206f2405d555bdcffff018bd88db1cb0c94a10/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -51834,7 +53426,16 @@
           "https://github.com/mstan/TetrisGBRecomp",
           "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tetris-1989-game-boy-game-boy",
+            "title": "Tetris (Game Boy) (Game Boy)",
+            "system": "game-boy",
+            "evidence_urls": [
+              "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -51961,7 +53562,16 @@
           "https://github.com/mstan/YoshiNESRecomp",
           "https://github.com/mstan/YoshiNESRecomp/blob/f219991df2e70d6bf41f4ba9a46c8ddf990b572e/README.md"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yoshi-nes",
+            "title": "Yoshi (NES)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/mstan/YoshiNESRecomp/blob/f4cc2f23bbb7308de9fde3eeab8e74b4f5a52aab/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -52199,7 +53809,16 @@
         "evidence_urls": [
           "https://github.com/beebs1998-repo/rexglue-mushi"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mushihimesama-xbox-360",
+            "title": "Mushihimesama (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/beebs1998-repo/rexglue-mushi/blob/404d45fbf568f66ccd10a380da8962da84304d53/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -52246,7 +53865,16 @@
         "evidence_urls": [
           "https://github.com/gw1337x/mx-vs-atv-alive-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mx-vs-atv-alive-xbox-360",
+            "title": "MX vs. ATV Alive (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/gw1337x/mx-vs-atv-alive-recomp/blob/f1bf96f76a9910e79beea76ec58ae2232504c591/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -52276,7 +53904,16 @@
         "evidence_urls": [
           "https://github.com/PAumedes/MythologyKombat"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "mortal-kombat-mythologies-sub-zero-playstation",
+            "title": "Mortal Kombat Mythologies: Sub-Zero (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/PAumedes/MythologyKombat/blob/a7bda2c663ef870153a14c389b6d0b03aa59ae26/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -52439,7 +54076,16 @@
           "https://github.com/n64hub/perfect-dark-recomp/blob/cb7a2900cf2b216aa39f44daaece2cdb5599ba32/README.md",
           "https://github.com/n64hub/perfect-dark-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "perfect-dark-nintendo-64",
+            "title": "Perfect Dark (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/perfect-dark-recomp/blob/ea46a3a49da515b5982d98b2270e5782eab98cd3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -52509,7 +54155,16 @@
           "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
           "https://github.com/n64hub/rayman-2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rayman-2-the-great-escape-nintendo-64",
+            "title": "Rayman 2: The Great Escape (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/rayman-2-recomp/blob/86d47fb1855af5a28bbf7f6b2ca04fa3cf67cc5d/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -52708,7 +54363,16 @@
           "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
           "https://github.com/n64hub/super-smash-bros-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-smash-bros-nintendo-64",
+            "title": "Super Smash Bros. (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/n64hub/super-smash-bros-recomp/blob/fbd1fef8d6ec2cdba5779d30d1ea275a0bda3013/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -53091,7 +54755,16 @@
         "evidence_urls": [
           "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "naruto-the-broken-bond-xbox-360",
+            "title": "Naruto: The Broken Bond (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Auremana666/Naruto-The-Broken-Bond-PC-Port/blob/570142f98b7f852fce944776bee2dd3369d1cd10/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -53596,7 +55269,16 @@
           "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
           "https://github.com/madelrandel-blip/NFSMW-Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "need-for-speed-most-wanted-xbox-360",
+            "title": "Need for Speed: Most Wanted (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/59a0f23ba19d826a2978443dfc2f8b2a96dd415f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -53826,7 +55508,16 @@
           "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
           "https://github.com/tools81/nfl-head-coach-09-static-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "nfl-head-coach-09-xbox-360",
+            "title": "NFL Head Coach 09 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/34073a9ae7dd80d66257ae54d8cf42a903268770/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -53873,7 +55564,16 @@
         "evidence_urls": [
           "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "need-for-speed-carbon-xbox-360",
+            "title": "Need for Speed: Carbon (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP/blob/d56bf0238a28372ee544422ce951faeaaeb1884b/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -54315,7 +56015,16 @@
           "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
           "https://github.com/gamboozino/ngbrecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ninja-gaiden-black-xbox",
+            "title": "Ninja Gaiden Black (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/gamboozino/ngbrecomp/blob/f740ca245a9c0c148bce808f1c743e9d8f9788a9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -54816,7 +56525,16 @@
         "evidence_urls": [
           "https://github.com/Nycolazs/WindWakerHD-Android-Plus"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+            "title": "The Legend of Zelda: The Wind Waker (Wii U)",
+            "system": "wii-u",
+            "evidence_urls": [
+              "https://github.com/Nycolazs/WindWakerHD-Android-Plus/blob/e5709a637db5d221b1176381d2b105fd5b3672db/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -54965,7 +56683,6 @@
         "game_slug": "monster-hunter-tri",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed.",
       "original_game": {
         "format_version": 1,
         "id": "monster-hunter-tri",
@@ -54973,7 +56690,8 @@
           "https://github.com/krisztsa/OceanTriRecomp"
         ],
         "source_editions": []
-      }
+      },
+      "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed."
     },
     {
       "id": "ocho-kart-recomp-kymie131-el-chavo-kart",
@@ -56046,7 +57764,16 @@
         "evidence_urls": [
           "https://github.com/7v0biscuit/OpenKai2"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-budokai-2-playstation-2",
+            "title": "Dragon Ball Z: Budokai 2 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/7v0biscuit/OpenKai2/blob/71850e8857a654452bdde0276990df05157e29f3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -56634,7 +58361,16 @@
         "evidence_urls": [
           "https://github.com/kitaaaaaa/Oratan-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "cyber-troopers-virtual-on-oratorio-tangram-xbox-360",
+            "title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/kitaaaaaa/Oratan-recomp/blob/762ea1a785ab658cb2dca4d3c7f4a9c7735f2306/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -56728,7 +58464,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/outrun"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "outrun-online-arcade-xbox-360",
+            "title": "OutRun Online Arcade (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/outrun/blob/286656e8d6c1d97930d59359bf26f24036fd9d8e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -56917,7 +58662,16 @@
           "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md",
           "https://github.com/OverkillLabs3/gears-judgement-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "gears-of-war-judgment-xbox-360",
+            "title": "Gears of War: Judgment (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/OverkillLabs3/gears-judgement-recomp/blob/e56c475a75b1b703aee0e3422ffc18a27a05f66a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -57183,7 +58937,16 @@
           "https://api.github.com/users/poopoocacacacaca",
           "https://api.github.com/repos/poopoocacacacaca/p3fes-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "persona-3-fes-playstation-2",
+            "title": "Persona 3 FES (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/ppkkkkk/p3fes-recompiled/blob/b53437748ded7e11a955ae79e94414d147a1ba17/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -57325,7 +59088,16 @@
         "evidence_urls": [
           "https://github.com/kromossomom-debug/pangya-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pangya-fantasy-golf-playstation-portable",
+            "title": "Pangya: Fantasy Golf (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -57460,7 +59232,16 @@
         "evidence_urls": [
           "https://github.com/vs-sr-dev/pc-3ddotgameheroes"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "3d-dot-game-heroes-playstation-3",
+            "title": "3D Dot Game Heroes (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/vs-sr-dev/pc-3ddotgameheroes/blob/a9ef70da1c4440b243efe51b124cd1e5bb4f10f9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -57686,7 +59467,16 @@
         "evidence_urls": [
           "https://github.com/vs-sr-dev/pc-dynastywarriors2"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "dynasty-warriors-2-playstation-2",
+            "title": "Dynasty Warriors 2 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/vs-sr-dev/pc-dynastywarriors2/blob/c99c207f837839b271b552b4896febf817a12a53/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58097,7 +59887,16 @@
         "evidence_urls": [
           "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "perfect-dark-xbox-360",
+            "title": "Perfect Dark (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp/blob/ee8259b7c3417e90a565c76adb61049564ee5cc9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58352,7 +60151,16 @@
         "evidence_urls": [
           "https://github.com/dzakyraf/pes2017-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pro-evolution-soccer-2017-xbox-360",
+            "title": "Pro Evolution Soccer 2017 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/dzakyraf/pes2017-recomp/blob/8dd109b38f875774275e259550d066cefd618da0/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58410,7 +60218,16 @@
           "https://github.com/petarov/alleycat.exe#readme",
           "https://github.com/petarov/alleycat.exe"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "alley-cat-pc",
+            "title": "Alley Cat (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58514,7 +60331,16 @@
         "evidence_urls": [
           "https://github.com/hk21x/pgr1-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "project-gotham-racing-xbox",
+            "title": "Project Gotham Racing (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hk21x/pgr1-recomp/blob/ce110e2c441a5e128a98a57dfe6b5d582c619a03/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58561,7 +60387,16 @@
         "evidence_urls": [
           "https://github.com/hk21x/pgr2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "project-gotham-racing-2-xbox",
+            "title": "Project Gotham Racing 2 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/hk21x/pgr2-recomp/blob/20da98112aa4b82d8c8917dbcb97becebaf6fcca/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -58702,7 +60537,16 @@
         "evidence_urls": [
           "https://github.com/DanielCoffey1/psu-decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "phantasy-star-universe-xbox-360-xbox-360",
+            "title": "Phantasy Star Universe (Xbox 360) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/DanielCoffey1/psu-decomp/blob/f39eca80e72e0a92f14977151f9dca39d64866a4/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -59154,7 +60998,16 @@
         "evidence_urls": [
           "https://github.com/jM5557/poka-poka"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "monster-hunter-diary-poka-poka-felyne-village-g-playstation-portable",
+            "title": "Monster Hunter Diary: Poka Poka Felyne Village G (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/jM5557/poka-poka/blob/9d110e05687ea1e057eb33b1cb41392edf949854/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -59403,7 +61256,16 @@
           "https://github.com/mstan/EmeraldRecomp/releases",
           "https://github.com/mstan/EmeraldRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-emerald-game-boy-advance",
+            "title": "Pokémon Emerald (Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/mstan/EmeraldRecomp/blob/be40ff165581a8db03d9ba9c928bce7758b7e04a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -59924,7 +61786,16 @@
         "evidence_urls": [
           "https://github.com/raulzrrs/letsgo-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-lets-go-eevee-nintendo-switch",
+            "title": "Pokémon: Let’s Go, Eevee! (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -59972,7 +61843,16 @@
         "evidence_urls": [
           "https://github.com/raulzrrs/letsgo-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-lets-go-pikachu-nintendo-switch",
+            "title": "Pokémon: Let’s Go, Pikachu! (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -60482,7 +62362,16 @@
         "evidence_urls": [
           "https://github.com/raulzrrs/swsh-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "pokemon-sword-nintendo-switch",
+            "title": "Pokémon Sword (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -60692,7 +62581,16 @@
           "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
           "https://github.com/iagodemacedo/OpenPopTB-MacOS"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "populous-the-beginning-pc",
+            "title": "Populous: The Beginning (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -60833,7 +62731,16 @@
           "https://github.com/portingpete/The-Darkness-Recomp/blob/8e4016c8b5a442b312d3a009a9047d0f541adbf8/README.md",
           "https://github.com/portingpete/The-Darkness-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-darkness-xbox-360",
+            "title": "The Darkness (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/portingpete/The-Darkness-Recomp/blob/b282ee558273a7d366c5d1360c27497c319bb169/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61266,7 +63173,16 @@
         "evidence_urls": [
           "https://github.com/ethannicholas/prime-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "metroid-prime-nintendo-gamecube",
+            "title": "Metroid Prime (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/prime-recomp/blob/aee55ab6d2e73bfd800ac60756c94d422acc74eb/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61372,7 +63288,16 @@
         "evidence_urls": [
           "https://github.com/ThePlayer14/project-eleven-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "11eyes-crossover-xbox-360",
+            "title": "11eyes CrossOver (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ThePlayer14/project-eleven-recomp/blob/0e3ed718e33e5e2df570fc10bbab246cd28b28ba/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61419,7 +63344,16 @@
         "evidence_urls": [
           "https://github.com/SulphurS16/AC4-Port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "armored-core-4-playstation-3",
+            "title": "Armored Core 4 (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/SulphurS16/AC4-Port/blob/aa468df72f7c091fb5efb2331d251b1ddb4dd773/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61466,7 +63400,16 @@
         "evidence_urls": [
           "https://github.com/SulphurS16/ACFA-Port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "armored-core-for-answer-playstation-3",
+            "title": "Armored Core: For Answer (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/SulphurS16/ACFA-Port/blob/3deb3de0c1a33b9922419d663930c581c7453918/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -61793,7 +63736,16 @@
           "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md",
           "https://github.com/PromethenDev/wwe13-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-13-xbox-360",
+            "title": "WWE '13 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/PromethenDev/wwe13-recomp/blob/d6574985f7e73ab2a4c09f68684aba49ba454d07/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -62091,7 +64043,16 @@
         "evidence_urls": [
           "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "jackie-chan-stuntmaster-playstation",
+            "title": "Jackie Chan Stuntmaster (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp/blob/55faaf82e23724456609ab8d25e0028ac52ef84b/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -62388,7 +64349,16 @@
         "evidence_urls": [
           "https://github.com/TeamGDB/Purun"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "locoroco-2-playstation-portable",
+            "title": "LocoRoco 2 (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/TeamGDB/Purun/blob/5cd4b67de6de91a416cf416aa77fa56082a1df55/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -62530,7 +64500,16 @@
         "evidence_urls": [
           "https://github.com/ITSeniy/pvz-console-edition"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "plants-vs-zombies-xbox-live-arcade-xbox-360",
+            "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -62587,7 +64566,16 @@
           "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/3363d5339af52f228a95f2a9f28a95d466e5c520/README.md",
           "https://github.com/cyberheater/Xbox-360-Quake4-decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "quake-4-xbox-360",
+            "title": "Quake 4 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/4373d66191307d1f6c839343d7bc7b0008eec5f0/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -62887,7 +64875,7 @@
         "steps": [
           {
             "title": "Copy your own classic Quake data beside the managed player",
-            "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+            "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
           },
           {
             "title": "Prepare the existing Ironwail copy",
@@ -63742,7 +65730,16 @@
         "evidence_urls": [
           "https://github.com/gabrielofavero/rb-blitz-xenon-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rock-band-blitz-xbox-360",
+            "title": "Rock Band Blitz (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/gabrielofavero/rb-blitz-xenon-recomp/blob/5fae4614cf8cb6bb4cab93dc24a28a40ca38856a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -63787,7 +65784,16 @@
         "evidence_urls": [
           "https://github.com/dietslack/rb3pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rock-band-3-xbox-360",
+            "title": "Rock Band 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/dietslack/rb3pc/blob/2af17dd2aad1eeee54c886d1813437676a6e5cfd/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -63834,7 +65840,16 @@
         "evidence_urls": [
           "https://github.com/thefixinhixon/Re-Jeweled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "bejeweled-blitz-live-xbox-360",
+            "title": "Bejeweled Blitz Live (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64055,7 +66070,16 @@
         "evidence_urls": [
           "https://github.com/retronative/recarbon"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "need-for-speed-carbon-xbox-360",
+            "title": "Need for Speed: Carbon (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/retronative/recarbon/blob/8a31b6248db36059bb203ab150513fcf04d2f071/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64388,7 +66412,16 @@
         "evidence_urls": [
           "https://github.com/jillsandwich1998/reGH2"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "guitar-hero-ii-xbox-360",
+            "title": "Guitar Hero II (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/jillsandwich1998/reGH2/blob/3c5f75c52c116b49b5f212d403c0e1cccb37f510/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64435,7 +66468,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/reo"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-outbreak-playstation-2",
+            "title": "Resident Evil Outbreak (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/reo/blob/de19db7db52331d2c364cfd989c6fa4cec393632/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64480,7 +66522,16 @@
         "evidence_urls": [
           "https://github.com/ReRevvedRecomp/rerevved"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "civilization-revolution-xbox-360",
+            "title": "Civilization Revolution (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ReRevvedRecomp/rerevved/blob/9451877451b99ba5f970d17e38c5c17addb6b309/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64588,7 +66639,16 @@
           "https://github.com/aikatore/recvx-enhanced-port/blob/e8c8f8097ccc082c635d7ed7d6ad50073bc73227/README.md",
           "https://github.com/aikatore/recvx-enhanced-port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "resident-evil-code-veronica-x-playstation-2",
+            "title": "Resident Evil Code: Veronica X (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/aikatore/recvx-enhanced-port/blob/8a1b6f066f9aab03618a428c575e034c2769da55/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -64753,7 +66813,16 @@
           "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
           "https://github.com/RetroPulse03/WinBackRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "winback-covert-operations-nintendo-64",
+            "title": "WinBack: Covert Operations (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/RetroPulse03/WinBackRecomp/blob/e6deb9c8c3e07884cd930a416201b98a1346b250/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -64988,7 +67057,16 @@
           "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/1ef2f480553d65bbb2e37a05621b22da161ae8c3/README.md",
           "https://github.com/Sirhalo23/RidgeRacer6-Recompilation"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ridge-racer-6-xbox-360",
+            "title": "Ridge Racer 6 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/50d1c9d3268eff1ada34a413b026697a02331e0a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -65141,7 +67219,16 @@
           "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md",
           "https://github.com/danisandoval/fukami"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ridge-racer-v-playstation-2",
+            "title": "Ridge Racer V (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -65833,7 +67920,16 @@
         "evidence_urls": [
           "https://github.com/RaikoDenpa/RoR-Port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rule-of-rose-playstation-2",
+            "title": "Rule of Rose (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/RaikoDenpa/RoR-Port/blob/e22d3a35862c7e888afbb11523f6c66ce53bdf89/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -66025,7 +68121,16 @@
         "evidence_urls": [
           "https://github.com/JesusTaylo/rumble-roses-xx-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rumble-roses-xx-xbox-360",
+            "title": "Rumble Roses XX (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/JesusTaylo/rumble-roses-xx-recomp/blob/7c60384935b5391cf9e76fb1c162abac865575c2/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -66747,7 +68852,16 @@
         "evidence_urls": [
           "https://github.com/snufflyyy/SARPBC-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "supersonic-acrobatic-rocket-powered-battle-cars-playstation-3",
+            "title": "Supersonic Acrobatic Rocket-Powered Battle-Cars (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/snufflyyy/SARPBC-recompiled/blob/d545239978ebe84efd1bfe77a49d6cef7b29b84e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -66870,7 +68984,16 @@
           "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
           "https://github.com/scottjco/Wetrix_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wetrix-nintendo-64",
+            "title": "Wetrix (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -67527,7 +69650,16 @@
           "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/34d7b71d926440262f14f6a6e2d9763494588498/launcher/release/README.txt",
           "https://github.com/shaneomac1337/WWE-AllStars-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-all-stars-xbox-360",
+            "title": "WWE All Stars (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/shaneomac1337/WWE-AllStars-Recomp/blob/31e428daf4ea69eab670db408c757b42b21d2ad8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -67544,6 +69676,11 @@
       "summary": "A Tekken Tag Tournament 2 Windows 10/11 player installer. ttt2_setup.exe checks your own Xbox 360 disc and supported TU3, builds the PC version and prepares shaders. Separate ttt2-server Windows/Linux amd64 and Linux ARM64 packages host servers; they are not Linux players. The project’s claims of 59 fighters, rollback and ranked play are untested here. Its installer and server maintainers manage preparation, rather than Portcove. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Tekken Tag Tournament 2",
       "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "ttt2_setup.exe"
+        ]
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
@@ -67631,7 +69768,16 @@
         "evidence_urls": [
           "https://github.com/ludusregard/SBX-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "import-tuner-challenge-xbox-360",
+            "title": "Import Tuner Challenge (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ludusregard/SBX-Recomp/blob/12d08e1c2af29ec6caa8bd195d56d95219c06109/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68032,7 +70178,16 @@
           "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md",
           "https://github.com/cookingwithsimon/Skate2Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "skate-2-xbox-360",
+            "title": "Skate 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68089,7 +70244,16 @@
           "https://github.com/cookingwithsimon/Skate1Recompiled/blob/d94ce91e444eb66e068a09f4994eacb71550a84c/README.md",
           "https://github.com/cookingwithsimon/Skate1Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "skate-2007-xbox-360",
+            "title": "skate (2007) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/cookingwithsimon/Skate1Recompiled/blob/bdbdc251cc4d389b5e3c07f125cfb0f9b609f2eb/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68222,7 +70386,16 @@
           "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md",
           "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "skies-of-arcadia-legends-nintendo-gamecube",
+            "title": "Skies of Arcadia Legends (GameCube)",
+            "system": "nintendo-gamecube",
+            "evidence_urls": [
+              "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -68513,7 +70686,16 @@
           "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
           "https://github.com/HikariLucy/SnowboardKids-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "snowboard-kids-nintendo-64",
+            "title": "Snowboard Kids (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/README.md"
+            ]
+          }
+        ]
       },
       "download_asset_hints": {
         "windows-x86-64": [
@@ -69710,7 +71892,16 @@
         "evidence_urls": [
           "https://github.com/LightVelox/sotc-vibe-pc"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "shadow-of-the-colossus-playstation-2",
+            "title": "Shadow of the Colossus (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/LightVelox/sotc-vibe-pc/blob/1ce4a5ea4955878bd2edabdc4e1a6b6f49a8e1ad/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -69820,7 +72011,16 @@
         "evidence_urls": [
           "https://github.com/TheBozos/SoulCaliburIII_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "soulcalibur-iii-playstation-2",
+            "title": "Soulcalibur III (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheBozos/SoulCaliburIII_Recomp/blob/98d189bfb5dbf9e3965d247a3eee4119fef15f89/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70056,7 +72256,16 @@
           "https://github.com/soyjxck/dod3-recomp/blob/e229e8b66434916b5b025f0f06ee3fd06c10d3f4/README.md",
           "https://github.com/soyjxck/dod3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "drakengard-3-playstation-3",
+            "title": "Drakengard 3 (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/soyjxck/dod3-recomp/blob/ce8b9b30289ef7e0c17d34fd4a5e085a9278ad41/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70103,7 +72312,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/burnout3"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "burnout-3-takedown-xbox",
+            "title": "Burnout 3: Takedown (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/burnout3/blob/3c85ed7777886f4a8f805cb243b123b1b82cf375/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70423,7 +72641,16 @@
         "evidence_urls": [
           "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "spider-man-2-ps2-playstation-2",
+            "title": "Spider-Man 2 (PS2) (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/saltyboosack-blip/Spider-Man-2-PS2-Recomp/blob/98aef964411fc355ff4ae59a710b1644222bfe6c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70470,7 +72697,16 @@
         "evidence_urls": [
           "https://github.com/b4ttycre4se/Spider-Man-3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "spider-man-3-xbox-360",
+            "title": "Spider-Man 3 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/b4ttycre4se/Spider-Man-3-Recomp/blob/e8d8d09e678661e72a36e9f44fa9f51f59a06d13/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70517,7 +72753,16 @@
         "evidence_urls": [
           "https://github.com/0c0de/splatterhouse-decomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "splatterhouse-2010-xbox-360",
+            "title": "Splatterhouse (2010) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/0c0de/splatterhouse-decomp/blob/fe3370272ebc792ba2d2b5c988fc4ff9d0c7f0a1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70702,7 +72947,16 @@
         "evidence_urls": [
           "https://github.com/SloppyWyn/SRWZ-native"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-robot-taisen-z-playstation-2",
+            "title": "Super Robot Taisen Z (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70878,7 +73132,16 @@
         "evidence_urls": [
           "https://github.com/bertibertig/SSX3-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ssx-3-xbox",
+            "title": "SSX 3 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/bertibertig/SSX3-Recomp/blob/a4fb6ebd80776f18c86d4b221b419bedb4f8d2c1/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -70906,7 +73169,16 @@
         "evidence_urls": [
           "https://github.com/koenhendriks/SSX3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ssx-3-xbox",
+            "title": "SSX 3 (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/koenhendriks/SSX3-recomp/blob/bdb5110ec1cb3ac73c84de7aded73852f7656fa8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -71663,7 +73935,16 @@
         "evidence_urls": [
           "https://github.com/GTTeancum/StarWars-CloneWars-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "star-wars-the-clone-wars-xbox-xbox",
+            "title": "Star Wars: The Clone Wars (Xbox) (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/StarWars-CloneWars-PC/blob/29c35840af184868ec798567063f5bd1a1a03ca8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -72091,7 +74372,16 @@
         "evidence_urls": [
           "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "star-wars-battlefront-renegade-squadron-playstation-portable",
+            "title": "Star Wars Battlefront: Renegade Squadron (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC/blob/7c0e0db52d5076f5794284f000277525d11fe563/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -72136,7 +74426,16 @@
         "evidence_urls": [
           "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-alpha-3-dreamcast",
+            "title": "Street Fighter Alpha 3 (Dreamcast)",
+            "system": "dreamcast",
+            "evidence_urls": [
+              "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp/blob/f2755dff751767b9a8ccd1fb41ae941d95512be0/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -72335,7 +74634,16 @@
         "evidence_urls": [
           "https://github.com/guimaraf/3sxw"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "street-fighter-iii-3rd-strike-playstation-2",
+            "title": "Street Fighter III: 3rd Strike (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/README.md"
+            ]
+          }
+        ]
       },
       "platforms": [
         "windows-x86-64"
@@ -73232,7 +75540,16 @@
         "evidence_urls": [
           "https://github.com/BluetufieBugado/SuperMarioWonderRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-bros-wonder-nintendo-switch",
+            "title": "Super Mario Bros. Wonder (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/BluetufieBugado/SuperMarioWonderRecomp/blob/9ecad0cef164008a474b5ff0fa50e6ef55edba60/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -73522,7 +75839,16 @@
           "https://github.com/mstan/SuperMarioRPGRecomp/blob/f5eb899e1683cb0183fe99ae0cfdea24f1a18a0b/README.md",
           "https://github.com/mstan/SuperMarioRPGRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-mario-rpg-legend-of-the-seven-stars-super-nintendo",
+            "title": "Super Mario RPG: Legend of the Seven Stars (Super Nintendo)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioRPGRecomp/blob/1f48acad974bb9f1ac444f435edb5fbee5d6ea9a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -73938,7 +76264,16 @@
           "https://github.com/dyzz/srw64-recomp/blob/96507db6e1484c213c73dede8882541f7cd3e709/README.md",
           "https://github.com/dyzz/srw64-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "super-robot-taisen-64-nintendo-64",
+            "title": "Super Robot Taisen 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/dyzz/srw64-recomp/blob/348a801bac25a57617d145d44b3f150c1d321d15/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -75064,7 +77399,16 @@
         "evidence_urls": [
           "https://github.com/danilopaulinodasilva/SyphonFilterRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "syphon-filter-playstation",
+            "title": "Syphon Filter (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/danilopaulinodasilva/SyphonFilterRecomp/blob/57e1340f3134700a742053c45353ef53fd00022e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -75276,7 +77620,16 @@
         "evidence_urls": [
           "https://github.com/bartando/ttrecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "rockstar-games-presents-table-tennis-xbox-360",
+            "title": "Rockstar Games Presents Table Tennis (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/bartando/ttrecomp/blob/7cdfaa7450a2ed3ee5bd26c8ac7118c18382ae67/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -75368,7 +77721,16 @@
         "evidence_urls": [
           "https://github.com/Artknighty/tagforcerecomp-preview"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yu-gi-oh-gx-tag-force-playstation-portable",
+            "title": "Yu-Gi-Oh! GX Tag Force (PlayStation Portable)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/Artknighty/tagforcerecomp-preview/blob/29233827dfbd97d4e60116b56ad85d2d0583cb4e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -75624,7 +77986,16 @@
         "evidence_urls": [
           "https://github.com/Ekspym/Tekken6-native-online"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tekken-6-xbox-360",
+            "title": "Tekken 6 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Ekspym/Tekken6-native-online/blob/f68b65b253d85f2627f4501b6c35125243f770fe/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -76141,7 +78512,16 @@
         "evidence_urls": [
           "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "test-drive-unlimited-2-xbox-360-xbox-360",
+            "title": "Test Drive Unlimited 2 (Xbox 360) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/danny199012/Test-Drive-Unlimited-2-Recomp/blob/6ab29ae13402052c0002b811366d7e2896b19fc9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -76919,7 +79299,16 @@
           "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/661d493ccf64bb8b0a957986d9630171c19b38ea/README.md",
           "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-darkness-xbox-360",
+            "title": "The Darkness (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/5234f331dc5178af4245cc43a31fc5e6f3e61bf9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77216,7 +79605,16 @@
         "evidence_urls": [
           "https://github.com/Revivedx/SavageWindRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+            "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/Revivedx/SavageWindRecomp/blob/3a98ae855e61ae5675aa24e3cc27be4f54b07e8b/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77264,7 +79662,16 @@
         "evidence_urls": [
           "https://github.com/Nycolazs/EoWRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-echoes-of-wisdom-nintendo-switch",
+            "title": "The Legend of Zelda: Echoes of Wisdom (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/Nycolazs/EoWRecomp/blob/dd9c79d6c01d9eaddafc1fc5a07b6658bfc56505/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77323,7 +79730,16 @@
           "https://github.com/peiikai/LASRecomp/blob/fb45ad6d1ac2e2fc1b7a1aba08bb639e5137fbc6/README.md",
           "https://github.com/peiikai/LASRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-links-awakening-2019-switch-nintendo-switch",
+            "title": "The Legend of Zelda: Link's Awakening (2019 Switch) (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/peiikai/LASRecomp/blob/31f0bfea7e767776c90ceb766269747a87870d18/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77619,7 +80035,16 @@
         "evidence_urls": [
           "https://github.com/thefixinhixon/TheMawRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-maw-xbox-360",
+            "title": "The Maw (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/TheMawRecomp/blob/3494328bae82b34df58499b01f5bccf28bbc0f35/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -77948,7 +80373,16 @@
         "evidence_urls": [
           "https://github.com/sp00nznet/simpsonsarcade"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-simpsons-arcade-xbox-live-arcade-xbox-360",
+            "title": "The Simpsons Arcade (Xbox Live Arcade) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/simpsonsarcade/blob/527f163b697a3c72164d9330544777d9b0cd44db/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -78069,7 +80503,16 @@
           "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/docs/guides/running.md",
           "https://github.com/Ryubara/coney"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-warriors-playstation-2",
+            "title": "The Warriors (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Ryubara/coney/blob/eb07fc0f9d69e62c7aeee6307be5c2ef162f4ee6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -78116,7 +80559,16 @@
         "evidence_urls": [
           "https://github.com/Antriksh1984/TheWarriors-XBERecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "the-warriors-xbox",
+            "title": "The Warriors (Xbox)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/Antriksh1984/TheWarriors-XBERecomp/blob/1d0c8c70951e102181a13a818702759ab3941843/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -78744,6 +81196,23 @@
         ]
       },
       "issue_number": 3047,
+      "original_game": {
+        "format_version": 1,
+        "id": "timesplitters",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/Timesplitters"
+        ],
+        "source_editions": [
+          {
+            "id": "timesplitters-playstation-2",
+            "title": "TimeSplitters (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/GTTeancum/Timesplitters/releases/tag/v1.1",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -78754,14 +81223,6 @@
           "TimeSplitters-Recomp-",
           "linux-x86_64.tar.gz"
         ]
-      },
-      "original_game": {
-        "format_version": 1,
-        "id": "timesplitters",
-        "evidence_urls": [
-          "https://github.com/GTTeancum/Timesplitters"
-        ],
-        "source_editions": []
       }
     },
     {
@@ -78910,7 +81371,16 @@
         "evidence_urls": [
           "https://github.com/TheBozos/TMB_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-black-playstation-2",
+            "title": "Twisted Metal: Black (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheBozos/TMB_Recomp/blob/a58a70226062c5323e8ac4ac78f71c95f4a57495/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -79693,7 +82163,16 @@
         "evidence_urls": [
           "https://github.com/YaPeL/torchlight-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "torchlight-xbox-live-arcade-xbox-360",
+            "title": "Torchlight (Xbox Live Arcade) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -79913,7 +82392,16 @@
         "evidence_urls": [
           "https://github.com/yuias/TOX2-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tales-of-xillia-2-playstation-3",
+            "title": "Tales of Xillia 2 (PlayStation 3)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -79987,7 +82475,16 @@
           "https://github.com/woodys-workshop/SpaceRanger/commit/0b7b3dd20d75441c40005ee468d375c230d431d0",
           "https://api.github.com/repositories/1415549886"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "toy-story-2-buzz-lightyear-to-the-rescue-nintendo-64",
+            "title": "Toy Story 2: Buzz Lightyear to the Rescue! (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/woodys-workshop/SpaceRanger/blob/40461c5eb419db1a889d7bdfe9878d56c493f8cc/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80108,7 +82605,16 @@
         "evidence_urls": [
           "https://github.com/ZenigataBloch/tr-underworld-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "tomb-raider-underworld-xbox-360-xbox-360",
+            "title": "Tomb Raider: Underworld (Xbox 360) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/ZenigataBloch/tr-underworld-recomp/blob/2259a249bb917a5947830ce1bde1ca6b19360526/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80155,7 +82661,16 @@
         "evidence_urls": [
           "https://github.com/TPepperoni666/Transformers-2004-PS2-Port"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "transformers-2004-playstation-2",
+            "title": "Transformers (2004) (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TPepperoni666/Transformers-2004-PS2-Port/blob/6c4b43b14c503e755d3e1374b5d5e172cb77ae0c/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80293,7 +82808,16 @@
           "https://wiki.openttd.org/en/Manual/Installation",
           "https://github.com/OpenTTD/OpenTTD"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "transport-tycoon-deluxe-pc",
+            "title": "Transport Tycoon Deluxe (PC)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80401,7 +82925,16 @@
         "evidence_urls": [
           "https://github.com/snufflyyy/trials-hd-recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "trials-hd-xbox-360",
+            "title": "Trials HD (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/snufflyyy/trials-hd-recompiled/blob/17a76f5e674c6132d74f587567e0ecc1624ce3e6/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -80569,7 +83102,16 @@
         "evidence_urls": [
           "https://github.com/tsapZ/ImaginatorsRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "skylanders-imaginators-xbox-360",
+            "title": "Skylanders: Imaginators (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/tsapZ/ImaginatorsRecomp/blob/524944024c303520cefaa89321f31811a0f81548/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -81245,7 +83787,16 @@
         "evidence_urls": [
           "https://github.com/12feihu/TwistedMetal2Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "twisted-metal-2-playstation",
+            "title": "Twisted Metal 2 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/12feihu/TwistedMetal2Recomp/blob/0deb58a9e3717c9a732ac6eefe5fd29239ea0a3e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -81641,7 +84192,16 @@
         "evidence_urls": [
           "https://github.com/idiazraz/ufe3-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "ultraman-fighting-evolution-3-playstation-2",
+            "title": "Ultraman Fighting Evolution 3 (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/idiazraz/ufe3-recomp/blob/88d0e29cf0272bffe5d0e849a9c6937e44d40c68/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -82357,7 +84917,16 @@
           "https://github.com/thiagordsfx/urban-reign-recomp/blob/74f22452a7c2afd1df082e5a8c41ed6943db5a3d/README.md",
           "https://github.com/thiagordsfx/urban-reign-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "urban-reign-playstation-2",
+            "title": "Urban Reign (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -83693,7 +86262,16 @@
         "evidence_urls": [
           "https://github.com/theurbanninja1993-sketch/vcs-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-vice-city-stories-playstation-2",
+            "title": "Grand Theft Auto: Vice City Stories (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/theurbanninja1993-sketch/vcs-recomp/blob/cb916041750e9ed944c1ee84f68df56ce14c9f29/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -83740,7 +86318,16 @@
         "evidence_urls": [
           "https://github.com/DonSlopenberg/VF2reKOmped"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "virtua-fighter-2-xbox-360",
+            "title": "Virtua Fighter 2 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/DonSlopenberg/VF2reKOmped/blob/9cef01e2b5c45ce34029da20cd48ad7ed2e16b02/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -84574,7 +87161,16 @@
         "evidence_urls": [
           "https://github.com/TheBozos/VP2S_Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "valkyrie-profile-2-silmeria-playstation-2",
+            "title": "Valkyrie Profile 2: Silmeria (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -84747,7 +87343,16 @@
         "evidence_urls": [
           "https://github.com/yanm1103/War_of_the_Monsters_recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "war-of-the-monsters-playstation-2",
+            "title": "War of the Monsters (PlayStation 2)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/yanm1103/War_of_the_Monsters_recomp/blob/bf0c4b4ba657733982d0e7672951dbad8901d149/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -84896,6 +87501,80 @@
       "original_game_title": "Warcraft II: Tides of Darkness"
     },
     {
+      "id": "warioland4",
+      "project_url": "https://github.com/BioRhythmicStudios/warioland4",
+      "name": "Wario Land 4 (BioRhythmic Studios)",
+      "original_game": {
+        "format_version": 1,
+        "id": "wario-land-4",
+        "evidence_urls": [
+          "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Wario-Land-4-267596.html"
+        ],
+        "source_editions": [
+          {
+            "id": "wario-land-4-gba-us",
+            "title": "Wario Land 4 (US Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta"
+            ]
+          }
+        ]
+      },
+      "summary": "An unofficial native PC port of Wario Land 4. Upstream offers Windows and Linux x64 beta packages. Its launcher needs your own unmodified US Game Boy Advance ROM.",
+      "listed_at": "2026-11-19",
+      "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
+      "original_game_title": "Wario Land 4",
+      "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "WarioLand4-Native-PC-Port-",
+          "Windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Wario_Land_4-",
+          "x86_64.AppImage"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
+        "steps": [
+          {
+            "title": "Open the upstream launcher",
+            "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+          },
+          {
+            "title": "Choose your original game",
+            "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select wl4-launcher.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "The packages contain recompiled game program code. Upstream's MIT notice covers its identified sources, and upstream documents inherited code with no recorded license. The launcher reads game data from your own original ROM.",
+          "The Windows v0.3.2-beta runtime could not start on the Windows 11 build 26300 host tested by Portcove. This release could not reserve the memory range it needs for the game. See upstream for newer beta releases.",
+          "The Windows launcher saves the selected ROM path in your user registry. Windows v0.3.2-beta can read earlier settings, but beta 1 and beta 2 cannot read the newer settings it saves. Back up settings before downgrading."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg; the Windows user registry entry for the original ROM path; Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides). Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      }
+    },
+    {
       "id": "warzone-2100-official-maintained-source-port",
       "artwork": {
         "game_id": 51297,
@@ -85025,7 +87704,16 @@
           "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
           "https://github.com/chronic8000/WaveRace64Recompiled"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wave-race-64-nintendo-64",
+            "title": "Wave Race 64 (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85194,7 +87882,16 @@
           "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md",
           "https://github.com/geno55/wg3d-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wayne-gretzkys-3d-hockey-nintendo-64",
+            "title": "Wayne Gretzky's 3D Hockey (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85241,7 +87938,16 @@
         "evidence_urls": [
           "https://github.com/dotGrx/WCW-Mayhem-RECOMP"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wcw-mayhem-playstation",
+            "title": "WCW Mayhem (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85451,7 +88157,16 @@
         "evidence_urls": [
           "https://github.com/nikolaygorb/WetRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wet-xbox-360",
+            "title": "WET (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/nikolaygorb/WetRecomp/blob/cb5b8be0747cb61602a11ccb5b82bbf1c5e68cdd/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85556,7 +88271,16 @@
           "https://github.com/whompay/SaintsReborn/blob/f53b57748e2d7854ba57f4afd13c8eb9a8e4924c/README.md",
           "https://github.com/whompay/SaintsReborn"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "saints-row-2006-xbox-360",
+            "title": "Saints Row (2006) (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/whompay/SaintsReborn/blob/6cec19c82930d8dd5239bc8d246578c66d2ebcb9/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85670,7 +88394,16 @@
         "evidence_urls": [
           "https://github.com/arelkair/wiiparty-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wii-party-wii",
+            "title": "Wii Party (Wii)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/arelkair/wiiparty-recomp/blob/e66662b0e7c324dae9e4710dba54b36f8904306f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -85786,7 +88519,16 @@
           "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
           "https://github.com/plinkr/Wild9Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wild-9-playstation",
+            "title": "Wild 9 (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -86471,7 +89213,16 @@
           "https://github.com/wootbeer/btgarecomp/blob/4afa89bcb21f38a010f63726ecf9f716fcb04fab/README.md",
           "https://github.com/wootbeer/btgarecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "battletanx-global-assault-nintendo-64",
+            "title": "BattleTanx: Global Assault (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/wootbeer/btgarecomp/blob/bcda2f71ee1f1f05988a88833cc004073e522ee8/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -86534,7 +89285,16 @@
           "https://github.com/wootbeer/btrecomp/blob/5b06c1bb496c021acd64d5dabd053d9ec5471d8c/README.md",
           "https://github.com/wootbeer/btrecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "battletanx-nintendo-64",
+            "title": "BattleTanx (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/wootbeer/btrecomp/blob/d40f1e89b5079798d56ce89b24fbc4cedcc96034/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -86753,7 +89513,16 @@
           "https://github.com/wootbeer/PaxDino/blob/edfac2ea7bd941ce5df8e04afe930d92711a392b/README.md",
           "https://github.com/wootbeer/PaxDino"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "turok-rage-wars-nintendo-64",
+            "title": "Turok: Rage Wars (Nintendo 64)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/wootbeer/PaxDino/blob/c48ab21d82231be9bc79d8e87ad2f4a260d1d0ff/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -86973,7 +89742,16 @@
         "evidence_urls": [
           "https://github.com/nvd123-YT/WormsWorldPartyRecomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "worms-world-party-playstation",
+            "title": "Worms World Party (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/nvd123-YT/WormsWorldPartyRecomp/blob/227645dde0c6382b411b9cb36f4de36bdb715f08/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -87159,7 +89937,16 @@
         "evidence_urls": [
           "https://github.com/Jarrodfeng/wwe2k14-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-2k14-xbox-360",
+            "title": "WWE 2K14 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -87207,7 +89994,16 @@
         "evidence_urls": [
           "https://github.com/PromethenDev/wwe2k14-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwe-2k14-xbox-360",
+            "title": "WWE 2K14 (Xbox 360)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/PromethenDev/wwe2k14-recomp/blob/a3e892d79d518afa4a33304891fb12fdf0fe3e5a/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -87592,7 +90388,16 @@
         "evidence_urls": [
           "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "wwf-smackdown-2-know-your-role-playstation",
+            "title": "WWF SmackDown! 2: Know Your Role (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp/blob/524a939733e305036032f8d34d27444aebce967f/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -87994,7 +90799,16 @@
         "evidence_urls": [
           "https://github.com/OpokXeno/xenogears-recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "xenogears-playstation",
+            "title": "Xenogears (PlayStation)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/OpokXeno/xenogears-recomp/blob/131614f70abdc4e36c70e63e8f5be33f8dcd8013/README.md"
+            ]
+          }
+        ]
       }
     },
     {
@@ -88324,7 +91138,16 @@
         "evidence_urls": [
           "https://github.com/ILFforever/YW4Recomp"
         ],
-        "source_editions": []
+        "source_editions": [
+          {
+            "id": "yo-kai-watch-4-nintendo-switch",
+            "title": "Yo-kai Watch 4++ (Nintendo Switch)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/ILFforever/YW4Recomp/blob/9220d3a3e04427cdcb1c5892bf66db87a636a820/README.md"
+            ]
+          }
+        ]
       }
     },
     {

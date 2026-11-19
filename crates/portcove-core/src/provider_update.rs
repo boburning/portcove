@@ -46,16 +46,54 @@ pub struct ProviderUpdateObservation {
     pub reason: Option<String>,
 }
 
+fn scope_unavailable(native_id: &str, provider: ProviderPackageRef) -> ProviderUpdateObservation {
+    ProviderUpdateObservation {
+        native_id: native_id.into(),
+        installed_version: provider.version.clone(),
+        provider,
+        state: ProviderUpdateState::Unavailable,
+        observed_version: None,
+        version_changed: false,
+        newer_files: Vec::new(),
+        freshness: None,
+        reason: Some("this package's provider scope is no longer reviewed for this port".into()),
+    }
+}
+
 impl PortcoveService {
     pub async fn check_provider_updates(
         &self,
         port_id: &str,
         profile_id: &str,
     ) -> Result<Vec<ProviderUpdateObservation>> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
-        self.check_provider_updates_via(&client, port_id, profile_id)
-            .await
+        let port = self.catalog().port(port_id)?;
+        let Some(bindings) = crate::provider_binding::configured_bindings(port) else {
+            let client = ProviderClient::for_definition(&self.library, port, None)?;
+            return self
+                .check_provider_updates_via(&client, port_id, profile_id)
+                .await;
+        };
+        let revision = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        let mut observations = Vec::new();
+        for binding in bindings {
+            let client =
+                ProviderClient::for_definition(&self.library, port, Some(binding.provider()))?;
+            observations.extend(
+                self.check_provider_updates_for_revision(&client, &revision)
+                    .await?,
+            );
+        }
+        observations.extend(revision.packages.iter().filter_map(|package| {
+            let provider = package.provider.clone()?;
+            if bindings
+                .iter()
+                .any(|binding| binding.provider() == provider.provider)
+            {
+                return None;
+            }
+            Some(scope_unavailable(&package.native_id, provider))
+        }));
+        Ok(observations)
     }
 
     #[cfg(test)]
@@ -94,6 +132,11 @@ impl PortcoveService {
                 continue;
             };
             if provider.provider != client.provider() {
+                continue;
+            }
+            let port = self.catalog().port(&revision.build.port_id)?;
+            if !crate::provider_binding::reference_matches(port, &provider) {
+                observations.push(scope_unavailable(&package.native_id, provider));
                 continue;
             }
             let ids = provider
@@ -143,6 +186,12 @@ impl PortcoveService {
                     observation.freshness = Some(ProviderFreshness::Stale);
                     observation.reason =
                         Some("the provider could not be reached; this is earlier data".into());
+                }
+                Ok(observed)
+                    if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) =>
+                {
+                    observation.freshness = Some(observed.freshness);
+                    observation.reason = Some("the provider did not confirm this project's association with the reviewed game".into());
                 }
                 Ok(observed)
                     if observed.value.status_unknown.is_some() || {

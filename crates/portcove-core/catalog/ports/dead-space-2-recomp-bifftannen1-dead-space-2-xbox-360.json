@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "dead-space-2",
       "evidence_urls": ["https://github.com/bifftannen1/Dead-Space-2-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dead-space-2-xbox-360",
+          "title": "Dead Space 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/bifftannen1/Dead-Space-2-Recomp/blob/97b9dac62ad10175874774ea0dcc8a9fd632893f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

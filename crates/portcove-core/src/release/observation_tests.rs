@@ -459,6 +459,73 @@ fn checksum_observation_requests_exact_sources_and_resolves_without_authoring_ch
 }
 
 #[test]
+fn same_release_late_linux_checksum_changes_only_its_platform_projection() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let windows = Platform::WindowsX86_64;
+    let linux = Platform::LinuxX86_64;
+    port.platforms = vec![windows, linux];
+    port.channels = vec![ReleaseChannel::Stable];
+    port.release
+        .asset_hints
+        .insert(linux, vec!["game-linux-x64".into()]);
+    let mut release = release(1, "v1");
+    for (id, name) in [
+        (11, "game-linux-x64.tar.gz"),
+        (12, "game-linux-x64.tar.gz.sha256"),
+    ] {
+        let mut asset = release["assets"][0].clone();
+        asset["id"] = json!(id);
+        asset["name"] = json!(name);
+        asset["digest"] = Value::Null;
+        asset["browser_download_url"] = json!(format!(
+            "https://github.com/HarbourMasters/Shipwright/releases/download/v1/{name}"
+        ));
+        release["assets"].as_array_mut().unwrap().push(asset);
+    }
+    let mut document = envelope(vec![release])?;
+    let pending = inspect(&port, &document)?;
+    let projection = |report: &UpstreamObservationReport, platform| {
+        report
+            .projections
+            .iter()
+            .position(|entry| entry.platform == platform && entry.channel == ReleaseChannel::Stable)
+            .unwrap()
+    };
+    let win = projection(&pending, windows);
+    let lx = projection(&pending, linux);
+    assert_eq!(
+        pending.projections[lx].hold_reasons,
+        ["checksum-observation-incomplete"]
+    );
+    assert_eq!(pending.projections[lx].checksum_sources[0].asset_id, 12);
+    let windows_before = pending.projections[win].latest_eligible.as_ref().unwrap();
+
+    let digest = "b".repeat(64);
+    document["facts"]["checksum_sidecars"] = json!([{ "release_id":1, "asset_id":12, "text":format!("{digest}  game-linux-x64.tar.gz\n") }]);
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    let complete = inspect(&port, &document)?;
+    assert_ne!(pending.facts_sha256, complete.facts_sha256);
+    assert_eq!(
+        pending.catalog_definition_sha256,
+        complete.catalog_definition_sha256
+    );
+    assert!(complete.projections[lx].hold_reasons.is_empty());
+    let linux_after = complete.projections[lx].latest_eligible.as_ref().unwrap();
+    assert_eq!((linux_after.release_id, linux_after.asset_id), (1, 11));
+    assert_eq!(linux_after.release.version, "v1");
+    assert_eq!(linux_after.release.asset.sha256, digest);
+    let windows_after = complete.projections[win].latest_eligible.as_ref().unwrap();
+    assert_eq!(windows_before.release_id, windows_after.release_id);
+    assert_eq!(windows_before.asset_id, windows_after.asset_id);
+    assert_eq!(windows_before.release.asset, windows_after.release.asset);
+    assert_eq!(
+        serde_json::to_string(&complete)?,
+        serde_json::to_string(&inspect(&port, &document)?)?
+    );
+    Ok(())
+}
+
+#[test]
 fn observations_use_shared_game_channels_and_preserve_unverified_evidence() -> Result<()> {
     let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     port.platforms = vec![Platform::WindowsX86_64];

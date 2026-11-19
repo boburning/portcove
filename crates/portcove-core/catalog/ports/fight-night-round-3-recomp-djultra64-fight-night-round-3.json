@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "fight-night-round-3",
       "evidence_urls": ["https://github.com/djultra64/Fight-Night-Round-3-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fight-night-round-3-xbox-360",
+          "title": "Fight Night Round 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/djultra64/Fight-Night-Round-3-Recomp/blob/176193a89ab44ec9bb158b42df8f33a6fa1ace72/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

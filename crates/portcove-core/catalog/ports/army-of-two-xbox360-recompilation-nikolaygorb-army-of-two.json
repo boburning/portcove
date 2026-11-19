@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "army-of-two",
       "evidence_urls": ["https://github.com/nikolaygorb/ArmyOfTwoRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "army-of-two-xbox-360",
+          "title": "Army of Two (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/ArmyOfTwoRecomp/blob/4847b5a9a3069f2a66872b17657f5bd6b9813a93/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

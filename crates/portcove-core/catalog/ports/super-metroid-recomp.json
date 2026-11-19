@@ -56,7 +56,16 @@
         "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16",
         "https://github.com/mstan/SuperMetroidRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-metroid-super-nintendo",
+          "title": "Super Metroid (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

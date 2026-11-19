@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "the-warriors",
       "evidence_urls": ["https://github.com/Antriksh1984/TheWarriors-XBERecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-warriors-xbox",
+          "title": "The Warriors (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Antriksh1984/TheWarriors-XBERecomp/blob/1d0c8c70951e102181a13a818702759ab3941843/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

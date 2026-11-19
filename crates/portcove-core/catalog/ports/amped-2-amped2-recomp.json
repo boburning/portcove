@@ -37,7 +37,16 @@
       "format_version": 1,
       "id": "amped-2",
       "evidence_urls": ["https://github.com/bertibertig/Amped2-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "amped-2-xbox",
+          "title": "Amped 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/bertibertig/Amped2-Recomp/blob/24a222b3b6962eccab9238a9cf1912e73fc25ea5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

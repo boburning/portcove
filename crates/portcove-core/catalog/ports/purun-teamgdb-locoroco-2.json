@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "locoroco-2",
       "evidence_urls": ["https://github.com/TeamGDB/Purun"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "locoroco-2-playstation-portable",
+          "title": "LocoRoco 2 (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Purun/blob/5cd4b67de6de91a416cf416aa77fa56082a1df55/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

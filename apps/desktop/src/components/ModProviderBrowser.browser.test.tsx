@@ -216,11 +216,11 @@ it("recovers a failed update review by reopening the exact provider project", as
   await expect.element(heading).toHaveFocus();
   await expect.element(page.getByRole("button", { name: "Review pack.zip" })).toBeVisible();
   expect(read.mock.calls).toEqual([
-    ["shipwright", "41", 7],
-    ["shipwright", "42", 7],
-    ["shipwright", "42", 7],
+    ["shipwright", "41", 7, "gamebanana"],
+    ["shipwright", "42", 7, "gamebanana"],
+    ["shipwright", "42", 7, "gamebanana"],
   ]);
-  expect(browsePage).toHaveBeenCalledExactlyOnceWith("shipwright", 1, 7);
+  expect(browsePage).toHaveBeenCalledExactlyOnceWith("shipwright", 1, 7, "gamebanana");
 });
 
 function button(host: HTMLElement, label: string) {
@@ -242,7 +242,7 @@ it("browses, reviews a file and installs only the confirmed plan", async () => {
   const { host } = await render(onInstalled);
 
   await act(async () => button(host, "Find mods on GameBanana…").click());
-  expect(browsed).toHaveBeenCalledWith("shipwright", 1, 7);
+  expect(browsed).toHaveBeenCalledWith("shipwright", 1, 7, "gamebanana");
   expect(host.textContent).toContain("show that a mod works with this game");
   await act(async () => button(host, "Show files of HD Link").click());
   expect(host.textContent).toContain("pack.zip (4.0 KiB)");
@@ -250,7 +250,7 @@ it("browses, reviews a file and installs only the confirmed plan", async () => {
   expect(applied).not.toHaveBeenCalled();
 
   await act(async () => button(host, "Review pack.zip").click());
-  expect(planned).toHaveBeenCalledWith("shipwright", "default", "42", "10", 7);
+  expect(planned).toHaveBeenCalledWith("shipwright", "default", "42", "10", 7, "gamebanana");
   expect(host.textContent).toContain("Replaces your installed HD Link.otr");
   expect(host.textContent).toContain("GameBanana's MD5");
   expect(host.textContent).toContain("game’s mods folder changes as soon as you install");
@@ -465,9 +465,16 @@ it("names Thunderstore and asks before installing a reviewed mod that runs code"
   await act(async () => button(host, "Find mods on Thunderstore…").click());
   expect(host.textContent).not.toContain("GameBanana");
   await act(async () => button(host, "Show files of Timer").click());
-  expect(projectRead).toHaveBeenCalledWith("zelda64-recomp", "Owner-Timer", 7);
+  expect(projectRead).toHaveBeenCalledWith("zelda64-recomp", "Owner-Timer", 7, "thunderstore");
   await act(async () => button(host, "Review Owner-Timer-1.1.0.zip").click());
-  expect(planned).toHaveBeenCalledWith("zelda64-recomp", "default", "Owner-Timer", "1.1.0", 7);
+  expect(planned).toHaveBeenCalledWith(
+    "zelda64-recomp",
+    "default",
+    "Owner-Timer",
+    "1.1.0",
+    7,
+    "thunderstore",
+  );
   expect(host.textContent).toContain("speed_timer.nrm runs its own code inside the game");
   expect(host.textContent).toContain("Tools-Shared (2.1.0)");
   expect(host.textContent).toContain("Owner-Timer (1.1.0)");
@@ -514,7 +521,7 @@ it("filters the current page and shows attributed, individually identified file 
   const link = page.getByRole("link", { name: "Open project on GameBanana" });
   await expect.element(link).toHaveAttribute("href", "https://gamebanana.com/mods/42");
   await link.click();
-  expect(openProject).toHaveBeenCalledWith("shipwright", "42", 7);
+  expect(openProject).toHaveBeenCalledWith("shipwright", "42", 7, "gamebanana");
   await expect.element(page.getByText("old.zip", { exact: true })).not.toBeInTheDocument();
   await page.getByRole("checkbox", { name: "Show archived files" }).click();
   await expect.element(page.getByText("old.zip", { exact: true })).toBeVisible();

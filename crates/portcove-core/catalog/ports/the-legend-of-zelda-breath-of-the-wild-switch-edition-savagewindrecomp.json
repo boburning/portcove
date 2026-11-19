@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-breath-of-the-wild",
-      "evidence_urls": [
-        "https://github.com/Revivedx/SavageWindRecomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/Revivedx/SavageWindRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-breath-of-the-wild-nintendo-switch",
+          "title": "The Legend of Zelda: Breath of the Wild (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Revivedx/SavageWindRecomp/blob/3a98ae855e61ae5675aa24e3cc27be4f54b07e8b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

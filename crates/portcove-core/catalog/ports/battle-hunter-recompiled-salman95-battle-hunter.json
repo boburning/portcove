@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "battle-hunter",
       "evidence_urls": ["https://github.com/salman95/BattleHunterRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "battle-hunter-playstation",
+          "title": "Battle Hunter (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/salman95/BattleHunterRecomp/blob/70620a75936708442e1ac4c291271f3e5c99f7d5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

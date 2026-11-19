@@ -54,7 +54,16 @@
         "https://github.com/holdmysocks/mcla-recomp",
         "https://github.com/holdmysocks/mcla-recomp/blob/f3104f553ddd90b251012cc1536d4158765acd93/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "midnight-club-los-angeles-xbox-360",
+          "title": "Midnight Club: Los Angeles (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/holdmysocks/mcla-recomp/blob/2ed208199fcab064e67a83c5ab8f7e8f2aece444/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

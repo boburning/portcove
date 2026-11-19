@@ -54,7 +54,16 @@
         "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc",
         "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc/blob/34166525b72447515339edad3e46cd62ff7e1a86/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "buffy-the-vampire-slayer-chaos-bleeds-xbox",
+          "title": "Buffy the Vampire Slayer: Chaos Bleeds (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/KaikoClanworth1/buffy-chaos-bleeds-pc/blob/34166525b72447515339edad3e46cd62ff7e1a86/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

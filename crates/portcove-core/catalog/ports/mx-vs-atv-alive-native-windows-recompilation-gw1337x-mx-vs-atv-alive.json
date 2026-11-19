@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "mx-vs-atv-alive",
       "evidence_urls": ["https://github.com/gw1337x/mx-vs-atv-alive-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mx-vs-atv-alive-xbox-360",
+          "title": "MX vs. ATV Alive (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/gw1337x/mx-vs-atv-alive-recomp/blob/f1bf96f76a9910e79beea76ec58ae2232504c591/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

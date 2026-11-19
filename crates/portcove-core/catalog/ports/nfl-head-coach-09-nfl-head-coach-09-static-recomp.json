@@ -52,7 +52,16 @@
         "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
         "https://github.com/tools81/nfl-head-coach-09-static-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nfl-head-coach-09-xbox-360",
+          "title": "NFL Head Coach 09 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/34073a9ae7dd80d66257ae54d8cf42a903268770/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

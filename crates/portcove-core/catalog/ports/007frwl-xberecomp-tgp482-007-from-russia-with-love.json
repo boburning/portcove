@@ -50,7 +50,16 @@
       "format_version": 1,
       "id": "007-from-russia-with-love",
       "evidence_urls": ["https://github.com/TGP482/007FRWL-XBERecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "007-from-russia-with-love-xbox",
+          "title": "007: From Russia with Love (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/TGP482/007FRWL-XBERecomp/blob/1ff350a4902caa2cc733277087a788ed731cb9fb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

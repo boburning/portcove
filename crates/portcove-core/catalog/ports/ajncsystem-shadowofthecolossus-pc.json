@@ -58,7 +58,24 @@
         "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/5e9744bdfbe99e6699be45cb0615112b0f44a693/README.md",
         "https://github.com/AjncSystem/ShadowOfTheColossus-PC"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-2018-playstation-4-eu",
+          "title": "Shadow of the Colossus (2018) (PlayStation 4, EU 1.01, CUSA08809)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+          ]
+        },
+        {
+          "id": "shadow-of-the-colossus-2018-playstation-4-us",
+          "title": "Shadow of the Colossus (2018) (PlayStation 4, US 1.00, CUSA08034)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

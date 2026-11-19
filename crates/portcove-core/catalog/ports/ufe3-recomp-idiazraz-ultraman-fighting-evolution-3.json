@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "ultraman-fighting-evolution-3",
       "evidence_urls": ["https://github.com/idiazraz/ufe3-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ultraman-fighting-evolution-3-playstation-2",
+          "title": "Ultraman Fighting Evolution 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/idiazraz/ufe3-recomp/blob/88d0e29cf0272bffe5d0e849a9c6937e44d40c68/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

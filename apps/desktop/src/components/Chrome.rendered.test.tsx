@@ -280,7 +280,7 @@ describe("desktop components", () => {
       "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
     );
     expect(html).toContain(
-      "Metadata records installed versions, saved file locations and settings",
+      "The export records installed versions, saved file locations and settings",
     );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Export library information<\/button>/u,

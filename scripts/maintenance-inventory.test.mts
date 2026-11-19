@@ -1742,6 +1742,78 @@ void test(
 );
 
 void test(
+  "published maintenance report reads retained pending-to-eligible history once per candidate",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("managed-eligibility");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const port = "2ship2harkinian";
+    writeFileSync(responses, JSON.stringify({ [port]: report("automatic") }));
+    const published_at = new Date(Date.now() - 86_400_000).toISOString();
+    const previous = progress("owner/alpha", [port]);
+    let run = 0;
+    const observe = (eligible: boolean) => {
+      const candidate = { id: 100, tag: "v2", published_at };
+      return collect({
+        cli,
+        all: true,
+        ports: [port],
+        upstream: () =>
+          Promise.resolve({
+            revision: `upstream-observer-run:${++run}`,
+            config_sha256: scope,
+            checkpoint: checkpoint({
+              [keyOf("owner/alpha")]: {
+                ...previous,
+                last_complete_policies: [
+                  {
+                    ...previous.last_complete_policies[0],
+                    projections: [
+                      {
+                        platform: "linux-x86-64",
+                        channel: "stable",
+                        channel_candidate: candidate,
+                        latest_eligible: eligible
+                          ? { release_id: candidate.id, release: { version: candidate.tag } }
+                          : null,
+                        hold_reasons: eligible ? [] : ["missing-digest"],
+                      },
+                    ],
+                  },
+                ],
+              },
+            }),
+            catalog: {
+              ports: [{ id: port, channels: ["stable"], release: { repository: "owner/alpha" } }],
+            },
+          }),
+        environment: store.owner,
+        runner: "fixture",
+      });
+    };
+    await observe(false);
+    const pending = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(pending?.distinct_candidates, 1);
+    assert.equal(pending.pending_candidates, 1);
+    await observe(true);
+    const eligible = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(eligible?.distinct_candidates, 1);
+    assert.equal(eligible.eligible_candidates, 1);
+    assert.equal(eligible.pending_candidates, 0);
+    assert.equal(eligible.publication_to_recorded_eligibility_ms?.samples, 1);
+    await observe(true);
+    const repeated = buildReport(store.owner).managed_release_eligibility;
+    assert.equal(repeated?.first_recorded_evidence_at, eligible.first_recorded_evidence_at);
+    assert.deepEqual(
+      repeated.publication_to_recorded_eligibility_ms,
+      eligible.publication_to_recorded_eligibility_ms,
+    );
+  },
+);
+
+void test(
   "upstream observations record coverage, quiet recurrence, attention and failed reads",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {

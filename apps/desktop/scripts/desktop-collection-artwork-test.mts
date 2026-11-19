@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { lstat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until, type IRectangle, type WebDriver } from "selenium-webdriver";
 import {
@@ -23,6 +23,7 @@ import {
 import { transportValue } from "./transport-values.mts";
 import { fixtureSuccess } from "./desktop-scenario-state.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { readBoundedEvidenceFile } from "../../../scripts/development-evidence.mts";
 
 const scenarioId = "native-collection-artwork-presentation";
 const subjects = [
@@ -31,7 +32,146 @@ const subjects = [
 ] as const;
 const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const maximumPngBytes = 1024 * 1024;
-const digest = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
+const digest = (value: Uint8Array | string) => createHash("sha256").update(value).digest("hex");
+const maximumCatalogDiagnosticBytes = 2 * 1024 * 1024;
+
+/** Diagnostic transport identities, not Core's canonical definition/trust identities.
+ * Object-key normalization distinguishes ordering from changed values; arrays retain order. */
+export function collectionCatalogDiagnostic(snapshot: OutputDesktopWorkspaceSnapshot) {
+  assert.ok(snapshot.catalog && snapshot.listing_catalog);
+  const identity = (value: unknown) => {
+    const json = JSON.stringify(value);
+    assert.ok(typeof json === "string");
+    const sorted = JSON.stringify(value, (_key, entry: unknown) =>
+      isRecord(entry)
+        ? Object.fromEntries(
+            Object.keys(entry)
+              .sort()
+              .map((key) => [key, entry[key]]),
+          )
+        : entry,
+    );
+    assert.ok(typeof sorted === "string");
+    return {
+      json_bytes: Buffer.byteLength(json),
+      json_sha256: digest(json),
+      object_keys_sorted_sha256: digest(sorted),
+    };
+  };
+  const entries = (values: readonly { id: string }[]) => {
+    assert.ok(values.length <= 10_000, "Catalog diagnostic entry bound exceeded");
+    return values.map((value, index) => ({ index, id: value.id, ...identity(value) }));
+  };
+  return {
+    catalog_digest: snapshot.catalog_digest,
+    catalog: {
+      ...identity(snapshot.catalog),
+      schema_version: snapshot.catalog.schema_version,
+      source_catalog: identity(snapshot.catalog.source_catalog ?? null),
+      ports: entries(snapshot.catalog.ports),
+      source_profiles: entries(snapshot.catalog.source_profiles ?? []),
+    },
+    listing_catalog: {
+      ...identity(snapshot.listing_catalog),
+      format_version: snapshot.listing_catalog.format_version,
+      listings: entries(snapshot.listing_catalog.listings),
+    },
+  };
+}
+
+/** Retain early dispatch/request IDs from the existing private host log, never payloads.
+ * Fixed session/rotation names bound discovery. Limits/read errors remain explicit;
+ * host logging is best effort and is not proof that every IPC request was observed. */
+export async function collectionCommandDiagnostic(runtimeRoot: string, startedAt: number) {
+  const records: object[] = [];
+  const errors: string[] = [];
+  const files: object[] = [];
+  let matched = 0;
+  let bytes = 0;
+  const endedAt = Date.now();
+  const root = path.join(runtimeRoot, "diagnostics");
+  const slots = ["", ...Array.from({ length: 8 }, (_, index) => `session-0${index}`)];
+  for (const slot of slots) {
+    const directory = path.join(root, slot);
+    try {
+      const metadata = await lstat(directory);
+      assert.ok(metadata.isDirectory() && !metadata.isSymbolicLink());
+    } catch (error) {
+      if (isRecord(error) && error.code === "ENOENT") continue;
+      errors.push(`Cannot inspect ${slot || "root"}: ${errorMessage(error)}`);
+      continue;
+    }
+    for (let rotation = 0; rotation <= 5; rotation++) {
+      const name = `portcove-desktop.jsonl${rotation ? `.${rotation}` : ""}`;
+      const file = path.join(directory, name);
+      try {
+        const metadata = await lstat(file);
+        if (metadata.size === 0 && metadata.isFile()) continue;
+        assert.ok(bytes + metadata.size <= 16 * 1024 * 1024, "Host log read bound exceeded");
+        const observed = await readBoundedEvidenceFile(file, 4 * 1024 * 1024);
+        bytes += observed.bytes.length;
+        files.push({ slot, name, bytes: observed.bytes.length, sha256: observed.identity.sha256 });
+        for (const line of observed.bytes.toString("utf8").split("\n")) {
+          if (!line) continue;
+          const value: unknown = JSON.parse(line);
+          if (!isRecord(value) || typeof value.timestamp_ms !== "number") continue;
+          if (value.timestamp_ms < startedAt || value.timestamp_ms > endedAt) continue;
+          const fields = value.fields;
+          if (!isRecord(fields) || typeof fields.message !== "string") continue;
+          const named =
+            /^(?:IPC command dispatched: |blocking worker queued for )([a-z][a-z0-9_:|]{0,127})$/u.exec(
+              fields.message,
+            );
+          const worker = /^blocking worker (started|completed)$/u.exec(fields.message);
+          if (!named && !worker) continue;
+          matched++;
+          if (records.length >= 1_024) continue;
+          records.push({
+            timestamp_ms: value.timestamp_ms,
+            process_id:
+              typeof value.process_id === "number" && Number.isSafeInteger(value.process_id)
+                ? value.process_id
+                : null,
+            session_id:
+              typeof value.session_id === "string" ? value.session_id.slice(0, 128) : null,
+            phase: typeof fields.phase === "string" ? fields.phase.slice(0, 32) : null,
+            request_id:
+              typeof fields.request_id === "number" && Number.isSafeInteger(fields.request_id)
+                ? fields.request_id
+                : null,
+            command: named?.[1] ?? null,
+            event: worker?.[1] ?? (fields.phase === "command" ? "dispatched" : "queued"),
+          });
+        }
+      } catch (error) {
+        if (isRecord(error) && error.code === "ENOENT") continue;
+        errors.push(`${slot || "root"}/${name}: ${errorMessage(error)}`);
+      }
+    }
+  }
+  return {
+    started_at_ms: startedAt,
+    ended_at_ms: endedAt,
+    matched_records: matched,
+    omitted_records: Math.max(0, matched - records.length),
+    complete_available_records: errors.length === 0 && matched > 0 && matched === records.length,
+    files,
+    records,
+    errors,
+    limits:
+      "Existing best-effort host JSONL; no args, replies, credentials or complete-IPC claim. 1024 records; 16MiB input; fixed 9 namespaces/6 rotations.",
+  };
+}
+
+/** Same finite bound as the sidecar writer; a failure never permits a full workspace dump. */
+export function collectionCatalogDiagnosticJson(value: unknown) {
+  const json = JSON.stringify(value, null, 2) + "\n";
+  assert.ok(
+    Buffer.byteLength(json) <= maximumCatalogDiagnosticBytes,
+    "Catalog diagnostic exceeds 2MiB",
+  );
+  return json;
+}
 
 /** Selection from the real workspace; it never manufactures an operational port. */
 export function collectionArtworkSubjects(snapshot: OutputDesktopWorkspaceSnapshot) {
@@ -140,6 +280,7 @@ interface Context extends ScenarioContext {
   invoke: ScenarioInvoke;
   library: string;
   setTheme: (theme: "dark" | "light") => Promise<unknown>;
+  runtimeRoot?: string;
 }
 
 /** Actual WebView dimensions and the preference confirmed by its native sizing owner. */
@@ -247,7 +388,9 @@ export async function finishCollectionArtworkObservation(
 /** Real listing/thumbnail IPC only; no original files, installs, credentials or catalog writes. */
 export async function collectionArtworkScenario(context: Context) {
   await context.scenario(scenarioId, async () => {
-    const { browser, invoke, library } = context;
+    const { browser, invoke, library, output, artifacts } = context;
+    const diagnosticStartedAt = Date.now();
+    const catalogDiagnostics: object[] = [];
     const observations: unknown[] = [];
     const failures: unknown[] = [];
     const originalWindow = await browser.manage().window().getRect();
@@ -269,6 +412,50 @@ export async function collectionArtworkScenario(context: Context) {
     const retainFailure = (error: unknown) => {
       primary ??= error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
     };
+    const observeCatalog = async (
+      phase: "before" | "after",
+      snapshot: OutputDesktopWorkspaceSnapshot,
+      generation: number,
+    ) => {
+      // These are read-only observations. Failure must not skip any original
+      // preservation assertion or replace its error with a diagnostic failure.
+      const status = async (command: "get_catalog_status" | "get_listing_delivery_status") => {
+        try {
+          const value = fixtureSuccess(await invoke(command));
+          if (command === "get_catalog_status") {
+            const parsed = transportValue("catalog_status", value);
+            return {
+              command,
+              at_ms: Date.now(),
+              provenance: parsed.provenance,
+              state_sha256: parsed.state_sha256,
+              updates_enabled: parsed.updates_enabled,
+            };
+          }
+          return {
+            command,
+            at_ms: Date.now(),
+            value: transportValue("listing_delivery_status", value),
+          };
+        } catch (error) {
+          return { command, at_ms: Date.now(), error: errorMessage(error) };
+        }
+      };
+      try {
+        catalogDiagnostics.push({
+          phase,
+          observed_at_ms: Date.now(),
+          generation,
+          documents: collectionCatalogDiagnostic(snapshot),
+          status: await Promise.all([
+            status("get_catalog_status"),
+            status("get_listing_delivery_status"),
+          ]),
+        });
+      } catch (error) {
+        catalogDiagnostics.push({ phase, error: errorMessage(error) });
+      }
+    };
     try {
       const bootstrap = transportValue(
         "desktop_bootstrap_status",
@@ -282,6 +469,7 @@ export async function collectionArtworkScenario(context: Context) {
         fixtureSuccess(await invoke("get_workspace_snapshot", { generation })),
       );
       const collections = collectionArtworkSubjects(snapshot);
+      await observeCatalog("before", snapshot, generation);
       assert.ok(
         originalSize !== undefined,
         "The native interface size must be confirmed before changing it",
@@ -519,6 +707,7 @@ export async function collectionArtworkScenario(context: Context) {
         "desktop_workspace_snapshot",
         fixtureSuccess(await invoke("get_workspace_snapshot", { generation })),
       );
+      await observeCatalog("after", after, generation);
       assert.equal(after.catalog_digest, snapshot.catalog_digest);
       assert.deepEqual(collectionArtworkSubjects(after), collections);
       assert.deepEqual(after.sources, snapshot.sources);
@@ -542,6 +731,32 @@ export async function collectionArtworkScenario(context: Context) {
     } catch (error) {
       retainFailure(error);
     } finally {
+      const diagnosticFile = path.join(output, "native-collection-catalog-diagnostics.json");
+      try {
+        const commands = context.runtimeRoot
+          ? await collectionCommandDiagnostic(context.runtimeRoot, diagnosticStartedAt)
+          : { available: false, reason: "Owned host diagnostics root was not supplied" };
+        await writeFile(
+          diagnosticFile,
+          collectionCatalogDiagnosticJson({
+            format_version: 1,
+            scenario: scenarioId,
+            started_at_ms: diagnosticStartedAt,
+            states: catalogDiagnostics,
+            commands,
+            scope:
+              "Read-only diagnostic transport hashes and existing selection status, not Core canonical identity or trust. Array order is preserved. Status reads are separately timestamped, not an atomic workspace snapshot. Original digest/source/status/choice invariants remain authoritative.",
+          }),
+          { flag: "wx" },
+        );
+        artifacts.push(diagnosticFile);
+      } catch (error) {
+        observations.push({
+          phase: "catalog-diagnostic-retention-failed",
+          error: errorMessage(error),
+        });
+        retainFailure(error);
+      }
       primary = await finishCollectionArtworkObservation(context, {
         originalWindow,
         originalTheme: originalViewport.theme,

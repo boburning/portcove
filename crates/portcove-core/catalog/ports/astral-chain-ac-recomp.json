@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "astral-chain",
-      "evidence_urls": [
-        "https://github.com/swaymun/AC-Recomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/swaymun/AC-Recomp"],
+      "source_editions": [
+        {
+          "id": "astral-chain-nintendo-switch",
+          "title": "Astral Chain (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/swaymun/AC-Recomp/blob/80c50158e51a9fe1d0ba9d4827bfd9e54c795a2d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

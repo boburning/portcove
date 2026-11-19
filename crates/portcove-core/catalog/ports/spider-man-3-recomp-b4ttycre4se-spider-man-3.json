@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "spider-man-3",
       "evidence_urls": ["https://github.com/b4ttycre4se/Spider-Man-3-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "spider-man-3-xbox-360",
+          "title": "Spider-Man 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/b4ttycre4se/Spider-Man-3-Recomp/blob/e8d8d09e678661e72a36e9f44fa9f51f59a06d13/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

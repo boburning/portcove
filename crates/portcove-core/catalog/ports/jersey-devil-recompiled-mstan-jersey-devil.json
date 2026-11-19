@@ -36,15 +36,15 @@
       "game_slug": "jersey-devil",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["JerseyDevilRecomp-", "-windows-x64.zip"]
-    },
     "original_game": {
       "format_version": 1,
       "id": "jersey-devil",
       "evidence_urls": ["https://github.com/mstan/JerseyDevilRecomp"],
       "source_editions": []
+    },
+    "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["JerseyDevilRecomp-", "-windows-x64.zip"]
     }
   },
   "upstream_lineage": {

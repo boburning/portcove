@@ -55,7 +55,16 @@
       "format_version": 1,
       "id": "international-superstar-soccer-2000",
       "evidence_urls": ["https://github.com/djultra64/ISS2000"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "international-superstar-soccer-2000-nintendo-64",
+          "title": "International Superstar Soccer 2000 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

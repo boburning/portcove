@@ -58,7 +58,16 @@
         "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/f40889ac72dc86a14f8d951201b329ad35e71882/README.md",
         "https://github.com/madelrandel-blip/NFSMW-Recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "need-for-speed-most-wanted-xbox-360",
+          "title": "Need for Speed: Most Wanted (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/59a0f23ba19d826a2978443dfc2f8b2a96dd415f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

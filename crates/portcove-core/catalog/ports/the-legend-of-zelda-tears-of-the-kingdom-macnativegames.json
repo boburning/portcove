@@ -44,9 +44,7 @@
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-tears-of-the-kingdom",
-      "evidence_urls": [
-        "https://github.com/ly05010419/MacNativeGames"
-      ],
+      "evidence_urls": ["https://github.com/ly05010419/MacNativeGames"],
       "source_editions": []
     }
   },

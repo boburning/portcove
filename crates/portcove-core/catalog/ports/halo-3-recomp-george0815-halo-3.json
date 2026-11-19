@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "halo-3",
       "evidence_urls": ["https://github.com/george0815/halo-3-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "halo-3-xbox-360",
+          "title": "Halo 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/george0815/halo-3-recomp/blob/333df5d4bf5468cb524fb946d0abfb15834ce761/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

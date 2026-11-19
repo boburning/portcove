@@ -56,7 +56,16 @@
         "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
         "https://github.com/BlackLabelHQ/MediEvilRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "medievil-playstation",
+          "title": "MediEvil (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

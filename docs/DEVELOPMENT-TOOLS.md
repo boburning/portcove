@@ -1939,7 +1939,7 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-14. They are starting assignments by
+Recommendations as of 2026-11-19. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
 points, each to be evaluated on its own evidence. The implementation owner is
@@ -1948,24 +1948,27 @@ these instructions do not change it.
 
 | Responsibility                                 | Codex                   | Claude                      |
 | ---------------------------------------------- | ----------------------- | --------------------------- |
-| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Delegated implementation (only when asked)     | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
 | Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
 | Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
 
-Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.2-sol` at high
 effort only when a first review leaves a substantive unresolved question that a
 stronger pass is likely to settle. The critical reviewer and specialist rows are
 for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
-Documented availability, checked 2026-11-13: all eight models appear on
-the official [OpenAI models](https://developers.openai.com/api/docs/models) and
-[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
-pages, none is on a listed retirement, and every listed model documents both
-`medium` and `high` effort. Observed access is narrower: the local Codex CLI
-0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+The [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+lists GPT-6.2 Sol and GPT-6.2 Astra with both `medium` and `high` reasoning.
+The local Codex model cache included both model IDs when checked on 2026-11-19.
+The other model recommendations were checked against the official OpenAI and
+[Claude model catalogs](https://platform.claude.com/docs/en/about-claude/models/overview)
+on 2026-11-13.
+
+The local Codex CLI
+0.164.0 model list cached on 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
 separately reporting the served model. When the client does not
@@ -2404,6 +2407,18 @@ and fail complete-collection acceptance. Browser fixtures for Library/Manage rem
 separate evidence; this listing-only native case does not qualify those installed
 surfaces, gameplay or publication. It is absent from routine profiles.
 
+The collection case collects bounded diagnostic observations before checking its
+unchanged-catalog invariant and retains them in a sidecar during finalization.
+It records document and indexed entry hashes, the
+existing catalog and listing delivery status, and early command/request IDs from
+the private host logs. Object-key-normalized hashes are diagnostic transport
+identities, not Core definition or trust identities; array order remains meaningful.
+The sidecar is limited to 2 MiB within the unchanged 12 MiB evidence codec. Host
+logging is best effort: missing, changing, malformed or excessive logs are recorded
+as incomplete, never as proof that a command did not run. These observations do not
+reset the initial catalog digest or weaken source, status, artwork-choice or cleanup
+assertions.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
@@ -2538,7 +2553,9 @@ routine profiles. It retains malformed preferences and player-data before copies
 checks the actual startup diagnostics and absence of the normal workspace, and
 proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
-library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
+library identity and player data. A six-minute harness watchdog covers the
+initial refusal, both restarts, and owned-process cleanup. The failed-startup
+screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
 Technical labels retain their exact spelling while wrapping within their column;
 the scenario checks actual label/value separation and requires no unresolved
@@ -4005,7 +4022,11 @@ retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
 message parser so stream lengths retain byte units.
 Windows process-identity inspection retains a finite 15-second harness
-budget under host I/O load; host release allows 65 seconds for its bounded
+budget under host I/O load. Native Windows first checks existence with signal0,
+which sends no signal: only ESRCH returns absent without CIM. A possibly live
+process, permissions error or uncertain result still requires the exact CIM
+creation identity. This does not prove descendant or external-work cleanup;
+their existing custody checks remain required. Host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
 requires an explicit completion marker. If registration is missing after launch,

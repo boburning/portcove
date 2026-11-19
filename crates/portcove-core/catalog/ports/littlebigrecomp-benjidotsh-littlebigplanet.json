@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "littlebigplanet",
       "evidence_urls": ["https://github.com/benjidotsh/LittleBigRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "littlebigplanet-playstation-3",
+          "title": "LittleBigPlanet (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/benjidotsh/LittleBigRecomp/blob/10a129c06108304b5c74efbb5a21e6b323597698/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

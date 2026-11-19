@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 68;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 69;
 
 struct Migration {
     version: i64,
@@ -431,7 +431,27 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_68,
         verify: verify_migration_68,
     },
+    Migration {
+        version: 69,
+        name: "reviewed mod provider scope writer protocol",
+        apply: migration_69,
+        verify: verify_migration_69,
+    },
 ];
+
+fn migration_69(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE definition_provider_scope_floor (
+            port_id TEXT PRIMARY KEY NOT NULL CHECK(length(port_id) BETWEEN 1 AND 255)
+        );",
+    )?;
+    verify_migration_69(transaction)
+}
+
+fn verify_migration_69(connection: &Connection) -> Result<()> {
+    crate::profile::verify_selection_migration(connection)?;
+    require_columns(connection, "definition_provider_scope_floor", &["port_id"])
+}
 
 fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -3023,6 +3043,31 @@ mod tests {
     }
 
     #[test]
+    fn provider_writer_upgrade_keeps_the_existing_assessment_cursor() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 68).unwrap();
+        connect(root)
+            .unwrap()
+            .execute(
+                "INSERT INTO port_intent_assessment_cursor VALUES ('readiness', 'shipwright', 7)",
+                [],
+            )
+            .unwrap();
+        let library = crate::Library::open(root).unwrap();
+        let connection = library.connection().unwrap();
+        assert_eq!(recorded_versions(&connection).unwrap().last(), Some(&69));
+        let retained = connection.query_row(
+            "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose='readiness'",
+            [],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+        ).unwrap();
+        assert_eq!(retained, ("shipwright".into(), 7));
+        verify_migration_69(&connection).unwrap();
+    }
+
+    #[test]
     fn assessment_cursor_upgrade_keeps_existing_choices() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -4114,6 +4159,7 @@ mod tests {
         schema_65: 65,
         schema_66: 66,
         schema_67: 67,
+        schema_68: 68,
     }
 
     #[test]

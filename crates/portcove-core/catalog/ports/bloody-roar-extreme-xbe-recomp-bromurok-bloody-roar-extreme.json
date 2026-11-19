@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "bloody-roar-extreme",
       "evidence_urls": ["https://github.com/bromurok/BloodyRoarExtremeRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bloody-roar-extreme-xbox",
+          "title": "Bloody Roar Extreme (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/bromurok/BloodyRoarExtremeRecomp/blob/667bb7e8b6cb398bf42e8f582219b5dabe58656f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

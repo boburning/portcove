@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "rumble-roses-xx",
       "evidence_urls": ["https://github.com/JesusTaylo/rumble-roses-xx-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "rumble-roses-xx-xbox-360",
+          "title": "Rumble Roses XX (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/JesusTaylo/rumble-roses-xx-recomp/blob/7c60384935b5391cf9e76fb1c162abac865575c2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -224,15 +224,16 @@ it("retains a session-only layout through the real details unmount and return", 
   expect(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe(
     "12",
   );
+  // The inventory helper navigates the virtual rows. Check the detail return first.
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
+    .toBe("collection-0");
   await inspectLibraryGroups(
     [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]),
   );
   expect(document.body.textContent).toContain(
     "This collection view is available for this session; it could not be saved.",
   );
-  await expect
-    .poll(() => document.activeElement?.getAttribute("data-detail-game-id"))
-    .toBe("collection-0");
   await captureParityState("library-session-only-layout");
 });
 

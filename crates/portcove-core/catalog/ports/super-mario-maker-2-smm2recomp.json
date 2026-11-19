@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-maker-2",
-      "evidence_urls": [
-        "https://github.com/smm2recomp/smm2recomp"
-      ],
+      "evidence_urls": ["https://github.com/smm2recomp/smm2recomp"],
       "source_editions": []
     }
   },

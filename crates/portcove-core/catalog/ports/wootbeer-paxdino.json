@@ -58,7 +58,16 @@
         "https://github.com/wootbeer/PaxDino/blob/edfac2ea7bd941ce5df8e04afe930d92711a392b/README.md",
         "https://github.com/wootbeer/PaxDino"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "turok-rage-wars-nintendo-64",
+          "title": "Turok: Rage Wars (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/PaxDino/blob/c48ab21d82231be9bc79d8e87ad2f4a260d1d0ff/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

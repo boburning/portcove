@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "grand-theft-auto-vice-city-stories",
       "evidence_urls": ["https://github.com/theurbanninja1993-sketch/vcs-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-vice-city-stories-playstation-2",
+          "title": "Grand Theft Auto: Vice City Stories (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/theurbanninja1993-sketch/vcs-recomp/blob/cb916041750e9ed944c1ee84f68df56ce14c9f29/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

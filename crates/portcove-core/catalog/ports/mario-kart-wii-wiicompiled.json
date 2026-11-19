@@ -59,7 +59,16 @@
         "https://github.com/patchzyy/Wiicompiled#installing",
         "https://github.com/patchzyy/Wiicompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mario-kart-wii-wii",
+          "title": "Mario Kart Wii (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

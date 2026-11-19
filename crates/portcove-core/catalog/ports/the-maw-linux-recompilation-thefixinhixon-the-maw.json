@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "the-maw",
       "evidence_urls": ["https://github.com/thefixinhixon/TheMawRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-maw-xbox-360",
+          "title": "The Maw (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/TheMawRecomp/blob/3494328bae82b34df58499b01f5bccf28bbc0f35/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

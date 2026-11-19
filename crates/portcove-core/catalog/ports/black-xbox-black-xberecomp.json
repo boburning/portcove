@@ -28,7 +28,16 @@
       "format_version": 1,
       "id": "black",
       "evidence_urls": ["https://github.com/TGP482/BLACK-XBERecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "black-xbox",
+          "title": "BLACK (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/TGP482/BLACK-XBERecomp/blob/10b8464fa06ebd6e54e814b250e9e3554a48ef1c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

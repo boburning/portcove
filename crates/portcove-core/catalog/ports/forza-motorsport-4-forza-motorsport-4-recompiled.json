@@ -54,7 +54,16 @@
         "https://github.com/Alexbeav/fm4-recomp",
         "https://github.com/Alexbeav/fm4-recomp/blob/d41c918759869f9175b898f9c010c4b123794031/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "forza-motorsport-4-xbox-360",
+          "title": "Forza Motorsport 4 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

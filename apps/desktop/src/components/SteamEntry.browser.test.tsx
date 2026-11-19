@@ -863,3 +863,308 @@ it("states single-role and all-roles outcomes when nothing is removed", async ()
   );
   expect(preview).toHaveBeenCalledTimes(3);
 });
+
+it.each([
+  ["single", "dark"],
+  ["single", "light"],
+  ["batch", "dark"],
+  ["batch", "light"],
+  ["artwork", "dark"],
+  ["artwork", "light"],
+] as const)(
+  "keeps exact RTL Steam paths readable and actionable in %s / %s",
+  async (flow, theme) => {
+    const previous = {
+      dir: document.documentElement.getAttribute("dir"),
+      theme: document.documentElement.dataset.theme,
+      width: innerWidth,
+      height: innerHeight,
+    };
+    const unc = String.raw`\\مخدم\ألعاب\Steam`;
+    const extended =
+      String.raw`\\?\C:\SteamLibrary\Long` + "ExactFolder".repeat(8) + String.raw`\Steam`;
+    const shortcuts = unc + String.raw`\userdata\12345\config\shortcuts.vdf`;
+    const backup = extended + String.raw`\userdata\12345\config\shortcuts.vdf.portcove-backup`;
+    const library = extended + String.raw`\Portcove Library`;
+    const cli = extended + String.raw`\Portcove\portcove.exe`;
+    const grid = unc + String.raw`\userdata\12345\config\grid`;
+    expect(unc.split("\\")).toEqual(["", "", "مخدم", "ألعاب", "Steam"]);
+    expect(extended.split("\\").slice(0, 5)).toEqual(["", "", "?", "C:", "SteamLibrary"]);
+    expect(extended.slice(0, 7)).toBe("\\\\?\\C:\\");
+    const second = { ...port, id: "another-port", name: "Another Port" };
+    const selectedReview = {
+      ...review,
+      steam_root: unc,
+      shortcuts_path: shortcuts,
+      library_root: library,
+      cli_path: cli,
+    };
+    const selectedBatch = {
+      ...batchReviewFor(second),
+      steam_root: unc,
+      shortcuts_path: shortcuts,
+      library_root: library,
+      cli_path: cli,
+    };
+    const selectedArtwork = { ...artworkReview, steam_root: unc, grid_path: grid };
+    const discover = vi
+      .spyOn(desktopApi, "discoverSteamClientRoots")
+      .mockResolvedValue([unc, extended]);
+    const profiles = vi.spyOn(desktopApi, "listSteamProfiles").mockResolvedValue(["12345"]);
+    const singlePreview = vi
+      .spyOn(desktopApi, "previewSteamEntry")
+      .mockResolvedValue(selectedReview);
+    const batchPreview = vi
+      .spyOn(desktopApi, "previewSteamBatchAdd")
+      .mockResolvedValue(selectedBatch);
+    const artworkPreview = vi
+      .spyOn(desktopApi, "previewSteamArtwork")
+      .mockResolvedValue(selectedArtwork);
+    const applied = {
+      plan_sha256: review.plan_sha256,
+      shortcuts_path: shortcuts,
+      backup_path: backup,
+      changes: review.changes,
+      wrote: true,
+      artwork: [],
+    };
+    const singleApply = vi.spyOn(desktopApi, "applySteamEntry").mockResolvedValue(applied);
+    const batchApply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue({
+      ...applied,
+      plan_sha256: selectedBatch.writer_plan_sha256,
+      changes: selectedBatch.changes,
+    });
+    const artworkApply = vi.spyOn(desktopApi, "applySteamArtwork").mockResolvedValue({
+      plan_sha256: selectedArtwork.plan_sha256,
+      roles: selectedArtwork.roles,
+      backup_paths: [backup],
+      wrote: true,
+    });
+    const observe = async (stage: string, target: HTMLElement) => {
+      target.scrollIntoView({ block: "center" });
+      await document.fonts.ready;
+      const paths = [...target.querySelectorAll<HTMLElement>("input, bdi, code, dd")].map(
+        (element) => {
+          const style = getComputedStyle(element);
+          const bounds = element.getBoundingClientRect();
+          const glyphs: { index: number; x: number; y: number; width: number; height: number }[] =
+            [];
+          const text = element.firstChild;
+          if (text?.nodeType === Node.TEXT_NODE) {
+            for (let index = 0; index < Math.min(8, text.textContent?.length ?? 0); index++) {
+              const range = document.createRange();
+              range.setStart(text, index);
+              range.setEnd(text, index + 1);
+              const rect = range.getBoundingClientRect();
+              glyphs.push({ index, x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+            }
+          }
+          return {
+            tag: element.localName,
+            value: element instanceof HTMLInputElement ? element.value : element.textContent,
+            direction: style.direction,
+            unicodeBidi: style.unicodeBidi,
+            wordBreak: style.wordBreak,
+            overflowWrap: style.overflowWrap,
+            whiteSpace: style.whiteSpace,
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            glyphs,
+          };
+        },
+      );
+      console.info(
+        "Steam exact-path rendering observation: " +
+          JSON.stringify({
+            flow,
+            theme,
+            stage,
+            viewport: { width: innerWidth, height: innerHeight },
+            documentDirection: getComputedStyle(document.documentElement).direction,
+            paths,
+          }),
+      );
+      const opaquePaths = paths.filter((path) => path.value?.startsWith("\\\\"));
+      expect(opaquePaths).toHaveLength(
+        stage === "discovered" ? 2 : flow === "artwork" ? 1 : stage === "reviewed" ? 3 : 2,
+      );
+      for (const path of opaquePaths) expect(path.direction).toBe("ltr");
+      for (const path of opaquePaths.filter((path) => path.tag !== "input")) {
+        expect(path.wordBreak).toBe("break-all");
+        const isExtended = path.value.startsWith("\\\\?\\");
+        expect(isExtended).toBe(path.value.startsWith(extended));
+        const prefix = path.glyphs.slice(0, isExtended ? 7 : 3);
+        expect(prefix).toHaveLength(isExtended ? 7 : 3);
+        for (const glyph of prefix.slice(1)) expect(glyph.y).toBe(prefix[0]!.y);
+        // Arabic server names keep their natural shaping and visual run order.
+        const orderedPrefix = prefix.slice(0, isExtended ? 7 : 2);
+        for (const [index, glyph] of orderedPrefix.slice(1).entries())
+          expect(glyph.x).toBeGreaterThan(orderedPrefix[index]!.x);
+      }
+      const bounds = target.getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(0);
+      expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+      expect(target.scrollWidth).toBeLessThanOrEqual(target.clientWidth + 1);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState(`steam-path-direction-${flow}-${stage}`);
+    };
+    try {
+      await page.viewport(430, 896);
+      document.documentElement.dir = "rtl";
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        flow === "batch" ? (
+          <SteamBatchEntryDialog ports={[port, second]} generation={7} close={vi.fn()} />
+        ) : (
+          <SteamEntryDialog port={port} generation={7} installed close={vi.fn()} />
+        ),
+      );
+      if (flow === "batch") {
+        await page.getByRole("checkbox", { name: port.name }).click();
+        await page.getByRole("checkbox", { name: second.name }).click();
+      }
+      await click("Find Steam installations");
+      expect(discover).toHaveBeenCalledExactlyOnceWith(7);
+      const installations = document.querySelector<HTMLElement>(
+        '[aria-label="Local Steam installations"]',
+      )!;
+      await observe("discovered", installations);
+      await click(extended);
+      await expect.element(page.getByLabelText("Steam installation folder")).toHaveValue(extended);
+      await click(unc);
+      await expect.element(page.getByLabelText("Steam installation folder")).toHaveValue(unc);
+      expect(
+        getComputedStyle(page.getByLabelText("Steam installation folder").element()).direction,
+      ).toBe("ltr");
+      await expect.element(page.getByLabelText("Steam profile ID")).toHaveValue("");
+      expect(profiles).not.toHaveBeenCalled();
+      await click("Find local profiles");
+      expect(profiles).toHaveBeenCalledExactlyOnceWith(unc, 7);
+      await click("12345");
+      await click(
+        flow === "batch"
+          ? "Review selected shortcuts"
+          : flow === "artwork"
+            ? "Review artwork update"
+            : "Review shortcut setup",
+      );
+      const reviewed = document.querySelector<HTMLElement>(
+        `[aria-label="${flow === "artwork" ? "Reviewed Steam artwork" : "Reviewed Steam shortcut change"}"]`,
+      )!;
+      const details = reviewed.querySelector("details")!;
+      details.open = true;
+      for (const path of flow === "artwork" ? [grid] : [shortcuts, library, cli])
+        expect(details.textContent).toContain(path);
+      expect(singleApply).not.toHaveBeenCalled();
+      expect(batchApply).not.toHaveBeenCalled();
+      expect(artworkApply).not.toHaveBeenCalled();
+      await observe("reviewed", details);
+      const previews = {
+        batch: {
+          mock: batchPreview,
+          args: [
+            {
+              portIds: [port.id, second.id],
+              steamRoot: unc,
+              steamUserId: "12345",
+              includeArtwork: true,
+            },
+            7,
+          ],
+        },
+        artwork: {
+          mock: artworkPreview,
+          args: [
+            {
+              portId: port.id,
+              steamRoot: unc,
+              steamUserId: "12345",
+              operation: { kind: "update", replace_existing: false },
+            },
+            7,
+          ],
+        },
+        single: {
+          mock: singlePreview,
+          args: [port.id, unc, "12345", "add_or_repair", true, 7],
+        },
+      };
+      const preview = previews[flow];
+      expect(preview.mock.mock.calls).toEqual([preview.args]);
+      for (const other of [singlePreview, batchPreview, artworkPreview].filter(
+        (mock) => mock !== preview.mock,
+      ))
+        expect(other).not.toHaveBeenCalled();
+      await click(
+        flow === "batch"
+          ? "Add or repair selected shortcuts"
+          : flow === "artwork"
+            ? "Update Steam artwork"
+            : "Add or repair shortcut",
+      );
+      const result = document.querySelector<HTMLElement>(
+        `[aria-label="${flow === "artwork" ? "Steam artwork result" : flow === "batch" ? "Steam batch result" : "Steam shortcut result"}"]`,
+      )!;
+      const applications = {
+        batch: {
+          mock: batchApply,
+          args: [
+            {
+              portIds: [port.id, second.id],
+              steamRoot: unc,
+              steamUserId: "12345",
+              includeArtwork: true,
+            },
+            selectedBatch.review_sha256,
+            selectedBatch.artwork_review_sha256,
+            7,
+          ],
+        },
+        artwork: {
+          mock: artworkApply,
+          args: [
+            {
+              portId: port.id,
+              steamRoot: unc,
+              steamUserId: "12345",
+              operation: selectedArtwork.operation,
+            },
+            selectedArtwork.plan_sha256,
+            7,
+          ],
+        },
+        single: {
+          mock: singleApply,
+          args: [
+            port.id,
+            unc,
+            "12345",
+            "add_or_repair",
+            true,
+            selectedReview.plan_sha256,
+            selectedReview.artwork_review_sha256,
+            7,
+          ],
+        },
+      };
+      const application = applications[flow];
+      expect(application.mock.mock.calls).toEqual([application.args]);
+      for (const other of [singleApply, batchApply, artworkApply].filter(
+        (mock) => mock !== application.mock,
+      ))
+        expect(other).not.toHaveBeenCalled();
+      for (const path of flow === "artwork" ? [backup] : [backup, shortcuts])
+        expect(result.textContent).toContain(path);
+      await observe("result", result);
+    } finally {
+      if (previous.dir === null) document.documentElement.removeAttribute("dir");
+      else document.documentElement.setAttribute("dir", previous.dir);
+      if (previous.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previous.theme;
+      await page.viewport(previous.width, previous.height);
+    }
+  },
+);

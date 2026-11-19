@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "yu-gi-oh-gx-tag-force",
       "evidence_urls": ["https://github.com/Artknighty/tagforcerecomp-preview"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-gx-tag-force-playstation-portable",
+          "title": "Yu-Gi-Oh! GX Tag Force (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Artknighty/tagforcerecomp-preview/blob/29233827dfbd97d4e60116b56ad85d2d0583cb4e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

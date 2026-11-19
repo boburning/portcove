@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "guardian-heroes",
       "evidence_urls": ["https://github.com/rashevskyv/guardian-heroes-recomp-public"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "guardian-heroes-xbox-360",
+          "title": "Guardian Heroes (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/rashevskyv/guardian-heroes-recomp-public/blob/22ec653d69ba369f4749e721751bdb615cd82b45/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

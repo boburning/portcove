@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "metroid-prime",
       "evidence_urls": ["https://github.com/ethannicholas/prime-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "metroid-prime-nintendo-gamecube",
+          "title": "Metroid Prime (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/prime-recomp/blob/aee55ab6d2e73bfd800ac60756c94d422acc74eb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

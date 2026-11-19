@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "crystal-defenders",
       "evidence_urls": ["https://github.com/Claudio5702/Cristalis"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crystal-defenders-xbox-360",
+          "title": "Crystal Defenders (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Claudio5702/Cristalis/blob/48b91cbfca58e222dda743c7d56cd433b3d5fa42/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

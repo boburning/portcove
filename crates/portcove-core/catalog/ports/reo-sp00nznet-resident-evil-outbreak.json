@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "resident-evil-outbreak",
       "evidence_urls": ["https://github.com/sp00nznet/reo"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-outbreak-playstation-2",
+          "title": "Resident Evil Outbreak (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/reo/blob/de19db7db52331d2c364cfd989c6fa4cec393632/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

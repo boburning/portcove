@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "crash-of-the-titans",
       "evidence_urls": ["https://github.com/VitoMiguelF/crashott-pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-of-the-titans-xbox-360",
+          "title": "Crash of the Titans (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/VitoMiguelF/crashott-pc/blob/8ee8b4e7bdea715d72281296288b5dffd427e6b3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

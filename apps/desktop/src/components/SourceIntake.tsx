@@ -528,7 +528,11 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               </>
             )}
             {result.report && (
-              <SourceIdentityPanel report={result.report} openEvidence={openEvidence} />
+              <SourceIdentityPanel
+                report={result.report}
+                evidenceLabel="Measurements and test results"
+                openEvidence={openEvidence}
+              />
             )}
             {requiredTool && (
               <section

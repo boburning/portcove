@@ -53,7 +53,16 @@
         "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme",
         "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "harvest-moon-64-nintendo-64",
+          "title": "Harvest Moon 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp/blob/0470d52f2ed7d038b3098799a77d1d7eab187319/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -62,7 +62,16 @@
         "https://github.com/crazyriddler/FinestHourRemastered",
         "https://github.com/crazyriddler/FinestHourRemastered/blob/d908d2f994ecb64379986aaced826de3adf0d06a/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "call-of-duty-finest-hour-xbox",
+          "title": "Call of Duty: Finest Hour (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/crazyriddler/FinestHourRemastered/blob/bd35ab60d8e927bdfd3c16e7bb9db0aabfe60a81/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

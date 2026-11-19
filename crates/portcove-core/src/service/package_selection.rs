@@ -29,6 +29,13 @@ pub(crate) fn is_package_filename(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
+}
+
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
     let name = name.to_ascii_lowercase();
     let tokens = name
@@ -128,6 +135,13 @@ pub(crate) fn assess_package_name(
     // recommended release. A reviewed debug player needs its whole filename.
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
+    if is_server_package(&name) {
+        return finish(
+            "auxiliary",
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     if has(&[
         "checksums",
         "checksum",

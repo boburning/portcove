@@ -59,7 +59,16 @@
         "https://github.com/mstan/DrMarioNesRecomp/releases",
         "https://github.com/mstan/DrMarioNesRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dr-mario-nes",
+          "title": "Dr. Mario (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -53,7 +53,16 @@
         "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
         "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-paper-mario-wii",
+          "title": "Super Paper Mario (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/NewSuperPaperBros/blob/1f961e7db18586655f647f1027eb86ca706088cc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

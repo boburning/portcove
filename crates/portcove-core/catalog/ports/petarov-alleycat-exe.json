@@ -51,7 +51,16 @@
         "https://github.com/petarov/alleycat.exe#readme",
         "https://github.com/petarov/alleycat.exe"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "alley-cat-pc",
+          "title": "Alley Cat (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+          ]
+        }
+      ]
     }
   }
 }

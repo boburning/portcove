@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "twisted-metal-2",
       "evidence_urls": ["https://github.com/12feihu/TwistedMetal2Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "twisted-metal-2-playstation",
+          "title": "Twisted Metal 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/12feihu/TwistedMetal2Recomp/blob/0deb58a9e3717c9a732ac6eefe5fd29239ea0a3e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "burnout-crash",
       "evidence_urls": ["https://github.com/kiesxoxo/burnout-crash-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "burnout-crash-xbox-360",
+          "title": "Burnout CRASH! (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/kiesxoxo/burnout-crash-recomp/blob/ac11bd1043e13db61bd0a8171043ac053a1ac88f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

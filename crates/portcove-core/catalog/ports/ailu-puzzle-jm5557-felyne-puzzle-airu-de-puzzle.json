@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "felyne-puzzle-airu-de-puzzle",
       "evidence_urls": ["https://github.com/jM5557/ailu-puzzle"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "felyne-puzzle-airu-de-puzzle-playstation-portable",
+          "title": "Felyne Puzzle / Airu de Puzzle (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/jM5557/ailu-puzzle/blob/ab0b5ba7ff1cf6d681bf25799276b3bce3ac4967/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

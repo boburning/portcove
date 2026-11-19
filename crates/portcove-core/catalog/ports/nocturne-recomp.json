@@ -22,7 +22,16 @@
       "format_version": 1,
       "id": "castlevania-symphony-of-the-night",
       "evidence_urls": ["https://github.com/birabittoh/NocturneRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "castlevania-symphony-of-the-night-xbox-360",
+          "title": "Castlevania: Symphony of the Night (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/birabittoh/NocturneRecomp/blob/d409a67c6be29592e96524de038a03593c199e4b/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

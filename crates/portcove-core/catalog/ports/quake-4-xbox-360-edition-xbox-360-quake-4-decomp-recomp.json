@@ -54,7 +54,16 @@
         "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/3363d5339af52f228a95f2a9f28a95d466e5c520/README.md",
         "https://github.com/cyberheater/Xbox-360-Quake4-decomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "quake-4-xbox-360",
+          "title": "Quake 4 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/4373d66191307d1f6c839343d7bc7b0008eec5f0/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

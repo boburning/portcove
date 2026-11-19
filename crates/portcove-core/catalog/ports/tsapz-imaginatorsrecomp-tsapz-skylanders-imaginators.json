@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "skylanders-imaginators",
       "evidence_urls": ["https://github.com/tsapZ/ImaginatorsRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "skylanders-imaginators-xbox-360",
+          "title": "Skylanders: Imaginators (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/tsapZ/ImaginatorsRecomp/blob/524944024c303520cefaa89321f31811a0f81548/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -58,7 +58,16 @@
         "https://github.com/abilliontokens/urbz-recomp",
         "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-urbz-sims-in-the-city-console-xbox",
+          "title": "The Urbz: Sims in the City (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

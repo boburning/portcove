@@ -41,7 +41,16 @@
         "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md",
         "https://github.com/sergiomanzur/regaiden-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-gaiden-game-boy-color",
+          "title": "Resident Evil Gaiden (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

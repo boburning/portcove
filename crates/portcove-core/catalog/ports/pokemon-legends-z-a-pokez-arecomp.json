@@ -44,9 +44,7 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-legends-z-a",
-      "evidence_urls": [
-        "https://github.com/Hexveil404/PokeZ-ARecomp"
-      ],
+      "evidence_urls": ["https://github.com/Hexveil404/PokeZ-ARecomp"],
       "source_editions": []
     }
   },

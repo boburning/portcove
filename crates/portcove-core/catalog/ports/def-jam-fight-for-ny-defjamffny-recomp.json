@@ -57,7 +57,16 @@
         "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md",
         "https://github.com/vyanhursky/DefJamFFNY-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-xbox",
+          "title": "Def Jam: Fight for NY (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/a5479de7c62c4cf2801a006b56a3b30398475b37/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

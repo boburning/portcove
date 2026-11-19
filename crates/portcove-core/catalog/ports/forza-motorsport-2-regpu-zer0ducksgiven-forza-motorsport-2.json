@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "forza-motorsport-2",
       "evidence_urls": ["https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "forza-motorsport-2-xbox-360",
+          "title": "Forza Motorsport 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU/blob/feaef3259cf038a3e0236591beed9b8d882073ec/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

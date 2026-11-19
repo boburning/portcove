@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-bros-wonder",
-      "evidence_urls": [
-        "https://github.com/BluetufieBugado/SuperMarioWonderRecomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/BluetufieBugado/SuperMarioWonderRecomp"],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-wonder-nintendo-switch",
+          "title": "Super Mario Bros. Wonder (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/BluetufieBugado/SuperMarioWonderRecomp/blob/9ecad0cef164008a474b5ff0fa50e6ef55edba60/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

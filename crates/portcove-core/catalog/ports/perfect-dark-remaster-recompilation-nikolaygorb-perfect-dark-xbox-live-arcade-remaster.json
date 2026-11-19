@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "perfect-dark",
       "evidence_urls": ["https://github.com/nikolaygorb/PerfectDarkRemasterRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "perfect-dark-xbox-360",
+          "title": "Perfect Dark (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp/blob/ee8259b7c3417e90a565c76adb61049564ee5cc9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

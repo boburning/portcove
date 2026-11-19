@@ -47,7 +47,16 @@
         "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
         "https://github.com/chronic8000/WaveRace64Recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wave-race-64-nintendo-64",
+          "title": "Wave Race 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+          ]
+        }
+      ]
     }
   }
 }

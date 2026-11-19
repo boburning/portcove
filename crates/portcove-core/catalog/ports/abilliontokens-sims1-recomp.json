@@ -59,7 +59,16 @@
         "https://github.com/abilliontokens/sims1-recomp",
         "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-sims-console-xbox",
+          "title": "The Sims (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

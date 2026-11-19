@@ -54,7 +54,16 @@
         "https://github.com/mstan/SuperMarioRPGRecomp/blob/f5eb899e1683cb0183fe99ae0cfdea24f1a18a0b/README.md",
         "https://github.com/mstan/SuperMarioRPGRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-rpg-legend-of-the-seven-stars-super-nintendo",
+          "title": "Super Mario RPG: Legend of the Seven Stars (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioRPGRecomp/blob/1f48acad974bb9f1ac444f435edb5fbee5d6ea9a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

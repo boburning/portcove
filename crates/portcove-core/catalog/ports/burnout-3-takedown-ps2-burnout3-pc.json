@@ -55,18 +55,18 @@
         }
       ]
     },
-    "release_url": "https://github.com/danielgomesvieira2000/burnout3-pc/releases/tag/v0.9.0-alpha",
-    "download_asset_hints": {
-      "windows-x86-64": ["Burnout3-PC-", "windows-x64.zip"],
-      "linux-x86-64": ["Burnout3-PC-", "linux-x64.tar.gz"]
-    },
-    "recommended_download_channel": "beta",
     "original_game": {
       "format_version": 1,
       "id": "burnout-3-takedown",
       "evidence_urls": ["https://github.com/danielgomesvieira2000/burnout3-pc"],
       "source_editions": []
-    }
+    },
+    "release_url": "https://github.com/danielgomesvieira2000/burnout3-pc/releases/tag/v0.9.0-alpha",
+    "download_asset_hints": {
+      "windows-x86-64": ["Burnout3-PC-", "windows-x64.zip"],
+      "linux-x86-64": ["Burnout3-PC-", "linux-x64.tar.gz"]
+    },
+    "recommended_download_channel": "beta"
   },
   "upstream_lineage": {
     "format_version": 1,

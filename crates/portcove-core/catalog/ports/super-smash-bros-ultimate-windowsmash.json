@@ -44,9 +44,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-smash-bros-ultimate",
-      "evidence_urls": [
-        "https://github.com/OpenSmash-Ultimate/WindowSmash"
-      ],
+      "evidence_urls": ["https://github.com/OpenSmash-Ultimate/WindowSmash"],
       "source_editions": []
     }
   },

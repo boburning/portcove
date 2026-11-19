@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "war-of-the-monsters",
       "evidence_urls": ["https://github.com/yanm1103/War_of_the_Monsters_recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "war-of-the-monsters-playstation-2",
+          "title": "War of the Monsters (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/yanm1103/War_of_the_Monsters_recomp/blob/bf0c4b4ba657733982d0e7672951dbad8901d149/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -67,7 +67,6 @@
       "source_editions": []
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -169,5 +168,6 @@
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

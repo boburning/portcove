@@ -58,7 +58,16 @@
         "https://github.com/aikatore/recvx-enhanced-port/blob/e8c8f8097ccc082c635d7ed7d6ad50073bc73227/README.md",
         "https://github.com/aikatore/recvx-enhanced-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-playstation-2",
+          "title": "Resident Evil Code: Veronica X (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/aikatore/recvx-enhanced-port/blob/8a1b6f066f9aab03618a428c575e034c2769da55/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

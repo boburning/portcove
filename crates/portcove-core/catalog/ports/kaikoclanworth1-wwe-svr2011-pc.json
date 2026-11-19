@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "wwe-smackdown-vs-raw-2011",
-      "evidence_urls": [
-        "https://github.com/KaikoClanworth1/wwe-svr2011-pc"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/KaikoClanworth1/wwe-svr2011-pc"],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

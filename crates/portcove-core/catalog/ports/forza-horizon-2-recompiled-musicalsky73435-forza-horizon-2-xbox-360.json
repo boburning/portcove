@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "forza-horizon-2",
       "evidence_urls": ["https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "forza-horizon-2-xbox-360",
+          "title": "Forza Horizon 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MusicalSky73435/Forza-Horizon-2-Recompiled/blob/b597d43b6f3a824f73dd5cfd0c51ff2d82fc4897/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

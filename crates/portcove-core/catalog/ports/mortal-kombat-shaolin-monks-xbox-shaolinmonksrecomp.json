@@ -71,7 +71,16 @@
         "https://api.github.com/repositories/1423414457",
         "https://api.github.com/repos/OAleex/ShaolinMonksRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mortal-kombat-shaolin-monks-xbox",
+          "title": "Mortal Kombat: Shaolin Monks (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/OAleex/OpenShao/blob/bc43d6e28121c9f6b67e3cc00dfe747364f3a569/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -30110,7 +30110,16 @@
             "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md",
             "https://github.com/HarbourMasters/Lighthouse/blob/f757b547c8996ad0d67647560098c76bac0898a6/README.md"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "banjo-kazooie-nintendo-64",
+              "title": "Banjo-Kazooie (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -30219,7 +30228,16 @@
           "evidence_urls": [
             "https://github.com/RevoSucks/BM64Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "bomberman-64-nintendo-64",
+              "title": "Bomberman 64 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3451,
@@ -30313,7 +30331,16 @@
             "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme",
             "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "harvest-moon-64-nintendo-64",
+              "title": "Harvest Moon 64 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp/blob/0470d52f2ed7d038b3098799a77d1d7eab187319/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -30582,7 +30609,16 @@
             "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
             "https://github.com/Rainchus/Donkey-Kong-64-Recompiled"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "donkey-kong-64-nintendo-64",
+              "title": "Donkey Kong 64 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/blob/f77cc642e22ee376956271ee54dfdaf8fce768a6/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -30766,7 +30802,16 @@
             "https://github.com/alondero/aerogauge-recomp#readme",
             "https://github.com/alondero/aerogauge-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "aerogauge-nintendo-64",
+              "title": "AeroGauge (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -32744,7 +32789,16 @@
           "evidence_urls": [
             "https://github.com/Rainchus/Quest64-Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "quest-64-nintendo-64",
+              "title": "Quest 64 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/Rainchus/Quest64-Recomp/blob/ea94271a3ed1101628bfdac95e9966b31bd25f39/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3580,
@@ -33838,7 +33892,16 @@
           "evidence_urls": [
             "https://github.com/birabittoh/NocturneRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "castlevania-symphony-of-the-night-xbox-360",
+              "title": "Castlevania: Symphony of the Night (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/birabittoh/NocturneRecomp/blob/d409a67c6be29592e96524de038a03593c199e4b/README.md"
+              ]
+            }
+          ]
         },
         "variant_label": "Xbox Live Arcade",
         "artwork": {
@@ -34039,7 +34102,16 @@
           "evidence_urls": [
             "https://github.com/RevoSucks/BMHeroRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "bomberman-hero-nintendo-64",
+              "title": "Bomberman Hero (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/RevoSucks/BMHeroRecomp/blob/400f4c005e9c2b155915b8f04ec7e0e4a95df9f4/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3453,
@@ -34128,7 +34200,16 @@
             "https://github.com/cdlewis/snowboardkids2-recomp#readme",
             "https://github.com/cdlewis/snowboardkids2-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "snowboard-kids-2-nintendo-64",
+              "title": "Snowboard Kids 2 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/cdlewis/snowboardkids2-recomp/blob/59d16215526554b9fc51b18cd3612d6ef68bb2a8/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -34220,7 +34301,16 @@
           "evidence_urls": [
             "https://github.com/ThiagoLira/trouble-makers-pc-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "mischief-makers-nintendo-64",
+              "title": "Mischief Makers (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/ThiagoLira/trouble-makers-pc-recomp/blob/ef89277812f31895b2902cf4e61780f2dd021644/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3412,
@@ -34319,7 +34409,16 @@
           "evidence_urls": [
             "https://github.com/klorfmorf/Goemon64Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "mystical-ninja-starring-goemon-nintendo-64",
+              "title": "Mystical Ninja Starring Goemon (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 330074,
@@ -34536,7 +34635,16 @@
           "evidence_urls": [
             "https://github.com/Cellenseres/SSSV_Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "space-station-silicon-valley-nintendo-64",
+              "title": "Space Station Silicon Valley (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/Cellenseres/SSSV_Recomp/blob/a4dbfe40e205bd804c76db62227e94f6d5858a9b/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3602,
@@ -35891,7 +35999,16 @@
             "https://github.com/JackandBeans/Snap64Recomp#readme",
             "https://github.com/JackandBeans/Snap64Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "pokemon-snap-nintendo-64",
+              "title": "Pokémon Snap (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/JackandBeans/Snap64Recomp/blob/1a4e208ad7e1551af9a9d38866bb998b71ccf4e6/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -39348,7 +39465,16 @@
             "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
             "https://github.com/mstan/SuperMarioWorldRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "super-mario-world-super-nintendo",
+              "title": "Super Mario World (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -39462,7 +39588,16 @@
           "evidence_urls": [
             "https://github.com/mstan/ZeldaAlttPSNESRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+              "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 1026,
@@ -39562,7 +39697,16 @@
           "evidence_urls": [
             "https://github.com/mstan/SonicTheHedgehogRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "sonic-the-hedgehog-mega-drive-genesis",
+              "title": "Sonic the Hedgehog (Sega Genesis / Mega Drive)",
+              "system": "mega-drive-genesis",
+              "evidence_urls": [
+                "https://github.com/mstan/SonicTheHedgehogRecomp/blob/e82c95baa1ea8c53750fa9864f48dd45dc668b51/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 3192,
@@ -40468,7 +40612,16 @@
             "https://github.com/mstan/YoshisCookieRecomp/releases",
             "https://github.com/mstan/YoshisCookieRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "yoshis-cookie-nes",
+              "title": "Yoshi's Cookie (NES)",
+              "system": "nes",
+              "evidence_urls": [
+                "https://github.com/mstan/YoshisCookieRecomp/blob/7d8f5d361e3c919ef802d8faa8e5ba22bff811bd/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -40554,7 +40707,16 @@
             "https://github.com/mstan/DrMarioNesRecomp/releases",
             "https://github.com/mstan/DrMarioNesRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "dr-mario-nes",
+              "title": "Dr. Mario (NES)",
+              "system": "nes",
+              "evidence_urls": [
+                "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+              ]
+            }
+          ]
         },
         "variant_label": "NES",
         "manual_setup": {
@@ -40771,7 +40933,16 @@
             "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16",
             "https://github.com/mstan/SuperMetroidRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "super-metroid-super-nintendo",
+              "title": "Super Metroid (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -41013,7 +41184,16 @@
             "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md",
             "https://github.com/sergiomanzur/regaiden-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "resident-evil-gaiden-game-boy-color",
+              "title": "Resident Evil Gaiden (Game Boy Color)",
+              "system": "game-boy-color",
+              "evidence_urls": [
+                "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "warnings": [],
@@ -41558,7 +41738,16 @@
           "evidence_urls": [
             "https://github.com/mstan/DKC2Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+              "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/mstan/DKC2Recomp/blob/1967e411dd02bb17da79cfdbaf614ddc62f09f07/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -41816,7 +42005,16 @@
             "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md",
             "https://github.com/sal063/AC6_recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "ace-combat-6-fires-of-liberation-xbox-360",
+              "title": "Ace Combat 6: Fires of Liberation (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/sal063/AC6_recomp/blob/09144bb092ad871584808aeead69c395edbd5200/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -54471,7 +54669,16 @@
             "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
             "https://github.com/BlackLabelHQ/MediEvilRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "medievil-playstation",
+              "title": "MediEvil (PlayStation)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -55010,7 +55217,16 @@
             "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
             "https://github.com/SlaveOfIDO/blastcorps-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "blast-corps-nintendo-64",
+              "title": "Blast Corps (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -55508,7 +55724,16 @@
             "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md",
             "https://github.com/mcsoderh/BodyHarvestRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "body-harvest-nintendo-64",
+              "title": "Body Harvest (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/mcsoderh/BodyHarvestRecomp/blob/e90747cd09fd732340443c73ed0657eb9bee0fdf/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -56924,7 +57149,16 @@
             "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
             "https://github.com/citrongames/Dora64"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "doraemon-nobita-to-mittsu-no-seireiseki-nintendo-64",
+              "title": "Doraemon: Nobita to Mittsu no Seireiseki (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/citrongames/Dora64/blob/680d81feb4c57309ba80536300d73725ea9dffaa/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -58735,7 +58969,16 @@
             "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
             "https://github.com/CTR-tools/ctr-native"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "crash-team-racing-playstation",
+              "title": "Crash Team Racing (PlayStation)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/CTR-tools/ctr-native/blob/8e21ed5dc347907f657914b0d61177a7ca7135e2/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/CTR-tools/ctr-native/blob/9b574960fa8a4b897d373bab8a330ecb0626b474/README.md",
@@ -58813,7 +59056,16 @@
             "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
             "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "beetle-adventure-racing-nintendo-64",
+              "title": "Beetle Adventure Racing! (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -58905,7 +59157,16 @@
             "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md",
             "https://github.com/darkuni/afterburner-climax-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "after-burner-climax-xbox-360",
+              "title": "After Burner Climax (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -59086,7 +59347,16 @@
             "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md",
             "https://github.com/darkuni/lode-runner-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "lode-runner-2009-xbox-360",
+              "title": "Lode Runner (2009) (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/darkuni/lode-runner-recomp/blob/ccc191ba326e3d0cef0829a457bb9146a3eda22e/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -59357,7 +59627,16 @@
             "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md",
             "https://github.com/darkuni/outrun-arcade-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "outrun-online-arcade-xbox-360",
+              "title": "OutRun Online Arcade (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -59449,7 +59728,16 @@
             "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md",
             "https://github.com/darkuni/poker-smash-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "poker-smash-xbox-360",
+              "title": "Poker Smash (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -59541,7 +59829,16 @@
             "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md",
             "https://github.com/darkuni/target-terror-wii-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "target-terror-wii",
+              "title": "TARGET: Terror (Wii)",
+              "system": "wii",
+              "evidence_urls": [
+                "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -60409,7 +60706,16 @@
             "https://github.com/elliotttate/DKC1Recomp#readme",
             "https://github.com/elliotttate/DKC1Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "donkey-kong-country-super-nintendo",
+              "title": "Donkey Kong Country (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/elliotttate/DKC1Recomp/blob/3eb9a10c49cb210df2bd63addafe2a78cf9f4e22/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -62350,7 +62656,16 @@
             "https://github.com/elliotttate/DKC2Recomp#readme",
             "https://github.com/elliotttate/DKC2Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+              "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/elliotttate/DKC2Recomp/blob/3b386cb4a6b67472bc6693664ce61a11190e7b5d/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -63487,7 +63802,7 @@
             },
             {
               "title": "Start the Windows or Linux player",
-              "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+              "instruction": "The Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
             }
           ],
           "warnings": [
@@ -63496,7 +63811,7 @@
           "references": [
             {
               "title": "Open the universal Mac app",
-              "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+              "instruction": "Unzip the macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
             }
           ],
           "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
@@ -64554,7 +64869,16 @@
             "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
             "https://github.com/doc-haz/infinite-undiscovery-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "infinite-undiscovery-xbox-360",
+              "title": "Infinite Undiscovery (Xbox 360)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
@@ -64739,7 +65063,16 @@
             "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
             "https://github.com/Interkarma/daggerfall-unity"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "the-elder-scrolls-ii-daggerfall-pc",
+              "title": "The Elder Scrolls II: Daggerfall (PC)",
+              "system": "pc",
+              "evidence_urls": [
+                "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -64937,7 +65270,16 @@
           "evidence_urls": [
             "https://github.com/djultra64/ISS2000"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "international-superstar-soccer-2000-nintendo-64",
+              "title": "International Superstar Soccer 2000 (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -66533,7 +66875,16 @@
             "https://github.com/patchzyy/Wiicompiled#installing",
             "https://github.com/patchzyy/Wiicompiled"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "mario-kart-wii-wii",
+              "title": "Mario Kart Wii (Wii)",
+              "system": "wii",
+              "evidence_urls": [
+                "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -67859,7 +68210,16 @@
             "https://github.com/mstan/MegaManZeroRecomp/blob/0c7e9537cb22abb6b3991029f24909adbc47723c/README.md",
             "https://github.com/mstan/MegaManZeroRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "mega-man-zero-game-boy-advance",
+              "title": "Mega Man Zero (Game Boy Advance)",
+              "system": "game-boy-advance",
+              "evidence_urls": [
+                "https://github.com/mstan/MegaManZeroRecomp/blob/73206f2405d555bdcffff018bd88db1cb0c94a10/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -68229,7 +68589,16 @@
             "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
             "https://github.com/n64hub/rayman-2-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "rayman-2-the-great-escape-nintendo-64",
+              "title": "Rayman 2: The Great Escape (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/n64hub/rayman-2-recomp/blob/86d47fb1855af5a28bbf7f6b2ca04fa3cf67cc5d/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
@@ -68333,7 +68702,16 @@
             "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
             "https://github.com/n64hub/super-smash-bros-recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "super-smash-bros-nintendo-64",
+              "title": "Super Smash Bros. (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/n64hub/super-smash-bros-recomp/blob/fbd1fef8d6ec2cdba5779d30d1ea275a0bda3013/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
@@ -70369,7 +70747,16 @@
             "https://github.com/mstan/EmeraldRecomp/releases",
             "https://github.com/mstan/EmeraldRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "pokemon-emerald-game-boy-advance",
+              "title": "Pokémon Emerald (Game Boy Advance)",
+              "system": "game-boy-advance",
+              "evidence_urls": [
+                "https://github.com/mstan/EmeraldRecomp/blob/be40ff165581a8db03d9ba9c928bce7758b7e04a/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "steps": [
@@ -71903,7 +72290,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles. For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified.",
+        "manual_preparation": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles. For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified.",
         "original_game_title": "Quake",
         "original_game": {
           "format_version": 1,
@@ -71919,7 +72306,7 @@
           "steps": [
             {
               "title": "Copy your own classic Quake data beside the managed player",
-              "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+              "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
             },
             {
               "title": "Prepare the existing Ironwail copy",
@@ -72368,7 +72755,16 @@
             "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
             "https://github.com/RetroPulse03/WinBackRecomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "winback-covert-operations-nintendo-64",
+              "title": "WinBack: Covert Operations (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/RetroPulse03/WinBackRecomp/blob/e6deb9c8c3e07884cd930a416201b98a1346b250/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
@@ -73555,7 +73951,16 @@
             "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
             "https://github.com/HikariLucy/SnowboardKids-Recomp"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "snowboard-kids-nintendo-64",
+              "title": "Snowboard Kids (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
@@ -75612,7 +76017,16 @@
           "evidence_urls": [
             "https://github.com/guimaraf/3sxw"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "street-fighter-iii-3rd-strike-playstation-2",
+              "title": "Street Fighter III: 3rd Strike (PlayStation 2)",
+              "system": "playstation-2",
+              "evidence_urls": [
+                "https://github.com/guimaraf/3sxw/blob/c6b8e98b00ef03796008a4130039819db568115b/README.md"
+              ]
+            }
+          ]
         },
         "artwork": {
           "game_id": 243243,
@@ -78236,7 +78650,16 @@
             "https://github.com/woodys-workshop/SpaceRanger/commit/0b7b3dd20d75441c40005ee468d375c230d431d0",
             "https://api.github.com/repositories/1415549886"
           ],
-          "source_editions": []
+          "source_editions": [
+            {
+              "id": "toy-story-2-buzz-lightyear-to-the-rescue-nintendo-64",
+              "title": "Toy Story 2: Buzz Lightyear to the Rescue! (Nintendo 64)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/woodys-workshop/SpaceRanger/blob/40461c5eb419db1a889d7bdfe9878d56c493f8cc/README.md"
+              ]
+            }
+          ]
         },
         "manual_setup": {
           "help_url": "https://github.com/woodys-workshop/SpaceRanger/blob/0b7b3dd20d75441c40005ee468d375c230d431d0/README.md",

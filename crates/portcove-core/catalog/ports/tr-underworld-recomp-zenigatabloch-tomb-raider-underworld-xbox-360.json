@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tomb-raider-underworld-xbox-360",
       "evidence_urls": ["https://github.com/ZenigataBloch/tr-underworld-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tomb-raider-underworld-xbox-360-xbox-360",
+          "title": "Tomb Raider: Underworld (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ZenigataBloch/tr-underworld-recomp/blob/2259a249bb917a5947830ce1bde1ca6b19360526/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

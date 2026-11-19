@@ -1,5 +1,18 @@
 import type { WebDriver, WebElement } from "selenium-webdriver";
 
+/** Keep exact whole text; add aria-label and block primary labels without name overrides. */
+export function exactButtonXPath(label: string) {
+  if (label === "") return '//button[normalize-space(.)=""]';
+  const value = label.includes('"')
+    ? `concat(${label
+        .split('"')
+        .map((part) => `"${part}"`)
+        .join(`, '"', `)})`
+    : `"${label}"`;
+  const primary = `(.//strong[contains(concat(' ', normalize-space(@class), ' '), ' block ') and not(ancestor-or-self::*[@aria-hidden='true'])])[1][normalize-space(.)=${value}]`;
+  return `//button[normalize-space(.)=${value} or normalize-space(@aria-label)=${value} or (not(normalize-space(@aria-label)) and not(normalize-space(@aria-labelledby)) and ${primary})]`;
+}
+
 // WebDriver encodes local element handles as DOM elements in script arguments.
 type BrowserArgument<Value> = Value extends WebElement
   ? Element

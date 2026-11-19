@@ -63,7 +63,16 @@
         "https://github.com/JackandBeans/Snap64Recomp#readme",
         "https://github.com/JackandBeans/Snap64Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-snap-nintendo-64",
+          "title": "Pokémon Snap (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/JackandBeans/Snap64Recomp/blob/1a4e208ad7e1551af9a9d38866bb998b71ccf4e6/README.md"
+          ]
+        }
+      ]
     }
   },
   "managed_setup_platform_warnings": {

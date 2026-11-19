@@ -61,7 +61,16 @@
         "https://github.com/mstan/EmeraldRecomp/releases",
         "https://github.com/mstan/EmeraldRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-emerald-game-boy-advance",
+          "title": "Pokémon Emerald (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/EmeraldRecomp/blob/be40ff165581a8db03d9ba9c928bce7758b7e04a/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

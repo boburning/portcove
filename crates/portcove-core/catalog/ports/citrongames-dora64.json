@@ -36,7 +36,16 @@
         "https://github.com/citrongames/Dora64/blob/v1.0.4/README.md",
         "https://github.com/citrongames/Dora64"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doraemon-nobita-to-mittsu-no-seireiseki-nintendo-64",
+          "title": "Doraemon: Nobita to Mittsu no Seireiseki (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/citrongames/Dora64/blob/680d81feb4c57309ba80536300d73725ea9dffaa/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

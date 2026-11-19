@@ -46,7 +46,16 @@
         "https://github.com/woodys-workshop/SpaceRanger/commit/0b7b3dd20d75441c40005ee468d375c230d431d0",
         "https://api.github.com/repositories/1415549886"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "toy-story-2-buzz-lightyear-to-the-rescue-nintendo-64",
+          "title": "Toy Story 2: Buzz Lightyear to the Rescue! (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/woodys-workshop/SpaceRanger/blob/40461c5eb419db1a889d7bdfe9878d56c493f8cc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

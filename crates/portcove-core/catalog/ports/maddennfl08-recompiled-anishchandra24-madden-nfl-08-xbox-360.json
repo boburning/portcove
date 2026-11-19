@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "madden-nfl-08",
       "evidence_urls": ["https://github.com/anishchandra24/MaddenNFL08-Recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "madden-nfl-08-xbox-360",
+          "title": "Madden NFL 08 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/anishchandra24/MaddenNFL08-Recompiled/blob/42aa83dbccad6c4ff930bfc5025420741b9604b4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

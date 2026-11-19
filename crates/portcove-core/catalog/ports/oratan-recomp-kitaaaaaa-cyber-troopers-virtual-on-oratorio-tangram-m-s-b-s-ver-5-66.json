@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "cyber-troopers-virtual-on-oratorio-tangram",
       "evidence_urls": ["https://github.com/kitaaaaaa/Oratan-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "cyber-troopers-virtual-on-oratorio-tangram-xbox-360",
+          "title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/kitaaaaaa/Oratan-recomp/blob/762ea1a785ab658cb2dca4d3c7f4a9c7735f2306/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

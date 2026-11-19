@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "metropolismania",
       "evidence_urls": ["https://github.com/koaque/Metropolismania-PC"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "metropolismania-playstation-2",
+          "title": "Metropolismania (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/koaque/Metropolismania-PC/blob/7b23b0188fa13e12a39577496043a9f19d641c62/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

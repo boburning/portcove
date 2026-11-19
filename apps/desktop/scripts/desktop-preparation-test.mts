@@ -181,11 +181,14 @@ export function assertPreparationReviewSummary(text: string) {
     "Needs",
     "At least",
     "free, plus what the game creates",
-    "Your original game files aren't changed.",
     "Your original files and current installation remain unchanged until the verified result becomes active.",
     "The previous version stays available for rollback.",
+    "Keep Portcove open. Continue browsing and revisit progress in Activity.",
     "Cancellation or interruption may leave working files in Activity.",
     "Starting again keeps earlier unfinished work.",
+    "If setup opens another window",
+    "Finish setup in that window, then close it without starting the game.",
+    "Portcove will check the files. If the checks pass, it will switch to the new version.",
   ])
     assert.ok(normalized.includes(expected), `preparation review omitted ${expected}`);
 }
@@ -1562,42 +1565,22 @@ export async function preparationScenarios({
       install.id,
       "review must not prepare",
     );
-    // Recovery guidance is disclosed on request; open it so the observed text
-    // covers every reviewed safety statement, then close it again.
-    const recoveryGuidance = await browser.findElement(
-      By.xpath('//summary[normalize-space(.)="Setup and recovery details"]'),
-    );
-    await recoveryGuidance.click();
-    const preparationText = await browser.findElement(preparationDialog).getText();
-    assertPreparationReviewSummary(preparationText);
-    await recoveryGuidance.click();
-    const windowGuidance = await browser.findElement(
-      By.xpath('//summary[normalize-space(.)="If setup opens another window"]'),
-    );
-    await windowGuidance.click();
-    // The disclosure renders its panel after the click; wait for the guidance itself.
-    await browser.wait(
-      async () =>
-        (await browser.findElement(preparationDialog).getText()).includes(
-          "close it without starting the game",
-        ),
-      5_000,
-      "Setup-window guidance did not appear after opening its disclosure",
-    );
-    await windowGuidance.click();
+    // The consequences must be visible as part of the decision to start setup.
+    const preparationReview = await browser.findElement(preparationDialog);
+    assertPreparationReviewSummary(await preparationReview.getText());
     const preparationLayout = await executeBrowserScript(browser, () => {
-      const plan = document.querySelector(
-        '[aria-labelledby="preparation-review-title"] .preparation-plan',
+      const consequences = document.querySelector(
+        '[aria-labelledby="preparation-review-title"] section[aria-label="During setup"]',
       );
-      const paragraph = plan?.querySelector("p");
+      const paragraph = consequences?.querySelector("p");
       return {
-        planWidth: plan?.getBoundingClientRect().width ?? 0,
+        consequencesWidth: consequences?.getBoundingClientRect().width ?? 0,
         paragraphWidth: paragraph?.getBoundingClientRect().width ?? 0,
       };
     });
     assert.ok(
-      preparationLayout.planWidth > 300 &&
-        preparationLayout.paragraphWidth > preparationLayout.planWidth * 0.8,
+      preparationLayout.consequencesWidth > 300 &&
+        preparationLayout.paragraphWidth > preparationLayout.consequencesWidth * 0.8,
       `preparation review text is cramped: ${JSON.stringify(preparationLayout)}`,
     );
     await assertPrimaryReviewAction(
@@ -1672,9 +1655,8 @@ export async function preparationScenarios({
       };
       await visibleAction(confirm);
       const cancel = await browser.findElement(button("Cancel review"));
-      // The two disclosure summaries precede the footer in the real tab order.
-      // Forward Tab wraps through them before returning to the action buttons.
-      for (const control of [recoveryGuidance, windowGuidance, cancel, confirm]) {
+      // The inline guidance leaves both actions reachable in the dialog's tab cycle.
+      for (const control of [cancel, confirm]) {
         await browser.actions().sendKeys(Key.TAB).perform();
         await visibleAction(control);
       }
@@ -1884,7 +1866,7 @@ export async function preparationScenarios({
     const compactReadiness = wideReadiness ? undefined : await openReadinessOptions(libraryFilters);
     for (const label of [
       `All (${installedCount})`,
-      `Ready (${installedCount})`,
+      `Ready to play (${installedCount})`,
       "Needs attention (0)",
     ]) {
       const filter = compactReadiness
@@ -2834,19 +2816,19 @@ export async function preparationScenarios({
       await clickVisible(browser, readiness);
       const ready = await browser.wait(
         until.elementLocated(
-          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready (")]'),
+          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready to play (")]'),
         ),
         5_000,
       );
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await ready.getText()),
         15_000,
         "Library readiness counts did not settle",
       );
       await clickVisible(browser, ready);
       const selectedReadiness = await readiness.findElement(By.css('[data-slot="select-value"]'));
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
         5_000,
         "Library Ready choice did not commit",
       );
@@ -4448,7 +4430,10 @@ export async function preparationScenarios({
       );
     };
     const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
-    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+    const authoredGame = port.presentation?.original_game?.id;
+    const favoriteId = authoredGame ? `game-${authoredGame}` : `port-${port.id}`;
+    const favoriteName = authoredGame ? gameTitle(port) : gameIdentityLabel(port);
+    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${favoriteName}"]`);
     const closeMembershipMenu = async (allowRemovedTrigger = false) => {
       const menu = By.xpath(
         `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
@@ -4477,6 +4462,7 @@ export async function preparationScenarios({
       const initial = await organization();
       const initialFavorites = await favorites();
       assert.equal(initialFavorites.includes(port.id), false, "Owned fixture starts unfavorited");
+      assert.equal(initial.saved_game_ids.includes(favoriteId), false);
       assert.ok(!Object.values(initial.collections).some((entry) => entry.name === collectionName));
       await manageCollections();
       await browser
@@ -4507,12 +4493,16 @@ export async function preparationScenarios({
       );
       await closeMembershipMenu();
       await click(favorite());
-      await browser.wait(async () => (await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => (await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
       await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 5_000);
       await capture("membership-favorite-saved");
       const persisted = await organization();
       const savedFavorites = await favorites();
+      assert.deepEqual(savedFavorites, initialFavorites);
       browser = await restartApplication("native-organization-persisted");
       await browser.manage().window().setRect({ width: 1280, height: 900 });
       await libraryView();
@@ -4542,7 +4532,10 @@ export async function preparationScenarios({
       await browser.wait(async () => !(await organization()).collections[collectionId], 15_000);
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await click(favorite());
-      await browser.wait(async () => !(await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => !(await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       const final = await organization();
       assert.deepEqual(final.collections, initial.collections);
       assert.deepEqual(await favorites(), initialFavorites);

@@ -44,7 +44,16 @@
         "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
         "https://github.com/RetroPulse03/WinBackRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "winback-covert-operations-nintendo-64",
+          "title": "WinBack: Covert Operations (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RetroPulse03/WinBackRecomp/blob/e6deb9c8c3e07884cd930a416201b98a1346b250/README.md"
+          ]
+        }
+      ]
     }
   },
   "route_facts_v1": {

@@ -61,7 +61,16 @@
         "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
         "https://github.com/josiahg2502-glitch/BrawlRecompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-smash-bros-brawl-wii",
+          "title": "Super Smash Bros. Brawl (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/a77be8847ec9d8cf6128f086fe9c493d105ecbce/README.md"
+          ]
+        }
+      ]
     }
   }
 }

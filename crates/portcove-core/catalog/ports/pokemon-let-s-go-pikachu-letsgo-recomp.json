@@ -42,10 +42,17 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-lets-go-pikachu",
-      "evidence_urls": [
-        "https://github.com/raulzrrs/letsgo-recomp"
-      ],
-      "source_editions": []
+      "evidence_urls": ["https://github.com/raulzrrs/letsgo-recomp"],
+      "source_editions": [
+        {
+          "id": "pokemon-lets-go-pikachu-nintendo-switch",
+          "title": "Pokémon: Let’s Go, Pikachu! (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

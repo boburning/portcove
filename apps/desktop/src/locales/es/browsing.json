@@ -170,6 +170,7 @@
     "archived": "GitHub informó el {{checked}} que los autores archivaron el proyecto y ya no aceptan cambios. Es poco probable que haya versiones nuevas.",
     "label": "Actividad del origen en GitHub",
     "quiet": "GitHub informó el {{checked}} que el proyecto no había cambiado desde {{date}}. Es poco probable que haya versiones nuevas salvo que se reanude el trabajo.",
-    "recent": "GitHub informó el {{checked}} que el último cambio del proyecto fue en {{date}}."
+    "recent": "GitHub informó el {{checked}} que el último cambio del proyecto fue en {{date}}.",
+    "unknown": "Se consultó GitHub el {{checked}}. Se desconoce la fecha del último cambio."
   }
 }

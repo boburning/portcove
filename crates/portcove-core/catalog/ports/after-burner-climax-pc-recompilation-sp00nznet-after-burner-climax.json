@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "after-burner-climax",
       "evidence_urls": ["https://github.com/sp00nznet/afterburner"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

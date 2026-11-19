@@ -41,7 +41,16 @@
       "format_version": 1,
       "id": "donkey-kong-country-2-diddy-s-kong-quest",
       "evidence_urls": ["https://github.com/mstan/DKC2Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+          "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/DKC2Recomp/blob/1967e411dd02bb17da79cfdbaf614ddc62f09f07/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -54,7 +54,16 @@
         "https://github.com/thiagordsfx/urban-reign-recomp/blob/74f22452a7c2afd1df082e5a8c41ed6943db5a3d/README.md",
         "https://github.com/thiagordsfx/urban-reign-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "urban-reign-playstation-2",
+          "title": "Urban Reign (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

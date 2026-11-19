@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "breath-of-fire-iv",
       "evidence_urls": ["https://github.com/plaught-armor/bof4-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "breath-of-fire-iv-playstation",
+          "title": "Breath of Fire IV (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/plaught-armor/bof4-recomp/blob/019605d2592b4a330ee6089747ef6fe855c0a00a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

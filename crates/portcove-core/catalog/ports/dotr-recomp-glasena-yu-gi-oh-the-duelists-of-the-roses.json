@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "yu-gi-oh-the-duelists-of-the-roses",
       "evidence_urls": ["https://github.com/Glasena/dotr-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-the-duelists-of-the-roses-playstation-2",
+          "title": "Yu-Gi-Oh! The Duelists of the Roses (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

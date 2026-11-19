@@ -41,7 +41,16 @@
       "format_version": 1,
       "id": "pangya-fantasy-golf",
       "evidence_urls": ["https://github.com/kromossomom-debug/pangya-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pangya-fantasy-golf-playstation-portable",
+          "title": "Pangya: Fantasy Golf (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

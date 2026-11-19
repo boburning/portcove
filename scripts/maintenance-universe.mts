@@ -1,6 +1,6 @@
 /**
- * The maintenance identity universe (#4129): every known game and
- * implementation, built only from canonical identities the store already
+ * The maintenance identity universe (#4129): known games, implementations and
+ * upstream repositories, built only from canonical identities the store already
  * holds — authored catalog records, issue markers, hosted-intake requests and
  * definition delivery. Relationships (canonical work, implementation
  * identities, lineage forks and alternatives, intake links) are edges between
@@ -13,7 +13,13 @@ import {
   type PortIdentity,
 } from "./upstream-lineage.mts";
 
-export type UniverseKind = "port" | "implementation" | "issue" | "intake" | "definition";
+export type UniverseKind =
+  | "port"
+  | "implementation"
+  | "upstream"
+  | "issue"
+  | "intake"
+  | "definition";
 
 export interface UniverseRelation {
   /** Canonical work, retained implementation identity, lineage relationship or intake link. */
@@ -116,6 +122,9 @@ export function buildUniverse(input: {
       from.relations.push({ type, key });
   };
   const ports = new Set(input.records.map(({ listing }) => listing.id));
+  const issueReferences = new Set<string>();
+  const upstreamRepository = (host: string, id: string) =>
+    entry(`upstream:repository:${host}:${id}`, "upstream");
 
   for (const record of input.records) {
     const port = entry(`port:${record.listing.id}`, "port");
@@ -129,8 +138,11 @@ export function buildUniverse(input: {
     if (!port.original_game_id && !record.original_game_review)
       port.grouping_gap =
         "No reviewed original-game identity; this entry remains a separate project.";
-    if (record.listing.issue_number !== undefined)
-      relate(port, "canonical-work", `issue:${record.listing.issue_number}`);
+    if (record.listing.issue_number !== undefined) {
+      const issue = `issue:${record.listing.issue_number}`;
+      issueReferences.add(issue);
+      relate(port, "canonical-work", issue);
+    }
     // A record whose lineage does not validate keeps its port entry with the
     // reason visible; the catalog contract owns that refusal, and the universe
     // must neither hide the port nor guess its implementation identities.
@@ -141,9 +153,16 @@ export function buildUniverse(input: {
       decisions = assessment.decisions;
       identities = lineageIdentityKeys(record);
       // A validated target groups maintenance implementation scope only.
-      if (assessment.status === "recorded")
+      if (assessment.status === "recorded") {
         port.target_key = record.upstream_lineage?.target_key ?? null;
-      else
+        const { repository, project_url: url } = assessment.current;
+        if (repository) {
+          const upstream = upstreamRepository(repository.host, repository.id);
+          if (upstream.name === null || url < upstream.name) upstream.name = url;
+          relate(port, "current-upstream", upstream.key);
+          relate(upstream, "serves-listing", port.key);
+        }
+      } else
         port.identity_gap =
           "No upstream lineage is recorded (legacy-unassessed); implementation identity is unknown.";
     } catch (error) {
@@ -164,11 +183,34 @@ export function buildUniverse(input: {
         relate(port, decision.relationship, `port:${decision.related_port.id}`);
   }
 
+  for (const [key, payload] of input.intake ?? []) {
+    const fact = payload as IntakeFact;
+    const intake = entry(key, "intake");
+    const keys = new Set<string>();
+    for (const slot of fact.slots ?? []) {
+      if (slot.port_key) keys.add(slot.port_key);
+      // The candidate's own implementation identity, searchable; never a port identity.
+      if (slot.upstream) relate(intake, "candidate-upstream", `url:${slot.upstream}`);
+      if (Number.isSafeInteger(slot.repository_id) && Number(slot.repository_id) > 0) {
+        relate(intake, "candidate-repository", `repository:github.com:${slot.repository_id}`);
+        const upstream = upstreamRepository("github.com", String(slot.repository_id));
+        relate(intake, "candidate-origin", upstream.key);
+        relate(upstream, "observed-in-intake", intake.key);
+      }
+      if (typeof slot.linked_issue === "number") {
+        const issue = `issue:${slot.linked_issue}`;
+        issueReferences.add(issue);
+        relate(intake, "linked-work", issue);
+      }
+    }
+    intake.port_keys = [...keys].sort();
+  }
+
   for (const [key, payload] of input.issues ?? []) {
     const fact = payload as IssueFact;
     const catalogIds = fact.catalog_ids ?? [];
     const portKeys = fact.port_keys ?? [];
-    if (!catalogIds.length && !portKeys.length) continue;
+    if (!catalogIds.length && !portKeys.length && !issueReferences.has(key)) continue;
     const issue = entry(key, "issue");
     issue.name = fact.title ?? null;
     issue.port_keys = [...portKeys].sort();
@@ -182,22 +224,6 @@ export function buildUniverse(input: {
             : "names-port-catalog-coverage-unknown",
         `port:${id}`,
       );
-  }
-
-  for (const [key, payload] of input.intake ?? []) {
-    const fact = payload as IntakeFact;
-    const intake = entry(key, "intake");
-    const keys = new Set<string>();
-    for (const slot of fact.slots ?? []) {
-      if (slot.port_key) keys.add(slot.port_key);
-      // The candidate's own implementation identity, searchable; never a port identity.
-      if (slot.upstream) relate(intake, "candidate-upstream", `url:${slot.upstream}`);
-      if (typeof slot.repository_id === "number")
-        relate(intake, "candidate-repository", `repository:github.com:${slot.repository_id}`);
-      if (typeof slot.linked_issue === "number")
-        relate(intake, "linked-work", `issue:${slot.linked_issue}`);
-    }
-    intake.port_keys = [...keys].sort();
   }
 
   for (const key of input.definitions ?? []) entry(key, "definition");

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "front-mission-3",
       "evidence_urls": ["https://github.com/ITSeniy/Front-Mission-3-PC"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "front-mission-3-playstation",
+          "title": "Front Mission 3 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/ITSeniy/Front-Mission-3-PC/blob/6d353c7a159efdbd09c42018eef1e627f2e7e79e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

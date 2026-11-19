@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "3-on-3-nhl-arcade",
       "evidence_urls": ["https://github.com/Wndwsqrrl/3on3NHL-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "3-on-3-nhl-arcade-xbox-360",
+          "title": "3 on 3 NHL Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "resident-evil-code-veronica-x",
       "evidence_urls": ["https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-playstation-3",
+          "title": "Resident Evil Code: Veronica X (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

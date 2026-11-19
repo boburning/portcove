@@ -55,7 +55,16 @@
         "https://github.com/mstan/LegendOfZeldaNESRecomp",
         "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-nes",
+          "title": "The Legend of Zelda (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/b8b227065a96cc680f900410fafd9db6499148c1/README.md"
+          ]
+        }
+      ]
     }
   }
 }

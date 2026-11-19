@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "wwe-2k14",
       "evidence_urls": ["https://github.com/PromethenDev/wwe2k14-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wwe-2k14-xbox-360",
+          "title": "WWE 2K14 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/PromethenDev/wwe2k14-recomp/blob/a3e892d79d518afa4a33304891fb12fdf0fe3e5a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

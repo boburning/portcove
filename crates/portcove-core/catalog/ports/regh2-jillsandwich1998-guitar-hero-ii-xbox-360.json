@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "guitar-hero-ii",
       "evidence_urls": ["https://github.com/jillsandwich1998/reGH2"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "guitar-hero-ii-xbox-360",
+          "title": "Guitar Hero II (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jillsandwich1998/reGH2/blob/3c5f75c52c116b49b5f212d403c0e1cccb37f510/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

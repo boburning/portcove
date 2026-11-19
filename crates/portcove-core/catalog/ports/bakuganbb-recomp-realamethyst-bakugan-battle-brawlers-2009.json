@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "bakugan-battle-brawlers",
       "evidence_urls": ["https://github.com/RealAmethyst/BakuganBB-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bakugan-battle-brawlers-xbox-360",
+          "title": "Bakugan: Battle Brawlers (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/RealAmethyst/BakuganBB-recomp/blob/c5312453db7a0c80ef2c615e8c80993559e29619/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

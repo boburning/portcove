@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "monster-hunter-freedom-unite",
       "evidence_urls": ["https://github.com/Mango77x/MHForever"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-hunter-freedom-unite-playstation-portable",
+          "title": "Monster Hunter Freedom Unite (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Mango77x/MHForever/blob/a62d8c6f21e5207f06077a383c1b5ca7d35a06e9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -61,7 +61,7 @@ describe("Library quick views", () => {
       base: [port("a")],
       filter: custom,
       readiness: "all",
-      favoriteIds: new Set(),
+      favoriteGroupIds: new Set(),
       statuses: new Map(),
       context: {},
       scope: (ports) => ports,
@@ -80,7 +80,7 @@ describe("Library quick views", () => {
         base,
         filter,
         readiness: "all",
-        favoriteIds: new Set(["windows-a", "linux"]),
+        favoriteGroupIds: new Set(["port:windows-a", "port:linux"]),
         statuses: new Map(),
         context: {},
         scope: (ports) => ports,
@@ -96,7 +96,7 @@ describe("Library quick views", () => {
     expect(selected.updates).toBe(plain.updates);
   });
 
-  it("counts separate ports of one identified game and retains exact favorite scope", () => {
+  it("counts exact port entries beside one game-level Favorite", () => {
     const presentation = {
       ...portDefinition().presentation!,
       original_game: {
@@ -110,7 +110,7 @@ describe("Library quick views", () => {
       base: [port("first", { presentation }), port("second", { presentation })],
       filter: "all",
       readiness: "all",
-      favoriteIds: new Set(["second"]),
+      favoriteGroupIds: new Set(["game:shared-game"]),
       statuses: new Map(),
       context: {},
       scope: (ports) => ports,
@@ -125,7 +125,7 @@ describe("Library quick views", () => {
       base,
       filter: "all",
       readiness: "all",
-      favoriteIds: undefined,
+      favoriteGroupIds: undefined,
       statuses: new Map(),
       context: {},
       scope: (ports) => ports.filter(({ id }) => id !== "c"),
@@ -140,7 +140,7 @@ describe("Library quick views", () => {
         base: undefined,
         filter: "all",
         readiness: "all",
-        favoriteIds: new Set(),
+        favoriteGroupIds: new Set(),
         statuses: new Map(),
         context: {},
         scope: (ports) => ports,

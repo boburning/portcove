@@ -797,17 +797,18 @@ async function verifySettingsRows() {
     await savedFolders.isDisplayed(),
     "saved game-file roots did not load from the native service",
   );
-  assert.equal(
-    await browser
-      .findElement(
-        By.xpath(
-          '//*[@data-settings-group="game-files"]//button[normalize-space(.)="Scan saved folders"]',
-        ),
-      )
-      .isEnabled(),
-    false,
-    "an empty saved-root registry must not start a scan",
+  const scanLink = await browser.findElement(By.css("[data-open-game-file-scan]"));
+  await scanLink.click();
+  const scan = await browser.wait(
+    until.elementLocated(
+      By.xpath('//*[@id="add-games-scan"]//button[normalize-space(.)="Scan saved folders"]'),
+    ),
+    5_000,
   );
+  assert.equal(await scan.isEnabled(), false, "an empty saved-root registry must not start a scan");
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Back to Game files settings"]'))
+    .click();
   await selectSettingsCategory("advanced");
   const bundleWarningVisible = await executeBrowserScript(browser, () => {
     const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
@@ -4357,7 +4358,7 @@ try {
         return {
           state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
           reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
-          requirement: document.querySelector(".requirements-disclosure")?.textContent,
+          requirement: document.querySelector(".requirements-body")?.textContent,
           tabs: Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
             tab.textContent?.trim(),
           ),
@@ -5020,6 +5021,7 @@ try {
       artifacts,
       library,
       setTheme: selectSettingsTheme,
+      runtimeRoot,
     });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
