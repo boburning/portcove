@@ -3509,6 +3509,15 @@ The Ruby and Sapphire example shows when explicit variant and fallback paths
 can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
+Optional authoring-only `n64_recomp_persistence_v1: true` expands the reviewed
+root-level N64Recomp persistence layout for managed GitHub packages. It supplies
+the shared mod, save and settings paths and includes the explicit
+`runtime_source_filename`. Keep the source profile, ROM filename, repository,
+asset selectors and executable hints in the integration. A nested layout,
+different provider, optional settings declaration or different writer set uses
+an explicit integration. URL preparation proposes the family form when its
+expanded integration reproduces the reviewed explicit bytes.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the
