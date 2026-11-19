@@ -333,7 +333,9 @@ it("offers Thunderstore's community link when the catalog exceeds Core's limits"
     },
   });
   await render({ sources: ["thunderstore"] });
-  await expect.element(page.getByRole("alert")).toHaveTextContent("Could not refresh");
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Could not refresh this source. Try again.");
   await expect
     .element(page.getByRole("link", { name: /Thunderstore/ }))
     .toHaveAttribute("href", url);
