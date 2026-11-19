@@ -87,6 +87,7 @@ function pathLabel(t: TFunction<"detail">, route: string) {
 function noticeScope(
   t: TFunction<"detail">,
   notice: PortCapabilityReport["advisories"][number]["notice"],
+  artifact: ReactNode,
 ): ReactNode {
   const parts: ReactNode[] = [
     <bdi key="platform" dir="ltr">
@@ -110,14 +111,7 @@ function noticeScope(
         components={{ value: <bdi dir="ltr">{notice.edition}</bdi> }}
       />,
     );
-  if (notice.artifact_sha256)
-    parts.push(
-      <Trans
-        t={t}
-        i18nKey="capabilities.notice.artifact"
-        components={{ value: <code dir="ltr">{notice.artifact_sha256}</code> }}
-      />,
-    );
+  if (artifact) parts.push(artifact);
   return parts.map((part, index) => (
     <Fragment key={index}>
       {index > 0 && t("capabilities.notice.separator")}
@@ -128,18 +122,40 @@ function noticeScope(
 
 export function CapabilityNoticeScope({
   notice,
+  discloseArtifact = false,
 }: {
   notice: PortCapabilityReport["advisories"][number]["notice"];
+  discloseArtifact?: boolean;
 }) {
   const { t } = useAppTranslation("detail");
+  const { t: common } = useAppTranslation("common");
+  const artifact = notice.artifact_sha256 ? (
+    <Trans
+      t={t}
+      i18nKey="capabilities.notice.artifact"
+      components={{ value: <code dir="ltr">{notice.artifact_sha256}</code> }}
+    />
+  ) : null;
   return (
-    <p>
-      <Trans
-        t={t}
-        i18nKey="capabilities.notice.scope"
-        components={{ scope: <span>{noticeScope(t, notice)}</span> }}
-      />
-    </p>
+    <>
+      <p>
+        <Trans
+          t={t}
+          i18nKey="capabilities.notice.scope"
+          components={{
+            scope: <span>{noticeScope(t, notice, discloseArtifact ? null : artifact)}</span>,
+          }}
+        />
+      </p>
+      {discloseArtifact && artifact && (
+        <details className="min-w-0 text-pc-muted-foreground">
+          <summary className="cursor-pointer" data-focusable>
+            {common("failure.viewDetails")}
+          </summary>
+          <p className="mt-2 wrap-anywhere">{artifact}</p>
+        </details>
+      )}
+    </>
   );
 }
 
