@@ -1171,7 +1171,10 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(7));
+        assert_eq!(
+            n64.checks[0].installed_version,
+            Some(crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY)
+        );
         let future =
             check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
         assert!(!future.compatible);
@@ -1446,18 +1449,21 @@ mod tests {
     fn shared_preferences_require_v8_and_refuse_v7_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
-            .filter(|entry| entry.contract_version <= 7)
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 7
+            })
             .collect();
+        // N64's provider binding at version 8 cannot satisfy a staged-source requirement.
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
         let required = request("staged-source-portable", 8, 8);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
         assert_eq!(old.checks[0].installed_version, Some(5));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
-                .unwrap()
-                .compatible
-        );
         assert!(
             check_retained_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()
