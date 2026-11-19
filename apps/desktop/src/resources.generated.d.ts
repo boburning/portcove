@@ -345,6 +345,7 @@ export default interface Resources {
       "chosen": "<name/> · Your choice",
       "chosenOutside": "<name/> · Your choice · Outside current filters",
       "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+      "label": "Library entries",
       "outside": "<name/> · Outside current filters",
       "portCount_one": "{{count, number}} port",
       "portCount_other": "{{count, number}} ports",
@@ -475,7 +476,7 @@ export default interface Resources {
       "fallbackGeneric": "A saved catalog could not be used. Portcove continued with the available catalog information.",
       "fallbackNotLoaded": "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.",
       "fallbackReplay": "Portcove couldn’t accept this catalog update. Portcove continued with the available catalog information.",
-      "fallbackSignature": "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.",
+      "fallbackSignature": "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
       "fallbackUntrusted": "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.",
       "fingerprint": "Publisher fingerprint",
       "loadingInformation": "Loading catalog information…",
@@ -747,6 +748,14 @@ export default interface Resources {
       "heading": "What works and known issues",
       "intro": "Availability and testing are separate. Each action checks its own current requirements.",
       "label": "What works and known issues",
+      "launch": {
+        "asks-for-game-files": "Asks for game files",
+        "first": "First launch",
+        "opens-project-launcher": "Opens the project launcher",
+        "repeat": "Repeat Play",
+        "starts-game-directly": "Starts the game directly",
+        "unknown": "Unknown"
+      },
       "mode": {
         "automatic": "Available in Portcove",
         "manual": "Manual",
@@ -765,7 +774,7 @@ export default interface Resources {
         "separator": " · ",
         "source": "Source",
         "sourceLine": "<link /> · {{date}}",
-        "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+        "versionSpecific": "These details apply to the scope shown above."
       },
       "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
       "observations": {
@@ -1200,6 +1209,7 @@ export default interface Resources {
         "conflictsHeading": "Changes the same files as your other mods",
         "digests": "Download SHA-256 <download />; review <review />.",
         "downloading": "Downloading and checking {{file}}…",
+        "eligibilityUnknown": "The provider did not confirm availability. Check the project page, then refresh the listing.",
         "entry": "<name />",
         "entryVersion": "<name /> (<version />)",
         "file": "<file /> ({{size}})",
@@ -1955,6 +1965,14 @@ export default interface Resources {
     "collection": {
       "withCount": "<name/> ({{total}})"
     },
+    "comparisonNotice": {
+      "available": "New download found: {{version}}.",
+      "effect": "Portcove shows a notice when it finds a new download for this port. It does not install anything.",
+      "label": "Update notices for {{port}}",
+      "markSeen": "Mark update notice as seen",
+      "off": "Update notices off",
+      "on": "Update notices on"
+    },
     "edit": {
       "create": "Create collection",
       "nameLabel": "Collection name",
@@ -1968,6 +1986,17 @@ export default interface Resources {
       "reload": "Reload choices",
       "write": "Portcove couldn’t confirm the changes. Showing your last confirmed choices."
     },
+    "favorite": {
+      "countUnavailable": "unavailable",
+      "count_one": "{{count, number}} game",
+      "count_other": "{{count, number}} games",
+      "favorite": "Favorite",
+      "label": "Favorite {{game}}",
+      "removeTitle": "Remove from favorites",
+      "retry": "Retry favorites",
+      "title": "Add to favorites",
+      "unconfirmed": "Portcove couldn’t confirm your favorites. Retry to check what was saved."
+    },
     "group": {
       "discover": "Discover collections",
       "library": "Library collections"
@@ -1975,13 +2004,6 @@ export default interface Resources {
     "menu": {
       "hide": "Hide from Library",
       "show": "Show in Library"
-    },
-    "save": {
-      "label": "Save {{game}} for later",
-      "removeTitle": "Remove saved game",
-      "save": "Save",
-      "saved": "Saved",
-      "title": "Save for later"
     },
     "sidebar": {
       "collectionLabel": "Collection: {{name}}",
@@ -2002,9 +2024,9 @@ export default interface Resources {
     },
     "view": {
       "all": "All games",
-      "followed": "Followed",
+      "followed": "With update notices",
       "hidden": "Hidden",
-      "saved": "Saved"
+      "saved": "Favorites"
     }
   },
   "removal": {

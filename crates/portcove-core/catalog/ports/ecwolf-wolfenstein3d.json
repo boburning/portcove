@@ -1,0 +1,116 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ecwolf-wolfenstein3d",
+    "project_url": "https://maniacsvault.net/ecwolf/",
+    "name": "Wolfenstein 3D (ECWolf)",
+    "summary": "Play Wolfenstein 3D with ECWolf using your original game files or the public shareware. Set up an installation you maintain, then add it to Portcove.",
+    "issue_number": 6767,
+    "listed_at": "2026-11-18",
+    "original_game_title": "Wolfenstein 3D",
+    "availability": "packages",
+    "setup_url": "https://maniacsvault.net/ecwolf/download.php",
+    "release_url": "https://maniacsvault.net/ecwolf/download.php",
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://maniacsvault.net/ecwolf/download.php",
+      "steps": [
+        {
+          "title": "Prepare the Windows player and Wolfenstein game files",
+          "instruction": "Download the official Windows x64 ECWolf ZIP and extract the complete package. Keep ecwolf.exe, ecwolf.pk3 and the accompanying files together. For the public Wolfenstein 3D 1.4 shareware, extract wolf3d14.zip and copy its eight .WL1 files beside ecwolf.exe. Keep your original download separately. WOLF3D.EXE and CATALOG.EXE from the old DOS distribution are not the ECWolf player. The ecwolf.exe selection step below applies to Windows."
+        },
+        {
+          "title": "Set up the Linux package",
+          "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
+        },
+        {
+          "title": "Add the Intel or Apple Silicon Mac player",
+          "instruction": "Copy the complete official ECWolf.app from the DMG into Applications and open it normally once. Copy all eight matching .WL1 shareware data files into ~/Library/Application Support/ECWolf, preserving their names and case. In Portcove, select /Applications/ECWolf.app/Contents/MacOS/ecwolf and its containing folder; enter --data and WL1 as separate arguments, review the details, then add the game and choose Play. Keep ecwolf.pk3 and the complete app together. The later ecwolf.exe choice applies to Windows; Mac uses the native file inside ECWolf.app."
+        }
+      ],
+      "warnings": [
+        "Keep your actual saves, settings, original game files, mods and their creating ECWolf version backed up with the game closed before changing versions. Save compatibility with another version or engine is not established."
+      ],
+      "references": [
+        {
+          "title": "Android and other processor builds",
+          "instruction": "The official download page also offers Android APKs, Windows ARM64 and Linux ARM packages. Choose the matching upstream build and follow its setup notes. Upstream warns that Android support is buggy; check its system-version notes before installing. Android installation, updates and saved data stay with the app and the player. Portcove desktop registration does not manage these other host routes."
+        }
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "ecwolf.exe",
+      "working_directory": "executable-parent",
+      "arguments": ["--data", "WL1"],
+      "data_locations": [
+        "Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations",
+        "Linux XDG configuration/ecwolf and data/ecwolf/savegames folders",
+        "Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations",
+        "original game files, mods and any explicit --config or --savedir locations"
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "ECWolfEngine/ECWolf",
+      "user_prepared": {
+        "windows-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        },
+        "linux-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        },
+        "macos-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        },
+        "macos-aarch64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Prepare the official ECWolf package and the complete matching Wolfenstein 3D game data through upstream setup. Windows x64 uses ecwolf.exe and its containing folder; Linux x64 uses the installed /usr/games/ecwolf and its parent. Intel and Apple Silicon Mac use the native ecwolf inside the complete ECWolf.app/Contents/MacOS folder and its parent, with the matching original data in the upstream Mac app-support location. Select --data and WL1 as separate arguments for the prepared shareware set. Review the executable and launch details, then choose Play separately. The player/upstream owns runtime updates and all external originals, mods, saves and settings. Registration removal preserves external files; managed installation, update, backup, rollback and deletion are not offered."
+    }
+  }
+}

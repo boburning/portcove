@@ -70,6 +70,8 @@ mod library_import;
 mod library_membership;
 mod library_move;
 mod library_transfer;
+mod managed_chocolate;
+mod managed_initialization;
 mod managed_runtime_policy;
 mod managed_shared_preferences;
 mod managed_tfe;
@@ -319,7 +321,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
-    ThunderstoreDependency,
+    ProviderStatusUnknown, ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -414,22 +416,24 @@ pub use service::{
     GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest,
     InstallBatchCapacity, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
-    InstallBatchVolume, InstallOverrides, InstallationProtection, LauncherAppsRootOrigin,
-    LauncherEntryHints, LauncherEntryStatus, LauncherKind, LauncherLibraryEntry,
-    LauncherLibraryInventory, LauncherLibrarySkippedEntry, LauncherModInventory,
-    MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS, MAX_ROOT_SETUP_BASELINE,
-    MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS, ManagedRouteChangePreview,
-    ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION, PendingSetupRecord, PendingSetupState,
-    PlayerDataProtection, PortCapabilityFeature, PortCapabilityNotice, PortCapabilityReport,
-    PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
-    PortIntentSource, PortMaintenance, PortReadiness, PortReadinessAcknowledgement,
-    PortRemovalPreview, PortcoveService, ProtectionDeclaration, QUIVER_FORMAT_REVISION,
-    RECENTLY_PLAYED_LIMIT, ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame, RootSetupConsent,
-    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
-    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
+    InstallBatchVolume, InstallOverrides, InstallationProtection, LaunchBehavior,
+    LaunchEntryBehavior, LauncherAppsRootOrigin, LauncherEntryHints, LauncherEntryStatus,
+    LauncherKind, LauncherLibraryEntry, LauncherLibraryInventory, LauncherLibrarySkippedEntry,
+    LauncherModInventory, MAX_INSTALL_BATCH_ITEMS, MAX_PORT_INTENT_ASSESSMENTS,
+    MAX_ROOT_SETUP_BASELINE, MAX_ROOT_SETUPS_PER_PASS, MAX_STANDING_SETUP_ATTEMPTS,
+    ManagedRouteChangePreview, ManagedRouteChangeResult, PORT_INTENT_FORMAT_VERSION,
+    PendingSetupRecord, PendingSetupState, PlayerDataProtection, PortCapabilityFeature,
+    PortCapabilityNotice, PortCapabilityReport, PortCapabilityRoute, PortIntent,
+    PortIntentAssessment, PortIntentAssessments, PortIntentMode, PortIntentSource, PortMaintenance,
+    PortReadiness, PortReadinessAcknowledgement, PortRemovalPreview, PortcoveService,
+    ProtectionDeclaration, ProtectionInstallRole, QUIVER_FORMAT_REVISION, RECENTLY_PLAYED_LIMIT,
+    ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame, RootSetupConsent, RootSetupEnrollment,
+    RootSetupFailure, RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget,
+    SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
-    CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
+    CatalogFallbackCode, CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope,
+    SignedCatalogPayload,
 };
 pub use source::SourceRelinkPlan;
 pub use source_assessment::*;

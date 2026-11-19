@@ -712,12 +712,15 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let service = PortcoveService::new(library.clone()).unwrap();
     publish(&service, &write_candidate(root.path(), 1)).await;
     publish(&service, &write_candidate(root.path(), 2)).await;
+    let mut corrupt: SignedCatalogEnvelope =
+        serde_json::from_slice(&sign(&fixture(2, Library::now()))).unwrap();
+    corrupt.signature = "00".repeat(64);
     library
         .connection()
         .unwrap()
         .execute(
             "UPDATE catalog_state SET active=?1",
-            [b"bad signature".as_slice()],
+            [serde_json::to_vec(&corrupt).unwrap()],
         )
         .unwrap();
     signed_catalog::reset_verify_invocations();
@@ -725,7 +728,10 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(fallback.provenance.origin, CatalogOrigin::SignedPrevious);
     assert_eq!(fallback.provenance.sequence, Some(1));
-    assert!(!fallback.provenance.fallback_reasons.is_empty());
+    assert_eq!(
+        fallback.provenance.fallback_codes,
+        vec![crate::CatalogFallbackCode::SignatureInvalid]
+    );
     let repeated = library.catalog_status().unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 4);
     assert_eq!(repeated, fallback);
@@ -735,6 +741,13 @@ async fn corruption_and_expiry_fall_back_without_trusting_bad_metadata() {
     let expired = state.status(now + 7200).unwrap();
     assert_eq!(signed_catalog::verify_invocations(), 2);
     assert_eq!(expired.provenance.origin, CatalogOrigin::Embedded);
+    assert_eq!(
+        expired.provenance.fallback_codes,
+        vec![
+            crate::CatalogFallbackCode::SignatureInvalid,
+            crate::CatalogFallbackCode::InvalidValidity,
+        ]
+    );
     assert!(!expired.can_use_cached);
     assert!(!expired.can_rollback);
 }

@@ -1257,7 +1257,7 @@ async fn get_port_intents(
     .await
 }
 
-/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+/// Reassesses remembered choices against current files, catalog and tools, saving scan progress.
 #[tauri::command]
 async fn assess_port_intents(
     state: tauri::State<'_, DesktopState>,
@@ -1555,7 +1555,7 @@ async fn refresh_game_file_query_at_generation(
     let snapshot = blocking_worker(move || {
         let service = service_at_generation(&worker_state, generation)?;
         service
-            .refresh_game_file_query_with_progress(&request, emit)
+            .refresh_browsing_game_file_query_with_progress(&request, emit)
             .map_err(Into::into)
     })
     .await?;
@@ -2754,14 +2754,10 @@ async fn create_support_bundle(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
-    let directory = diagnostics.directory.clone();
+    let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || {
-        let directory = directory?;
-        support_bundle_for_state(&state, &directory)
-    })
-    .await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2772,8 +2768,8 @@ async fn create_support_bundle(
 async fn open_support_report_folder(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<()> {
-    let directory = diagnostics.directory.clone();
-    blocking_worker(move || open_support_report_directory(&directory?)).await
+    let diagnostics = diagnostics.inner().clone();
+    blocking_worker(move || open_support_report_directory(diagnostics.directory()?)).await
 }
 
 fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
@@ -3102,6 +3098,7 @@ pub fn run() -> std::process::ExitCode {
             application_update::get_application_update_preferences,
             application_update::set_application_update_preferences,
             cli_context::get_cli_command_context,
+            steam_entry_commands::discover_steam_client_roots,
             steam_entry_commands::list_steam_profiles,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,

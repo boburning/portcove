@@ -431,6 +431,53 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
 });
 
+void test("inherits only reviewed descriptive selectors for the same package scope", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "alariq-mc2.json"))),
+  );
+  const platform = "windows-x86-64";
+  const integrated = assembleCatalogRecords(shared, [record]);
+  assert.deepEqual(integrated.directory.listings[0]?.download_asset_hints, {
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  const literal = structuredClone(record);
+  delete literal.listing_inherit_asset_hints;
+  literal.listing.download_asset_hints = { [platform]: ["mc2-win64-", ".zip"] };
+  assert.deepEqual(assembleCatalogRecords(shared, [literal]).directory, integrated.directory);
+  const override = structuredClone(record);
+  override.listing.download_asset_hints = { [platform]: ["other-reviewed.zip"] };
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [override]).directory.listings[0]?.download_asset_hints,
+    {
+      [platform]: ["other-reviewed.zip"],
+    },
+  );
+  const suppressed = structuredClone(record);
+  suppressed.listing.download_asset_hints = {};
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [suppressed]).directory.listings[0]?.download_asset_hints,
+    {},
+  );
+  const broader = structuredClone(record);
+  broader.listing.platforms = ["linux-x86-64"];
+  broader.listing.download_asset_hints = { "linux-x86-64": ["linux-package.tar.gz"] };
+  const projection = assembleCatalogRecords(shared, [broader]);
+  assert.deepEqual(projection.directory.listings[0]?.download_asset_hints, {
+    "linux-x86-64": ["linux-package.tar.gz"],
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  assert.deepEqual(projection.catalog, integrated.catalog);
+  const fork = structuredClone(record);
+  fork.listing.release_url = "https://github.com/fork/mc2/releases";
+  const differentTag = structuredClone(record);
+  differentTag.listing.release_url = "https://github.com/alariq/mc2/releases/tag/v1";
+  const wrongPlatform = structuredClone(record);
+  wrongPlatform.listing_inherit_asset_hints = ["linux-x86-64"];
+  for (const invalid of [fork, differentTag, wrongPlatform])
+    assert.throws(() => assembleCatalogRecords(shared, [invalid]), /same-project GitHub/);
+});
+
 void test("listing download hints remain advisory and reject ambiguous authoring shapes", () => {
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
   const listing = {
@@ -703,6 +750,42 @@ void test("reference guides select strict new formats and retain actions and war
         compatibility: envelope,
       },
     });
+  });
+
+  await test("launch behavior requires a scoped format-2 package and both launch stages", () => {
+    const launch = {
+      ...record,
+      feature: "launch",
+      route: "upstream-setup",
+      evidence: "upstream-reported",
+      release: "v1",
+      artifact_sha256: "a".repeat(64),
+      launch_behavior: {
+        first_launch: "asks-for-game-files",
+        repeat_launch: "starts-game-directly",
+      },
+    };
+    const valid = { format_version: 2, records: [launch] };
+    checkCatalogAdvisories(valid, platforms, 2);
+    for (const unscoped of [
+      { ...valid, format_version: 1 },
+      { ...valid, records: [{ ...launch, artifact_sha256: null }] },
+      { ...valid, records: [{ ...launch, release: null }] },
+      { ...valid, records: [{ ...launch, launch_behavior: { first_launch: "unknown" } }] },
+      { ...valid, records: [{ ...launch, route: ["managed"] }] },
+      { ...valid, records: [{ ...launch, evidence: ["observed"] }] },
+      {
+        ...valid,
+        records: [
+          {
+            ...launch,
+            launch_behavior: { ...launch.launch_behavior, first_launch: ["unknown"] },
+          },
+        ],
+      },
+    ]) {
+      assert.throws(() => checkCatalogAdvisories(unscoped, platforms, 2));
+    }
   });
 
   await test("authoring refuses future, malformed, duplicate, unsafe and unscoped advisory content", () => {

@@ -6265,7 +6265,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },
@@ -10319,6 +10320,18 @@
   },
   "catalog_provenance": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10340,6 +10353,13 @@
           "integer",
           "null"
         ]
+      },
+      "fallback_codes": {
+        "description": "Stable codes in the same order as the legacy diagnostic strings.",
+        "items": {
+          "$ref": "#/$defs/CatalogFallbackCode"
+        },
+        "type": "array"
       },
       "fallback_reasons": {
         "items": {
@@ -10377,6 +10397,18 @@
   },
   "catalog_status": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10397,6 +10429,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -10521,6 +10560,18 @@
         ],
         "type": "object"
       },
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -10541,6 +10592,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -12639,6 +12697,18 @@
   },
   "doctor": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "CatalogOrigin": {
         "enum": [
           "embedded",
@@ -12659,6 +12729,13 @@
               "integer",
               "null"
             ]
+          },
+          "fallback_codes": {
+            "description": "Stable codes in the same order as the legacy diagnostic strings.",
+            "items": {
+              "$ref": "#/$defs/CatalogFallbackCode"
+            },
+            "type": "array"
           },
           "fallback_reasons": {
             "items": {
@@ -26892,6 +26969,20 @@
     "type": "object"
   },
   "listing_delivery_status": {
+    "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      }
+    },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
       "anchor_sha256": {
@@ -26909,6 +27000,16 @@
         "type": [
           "string",
           "null"
+        ]
+      },
+      "fallback_code": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogFallbackCode"
+          },
+          {
+            "type": "null"
+          }
         ]
       },
       "fallback_reason": {
@@ -27192,6 +27293,16 @@
           },
           "id": {
             "type": "string"
+          },
+          "launch_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "observed_at": {
             "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
@@ -28073,6 +28184,22 @@
         ],
         "type": "string"
       },
+      "LaunchBehavior": {
+        "additionalProperties": false,
+        "properties": {
+          "first_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          },
+          "repeat_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          }
+        },
+        "required": [
+          "first_launch",
+          "repeat_launch"
+        ],
+        "type": "object"
+      },
       "LaunchBlocker": {
         "enum": [
           "missing_source",
@@ -28088,6 +28215,16 @@
           "shared_preferences_review_required",
           "shared_preferences_unavailable",
           "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchEntryBehavior": {
+        "description": "What the selected upstream entry point does, separately from Portcove's launch action.",
+        "enum": [
+          "starts-game-directly",
+          "opens-project-launcher",
+          "asks-for-game-files",
+          "unknown"
         ],
         "type": "string"
       },
@@ -32915,6 +33052,18 @@
   },
   "official_catalog_automatic_refresh": {
     "$defs": {
+      "CatalogFallbackCode": {
+        "enum": [
+          "unknown",
+          "replay_floor",
+          "untrusted_key",
+          "signature_invalid",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "listing_directory_unavailable"
+        ],
+        "type": "string"
+      },
       "DefinitionDeliveryServing": {
         "oneOf": [
           {
@@ -32971,6 +33120,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "fallback_code": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/CatalogFallbackCode"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "fallback_reason": {
@@ -36178,7 +36337,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },
@@ -37709,6 +37869,16 @@
           "id": {
             "type": "string"
           },
+          "launch_behavior": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LaunchBehavior"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "observed_at": {
             "description": "Unix seconds. A newer date never proves an earlier failure is fixed.",
             "format": "uint64",
@@ -38153,6 +38323,22 @@
         ],
         "type": "string"
       },
+      "LaunchBehavior": {
+        "additionalProperties": false,
+        "properties": {
+          "first_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          },
+          "repeat_launch": {
+            "$ref": "#/$defs/LaunchEntryBehavior"
+          }
+        },
+        "required": [
+          "first_launch",
+          "repeat_launch"
+        ],
+        "type": "object"
+      },
       "LaunchBlocker": {
         "enum": [
           "missing_source",
@@ -38168,6 +38354,16 @@
           "shared_preferences_review_required",
           "shared_preferences_unavailable",
           "invalid_installation"
+        ],
+        "type": "string"
+      },
+      "LaunchEntryBehavior": {
+        "description": "What the selected upstream entry point does, separately from Portcove's launch action.",
+        "enum": [
+          "starts-game-directly",
+          "opens-project-launcher",
+          "asks-for-game-files",
+          "unknown"
         ],
         "type": "string"
       },
@@ -45876,6 +46072,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -45981,6 +46188,17 @@
           "provider": {
             "type": "string"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish project eligibility."
+          },
           "submitter": {
             "type": [
               "string",
@@ -46020,6 +46238,15 @@
           "unreadable_files"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ThunderstoreDependency": {
         "description": "One exact Thunderstore dependency coordinate from a version listing.",
@@ -46192,6 +46419,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -46243,6 +46481,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {
@@ -46456,6 +46703,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -46530,6 +46788,17 @@
           "provider": {
             "type": "string"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish project eligibility."
+          },
           "submitter": {
             "type": [
               "string",
@@ -46569,6 +46838,15 @@
           "unreadable_files"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ThunderstoreDependency": {
         "description": "One exact Thunderstore dependency coordinate from a version listing.",
@@ -46663,6 +46941,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -46735,6 +47024,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderUpdateState": {
         "oneOf": [
@@ -46946,6 +47244,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -47094,6 +47403,15 @@
           "project"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {
@@ -47556,6 +47874,17 @@
             "minimum": 0,
             "type": "integer"
           },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
           "thunderstore_dependencies": {
             "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
             "items": {
@@ -47724,6 +48053,15 @@
           "members"
         ],
         "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
       },
       "ProviderWrapper": {
         "properties": {
@@ -53744,7 +54082,8 @@
         "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
         "enum": [
           "tfe-dark-forces-v1.22.420",
-          "tfe-dark-forces-portable-v1"
+          "tfe-dark-forces-portable-v1",
+          "chocolate-family-portable-v1"
         ],
         "type": "string"
       },

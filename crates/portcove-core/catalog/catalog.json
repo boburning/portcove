@@ -4101,6 +4101,76 @@
         "claim": "Official v0.1.5 Windows and Linux archives match the publisher's digests. Both keep the two-track SCUS-94227 disc and retail SCPH-1001 identity and generate MediEvil_Recompiled. The title playtest diagnostics package is absent; the retained persistence paths still protect v0.1.4 captures. Native preparation and gameplay were not run.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/24d3d2dbeab83b90bb7d76c05c92e677a703559f/game.toml",
         "live_url": null
+      },
+      {
+        "id": "debian-gdp89-chocolate-doom-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "770855b3ec8214bd92fae2ccdc4d80aa9b7728a186b22e9b3c76263f33f105fc",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected doom IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-doom2-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "d6a8bcd8e040451e275adadb793232800895ef62c2a3ebe4396248ea90dee578",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom2.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected doom2 IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-hexen-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "bffd1b50dccb9fa5f998c064756f5cdb6f6c6513da3fbfeb3cc6ac0659dfb07e",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/hexen.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected hexen IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-doom-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/doom/d_main.c",
+        "live_url": null,
+        "claim": "Chocolate Doom 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-hexen-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/hexen/h2_main.c",
+        "live_url": null,
+        "claim": "Chocolate Hexen 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-heretic-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "a6e8c7426bcaea5b3fc42b46c7d1a1b1c28b5f9ce10d513a6a40edbc2a534bd7",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/heretic.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected heretic IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-heretic-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_url": null,
+        "claim": "Chocolate Heretic 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
       }
     ],
     "identities": [
@@ -16599,6 +16669,276 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "chocolate-doom-pc-iwad",
+        "label": "Doom PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "shareware-1-9",
+            "title": "Doom shareware v1.9",
+            "region": "Worldwide",
+            "revision": "shareware-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "5b2e249b9c5133ec987b3ea77596381dc0d6bc1d",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "registered-1-9",
+            "title": "Doom registered v1.9",
+            "region": "Worldwide",
+            "revision": "registered-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "7742089b4468a736cadb659a7deca3320fe6dcbd",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "ultimate-1-9",
+            "title": "The Ultimate Doom",
+            "region": "Worldwide",
+            "revision": "ultimate-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "9b07b02ab3c275a6a7570c3f73cc20d63a0e3833",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "doom2-1-9",
+            "title": "Doom II v1.9",
+            "region": "Worldwide",
+            "revision": "doom2-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "7ec7652fcfce8ddc6e801839291f0e28ef1d5ae7",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom2-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom2-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "chocolate-hexen-pc-iwad",
+        "label": "Hexen PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "four-level-demo",
+            "title": "Hexen four-level demo",
+            "region": "Worldwide",
+            "revision": "four-level-demo",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "fa89a2475855e43c7f7e3198d6e4c4bee23bfab9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-hexen-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-hexen-iwad-identities"
+            ]
+          },
+          {
+            "id": "retail-1-1",
+            "title": "Hexen retail v1.1",
+            "region": "Worldwide",
+            "revision": "retail-1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "4b53832f0733c1e29e5f1de2428e5475e891af29",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-hexen-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-hexen-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "chocolate-heretic-pc-iwad",
+        "label": "Heretic PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "shareware-1-2",
+            "title": "Heretic shareware v1.2",
+            "region": "Worldwide",
+            "revision": "shareware-1.2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "b4c50ca9bea07f7c35250a1a11906091971c05ae",
+                    "sha256": "3ab2f21828877e49e5eb3220785aaf8798050b7c4132003b5db7b8f3678bede4",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          },
+          {
+            "id": "retail-1-3",
+            "title": "Heretic: Shadow of the Serpent Riders v1.3",
+            "region": "Worldwide",
+            "revision": "retail-1.3",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "f489d479371df32f6d280a0cb23b59a35ba2b833",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -27370,6 +27710,96 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-doom-family-game-source",
+        "port_id": "chocolate-doom-family",
+        "role": "game",
+        "profile_id": "chocolate-doom-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "shareware-1-9",
+          "registered-1-9",
+          "ultimate-1-9",
+          "doom2-1-9"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-doom-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-doom-iwad-identities",
+          "debian-gdp89-chocolate-doom2-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/doom/d_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "58c34c61ae954493fce5ff01fd553898240a0de25658aa97b43ac9510c49581f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-hexen-game-source",
+        "port_id": "chocolate-hexen",
+        "role": "game",
+        "profile_id": "chocolate-hexen-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "four-level-demo",
+          "retail-1-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-hexen-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-hexen-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/hexen/h2_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-heretic-game-source",
+        "port_id": "chocolate-heretic",
+        "role": "game",
+        "profile_id": "chocolate-heretic-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "shareware-1-2",
+          "retail-1-3"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-heretic-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-heretic-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63"
           }
         ],
         "aliases": [],
@@ -54165,6 +54595,350 @@
       }
     },
     {
+      "id": "chocolate-doom-family",
+      "name": "Chocolate Doom",
+      "summary": "Play Doom or Doom II with the original game files, or try Doom’s shareware episode.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "chocolate-doom/chocolate-doom",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chocolate-doom",
+            "win64.zip"
+          ]
+        }
+      },
+      "source_profile": "chocolate-doom-pc-iwad",
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocolate-doom.exe"
+        ]
+      },
+      "managed_initialization": "chocolate-family-portable-v1",
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "runtime_source_filename": "game.wad",
+      "runtime_source_materialization": "copy",
+      "launch_from_install_root": true,
+      "launch_arguments": [
+        "-iwad",
+        "game.wad",
+        "-config",
+        "default.cfg",
+        "-extraconfig",
+        "chocolate-doom.cfg",
+        "-savedir",
+        "savegames"
+      ],
+      "persistent_paths": [
+        "game.wad",
+        "default.cfg",
+        "chocolate-doom.cfg",
+        "savegames",
+        "autoload",
+        "music-packs"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "DOOM",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "DOOM",
+          "suffix": ".png"
+        }
+      ],
+      "runtime_mutable_paths": [
+        "stdout.txt",
+        "stderr.txt"
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "chocolate-doom-pc-iwad",
+            "label": "Doom PC IWAD (selected original or demo editions)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Doom",
+        "variant_label": "PC",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up Doom on Windows",
+              "instruction": "Choose the matching original Doom IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+            }
+          ],
+          "warnings": [
+            "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+            "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+          ],
+          "help_url": "https://www.chocolate-doom.org/wiki/index.php/Downloads",
+          "references": [
+            {
+              "title": "Heretic and Strife on Windows",
+              "instruction": "The official release also offers separate chocolate-heretic and chocolate-strife Windows ZIPs. Keep each player, setup utility and DLLs together in an installation you maintain. Supply the matching Heretic IWAD, or the Strife IWAD and its accompanying voice data. These upstream alternatives retain their own setup, updates and data ownership; this managed Doom entry does not convert them into managed routes."
+            },
+            {
+              "title": "Install a distribution package on Linux or Mac",
+              "instruction": "Use your Linux distribution’s chocolate-doom package for all four players. Debian packages are available on x86-64 and ARM64. On Intel or Apple Silicon Mac, use brew install chocolate-doom on a supported Homebrew host. Run the matching chocolate-doom, chocolate-heretic, chocolate-hexen or chocolate-strife command. Your package manager owns updates."
+            },
+            {
+              "title": "Register an existing Chocolate Doom player on Linux",
+              "instruction": "Use portcove external select-preview for chocolate-doom-family with the absolute chocolate-doom executable path, --working-directory for its folder, --arg=-iwad and a separate --arg with the absolute path to your Doom or Freedoom IWAD. Repeat those details with portcove external select and pass the preview SHA-256 to --expected-preview. Start the game with portcove exec chocolate-doom-family. Removing the registration keeps the player, IWAD and profile."
+            },
+            {
+              "title": "Find settings and saves",
+              "instruction": "For a portable Windows copy, start the player in its own folder and keep the configuration and saves it writes there. On Linux the default profile is $XDG_DATA_HOME/chocolate-doom, normally ~/.local/share/chocolate-doom. On Mac it is normally ~/Library/Application Support/chocolate-doom. Preserve the actual paths if you use -config, -extraconfig or -savedir. The default per-game save folders can differ by IWAD."
+            },
+            {
+              "title": "Use a short save directory for Chocolate Hexen 3.1.1",
+              "instruction": "Chocolate Hexen 3.1.1 can fail to save when the path is long. Create a writable folder with a short absolute path and start Chocolate Hexen with -savedir followed by that path. Use a different folder for the demo and full game. Before moving either, close the game and copy its whole save folder so each slot stays with its map files."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "chocolate-heretic",
+      "name": "Chocolate Heretic",
+      "summary": "Play Heretic with the original game files, or try its shareware episode.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "chocolate-doom/chocolate-doom",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chocolate-heretic",
+            "win64.zip"
+          ]
+        }
+      },
+      "source_profile": "chocolate-heretic-pc-iwad",
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocolate-heretic.exe"
+        ]
+      },
+      "managed_initialization": "chocolate-family-portable-v1",
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "runtime_source_filename": "game.wad",
+      "runtime_source_materialization": "copy",
+      "launch_from_install_root": true,
+      "launch_arguments": [
+        "-iwad",
+        "game.wad",
+        "-config",
+        "heretic.cfg",
+        "-extraconfig",
+        "chocolate-heretic.cfg",
+        "-savedir",
+        "savegames"
+      ],
+      "persistent_paths": [
+        "game.wad",
+        "heretic.cfg",
+        "chocolate-heretic.cfg",
+        "savegames",
+        "autoload",
+        "music-packs"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "HTIC",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HTIC",
+          "suffix": ".png"
+        }
+      ],
+      "runtime_mutable_paths": [
+        "stdout.txt",
+        "stderr.txt"
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "chocolate-heretic-pc-iwad",
+            "label": "Heretic PC IWAD (selected original or demo editions)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Heretic",
+        "variant_label": "PC",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up Heretic on Windows",
+              "instruction": "Choose the matching original Heretic IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+            }
+          ],
+          "references": [
+            {
+              "title": "Linux and Mac installations you maintain",
+              "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-heretic player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+            }
+          ],
+          "warnings": [
+            "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+            "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+          ]
+        },
+        "artwork": {
+          "game_id": 6362,
+          "cover_id": 76355,
+          "image_id": "co1mwz",
+          "image_sha256": "2e4af7089e82b680fb16c4f894c8c3ac09ccb469d296fd7322c2b0d67921fc04",
+          "game_slug": "heretic",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "chocolate-hexen",
+      "name": "Chocolate Hexen",
+      "summary": "Play Hexen with its original v1.1 game files or the four-level demo.",
+      "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "chocolate-doom/chocolate-doom",
+        "asset_hints": {
+          "windows-x86-64": [
+            "chocolate-hexen",
+            "win64.zip"
+          ]
+        }
+      },
+      "source_profile": "chocolate-hexen-pc-iwad",
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocolate-hexen.exe"
+        ]
+      },
+      "managed_initialization": "chocolate-family-portable-v1",
+      "windows_runtime_path_policy": "relative-file-max-path",
+      "runtime_source_filename": "game.wad",
+      "runtime_source_materialization": "copy",
+      "launch_from_install_root": true,
+      "launch_arguments": [
+        "-iwad",
+        "game.wad",
+        "-config",
+        "hexen.cfg",
+        "-extraconfig",
+        "chocolate-hexen.cfg",
+        "-savedir",
+        "savegames"
+      ],
+      "persistent_paths": [
+        "game.wad",
+        "hexen.cfg",
+        "chocolate-hexen.cfg",
+        "savegames",
+        "autoload",
+        "music-packs"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "HEXEN",
+          "suffix": ".pcx"
+        },
+        {
+          "prefix": "HEXEN",
+          "suffix": ".png"
+        }
+      ],
+      "runtime_mutable_paths": [
+        "stdout.txt",
+        "stderr.txt"
+      ],
+      "presentation": {
+        "installation_method": "staged-game-files",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "chocolate-hexen-pc-iwad",
+            "label": "Hexen PC IWAD (selected original or demo editions)",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Hexen",
+        "variant_label": "PC",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up Hexen on Windows",
+              "instruction": "Choose the matching original Hexen IWAD or one of the listed demo editions. Portcove keeps your original file and prepares a separate copy for Play. Saved games are separate for each exact IWAD. Keep the same original with its saves; select a separate setup to change editions."
+            }
+          ],
+          "references": [
+            {
+              "title": "Linux and Mac installations you maintain",
+              "instruction": "Install the chocolate-doom package through your Linux distribution or Homebrew on Mac, then select the chocolate-hexen player with its matching IWAD. The package manager owns runtime updates. Explicit registration keeps ownership of the player, originals and actual profile with you."
+            }
+          ],
+          "warnings": [
+            "Keep saves with their creating game and runtime. Changing engines or game editions does not convert saved games.",
+            "A profile that points outside its local autoload or music-pack folders must be preserved and corrected before Play. Portcove does not rewrite existing settings."
+          ]
+        },
+        "artwork": {
+          "game_id": 3512,
+          "cover_id": 76354,
+          "image_id": "co1mwy",
+          "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+          "game_slug": "hexen-beyond-heretic",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "citrongames-dora64",
       "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
       "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
@@ -58854,6 +59628,116 @@
         }
       },
       "windows_runtime_path_policy": "printable-ascii-max-path"
+    },
+    {
+      "id": "ecwolf-wolfenstein3d",
+      "name": "Wolfenstein 3D (ECWolf)",
+      "summary": "Play Wolfenstein 3D with ECWolf using your original game files or the public shareware. Set up an installation you maintain, then add it to Portcove.",
+      "project_url": "https://maniacsvault.net/ecwolf/",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "ECWolfEngine/ECWolf",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the official ECWolf package and the complete matching Wolfenstein 3D game data through upstream setup. Windows x64 uses ecwolf.exe and its containing folder; Linux x64 uses the installed /usr/games/ecwolf and its parent. Intel and Apple Silicon Mac use the native ecwolf inside the complete ECWolf.app/Contents/MacOS folder and its parent, with the matching original data in the upstream Mac app-support location. Select --data and WL1 as separate arguments for the prepared shareware set. Review the executable and launch details, then choose Play separately. The player/upstream owns runtime updates and all external originals, mods, saves and settings. Registration removal preserves external files; managed installation, update, backup, rollback and deletion are not offered.",
+        "original_game_title": "Wolfenstein 3D",
+        "manual_setup": {
+          "help_url": "https://maniacsvault.net/ecwolf/download.php",
+          "steps": [
+            {
+              "title": "Prepare the Windows player and Wolfenstein game files",
+              "instruction": "Download the official Windows x64 ECWolf ZIP and extract the complete package. Keep ecwolf.exe, ecwolf.pk3 and the accompanying files together. For the public Wolfenstein 3D 1.4 shareware, extract wolf3d14.zip and copy its eight .WL1 files beside ecwolf.exe. Keep your original download separately. WOLF3D.EXE and CATALOG.EXE from the old DOS distribution are not the ECWolf player. The ecwolf.exe selection step below applies to Windows."
+            },
+            {
+              "title": "Set up the Linux package",
+              "instruction": "Install the official matching Ubuntu amd64 package with your system package manager so its dependencies and system data are present. Put the complete matching .WL1 data set in ~/.config/ecwolf, or the ecwolf folder below your XDG_CONFIG_HOME. Preserve the filenames and their case. Select /usr/games/ecwolf and its containing folder in Portcove; enter --data and WL1 as two separate arguments. Review the details, add the game, then choose Play. Use the system package manager or upstream to update this installation."
+            },
+            {
+              "title": "Add the Intel or Apple Silicon Mac player",
+              "instruction": "Copy the complete official ECWolf.app from the DMG into Applications and open it normally once. Copy all eight matching .WL1 shareware data files into ~/Library/Application Support/ECWolf, preserving their names and case. In Portcove, select /Applications/ECWolf.app/Contents/MacOS/ecwolf and its containing folder; enter --data and WL1 as separate arguments, review the details, then add the game and choose Play. Keep ecwolf.pk3 and the complete app together. The later ecwolf.exe choice applies to Windows; Mac uses the native file inside ECWolf.app."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select ecwolf.exe and use its containing folder as the working directory. Enter these literal argument values in order, one array item per argument: [\"--data\",\"WL1\"]. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Keep your actual saves, settings, original game files, mods and their creating ECWolf version backed up with the game closed before changing versions. Save compatibility with another version or engine is not established."
+          ],
+          "references": [
+            {
+              "title": "Android and other processor builds",
+              "instruction": "The official download page also offers Android APKs, Windows ARM64 and Linux ARM packages. Choose the matching upstream build and follow its setup notes. Upstream warns that Android support is buggy; check its system-version notes before installing. Android installation, updates and saved data stay with the app and the player. Portcove desktop registration does not manage these other host routes."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: Windows Roaming AppData/ECWolf settings and Windows Saved Games/ECWolf progress, including upstream fallback locations; Linux XDG configuration/ecwolf and data/ecwolf/savegames folders; Mac ~/Library/Preferences/ecwolf.cfg, ~/Documents/ECWolf/Savegames, ~/Library/Application Support/ECWolf and upstream fallback locations; original game files, mods and any explicit --config or --savedir locations. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ]
+        }
+      }
     },
     {
       "id": "elasota-aerofoil",
@@ -72195,6 +73079,117 @@
           "executables": [
             "glh2.exe"
           ]
+        }
+      }
+    },
+    {
+      "id": "teeworlds",
+      "name": "Teeworlds",
+      "summary": "Swing through 2D arenas, play local and online matches, and create your own maps.",
+      "project_url": "https://github.com/teeworlds/teeworlds",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "teeworlds/teeworlds",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Set up the official Teeworlds client and its complete data through upstream or your Linux package manager. Select teeworlds.exe on Windows x64 or the native teeworlds client on Linux x64, or the native client inside Teeworlds.app/Contents/MacOS on Intel Mac, with its containing folder and no required launch options. Review the program and start folder, add the game, then choose Play. Keep updates, settings07.cfg, demos, maps, skins and any storage.cfg paths with the installation you maintain. Removing its Portcove registration preserves external files. Managed installation, update, backup, rollback and data deletion are not offered.",
+        "original_game_title": "Teeworlds",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Add the Windows client to Portcove",
+              "instruction": "After extracting the complete official Windows x64 ZIP, select teeworlds.exe and its containing folder. Keep the data folder and the accompanying files together. Leave launch options empty, review the details, and add the game. Choose Play separately. teeworlds_srv.exe is the dedicated server, not the client."
+            },
+            {
+              "title": "Add the Linux client to Portcove",
+              "instruction": "Select the teeworlds client from your complete Linux x64 package and use its containing folder as the start folder. A distribution package normally installs it at /usr/games/teeworlds; install its data package and dependencies through the same package manager. Leave launch options empty. Update the installation through upstream or your package manager. The separate community Flathub client is available on Linux x64 and ARM64; install and update that copy through Flatpak rather than selecting a Flatpak launcher as a native executable."
+            },
+            {
+              "title": "Add the Intel Mac client to Portcove",
+              "instruction": "Copy the complete Teeworlds.app from the publisher disk image into Applications and open it normally once. In Portcove, select /Applications/Teeworlds.app/Contents/MacOS/teeworlds, use its containing folder as the start folder, and leave launch options empty. Keep the complete app bundle together. Teeworlds Server.app is a separate dedicated server. The later teeworlds.exe choice applies to Windows; Mac uses the native file inside Teeworlds.app. The bundled 0.7.5 Intel runtime requires macOS 10.13 or later; Portcove has its own system requirements."
+            },
+            {
+              "title": "Play and record a match",
+              "instruction": "The Teeworlds 0.7 client connects to Teeworlds 0.7 servers. In a match, press F1 and enter record followed by a demo name. Enter stoprecord to finish, then open the recording from Demos."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select teeworlds.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Before moving your setup, close the game and copy the data folder with settings07.cfg, demos, custom maps, and any skins you want to keep."
+          ],
+          "references": [
+            {
+              "title": "Find your data folder",
+              "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/Teeworlds settings07.cfg, demos, maps and skins; Linux ~/.local/share/teeworlds, existing ~/.teeworlds or $XDG_DATA_HOME/teeworlds; Intel Mac ~/Library/Application Support/Teeworlds and any storage.cfg save path; the save location selected by storage.cfg, and any custom maps or skins kept with the installation. Back up these locations separately; registration does not migrate or certify their compatibility."
+            }
+          ],
+          "help_url": "https://www.teeworlds.com/?page=docs"
+        },
+        "artwork": {
+          "game_id": 35005,
+          "cover_id": 89927,
+          "image_id": "co1xdz",
+          "image_sha256": "9840d3ed36554a134ffe65d14ff3abda17fa38f8770a322fabf40f7e116d97e7",
+          "game_slug": "teeworlds",
+          "match_kind": "underlying-game"
         }
       }
     },

@@ -1,7 +1,7 @@
 # A real first-launch journey
 
 These are unchanged captures from the Windows development application on October
-1, 2026. The catalog image is also used in the project README. The capture uses a
+1, 2026. The catalog image appeared in the project README at the time. The capture uses a
 fresh disposable library and preferences, and an authorized local copy of the
 user's game file. No ROM, save, credential or private NAS location is published.
 

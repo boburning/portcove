@@ -95,7 +95,9 @@ async function startControlledLaunch(layout: "Covers" | "Compact rows" = "Covers
   );
   await expect.element(page.getByRole("button", { name: layout, exact: true })).toBeVisible();
   await page.getByRole("button", { name: layout, exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   const notNow = page.getByRole("button", { name: "Not now", exact: true });
   if (notNow.query()) await notNow.click();
   const origins = [

@@ -40,7 +40,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
                 || crate::native_temp::has_sibling_platforms(port)
                 || windows_with_checked_tar_xz_siblings(port)))
             || (port.adapter == AdapterKind::LibultrashipPortable
-                && port.platforms.contains(&Platform::WindowsX86_64));
+                && port.platforms.contains(&Platform::WindowsX86_64))
+            || (crate::managed_chocolate::applies(port)
+                && crate::managed_chocolate::validate(port).is_ok());
         return if supported_route
             && port.setup_executable_hints.is_empty()
             && port.release.user_prepared.is_empty()
@@ -49,7 +51,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "relative Windows file access requires a native archive or a Windows-capable Libultraship archive without preparation helpers",
+                "relative Windows file access requires a supported portable archive and its reviewed preparation contract",
             ))
         };
     }
@@ -107,7 +109,9 @@ fn windows_with_checked_tar_xz_siblings(port: &PortDefinition) -> bool {
 }
 
 pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
-    if port.adapter == AdapterKind::LibultrashipPortable {
+    if crate::managed_chocolate::applies(port) {
+        crate::managed_chocolate::CAPABILITY
+    } else if port.adapter == AdapterKind::LibultrashipPortable {
         2
     } else if port.adapter == AdapterKind::NativePortable {
         if port.windows_runtime_path_policy == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)

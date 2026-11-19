@@ -251,6 +251,10 @@ impl EngineTemplateCapability {
             contract_version: crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::managed_chocolate::CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -1126,8 +1130,33 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(7));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 38, 38)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn chocolate_profile_v38_is_refused_by_the_previous_staged_inventory() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 38
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 38, 38), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 37, 37), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 38, 38))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

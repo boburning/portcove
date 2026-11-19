@@ -118,6 +118,69 @@
       }
     },
     {
+      "port_id": "chocolate-doom-family",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "58c34c61ae954493fce5ff01fd553898240a0de25658aa97b43ac9510c49581f",
+      "derivation_inputs_sha256": "ec99380ae747503558d3228b113593b018e9ff84ac3653e9acbb887190c9802f",
+      "size": 9798661,
+      "asset_name": "chocolate-doom-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-doom-family-game-source",
+      "shape": {
+        "programs": [
+          "chocolate-doom-setup.exe",
+          "chocolate-doom.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "chocolate-heretic",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63",
+      "derivation_inputs_sha256": "f61abf118e28b01378c6421748171536d8df0133d323b2778c788c8e0beeb910",
+      "size": 9791782,
+      "asset_name": "chocolate-heretic-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-heretic-game-source",
+      "shape": {
+        "programs": [
+          "chocolate-heretic-setup.exe",
+          "chocolate-heretic.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "chocolate-hexen",
+      "platform": "windows-x86-64",
+      "version": "chocolate-doom-3.1.1",
+      "sha256": "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23",
+      "derivation_inputs_sha256": "1933d4a6c78fb4969d1a0ceee06808749c0a74a317ded593b4cc9b0435858f80",
+      "size": 9850766,
+      "asset_name": "chocolate-hexen-3.1.1-win64.zip",
+      "reviewed_by": "applicability:chocolate-hexen-game-source",
+      "shape": {
+        "programs": [
+          "chocolate-hexen-setup.exe",
+          "chocolate-hexen.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
       "port_id": "diablo-devilutionx",
       "platform": "windows-x86-64",
       "version": "1.5.5",
@@ -797,5 +860,5 @@
       }
     }
   ],
-  "entries_sha256": "92cf1dcf6bca8d42e31f70ab58ab9e8e1d8eba2d72c35716301f107d2debf81a"
+  "entries_sha256": "c490a2a738c677b782f734fc1807d7e29121d375a42e3b5dc666d328ccba530a"
 }

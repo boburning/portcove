@@ -1,3 +1,4 @@
+import { catalogFailureFallback, CatalogFallbackReason } from "./CatalogFallbackReason";
 import { useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { errorText, isCancellation } from "../view-model";
@@ -53,8 +54,11 @@ function DefinitionControls({
   const [submitting, setSubmitting] = useState(false);
   const [operationId, setOperationId] = useState<string>();
   const [notice, setNotice] = useState<Notice>();
-  // `unsupported` is app-owned copy; other failures keep Core's diagnostic text.
-  const [error, setError] = useState<{ kind: "unsupported" } | { kind: "text"; text: string }>();
+  const [error, setError] = useState<
+    | { kind: "unsupported" }
+    | { kind: "text"; text: string }
+    | { kind: "catalog"; reason: string; code: string }
+  >();
   const owner = useRef({ active: true, pending: false });
   useLayoutEffect(() => {
     const current = { active: true, pending: false };
@@ -113,12 +117,16 @@ function DefinitionControls({
     } catch (value) {
       if (current.active) {
         if (isCancellation(value)) setNotice("cancelled");
-        else
+        else {
+          const fallback = catalogFailureFallback(value);
           setError(
             value instanceof UnsupportedSetupResult
               ? { kind: "unsupported" }
-              : { kind: "text", text: errorText(value) },
+              : fallback
+                ? { kind: "catalog", ...fallback }
+                : { kind: "text", text: errorText(value) },
           );
+        }
       }
     } finally {
       current.pending = false;
@@ -153,9 +161,13 @@ function DefinitionControls({
         <OperationCancellation operationId={operationId} label={t("definition.cancel")} />
       )}
       {notice && <p role="status">{noticeCopy(t, notice)}</p>}
-      {error && (
+      {error?.kind === "catalog" ? (
+        <div role="alert">
+          <CatalogFallbackReason reason={error.reason} code={error.code} position={1} count={1} />
+        </div>
+      ) : error ? (
         <p role="alert">{error.kind === "text" ? error.text : t("definition.unsupported")}</p>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -29,6 +29,14 @@
     "heading": "Qué funciona y problemas conocidos",
     "intro": "La disponibilidad y las pruebas son cosas distintas. Cada acción comprueba sus propios requisitos actuales.",
     "label": "Qué funciona y problemas conocidos",
+    "launch": {
+      "asks-for-game-files": "Pide los archivos del juego",
+      "first": "Primer inicio",
+      "opens-project-launcher": "Abre el lanzador del proyecto",
+      "repeat": "Volver a jugar",
+      "starts-game-directly": "Inicia el juego directamente",
+      "unknown": "Desconocido"
+    },
     "mode": {
       "automatic": "Disponible en Portcove",
       "manual": "Manual",
@@ -47,7 +55,7 @@
       "separator": " · ",
       "source": "Fuente",
       "sourceLine": "<link /> · {{date}}",
-      "versionSpecific": "Datos de una versión concreta: comprueba este ámbito exacto antes de aplicarlo a tu copia. Las versiones posteriores no heredan un fallo ni una corrección."
+      "versionSpecific": "Estos detalles se aplican al ámbito indicado arriba."
     },
     "noticesUnavailable": "Los avisos opcionales de problemas conocidos no están disponibles. La configuración y el inicio conservan sus evaluaciones actuales.",
     "observations": {

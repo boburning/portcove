@@ -549,6 +549,16 @@ impl DefinitionContentIndex {
                 "version-local credentials require staged-source capability version 15",
             ));
         }
+        if crate::managed_chocolate::applies(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= crate::managed_chocolate::CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Chocolate profile preparation requires staged-source capability version 38",
+            ));
+        }
         if port.managed_initialization.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

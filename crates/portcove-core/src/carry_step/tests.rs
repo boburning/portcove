@@ -850,9 +850,16 @@ fn a_windows_short_file_alias_keeps_the_target_separate() {
         return;
     };
     write(&fixture.source, &alias, b"different source data");
-    let (_, staged) = run(&fixture, &[&alias], PLENTY);
+    let (planned, staged) = run(&fixture, &[&alias], PLENTY);
+    // The planner rejects short-name coordinates before staging or ledger changes.
+    assert_eq!(
+        planned[0].action,
+        CarryAction::Excluded(crate::carry_plan::Exclusion::ShortName)
+    );
+    assert_eq!(planned[0].source_row, RowChange::Untouched);
+    assert_eq!(planned[0].target_row, RowChange::Untouched);
     let staged = staged.unwrap();
-    assert_eq!(staged.changed_targets, [alias.clone()]);
+    assert!(staged.changed_targets.is_empty());
     assert!(staged.written().is_empty());
     assert!(staged.publish().unwrap().is_empty());
     assert_eq!(
@@ -878,10 +885,17 @@ fn a_windows_short_directory_alias_is_not_a_publication_parent() {
     };
     let relative = format!("{alias}/new.txt");
     write(&fixture.source, &relative, b"source data");
-    let (_, staged) = run(&fixture, &[&relative], PLENTY);
+    let (planned, staged) = run(&fixture, &[&relative], PLENTY);
+    assert_eq!(
+        planned[0].action,
+        CarryAction::Excluded(crate::carry_plan::Exclusion::ShortName)
+    );
+    assert_eq!(planned[0].source_row, RowChange::Untouched);
+    assert_eq!(planned[0].target_row, RowChange::Untouched);
     let staged = staged.unwrap();
-    assert_eq!(staged.written(), [relative.as_str()]);
-    assert_eq!(staged.publish().unwrap(), [relative.clone()]);
+    assert!(staged.changed_targets.is_empty());
+    assert!(staged.written().is_empty());
+    assert!(staged.publish().unwrap().is_empty());
     assert!(!fixture.target.join(long).join("new.txt").exists());
     assert_eq!(
         fs::read(fixture.source.join(relative)).unwrap(),

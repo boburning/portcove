@@ -2,7 +2,7 @@ import { GameFileObservationSummary } from "./GameFileObservationSummary";
 import { ChoiceSelect } from "../../components/ChoiceSelect";
 import { OperationCancellation } from "../../components/OperationCancellation";
 import { Button } from "../../components/ui/button";
-import { platformLabel, releaseChannelPresentation } from "../../view-model";
+import { machinePlatforms, platformLabel, releaseChannelPresentation } from "../../view-model";
 import { useAppTranslation } from "../../localization";
 import {
   gameFileCheckFailureText,
@@ -22,16 +22,16 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
         value={selection.route}
         options={routeValues.map((value) => ({ value, label: gameFileRouteLabel(t, value) }))}
         disabled={state.pending}
-        onChange={(route) => state.setSelection((current) => ({ ...current, route }))}
+        onChange={state.setRoute}
       />
       <ChoiceSelect
         label={t("controls.platform")}
-        value={selection.platform}
-        options={(["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"] as const).map(
-          (value) => ({ value, label: platformLabel(value) }),
-        )}
+        value={selection.platform ?? ""}
+        options={machinePlatforms.map((value) => ({ value, label: platformLabel(value) }))}
         disabled={state.pending}
-        onChange={(platform) => state.setSelection((current) => ({ ...current, platform }))}
+        onChange={(platform) => {
+          if (platform) state.setPlatform(platform);
+        }}
       />
       <ChoiceSelect
         label={t("controls.channel")}
@@ -41,7 +41,7 @@ export function GameFileFilterControls({ state }: { state: GameFileFilterState }
           label: releaseChannelPresentation(value).label,
         }))}
         disabled={state.pending}
-        onChange={(channel) => state.setSelection((current) => ({ ...current, channel }))}
+        onChange={state.setChannel}
       />
       <p>{t("controls.description")}</p>
       <Button

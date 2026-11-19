@@ -1079,15 +1079,19 @@ impl Installer {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
-        if catalog.port(&request.port_id)?.managed_initialization
-            == Some(crate::ManagedInitialization::TfeDarkForcesPortableV1)
-        {
+        if matches!(
+            catalog.port(&request.port_id)?.managed_initialization,
+            Some(
+                crate::ManagedInitialization::TfeDarkForcesPortableV1
+                    | crate::ManagedInitialization::ChocolateFamilyPortableV1
+            )
+        ) {
             if request.qualification.retained_contract.is_none() {
                 return Err(PortcoveError::verification(
                     "managed initialization requires its retained catalog before acquisition",
                 ));
             }
-            crate::managed_tfe::require_artifact(
+            crate::managed_initialization::require_artifact(
                 catalog.port(&request.port_id)?,
                 &request.release.version,
                 &ArtifactIdentity {
@@ -4608,7 +4612,7 @@ fn verified_manifest_with_budget(
             &install.artifact,
             manifest.platform,
         )?;
-        crate::managed_tfe::require_artifact(
+        crate::managed_initialization::require_artifact(
             catalog.port(&install.port_id)?,
             &install.version,
             &install.artifact,

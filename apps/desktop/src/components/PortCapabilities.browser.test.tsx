@@ -156,6 +156,10 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
         artifact_sha256: "a".repeat(64),
         edition: "original",
         explanation: "This exact fixture release fails on exit.",
+        launch_behavior: {
+          first_launch: "asks-for-game-files",
+          repeat_launch: "starts-game-directly",
+        },
         provenance: "https://example.com/fixture",
         observed_at: 1,
         evidence: "observed",
@@ -172,6 +176,8 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
     `Scope: windows-x86-64 · Explicit existing-copy selection · release v1 · edition original · artifact ${"a".repeat(64)}.`,
   );
   expect(host.textContent).toContain("Launch · observed · Exact context required");
+  expect(host.textContent).toContain("Asks for game files");
+  expect(host.textContent).toContain("Starts the game directly");
   const scope = [...host.querySelectorAll("p")].find((item) =>
     item.textContent?.startsWith("Scope:"),
   );
@@ -179,7 +185,7 @@ it("keeps version-specific notices scoped and distinguishes settings support fro
     ["windows-x86-64", "v1", "original", "a".repeat(64)],
   );
   expect(host.querySelector("a[href='https://example.com/fixture']")?.textContent).toBe("Source");
-  expect(host.textContent).toContain("Later releases do not inherit a failure or a fix");
+  expect(host.textContent).toContain("These details apply to the scope shown above.");
 });
 
 it("presents feature details, scope and backup state in the active locale", async () => {

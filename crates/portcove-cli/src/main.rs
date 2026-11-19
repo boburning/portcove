@@ -589,7 +589,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     }
     if matches!(&cli.command, Commands::Capabilities) {
         let mut capabilities = CapabilityDocument::current();
-        capabilities.commands.extend(profile_command_capabilities());
+        capabilities.commands = registered_command_capabilities();
         render_read_success(mode, "capabilities", capabilities, human::capabilities)?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -2098,9 +2098,36 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Paths { port_id } => {
-            render_read_success(mode, "paths", service.port_paths(&port_id)?, |value| {
-                human::paths(value, service.catalog())
-            })?;
+            let paths = service.port_paths(&port_id);
+            if mode == OutputMode::Human {
+                let show_external = match &paths {
+                    Ok(paths) => paths.active_install_root.is_none(),
+                    Err(error) => error.code == portcove_core::ErrorCode::NotFound,
+                };
+                if show_external
+                    && let Ok(status) = service.status(&port_id)
+                    && status.active.is_none()
+                    && let Some(runtime) = status.external_runtime
+                {
+                    println!("{}", human::external_paths(&runtime, service.catalog()));
+                } else {
+                    let paths = paths?;
+                    let collection_root = paths.active_install_root.as_ref().and_then(|active| {
+                        service
+                            .active_installation_protection(&port_id)
+                            .ok()
+                            .flatten()
+                            .filter(|install| install.install_root == *active)?
+                            .collection_root
+                    });
+                    println!(
+                        "{}",
+                        human::paths(&paths, collection_root.as_deref(), service.catalog())
+                    );
+                }
+            } else {
+                render_success(mode, "paths", paths?)?;
+            }
         }
         Commands::Output { command } => match command {
             OutputCommand::Show { port_id } => render_read_success(

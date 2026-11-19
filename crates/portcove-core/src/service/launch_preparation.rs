@@ -198,6 +198,41 @@ impl PortcoveService {
         })
     }
 
+    fn check_chocolate_launch_data(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source: Option<&SourceRecord>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        if !crate::managed_chocolate::applies(port) {
+            return Ok(());
+        }
+        let source = source
+            .ok_or_else(|| PortcoveError::source("Chocolate requires its checked original IWAD"))?;
+        let canonical = self.library.user_dir(&port.id);
+        crate::managed_chocolate::require_original(port, &canonical, source, checkpoint)?;
+        crate::managed_chocolate::require_original(port, &active.path, source, checkpoint)?;
+        Ok(())
+    }
+
+    pub(super) fn recheck_chocolate_launch_data(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source_override: Option<&Path>,
+        operation: Option<&OperationCoordinator>,
+    ) -> Result<()> {
+        let inputs =
+            self.observe_managed_launch_inputs(port, active, source_override, operation)?;
+        self.check_chocolate_launch_data(
+            inputs.catalog.port(&active.port_id)?,
+            active,
+            inputs.source.as_ref(),
+            &|| operation.map_or(Ok(()), OperationCoordinator::checkpoint),
+        )
+    }
+
     #[cfg(test)]
     pub(super) fn prepare_launch_for_install(
         &self,
@@ -239,6 +274,7 @@ impl PortcoveService {
         let port = catalog.port(&active.port_id)?;
         self.require_selected_loader_for_install(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
+        self.check_chocolate_launch_data(port, active, source.as_ref(), &checkpoint)?;
         if active.path.join(LAUNCH_MARKER).is_file()
             || crate::persistence::collect_before_first_launch(port)
         {
