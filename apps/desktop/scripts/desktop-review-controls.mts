@@ -216,20 +216,26 @@ export async function clickVisible(
   element: WebElement,
   { dispatch = "webdriver" }: { dispatch?: "webdriver" | "dom" } = {},
 ) {
+  let stage = "entrance";
   try {
     await waitForEntrance(browser, element);
+    stage = "focus";
     await executeBrowserScript(browser, "arguments[0].focus({ preventScroll: true });", element);
     // Native visibility can reject an offscreen control before WebDriver's
     // eventual click has a chance to scroll it. Reveal the target first;
     // hidden/disabled/occluded controls still fail the existing gates below.
+    stage = "scroll";
     await executeBrowserScript(
       browser,
       (element) =>
         element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
       element,
     );
+    stage = "visible";
     await browser.wait(until.elementIsVisible(element), 5_000);
+    stage = "enabled";
     await browser.wait(until.elementIsEnabled(element), 5_000);
+    stage = "pointer-target";
     await browser.wait(
       () =>
         executeBrowserScript(
@@ -248,43 +254,91 @@ export async function clickVisible(
       5_000,
       "The reviewed control must receive the pointer before clicking",
     );
-    if (dispatch === "dom") await executeBrowserScript(browser, "arguments[0].click();", element);
-    else {
+    if (dispatch === "dom") {
+      stage = "dom-click";
+      await executeBrowserScript(browser, "arguments[0].click();", element);
+    } else {
+      stage = "webdriver-click";
       assert.equal(dispatch, "webdriver", `Unsupported click dispatch: ${dispatch}`);
       await element.click();
     }
   } catch (error) {
-    const context = await executeBrowserScript(
-      browser,
-      (element) => {
-        const bounds = element.getBoundingClientRect();
-        const hit = document.elementFromPoint(
-          bounds.x + bounds.width / 2,
-          bounds.y + bounds.height / 2,
-        );
-        const scrollContainers = [];
-        for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-          if (parent.scrollHeight > parent.clientHeight)
-            scrollContainers.push({
-              element: parent.outerHTML.slice(0, 200),
-              scrollTop: parent.scrollTop,
-              clientHeight: parent.clientHeight,
-              scrollHeight: parent.scrollHeight,
-            });
-        }
-        return {
-          target: element.outerHTML,
-          expanded: element.closest("details")?.open,
-          focused: document.activeElement?.outerHTML,
-          bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
-          viewport: { width: window.innerWidth, height: window.innerHeight },
-          hit: hit?.outerHTML,
-          scrollContainers,
-        };
-      },
-      element,
-    );
-    throw new Error(`${errorMessage(error)}\nReview control: ${JSON.stringify(context)}`, {
+    // WebDriver can return an empty message with a meaningful error class.
+    // Keep this prefix before DOM details, including in the bounded job record.
+    const boundedJsonString = (value: string, maximumBytes: number) => {
+      let result = "";
+      let bytes = 2; // Include the JSON string's quotes, escapes and UTF-8 encoding.
+      for (const character of value) {
+        const size = Buffer.byteLength(JSON.stringify(character)) - 2;
+        if (bytes + size > maximumBytes) break;
+        result += character;
+        bytes += size;
+      }
+      return result;
+    };
+    const describe = (value: unknown) => {
+      let type: string = typeof value;
+      let name = "";
+      let message = "<unreadable error>";
+      try {
+        if (value instanceof Error) type = "Error";
+        if (isRecord(value) && typeof value.name === "string") name = value.name;
+      } catch {
+        /* A diagnostic inspection must not replace the original rejection. */
+      }
+      try {
+        message = errorMessage(value);
+      } catch {
+        /* Retain the original cause below. */
+      }
+      const boundedName = boundedJsonString(name, 128);
+      const boundedMessage = boundedJsonString(message, 1024);
+      return {
+        type,
+        name: boundedName,
+        name_truncated: boundedName !== name,
+        message: boundedMessage,
+        message_truncated: boundedMessage !== message,
+      };
+    };
+    const primary = { stage, error: describe(error) };
+    let details: string;
+    try {
+      const context = await executeBrowserScript(
+        browser,
+        (element) => {
+          const bounds = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            bounds.x + bounds.width / 2,
+            bounds.y + bounds.height / 2,
+          );
+          const scrollContainers = [];
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (parent.scrollHeight > parent.clientHeight)
+              scrollContainers.push({
+                element: parent.outerHTML.slice(0, 200),
+                scrollTop: parent.scrollTop,
+                clientHeight: parent.clientHeight,
+                scrollHeight: parent.scrollHeight,
+              });
+          }
+          return {
+            target: element.outerHTML,
+            expanded: element.closest("details")?.open,
+            focused: document.activeElement?.outerHTML,
+            bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+            viewport: { width: window.innerWidth, height: window.innerHeight },
+            hit: hit?.outerHTML,
+            scrollContainers,
+          };
+        },
+        element,
+      );
+      details = `Review control: ${JSON.stringify(context)}`;
+    } catch (contextError) {
+      details = `Review control unavailable: ${JSON.stringify(describe(contextError))}`;
+    }
+    throw new Error(`Review interaction failed: ${JSON.stringify(primary)}\n${details}`, {
       cause: error,
     });
   }

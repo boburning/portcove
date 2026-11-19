@@ -1808,6 +1808,15 @@ controls. Ordinary opening helpers stay neutral so initial-destination behavior
 remains testable. Native scripts, browser renders, injected text enlargement and
 native-host observations are distinct evidence scopes.
 
+Native review click failures record the interaction stage and bounded original
+error type, name and message before control geometry. Field limits include JSON
+escapes and UTF-8 bytes so the original failure fits the existing log record.
+An empty WebDriver message still has an error class. If collecting the control
+context also fails, the diagnostic records that failure separately and preserves
+the original cause.
+These observations do not change visibility, enabled-state or pointer checks,
+click dispatch, or the existing evidence limits.
+
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and
