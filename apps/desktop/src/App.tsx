@@ -1,7 +1,11 @@
+import {
+  FavoriteGameButton,
+  FavoritePreferenceFailure,
+} from "./features/organization/OrganizationControls";
 import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { gameGroupId } from "./features/browsing/original-game";
 import {
   addRequiredSource,
@@ -800,15 +804,7 @@ function useWorkspace(props: WorkspaceProps) {
         )}
         implementationControl={implementationControl}
         managementSupplement={setupAvailabilityControl}
-        favoriteControl={
-          model.status?.external_runtime
-            ? renderSelectedPortFavoriteControl({
-                favorites,
-                favoritePortId: model.entry.id,
-                displayPort: model.entry,
-              })
-            : undefined
-        }
+        favorites={favorites}
         status={model.status}
         generation={bootstrap.generation}
         perform={operations.perform}
@@ -1818,52 +1814,6 @@ function installedSteamBatchPorts(data: DataState, model: ReturnType<typeof useA
   return (data.catalog?.ports ?? []).filter((port) => model.statusMap.get(port.id)?.active);
 }
 
-function renderSelectedPortFavoriteControl({
-  favorites,
-  favoritePortId,
-  displayPort,
-}: {
-  favorites: ReturnType<typeof useFavorites>;
-  favoritePortId: string;
-  displayPort: Parameters<typeof gameIdentityLabel>[0];
-}) {
-  return (
-    <>
-      <Button
-        data-focusable
-        variant={favorites.ids?.has(favoritePortId) ? "selected" : "outline"}
-        size="icon-lg"
-        aria-label={`Favorite ${gameIdentityLabel(displayPort)}`}
-        aria-pressed={favorites.ids?.has(favoritePortId) ?? false}
-        disabled={!favorites.ids || favorites.busy}
-        focusableWhenDisabled={Boolean(favorites.ids) && favorites.busy}
-        aria-busy={favorites.busy}
-        onClick={() => void favorites.toggle(favoritePortId)}
-      >
-        <Heart
-          aria-hidden="true"
-          fill={favorites.ids?.has(favoritePortId) ? "currentColor" : "none"}
-        />
-      </Button>
-      {favorites.failure && (
-        <span role="alert" className="max-w-prose text-sm text-pc-warning-foreground">
-          {favorites.failure === "write"
-            ? "The favorite change could not be confirmed. Refresh to reconcile."
-            : "Favorites could not be loaded."}{" "}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={favorites.busy}
-            onClick={() => void favorites.refresh()}
-          >
-            Refresh favorites
-          </Button>
-        </span>
-      )}
-    </>
-  );
-}
-
 async function savedSetupOriginals(profileId: string, generation: number) {
   const snapshot = await desktopApi.gameFileScanSnapshot(generation);
   if (!snapshot || snapshot.freshness !== "inputs_match") return undefined;
@@ -1957,7 +1907,6 @@ function SelectedPortPanel({
     ui.biosPath,
   ]);
   if (!model.port) return null;
-  const favoritePortId = model.port.id;
   const setSourcePath = (path: string) => {
     ui.setSourcePath(path);
     installPlanning.invalidate();
@@ -2055,11 +2004,15 @@ function SelectedPortPanel({
       favoriteControl={
         <>
           {implementationControl}
-          {renderSelectedPortFavoriteControl({
-            favorites,
-            favoritePortId,
-            displayPort: model.entry ?? model.port,
-          })}
+          <FavoriteGameButton
+            favorites={favorites}
+            organization={organization}
+            port={model.entry ?? model.port}
+            groupPorts={model.entries.filter(
+              (candidate) => gameGroupId(candidate) === gameGroupId(model.entry ?? model.port),
+            )}
+          />
+          <FavoritePreferenceFailure favorites={favorites} organization={organization} />
         </>
       }
       organization={organization}

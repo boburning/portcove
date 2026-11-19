@@ -56,9 +56,14 @@ try {
       await page
         .getByRole("button", { name: `Favorite ${game.title} · ${game.port}`, exact: true })
         .click();
-      await page.getByRole("radio", { name: `Favorites ${index + 1}`, exact: true }).waitFor();
+      await page
+        .getByRole("radio", {
+          name: `Favorites ${index + 1} ${index === 0 ? "game" : "games"}`,
+          exact: true,
+        })
+        .waitFor();
     }
-    await page.getByRole("radio", { name: "Favorites 6", exact: true }).click();
+    await page.getByRole("radio", { name: "Favorites 6 games", exact: true }).click();
     await page.waitForFunction(() => globalThis.document.querySelectorAll("article").length === 6);
 
     async function capture() {
