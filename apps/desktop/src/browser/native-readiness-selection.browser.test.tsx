@@ -26,7 +26,9 @@ async function mount(width: number) {
       <App />
     </LocalizationProvider>,
   );
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   return page.getByRole("radiogroup", { name: "Library quick views" }).element();
 }
 
