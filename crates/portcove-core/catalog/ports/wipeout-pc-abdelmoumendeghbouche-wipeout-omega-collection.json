@@ -6,10 +6,7 @@
     "original_game_title": "WipEout Omega Collection",
     "summary": "An experimental port of WipEout Omega Collection for owned PS4 game files, with a documented US target of CUSA07671 and update 01.07. The publisher offers a Windows ZIP and Linux x86-64 AppImage and reports HD and 2048 races. A full collection playthrough remains unconfirmed.",
     "project_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc",
     "manual_setup": {
@@ -51,12 +48,8 @@
     },
     "release_url": "https://github.com/AbdelmoumenDeghbouche/wipeout_pc/releases",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "wipeout-windows.zip"
-      ],
-      "linux-x86-64": [
-        "wipeout-x86_64.AppImage"
-      ]
+      "windows-x86-64": ["wipeout-windows.zip"],
+      "linux-x86-64": ["wipeout-x86_64.AppImage"]
     }
   },
   "upstream_lineage": {

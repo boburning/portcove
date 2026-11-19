@@ -7,13 +7,8 @@
     "original_game_title": "Yo-kai Watch 4++",
     "project_url": "https://github.com/ILFforever/YW4Recomp",
     "listed_at": "2026-10-25",
-    "funding_urls": [
-      "https://buymeacoffee.com/ilfforever"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "funding_urls": ["https://buymeacoffee.com/ilfforever"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",
     "artwork": {
@@ -27,14 +22,8 @@
     "issue_number": 2952,
     "release_url": "https://github.com/ILFforever/YW4Recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "YW4-Recomp-Launcher-",
-        "-portable.zip"
-      ],
-      "linux-x86-64": [
-        "YW4-Recomp-Launcher-",
-        "-x86_64.AppImage"
-      ]
+      "windows-x86-64": ["YW4-Recomp-Launcher-", "-portable.zip"],
+      "linux-x86-64": ["YW4-Recomp-Launcher-", "-x86_64.AppImage"]
     },
     "manual_setup": {
       "help_url": "https://github.com/ILFforever/YW4Recomp/releases/tag/launcher-v1.4.0",

@@ -12,11 +12,7 @@
       "https://ko-fi.com/nycolazs",
       "https://buymeacoffee.com/nycolazs"
     ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",
     "artwork": {
@@ -30,18 +26,9 @@
     "issue_number": 2957,
     "release_url": "https://github.com/Nycolazs/ACNHRecomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "ACNHRecomp-",
-        "-windows-x64.zip"
-      ],
-      "linux-x86-64": [
-        "ACNHRecomp-",
-        "-linux-x64.tar.gz"
-      ],
-      "macos-aarch64": [
-        "ACNHRecomp-",
-        "-macOS-arm64.zip"
-      ]
+      "windows-x86-64": ["ACNHRecomp-", "-windows-x64.zip"],
+      "linux-x86-64": ["ACNHRecomp-", "-linux-x64.tar.gz"],
+      "macos-aarch64": ["ACNHRecomp-", "-macOS-arm64.zip"]
     },
     "manual_setup": {
       "help_url": "https://github.com/Nycolazs/ACNHRecomp/releases/tag/v0.11.0",

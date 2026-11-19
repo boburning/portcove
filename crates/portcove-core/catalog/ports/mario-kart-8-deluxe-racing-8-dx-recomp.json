@@ -7,10 +7,7 @@
     "original_game_title": "Mario Kart 8 Deluxe",
     "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
     "artwork": {
