@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-episode-i-the-phantom-menace-playstation",
+          "title": "Star Wars Episode I: The Phantom Menace (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/star-wars-episode-i-the-phantom-menace-recomp/blob/9921d6c10b0a9d3e928b22055a6ee1ab62f59571/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

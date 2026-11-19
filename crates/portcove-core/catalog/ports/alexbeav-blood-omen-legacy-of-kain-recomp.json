@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blood-omen-legacy-of-kain-playstation",
+          "title": "Blood Omen: Legacy of Kain (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/b289b9c2d7163968aa679dcc0cb40b2ccf7bb053/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

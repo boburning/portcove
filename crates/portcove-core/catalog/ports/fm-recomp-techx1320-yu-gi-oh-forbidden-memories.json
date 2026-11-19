@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "yu-gi-oh-forbidden-memories",
       "evidence_urls": ["https://github.com/TechX1320/FM-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechX1320/FM-Recomp/blob/9c98e5c6d966555f0aace75216449510ac124d1e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

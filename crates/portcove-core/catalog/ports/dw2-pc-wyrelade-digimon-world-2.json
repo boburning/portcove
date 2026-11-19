@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "digimon-world-2",
       "evidence_urls": ["https://github.com/Wyrelade/DW2-PC"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "digimon-world-2-playstation",
+          "title": "Digimon World 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Wyrelade/DW2-PC/blob/1dbb32a0332a78d5e9afbe4d26c62d86cc5e3f76/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

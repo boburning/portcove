@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "crash-twinsanity",
       "evidence_urls": ["https://github.com/HAB3X/Crash-Twinsanity-Mac"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-twinsanity-playstation-2",
+          "title": "Crash Twinsanity (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/HAB3X/Crash-Twinsanity-Mac/blob/bfe9fbbf69b02ba002178ca2954606debcf9ba82/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

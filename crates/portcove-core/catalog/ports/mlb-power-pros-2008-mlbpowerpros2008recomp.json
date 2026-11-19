@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared MLB Power Pros 2008 Windows player after upstream Setup builds it from your clean USA Wii original. Preserve the installed Game and Data folders, portable UserData and separate roster-mod saves; the inspected ZIP is a preparation kit.",
     "original_game_title": "MLB Power Pros 2008",
     "project_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/HopeAero/MLBPowerPros2008Recomp",
     "artwork": {
@@ -54,7 +54,16 @@
         "https://github.com/HopeAero/MLBPowerPros2008Recomp",
         "https://github.com/HopeAero/MLBPowerPros2008Recomp/blob/da976a9e085b3b960a636fbaa2e7bcc123309485/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mlb-power-pros-2008-wii",
+          "title": "MLB Power Pros 2008 (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/HopeAero/MLBPowerPros2008Recomp/blob/585dc70c9d2f279ebe9f10e622d242d13f4418b9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

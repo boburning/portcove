@@ -15,7 +15,7 @@
     "summary": "Upstream claims stable60 gameplay and 2-player local versus; no Portcove runtime evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
     "manual_setup": {

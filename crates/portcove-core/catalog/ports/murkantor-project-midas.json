@@ -54,7 +54,16 @@
         "https://github.com/murkantor/Project-Midas/blob/9062f9f120b7f64d39e5db59500ed50e8e7a6686/readme.md",
         "https://github.com/murkantor/Project-Midas"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "goldeneye-007-nintendo-64",
+          "title": "GoldenEye 007 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/murkantor/Project-Midas/blob/adfbbf817cda21fe5918a56cf3292f84ed93e9e4/readme.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

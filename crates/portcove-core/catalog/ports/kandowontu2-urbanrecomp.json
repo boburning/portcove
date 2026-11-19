@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/kandowontu2/UrbanRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/kandowontu2/UrbanRecomp",
     "issue_number": 2851,

@@ -6,7 +6,7 @@
     "summary": "Register an independently permitted prepared Dragon Ball Z: Burst Limit Windows copy for your own exact US Xbox 360 disc, with external saves and upstream updates preserved.",
     "original_game_title": "Dragon Ball Z: Burst Limit",
     "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
     "artwork": {

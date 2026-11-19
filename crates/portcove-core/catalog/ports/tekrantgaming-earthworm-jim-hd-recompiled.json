@@ -53,7 +53,17 @@
         "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md",
         "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "earthworm-jim-hd-xbox-360",
+          "title": "Earthworm Jim HD (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/earthworm-jim-hd-recompiled/blob/a0203ce6287e305cf0eef4e97f3c598cc6d953ab/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tekrantgaming-earthworm-jim-hd-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Earthworm Jim HD"
   }

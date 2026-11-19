@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "revelations-persona",
       "evidence_urls": ["https://github.com/NJH-1001/RevPRecompile"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "revelations-persona-playstation",
+          "title": "Revelations: Persona (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ffee8733e4448b8fbc8fe357ebdf77252a6260e8/docs/qualification/revelations-persona-recompiled-windows-reinstall-2026-09-15.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

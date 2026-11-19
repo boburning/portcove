@@ -14,7 +14,7 @@
     "summary": "A San Francisco Rush 2049 N64 port, separate from ProjectR’s arcade game and the Dreamcast edition. The project reports Windows race, ghost, stunt and battle modes. Windows/Linux x86-64 RT64 packages and a WebGPU browser route are documented, with Linux-specific limits and full hardware/game coverage still unconfirmed. Use your own supported N64 ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "San Francisco Rush 2049",
     "project_url": "https://github.com/n64hub/rush-2049-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/n64hub/rush-2049-recomp",
     "issue_number": 2838,
@@ -45,6 +45,26 @@
         {
           "title": "Keep the creating profile and portable mode",
           "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/Rush2049Recompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, cached original, all JSON settings, controller profiles, mods, generated textures and logs. Controller Pak files are saves/controllerpak_<port>.mpk under that profile. Preserve any actual linked save targets and their adjacent temporary files too; these remain external data. The normal log is rush2049.log with rush2049.old.log beside the settings. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "san-francisco-rush-2049",
+      "evidence_urls": [
+        "https://github.com/n64hub/rush-2049-recomp/blob/a5edfda8a7656addfdb6f95d22942b8a1a85a3cb/README.md",
+        "https://github.com/n64hub/rush-2049-recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/n64hub-rush-2049-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "san-francisco-rush-2049-nintendo-64",
+          "title": "San Francisco Rush 2049 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/rush-2049-recomp/blob/a5edfda8a7656addfdb6f95d22942b8a1a85a3cb/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/n64hub-rush-2049-recomp.json"
+          ]
         }
       ]
     }

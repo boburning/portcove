@@ -46,7 +46,16 @@
         "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
         "https://github.com/troyedwardsjr/z2rs"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "zelda-ii-the-adventure-of-link-nes",
+          "title": "Zelda II: The Adventure of Link (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

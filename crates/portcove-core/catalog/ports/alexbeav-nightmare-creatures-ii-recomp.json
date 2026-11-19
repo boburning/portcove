@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nightmare-creatures-ii-playstation",
+          "title": "Nightmare Creatures II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/nightmare-creatures-ii-recomp/blob/2fdf0456bb6a82bf56b4401fe27c68f8333dd208/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

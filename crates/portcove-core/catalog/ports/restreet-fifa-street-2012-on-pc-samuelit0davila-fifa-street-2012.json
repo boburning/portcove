@@ -35,7 +35,25 @@
       ],
       "help_url": "https://github.com/samuelit0davila/fifa-street-pc-port"
     },
-    "issue_number": 3206
+    "issue_number": 3206,
+    "original_game": {
+      "format_version": 1,
+      "id": "fifa-street-2012",
+      "evidence_urls": [
+        "https://github.com/samuelit0davila/fifa-street-pc-port",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012.json"
+      ],
+      "source_editions": [
+        {
+          "id": "fifa-street-2012-xbox-360",
+          "title": "FIFA Street (2012) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/restreet-fifa-street-2012-on-pc-samuelit0davila-fifa-street-2012.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

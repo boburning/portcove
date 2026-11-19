@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "men-in-black-the-game-playstation",
+          "title": "Men in Black: The Game (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/dbc330f3616e68a16cb17c5a2493ba0b309e142b/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

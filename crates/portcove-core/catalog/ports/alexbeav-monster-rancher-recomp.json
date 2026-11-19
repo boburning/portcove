@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-rancher-playstation",
+          "title": "Monster Rancher (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/ed5afdab813a1c9b3759adc7eb29229f7772203a/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -35,6 +35,24 @@
       "image_sha256": "1dcef53476925a81838789d4f9d39ba6b6ea818876083353a51cbde733568923",
       "game_slug": "the-nightmare-before-christmas-oogie-s-revenge",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tim-burtons-the-nightmare-before-christmas-oogies-revenge",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/OogiesRevengeRecompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/oogie-s-revenge-recomp-josiahg2502-glitch-tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge.json"
+      ],
+      "source_editions": [
+        {
+          "id": "tim-burtons-the-nightmare-before-christmas-oogies-revenge-xbox",
+          "title": "Tim Burton's The Nightmare Before Christmas: Oogie's Revenge (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/oogie-s-revenge-recomp-josiahg2502-glitch-tim-burton-s-the-nightmare-before-christmas-oogie-s-revenge.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

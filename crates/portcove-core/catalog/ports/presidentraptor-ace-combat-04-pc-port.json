@@ -6,7 +6,7 @@
     "summary": "A work-in-progress Ace Combat 04 beta, rather than a complete remaster or confirmed campaign. The Windows installer and separate source route translate the PS2 main CPU and build locally from your own USA SLUS-20152 executable and disc data; hardware/runtime services remain separate responsibilities. Exact host CPU architecture follows the selected setup guide, while accepted revision/hashes and BIOS/firmware needs are unconfirmed here. You and the project manage installation and replacement. Portcove has not qualified the installer or confirmed setup or gameplay.",
     "original_game_title": "Ace Combat 04: Shattered Skies",
     "project_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port",
     "artwork": {
@@ -54,7 +54,16 @@
         "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port/blob/322ad0ea19fd1714c101d909bf8cdd9d0b0eb74f/README.md",
         "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ace-combat-04-shattered-skies-playstation-2",
+          "title": "Ace Combat 04: Shattered Skies (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/PresidentRaptor/Ace-Combat-04-PC-Port/blob/322ad0ea19fd1714c101d909bf8cdd9d0b0eb74f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -6,7 +6,7 @@
     "summary": "A Wild 9 portable player for your own NTSC-U/USA SLUS-00425 PlayStation CUE and all referenced BIN tracks, including boot executable SLUS_004.25 and the remaining disc files. OpenBIOS is included; your own Sony SCPH BIOS is optional. Official Windows x86-64 ZIP, Linux x86-64 ZIP/AppImage and macOS x86-64/ARM64 ZIP packages need no compiler, Python or MSVC; Linux needs glibc 2.28+. Recent packages include checksum sidecars. Follow the project’s original-file setup; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Wild 9",
     "project_url": "https://github.com/plinkr/Wild9Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/plinkr/Wild9Recomp",
     "artwork": {

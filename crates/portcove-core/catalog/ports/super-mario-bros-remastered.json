@@ -58,7 +58,16 @@
       "format_version": 1,
       "id": "super-mario-bros",
       "evidence_urls": ["https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-bros-nes",
+          "title": "Super Mario Bros. (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd"
+          ]
+        }
+      ]
     }
   },
   "integration": {

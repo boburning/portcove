@@ -50,7 +50,16 @@
         "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
         "https://github.com/Vidanox/BanjoTooieRecompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "banjo-tooie-nintendo-64",
+          "title": "Banjo-Tooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

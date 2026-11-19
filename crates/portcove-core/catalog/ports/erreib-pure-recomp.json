@@ -6,7 +6,7 @@
     "summary": "Register an independently permitted prepared Wipeout Pure Windows copy for your own US Greatest Hits v2.00 disc, keeping external saves, optional DLC and upstream maintenance separate.",
     "original_game_title": "Wipeout Pure",
     "project_url": "https://github.com/erreib/pure-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/erreib/pure-recomp",
     "artwork": {

@@ -58,7 +58,17 @@
         "https://github.com/wootbeer/dinotale/blob/0bd9635a0db14a7e2e31602a6ec33b54714756e3/README.md",
         "https://github.com/wootbeer/dinotale"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yoshis-story-nintendo-64",
+          "title": "Yoshi's Story (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/dinotale/blob/0bd9635a0db14a7e2e31602a6ec33b54714756e3/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wootbeer-dinotale.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

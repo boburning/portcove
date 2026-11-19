@@ -58,7 +58,16 @@
         "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
         "https://github.com/mstan/FireRedLeafGreenRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-firered-game-boy-advance",
+          "title": "Pokémon FireRed (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/FireRedLeafGreenRecomp/blob/03ab83043b0695987c943cdf8f0eccb95b4f9dab/README.md"
+          ]
+        }
+      ]
     }
   },
   "gba_staged_archive_v1": {

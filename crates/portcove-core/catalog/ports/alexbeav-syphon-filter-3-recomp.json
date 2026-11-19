@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "syphon-filter-3-playstation",
+          "title": "Syphon Filter 3 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/1059cfabe56727520f29fc5ed6a0e53226b7a4f0/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

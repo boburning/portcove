@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "r-type-delta-playstation",
+          "title": "R-Type Delta (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/8a6874f81477756c44695c47722d7d5bfb0c5f78/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "castlevania-harmony-of-despair",
       "evidence_urls": ["https://github.com/Dojutsu/Harmony-of-Despair"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "castlevania-harmony-of-despair-xbox-360",
+          "title": "Castlevania: Harmony of Despair (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Dojutsu/Harmony-of-Despair/blob/92137f4d30fed76f42ed56eeeddd65d8dd6b6931/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

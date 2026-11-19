@@ -46,7 +46,16 @@
       "format_version": 1,
       "id": "metal-gear-rising-revengeance-xbox-360",
       "evidence_urls": ["https://github.com/dfdx047/Zandatsu"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "metal-gear-rising-revengeance-xbox-360-xbox-360",
+          "title": "Metal Gear Rising: Revengeance (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/dfdx047/Zandatsu/blob/c72c31b4472645b5726e3ec4675fd0f692cbe564/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

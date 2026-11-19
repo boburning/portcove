@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "bakugan-battle-brawlers",
       "evidence_urls": ["https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bakugan-battle-brawlers-playstation-3",
+          "title": "Bakugan: Battle Brawlers (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Mauryln/Bakugan-Battle-Brawlers-PS3-recomp/blob/5f490443ecc4e4a55b8beaa534ba464dc6e0867b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

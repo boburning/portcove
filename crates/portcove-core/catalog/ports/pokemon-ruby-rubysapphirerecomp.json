@@ -57,7 +57,16 @@
         "https://github.com/mstan/RubySapphireRecomp/releases",
         "https://github.com/mstan/RubySapphireRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-ruby-game-boy-advance",
+          "title": "Pokémon Ruby (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/RubySapphireRecomp/blob/35f0c1bb63b2a0290f23f67ec6d00afbd9421703/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

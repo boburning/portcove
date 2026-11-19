@@ -44,7 +44,16 @@
         "https://api.github.com/repositories/1363091017",
         "https://api.github.com/repos/Doridian/BlastCorps"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Doridian/DozerEncore/blob/c979ff5c0bd2ec6631dbfaa4e535f7e0a2b46dfb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

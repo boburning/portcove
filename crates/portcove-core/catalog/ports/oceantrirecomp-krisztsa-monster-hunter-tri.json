@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "monster-hunter-tri",
       "evidence_urls": ["https://github.com/krisztsa/OceanTriRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-hunter-tri-wii",
+          "title": "Monster Hunter Tri (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/krisztsa/OceanTriRecomp/blob/986f25e8f461dc3b04cac6187b21d05d75d694b4/README.md"
+          ]
+        }
+      ]
     },
     "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed."
   },

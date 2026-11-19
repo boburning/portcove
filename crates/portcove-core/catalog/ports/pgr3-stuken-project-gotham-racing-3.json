@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "project-gotham-racing-3",
       "evidence_urls": ["https://github.com/stuken/pgr3"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-3-xbox-360",
+          "title": "Project Gotham Racing 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/stuken/pgr3/blob/0a63851b1230df4717e9732e3593041496d6c445/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

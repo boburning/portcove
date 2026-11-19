@@ -15,7 +15,7 @@
     "summary": "Upstream reports working graphics, gameplay and performance while describing the project as unfinished. Full completion is unconfirmed; Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/omegakatana92/Macross-VFX-2-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/omegakatana92/Macross-VFX-2-Recomp",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "macross-vf-x2",
       "evidence_urls": ["https://github.com/omegakatana92/Macross-VFX-2-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "macross-vf-x2-playstation",
+          "title": "Macross VF-X2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Macross-VFX-2-Recomp/blob/5bc41575c8ac9a7f626de88296041864bcfa7356/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

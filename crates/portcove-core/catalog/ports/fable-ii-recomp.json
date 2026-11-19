@@ -47,6 +47,27 @@
           "instruction": "The inspected title source forces saves/ and cache/ beside the executable even when a platform user-data default or argument differs. Preserve the complete creating copy, fable_2.toml, fable2_config.toml, launcher-settings.toml, one-time backups, logs, data/scripts, original game tree, mods and every custom path. Upstream may repair the original-data file manifest; retain the old complete data before preparation or replacement. Save and mod compatibility across runtime versions remains upstream-owned."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fable-ii",
+      "evidence_urls": [
+        "https://github.com/himdo/Fable-2-Recomp",
+        "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fable-ii-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "fable-ii-xbox-360",
+          "title": "Fable II (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fable-ii-recomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Fable II"
   }
 }

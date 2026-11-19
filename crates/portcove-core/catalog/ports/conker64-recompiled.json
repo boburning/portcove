@@ -48,7 +48,16 @@
         "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md",
         "https://github.com/Conker64Recomp/conker64-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+          ]
+        }
+      ]
     }
   }
 }

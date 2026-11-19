@@ -14,7 +14,7 @@
       "game_slug": "jet-moto-2",
       "match_kind": "underlying-game"
     },
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
     "issue_number": 2825,
@@ -67,7 +67,16 @@
         "https://github.com/goodshepherd23/JetMoto2-Recomp",
         "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jet-moto-2-championship-edition-playstation",
+          "title": "Jet Moto 2: Championship Edition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

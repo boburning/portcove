@@ -14,7 +14,7 @@
     "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Sims (console)",
     "project_url": "https://github.com/abilliontokens/sims1-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/abilliontokens/sims1-recomp",
     "issue_number": 2733,
