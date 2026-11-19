@@ -71,11 +71,15 @@ fn observation_keeps_the_excluded_candidate_distinct_from_the_reviewed_fallback(
     let selected = &projection.latest_eligible.as_ref().unwrap().release;
     assert_eq!(selected.version, reviewed.version);
     assert_eq!(selected.asset.sha256, reviewed.sha256);
+    assert_eq!(projection.hold_reasons, ["reviewed-artifact-excluded"]);
 
     hold.reviewed_artifacts.clear();
     let report = inspect_cvlod_with_hold(facts, Some(hold))?;
     assert!(report.projections[0].latest_eligible.is_none());
-    assert_eq!(report.projections[0].hold_reasons, ["no-reviewed-fallback"]);
+    assert_eq!(
+        report.projections[0].hold_reasons,
+        ["reviewed-artifact-excluded", "no-reviewed-fallback"]
+    );
     Ok(())
 }
 

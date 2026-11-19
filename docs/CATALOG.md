@@ -2286,7 +2286,9 @@ one of the `reviewed_artifacts`.
 A hold with `excluded_artifacts` identifies excluded packages by version and
 SHA-256. If the selected platform's package matches an exclusion, Core looks for
 a `reviewed_artifacts` match on that platform and channel and includes the hold
-reason in the install plan. The fallback must match the reviewed digest using
+reason in the install plan. Release observations record `reviewed-artifact-excluded`
+for the candidate and retain the selected fallback as its own result. The fallback
+must match the reviewed digest using
 GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
 checks. An excluded package cannot be activated from staging or recovery.
 Installed copies retain their existing Play, backup and removal checks. A player
