@@ -13,8 +13,9 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
+// The native release source recipe reads this declaration as a literal.
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 71;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION;
 
 struct Migration {
     version: i64,
