@@ -120,6 +120,8 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
             .as_ref()
             .unwrap()
             .canonical
+            .as_ref()
+            .unwrap()
             .replacement_identity
             .is_some()
     );

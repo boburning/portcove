@@ -6,7 +6,7 @@ use crate::game_settings::windows::{HeldAbsence, HeldFile};
 use crate::operation::{
     SettingsFaultPoint,
     game_settings::{
-        ActivationSettingsDeletion, SettingsAbsenceWitness, SettingsActivationJournal,
+        ActivationSettingsDeletion, ActivationSettingsJournal, SettingsAbsenceWitness,
         SettingsActivationPointer, SettingsActivationWriter, SettingsFileWitness,
         activation_pointer, owned_names,
     },

@@ -551,13 +551,14 @@ pub(crate) mod tests {
             "shipwright",
         );
         activation.install = Some(target);
+        let previous_runtime_path = previous.path.join(&scalar.relative_path);
         activation.settings_activation = Some(ActivationSettingsJournal {
             format_version: 1,
             file_id: scalar.file_id,
             relative_path: scalar.relative_path,
             maximum_bytes: scalar.maximum_bytes,
             previous_runtime: Some(SettingsFileWitness {
-                path: previous.path.join(&scalar.relative_path),
+                path: previous_runtime_path,
                 parent_identity: format!("win128:{:016x}:{:032x}", 3, 11),
                 original_identity: format!("win128:{:016x}:{:032x}", 3, 22),
             }),
