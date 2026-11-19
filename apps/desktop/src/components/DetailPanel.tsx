@@ -1461,7 +1461,9 @@ function ProjectReleaseSummary({ port }: { port: PortDefinition }) {
       <div className="metadata grid grid-cols-[1fr_1fr] gap-[10px]">
         <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">Upstream project</small>
-          {upstreamStatusPresentation[port.upstream_status]}
+          {port.upstream_status === "active" && !port.upstream_active_reviewed
+            ? "Unrecorded"
+            : upstreamStatusPresentation[port.upstream_status]}
         </span>
         <span className="min-w-0 py-1 text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
           <small className="mb-[5px] block text-[var(--color-text-muted)]">

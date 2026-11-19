@@ -338,6 +338,7 @@ pub(crate) fn validate_installed_port_contract(
         "platforms",
         "release",
         "upstream_status",
+        "upstream_active_reviewed",
         "presentation",
     ] {
         contract

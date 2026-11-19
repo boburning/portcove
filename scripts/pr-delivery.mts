@@ -105,6 +105,7 @@ export interface DeliveryJob {
   conclusion?: string | null;
   check_run_url?: string;
   completed_at?: string | null;
+  started_at?: string | null;
 }
 interface CheckObservation {
   source: "check-run" | "commit-status";
@@ -237,6 +238,7 @@ export interface WatchOptions {
   sleep?: (milliseconds: number) => Promise<unknown>;
   now?: () => number;
   observe?: (observation: WatchObservation) => void;
+  sample?: boolean;
 }
 
 const timestamp = (value: string | null | undefined) => Date.parse(value ?? "");
@@ -1005,6 +1007,7 @@ export async function watchRequiredChecks(
     sleep,
     now = Date.now,
     observe = () => {},
+    sample = false,
   }: WatchOptions,
 ) {
   if (!Number.isSafeInteger(run) || run < 1 || !Number.isSafeInteger(attempt) || attempt < 1)
@@ -1022,7 +1025,8 @@ export async function watchRequiredChecks(
   let observed: DeliveryWorkflow | null = null;
   let state: WatchState | null = null;
   let publicationRecheckUsed = false;
-  const evidence = () => ({
+  const evidence = (watch_condition?: string) => ({
+    ...(watch_condition ? { watch_condition } : {}),
     pull_request: number,
     head,
     run,
@@ -1039,6 +1043,17 @@ export async function watchRequiredChecks(
       run_started_at: observed.run_started_at,
     },
     contexts: state?.contexts ?? [],
+    ...(sample && {
+      job_started_at: state?.jobs
+        ?.filter(
+          (job) =>
+            job.run_attempt === attempt &&
+            job.status !== "queued" &&
+            Number.isFinite(timestamp(job.started_at)),
+        )
+        .flatMap((job) => job.started_at ?? [])
+        .sort()[0],
+    }),
     next_action:
       "Inspect this run's jobs, logs and available artifacts; preserve the candidate and failure before choosing a repair. Do not redispatch automatically.",
   });
@@ -1046,6 +1061,12 @@ export async function watchRequiredChecks(
     try {
       client.beginObservation?.();
       observed = await client.workflowRun(run);
+      if (sample && (observed.head_sha !== head || observed.run_attempt !== attempt))
+        throw deliveryOutcomeError(
+          "failed",
+          "watch run/source/attempt changed; reconcile the identified run before resuming",
+          evidence("superseded"),
+        );
       state = await client.requiredCheckState(number, head, requiredContexts, {
         run,
         attempt,
@@ -1062,6 +1083,7 @@ export async function watchRequiredChecks(
         /* Diagnostics cannot change monitoring. */
       }
     } catch (error) {
+      if (error instanceof DeliveryOutcomeError) throw error;
       throw deliveryOutcomeError(
         "failed",
         `watch monitoring failed: ${sanitizeOperationError(error).message}`,
@@ -1105,7 +1127,7 @@ export async function watchRequiredChecks(
         `required checks failed: ${failures
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
-        evidence(),
+        evidence("checks-failed"),
       );
     const publicationPending = state.contexts.some(
       (context) => context.conclusion === checkPublicationPending,
@@ -1115,7 +1137,7 @@ export async function watchRequiredChecks(
         throw deliveryOutcomeError(
           "failed",
           `identified workflow run completed with ${observed.conclusion ?? "no conclusion"}`,
-          evidence(),
+          evidence("workflow-failed"),
         );
       if (state.contexts.every((context) => context.outcome === "success")) {
         let jobs;
@@ -1160,7 +1182,7 @@ export async function watchRequiredChecks(
           throw deliveryOutcomeError(
             "failed",
             "watch run changed during job collection",
-            evidence(),
+            evidence("superseded"),
           );
         return {
           ...state,
@@ -1179,6 +1201,7 @@ export async function watchRequiredChecks(
         };
       }
       if (
+        !sample &&
         state.contexts.some(
           (context) =>
             context.outcome !== "success" && context.conclusion !== checkPublicationPending,
@@ -1197,9 +1220,14 @@ export async function watchRequiredChecks(
           .filter((context) => context.outcome !== "success")
           .map((context) => `${context.context}=${context.conclusion}`)
           .join(", ")}`,
-        evidence(),
+        evidence("deadline"),
       );
     const interval = publicationPending && !publicationRecheckUsed ? 2_000 : 180_000;
+    if (sample)
+      throw deliveryOutcomeError("planned", "Required check evidence is pending", {
+        ...evidence("pending"),
+        next_sample_ms: interval,
+      });
     publicationRecheckUsed ||= publicationPending;
     await pause(Math.min(interval, Math.max(0, deadlineMs - now())));
   }
@@ -1684,7 +1712,7 @@ export function renderDeliveryInspection(
 
 const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
   inspect: ["--pr", "--head", "--evidence-file", "--json", "--summary"],
-  watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress"],
+  watch: ["--pr", "--head", "--run", "--attempt", "--deadline", "--json", "--progress", "--sample"],
   "renovate-check": ["--pr", "--head", "--queue", "--json", "--summary"],
   merge: [
     "--pr",
@@ -1817,6 +1845,7 @@ export function parseArguments(argv: string[]) {
         "--help",
         "--summary",
         "--progress",
+        "--sample",
         "--verify-local-composition",
       ].includes(name)
     ) {
@@ -1831,6 +1860,8 @@ export function parseArguments(argv: string[]) {
   }
   if (command === "merge" && Boolean(options["--target"]) !== Boolean(options["--tree"]))
     throw new Error("Merge --target and --tree must be supplied together");
+  if (options["--sample"] && (!options["--json"] || options["--progress"]))
+    throw new Error("watch --sample requires --json and excludes --progress");
   return { command, options };
 }
 
@@ -1972,7 +2003,9 @@ async function main(argv: string[]) {
       ? await createWatchClient({
           deadline:
             command === "watch"
-              ? performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
+              ? options["--sample"]
+                ? performance.now() + 60_000
+                : performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
               : performance.now() + 60000,
         })
       : await PullRequestDeliveryClient.connect();
@@ -2099,8 +2132,9 @@ async function main(argv: string[]) {
       run: Number(options["--run"]),
       attempt: Number(options["--attempt"]),
       deadline: optionText(options, "--deadline"),
+      sample: Boolean(options["--sample"]),
       observe: (observation) => {
-        retain(observation);
+        if (!options["--sample"]) retain(observation);
         progress(observation);
       },
     });
@@ -2235,6 +2269,13 @@ async function settleDirectCli() {
           ),
         );
       }
+      if (
+        process.argv[2] === "watch" &&
+        process.argv.includes("--sample") &&
+        error instanceof DeliveryOutcomeError &&
+        error.operationStatus === "planned"
+      )
+        return;
       let reference = null;
       try {
         const directory = path.join(projectRoot, "work/pr-delivery");
