@@ -435,6 +435,9 @@ fn project_channel(
     let (candidate, asset, sha256) = if let Some(hold) = &port.managed_acquisition_hold
         && hold.excludes(&candidate.provider.tag_name, &sha256)
     {
+        output
+            .hold_reasons
+            .push("reviewed-artifact-excluded".into());
         let fallback = select_channel_candidate(
             releases,
             channel,

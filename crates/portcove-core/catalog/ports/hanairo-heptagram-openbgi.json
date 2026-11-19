@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "hanairo-heptagram-openbgi",
+    "name": "Hanairo Heptagram (OpenBGI)",
+    "original_game_title": "Hanairo Heptagram",
+    "summary": "Open your existing copy of Hanairo Heptagram with the OpenBGI preview.",
+    "project_url": "https://github.com/Cytlan/openbgi",
+    "release_url": "https://github.com/Cytlan/openbgi/releases/tag/v0.1-pre",
+    "setup_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
+    "issue_number": 7285,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "recommended_download_channel": "beta",
+    "platforms": ["windows-x86-64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["bgi.exe"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the matching original",
+          "instruction": "Use your own installed copy of Hanairo Heptagram, product HanairoHeptagram. The tagged guide identifies engine version 1.553. Keep the game folder together, including its original boot files."
+        },
+        {
+          "title": "Start with the game folder",
+          "instruction": "Use bgi.exe from the upstream preview. It is a 32-bit Windows program. Open it outside a game folder and use Select game to choose your original folder."
+        },
+        {
+          "title": "Open the same game again",
+          "instruction": "Choose the remembered folder in Select game. A frontend can start bgi.exe with the game folder as its working directory to enter directly. Reopen Select game to change the folder or use Advanced to change the launch options."
+        }
+      ],
+      "warnings": [
+        "The project reports extended play. Portcove has not run this original or restored a save."
+      ],
+      "help_url": "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running",
+      "references": [
+        {
+          "title": "Keep saves and settings",
+          "instruction": "OpenBGI writes BGI save files with a .cad extension in the game’s base folder. Keep your game folder and the games.json profile beside bgi.exe or in the game folder before manually replacing the engine."
+        },
+        {
+          "title": "Linux builds",
+          "instruction": "The upstream project documents building the engine for Linux from source. This preview publishes a Windows executable."
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "hanairo-heptagram-openbgi",
+    "origin": {
+      "project_url": "https://github.com/Cytlan/openbgi",
+      "repository": {
+        "host": "github.com",
+        "id": "308050815"
+      }
+    },
+    "decisions": []
+  }
+}
