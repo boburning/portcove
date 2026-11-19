@@ -211,6 +211,47 @@ void test("unjoined held preparation exits outside the recorded scenario before 
   assert.deepEqual(observed, ["native-preparation-cancellation"]);
 });
 
+void test("a second or incomplete preparation observation retains ambiguous ownership", async () => {
+  const source = await readFile(new URL("./desktop-preparation-test.mts", import.meta.url), "utf8");
+  const anchor = source.indexOf("let ownershipIssue: string | undefined;");
+  const start = source.indexOf('const feed = await read("activity", "get_activities");', anchor);
+  const end = source.indexOf("activity ??= candidate;", start);
+  assert(anchor >= 0 && start >= 0 && end > start);
+  const block = source.slice(start, end + "activity ??= candidate;".length);
+  const owned = {
+    id: "owned",
+    target_kind: "port",
+    target_id: "port",
+    status: "running",
+    operation: "prepare",
+  };
+  const other = { ...owned, id: "other" };
+  for (const entry of [
+    { records: [owned], complete: true, expected: undefined },
+    { records: [owned, other], complete: true, expected: /one unambiguous owned preparation/ },
+    { records: [other], complete: true, expected: /one unambiguous owned preparation/ },
+    { records: [owned], complete: false, expected: /complete activity feed/ },
+  ]) {
+    const result = await runInNewContext(
+      `(async()=>{let activity=owned, ownershipIssue, error;try{${block}}catch(value){error=value.message;}return {activity,ownershipIssue,error};})()`,
+      {
+        owned,
+        port: { id: "port" },
+        baselineIds: [],
+        read: async () => ({
+          active_and_actionable_complete: entry.complete,
+          records: entry.records,
+        }),
+      },
+    );
+    assert.ok(isRecord(result));
+    assert.equal(result.activity, owned);
+    assert.equal(result.ownershipIssue, result.error);
+    if (entry.expected) assert.match(String(result.ownershipIssue), entry.expected);
+    else assert.equal(result.ownershipIssue, undefined);
+  }
+});
+
 void test("unknown owned identity and failed evidence writes preserve the original assertion and abort barrier", async () => {
   const source = await readFile(new URL("./desktop-preparation-test.mts", import.meta.url), "utf8");
   const start = source.indexOf("if (originalFailure !== undefined && startRequested)");
@@ -224,14 +265,19 @@ void test("unknown owned identity and failed evidence writes preserve the origin
     0,
     "original failure",
   ]) {
-    for (const writeFails of [false, true]) {
+    for (const [writeFails, ownershipIssue] of [
+      [false, undefined],
+      [true, undefined],
+      [false, "One unambiguous owned preparation is required"],
+      [true, "One unambiguous owned preparation is required"],
+    ] as const) {
       let nativeCalls = 0,
         writes = 0;
       const disk = new Error("Evidence write failed");
       const result = await runInNewContext(
         `(async()=>{
         const originalFailure={error:primary};const startRequested=true;
-        const observations={};const artifacts=[];const activity=undefined;
+        const observations={};const artifacts=[];const activity=ownershipIssue ? {id:"captured"} : undefined;
         let evidenceFailure,caught=false,caughtError;const preparationSession={};
         try{try{throw primary;}finally{${source.slice(start, end)}}}
         catch(error){caught=true;caughtError=error;}
@@ -239,6 +285,7 @@ void test("unknown owned identity and failed evidence writes preserve the origin
       })()`,
         {
           primary,
+          ownershipIssue,
           assert,
           AggregateError,
           path: { join: () => "/owned/report" },
@@ -265,7 +312,7 @@ void test("unknown owned identity and failed evidence writes preserve the origin
       assert.ok(isRecord(result.observations.failure_cleanup));
       assert.match(
         String(result.observations.failure_cleanup.error),
-        /no captured owned operation ID/,
+        ownershipIssue ? /unambiguous owned preparation/ : /no captured owned operation ID/,
       );
       assert.equal(result.observations.failure_cleanup.owned, undefined);
       assert.equal(nativeCalls, 0);
@@ -414,17 +461,24 @@ void test("artwork reload requires exact fixture authority before named virtuali
     const result = runInNewContext(`(async()=>{${source.slice(start, end)}};await open();})()`, {
       assert,
       port,
-      bootstrap: { generation: 7 },
+      bootstrap: { generation: 7, library_root: "/owned/library" },
+      workspaceReadbacks: [],
       process: { platform: "win32" },
       required: (value: unknown) => {
         assert(value !== undefined && value !== null);
         return value;
       },
-      success: (value: unknown) => value,
-      transportValue: (_: string, value: unknown) => value,
-      invoke: async (name: string, args: unknown) => {
-        assert.equal(name, "get_workspace_snapshot");
-        assert.equal(JSON.stringify(args), JSON.stringify({ generation: 7 }));
+      invoke: () => assert.fail("The shared helper owns workspace snapshot IPC"),
+      readWorkspaceSnapshotObservation: async (
+        _invoke: unknown,
+        binding: unknown,
+        readbacks: unknown[],
+      ) => {
+        assert.equal(
+          JSON.stringify(binding),
+          JSON.stringify({ generation: 7, library_root: "/owned/library" }),
+        );
+        assert.equal(readbacks.length, 0);
         events.push("workspace");
         return workspace;
       },

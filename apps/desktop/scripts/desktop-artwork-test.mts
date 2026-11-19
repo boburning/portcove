@@ -31,6 +31,7 @@ import {
   clearCatalogFilters,
 } from "./desktop-review-controls.mts";
 import { artworkObservations } from "./desktop-artwork-observations.mts";
+import { readWorkspaceSnapshotObservation } from "./desktop-review-observation.mts";
 
 export async function readArtworkFallback(
   browser: Pick<ScenarioContext["browser"], "executeScript">,
@@ -125,6 +126,7 @@ export async function artworkScenario({
 }: ArtworkContext) {
   await scenario("native-local-artwork-picker-and-recovery", async () => {
     const observations = artworkObservations({ browser, output, artifacts });
+    const workspaceReadbacks: unknown[] = [];
     let failure;
     try {
       const bootstrap = transportValue(
@@ -252,9 +254,10 @@ export async function artworkScenario({
         );
         // Check the real workspace after reload: a name search must not conceal
         // a missing qualification definition or discovery listing after refresh.
-        const workspace = transportValue(
-          "desktop_workspace_snapshot",
-          success(await invoke("get_workspace_snapshot", { generation: bootstrap.generation })),
+        const workspace = await readWorkspaceSnapshotObservation(
+          invoke,
+          bootstrap,
+          workspaceReadbacks,
         );
         assert.deepEqual(
           required(workspace.catalog).ports.find((candidate) => candidate.id === port.id),
@@ -496,7 +499,7 @@ export async function artworkScenario({
       failure = errorMessage(error);
       throw error;
     } finally {
-      await observations.finish(failure);
+      await observations.finish(failure, workspaceReadbacks);
     }
   });
 }

@@ -3690,6 +3690,7 @@ export async function preparationScenarios({
       failure_cleanup?: {
         attempted_start: boolean;
         owned?: OwnedPreparationSettlement;
+        ownership_issue?: string;
         error?: string;
       };
       listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
@@ -3728,6 +3729,7 @@ export async function preparationScenarios({
     let originalFailure: { error: unknown } | undefined;
     let evidenceFailure: { error: unknown } | undefined;
     let activity: ActivityRecord | undefined;
+    let ownershipIssue: string | undefined;
     let startRequested = false;
     let originalInstallPath: string | undefined;
     try {
@@ -3761,7 +3763,13 @@ export async function preparationScenarios({
       await confirmation.click();
       await browser.wait(
         async () => {
-          const candidates = (await activities()).filter(
+          const feed = await read("activity", "get_activities");
+          if (!feed.active_and_actionable_complete) {
+            ownershipIssue =
+              "A complete activity feed is required to identify the owned preparation";
+            throw new Error(ownershipIssue);
+          }
+          const candidates = feed.records.filter(
             (item) =>
               item.operation === "prepare" &&
               item.target_kind === "port" &&
@@ -3769,15 +3777,13 @@ export async function preparationScenarios({
               !baselineIds.includes(item.id) &&
               item.status === "running",
           );
-          assert.ok(
-            candidates.length <= 1,
-            "One explicit setup action may start only one owned preparation",
-          );
           const candidate = candidates[0];
-          if (candidate) {
-            if (activity) assert.equal(candidate.id, activity.id);
-            else activity = candidate;
+          if (candidates.length > 1 || (activity && candidate && activity.id !== candidate.id)) {
+            ownershipIssue =
+              "One explicit setup action must retain one unambiguous owned preparation";
+            throw new Error(ownershipIssue);
           }
+          activity ??= candidate;
           return (
             activity &&
             (await stat(
@@ -4071,9 +4077,13 @@ export async function preparationScenarios({
       throw error;
     } finally {
       if (originalFailure !== undefined && startRequested) {
-        const cleanup: NonNullable<typeof observations.failure_cleanup> = { attempted_start: true };
+        const cleanup: NonNullable<typeof observations.failure_cleanup> = {
+          attempted_start: true,
+          ...(ownershipIssue === undefined ? {} : { ownership_issue: ownershipIssue }),
+        };
         observations.failure_cleanup = cleanup;
         try {
+          if (ownershipIssue !== undefined) throw new Error(ownershipIssue);
           assert.ok(
             activity,
             "The attempted preparation has no captured owned operation ID; stop the run",
