@@ -1057,6 +1057,15 @@ void test(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+public static class OwnedSavePathWitness {
+    [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+    public static extern uint GetShortPathName(string input, StringBuilder output, uint size);
+}
+'@
 $ast = [Management.Automation.Language.Parser]::ParseFile('${source}', [ref]$null, [ref]$null)
 function Block([string]$marker) {
     $node = $ast.Find({ param($n) $n -is [Management.Automation.Language.IfStatementAst] -and $n.Extent.Text.StartsWith('if ($FilePath)') -and $n.Extent.Text.Contains($marker) }, $true)
@@ -1082,10 +1091,14 @@ $ownedRoot = '${root.replaceAll("'", "''")}'
 $existingJson = [IO.Path]::Combine($ownedRoot, 'existing.json')
 [IO.File]::WriteAllText($existingJson, 'retained data')
 $nested = [IO.Directory]::CreateDirectory([IO.Path]::Combine($ownedRoot, 'nested')).FullName
-$validCases = @('valid', 'dat-valid', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid')
-$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field')
-foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'save-target-appeared')) {
-    $script:polls = 0; $script:values = 0; $failed = $false
+$shortRootBuffer = [Text.StringBuilder]::new(32768)
+if ([OwnedSavePathWitness]::GetShortPathName($ownedRoot, $shortRootBuffer, 32768) -eq 0) { throw 'Owned fixture short-path observation failed' }
+$shortOwnedRoot = $shortRootBuffer.ToString()
+Write-Output ('owned-save-short-alias-observed=' + (-not [string]::Equals($shortOwnedRoot, $ownedRoot, [StringComparison]::OrdinalIgnoreCase)))
+$validCases = @('valid', 'dat-valid', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid')
+$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'short-root-existing-save', 'short-root-foreign-save')
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid', 'short-root-existing-save', 'short-root-foreign-save', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'save-target-appeared')) {
+    $script:polls = 0; $script:values = 0; $failed = $false; $failureMessage = ''
     $Title = if ($script:case.StartsWith('dat-')) { 'Choose a DAT file' } else { 'Choose game files' }
     $Button = if ($script:case -eq 'dat-wrong-action') { 'Save' } else { 'Open' }
     $OwnedSaveRoot = $null
@@ -1110,6 +1123,10 @@ foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-fie
         'existing-save-target' { $FilePath = $existingJson }
         'save-device' { $FilePath = [IO.Path]::Combine($ownedRoot,'CON.json') }
         'save-wildcard' { $FilePath = [IO.Path]::Combine($ownedRoot,'*.json') }
+        'short-root-save-valid' { $OwnedSaveRoot = $shortOwnedRoot }
+        'short-path-save-valid' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = [IO.Path]::Combine($shortOwnedRoot, $script:case + '.json') }
+        'short-root-existing-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = $existingJson }
+        'short-root-foreign-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = [IO.Path]::Combine($nested,'new.json') }
     }
     $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -in @('foreign-field', 'dat-foreign-field', 'save-foreign-field')) { 99 } else { 42 }); Value = '' } }
     $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
@@ -1121,8 +1138,8 @@ foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-fie
         if ($script:case -eq 'save-target-appeared') { [IO.File]::WriteAllText($FilePath,'concurrent owned fixture') }
         . $readbackBody
         . $closeBody
-    } catch { $failed = $true }
-    if ($failed -ne ($script:case -notin $validCases)) { throw "Wrong verdict for $script:case" }
+    } catch { $failed = $true; $failureMessage = $_.Exception.Message }
+    if ($failed -ne ($script:case -notin $validCases)) { throw "Wrong verdict for $script:case; observed refusal: $failureMessage" }
     if ($script:case -in $validCases -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2 -or $script:values -ne 1)) { throw 'Missing fresh dismissal/readback witness' }
     if ($script:case -in $zeroInputCases -and $script:values -ne 0) { throw 'Refused picker target received file input' }
 }
@@ -1137,5 +1154,11 @@ Write-Output 'file-picker-witness-passed'
     });
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /file-picker-witness-passed/u);
+    const shortAlias = result.stdout.match(/owned-save-short-alias-observed=(True|False)/u);
+    assert.ok(shortAlias, "Retain whether this filesystem provided a distinct 8.3 alias");
+    console.info(
+      "Owned Save path witness:",
+      JSON.stringify({ short_path_alias_observed: shortAlias[1] === "True" }),
+    );
   },
 );

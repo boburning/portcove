@@ -188,15 +188,16 @@ function expectCandidateComposition(
   expect(controls).toHaveLength(2);
   for (const target of [row, ...controls]) {
     const bounds = target.getBoundingClientRect();
+    const label = "candidate composition " + target.tagName;
     requireCompleteCaptureTarget(
       {
-        target: target.textContent,
+        target: label,
         target_count: 1,
         visible: target.checkVisibility(),
         rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
         viewport: { width: innerWidth, height: innerHeight },
       },
-      "candidate composition " + target.tagName,
+      label,
     );
   }
   return row;

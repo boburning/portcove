@@ -565,6 +565,14 @@ timeouts remain in force. Linux contracts verify fixture validation and producer
 titles; the existing Windows-only AST/input witness covers the actual guarded
 PowerShell blocks. Those Windows checks and native flows require later execution.
 
+CI `44422479100/1` exposed an owned Save refusal in that Windows witness. The
+exact witness reproduces it with an 8.3 spelling of the same owned directory:
+the resolved parent and full target had different path spellings. Both now use
+the existing full-path normalizer before comparison. Explicit short-root and
+mixed-spelling cases retain existing-target and foreign-parent refusals before
+input. The witness preserves unexpected refusal details; traversal, non-reparse
+parent, absent direct JSON leaf and single-action checks remain unchanged.
+
 The same run's install/Steam/artwork row `135122626818` took 749.558 seconds
 across five executed cases while staged-update composition remained unrun; its
 600-second aggregate watchdog expired before the final artwork result. Only that

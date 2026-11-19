@@ -370,7 +370,7 @@ if ($OwnedSaveRoot -and (-not $FilePath -or $Button -cne 'Save')) { throw 'Owned
 function Resolve-OwnedSaveTarget([string]$Target, [string]$OwnedRoot) {
     if (-not $OwnedRoot -or -not [IO.Path]::IsPathRooted($OwnedRoot) -or -not [IO.Path]::IsPathRooted($Target)) { throw 'Save requires an explicit absolute owned fixture root and target.' }
     if (($Target -split '[\\/]') -contains '..' -or ($OwnedRoot -split '[\\/]') -contains '..') { throw 'Save paths must not contain traversal.' }
-    $parent = (Resolve-Path -LiteralPath $OwnedRoot -ErrorAction Stop).Path
+    $parent = [IO.Path]::GetFullPath((Resolve-Path -LiteralPath $OwnedRoot -ErrorAction Stop).Path)
     $parentItem = Get-Item -LiteralPath $parent -Force -ErrorAction Stop
     if ($parentItem.PSProvider.Name -cne 'FileSystem' -or -not $parentItem.PSIsContainer -or ($parentItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Save root must be an existing non-reparse fixture directory.' }
     $targetPath = [IO.Path]::GetFullPath($Target)

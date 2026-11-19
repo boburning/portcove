@@ -82,8 +82,11 @@ test("catalog diagnostics distinguish changed values, object-key order and entry
   const untouched = structuredClone(original);
   const before = collectionCatalogDiagnostic(original);
   const reordered = snapshot();
-  const first = reordered.listing_catalog!.listings[0]!;
-  reordered.listing_catalog!.listings[0] = Object.fromEntries(
+  const reorderedCatalog = reordered.listing_catalog;
+  assert.ok(reorderedCatalog);
+  const first = reorderedCatalog.listings[0];
+  assert.ok(first);
+  reorderedCatalog.listings[0] = Object.fromEntries(
     Object.entries(first).reverse(),
   ) as typeof first;
   const order = collectionCatalogDiagnostic(reordered);
@@ -96,7 +99,7 @@ test("catalog diagnostics distinguish changed values, object-key order and entry
     order.listing_catalog.listings.map(({ index, id }) => ({ index, id })),
     before.listing_catalog.listings.map(({ index, id }) => ({ index, id })),
   );
-  reordered.listing_catalog!.listings[0]!.name += " changed";
+  reorderedCatalog.listings[0].name += " changed";
   const changed = collectionCatalogDiagnostic(reordered);
   assert.notEqual(
     changed.listing_catalog.object_keys_sorted_sha256,
@@ -152,8 +155,11 @@ test("early command diagnostics retain request IDs and rotations, omit payloads 
     assert.ok(!JSON.stringify(observed).includes("must-not-be-retained"));
     assert.deepEqual(
       observed.records
-        .map((value) => ("request_id" in value ? value.request_id : undefined))
-        .sort(),
+        .map((value) => {
+          assert.ok("request_id" in value && typeof value.request_id === "number");
+          return value.request_id;
+        })
+        .sort((left, right) => left - right),
       [1, 2],
     );
     await writeFile(
