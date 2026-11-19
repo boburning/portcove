@@ -107,7 +107,7 @@ pub struct InstallQualification {
     /// Carried forward from an existing manifest when it is rewritten or derived,
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
-    shipped_settings_defaults: BTreeMap<String, String>,
+    shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -615,7 +615,7 @@ struct InstallManifest {
     /// Package defaults observed before preparation. The manifest binds them to
     /// its artifact; historical installs have no recorded baseline.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    shipped_settings_defaults: BTreeMap<String, String>,
+    shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1496,7 +1496,9 @@ impl Installer {
                 && let Ok(selected) =
                     resolve_declared_executable(&payload_root, &request.qualification)
             {
-                let settings_root = request.qualification.runtime_root(&payload_root, &selected);
+                let settings_root = request
+                    .qualification
+                    .persistence_root(&payload_root, &selected);
                 request.qualification.shipped_settings_defaults =
                     crate::game_settings::capture_shipped_defaults(
                         port,

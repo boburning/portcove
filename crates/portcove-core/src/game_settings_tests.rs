@@ -242,7 +242,13 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
     std::fs::write(&path, default).unwrap();
     assert_eq!(
         capture(release.platform, &release.version, &release.archive_sha256),
-        BTreeMap::from([(file.path, hex::encode(Sha256::digest(default)))])
+        BTreeMap::from([(
+            file.path,
+            ShippedDefault {
+                sha256: hex::encode(Sha256::digest(default)),
+                bytes_hex: hex::encode(default),
+            },
+        )])
     );
     assert!(
         capture(

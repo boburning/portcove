@@ -23,15 +23,24 @@ pub use service_types::*;
 
 pub(crate) const MAX_SETTINGS_BYTES: u64 = 1024 * 1024;
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct ShippedDefault {
+    sha256: String,
+    // Hex keeps the serialized size bounded at twice the declared byte limit.
+    // The exact bytes may be needed after ordinary persistence overwrites the
+    // staged runtime's copy or the original archive leaves the download cache.
+    bytes_hex: String,
+}
+
 /// Only the verified package's pristine private extraction may supply these
-/// digests. Missing or unreadable files provide no baseline.
+/// defaults. Missing or unreadable files provide no baseline.
 pub(crate) fn capture_shipped_defaults(
     port: &crate::PortDefinition,
     platform: Platform,
     version: &str,
     archive_sha256: &str,
-    runtime_root: &Path,
-) -> BTreeMap<String, String> {
+    persistence_root: &Path,
+) -> BTreeMap<String, ShippedDefault> {
     let Some(contract) = port.game_settings.as_ref() else {
         return BTreeMap::new();
     };
@@ -49,11 +58,16 @@ pub(crate) fn capture_shipped_defaults(
         .files
         .iter()
         .filter_map(|file| {
-            let path = runtime_root.join(&file.path);
-            crate::path::refuse_symlink_ancestors(&path).ok()?;
-            let bytes = crate::path::read_bounded_regular(&path, file.maximum_bytes).ok()?;
+            let path = persistence_root.join(&file.path);
+            let bytes =
+                crate::external_runtime::read_single_link_metadata(&path, file.maximum_bytes)
+                    .ok()?;
             document::read(file, &bytes).ok()?;
-            Some((file.path.clone(), hex::encode(Sha256::digest(&bytes))))
+            let shipped = ShippedDefault {
+                sha256: hex::encode(Sha256::digest(&bytes)),
+                bytes_hex: hex::encode(bytes),
+            };
+            Some((file.path.clone(), shipped))
         })
         .collect()
 }
