@@ -81,7 +81,7 @@ describe("desktop components", () => {
         <Sidebar
           view="library"
           setView={vi.fn()}
-          installedCount={2}
+          libraryCount={2}
           updateCount={1}
           activities={[]}
         />,
@@ -203,7 +203,7 @@ describe("desktop components", () => {
       <Sidebar
         view="library"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[
           { ...base, id: "succeeded", status: "succeeded", started_at: 3, finished_at: 4 },

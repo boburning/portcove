@@ -28,6 +28,7 @@ it.each(["catalog", "library"] as const)(
         view={view}
         ports={ports}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}

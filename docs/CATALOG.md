@@ -2287,6 +2287,13 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+For a managed GitHub route, `release.github_other_stream_tag_prefixes` can
+exclude a reviewed upstream stream on a specific supported platform. Use it
+for independently published add-ons or other platform streams with documented
+tag prefixes. Core excludes these tags even before asset collection. Releases
+in the selected stream with incomplete package evidence still hold. Review the
+existing tag history before adding a prefix and retain exact package verification.
+
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
 let the existing provider observe each release's version, asset ID, exact name,

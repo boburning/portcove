@@ -465,11 +465,14 @@ export interface UpstreamTransport {
 }
 
 /** The maintained GitHub client and artifact transfer under the local developer credential. */
-async function githubTransport(producerEventCount: number): Promise<UpstreamTransport> {
+async function githubTransport(
+  producerEventCount: number,
+  timeBudgetMs = 120_000,
+): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
-  const deadline = performance.now() + 120_000;
+  const deadline = performance.now() + timeBudgetMs;
   const credential = localDeveloperCredential({
     deadline,
     command: process.env.PORTCOVE_ROADMAP_GH,
@@ -717,4 +720,148 @@ export function upstreamSummary(payload: unknown, gap: unknown, attempt?: string
       .filter(Boolean)
       .join("; ") || null
   );
+}
+
+function githubJobTime(value: unknown) {
+  if (typeof value !== "string") return null;
+  const parts = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/u.exec(value);
+  if (!parts) return null;
+  const canonical = `${parts[1]}.${(parts[2] ?? "").padEnd(3, "0")}Z`;
+  const parsed = Date.parse(canonical);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === canonical ? parsed : null;
+}
+
+/** Resource use of the exact observer attempt cited by an inventory report. */
+export async function readObserverOperatingUsage(
+  report: unknown,
+  transport?: Pick<UpstreamTransport, "read">,
+) {
+  if (
+    !isRecord(report) ||
+    report.format !== "portcove-maintenance-inventory" ||
+    !Array.isArray(report.runs)
+  )
+    throw new MaintenanceStoreError("A maintenance inventory report is required");
+  const rows = (report.runs as unknown[]).filter(
+    (run) => isRecord(run) && run.source === "upstream-observations",
+  );
+  const run = rows[0];
+  const binding =
+    rows.length === 1 && isRecord(run) && typeof run.source_revision === "string"
+      ? /^upstream-observer-run:([1-9][0-9]{0,15})-([1-9][0-9]{0,8})@([a-f0-9]{40})#(sha256:[a-f0-9]{64})$/u.exec(
+          run.source_revision,
+        )
+      : null;
+  if (!binding || !isRecord(run) || !["complete", "partial"].includes(String(run.coverage)))
+    throw new MaintenanceStoreError("No digest-bound imported observer attempt is recorded");
+  const [, runId, attempt, source, artifactDigest] = binding;
+  const id = Number(runId);
+  const attemptNumber = Number(attempt);
+  if (!Number.isSafeInteger(id)) throw new MaintenanceStoreError("Invalid observer run identity");
+  const { read } = transport ?? (await githubTransport(0, 45_000));
+  const prefix = `actions/runs/${runId}`;
+  const attemptPath = `${prefix}/attempts/${attempt}`;
+  const [attemptFacts, inventory, artifacts] = await Promise.all([
+    read(attemptPath),
+    read(`${attemptPath}/jobs?per_page=100`),
+    read(`${prefix}/artifacts?per_page=100`),
+  ]);
+  if (
+    attemptFacts.id !== id ||
+    attemptFacts.run_attempt !== attemptNumber ||
+    attemptFacts.head_sha !== source ||
+    attemptFacts.path !== workflowPath ||
+    attemptFacts.head_branch !== "main" ||
+    !isRecord(attemptFacts.head_repository) ||
+    attemptFacts.head_repository.full_name !== repository ||
+    (attemptFacts.event !== "push" && attemptFacts.event !== "schedule") ||
+    attemptFacts.status !== "completed" ||
+    (attemptFacts.conclusion !== "success" && attemptFacts.conclusion !== "failure")
+  )
+    throw new MaintenanceStoreError("Observer usage attempt differs from the imported evidence");
+  if (
+    !Array.isArray(inventory.jobs) ||
+    inventory.total_count !== inventory.jobs.length ||
+    inventory.jobs.length > 100 ||
+    !Array.isArray(artifacts.artifacts) ||
+    artifacts.total_count !== artifacts.artifacts.length ||
+    artifacts.artifacts.length > 100
+  )
+    throw new MaintenanceStoreError("Observer usage inventory is incomplete");
+
+  const checkpointName = new RegExp(
+    `^upstream-observer-checkpoint-[a-f0-9]{64}-${runId}-${attempt}$`,
+    "u",
+  );
+  const matching = (artifacts.artifacts as unknown[]).filter(
+    (item) => isRecord(item) && typeof item.name === "string" && checkpointName.test(item.name),
+  );
+  const checkpoint = matching[0];
+  if (
+    matching.length !== 1 ||
+    !isRecord(checkpoint) ||
+    !Number.isSafeInteger(checkpoint.id) ||
+    Number(checkpoint.id) < 1 ||
+    checkpoint.digest !== artifactDigest ||
+    !Number.isSafeInteger(checkpoint.size_in_bytes) ||
+    Number(checkpoint.size_in_bytes) < 22 ||
+    !isRecord(checkpoint.workflow_run) ||
+    checkpoint.workflow_run.id !== id ||
+    checkpoint.workflow_run.head_sha !== source
+  )
+    throw new MaintenanceStoreError("Observer usage checkpoint differs from the report digest");
+
+  const seen = new Set<number>();
+  const executed: { id: number; name: string; conclusion: string; seconds: number | null }[] = [];
+  for (const job of inventory.jobs as unknown[]) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      seen.has(job.id) ||
+      job.run_id !== id ||
+      job.run_attempt !== attemptNumber ||
+      job.head_sha !== source ||
+      job.status !== "completed" ||
+      typeof job.conclusion !== "string" ||
+      typeof job.name !== "string" ||
+      !job.name.length ||
+      job.name.length > 200
+    )
+      throw new MaintenanceStoreError("Observer job identity differs from the imported attempt");
+    seen.add(job.id);
+    if (job.conclusion === "skipped") continue;
+    const start = githubJobTime(job.started_at);
+    const end = githubJobTime(job.completed_at);
+    executed.push({
+      id: job.id,
+      name: job.name,
+      conclusion: job.conclusion,
+      seconds: start !== null && end !== null && end >= start ? (end - start) / 1000 : null,
+    });
+  }
+  if (!executed.some(({ name }) => name === "observe"))
+    throw new MaintenanceStoreError("Imported observer attempt did not execute observation");
+  const measured = executed.filter(({ seconds }) => seconds !== null);
+  return {
+    format_version: 1,
+    kind: "maintenance-observer-operating-usage",
+    scope: "one-imported-observer-attempt",
+    source_revision: run.source_revision,
+    producer: {
+      id,
+      attempt: attemptNumber,
+      source,
+      event: attemptFacts.event,
+      conclusion: attemptFacts.conclusion,
+    },
+    checkpoint: { id: checkpoint.id, digest: artifactDigest, bytes: checkpoint.size_in_bytes },
+    executed_jobs: executed,
+    unmeasured_jobs: executed.length - measured.length,
+    observed_runner_seconds: measured.length
+      ? measured.reduce((total, job) => total + (job.seconds ?? 0), 0)
+      : null,
+    billed_cost_usd: null,
+  };
 }

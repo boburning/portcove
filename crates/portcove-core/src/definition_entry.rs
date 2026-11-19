@@ -179,6 +179,7 @@ impl DefinitionContentIndex {
             ));
         }
         crate::provider_binding::validate(&port)?;
+        port.release.validate_github_streams(&port.platforms)?;
         if port.mod_provider_bindings.is_some() {
             let (template, minimum) = crate::provider_binding::capability(&port)
                 .expect("binding validation requires a supported adapter");

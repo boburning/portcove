@@ -1178,7 +1178,7 @@ async fn observed_openciv3_preview_uses_shared_classification_despite_the_provid
         let (candidates, coverage, summaries, selected) =
             GithubReleaseProvider::with_api_root(root)
                 .unwrap()
-                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None)
+                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None, &[])
                 .await
                 .unwrap();
         assert_eq!(selected, expected["id"].as_u64());
@@ -1621,6 +1621,12 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
     port.release
         .asset_hints
         .insert(platform, vec!["Game-hd-".into(), "-linux-x64.zip".into()]);
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["addon-".into()]);
+    port.release
+        .validate_github_streams(&port.platforms)
+        .unwrap();
     let repository = || ok_json(r#"{"id":7,"archived":false}"#, "");
     let identified = |name: &str, digest, id: u64| {
         let mut asset = asset(name, digest);
@@ -1638,7 +1644,8 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
     let older = identified_release("v2.0.0", 20, vec![older_linux.clone()]);
     let newer_windows = identified("Game-hd-v3.0.0-windows-x64.zip", Some('b'), 301);
     let newer = identified_release("v3.0.0", 30, vec![newer_windows.clone()]);
-    let inventory = || releases(&[newer.clone(), older.clone()]);
+    let foreign = identified_release("addon-v4", 4000, Vec::new());
+    let inventory = || releases(&[foreign.clone(), newer.clone(), older.clone()]);
     let first_page = std::iter::once(newer_windows.clone())
         .chain((302..401).map(|id| {
             identified(
@@ -1656,6 +1663,9 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
         inventory(),
         assets(&[newer_windows]),
         assets(&[older_linux]),
+        repository(),
+        inventory(),
+        assets(&[]),
         repository(),
         inventory(),
         assets(&first_page),
@@ -1677,6 +1687,14 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
         .await
         .unwrap();
     assert_eq!(inapplicable.github_identity, accepted.github_identity);
+    let empty = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        empty.details["saved_package_variant"],
+        "no-matching-package"
+    );
     let pending = provider
         .resolve_saved_variant(&port, channel, platform, None, &receipt)
         .await
@@ -1698,21 +1716,29 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
         .try_iter()
         .filter(|path| path.contains("/assets?"))
         .collect::<Vec<_>>();
-    assert_eq!(refreshed.len(), 6);
+    assert_eq!(refreshed.len(), 7);
     assert!(refreshed[0].contains("/releases/30/assets?"));
     assert!(refreshed[1].contains("/releases/20/assets?"));
-    assert!(refreshed[3].contains("page=2"));
-    assert_eq!(refreshed[3], refreshed[5]);
+    assert!(refreshed[4].contains("page=2"));
+    assert_eq!(refreshed[4], refreshed[6]);
+    assert!(
+        !refreshed
+            .iter()
+            .any(|path| path.contains("/releases/4000/"))
+    );
 
-    let recent = (3..3 + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT as u64)
-        .rev()
-        .map(|number| {
-            identified_release(
-                &format!("v{number}.0.0"),
-                10 * number,
-                first_page[..1].to_vec(),
-            )
-        })
+    let recent = std::iter::once(foreign)
+        .chain(
+            (3..3 + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT as u64)
+                .rev()
+                .map(|number| {
+                    identified_release(
+                        &format!("v{number}.0.0"),
+                        10 * number,
+                        first_page[..1].to_vec(),
+                    )
+                }),
+        )
         .chain([older])
         .collect::<Vec<_>>();
     let mut replies = vec![repository(), releases(&recent)];
@@ -1735,6 +1761,11 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
         .collect::<Vec<_>>();
     assert_eq!(refreshed.len(), GITHUB_SAVED_RELEASE_INVENTORY_LIMIT);
     assert!(!refreshed.iter().any(|path| path.contains("/releases/20/")));
+    assert!(
+        !refreshed
+            .iter()
+            .any(|path| path.contains("/releases/4000/"))
+    );
 }
 
 #[tokio::test]
@@ -1781,14 +1812,24 @@ async fn saved_package_reads_reviewed_fallback_only_after_latest_exact_exclusion
     let receipt = ManagedPackageVariant::from_review(&port, platform, &acquired).unwrap();
     server.join().unwrap();
 
-    // v0.4.7 and the reviewed opposite-channel tag are controlled fixture metadata.
+    // v0.4.7 and the reviewed opposite-channel/stream tags are controlled fixture metadata.
     let mut beta = identified_release("v0.4.8", 48, Vec::new());
     beta["prerelease"] = true.into();
+    let foreign = identified_release("addon-v9", 4900, Vec::new());
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["addon-".into()]);
+    port.release
+        .validate_github_streams(&port.platforms)
+        .unwrap();
     let hold = port.managed_acquisition_hold.as_mut().unwrap();
-    hold.reviewed_artifacts.push(crate::ReviewedHoldArtifact {
-        version: "v0.4.8".into(),
-        sha256: "e".repeat(64),
-    });
+    hold.reviewed_artifacts
+        .extend(
+            ["v0.4.8", "addon-v9"].map(|version| crate::ReviewedHoldArtifact {
+                version: version.into(),
+                sha256: "e".repeat(64),
+            }),
+        );
     let unavailable_old = identified_release("v0.4.2", 433_412_381, Vec::new());
     let inline_reviewed = identified_release("v0.4.5", 439_450_376, Vec::new());
     for (tag, release_id, latest, expected_id, expected_digest, should_fallback) in [
@@ -1812,6 +1853,7 @@ async fn saved_package_reads_reviewed_fallback_only_after_latest_exact_exclusion
         let latest_route = format!("/releases/{release_id}/assets?");
         let release_page = [
             beta.clone(),
+            foreign.clone(),
             identified_release(tag, release_id, vec![latest.clone()]),
             inline_reviewed.clone(),
             unavailable_old.clone(),

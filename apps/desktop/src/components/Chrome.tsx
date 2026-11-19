@@ -118,7 +118,7 @@ import {
 export function Sidebar({
   view,
   setView,
-  installedCount,
+  libraryCount,
   updateCount,
   activities,
   controller,
@@ -130,7 +130,7 @@ export function Sidebar({
 }: {
   view: View;
   setView: Dispatch<SetStateAction<View>>;
-  installedCount: number | undefined;
+  libraryCount: number | undefined;
   updateCount: number;
   activities: ActivityRecord[];
   controller?: string | undefined;
@@ -187,15 +187,15 @@ export function Sidebar({
       >
         <Icon glyph={item.icon} />
         <span className="nav-label min-w-0 flex-1">{item.label}</span>
-        {item.view === "library" && installedCount !== undefined && (
+        {item.view === "library" && libraryCount !== undefined && (
           <b
             className={cn(
               "rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal",
               view === "library" ? "text-pc-selection-foreground" : "text-pc-muted-foreground",
             )}
-            aria-label={`${installedCount} in library`}
+            aria-label={`${libraryCount} in library`}
           >
-            {installedCount}
+            {libraryCount}
           </b>
         )}
         {item.view === "updates" && (updateCount > 0 || activityState) && (

@@ -207,13 +207,7 @@ it.for([
     document.documentElement.dataset.theme = theme;
     const setView = vi.fn();
     await render(
-      <Sidebar
-        view="library"
-        setView={setView}
-        installedCount={3}
-        updateCount={0}
-        activities={[]}
-      />,
+      <Sidebar view="library" setView={setView} libraryCount={3} updateCount={0} activities={[]} />,
     );
     expect(document.querySelector(".sidebar-footer")?.textContent ?? "").not.toContain(
       "Copy existing installation",

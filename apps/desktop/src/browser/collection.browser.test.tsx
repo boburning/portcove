@@ -258,6 +258,7 @@ it.each([
           view="library"
           ports={[]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -298,6 +299,7 @@ it.each([
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}
