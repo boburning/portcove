@@ -639,7 +639,7 @@ mod tests {
         for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
             let listing = catalog.listing(id).unwrap();
             for (platform, expected) in [
-                (Platform::LinuxX86_64, 1u64),
+                (Platform::LinuxX86_64, 5u64),
                 (Platform::MacosX86_64, 2),
                 (Platform::MacosAarch64, 2),
             ] {

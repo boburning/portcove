@@ -1228,7 +1228,8 @@ mod tests {
 
     #[test]
     fn retention_keeps_complete_legacy_catalog_and_source_graph_before_later_edits() {
-        let mut legacy = Catalog::embedded().unwrap().authoritative_document();
+        let mut legacy =
+            crate::test_fixture::retained_devilutionx_appimage_catalog().authoritative_document();
         let newer_ports = [
             "doom-3-classic-dhewm3",
             "doom-3-resurrection-of-evil-classic-dhewm3",

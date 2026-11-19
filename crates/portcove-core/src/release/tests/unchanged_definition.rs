@@ -35,7 +35,7 @@ async fn same_release_linux_asset_and_integrity_arrive_without_disturbing_window
     let tag = "v1.8.0";
     let mut windows_asset = asset("devilutionx-windows-x86_64.zip", Some('a'));
     windows_asset["id"] = 301.into();
-    let mut linux_asset = asset("devilutionx-linux-x86_64.appimage", None);
+    let mut linux_asset = asset("devilutionx-linux-x86_64.tar.xz", None);
     linux_asset["id"] = 302.into();
     let snapshot = |assets| {
         let mut release = release(tag, assets);
