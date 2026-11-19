@@ -1102,12 +1102,14 @@ function UpdatesGroup({
         <summary data-focusable className="disclosure-pad-2 cursor-pointer text-sm font-medium">
           Future update preferences
         </summary>
-        <p className="text-xs text-pc-muted-foreground">
-          {deferSetupChoices ? "Game files are still required before installation. " : ""}
-          These choices apply to future checks and managed updates. Saving them does not run an
-          update.
-        </p>
-        {preferences}
+        <div className="grid gap-3 pt-2">
+          <p className="text-xs text-pc-muted-foreground">
+            {deferSetupChoices ? "Game files are still required before installation. " : ""}
+            These choices apply to future checks and managed updates. Saving them does not run an
+            update.
+          </p>
+          {preferences}
+        </div>
       </details>
     </DetailGroup>
   );
