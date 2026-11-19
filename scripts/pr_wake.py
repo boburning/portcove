@@ -311,7 +311,7 @@ def reconcile(state, pr):
 def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read_pull=pull):
     with store(state) as db:
         watch = load(db, pr)
-    if not watch:
+    if not watch or not watch["accepted"]:
         return POLL
     if watch["status"] in ("paused", "cancelled", "closed", "replacing"):
         if watch["pending"]:
