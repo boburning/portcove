@@ -83,7 +83,6 @@ The desktop entries below describe upstream player targets, including source-bui
 | `kandowontu2-urbanrecomp` | `windows-x86-64`, `linux-x86-64`, `macos-x86-64`, `macos-aarch64` | [Release](https://github.com/kandowontu2/UrbanRecomp/releases/tag/enhanced-v1.0.4) |
 | `kileak-the-dna-imperative-ktdir` | `windows-x86-64` | [Release](https://github.com/NJH-1001/KTDIR/releases/tag/v0.1.1) |
 | `killer-instinct-arcade-kilnan-recomp` | `macos-aarch64` | [Release](https://github.com/kilnan/ki-recomp/releases/tag/v0.1.0) |
-| `king-kong-xbox-360-recompiled` | `windows-x86-64`, `linux-x86-64` | [Release](https://github.com/TekRantGaming/king-kong-recompiled/releases/tag/v2.1.3) |
 | `korokoro-recomp-elprogramadorloco-arch-korokoro-post-nin` | `windows-x86-64` | [Setup or build source](https://github.com/elprogramadorloco-arch/korokoro-recomp/blob/5dbb54a9df06d3a68a304e28b4e6ec5fed807fb6/README.md) |
 | `last-raven-recomp-sifayne-armored-core-last-raven-portable` | `linux-x86-64` | [Release](https://github.com/Sifayne/last-raven-recomp/releases/tag/v0.1.0-preview.1) |
 | `linkssy2-urbanchaosriotresponseburneredition` | `windows-x86-64` | [Release](https://github.com/linkssy2/UrbanChaosRiotResponseBurnerEdition/releases/tag/v0.20) |
