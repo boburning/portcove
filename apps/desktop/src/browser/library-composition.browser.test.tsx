@@ -46,6 +46,7 @@ async function mount(
   journey: "collection" | "collection-large" = "collection",
   expectedLibraryEntries = journey === "collection-large" ? 60 : 12,
   seed?: () => Promise<void>,
+  afterRender?: () => Promise<void>,
 ) {
   localStorage.clear();
   const root = document.createElement("div");
@@ -63,6 +64,7 @@ async function mount(
     </LocalizationProvider>,
     { container: root },
   );
+  await afterRender?.();
   await expect
     .poll(() =>
       Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
@@ -132,11 +134,15 @@ it.each([1, 0])(
       setup_confirmations: [],
     });
     await page.viewport(1280, 800);
-    await mount("dark", "collection", 3);
+    await mount("dark", "collection", 3, undefined, async () => {
+      // A first-run profile with no installations opens Discover. Exercise the
+      // Library explicitly without changing that separate landing policy.
+      await page.getByRole("button", { name: /^Library/ }).click();
+    });
     const globalTotal = async () => {
       await expect
-        .poll(() => document.querySelector("[data-library-header]")?.textContent)
-        .toMatch(/\b3(?: ports)? in your library\b/);
+        .poll(() => document.querySelector("[data-library-header] p")?.textContent?.trim())
+        .toMatch(/^3(?: ports)? in your library$/);
       expect(document.querySelector('aside [aria-label="3 in library"]')).not.toBeNull();
     };
     await globalTotal();
@@ -145,8 +151,9 @@ it.each([1, 0])(
       .toBeVisible();
     await page.getByRole("button", { name: "Collection: Membership counts", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
-    const summary = () => document.querySelector(".collection-result-summary")?.textContent;
-    await expect.poll(summary).toMatch(/\b2 of 3(?: ports)? in your library\b/);
+    const summary = () =>
+      document.querySelector(".collection-result-summary > span")?.textContent?.trim();
+    await expect.poll(summary).toMatch(/^2 of 3(?: ports)? in your library$/);
     const saved = document
       .querySelector('[data-detail-game-id="collection-1"]')!
       .closest<HTMLElement>(".collection-entry")!;
@@ -157,13 +164,13 @@ it.each([1, 0])(
     ).toBe(false);
     const search = page.getByRole("textbox", { name: "Search your library", exact: true });
     await userEvent.fill(search, "modern");
-    await expect.poll(summary).toMatch(/\b1 of 3(?: ports)? in your library\b/);
+    await expect.poll(summary).toMatch(/^1 of 3(?: ports)? in your library$/);
     await globalTotal();
     await userEvent.fill(search, "no-such-library-game");
-    await expect.poll(summary).toMatch(/\b0 of 3(?: ports)? in your library\b/);
+    await expect.poll(summary).toMatch(/^0 of 3(?: ports)? in your library$/);
     await globalTotal();
     await page.getByRole("button", { name: "Clear search", exact: true }).click();
-    await expect.poll(summary).toMatch(/\b2 of 3(?: ports)? in your library\b/);
+    await expect.poll(summary).toMatch(/^2 of 3(?: ports)? in your library$/);
     await globalTotal();
     expect(summarizeLibrary(entries, statuses).installed).toBe(installedCount);
   },
