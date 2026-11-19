@@ -63,7 +63,16 @@
         "https://api.github.com/repositories/1418141714",
         "https://github.com/VibinToast/JetForceGemini-Recompiled/releases/tag/v1.3.1"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jet-force-gemini-nintendo-64",
+          "title": "Jet Force Gemini (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/VibinToast/JetForceGemini-Recompiled/blob/f489148c060dcd34615c1055b32dd7b346e93976/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

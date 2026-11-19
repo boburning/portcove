@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "gears-of-war-2",
       "evidence_urls": ["https://github.com/josuloku-new/Fenix-Reborn"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "gears-of-war-2-xbox-360",
+          "title": "Gears of War 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/josuloku-new/Fenix-Reborn/blob/7be2494dd56c88d998527ee3447d9738d130994d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

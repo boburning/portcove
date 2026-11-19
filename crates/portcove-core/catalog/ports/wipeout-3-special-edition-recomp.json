@@ -40,7 +40,16 @@
         "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md",
         "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wipeout-3-special-edition-playstation",
+          "title": "WipEout 3 Special Edition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+          ]
+        }
+      ]
     }
   }
 }

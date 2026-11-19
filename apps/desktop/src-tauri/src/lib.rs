@@ -40,6 +40,7 @@ mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
 mod source_removal;
+mod startup_context;
 pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
@@ -2970,7 +2971,7 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
-    let context = tauri::generate_context!();
+    let context = startup_context::new();
     #[cfg(any(windows, target_os = "linux"))]
     if let Err(message) = runtime_support::check(
         context

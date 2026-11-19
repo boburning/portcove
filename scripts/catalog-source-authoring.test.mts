@@ -9,14 +9,24 @@ import {
   assembleCatalogRecords,
   checkedAuthoredPort,
   checkedCurrentCatalog,
+  compactGbaArchive,
   parseCatalogSource,
   projectAuthoredPort,
+  projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  compactN64RecompPersistence,
+  projectN64RecompPersistence,
+} from "./catalog-n64-recomp-persistence.mts";
 import {
   compactPsxManagedWindows,
   projectPsxManagedWindows,
 } from "./catalog-psx-managed-windows.mts";
+import {
+  compactRazeWindowsProfile,
+  projectRazeWindowsProfile,
+} from "./catalog-raze-windows-profile.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 
@@ -164,6 +174,53 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Raze Windows authoring preserves the exact shared package and profile facts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.raze_windows_profile_v1);
+  assert.equal(family.length, 7);
+  for (const record of family) {
+    const projected = requiredFixture(projectAuthoredPort(record));
+    assert.deepEqual(projected.release, {
+      repository: "ZDoom/Raze",
+      asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
+    });
+    assert.deepEqual(projected.executable_hints, { "windows-x86-64": ["raze.exe"] });
+    assert.deepEqual(projected.persistent_paths, [
+      "raze_portable.ini",
+      "Save",
+      "Screenshots",
+      "Demos",
+      "autoexec.cfg",
+    ]);
+    assert.equal(projected.portable_marker_file, "raze_portable.ini");
+    assert.deepEqual(projected.reviewed_package_layouts, {
+      "windows-x86-64": { directories: ["soundfonts"], executables: ["raze.exe"] },
+    });
+    const explicit = projectRazeWindowsProfile(record);
+    delete explicit.raze_windows_profile_v1;
+    assert.deepEqual(compactRazeWindowsProfile(explicit), record);
+
+    const fork = {
+      ...explicit,
+      listing: { ...explicit.listing, project_url: "https://github.com/example/Raze" },
+    };
+    assert.equal(compactRazeWindowsProfile(fork), fork);
+  }
+
+  const record = requiredFixture(family[0]);
+  const differentPaths = structuredClone(record);
+  differentPaths.integration!.persistent_paths = ["other-profile"];
+  assert.throws(() => checkedAuthoredPort(differentPaths), /supplies its package and data paths/u);
+  const differentRelease = structuredClone(record);
+  differentRelease.integration!.release = { repository: "ZDoom/gzdoom" };
+  assert.throws(() => checkedAuthoredPort(differentRelease), /reviewed stable ZDoom\/Raze route/u);
+
+  const explicit = requiredFixture(records.find((entry) => entry.listing.id === "zdoom-gzdoom"));
+  assert.equal(explicit.raze_windows_profile_v1, undefined);
+  assert.equal(compactRazeWindowsProfile(explicit), explicit);
+  assert.equal(projectAuthoredPort(explicit)?.portable_marker_file, "gzdoom_portable.ini");
 });
 
 void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
@@ -1038,6 +1095,137 @@ void test("PSX preparation compacts exact layouts and retains explicit writer di
     custom.integration!.persistent_paths = ["custom-save"];
     assert.equal(compactPsxManagedWindows(custom), custom);
   }
+});
+
+void test("PSX retail split-mods preparation preserves the reviewed multidisc contract", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const source = records.find(
+    (record) => record.listing.id === "alexbeav-alone-in-the-dark-the-new-nightmare-recomp",
+  );
+  assert.ok(source);
+  const explicit = projectPsxManagedWindows(structuredClone(source));
+  delete explicit.psx_managed_windows_v1;
+  const compact = compactPsxManagedWindows(explicit);
+  assert.equal(compact.psx_managed_windows_v1, "split-mods");
+  assert.equal(compact.integration?.runtime_source_filename, "runtime-discs");
+  assert.equal(compact.integration?.runtime_source_materialization, "psx-raw-set");
+  assert.equal(compact.integration?.launch_disc_choice, "psx-settings-selected");
+  assert.equal(
+    JSON.stringify(projectAuthoredPort(compact)),
+    JSON.stringify(projectAuthoredPort(explicit)),
+  );
+
+  const incomplete = structuredClone(compact);
+  delete incomplete.integration!.launch_disc_choice;
+  assert.throws(() => projectPsxManagedWindows(incomplete), /multidisc/u);
+  const different = structuredClone(explicit);
+  different.integration!.runtime_source_filename = "other-discs";
+  assert.equal(compactPsxManagedWindows(different), different);
+});
+
+void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const record = records.find((entry) => entry.listing.id === "alexbeav-alundra-recomp");
+  assert.ok(record);
+  assert.equal(record.psx_managed_windows_v1, "split-mods-overlay-directory");
+  const explicit = projectPsxManagedWindows(record);
+  delete explicit.psx_managed_windows_v1;
+  assert.deepEqual(explicit.integration!.persistent_paths, [
+    "saves",
+    "settings.toml",
+    "input.ini",
+    "keybinds.ini",
+    "config.ini",
+    "disc.cfg",
+    "bios.cfg",
+    "mods/installed",
+    "mods/packages",
+    "mods/.staging",
+    "mods/state.toml",
+    "mods/state.toml.tmp",
+    "mods/texture-packs",
+    "overlay-captures",
+  ]);
+  assert.deepEqual(explicit.integration!.runtime_mutable_file_patterns, [
+    { prefix: "psx_freeze_dump_psx-runtime_", suffix: ".json" },
+  ]);
+  assert.deepEqual(compactPsxManagedWindows(explicit), record);
+
+  const different = structuredClone(explicit);
+  (different.integration!.persistent_paths as string[]).push("diagnostics-location.txt");
+  assert.equal(compactPsxManagedWindows(different), different);
+
+  const multidisc = structuredClone(record);
+  Object.assign(multidisc.integration!, {
+    runtime_source_filename: "runtime-discs",
+    launch_disc_choice: "psx-settings-selected",
+    runtime_source_materialization: "psx-raw-set",
+  });
+  assert.throws(() => checkedAuthoredPort(multidisc), /multidisc/u);
+
+  const explicitException = records.find(
+    (entry) => entry.listing.id === "alexbeav-medievil-recomp",
+  );
+  assert.ok(explicitException);
+  assert.equal(explicitException.psx_managed_windows_v1, undefined);
+  assert.equal(compactPsxManagedWindows(explicitException), explicitException);
+});
+
+void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);
+  assert.ok(supported.length > 0);
+  for (const record of supported) {
+    const explicit = projectGbaArchive(record);
+    delete explicit.gba_staged_archive_v1;
+    const compact = compactGbaArchive(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.runtime_mutable_paths = ["recomp_coverage_XXXX.json"];
+    assert.equal(compactGbaArchive(custom), custom);
+  }
+});
+
+void test("N64 recomp persistence compacts exact layouts and preserves explicit differences", () => {
+  const { catalog, records } = readCatalogSource(catalogRoot);
+  const consumers = records.filter((entry) => entry.n64_recomp_persistence_v1);
+  assert.ok(consumers.length > 0);
+  for (const record of consumers) {
+    const explicit = projectN64RecompPersistence(record);
+    delete explicit.n64_recomp_persistence_v1;
+    assert.deepEqual(compactN64RecompPersistence(explicit), record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(catalog.ports.find((port) => port.id === record.listing.id)),
+      record.listing.id,
+    );
+    const differentWrites = structuredClone(explicit);
+    differentWrites.integration!.persistent_paths = ["custom-saves"];
+    assert.equal(compactN64RecompPersistence(differentWrites), differentWrites);
+    assert.throws(
+      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      /already own persistent_paths/u,
+    );
+  }
+
+  const nested = records.find((record) => record.listing.id === "beetle-recomp")!;
+  const otherProvider = records.find((record) => record.listing.id === "extreme-g-recompiled")!;
+  for (const explicit of [nested, otherProvider]) {
+    assert.equal(compactN64RecompPersistence(explicit), explicit);
+    assert.throws(
+      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      /requires? the reviewed root-level GitHub recomp layout/u,
+    );
+  }
+
+  const unsafe = structuredClone(consumers[0]!);
+  unsafe.integration!.runtime_source_filename = "../alias.z64";
+  assert.throws(() => checkedAuthoredPort(unsafe), /reviewed root-level GitHub recomp layout/u);
 });
 
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {

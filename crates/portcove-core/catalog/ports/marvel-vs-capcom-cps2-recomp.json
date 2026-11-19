@@ -1,0 +1,65 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "marvel-vs-capcom-cps2-recomp",
+    "name": "Marvel vs. Capcom (CPS-2 Recomp)",
+    "summary": "Play Marvel vs. Capcom in CPS-2 Recomp using your own matching arcade files.",
+    "original_game_title": "Marvel vs. Capcom",
+    "project_url": "https://github.com/tmcleroy/cps2recomp",
+    "availability": "packages",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+    "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
+    "issue_number": 7376,
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["CPS2Recomp-windows-x64.zip"],
+      "linux-x86-64": ["CPS2Recomp-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["CPS2Recomp-macOS.zip"],
+      "macos-aarch64": ["CPS2Recomp-macOS.zip"]
+    },
+    "listed_at": "2026-11-18",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get the matching arcade files",
+          "instruction": "Use your own Marvel Vs. Capcom: Clash of Super Heroes (Europe 980123) arcade ROM set (`mvsc`)."
+        },
+        {
+          "title": "Set up the game in the collection",
+          "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+        },
+        {
+          "title": "Start the prepared game again",
+          "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `mvsc`. Open the launcher without arguments to change the ROM folder or settings."
+        }
+      ],
+      "warnings": [
+        "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+      ],
+      "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
+      "references": [
+        {
+          "title": "Linux ARM64 and Android",
+          "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+        },
+        {
+          "title": "Find saves and update the collection",
+          "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "marvel-vs-capcom-cps2-recomp",
+    "origin": {
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "repository": {
+        "host": "github.com",
+        "id": "1417252543"
+      }
+    },
+    "decisions": []
+  }
+}

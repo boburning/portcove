@@ -228,27 +228,16 @@ void test("inspection keeps only a successful Core report", () => {
 
 void test("renewals pick the newest CI-green first-parent main commit", () => {
   const history = ["c", "b", "a"];
-  assert.equal(
-    newestGreen(
-      history,
-      new Map([
-        ["b", "success"],
-        ["a", "success"],
-      ]),
-    ),
-    "b",
-  );
-  assert.equal(
-    newestGreen(
-      history,
-      new Map([
-        ["c", "failure"],
-        ["a", "success"],
-      ]),
-    ),
-    "a",
-  );
-  assert.equal(newestGreen(history, new Map([["c", "cancelled"]])), null);
+  const lookup = (known: Record<string, string>) => (sha: string) => known[sha] ?? "";
+  assert.equal(newestGreen(history, lookup({ b: "success", a: "success" })), "b");
+  assert.equal(newestGreen(history, lookup({ c: "failure", a: "success" })), "a");
+  assert.equal(newestGreen(history, lookup({ c: "cancelled" })), null);
+  function disputed(sha: string) {
+    if (sha === "b") throw new Error("unresolved main CI attempt");
+    return "success";
+  }
+  assert.equal(newestGreen(history, disputed), "c");
+  assert.throws(() => newestGreen(history.slice(1), disputed), /unresolved main CI attempt/);
 });
 
 void test("tree digests change with any catalog file and match for absent trees", (t) => {

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "dino-crisis",
       "evidence_urls": ["https://github.com/Rotmill/Dino-Crisis-Modern-Edition"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dino-crisis-playstation",
+          "title": "Dino Crisis (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Rotmill/Dino-Crisis-Modern-Edition/blob/d25f91b9b475733077be89d775cc54c8767cd186/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

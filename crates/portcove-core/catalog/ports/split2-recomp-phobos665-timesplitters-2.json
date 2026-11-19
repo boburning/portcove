@@ -16,7 +16,7 @@
     "project_url": "https://github.com/phobos665/split2-recomp",
     "listed_at": "2026-10-25",
     "funding_urls": ["https://ko-fi.com/phobos665"],
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/phobos665/split2-recomp",
     "manual_setup": {
@@ -41,7 +41,16 @@
       "format_version": 1,
       "id": "timesplitters-2",
       "evidence_urls": ["https://github.com/phobos665/split2-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "timesplitters-2-xbox",
+          "title": "TimeSplitters 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/split2-recomp-phobos665-timesplitters-2.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

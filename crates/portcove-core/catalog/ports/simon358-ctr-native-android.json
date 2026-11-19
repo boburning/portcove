@@ -40,7 +40,16 @@
         "https://github.com/Simon358/ctr-native-android/blob/Android-Build4/README.md",
         "https://github.com/Simon358/ctr-native-android"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-team-racing-playstation",
+          "title": "Crash Team Racing (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Simon358/ctr-native-android/blob/7d3403bf91d4771255fad35203f4b6b88ba83c2f/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Crash Team Racing"
   }

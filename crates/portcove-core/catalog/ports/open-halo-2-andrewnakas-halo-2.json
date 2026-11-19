@@ -6,7 +6,7 @@
     "original_game_title": "Halo 2",
     "summary": "The README describes launch and online-room/OpenLive procedures. Console 640×480 output and DSP reverb are absent, and no complete campaign is claimed. Mac, Linux and browser versions are planned only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/andrewnakas/openhalo2",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/andrewnakas/openhalo2",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "halo-2",
       "evidence_urls": ["https://github.com/andrewnakas/openhalo2"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "halo-2-xbox",
+          "title": "Halo 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/andrewnakas/openhalo2/blob/ba9f9b33031e3ad8664ba02f470fdaac11f3855d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

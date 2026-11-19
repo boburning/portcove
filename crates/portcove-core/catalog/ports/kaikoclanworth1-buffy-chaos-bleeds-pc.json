@@ -45,6 +45,12 @@
       ],
       "warnings": [
         "Keep the complete matching regional installation, SaveData and retained old-save recovery. Android is a separate PAL-only route; no game or device was run."
+      ],
+      "references": [
+        {
+          "title": "Use the Android Buffy package",
+          "instruction": "Buffy-Chaos-Bleeds-Android-v1.0.3.apk requires ARM64, Android 13 or later and Vulkan 1.3, plus about 2 GB free. Open the app and grant All files access when prompted. In the Install tab, choose your own European (PAL) Xbox ISO or XISO. After extraction, use Play in the app and reopen Settings there. The game uses games/Buffy Chaos Bleeds on the phone. Use the app’s Saves tab to back up, restore or share saves."
+        }
       ]
     },
     "original_game": {

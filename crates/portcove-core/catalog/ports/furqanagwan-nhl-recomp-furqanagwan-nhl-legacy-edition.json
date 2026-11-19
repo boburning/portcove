@@ -15,7 +15,7 @@
     "summary": "Upstream reports part of a Montreal-at-Toronto match at 60 FPS and 4K on an RTX 5080 laptop in a GDK build. A full match, save/load, title updates, AMD/Intel graphics and the standard non-GDK build remain unconfirmed. Use the ROV renderer; the RTV path produces black 3D output. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/furqanagwan/nhl",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/furqanagwan/nhl",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "nhl-legacy-edition",
       "evidence_urls": ["https://github.com/furqanagwan/nhl"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nhl-legacy-edition-xbox-360",
+          "title": "NHL Legacy Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/furqanagwan-nhl-recomp-furqanagwan-nhl-legacy-edition.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -47,7 +47,16 @@
         "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md",
         "https://github.com/HarbourMasters/Lighthouse/blob/f757b547c8996ad0d67647560098c76bac0898a6/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "banjo-kazooie-nintendo-64",
+          "title": "Banjo-Kazooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Lighthouse/blob/9c39b49574388f1656a53a518257f399b5368062/config.yml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

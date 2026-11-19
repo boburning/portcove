@@ -39,7 +39,16 @@
       "format_version": 1,
       "id": "f-zero-x",
       "evidence_urls": ["https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "f-zero-x-nintendo-64",
+          "title": "F-Zero X (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/f-zero-x-n64hub.json"
+          ]
+        }
+      ]
     }
   }
 }

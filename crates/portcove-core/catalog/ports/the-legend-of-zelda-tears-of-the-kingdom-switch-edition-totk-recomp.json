@@ -6,7 +6,7 @@
     "summary": "An experimental Linux port of Tears of the Kingdom built from your own version 1.0.0 cartridge image. Build and run it with the project’s tools.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
     "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
     "artwork": {

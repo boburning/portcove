@@ -398,8 +398,8 @@ pub use recomp_mod::{
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
-    GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
-    ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
+    GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
+    ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
 };
 pub use retained_build::{

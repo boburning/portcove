@@ -24,9 +24,19 @@
         "https://github.com/MegaMan64Recomp/MegaMan64Recompiled",
         "https://www.emulation64.fr/pdf/N64%20-%20Mega%20Man%2064%20%28Anglais%29.pdf"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mega-man-legends-nintendo-64",
+          "title": "Mega Man Legends (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -45,22 +55,6 @@
       "macos-x86-64": ["MegaMan64Recompiled"],
       "macos-aarch64": ["MegaMan64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "megaman.n64.us.1.0.z64"
-    ],
     "runtime_source_filename": "megaman.n64.us.1.0.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

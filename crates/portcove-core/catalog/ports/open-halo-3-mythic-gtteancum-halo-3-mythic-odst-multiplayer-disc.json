@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "halo-3",
       "evidence_urls": ["https://github.com/GTTeancum/OpenH3M"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "halo-3-xbox-360",
+          "title": "Halo 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/open-halo-3-mythic-gtteancum-halo-3-mythic-odst-multiplayer-disc.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

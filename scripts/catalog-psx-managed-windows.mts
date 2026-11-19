@@ -56,6 +56,13 @@ const splitModPaths = [
   "mods/texture-packs",
 ];
 
+const overlayDirectoryLayoutOmissions = new Set([
+  "settings.toml.bad",
+  "overlay_captures.json",
+  "overlay_captures.json.d",
+  "overlay_captures.addendum.jsonl",
+]);
+
 // Retail BIOS profiles a reviewed kit's own `bios_config` can name. Core's
 // kit guard (psx.rs `kit_bios_profile`) maps the same images.
 const retailBiosProfiles = new Set<unknown>([
@@ -63,6 +70,12 @@ const retailBiosProfiles = new Set<unknown>([
   "psx-scph-5552-bios",
   "psx-scph-5500-bios",
 ]);
+
+const multidiscFields = [
+  "runtime_source_filename",
+  "launch_disc_choice",
+  "runtime_source_materialization",
+] as const;
 
 const explicitFields = new Set([
   "support_tier",
@@ -76,6 +89,7 @@ const explicitFields = new Set([
   "executable_hints",
   "presentation",
   "bios_source_profile",
+  ...multidiscFields,
 ]);
 
 function isAssetSelector(value: unknown): value is string[] {
@@ -98,7 +112,13 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const explicitIntegration = JSON.stringify(integration);
   const facts = { ...integration };
   for (const field of layoutFields) delete facts[field];
-  const layouts = [true, "bundled-openbios", "split-mods", "split-mods-openbios"] as const;
+  const layouts = [
+    true,
+    "bundled-openbios",
+    "split-mods",
+    "split-mods-openbios",
+    "split-mods-overlay-directory",
+  ] as const;
   for (const layout of layouts) {
     const proposed = { ...record, psx_managed_windows_v1: layout, integration: facts };
     try {
@@ -115,7 +135,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
-  const splitMods = layout === "split-mods" || layout === "split-mods-openbios";
+  const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
+  const splitMods =
+    layout === "split-mods" || layout === "split-mods-openbios" || overlayDirectoryOnly;
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -178,6 +200,18 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
+  const hasMultidiscContract = multidiscFields.some((field) => Object.hasOwn(integration, field));
+  if (
+    hasMultidiscContract &&
+    (layout !== "split-mods" ||
+      integration.runtime_source_filename !== "runtime-discs" ||
+      integration.launch_disc_choice !== "psx-settings-selected" ||
+      integration.runtime_source_materialization !== "psx-raw-set")
+  )
+    throw new PsxLayoutMismatch(
+      "PSX multidisc authoring requires the retail split-mods kit and its reviewed raw-disc settings contract.",
+    );
+
   for (const field of Object.keys(runtimeLayout))
     if (Object.hasOwn(integration, field))
       throw new PsxLayoutMismatch(
@@ -190,12 +224,28 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         `PSX managed Windows authoring does not cover ${field}; use an explicit integration for a different layout.`,
       );
 
-  const { presentation, bios_source_profile, ...operation } = integration;
+  const {
+    presentation,
+    bios_source_profile,
+    runtime_source_filename,
+    launch_disc_choice,
+    runtime_source_materialization,
+    ...operation
+  } = integration;
   const projectedLayout = structuredClone(runtimeLayout);
   if (splitMods) {
     projectedLayout.persistent_paths = projectedLayout.persistent_paths.flatMap((path) =>
       path === "mods" ? splitModPaths : [path],
     );
+  }
+  if (overlayDirectoryOnly) {
+    projectedLayout.persistent_paths = projectedLayout.persistent_paths.filter(
+      (path) => !overlayDirectoryLayoutOmissions.has(path),
+    );
+    projectedLayout.runtime_mutable_file_patterns =
+      projectedLayout.runtime_mutable_file_patterns.filter(
+        ({ prefix, suffix }) => prefix !== "overlay_captures.json." || suffix !== ".tmp",
+      );
   }
   return {
     ...record,
@@ -207,6 +257,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         : {}),
       ...(presentation === undefined ? {} : { presentation }),
       ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
+      ...(hasMultidiscContract
+        ? { runtime_source_filename, launch_disc_choice, runtime_source_materialization }
+        : {}),
     },
   };
 }

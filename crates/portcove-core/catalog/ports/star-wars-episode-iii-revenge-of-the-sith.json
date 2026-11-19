@@ -7,7 +7,7 @@
     "project_url": "https://github.com/jedijosh920/SWROTS-PC",
     "issue_number": 1310,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/jedijosh920/SWROTS-PC",
     "artwork": {
@@ -45,6 +45,26 @@
       "warnings": [
         "Use only an actual copy and components you are permitted to use. Preserve originals, runtime companions, saves, settings, mods, caches, logs, backups and custom roots. Another executable may share them. Actual bounded archive/PE observations and owned probes do not establish source-to-binary reproduction, upstream execution, gameplay, real-save, installed-client, Supported or protected acceptance."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-episode-iii-revenge-of-the-sith",
+      "evidence_urls": [
+        "https://github.com/jedijosh920/SWROTS-PC/blob/fbea4d817669106c70c0a349870774f28d5fdfeb/README.md",
+        "https://github.com/jedijosh920/SWROTS-PC",
+        "https://github.com/jedijosh920/SWROTS-PC/blob/3b8f6cfc70d78f3294f2459fe22371935c22ee6c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-episode-iii-revenge-of-the-sith-xbox",
+          "title": "Star Wars: Episode III – Revenge of the Sith (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/jedijosh920/SWROTS-PC/blob/3b8f6cfc70d78f3294f2459fe22371935c22ee6c/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Wars: Episode III – Revenge of the Sith"
   }
 }

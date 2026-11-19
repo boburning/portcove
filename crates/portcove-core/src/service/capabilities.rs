@@ -481,6 +481,7 @@ mod tests {
             (false, "v2", "a".repeat(64), "historical"),
         ] {
             status.external_runtime = Some(crate::ExternalRuntimeRecord {
+                setup_download: None,
                 user_selected: selected.then(|| crate::UserSelectedLaunch { arguments: vec![] }),
                 id: "copy".into(),
                 port_id: "fixture".into(),

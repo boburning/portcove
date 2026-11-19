@@ -6,7 +6,7 @@
     "original_game_title": "Bugs Bunny: Lost in Time",
     "summary": "The project describes a native PSXRecomp player. Release descriptions do not establish full-game coverage, and Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "bugs-bunny-lost-in-time",
       "evidence_urls": ["https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bugs-bunny-lost-in-time-playstation",
+          "title": "Bugs Bunny: Lost in Time (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp/blob/fca728da98dc350e84083d9939f663311fa99214/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

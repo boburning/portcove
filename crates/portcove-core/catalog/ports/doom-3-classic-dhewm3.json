@@ -47,7 +47,16 @@
       "format_version": 1,
       "id": "doom-3-classic",
       "evidence_urls": ["https://dhewm3.org/#how-to-install", "https://github.com/dhewm/dhewm3"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doom-3-classic-pc",
+          "title": "Doom 3 (classic) (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

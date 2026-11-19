@@ -7,7 +7,7 @@
     "project_url": "https://github.com/GTTeancum/SotE-Recomp",
     "issue_number": 343,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/SotE-Recomp",
     "artwork": {
@@ -40,6 +40,27 @@
       "warnings": [
         "The release’s MIT grant applies to eligible project code. Use a copy and bundled components you are already permitted to use. Fresh package acquisition remains held."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-shadows-of-the-empire",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
+        "https://github.com/GTTeancum/SotE-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-wars-shadows-of-the-empire-n64-sote-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-shadows-of-the-empire-nintendo-64",
+          "title": "Star Wars: Shadows of the Empire (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-wars-shadows-of-the-empire-n64-sote-recomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Star Wars: Shadows of the Empire"
   }
 }

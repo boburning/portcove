@@ -510,7 +510,7 @@ fn is_executable(
 /// dynamic segment and no program interpreter. A position-independent
 /// program declares an interpreter, so it still counts as a program. The
 /// entry point is not consulted because libraries may set one.
-fn is_elf_shared_library(file: &mut fs::File) -> io::Result<bool> {
+pub(crate) fn is_elf_shared_library(file: &mut fs::File) -> io::Result<bool> {
     const PT_DYNAMIC: u32 = 2;
     const PT_INTERP: u32 = 3;
     const PROGRAM_HEADER_SIZE: u64 = 56;

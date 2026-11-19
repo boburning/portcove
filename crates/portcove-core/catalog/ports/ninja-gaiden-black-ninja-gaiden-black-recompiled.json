@@ -50,6 +50,12 @@
       ],
       "warnings": [
         "Keep both Windows data/config roots and matching companions. Main-game attachment does not establish arcade handoff, real-save or physical Windows qualification."
+      ],
+      "references": [
+        {
+          "title": "Use the experimental Android player",
+          "instruction": "Ninja Gaiden Black Recompiled v0.9.74 publishes NinjaGaidenBlack-android-arm64.apk for ARM64. On first start, select your own retail USA Xbox disc image. Open the app again to use its installed data. The tagged guide identifies Android/data/io.github.gamboozino.ngbrecomp/files as the Android data and saves location. Check the actual storage you chose during setup."
+        }
       ]
     },
     "original_game": {

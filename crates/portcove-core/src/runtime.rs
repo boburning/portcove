@@ -10,6 +10,54 @@ pub(crate) const GENERATED_CACHE_TAR_XZ_CAPABILITY: u32 = 3;
 /// n64-recomp-portable capability that reads a per-platform runtime subdirectory.
 pub(crate) const N64_PLATFORM_RUNTIME_SUBDIRECTORY_CAPABILITY: u32 = 6;
 pub(crate) const NATIVE_MAC_BUNDLE_TAR_XZ_CAPABILITY: u32 = 26;
+pub(crate) const LINUX_PACKAGED_LIBRARY_CAPABILITY: u32 = 40;
+
+pub(crate) fn validate_linux_packaged_library(port: &PortDefinition) -> Result<()> {
+    let Some(library) = port.linux_packaged_library.as_deref() else {
+        return Ok(());
+    };
+    let linux = Platform::LinuxX86_64;
+    let executable = port.executable_hints.get(&linux).map(Vec::as_slice);
+    let basename = |name: &str| {
+        !name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-'))
+    };
+    if port.adapter != crate::AdapterKind::NativePortable
+        || !port.release.linux_tar_xz
+        || !has_github_tar_xz_route(port, linux)
+        || !basename(library)
+        || !library.ends_with(".so")
+        || !matches!(executable, Some([name]) if basename(name) && !name.ends_with(".sh"))
+        || port.runtime_subdirectory_for(linux).is_some()
+        || !port
+            .reviewed_package_layouts
+            .get(&linux)
+            .is_some_and(|layout| {
+                layout.directories.is_empty()
+                    && matches!(executable, Some([name]) if layout.executables.contains(name))
+            })
+        || port.persistent_paths != ["profile"]
+        || !port.persistent_file_patterns.is_empty()
+        || port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.trust == crate::ExternalRuntimeTrust::UserSelected)
+        || !crate::preparation::source::native(port)
+        || port.runtime_source_set.is_empty()
+        || port
+            .runtime_source_set
+            .iter()
+            .any(|target| !target.destination.starts_with("originals/"))
+    {
+        return Err(PortcoveError::usage(
+            "a packaged Linux library requires a reviewed flat native TAR.XZ runtime and an immutable sibling library",
+        ));
+    }
+    Ok(())
+}
 
 fn has_github_tar_xz_route(port: &PortDefinition, platform: Platform) -> bool {
     let release = &port.release;

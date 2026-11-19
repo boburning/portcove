@@ -46,6 +46,26 @@
       "warnings": [
         "Use the N64 USA Rev0 original and preserve all per-player Controller Paks. Keep the existing portable/LocalAppData choice; no save or hardware compatibility is inferred from another port."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "battlezone-rise-of-the-black-dogs",
+      "evidence_urls": [
+        "https://github.com/wootbeer/bzrecomp/blob/89be9674c28c5a488addb2f8173efc5862ef0dd6/README.md",
+        "https://github.com/wootbeer/bzrecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wootbeer-bzrecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "battlezone-rise-of-the-black-dogs-nintendo-64",
+          "title": "Battlezone: Rise of the Black Dogs (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/bzrecomp/blob/89be9674c28c5a488addb2f8173efc5862ef0dd6/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wootbeer-bzrecomp.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

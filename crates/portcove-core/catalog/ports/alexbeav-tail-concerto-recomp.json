@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tail-concerto-playstation",
+          "title": "Tail Concerto (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/65d02d5774721f839cbfa06f4a972f0012289884/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

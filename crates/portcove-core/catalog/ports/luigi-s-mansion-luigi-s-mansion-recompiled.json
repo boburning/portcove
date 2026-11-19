@@ -54,7 +54,16 @@
         "https://github.com/rob646464/luigis-mansion-recompiled/blob/d448095305b81d9bcace330c2259e666805140ef/README.md",
         "https://github.com/rob646464/luigis-mansion-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "luigi-s-mansion-nintendo-gamecube",
+          "title": "Luigi's Mansion (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/rob646464/luigis-mansion-recompiled/blob/4605e9b2de9fd344d480223eb00abe1b6ed13f08/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -22,7 +22,16 @@
       "format_version": 1,
       "id": "dinosaur-planet",
       "evidence_urls": ["https://github.com/DinosaurPlanetRecomp/dino-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dinosaur-planet-nintendo-64",
+          "title": "Dinosaur Planet (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

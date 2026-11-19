@@ -49,7 +49,16 @@
         "https://github.com/boburning/portcove/issues/4784#issuecomment-6886921035",
         "https://api.github.com/repos/RetroPortingToolKit/F-ZeroForever"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "f-zero-super-nintendo",
+          "title": "F-Zero (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/FZeroSNESRecomp/blob/1686df46d4fc7c22b5dc8fdfaa5282ca4bd78562/src/sdl_main.c"
+          ]
+        }
+      ]
     }
   },
   "integration": {

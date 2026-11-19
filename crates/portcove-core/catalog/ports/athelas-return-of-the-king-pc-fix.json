@@ -59,7 +59,17 @@
         "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
         "https://github.com/Shagg88/Athelas"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-return-of-the-king-pc",
+          "title": "The Lord of the Rings: The Return of the King (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/athelas-return-of-the-king-pc-fix.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

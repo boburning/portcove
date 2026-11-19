@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "viewtiful-joe-2",
       "evidence_urls": ["https://github.com/goldilocks00/viewtiful-joe-2-recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "viewtiful-joe-2-nintendo-gamecube",
+          "title": "Viewtiful Joe 2 (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/goldilocks00/viewtiful-joe-2-recompiled/blob/d1d9c29c7b5a357daa2cbed60926c4c8531ac49d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

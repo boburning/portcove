@@ -15,7 +15,7 @@
       "match_kind": "underlying-game"
     },
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bmbelo87/ddr-1st-recomp",
     "manual_setup": {

@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/spider-man-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/spider-man-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "spider-man-playstation",
+          "title": "Spider-Man (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/3e9f90c62638d9828c9c00dbcb8c6382173f8b83/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

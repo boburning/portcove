@@ -307,11 +307,24 @@ impl GithubReleaseProvider {
         repository: &str,
         release_id: u64,
     ) -> Result<Vec<GithubAsset>> {
+        self.release_assets_scoped(repository, release_id, None)
+            .await
+    }
+
+    pub(super) async fn release_assets_scoped(
+        &self,
+        repository: &str,
+        release_id: u64,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Vec<GithubAsset>> {
         let root = format!("{}/repos/{repository}/releases/{release_id}", self.api_root);
         let mut assets = Vec::new();
-        for page in 1..=3 {
+        for page in 1..=GITHUB_ASSET_INVENTORY_PAGE_LIMIT {
             let url = paginated_url(&root, "assets", page, 100)?;
-            let current: Vec<GithubAsset> = self.get_json(&url).await?;
+            let current: Vec<GithubAsset> = match scope {
+                Some(scope) => self.scoped_json(&url, scope).await?,
+                None => self.get_json(&url).await?,
+            };
             if current.len() > 100 || assets.len() + current.len() > ASSET_LIMIT {
                 return Err(PortcoveError::verification(
                     "selected release exceeds the complete 200-asset inventory bound",

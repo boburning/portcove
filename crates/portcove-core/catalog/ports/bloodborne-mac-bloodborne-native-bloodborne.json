@@ -35,6 +35,24 @@
       "image_sha256": "5dc4f67d642758fe0d879abd14a2c3fa5da821e5e3a5eeda29278e875d76c1ae",
       "game_slug": "bloodborne",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/bloodborne-native/bloodborne-mac",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/bloodborne-mac-bloodborne-native-bloodborne.json"
+      ],
+      "source_editions": [
+        {
+          "id": "bloodborne-playstation-4",
+          "title": "Bloodborne (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/bloodborne-mac-bloodborne-native-bloodborne.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

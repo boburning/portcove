@@ -951,8 +951,9 @@ disclosure without becoming hidden safety state. Settings uses Appearance,
 Library and storage, Game files, Updates, Integrations, Keyboard and controller,
 Advanced, and About categories. Wide layouts use a 13rem category column beside
 a reading column bounded at 47.5rem. Below 56.3125rem, navigation becomes one
-horizontally scrollable category strip above the panel. Settings rows use open surfaces and dividing
-rules rather than a surrounding card for every group. Category changes hide rather
+horizontally scrollable category strip above the panel. In narrow Settings panels,
+scrolling a category into view leaves enough room for its full focus outline.
+Settings rows use open surfaces and dividing rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
 not persist settings or cancel work. Focus the selected heading and reveal its
 outline below any sticky category strip, using the existing workspace scroll owner
@@ -1297,6 +1298,8 @@ optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+Discover launch notices keep the platform, route, release and edition visible.
+The full artifact checksum is available under View technical details.
 
 Compatibility and project-implementation disclosures shrink within their actual
 detail or comparison column. Long release, edition, artifact and dependency

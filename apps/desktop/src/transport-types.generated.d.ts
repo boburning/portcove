@@ -89,6 +89,20 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
+export type CatalogForeignAssetId = {
+  file_id: number;
+  link_id: number;
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
+export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
+export type CatalogForeignReleaseId = {
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
@@ -588,20 +602,6 @@ export type CompoundSourceFormat = "stfs-live";
  * The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
  */
 export type StfsPackageType = "live" | "pirs";
-export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
-export type CatalogForeignAssetId = {
-  file_id: number;
-  link_id: number;
-  project_id: number;
-  provider: "gitlab";
-  tag: string;
-};
-export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
-export type CatalogForeignReleaseId = {
-  project_id: number;
-  provider: "gitlab";
-  tag: string;
-};
 /**
  * Why the upstream listing download is not this host's route. Each one leaves
  * existing-installation registration and every installed copy unchanged.
@@ -1832,6 +1832,10 @@ export interface ExternalRuntimeRecord {
   port_id: string;
   registered_at: number;
   retained_definition?: DefinitionSelectionIdentity | null;
+  /**
+   * Last setup download bound to this registration's reviewed local choice.
+   */
+  setup_download?: SetupDownloadSelection | null;
   shared_preferences?: AcceptedSharedPreferencesBinding | null;
   user_selected?: UserSelectedLaunch | null;
   version: string;
@@ -1862,6 +1866,20 @@ export interface AuthenticatedDefinitionProvenance {
   targets_version: number;
   timestamp_sha256: string;
   timestamp_version: number;
+}
+/**
+ * The exact download reviewed during a user-selected setup or replacement.
+ */
+export interface SetupDownloadSelection {
+  asset_id: CatalogDownloadAssetId;
+  /**
+   * SHA-256 of the observed download, without any claim about the launched program.
+   */
+  download_sha256: string;
+  filename: string;
+  release_id: CatalogDownloadReleaseId;
+  release_tag: string;
+  [k: string]: unknown;
 }
 /**
  * Explicitly accepted account and location; mutable contents are not authority.
@@ -2414,6 +2432,10 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  /**
+   * An immutable library shipped beside the selected Linux executable.
+   */
+  linux_packaged_library?: string | null;
   /**
    * Native25: keep the Linux player's portable profile in this declared
    * directory beside the executable, creating it when absent before Play.

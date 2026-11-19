@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "resident-evil-3-nemesis",
       "evidence_urls": ["https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "resident-evil-3-nemesis-playstation",
+          "title": "Resident Evil 3: Nemesis (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3/blob/7ac28e21fe593da1784f8a48891d0600a6e35d87/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -47,7 +47,16 @@
         "https://github.com/1nputs/gunstars",
         "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "gunstar-heroes-mega-drive-genesis",
+          "title": "Gunstar Heroes (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

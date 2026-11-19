@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "ape-escape",
       "evidence_urls": ["https://github.com/mstan/ApeEscapeRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/5219c00ab7f14fccd93200ea79eb4f7d48f02f23/docs/qualification/ape-escape-recompiled-windows-2026-09-16.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

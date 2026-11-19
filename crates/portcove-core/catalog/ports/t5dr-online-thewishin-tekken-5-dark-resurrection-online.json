@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tekken-5-dark-resurrection-online",
       "evidence_urls": ["https://github.com/TheWishin/T5DROnline"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tekken-5-dark-resurrection-online-playstation-3",
+          "title": "Tekken 5: Dark Resurrection Online (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

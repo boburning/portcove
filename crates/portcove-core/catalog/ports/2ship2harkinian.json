@@ -2,6 +2,75 @@
   "format_version": 1,
   "order": 1,
   "listing": {
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "2ship-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "a46664a01623ad5d7cc82d29a9889699f6a98c9501c7a959a089f34380c1f078",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "6cdd4fe06f3f9b095e99c86fef70b9265cc921fb6faa7ba1e18e94e90ed0b345",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "b6019b4339d06ce0a476299a5be7b35629dff2fb779acb3da219da3cfcf1f84a",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "2ship-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "5.0.1",
+          "artifact_sha256": "b6019b4339d06ce0a476299a5be7b35629dff2fb779acb3da219da3cfcf1f84a",
+          "explanation": "If it cannot find valid prepared game data, 2Ship asks for the matching original to build mm.o2r. On Linux, it can also find a supported original beside the AppImage. With a compatible mm.o2r in the same data folder, it proceeds into the game on later starts.",
+          "provenance": "https://github.com/2ship2harkinian/2ship2harkinian/blob/5.0.1/mm/2s2h/BenPort.cpp",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    },
     "id": "2ship2harkinian",
     "name": "2Ship2Harkinian",
     "summary": "Native Majora's Mask port from HarbourMasters.",

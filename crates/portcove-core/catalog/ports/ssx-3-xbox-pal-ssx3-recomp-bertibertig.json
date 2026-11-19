@@ -15,7 +15,7 @@
     },
     "project_url": "https://github.com/bertibertig/SSX3-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bertibertig/SSX3-Recomp",
     "issue_number": 2712,

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "left-4-dead-2",
       "evidence_urls": ["https://github.com/CyberLifeYT/L4D2-PC-Port"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "left-4-dead-2-xbox-360",
+          "title": "Left 4 Dead 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/left-4-dead-2-pc-port-xbox-360-recompilation-cyberlifeyt-left-4-dead-2-xbox-360.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
