@@ -651,14 +651,7 @@ impl Library {
         if validate_transition {
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
-            let mut catalog = candidate.projection.catalog().clone();
-            catalog.retain_embedded_file_patterns(&baseline, candidate.publisher.stable_id())?;
-            catalog.retain_unrelated_upstream_reviews(&baseline, candidate.publisher.stable_id());
-            crate::definition_loader::validate_definition_transition(
-                &baseline,
-                &catalog,
-                candidate.publisher.stable_id(),
-            )?;
+            candidate.projection.catalog_for_selection(&baseline)?;
         }
         if state.active_json.as_deref() == Some(active_json.as_str())
             && state.replay_floor.as_ref() == Some(&proposed_floor)
@@ -898,16 +891,7 @@ pub(crate) fn load_selected_definition_catalog(
         }
         expiration = expiration.min(policy_expiration);
     }
-    let mut catalog = projection.catalog().clone();
-    catalog.retain_embedded_file_patterns(baseline, &selection.stable_id)?;
-    // The retained publisher scope is the selected port. An unrelated active
-    // review comes from the current baseline while authenticated bytes are retained.
-    catalog.retain_unrelated_upstream_reviews(baseline, &selection.stable_id);
-    crate::definition_loader::validate_definition_transition(
-        baseline,
-        &catalog,
-        &selection.stable_id,
-    )?;
+    let mut catalog = projection.catalog_for_selection(baseline)?;
     catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
     Ok(Some((catalog, expiration)))
 }
