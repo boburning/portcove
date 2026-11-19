@@ -23369,7 +23369,7 @@
       "original_game_title": "Alien vs. Predator",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/avsp/README.md",
       "issue_number": 2769,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23378,7 +23378,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23387,11 +23387,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23402,7 +23402,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then avsp. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23414,11 +23414,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/avsp/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23430,7 +23434,7 @@
       "original_game_title": "Cadillacs and Dinosaurs",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dino/README.md",
       "artwork": {
         "game_id": 5368,
         "cover_id": 114664,
@@ -23447,7 +23451,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23456,11 +23460,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23471,7 +23475,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then dino. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23483,11 +23487,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/dino/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dino/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23499,7 +23507,7 @@
       "original_game_title": "Marvel Super Heroes",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/msh/README.md",
       "artwork": {
         "game_id": 27890,
         "cover_id": 393313,
@@ -23516,7 +23524,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23525,11 +23533,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23540,7 +23548,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then msh. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23552,11 +23560,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/msh/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/msh/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23576,7 +23588,7 @@
       "original_game_title": "Street Fighter Alpha: Warriors Dreams",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa/README.md",
       "issue_number": 2762,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23585,7 +23597,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23594,11 +23606,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23609,7 +23621,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then sfa. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23621,11 +23633,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23645,7 +23661,7 @@
       "original_game_title": "Street Fighter Alpha2",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md",
       "issue_number": 2763,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23654,7 +23670,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23663,11 +23679,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23678,7 +23694,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then sfa2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23690,11 +23706,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/sfa2/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa2/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23714,7 +23734,7 @@
       "original_game_title": "Super Gem Fighter Mini Mix",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/pocket_fighter/README.md",
       "issue_number": 2780,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23723,7 +23743,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23732,11 +23752,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23747,7 +23767,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then pocket_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23759,11 +23779,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/pocket_fighter/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/pocket_fighter/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23783,7 +23807,7 @@
       "original_game_title": "Super Puzzle FighterII Turbo",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/puzzle_fighter/README.md",
       "issue_number": 2765,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23792,7 +23816,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23801,11 +23825,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23816,7 +23840,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then puzzle_fighter. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23828,11 +23852,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/puzzle_fighter/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/puzzle_fighter/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23852,7 +23880,7 @@
       "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vhunt2/README.md",
       "issue_number": 2782,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23861,7 +23889,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23870,11 +23898,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23885,7 +23913,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vhunt2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23897,11 +23925,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vhunt2/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vhunt2/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23921,7 +23953,7 @@
       "original_game_title": "Vampire Savior: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vampire_savior/README.md",
       "issue_number": 2766,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23930,7 +23962,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -23939,11 +23971,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -23954,7 +23986,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vampire_savior. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -23966,11 +23998,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vampire_savior/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vampire_savior/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -23990,7 +24026,7 @@
       "original_game_title": "Vampire Savior2: The Lord of Vampire",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md",
       "issue_number": 2767,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -23999,7 +24035,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -24008,11 +24044,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -24023,7 +24059,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -24035,11 +24071,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -24059,7 +24099,7 @@
       },
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav_definitive/README.md",
       "issue_number": 2768,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -24068,7 +24108,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -24077,11 +24117,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -24092,7 +24132,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav_definitive. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -24104,11 +24144,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav_definitive/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -24120,7 +24164,7 @@
       "original_game_title": "X-Men vs. Street Fighter",
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
-      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmvsf/README.md",
       "artwork": {
         "game_id": 8244,
         "cover_id": 406531,
@@ -24137,7 +24181,7 @@
         "macos-x86-64",
         "macos-aarch64"
       ],
-      "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -24146,11 +24190,11 @@
         "linux-x86-64": [
           "CPS2Recomp-linux-x86_64.tar.gz"
         ],
-        "macos-aarch64": [
-          "CPS2Recomp-macos.zip"
-        ],
         "macos-x86-64": [
-          "CPS2Recomp-macos.zip"
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
         ]
       },
       "manual_setup": {
@@ -24161,7 +24205,7 @@
           },
           {
             "title": "Prepare the shared launcher and this game",
-            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+            "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then xmvsf. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
           },
           {
             "title": "Add the game and manage updates",
@@ -24173,11 +24217,15 @@
           "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
           "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
         ],
-        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/xmvsf/README.md",
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmvsf/README.md",
         "references": [
           {
             "title": "Preserve the actual game and launcher data",
             "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+          },
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
           }
         ]
       }
@@ -25109,6 +25157,69 @@
       }
     },
     {
+      "id": "cyberbots-fullmetal-madness-cps2-recomp",
+      "name": "Cyberbots: Fullmetal Madness (CPS-2 Recomp)",
+      "summary": "Play Cyberbots: Fullmetal Madness in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Cyberbots: Fullmetal Madness",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md",
+      "issue_number": 7380,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Cyberbots: Fullmetal Madness (Europe 950424) arcade ROM set (`cybots`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `cybots`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "dabdavis-perfect-dark-dabs-mod",
       "name": "Perfect Dark / Perfect Dark Dab's Mod (DabDavis)",
       "summary": "Use the complete Dab’s Mod Windows or Linux player with your own Perfect Dark USA Rev 1 original. Preserve its actual save root and expanded formats; upstream owns updates and any restarted game.",
@@ -25571,6 +25682,69 @@
           "https://github.com/Nishikori-Yui/lordran-native"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "darkstalkers-the-night-warriors-cps2-recomp",
+      "name": "Darkstalkers: The Night Warriors (CPS-2 Recomp)",
+      "summary": "Play Darkstalkers: The Night Warriors in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Darkstalkers: The Night Warriors",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md",
+      "issue_number": 7377,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Darkstalkers: The Night Warriors (Europe 940705) arcade ROM set (`dstlk`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `dstlk`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -28248,6 +28422,69 @@
           "https://github.com/ArmDucks/DigimonWorld3-Recomp"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "dimahoo-cps2-recomp",
+      "name": "Dimahoo (CPS-2 Recomp)",
+      "summary": "Play Dimahoo in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Dimahoo",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md",
+      "issue_number": 7388,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Dimahoo (USA 000121) arcade ROM set (`dimahoou`). If your set splits shared files into a parent ZIP, keep `dimahoo` beside it."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `dimahoo`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -34797,6 +35034,69 @@
       "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy."
     },
     {
+      "id": "final-fight-cps2-recomp",
+      "name": "Final Fight (CPS-2 Recomp)",
+      "summary": "Play Final Fight in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Final Fight",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md",
+      "issue_number": 7385,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Final Fight (World, set 1) arcade ROM set (`ffight`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `ffight`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "flow-static-recompilation-sp00nznet-flow",
       "name": "flOw — flOw static recompilation (sp00nznet)",
       "original_game_title": "flOw",
@@ -36656,6 +36956,69 @@
       }
     },
     {
+      "id": "ghouls-n-ghosts-cps2-recomp",
+      "name": "Ghouls'n Ghosts (CPS-2 Recomp)",
+      "summary": "Play Ghouls'n Ghosts in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Ghouls'n Ghosts",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md",
+      "issue_number": 7386,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Ghouls'n Ghosts (World) arcade ROM set (`ghouls`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `ghouls`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "giants-recompiled-thebiemgamer-skylanders-giants",
       "name": "Skylanders Giants — Giants Recompiled (TheBiemGamer)",
       "original_game_title": "Skylanders Giants",
@@ -36691,6 +37054,69 @@
         "help_url": "https://github.com/TheBiemGamer/GiantsRecomp"
       },
       "issue_number": 3148
+    },
+    {
+      "id": "giga-wing-cps2-recomp",
+      "name": "Giga Wing (CPS-2 Recomp)",
+      "summary": "Play Giga Wing in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Giga Wing",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md",
+      "issue_number": 7387,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Giga Wing (USA 990222) arcade ROM set (`gigawing`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `gigawing`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
     },
     {
       "id": "gitaroo-man-native-erinxocon-gitaroo-man",
@@ -40773,6 +41199,69 @@
           "https://github.com/visibou/htrecomp"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "hyper-street-fighter-ii-cps2-recomp",
+      "name": "Hyper Street Fighter II (CPS-2 Recomp)",
+      "summary": "Play Hyper Street Fighter II in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Hyper Street Fighter II",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md",
+      "issue_number": 7371,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Hyper Street Fighter II: The Anniversary Edition (USA 040202) arcade ROM set (`hsf2`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `hsf2`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -47851,6 +48340,132 @@
       }
     },
     {
+      "id": "marvel-super-heroes-vs-street-fighter-cps2-recomp",
+      "name": "Marvel Super Heroes vs. Street Fighter (CPS-2 Recomp)",
+      "summary": "Play Marvel Super Heroes vs. Street Fighter in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Marvel Super Heroes vs. Street Fighter",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md",
+      "issue_number": 7378,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Marvel Super Heroes Vs. Street Fighter (Europe 970625) arcade ROM set (`mshvsf`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `mshvsf`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
+      "id": "marvel-vs-capcom-cps2-recomp",
+      "name": "Marvel vs. Capcom (CPS-2 Recomp)",
+      "summary": "Play Marvel vs. Capcom in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Marvel vs. Capcom",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
+      "issue_number": 7376,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Marvel Vs. Capcom: Clash of Super Heroes (Europe 980123) arcade ROM set (`mvsc`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `mvsc`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "master-of-orion-1oom-vanilla-branch",
       "name": "Master of Orion (1oom (vanilla branch))",
       "summary": "Research listing. Upstream route: Native recreation with original v1.3 LBX input and Windows RC package. Limits: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Upstream platforms: Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs. Original data: Legally own Master of Orion version 1.3 and supply its original LBX files. This 1oom target does not establish compatibility with a different original-game version; separately preserve its documented save-compatibility limitations. Portcove setup/gameplay not verified.",
@@ -54160,6 +54775,69 @@
           "https://github.com/OpenSC2K/OpenSC2K"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "night-warriors-darkstalkers-revenge-cps2-recomp",
+      "name": "Night Warriors: Darkstalkers' Revenge (CPS-2 Recomp)",
+      "summary": "Play Night Warriors: Darkstalkers' Revenge in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Night Warriors: Darkstalkers' Revenge",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md",
+      "issue_number": 7379,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Night Warriors: Darkstalkers' Revenge (Europe 950316) arcade ROM set (`nwarr`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `nwarr`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -61115,6 +61793,69 @@
           "https://github.com/NagyD/SDLPoP"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "progear-cps2-recomp",
+      "name": "Progear (CPS-2 Recomp)",
+      "summary": "Play Progear in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Progear",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md",
+      "issue_number": 7389,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Progear (USA 010117) arcade ROM set (`progearu`). If your set splits shared files into a parent ZIP, keep `progear` beside it."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `progear`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -71884,6 +72625,69 @@
       }
     },
     {
+      "id": "street-fighter-alpha-3-cps2-recomp",
+      "name": "Street Fighter Alpha 3 (CPS-2 Recomp)",
+      "summary": "Play Street Fighter Alpha 3 in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Street Fighter Alpha 3",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md",
+      "issue_number": 7373,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Street Fighter Alpha 3 (USA 980904) arcade ROM set (`sfa3u`). If your set splits shared files into a parent ZIP, keep `sfa3` beside it."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `sfa3`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "street-fighter-ex-plus-alpha-recomp",
       "name": "Street Fighter EX Plus Alpha Recomp",
       "summary": "Register a completed upstream-prepared Street Fighter EX Plus Alpha Windows player for your own USA disc and SCPH1001 BIOS.",
@@ -72008,6 +72812,195 @@
       }
     },
     {
+      "id": "street-fighter-ii-champion-edition-cps2-recomp",
+      "name": "Street Fighter II: Champion Edition (CPS-2 Recomp)",
+      "summary": "Play Street Fighter II: Champion Edition in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Street Fighter II: Champion Edition",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md",
+      "issue_number": 7381,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Street Fighter II': Champion Edition (World 920513) arcade ROM set (`sf2ce`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `sf2ce`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
+      "id": "street-fighter-ii-hyper-fighting-cps2-recomp",
+      "name": "Street Fighter II: Hyper Fighting (CPS-2 Recomp)",
+      "summary": "Play Street Fighter II: Hyper Fighting in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Street Fighter II: Hyper Fighting",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md",
+      "issue_number": 7384,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Street Fighter II': Hyper Fighting (World 921209) arcade ROM set (`sf2hf`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `sf2hf`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
+      "id": "street-fighter-ii-the-world-warrior-cps2-recomp",
+      "name": "Street Fighter II: The World Warrior (CPS-2 Recomp)",
+      "summary": "Play Street Fighter II: The World Warrior in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Street Fighter II: The World Warrior",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md",
+      "issue_number": 7382,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Street Fighter II: The World Warrior (World 910522) arcade ROM set (`sf2`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `sf2`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
       "id": "street-fighter-iii-3rd-strike-3sx",
       "name": "Street Fighter III: 3rd Strike / 3SX",
       "summary": "A native Street Fighter III: 3rd Strike engine using your own PlayStation 2 data.",
@@ -72122,6 +73115,69 @@
           "https://github.com/danny199012/StreetFighter-X-Tekken-Recomp"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "street-fighter-zero-2-alpha-cps2-recomp",
+      "name": "Street Fighter Zero 2 Alpha (CPS-2 Recomp)",
+      "summary": "Play Street Fighter Zero 2 Alpha in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Street Fighter Zero 2 Alpha",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
+      "issue_number": 7374,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Street Fighter Zero 2 Alpha (Asia 960826) arcade ROM set (`sfz2al`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `sfz2al`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -73762,6 +74818,132 @@
           "https://github.com/OpenSmash-Ultimate/WindowSmash"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "super-street-fighter-ii-cps2-recomp",
+      "name": "Super Street Fighter II (CPS-2 Recomp)",
+      "summary": "Play Super Street Fighter II in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Super Street Fighter II",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md",
+      "issue_number": 7370,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Super Street Fighter II: The New Challengers (World 931005) arcade ROM set (`ssf2`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `ssf2`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
+      }
+    },
+    {
+      "id": "super-street-fighter-ii-turbo-cps2-recomp",
+      "name": "Super Street Fighter II Turbo (CPS-2 Recomp)",
+      "summary": "Play Super Street Fighter II Turbo in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "Super Street Fighter II Turbo",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md",
+      "issue_number": 7372,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own Super Street Fighter II X: Grand Master Challenge (Japan 940223) arcade ROM set (`ssf2xjr1`). If your set splits shared files into a parent ZIP, keep `ssf2t` beside it."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `ssf2t`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -77459,6 +78641,69 @@
           }
         ],
         "help_url": "https://powdertoy.co.uk/FAQ.html"
+      }
+    },
+    {
+      "id": "the-punisher-cps2-recomp",
+      "name": "The Punisher (CPS-2 Recomp)",
+      "summary": "Play The Punisher in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "The Punisher",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md",
+      "issue_number": 7383,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own The Punisher (USA 930422) arcade ROM set (`punisheru`). If your set splits shared files into a parent ZIP, keep `punisher` beside it."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `punisher`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
@@ -87139,6 +88384,69 @@
           "https://github.com/OpenXcom/OpenXcom"
         ],
         "source_editions": []
+      }
+    },
+    {
+      "id": "x-men-children-of-the-atom-cps2-recomp",
+      "name": "X-Men: Children of the Atom (CPS-2 Recomp)",
+      "summary": "Play X-Men: Children of the Atom in CPS-2 Recomp using your own matching arcade files.",
+      "original_game_title": "X-Men: Children of the Atom",
+      "project_url": "https://github.com/tmcleroy/cps2recomp",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
+      "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md",
+      "issue_number": 7375,
+      "recommended_download_channel": "beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "CPS2Recomp-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "CPS2Recomp-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "CPS2Recomp-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "CPS2Recomp-macOS.zip"
+        ]
+      },
+      "listed_at": "2026-11-18",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the matching arcade files",
+            "instruction": "Use your own X-Men: Children of the Atom (Euro 950331) arcade ROM set (`xmcota`)."
+          },
+          {
+            "title": "Set up the game in the collection",
+            "instruction": "Extract the complete package for your system. Open CPS-2 Recomp and select the ROM folder on its Games page. Pick the game and press Play."
+          },
+          {
+            "title": "Start the prepared game again",
+            "instruction": "Choose Play in CPS-2 Recomp. On desktop, a frontend can call the collection launcher with two arguments, `--play` and `xmcota`. Open the launcher without arguments to change the ROM folder or settings."
+          }
+        ],
+        "warnings": [
+          "This upstream package is a prerelease. Portcove has package evidence for this version. Individual gameplay and save restoration are unverified."
+        ],
+        "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md",
+        "references": [
+          {
+            "title": "Linux ARM64 and Android",
+            "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
+          },
+          {
+            "title": "Find saves and update the collection",
+            "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
+          }
+        ]
       }
     },
     {
