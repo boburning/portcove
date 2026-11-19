@@ -2477,7 +2477,9 @@ pub struct UploaderContinuityRecord {
 /// locally from the persisted conditional-request cache without any network call.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
-    /// Requests the provider will count against its primary rate limit.
+    /// Requests budgeted against the provider's primary rate limit. A saved
+    /// GitHub package choice budgets the bounded fresh inventory even when
+    /// cached conditional responses could lower the actual cost.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.

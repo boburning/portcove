@@ -75,6 +75,19 @@ version, check the installed versions and saved game-file locations, then
 refresh the catalog. Keep the separate library backup if you may need to open it
 again with the old version.
 
+### Saved managed package choices
+
+Writer protocol 70 protects reviewed managed package choices stored in install
+manifests. Close all Desktop and CLI processes that use the library before
+opening it with a compatible version. The upgrade preserves existing
+installations, manifests, and player files. An installation without a saved
+choice continues to use ordinary package selection.
+
+After the upgrade, Desktop and CLI versions that support writer protocol 69 or
+earlier refuse to open the library. Those versions could erase a saved choice or
+replace an installation without using it. Keep the pre-upgrade copy if you need
+to reopen it with an older version.
+
 ### Required desktop runtime
 
 The first-beta Windows baseline is Windows 11 26H2 x86-64 with normal security

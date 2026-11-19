@@ -2311,6 +2311,18 @@ gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
 
+A reviewed download can retain a native GitHub package choice in its install
+manifest. This applies when two authored hints cover the full filename around
+the exact three-part numeric release tag, and GitHub supplied the stable
+repository, release and asset identities. Core remembers the channel, host
+architecture, native mode, package anchors and any declared original-source
+profile. The next release must offer one verified package with the same
+anchors around its own version. A missing or competing match holds the
+update. Ordinary package eligibility, uploader, digest and activation checks
+still apply. A legacy installation with no receipt uses ordinary selection.
+An explicitly selected different channel and exact curated, direct or rolling
+pins use their existing release contracts.
+
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
 `managed_acquisition_hold` instead of port-specific Core code. A hold without
