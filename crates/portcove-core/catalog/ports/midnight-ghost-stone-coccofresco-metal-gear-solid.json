@@ -6,7 +6,7 @@
     "original_game_title": "Metal Gear Solid",
     "summary": "Experimental project. The project marks alpha.1 as UNTESTED for gameplay and platform compatibility. Most logic uses static MIPS-to-native translation with selected adapted decompiled routines. A continuous playthrough has not been confirmed. Preserve Codec saves and backups. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/coccofresco/mgsone-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/coccofresco/mgsone-recomp",
     "manual_setup": {

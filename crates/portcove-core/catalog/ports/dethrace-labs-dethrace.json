@@ -52,7 +52,16 @@
         "https://github.com/dethrace-labs/dethrace#readme",
         "https://github.com/dethrace-labs/dethrace"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "carmageddon-pc",
+          "title": "Carmageddon (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -46,7 +46,27 @@
     "download_asset_hints": {
       "linux-x86-64": ["sdoj.recomp.", ".linux-amd64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "dodonpachi-saidaioujou",
+      "evidence_urls": [
+        "https://github.com/eandis/SDOJ-Recomp",
+        "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/eandis-sdoj-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "dodonpachi-saidaioujou-xbox-360",
+          "title": "DoDonPachi SaiDaiOuJou (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/eandis-sdoj-recomp.json"
+          ]
+        }
+      ]
+    }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {

@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "mega-man-x5",
       "evidence_urls": ["https://github.com/mstan/MegaManX5Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mega-man-x5-playstation",
+          "title": "Mega Man X5 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/360534cb403dfe2a1834ce9fc7455d9db53da7f3/docs/qualification/mega-man-x5-recompiled-windows-2026-09-16.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

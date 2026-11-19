@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "nhl-legacy-edition",
       "evidence_urls": ["https://github.com/puckhead73/nhl-legacy-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nhl-legacy-edition-xbox-360",
+          "title": "NHL Legacy Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/puckhead73/nhl-legacy-recomp/blob/0852183dd13e6efb108170d3a814c0aa00cd3879/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

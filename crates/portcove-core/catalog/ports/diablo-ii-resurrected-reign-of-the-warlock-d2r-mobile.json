@@ -15,7 +15,7 @@
     },
     "project_url": "https://github.com/jhaizhou-ops/d2r-mobile",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jhaizhou-ops/d2r-mobile",
     "issue_number": 2978,
@@ -43,7 +43,16 @@
       "format_version": 1,
       "id": "diablo-ii-resurrected-reign-of-the-warlock",
       "evidence_urls": ["https://github.com/jhaizhou-ops/d2r-mobile"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "diablo-ii-resurrected-reign-of-the-warlock-nintendo-switch",
+          "title": "Diablo II: Resurrected — Reign of the Warlock (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/jhaizhou-ops/d2r-mobile/blob/90a7a83c142479a262ff7877e4e95ad45125b800/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

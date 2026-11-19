@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "peggle-xbox-live-arcade",
       "evidence_urls": ["https://github.com/JosueMora918/peggle360-decomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "peggle-xbox-live-arcade-xbox-360",
+          "title": "Peggle (Xbox Live Arcade) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/JosueMora918/peggle360-decomp/blob/a7aa481afcb42c1966f7b981b16422a9bdb72c13/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

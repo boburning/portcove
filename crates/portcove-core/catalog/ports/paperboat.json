@@ -24,7 +24,16 @@
         "https://github.com/HarbourMasters/PaperBoat/blob/9dc47846b1a65775787e1b96f0252b0872a143ca/README.md",
         "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated/blob/9987cc93dbdc9bdfcf1be7a1eb7aa5df70837f72/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "paper-mario-nintendo-64",
+          "title": "Paper Mario (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/PaperBoat/blob/5489baad1c08bc134ed894b96cf66c3da615deed/config.yml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

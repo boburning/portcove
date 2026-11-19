@@ -6,7 +6,7 @@
     "original_game_title": "Monster Hunter Freedom Unite",
     "summary": "Only the European Monster Hunter Freedom Unite is supported by this project. The project describes it as playable; other planned games and regions are not supported targets. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Mango77x/MHForever",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Mango77x/MHForever",
     "manual_setup": {

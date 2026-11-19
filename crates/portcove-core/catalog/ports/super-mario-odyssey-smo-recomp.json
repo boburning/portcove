@@ -7,7 +7,7 @@
     "original_game_title": "Super Mario Odyssey",
     "project_url": "https://github.com/Coz-0/smo-recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Coz-0/smo-recomp",
     "artwork": {
@@ -43,7 +43,16 @@
       "format_version": 1,
       "id": "super-mario-odyssey",
       "evidence_urls": ["https://github.com/Coz-0/smo-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-odyssey-nintendo-switch",
+          "title": "Super Mario Odyssey (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Coz-0/smo-recomp/blob/0414341471307605b8cb5d0c1a9928db5fe84e07/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

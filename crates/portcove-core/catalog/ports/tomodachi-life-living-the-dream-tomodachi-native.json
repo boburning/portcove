@@ -43,7 +43,16 @@
       "format_version": 1,
       "id": "tomodachi-life-living-the-dream",
       "evidence_urls": ["https://github.com/kuosuko/tomodachi-native"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tomodachi-life-living-the-dream-nintendo-switch",
+          "title": "Tomodachi Life: Living the Dream (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/kuosuko/tomodachi-native/blob/5587d1bd8e311b5508ed4e8d5310796523d06ed6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

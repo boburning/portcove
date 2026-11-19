@@ -59,6 +59,26 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
+    "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+    "original_game": {
+      "format_version": 1,
+      "id": "silent-hill-downpour",
+      "evidence_urls": [
+        "https://github.com/LittleBitUA/DownpourRecomp/releases",
+        "https://github.com/LittleBitUA/DownpourRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/silent-hill-downpour-downpourrecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "silent-hill-downpour-xbox-360",
+          "title": "Silent Hill: Downpour (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/silent-hill-downpour-downpourrecomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Silent Hill: Downpour"
   }
 }

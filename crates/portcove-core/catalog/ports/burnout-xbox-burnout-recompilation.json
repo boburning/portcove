@@ -14,7 +14,7 @@
     "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
     "original_game_title": "Burnout",
     "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Heromachine/Burnout-Recompilation",
     "issue_number": 2637,

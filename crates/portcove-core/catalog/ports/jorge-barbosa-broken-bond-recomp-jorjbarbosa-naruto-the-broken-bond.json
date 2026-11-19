@@ -6,7 +6,7 @@
     "original_game_title": "Naruto: The Broken Bond",
     "summary": "Upstream reports about 30 minutes of menus, early Story fights, cutscenes, Fight Mode and open-world play on one Windows 11 PC with an RX 9070 XT. Most of Story, Xbox Live, other GPUs and other revisions remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
     "manual_setup": {

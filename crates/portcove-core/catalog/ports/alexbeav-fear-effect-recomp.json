@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fear-effect-playstation",
+          "title": "Fear Effect (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/4f2beedd2d4d0192f941525a034d6b9fb78b47cd/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

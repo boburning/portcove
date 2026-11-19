@@ -14,7 +14,7 @@
       "game_slug": "hogs-of-war",
       "match_kind": "underlying-game"
     },
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
     "issue_number": 2680,

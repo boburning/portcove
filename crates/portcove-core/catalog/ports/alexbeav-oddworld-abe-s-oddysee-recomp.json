@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "oddworld-abes-oddysee-playstation",
+          "title": "Oddworld: Abe's Oddysee (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/oddworld-abe-s-oddysee-recomp/blob/d41305b83ab35ef23dbedb3a6fee00290e9b1101/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

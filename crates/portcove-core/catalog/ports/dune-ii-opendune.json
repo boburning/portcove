@@ -6,7 +6,7 @@
     "summary": "OpenDUNE is a separate engine for Dune II. You need the original v1.07 game files and a build for your system. Portcove has not tested setup or gameplay.",
     "original_game_title": "Dune II",
     "project_url": "https://github.com/OpenDUNE/OpenDUNE",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "macos-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenDUNE/OpenDUNE",
     "artwork": {

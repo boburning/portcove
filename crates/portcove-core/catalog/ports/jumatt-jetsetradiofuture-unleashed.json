@@ -64,7 +64,16 @@
         "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/9ddb226f66d92c8c6bfed56ea9797bcaa2da48a5/README.md",
         "https://github.com/JuMatt/JetSetRadioFuture-Unleashed"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jet-set-radio-future-xbox",
+          "title": "Jet Set Radio Future (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/JuMatt/JetSetRadioFuture-Unleashed/blob/0f3426954c76b243a9aa5b1b97b39062950dec78/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

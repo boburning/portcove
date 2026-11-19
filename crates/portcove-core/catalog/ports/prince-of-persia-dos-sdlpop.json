@@ -56,7 +56,16 @@
         "https://github.com/NagyD/SDLPoP/tree/3c5add5fb7f83d4ceb542823ab66d00146c4271b",
         "https://github.com/NagyD/SDLPoP"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "prince-of-persia-dos-pc",
+          "title": "Prince of Persia (DOS) (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

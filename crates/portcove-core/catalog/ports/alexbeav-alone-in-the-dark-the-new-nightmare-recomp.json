@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "alone-in-the-dark-the-new-nightmare-playstation",
+          "title": "Alone in the Dark: The New Nightmare (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/alone-in-the-dark-the-new-nightmare-recomp/blob/673a0d5f2598ee7d08d2f828cf61854f10e698ca/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

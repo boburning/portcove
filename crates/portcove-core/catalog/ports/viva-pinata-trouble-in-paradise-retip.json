@@ -8,7 +8,7 @@
     "issue_number": 158,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://www.patreon.com/SolarCookies"],
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/SolarCookies/TiP-Recomp",
     "artwork": {
@@ -42,6 +42,26 @@
       "warnings": [
         "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "viva-pinata-trouble-in-paradise",
+      "evidence_urls": [
+        "https://github.com/SolarCookies/TiP-Recomp/tree/be5e91c8a83da21d976902962c61688c849cf29d",
+        "https://github.com/SolarCookies/TiP-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/viva-pinata-trouble-in-paradise-retip.json"
+      ],
+      "source_editions": [
+        {
+          "id": "viva-pinata-trouble-in-paradise-xbox-360",
+          "title": "Viva Piñata: Trouble in Paradise (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/viva-pinata-trouble-in-paradise-retip.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Viva Piñata: Trouble in Paradise"
   }
 }

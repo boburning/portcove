@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "metal-gear-acid",
       "evidence_urls": ["https://github.com/Tzeentchnet/MetalGearAcid-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "metal-gear-acid-playstation-portable",
+          "title": "Metal Gear Acid (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Tzeentchnet/MetalGearAcid-Recomp/blob/22b3c625f05f0bef6928309c1efeda4ce4b98017/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

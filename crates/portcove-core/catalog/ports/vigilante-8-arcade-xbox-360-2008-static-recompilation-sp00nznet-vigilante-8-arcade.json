@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "vigilante-8-arcade",
       "evidence_urls": ["https://github.com/sp00nznet/vig8"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vigilante-8-arcade-xbox-360",
+          "title": "Vigilante 8 Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/vig8/blob/4a6860a6e6c6a819506a6b7651920ce7a2a49b9a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

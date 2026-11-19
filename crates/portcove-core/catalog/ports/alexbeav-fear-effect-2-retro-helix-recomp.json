@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fear-effect-2-retro-helix-playstation",
+          "title": "Fear Effect 2: Retro Helix (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fear-effect-2-retro-helix-recomp/blob/4757d9853ab7c5f1ba4769702741bfa0c1030181/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

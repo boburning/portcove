@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "action-man-mission-xtreme",
       "evidence_urls": ["https://github.com/GnomeChimpsky/ActionManRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "action-man-mission-xtreme-playstation",
+          "title": "Action Man: Mission Xtreme (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/GnomeChimpsky/ActionManRecomp/blob/4ff247c4d0ac2dfc23d6047958ae06a73ee48972/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -99,6 +99,27 @@
           }
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "peter-jackson-s-king-kong-the-official-game-of-the-movie",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/king-kong-recompiled",
+        "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/king-kong-xbox-360-recompiled.json"
+      ],
+      "source_editions": [
+        {
+          "id": "peter-jackson-s-king-kong-the-official-game-of-the-movie-xbox-360",
+          "title": "Peter Jackson's King Kong: The Official Game of the Movie (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/king-kong-recompiled/blob/2a367f7326a21c3e0ff8b9070a18c7d9457682c2/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/king-kong-xbox-360-recompiled.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Peter Jackson's King Kong: The Official Game of the Movie"
   }
 }

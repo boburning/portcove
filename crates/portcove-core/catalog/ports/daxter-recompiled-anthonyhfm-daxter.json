@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "daxter",
       "evidence_urls": ["https://github.com/anthonyhfm/daxter-recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "daxter-playstation-portable",
+          "title": "Daxter (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/anthonyhfm/daxter-recompiled/blob/c0c8cc01a7f782f6706fc91b91f476cfd191bd23/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -64,7 +64,16 @@
         "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
         "https://github.com/sulix/omnispeak"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "commander-keen-4-pc",
+          "title": "Commander Keen 4 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

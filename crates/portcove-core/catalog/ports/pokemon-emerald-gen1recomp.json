@@ -64,7 +64,17 @@
         "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
         "https://github.com/bryanthaboi/gen1recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-emerald-game-boy-advance",
+          "title": "Pokémon Emerald (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-emerald-gen1recomp.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "doko-demo-issyo-portable",
       "evidence_urls": ["https://github.com/Senya01/dokodemo-native"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doko-demo-issyo-portable-playstation-portable",
+          "title": "Doko Demo Issyo Portable (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Senya01/dokodemo-native/blob/8e5d86c2c6d6cd7a32ea36565e84aa5386caf5b9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

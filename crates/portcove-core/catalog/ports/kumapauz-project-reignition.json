@@ -41,6 +41,27 @@
         "Keep the complete Windows package and meet its Godot/GPU/runtime requirements. The v0.4.2 route evidence does not qualify newer Game Jolt packages, their migration or mod layout. Keep graphical assets within Project Reignition and retain supplied terms/notices; freeware distribution is not a grant to resell the game or reuse its assets elsewhere."
       ],
       "help_url": "https://github.com/kumapauz/project-reignition/releases/tag/v0.4.2"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-and-the-secret-rings",
+      "evidence_urls": [
+        "https://github.com/kumapauz/project-reignition",
+        "https://github.com/kumapauz/project-reignition/releases/tag/v0.4.2",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kumapauz-project-reignition.json"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-and-the-secret-rings-wii",
+          "title": "Sonic and the Secret Rings (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/kumapauz/project-reignition/releases/tag/v0.4.2",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kumapauz-project-reignition.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sonic and the Secret Rings"
   }
 }

@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "bloody-roar-ii-playstation",
+          "title": "Bloody Roar II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/a8332fc2144184f9d30d8e946b34c77b0114f0d7/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

@@ -49,7 +49,16 @@
         "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
         "https://github.com/Joshspeakman/dungeon-siege-macos"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dungeon-siege-pc",
+          "title": "Dungeon Siege (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+          ]
+        }
+      ]
     }
   }
 }

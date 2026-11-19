@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "colony-wars-playstation",
+          "title": "Colony Wars (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/9b9f12555ab9e12c0e7670c15348b2930ff0f3d3/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

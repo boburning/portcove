@@ -6,7 +6,7 @@
     "original_game_title": "Monster Hunter Freedom Unite",
     "summary": "Pokke uses native ahead-of-time compilation with Vulkan and SDL3. Gameplay and save reports are the project’s claims. MHForever uses a different European source edition. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Kiridor123/MHFU-PC",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Kiridor123/MHFU-PC",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "monster-hunter-freedom-unite",
       "evidence_urls": ["https://github.com/Kiridor123/MHFU-PC"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "monster-hunter-freedom-unite-playstation-portable",
+          "title": "Monster Hunter Freedom Unite (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Kiridor123/MHFU-PC/blob/f07039c9ba32175f45e78c4bea2a77e888df9b22/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

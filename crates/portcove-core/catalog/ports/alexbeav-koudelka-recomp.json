@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/koudelka-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/koudelka-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "koudelka-playstation",
+          "title": "Koudelka (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/b27046a1f484f9fad56b8f799502548ca94f2555/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

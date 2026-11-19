@@ -59,7 +59,16 @@
         "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "die-hard-trilogy-playstation",
+          "title": "Die Hard Trilogy (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp/blob/23f6a990928927c02064267924a99859d81f7135/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

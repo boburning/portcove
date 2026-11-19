@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "armored-core-master-of-arena-playstation",
+          "title": "Armored Core: Master of Arena (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/d39c6cbae60acb545d52f99ad0b4509cf8ea3d5c/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {
