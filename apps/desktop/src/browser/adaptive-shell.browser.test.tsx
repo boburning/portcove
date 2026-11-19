@@ -68,17 +68,33 @@ async function expectSettingsCategoryLabelsFit() {
   const destinations = buttons.elements();
   expect(destinations).toHaveLength(8);
   buttons.first().element().focus();
+  await userEvent.keyboard("{Tab}{Shift>}{Tab}{/Shift}");
   for (const button of destinations) {
     await expect.element(button).toHaveFocus();
     if (button === keyboardCategory.element()) {
       await captureParityState("settings-keyboard-category-text-200");
     }
-    const strip = categories.element().getBoundingClientRect();
+    const navigation = categories.element();
+    const strip = navigation.getBoundingClientRect();
+    const left = strip.left + navigation.clientLeft;
+    const right = left + navigation.clientWidth;
+    const top = strip.top + navigation.clientTop;
+    const bottom = top + navigation.clientHeight;
     const label = document.createRange();
     label.selectNodeContents(button);
     const text = label.getBoundingClientRect();
-    expect.soft(text.left).toBeGreaterThanOrEqual(strip.left - 1);
-    expect.soft(text.right).toBeLessThanOrEqual(strip.right + 1);
+    expect.soft(text.left).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(text.right).toBeLessThanOrEqual(right + 1);
+    const bounds = button.getBoundingClientRect();
+    const style = getComputedStyle(button);
+    const outlineWidth = Number.parseFloat(style.outlineWidth);
+    const outline = outlineWidth + Number.parseFloat(style.outlineOffset);
+    expect.soft(style.outlineStyle).toBe("solid");
+    expect.soft(outlineWidth).toBeGreaterThan(0);
+    expect.soft(bounds.left - outline).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(bounds.right + outline).toBeLessThanOrEqual(right + 1);
+    expect.soft(bounds.top - outline).toBeGreaterThanOrEqual(top - 1);
+    expect.soft(bounds.bottom + outline).toBeLessThanOrEqual(bottom + 1);
     await userEvent.keyboard("{Tab}");
   }
 }

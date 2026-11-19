@@ -59,7 +59,11 @@
   }
   @container settings (max-width: 12rem) {
     .settings-section-index {
-      padding-inline: 6px;
+      --settings-category-focus-clearance: 6px;
+      padding-inline: var(--settings-category-focus-clearance);
+    }
+    .settings-section-index > .settings-category {
+      scroll-margin-inline: var(--settings-category-focus-clearance);
     }
     .settings-section-index > .settings-category > svg {
       display: none;
