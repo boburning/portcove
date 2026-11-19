@@ -1,9 +1,9 @@
 # Configured upstream observations
 
-The read-only observer supplies inert provider facts to independent definition
-delivery (#246). It does not admit a port, download game artifacts, sign or
-publish definitions, install updates, or execute upstream instructions.
-`portcove-core` remains the sole release-policy authority.
+The read-only observer collects facts from providers for independent definition
+delivery (#246). It records its findings as data. It never admits ports,
+downloads game artifacts, signs or publishes definitions, or installs updates.
+It never runs instructions from a provider. `portcove-core` owns release policy.
 
 ## Scope and cadence
 

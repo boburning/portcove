@@ -3,7 +3,7 @@
   "listing": {
     "id": "dark-souls-remastered-switch-edition-lordran-native",
     "name": "Dark Souls: Remastered — Switch edition (lordran-native)",
-    "summary": "An experimental Dark Souls: Remastered Switch-edition compatibility project for Apple devices, running rewritten ARM64 game code with Horizon/NVN services on Metal. Mac graphics and device compatibility remain unconfirmed. The release ZIP is unsigned, game-free iOS shell build input, rather than an installable app or completed IPA. Build locally with the matching source/shell and your own game files using Apple Silicon Mac/Xcode; the iOS route targets 26+. Windows 10/11 x64 tools only package Apple output and do not provide Windows gameplay. Use your own base NSP and 1.0.3 update v196608 for title 01004AB00A260000, plus prod.keys. Both NSPs are needed for shaders even when packing the base game. No separate firmware input is specified. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "An experimental Apple port of the Switch edition of Dark Souls: Remastered. Build locally on an Apple silicon Mac with your own base game and 1.0.3 update. The iOS download is an unsigned build component. Windows tools only package Apple output.",
     "original_game_title": "Dark Souls: Remastered — Switch edition",
     "project_url": "https://github.com/Nishikori-Yui/lordran-native",
     "listed_at": "2026-10-25",
@@ -18,7 +18,27 @@
       "game_slug": "dark-souls-remastered",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2949
+    "issue_number": 2949,
+    "manual_setup": {
+      "help_url": "https://github.com/Nishikori-Yui/lordran-native",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use both the base NSP and the 1.0.3 update NSP, v196608, for title 01004AB00A260000, plus prod.keys. Both packages are needed to prepare shaders even for the base version."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use Xcode on an Apple silicon Mac with the matching project source and shell. The iOS build targets version 26 or later. The ZIP still needs a build and signing before installation."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project has not confirmed Mac graphics or device compatibility. It specifies no separate firmware input."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

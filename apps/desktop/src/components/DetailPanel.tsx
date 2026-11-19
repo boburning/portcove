@@ -906,8 +906,10 @@ function StatusActionsGroupView({
 }
 
 const disclosureSummaryStyle =
-  "list-none [&::-webkit-details-marker]:hidden flex flex-wrap cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
-const disclosureMetaStyle = "ml-auto text-xs font-medium text-pc-muted-foreground";
+  "grid grid-cols-[minmax(0,1fr)_auto] cursor-pointer list-none items-start gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)] [&::-webkit-details-marker]:hidden";
+const disclosureTextStyle =
+  "flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1 [overflow-wrap:anywhere]";
+const disclosureMetaStyle = "ms-auto text-xs font-medium text-pc-muted-foreground";
 const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
 function requirementsGroupContext({
@@ -978,11 +980,13 @@ function RequirementsGroup({
         open={initiallyOpen}
       >
         <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
-          Game-file requirements and setup
-          <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>
-            {authoredSetup && !port.source_profile && !port.bios_source_profile
-              ? "Game instructions"
-              : "File controls"}
+          <span className={disclosureTextStyle}>
+            <span className="min-w-0">Game-file requirements and setup</span>{" "}
+            <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>
+              {authoredSetup && !port.source_profile && !port.bios_source_profile
+                ? "Game instructions"
+                : "File controls"}
+            </span>
           </span>
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
         </summary>
@@ -1271,7 +1275,7 @@ function FutureSetupDisclosure({
   return (
     <details className="future-setup-disclosure advanced-settings border-y border-pc-border">
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
-        {title}
+        <span className="min-w-0 [overflow-wrap:anywhere]">{title}</span>
         <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
       <div className={`advanced-body grid gap-4 ${disclosureBodyStyle}`}>
@@ -1913,9 +1917,11 @@ function TechnicalDetails({
   return (
     <details className="advanced-settings border-y border-pc-border">
       <summary data-focusable className={`advanced-summary ${disclosureSummaryStyle}`}>
-        Technical details{" "}
-        <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
-          {includeManagement ? "Commands and recorded checks" : "Recorded check identities"}
+        <span className={disclosureTextStyle}>
+          <span className="min-w-0">Technical details</span>{" "}
+          <span className={`advanced-summary-meta ${disclosureMetaStyle}`}>
+            {includeManagement ? "Commands and recorded checks" : "Recorded check identities"}
+          </span>
         </span>
         <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
       </summary>
@@ -3632,8 +3638,16 @@ function TechnicalCommandContinuity(
       port={model.port}
       status={model.status}
       channel={model.selectedChannel}
-      sourcePath={model.sources.sourcePath || model.sources.source?.path || ""}
-      biosPath={model.sources.biosPath || model.sources.bios?.path || ""}
+      sourcePath={model.sources.sourcePath}
+      biosPath={model.sources.biosPath ?? ""}
+      registered={{
+        game: Boolean(
+          model.sources.source && model.sources.source.profile_id === model.port.source_profile,
+        ),
+        bios: Boolean(
+          model.sources.bios && model.sources.bios.profile_id === model.port.bios_source_profile,
+        ),
+      }}
     />
   );
 }

@@ -172,14 +172,23 @@ void test("scheduled collection compares the consumed baseline before handing ch
         request: async (request: { url: string }) => {
           endpoints.push(request.url);
           return {
-            data: request.url.endsWith("commits/main")
-              ? { sha: revision }
-              : {
-                  id: 42,
-                  full_name: "sourcehold/OpenSHC",
-                  html_url: "https://github.com/sourcehold/OpenSHC",
-                  description: "reverse engineering reports",
-                },
+            data: request.url.endsWith("/repos/andrewnakas/recompsoftware")
+              ? {
+                  id: 1418451069,
+                  full_name: "andrewnakas/recompsoftware",
+                  default_branch: "releases/current",
+                }
+              : request.url.endsWith("/git/ref/heads/releases%2Fcurrent")
+                ? { object: { sha: revision } }
+                : request.url.endsWith("/git/ref/heads/main") ||
+                    request.url.endsWith("/commits/main")
+                  ? { object: { sha: "a".repeat(40) }, sha: "a".repeat(40) }
+                  : {
+                      id: 42,
+                      full_name: "sourcehold/OpenSHC",
+                      html_url: "https://github.com/sourcehold/OpenSHC",
+                      description: "reverse engineering reports",
+                    },
           };
         },
       },
@@ -192,6 +201,8 @@ void test("scheduled collection compares the consumed baseline before handing ch
     "newer bootstrap reads current and the already reviewed immutable baseline",
   );
   assert.ok(urls.every((url) => !url.includes("/main/")));
+  assert.ok(endpoints.some((url) => url.endsWith("/git/ref/heads/releases%2Fcurrent")));
+  assert.ok(endpoints.every((url) => !url.endsWith("/main")));
   assert.equal(
     endpoints.filter((url) => url.endsWith("/sourcehold/openshc")).length,
     1,

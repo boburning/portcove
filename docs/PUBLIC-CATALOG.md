@@ -1,8 +1,8 @@
 # Generated public catalog
 
-`scripts/public-catalog.mts` builds read-only pages from the existing generated
-descriptive directory and operational catalog. It does not create an editable
-catalog, a scheduler, a hosted service or an installation decision.
+`scripts/public-catalog.mts` builds read-only pages. It uses the generated
+directory of projects and the definitions Portcove uses to manage ports.
+Use the pages to browse and compare projects.
 
 Generate a development preview in a new output directory:
 
@@ -22,17 +22,20 @@ Implementations of a reviewed game have separate sections and comparison rows.
 Matching titles alone never group projects. Source editions remain separate from
 target platforms. A shared runtime never combines different original games.
 
-Search and platform/method filters use only the generated local index. The browser
-script `search.js` is stripped from checked `search.ts` by the pinned
-Node runtime. Publication needs no additional package install. The renderer
-fingerprint binds the TypeScript source, CSS and generator.
-All links remain in static HTML if JavaScript is disabled or the index cannot load. A failed
-index leaves a visible explanation and disables unavailable filters. Missing or
-unknown optional method metadata leaves the rest of the page useful.
+Search and filters use the generated local index. The pinned Node runtime
+removes types from checked `search.ts` to produce `search.js`. Publication needs
+no extra packages. The renderer fingerprint identifies the TypeScript source,
+CSS, and generator.
+
+If JavaScript is off or the index fails to load, the HTML still contains every
+link. If the index fails, the page explains the failure and turns off filters
+that need it. You can still use the page if some implementation details are
+missing or unknown.
 
 The projection copies only an explicit public field allowlist: descriptions,
 reviewed game identities and editions, upstream links, target platforms, optional
-method/dependency evidence, setup instructions, limitations and declared scoped
+method/dependency evidence, setup steps, optional reference titles and instructions
+under **Setup notes**, limitations and declared scoped
 check platforms. It excludes private maintenance data, user library records,
 local paths, credentials, arbitrary extra fields and artwork. External text is
 escaped and only HTTPS links without credentials are rendered. Input reads,

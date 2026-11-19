@@ -3,7 +3,7 @@
   "listing": {
     "id": "the-legend-of-zelda-breath-of-the-wild-macnativegames",
     "name": "The Legend of Zelda: Breath of the Wild (MacNativeGames)",
-    "summary": "An early Breath of the Wild Apple ARM64 rewrite with shared Horizon/NVN-to-Metal services and a local builder. The project reports Mac 1.6.0/1.9.0 opening, saves, Great Plateau and selected DLC scenes, with scene/version-specific performance and audio. iPhone 1.6.0 was played; iOS 1.9.0 was built but unplayed, and no visionOS route is established. Apple Silicon Mac needs macOS 26+/Metal 4; iOS needs 26+ and iPhone 14+. Python 3.14 build_app.py builds a local app or an IPA to sign/sideload; there is no published release. Back up the profile before rebuilding and launching an update; rollback does not establish backward save compatibility. Supply your own title 01007EF00011E000 base plus matching 1.6.0 or 1.9.0 NSP/NSZ update, prod.keys and firmware/shared fonts. Combined 1.6.0 cards with DLC or separate base/update without DLC are accepted. Optional 1.9.0 DLC titles 01007EF00011F001/002 must be supplied separately. Other update hashes are refused. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build the Switch edition of Breath of the Wild for Apple silicon Mac or iPhone using your own base game and a supported 1.6.0 or 1.9.0 update. The project reports Great Plateau play on Mac and iPhone play on 1.6.0.",
     "original_game_title": "The Legend of Zelda: Breath of the Wild",
     "project_url": "https://github.com/ly05010419/MacNativeGames",
     "listed_at": "2026-10-25",
@@ -18,7 +18,29 @@
       "game_slug": "the-legend-of-zelda-breath-of-the-wild",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2974
+    "issue_number": 2974,
+    "manual_setup": {
+      "help_url": "https://github.com/ly05010419/MacNativeGames",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use title 01007EF00011E000, the matching 1.6.0 or 1.9.0 update, your prod.keys and firmware or shared fonts. The project accepts combined 1.6.0 cards with DLC or a separate base and update without DLC. Supply any 1.9.0 DLC separately as titles 01007EF00011F001 and 01007EF00011F002."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use the project’s Python 3.14 build_app.py to build the Mac app or an IPA to sign and install. The Mac needs Apple silicon, macOS 26 or later and Metal 4. The iPhone route needs iOS 26 or later and an iPhone 14 or later."
+        }
+      ],
+      "warnings": [
+        "Back up the profile before rebuilding or launching an update. Keep the backup if you might return to the older version."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports Mac opening scenes, saves and selected DLC scenes. Sound and performance vary by scene and version. Its iOS 1.9.0 build has no play report."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

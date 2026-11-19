@@ -3,6 +3,8 @@
 
 use std::borrow::Cow;
 
+const ROUTES_PER_BATCH: usize = 256;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -49,13 +51,40 @@ impl crate::PortcoveService {
         request: &GameFileQueryRefreshRequest,
         emit: impl FnMut(crate::OperationEvent),
     ) -> crate::Result<GameFileQuerySnapshot> {
-        self.refresh_game_file_query_tracked(request, emit, || Ok(()))
+        require_explicit_route_bound(&request.routes)?;
+        self.refresh_game_file_query_tracked(request, emit, false, || Ok(()))
+    }
+
+    /// The desktop workspace may request one observation for all admitted definitions.
+    pub fn refresh_browsing_game_file_query_with_progress(
+        &self,
+        request: &GameFileQueryRefreshRequest,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> crate::Result<GameFileQuerySnapshot> {
+        if request.routes.len() > ROUTES_PER_BATCH {
+            let selection = &request.routes[0];
+            let mut ids = std::collections::HashSet::new();
+            if request.routes.len() > self.catalog().ports().len()
+                || request.routes.iter().any(|route| {
+                    route.route != selection.route
+                        || route.platform != selection.platform
+                        || route.channel != selection.channel
+                        || !ids.insert(&route.port_id)
+                })
+            {
+                return Err(crate::PortcoveError::usage(
+                    "browsing game-file refresh needs unique definitions for one selection",
+                ));
+            }
+        }
+        self.refresh_game_file_query_tracked(request, emit, true, || Ok(()))
     }
 
     fn refresh_game_file_query_tracked(
         &self,
         request: &GameFileQueryRefreshRequest,
         mut emit: impl FnMut(crate::OperationEvent),
+        browsing: bool,
         before_accept: impl FnOnce() -> crate::Result<()>,
     ) -> crate::Result<GameFileQuerySnapshot> {
         let started = std::time::Instant::now();
@@ -75,6 +104,7 @@ impl crate::PortcoveService {
                 elapsed: &elapsed,
                 maximum: std::time::Duration::from_millis(request.limits.max_elapsed_ms),
                 operation: Some(&operation),
+                browsing,
             },
             before_accept,
         );
@@ -93,6 +123,12 @@ impl crate::PortcoveService {
         requests: &[GameFileRouteRequest],
         maximum_age_seconds: u32,
     ) -> crate::Result<GameFileQuerySnapshot> {
+        require_explicit_route_bound(requests)?;
+        if batch.profile_ids.len() > ROUTES_PER_BATCH {
+            return Err(crate::PortcoveError::usage(
+                "game-file projection profile budget reached",
+            ));
+        }
         let started = std::time::Instant::now();
         let elapsed = || started.elapsed();
         self.game_file_query_snapshot_with_fence(
@@ -103,6 +139,7 @@ impl crate::PortcoveService {
                 elapsed: &elapsed,
                 maximum: std::time::Duration::from_secs(30),
                 operation: None,
+                browsing: false,
             },
         )
     }
@@ -115,13 +152,9 @@ impl crate::PortcoveService {
         fence: &QueryFence<'_>,
     ) -> crate::Result<GameFileQuerySnapshot> {
         use crate::{PortcoveError, source_batch::fingerprint};
-        if requests.is_empty()
-            || requests.len() > 256
-            || maximum_age_seconds == 0
-            || maximum_age_seconds > 1800
-        {
+        if requests.is_empty() || maximum_age_seconds == 0 || maximum_age_seconds > 1800 {
             return Err(PortcoveError::usage(
-                "game-file projection needs 1-256 unique routes and a bounded observation age",
+                "game-file projection needs unique routes and a bounded observation age",
             ));
         }
         for request in requests {
@@ -146,7 +179,7 @@ impl crate::PortcoveService {
         self.validate_game_file_batch(batch)?;
         // This catalog is immutable for the operation. Mutable route state is
         // still reread for every binding and final acceptance check.
-        let current_document = self.catalog().authoritative_document();
+        let current_catalog = QueryCatalogBinding::new(self.catalog(), fence.browsing)?;
         let now = crate::Library::now();
         let expires_at = batch
             .observed_at
@@ -155,9 +188,7 @@ impl crate::PortcoveService {
         let fresh = batch.observed_at > 0 && batch.observed_at <= now && now <= expires_at;
         let mut routes = Vec::with_capacity(requests.len());
         let mut bindings = Vec::with_capacity(requests.len());
-        for request in requests {
-            fence.checkpoint()?;
-            let selected = resolve_route(self, request)?;
+        visit_routes(self, requests, fence, |_, request, selected| {
             let context = selected.context(request);
             let observation = match context.requirements {
                 GameInputRequirements::Profile(profile) => {
@@ -188,18 +219,19 @@ impl crate::PortcoveService {
             };
             projection.route_instance_sha256 = selected.instance_sha256.clone();
             routes.push(projection);
-            bindings.push(selected.binding(request, &current_document)?);
-        }
+            bindings.push(current_catalog.bind(&selected, request)?);
+            Ok(())
+        })?;
         // Detect changes to current channel, active/external instance and retained
         // definition while constructing this observation. No source reinspection.
-        for (request, before) in requests.iter().zip(&bindings) {
-            fence.checkpoint()?;
-            if resolve_route(self, request)?.binding(request, &current_document)? != *before {
+        visit_routes(self, requests, fence, |index, request, selected| {
+            if current_catalog.bind(&selected, request)? != bindings[index] {
                 return Err(PortcoveError::conflict(
                     "selected game-file route changed during projection",
                 ));
             }
-        }
+            Ok(())
+        })?;
         self.validate_game_file_batch(batch)?;
         let snapshot = GameFileQuerySnapshot {
             schema_version: 1,
@@ -229,6 +261,7 @@ impl crate::PortcoveService {
         maximum_age_seconds: u32,
         operation: &crate::OperationCoordinator,
     ) -> crate::Result<GameFileQuerySnapshot> {
+        require_explicit_route_bound(requests)?;
         let started = std::time::Instant::now();
         let elapsed = || started.elapsed();
         self.refresh_game_file_query_with_fence(
@@ -239,6 +272,7 @@ impl crate::PortcoveService {
                 elapsed: &elapsed,
                 maximum: std::time::Duration::from_millis(limits.max_elapsed_ms),
                 operation: Some(operation),
+                browsing: false,
             },
             || Ok(()),
         )
@@ -254,17 +288,13 @@ impl crate::PortcoveService {
     ) -> crate::Result<GameFileQuerySnapshot> {
         use crate::PortcoveError;
         limits.validate()?;
-        if requests.is_empty()
-            || requests.len() > 256
-            || maximum_age_seconds == 0
-            || maximum_age_seconds > 1800
-        {
+        if requests.is_empty() || maximum_age_seconds == 0 || maximum_age_seconds > 1800 {
             return Err(PortcoveError::usage(
-                "game-file refresh needs 1-256 unique routes and bounded observation age",
+                "game-file refresh needs unique routes and bounded observation age",
             ));
         }
         fence.checkpoint()?;
-        let current_document = self.catalog().authoritative_document();
+        let current_catalog = QueryCatalogBinding::new(self.catalog(), fence.browsing)?;
         let mut profiles = std::collections::BTreeSet::new();
         let mut initial_bindings = Vec::with_capacity(requests.len());
         let mut unique = std::collections::HashSet::new();
@@ -281,7 +311,8 @@ impl crate::PortcoveService {
                     "game-file refresh routes must be unique",
                 ));
             }
-            let selected = resolve_route(self, request)?;
+        }
+        visit_routes(self, requests, fence, |_, request, selected| {
             if selected.context_complete
                 && selected.offered
                 && !selected.empty_requirements
@@ -294,8 +325,9 @@ impl crate::PortcoveService {
                     profiles.insert(profile.clone());
                 }
             }
-            initial_bindings.push(selected.binding(request, &current_document)?);
-        }
+            initial_bindings.push(current_catalog.bind(&selected, request)?);
+            Ok(())
+        })?;
         fence.checkpoint()?;
         let mut remaining = limits.clone();
         remaining.max_elapsed_ms = limits
@@ -319,17 +351,21 @@ impl crate::PortcoveService {
                 before_accept()?;
                 Ok((snapshot, batch))
             },
-            |(_, batch)| {
+            |(snapshot, batch)| {
                 fence.checkpoint()?;
                 self.validate_game_file_batch(batch)?;
-                for (request, before) in requests.iter().zip(&initial_bindings) {
-                    fence.checkpoint()?;
-                    if resolve_route(self, request)?.binding(request, &current_document)? != *before
-                    {
+                visit_routes(self, requests, fence, |index, request, selected| {
+                    if current_catalog.bind(&selected, request)? != initial_bindings[index] {
                         return Err(PortcoveError::conflict(
                             "selected game-file route changed during refresh",
                         ));
                     }
+                    Ok(())
+                })?;
+                if fence.browsing && crate::Library::now() > snapshot.expires_at {
+                    return Err(PortcoveError::conflict(
+                        "game-file observation expired during refresh",
+                    ));
                 }
                 fence.checkpoint()
             },
@@ -348,7 +384,6 @@ impl crate::PortcoveService {
         let (catalog, binding) = effective_binding(self.library())?;
         let records = self.library().sources_for(&batch.profile_ids)?;
         if batch.schema_version != 1
-            || batch.profile_ids.len() > 256
             || batch.observations.len() != batch.profile_ids.len()
             || batch.library != self.library().identity_record()?
             || binding != batch.catalog_binding_sha256
@@ -382,10 +417,55 @@ impl crate::PortcoveService {
     }
 }
 
+fn require_explicit_route_bound(requests: &[GameFileRouteRequest]) -> crate::Result<()> {
+    if requests.len() > ROUTES_PER_BATCH {
+        return Err(crate::PortcoveError::usage(
+            "explicit game-file queries accept at most 256 routes",
+        ));
+    }
+    Ok(())
+}
+
+enum QueryCatalogBinding {
+    Explicit(crate::CatalogDocument),
+    Browsing(String),
+}
+
+impl QueryCatalogBinding {
+    fn new(catalog: &Catalog, browsing: bool) -> crate::Result<Self> {
+        let document = catalog.authoritative_document();
+        if !browsing {
+            Ok(Self::Explicit(document))
+        } else {
+            Ok(Self::Browsing(crate::source_batch::fingerprint(&document)?))
+        }
+    }
+
+    fn bind(
+        &self,
+        selected: &ResolvedRoute<'_>,
+        request: &GameFileRouteRequest,
+    ) -> crate::Result<String> {
+        match self {
+            Self::Explicit(document) => selected.binding(request, document),
+            Self::Browsing(current_digest) => {
+                let digest = match &selected.catalog {
+                    Cow::Borrowed(_) => Cow::Borrowed(current_digest.as_str()),
+                    Cow::Owned(catalog) => Cow::Owned(crate::source_batch::fingerprint(
+                        &catalog.authoritative_document(),
+                    )?),
+                };
+                selected.binding_with(request, digest)
+            }
+        }
+    }
+}
+
 struct QueryFence<'a> {
     elapsed: &'a dyn Fn() -> std::time::Duration,
     maximum: std::time::Duration,
     operation: Option<&'a crate::OperationCoordinator>,
+    browsing: bool,
 }
 
 impl QueryFence<'_> {
@@ -449,9 +529,17 @@ impl ResolvedRoute<'_> {
             Cow::Borrowed(_) => Cow::Borrowed(current_document),
             Cow::Owned(catalog) => Cow::Owned(catalog.authoritative_document()),
         };
+        self.binding_with(request, document)
+    }
+
+    fn binding_with(
+        &self,
+        request: &GameFileRouteRequest,
+        catalog: impl Serialize,
+    ) -> crate::Result<String> {
         crate::source_batch::fingerprint(&(
             request,
-            document,
+            catalog,
             self.context_complete,
             self.offered,
             self.empty_requirements,
@@ -463,17 +551,63 @@ impl ResolvedRoute<'_> {
     }
 }
 
+fn visit_routes(
+    service: &crate::PortcoveService,
+    requests: &[GameFileRouteRequest],
+    fence: &QueryFence<'_>,
+    mut visit: impl FnMut(usize, &GameFileRouteRequest, ResolvedRoute<'_>) -> crate::Result<()>,
+) -> crate::Result<()> {
+    let mut connection = service.library().connection()?;
+    let transaction = connection.transaction()?;
+    let mut index = 0;
+    for batch in requests.chunks(ROUTES_PER_BATCH) {
+        fence.checkpoint()?;
+        let ports = batch
+            .iter()
+            .map(|request| {
+                let port = service.catalog().port(&request.port_id)?;
+                Ok((request.port_id.clone(), port.channels[0]))
+            })
+            .collect::<crate::Result<Vec<_>>>()?;
+        let (statuses, _) = service
+            .library()
+            .statuses_from_with_metrics(&transaction, &ports)?;
+        for (request, status) in batch.iter().zip(statuses) {
+            fence.checkpoint()?;
+            visit(
+                index,
+                request,
+                resolve_route_with_status(service, &transaction, request, &status)?,
+            )?;
+            index += 1;
+        }
+    }
+    transaction.commit()?;
+    Ok(())
+}
+
+#[cfg(test)]
 fn resolve_route<'a>(
     service: &'a crate::PortcoveService,
     request: &GameFileRouteRequest,
 ) -> crate::Result<ResolvedRoute<'a>> {
+    let default = service
+        .catalog()
+        .port(&request.port_id)
+        .map_or(crate::ReleaseChannel::Stable, |port| port.channels[0]);
+    let status = service.library().status(&request.port_id, default)?;
+    resolve_route_with_status(service, &service.library().connection()?, request, &status)
+}
+
+fn resolve_route_with_status<'a>(
+    service: &'a crate::PortcoveService,
+    connection: &rusqlite::Connection,
+    request: &GameFileRouteRequest,
+    status: &crate::PortStatus,
+) -> crate::Result<ResolvedRoute<'a>> {
     use crate::source_batch::fingerprint;
     let current = service.catalog().port(&request.port_id).ok();
     service.catalog().listing(&request.port_id)?;
-    let status = service.library().status(
-        &request.port_id,
-        current.map_or(crate::ReleaseChannel::Stable, |port| port.channels[0]),
-    )?;
     let mut selected = ResolvedRoute {
         catalog: Cow::Borrowed(service.catalog()),
         context_complete: true,
@@ -510,17 +644,16 @@ fn resolve_route<'a>(
             selected.offered = install.channel == request.channel && platform == request.platform;
         }
         GameFileRouteKind::ExternalLaunch => {
-            let (record, catalog) = match service
-                .library()
-                .external_runtime_with_port(&request.port_id)
-            {
-                Ok(Some(pair)) => pair,
-                Ok(None) => return Ok(selected),
-                Err(_) => {
-                    selected.context_complete = false;
-                    return Ok(selected);
-                }
-            };
+            let (record, catalog) =
+                match crate::Library::external_runtime_with_port_from(connection, &request.port_id)
+                {
+                    Ok(Some(pair)) => pair,
+                    Ok(None) => return Ok(selected),
+                    Err(_) => {
+                        selected.context_complete = false;
+                        return Ok(selected);
+                    }
+                };
             selected.catalog = Cow::Owned(catalog);
             selected.instance_sha256 = Some(fingerprint(&record)?);
             selected.release = Some((record.version.clone(), record.archive_sha256.clone()));
@@ -551,7 +684,7 @@ fn resolve_route<'a>(
         GameFileRouteKind::ManagedInstall => {
             selected.offered = crate::definition_eligibility::admission_route_exclusion(
                 current,
-                &status,
+                status,
                 request.platform,
                 crate::PortAction::Install,
             )
@@ -568,7 +701,7 @@ fn resolve_route<'a>(
         GameFileRouteKind::ExternalRegistration => {
             selected.offered = crate::definition_eligibility::admission_route_exclusion(
                 current,
-                &status,
+                status,
                 request.platform,
                 crate::PortAction::RegisterExternal,
             )
