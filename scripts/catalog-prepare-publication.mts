@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs, promisify } from "node:util";
@@ -210,6 +211,39 @@ export function assembleReviewedPublication(
   return { files: new Map([...reviewed, [target, contents]]), contents };
 }
 
+async function canonicalProjection(validator: string, draft: Buffer, deadline: number) {
+  const scratch = await mkdtemp(path.join(tmpdir(), "portcove-definition-projection-"));
+  try {
+    const input = path.join(scratch, "projection.json");
+    await writeFile(input, draft, { flag: "wx", mode: 0o600 });
+    const { stdout, stderr } = await run(
+      validator,
+      ["--json", "catalog", "canonical-definition-projection", input],
+      {
+        cwd: scratch,
+        env: await preparePayloadSigningEnvironment(path.join(scratch, "environment")),
+        timeout: Math.max(1, Math.floor(deadline - performance.now())),
+        maxBuffer: 2 * catalogDefinitionContentBytes + 4096,
+      },
+    );
+    const result: unknown = JSON.parse(stdout);
+    if (
+      stderr !== "" ||
+      !isRecord(result) ||
+      result.ok !== true ||
+      result.command !== "catalog.canonical-definition-projection" ||
+      typeof result.data !== "string"
+    )
+      throw new Error("Core did not produce a canonical definition projection");
+    const projection = Buffer.from(result.data);
+    if (projection.length === 0 || projection.length > catalogDefinitionContentBytes)
+      throw new Error("canonical projection exceeds its bound");
+    return projection;
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
 async function main(argv: string[]) {
   const [command, ...args] = argv;
   const { values } = parseArgs({
@@ -219,6 +253,7 @@ async function main(argv: string[]) {
         "catalog",
         "port",
         "projection-template",
+        "projection-producer",
         "prior",
         "reviewed",
         "validator",
@@ -242,16 +277,30 @@ async function main(argv: string[]) {
     path.resolve(requireString("projection-template")),
     catalogDefinitionContentBytes,
   );
-  const projection = generatedPublicationProjection(catalog, id, template);
+  const deadline = performance.now() + 90_000;
+  const validator = path.resolve(requireString("validator"));
+  const producer =
+    typeof values["projection-producer"] === "string"
+      ? path.resolve(requireString("projection-producer"))
+      : validator;
+  const toolFingerprint = async (file: string) =>
+    hash(await readControllerToolFile(file, 768 * 1024 ** 2));
+  const validatorHash = await toolFingerprint(validator);
+  const producerHash = producer === validator ? validatorHash : await toolFingerprint(producer);
+  const projection = await canonicalProjection(
+    producer,
+    generatedPublicationProjection(catalog, id, template),
+    deadline,
+  );
+  if ((await toolFingerprint(producer)) !== producerHash)
+    throw new Error("Core projection producer changed during preparation");
   if (command === "project") {
     process.stdout.write(projection);
     return;
   }
 
-  const deadline = performance.now() + 90_000;
   const priorDirectory = path.resolve(requireString("prior"));
   const reviewDirectory = path.resolve(requireString("reviewed"));
-  const validator = path.resolve(requireString("validator"));
   const parent = path.resolve(requireString("output-parent"));
   const prior = await readCatalogPublicationBundle(priorDirectory, deadline);
   const reviewed = await readCatalogPublicationBundle(
@@ -261,7 +310,6 @@ async function main(argv: string[]) {
   const request = await readControllerToolFile(path.join(reviewDirectory, "request.json"), 16_384);
   parseCatalogPublicationRequest(request);
   const { files, contents } = assembleReviewedPublication(prior, reviewed, id, projection);
-  const validatorHash = hash(await readControllerToolFile(validator, 768 * 1024 ** 2));
   const output = await mkdtemp(path.join(parent, "catalog-publication-"));
   const scratch = path.join(output, "inspection");
   let complete = false;
@@ -296,8 +344,10 @@ async function main(argv: string[]) {
     };
     await inspect(priorDirectory, prior);
     await inspect(bundle, files);
-    if (hash(await readControllerToolFile(validator, 768 * 1024 ** 2)) !== validatorHash)
+    if ((await toolFingerprint(validator)) !== validatorHash)
       throw new Error("Core validator changed during inspection");
+    if (producer !== validator && (await toolFingerprint(producer)) !== producerHash)
+      throw new Error("Core projection producer changed during inspection");
     await writeFile(path.join(output, "request.json"), request, { flag: "wx", mode: 0o600 });
     await rm(scratch, { recursive: true, force: true });
     complete = true;
@@ -312,6 +362,7 @@ async function main(argv: string[]) {
         prior_bundle_sha256: releaseCanonicalDigest(catalogPublicationInventory(prior)),
         bundle_sha256: releaseCanonicalDigest(catalogPublicationInventory(files)),
         validator_sha256: validatorHash,
+        projection_producer_sha256: producerHash,
         authority: "none",
       }),
     );
