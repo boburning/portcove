@@ -819,7 +819,7 @@ impl ActivationCommit<'_> {
     }
 }
 
-fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
+pub(crate) fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
     // verified/staged are mutable read-model flags, not durable install identity.
     left.id == right.id
         && left.port_id == right.port_id

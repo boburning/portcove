@@ -223,7 +223,11 @@ impl Leg {
     }
 }
 
-fn custody(original: &HeldFile, previous_sha256: &str, proposed_sha256: &str) -> FileCustody {
+pub(super) fn custody(
+    original: &HeldFile,
+    previous_sha256: &str,
+    proposed_sha256: &str,
+) -> FileCustody {
     FileCustody {
         path: original.path.clone(),
         parent_identity: original.parent_identity.clone(),
