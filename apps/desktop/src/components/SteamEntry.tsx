@@ -780,6 +780,9 @@ function SteamProfileFields({
   setSteamUserId: (value: string) => void;
   resetReview: () => void;
 }) {
+  const [installations, setInstallations] = useState<string[]>();
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string>();
   const [profiles, setProfiles] = useState<string[]>();
   const [listing, setListing] = useState(false);
   const [listError, setListError] = useState<string>();
@@ -792,6 +795,7 @@ function SteamProfileFields({
   );
   const changeRoot = (value: string) => {
     requestId.current += 1;
+    setDiscovering(false);
     setListing(false);
     setProfiles(undefined);
     setListError(undefined);
@@ -804,8 +808,23 @@ function SteamProfileFields({
     const selected = await pickSteamFolder(steamRoot);
     if (selected && requestId.current === currentRequest) changeRoot(selected);
   };
+  const findInstallations = async () => {
+    if (discovering || listing) return;
+    const currentRequest = ++requestId.current;
+    setDiscovering(true);
+    setInstallations(undefined);
+    setDiscoveryError(undefined);
+    try {
+      const roots = await desktopApi.discoverSteamClientRoots(generation);
+      if (requestId.current === currentRequest) setInstallations(roots);
+    } catch (error) {
+      if (requestId.current === currentRequest) setDiscoveryError(errorText(error));
+    } finally {
+      if (requestId.current === currentRequest) setDiscovering(false);
+    }
+  };
   const findProfiles = async () => {
-    if (!steamRoot.trim() || listing) return;
+    if (!steamRoot.trim() || listing || discovering) return;
     const currentRequest = ++requestId.current;
     setListing(true);
     setProfiles(undefined);
@@ -831,7 +850,6 @@ function SteamProfileFields({
             onChange={(event) => {
               changeRoot(event.target.value);
             }}
-            placeholder="C:\\Program Files (x86)\\Steam"
           />
           <Button
             data-focusable
@@ -847,7 +865,41 @@ function SteamProfileFields({
       <Button
         data-focusable
         variant="outline"
-        disabled={pending || listing || !steamRoot.trim()}
+        disabled={pending || discovering || listing}
+        onClick={() => void findInstallations()}
+      >
+        {discovering ? "Finding Steam installations…" : "Find Steam installations"}
+      </Button>
+      {discoveryError && <p role="alert">{discoveryError}</p>}
+      {installations && (
+        <div role="group" aria-label="Local Steam installations">
+          {installations.length === 0 ? (
+            <p>
+              No local Steam installations with profiles found. You can choose a folder manually.
+            </p>
+          ) : (
+            <ActionRow>
+              {installations.map((root) => (
+                <Button
+                  key={root}
+                  data-focusable
+                  variant={root === steamRoot ? "selected" : "outline"}
+                  disabled={pending}
+                  aria-pressed={root === steamRoot}
+                  className="h-auto min-w-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+                  onClick={() => changeRoot(root)}
+                >
+                  <bdi>{root}</bdi>
+                </Button>
+              ))}
+            </ActionRow>
+          )}
+        </div>
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={pending || listing || discovering || !steamRoot.trim()}
         onClick={() => void findProfiles()}
       >
         {listing ? "Finding profiles…" : "Find local profiles"}

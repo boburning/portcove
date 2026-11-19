@@ -1,3 +1,4 @@
+import { CatalogFallbackReason } from "./CatalogFallbackReason";
 import { SettingsRow } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -138,50 +139,13 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
         <CatalogFallbackReason
           key={`${index}:${reason}`}
           reason={reason}
+          code={provenance.fallback_codes?.[index]}
           position={index + 1}
           count={provenance.fallback_reasons.length}
         />
       ))}
     </>
   );
-}
-
-function CatalogFallbackReason({
-  reason,
-  position,
-  count,
-}: {
-  reason: string;
-  position: number;
-  count: number;
-}) {
-  const { t } = useAppTranslation("catalogUpdates");
-  return (
-    <div className="catalog-fallback-reason">
-      <p>{catalogFallbackSummary(t, reason)}</p>
-      <details>
-        <summary
-          data-focusable
-          aria-label={t("custom.fallbackDetailsLabel", { position, total: count })}
-        >
-          {t("custom.technicalDetails")}
-        </summary>
-        <code className="[overflow-wrap:anywhere]">{reason}</code>
-      </details>
-    </div>
-  );
-}
-
-// Known limitation: Core reports fallback reasons as English diagnostics without
-// stable codes, so this classifier still matches their text. Unknown reasons use
-// the generic message; the original diagnostic stays visible verbatim.
-function catalogFallbackSummary(t: TFunction<"catalogUpdates">, reason: string) {
-  if (reason.includes("selected definition was not loaded")) return t("custom.fallbackNotLoaded");
-  if (reason.includes("replay floor")) return t("custom.fallbackReplay");
-  if (reason.includes("signing key is not trusted")) return t("custom.fallbackUntrusted");
-  if (reason.includes("signature verification failed")) return t("custom.fallbackSignature");
-  if (reason.includes("validity interval")) return t("custom.fallbackExpired");
-  return t("custom.fallbackGeneric");
 }
 
 export function CatalogUpdatesDialog({
@@ -692,7 +656,14 @@ function ListingDeliveryControls({
             : t("listings.builtIn")}
         </p>
       )}
-      {status?.fallback_reason && <p>{status.fallback_reason}</p>}
+      {status?.fallback_reason && (
+        <CatalogFallbackReason
+          reason={status.fallback_reason}
+          code={status.fallback_code}
+          position={1}
+          count={1}
+        />
+      )}
       <details>
         <summary>{t("listings.settings")}</summary>
         <p>{t("listings.description")}</p>

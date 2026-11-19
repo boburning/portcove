@@ -167,7 +167,9 @@ Attempt-bound artifacts retain their producer/consumer chain. Changed artifact
 inputs require rerunning that chain; cross-run checks cannot fill missing jobs.
 Set the absolute UTC deadline once from the actual job start and configured
 timeout, with a bounded allowance for collecting results; track queue time
-separately. Resume with the same run, attempt, head and deadline. The former
+separately. For a queued workflow with no job start, record a finite absolute
+observation cutoff and keep it on restart. Job execution is unmeasured until a
+job actually starts. Resume with the same run, attempt, head and deadline. The former
 invocation-relative `--timeout-seconds` option is removed because restarting it
 extended the wait. The watcher polls silently every three minutes, caps its last
 sleep to the deadline, and stops on changed identity, failed checks, terminal
@@ -252,6 +254,16 @@ prevent arbitrary GitHub UI/API edits, and GitHub supplies no atomic relationshi
 precondition alongside the merge SHA guard. Hosted conventions remain advisory;
 existing acceptance, review, current-target/composed-tree and merge authority
 requirements remain separate.
+
+### Local Codex handoff
+
+Use the [local Codex PR handoff](DEVELOPMENT-TOOLS.md#local-codex-pr-handoff)
+when the host can durably accept the owning thread UUID. Managed observations use
+the same exact-head evaluator. They allow a successful workflow's missing
+required evidence to publish until the recorded deadline, and surface the
+missing evidence if it never arrives. A queue receipt or a watcher notification
+grants no review, acceptance or merge authority. On wake, claim the event and
+re-read the current PR before taking the already-authorized action.
 
 ### Connector delivery
 

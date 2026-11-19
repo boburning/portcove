@@ -48,8 +48,7 @@
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/djultra64/ISS2000/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["ISS2000-Windows-", ".zip"],
-      "linux-x86-64": ["ISS2000-Linux-", ".zip"]
+      "windows-x86-64": ["ISS2000-Windows-", ".zip"]
     },
     "recommended_download_channel": "stable"
   },
@@ -65,6 +64,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable", "beta"],

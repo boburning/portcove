@@ -7,8 +7,8 @@ on 2026-11-13. It replaces the unattended release engine recorded in the
 [historical runbook](archive/retired-release-engine.md).
 Releases do not depend on AI review.
 
-**A `v*` tag on protected `main` is the release decision.** Only the owner, or
-an agent acting through the owner's account, can create `v*` tags.
+A `v*` tag on protected `main` is the release decision. Only the owner or an
+agent acting through the owner's account can create `v*` tags.
 [`app-release.yml`](../.github/workflows/app-release.yml) classifies the tag and
 confirms that the commit is on `main` and that its `CI` run succeeded. It then
 calls the shared jobs in
@@ -16,14 +16,16 @@ calls the shared jobs in
 
 1. Refuse inputs that disagree with the version's channel, tag or signing
    environment.
-2. Stamp the version, then build the Windows NSIS installer, Linux AppImage,
+2. Read the [application release profile](../scripts/app-release.mts) at the
+   selected source commit. Stamp the version, then build the Windows NSIS installer, Linux AppImage,
    and universal macOS app and DMG. Sign the updater assets with the Tauri
    updater key. macOS builds are ad-hoc signed. Build and smoke-test standalone
    CLI archives from the same source and version for Windows x86-64, Linux
    x86-64, and both Apple Silicon and Intel macOS.
 3. Check the complete asset set before publishing the immutable GitHub Release.
-   Generate the download chooser from the uploaded assets when publishing the
-   draft. `SHA256SUMS` covers the Desktop packages, updater payloads and
+   Generate the download chooser from the same profile and the uploaded asset
+   inventory when publishing the draft. Recheck the published inventory before
+   writing the updater aliases from its signatures. `SHA256SUMS` covers the Desktop packages, updater payloads and
    signatures, and standalone CLI archives.
 4. Write `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
    branch, which GitHub Pages serves. Older feeds are never overwritten by a
@@ -41,19 +43,21 @@ Previews are pre-releases of the _next_ version, for example
 `v*` and `nightly-*` tags name versions in the same sequence. Every new release
 must be newer than both, so `0.1.0` can follow `nightly-0.1.0-preview.3`.
 
-**To release**, from a clean checkout of the current `origin/main`:
+If your checkout matches the current `origin/main` and has no uncommitted
+changes, run the release command:
 
 ```sh
 PORTCOVE_RELEASE_NOTES_FILE=notes.md just release 0.1.1
 ```
 
-The command refuses in these cases: the checkout is not exactly `origin/main`,
-there are uncommitted changes, the version is not greater than every existing
-`v*` and `nightly-*` tag, or `CI` has not succeeded on that commit. If none
-apply, it pushes an annotated tag whose message becomes the release notes. An
-agent asked to "review and release X.Y.Z" reviews the changes since the last
-tag, writes the notes, and runs the same command. The owner's request is the
-authorization. Only Stable waits for the owner's approval on the
+The command requires a clean checkout of the exact `origin/main` commit. It also
+requires a successful `CI` run on that commit. The version must be greater than
+every existing `v*` and `nightly-*` release version. If these checks pass, the
+command pushes an annotated tag. The tag message becomes the release notes.
+
+If the owner asks an agent to "review and release X.Y.Z", the request authorizes
+the release. Review changes since the last tag. Write the notes. Run the same
+command. Only Stable waits for the owner's approval on the
 `release-stable` environment.
 
 **Before calling a Beta release supported** on a platform, record its install
@@ -123,6 +127,22 @@ version.
 - **Failures:** if a build or publish job fails, re-run the failed jobs. A full
   re-run skips the already tagged commit, and the next nightly with new commits
   takes the next N.
+
+**Failed-nightly reporting.** [The failure reporter](../.github/workflows/nightly-failure-report.yml)
+listens for completed Nightly preview runs independently of the build jobs.
+A failure or cancellation creates a GitHub issue assigned to the repository
+owner. It records the triggering attempt, workflow commit, job outcomes and
+available failure evidence. Each further failed attempt adds one comment to
+the same issue and reopens it if needed. The original report and manual
+diagnosis stay in the issue body. GitHub delivers assignment notifications
+according to the owner's notification settings.
+
+Job outcomes link to the relevant logs and annotations. The report identifies
+a known hosted-runner acquisition failure when GitHub supplies that annotation.
+It reads metadata only and has no checkout, signing inputs or release write
+permission. If job metadata is unavailable, the issue still records the run
+and attempt. A successful attempt creates no failure report. Verify the
+release assets and Preview feed before closing a failure issue.
 
 **Withdrawing a release.** The owner runs
 [`withdraw-release.yml`](../.github/workflows/withdraw-release.yml) from `main`

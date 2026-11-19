@@ -260,10 +260,12 @@ it("requires explicit review, invalidates changed candidates and uses core prove
 
 it("keeps fallback diagnostics in distinct technical disclosures with safe summaries", () => {
   const reasons = [
+    "Publisher trust changed",
+    "Cache dates are inconsistent",
+    "Definition restoration is temporarily unavailable",
+    "Selected definition was rejected: signer threshold unavailable",
+    "A saved listing directory was not selected",
     "catalog signing key is not trusted",
-    "catalog sequence or validity interval is invalid, future-dated, or expired",
-    "selected definition was not loaded: future internal diagnostic",
-    "future cache lease expired during recovery",
     "future opaque catalog diagnostic",
   ];
   const html = renderToStaticMarkup(
@@ -276,22 +278,34 @@ it("keeps fallback diagnostics in distinct technical disclosures with safe summa
         key_id: null,
         expires_at: null,
         fallback_reasons: reasons,
+        fallback_codes: [
+          "untrusted_key",
+          "invalid_validity",
+          "selected_definition_unavailable",
+          "signature_invalid",
+          "listing_directory_unavailable",
+          "unknown",
+        ],
       }}
     />,
   );
   expect(html).toContain("signed by a publisher that is no longer trusted");
   expect(html).toContain("expired or had invalid dates");
   expect(html).toContain("selected catalog definition could not be loaded");
+  expect(html).toContain("did not pass signature verification");
   expect(html).toContain("A saved catalog could not be used");
   const host = document.createElement("div");
   host.innerHTML = html;
   const disclosures = [...host.querySelectorAll(".catalog-fallback-reason details")];
   expect(disclosures).toHaveLength(reasons.length);
   expect(
-    fixtureValue(disclosures[3], "disclosures[3]").parentElement?.querySelector("p")?.textContent,
+    fixtureValue(disclosures[5], "disclosures[5]").parentElement?.querySelector("p")?.textContent,
   ).toBe(
     "A saved catalog could not be used. Portcove continued with the available catalog information.",
   );
+  expect(
+    fixtureValue(disclosures[4], "listing fallback").parentElement?.querySelector("p")?.textContent,
+  ).toBe("Portcove could not use the saved listing directory.");
   for (const [index, reason] of reasons.entries()) {
     expect(html).toContain(
       `aria-label="Technical details for catalog fallback ${index + 1} of ${reasons.length}"`,
@@ -317,15 +331,21 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
     expires_at: null,
     listing_count: 0,
     withdrawn_ids: [],
-    fallback_reason: null,
+    fallback_reason: "The saved listing directory could not be read",
+    fallback_code: "listing_directory_unavailable",
   } satisfies Awaited<ReturnType<typeof desktopApi.listingDeliveryStatus>>;
   const read = vi
     .spyOn(desktopApi, "listingDeliveryStatus")
     .mockRejectedValueOnce(new Error("Status unavailable"))
     .mockResolvedValue(initial);
-  const apply = vi
-    .spyOn(desktopApi, "refreshCatalogListings")
-    .mockResolvedValue({ ...initial, revision: 2, selected: true, listing_count: 1 });
+  const apply = vi.spyOn(desktopApi, "refreshCatalogListings").mockResolvedValue({
+    ...initial,
+    revision: 2,
+    selected: true,
+    listing_count: 1,
+    fallback_reason: null,
+    fallback_code: null,
+  });
   const changed = vi.fn().mockResolvedValue(undefined);
   const host = document.createElement("div");
   document.body.append(host);
@@ -336,10 +356,27 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
       .element(page.getByRole("alert"))
       .toMatchTextContent("Game listing status is unknown");
     await page.getByRole("button", { name: "Retry listing status", exact: true }).click();
+    const builtIn = page.getByText("Using the built-in directory", { exact: true });
+    await expect.element(builtIn).toBeVisible();
+    expect(builtIn.elements()).toHaveLength(1);
     await expect
-      .element(page.getByText("Using the built-in directory", { exact: true }))
+      .element(
+        page.getByText("Portcove could not use the saved listing directory.", { exact: true }),
+      )
       .toBeVisible();
     expect(read).toHaveBeenCalledTimes(2);
+    expect(apply).not.toHaveBeenCalled();
+    const diagnostic = page.getByText(initial.fallback_reason, { exact: true });
+    await expect.element(diagnostic).not.toBeVisible();
+    const details = page.getByText("Technical details", { exact: true });
+    await expect
+      .element(details)
+      .toHaveAttribute("aria-label", "Technical details for catalog fallback 1 of 1");
+    await details.click();
+    await expect.element(diagnostic).toBeVisible();
+    await expect
+      .element(page.getByRole("textbox", { name: "Catalog metadata address" }))
+      .not.toBeVisible();
     expect(apply).not.toHaveBeenCalled();
     await page.getByText("Listing refresh settings", { exact: true }).click();
     await page

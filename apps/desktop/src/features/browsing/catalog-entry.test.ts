@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition, portStatus } from "../../test-fixtures";
 import type {
   CatalogMediaAsset,
@@ -434,6 +434,75 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
   };
   const current = Date.parse("2026-10-27T06:00:00Z");
   expect(listingAvailabilityLabel(observed, current)).toBe("Package candidates observed");
+  const other = {
+    ...listing,
+    id: "other-project",
+    platforms: [],
+    availability: "unknown",
+  } as const;
+  const featured = (candidate: PortListing, now: number) => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const entries = catalogEntries(
+        undefined,
+        { format_version: 1, listings: [{ ...other, platforms: [] }, candidate] },
+        [],
+        [],
+      );
+      return filterPorts(entries, new Map(), "catalog", "all", "", "catalog", {
+        devicePlatform: "windows-x86-64",
+      })[0]?.id;
+    } finally {
+      clock.mockRestore();
+    }
+  };
+  expect(featured(observed, current)).toBe(observed.id);
+  const linux = catalogEntries(
+    undefined,
+    {
+      format_version: 1,
+      listings: [
+        { ...other, platforms: [] },
+        { ...observed, availability: "packages", platforms: ["linux-x86-64"] },
+      ],
+    },
+    [],
+    [],
+  );
+  expect(
+    filterPorts(
+      linux,
+      new Map(),
+      "catalog",
+      "all",
+      "",
+      "catalog",
+      {
+        devicePlatform: "linux-x86-64",
+      },
+      current,
+    )[0]?.id,
+  ).toBe(observed.id);
+  expect(featured(observed, Date.parse("2026-10-28T00:00:00Z"))).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        upstream_observation: { ...observed.upstream_observation!, status: "incomplete" },
+      },
+      current,
+    ),
+  ).toBe(other.id);
+  expect(
+    featured(
+      {
+        ...observed,
+        availability_override_reason: "Reviewed distribution restriction",
+      },
+      current,
+    ),
+  ).toBe(other.id);
+
   expect(listingAvailabilityLabel(gitlab, current)).toBe(
     listingAvailabilityLabel(observed, current),
   );
@@ -486,7 +555,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(unknown, current)).toBe(
-    "Package availability unknown (check unavailable)",
+    "Source only. Package availability unknown (check unavailable)",
   );
   const assetsOnly = {
     ...observed,
@@ -507,6 +576,6 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
     },
   };
   expect(listingAvailabilityLabel(assetsOnly, current)).toBe(
-    "Release assets observed; package availability unknown",
+    "Source only. Release assets observed; package availability unknown",
   );
 });
