@@ -2070,7 +2070,7 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
     let baseline = fixture();
     let stable_id = baseline["stable_id"].as_str().unwrap();
     for (key, changed) in [
-        ("definition_schema", json!(2)),
+        ("definition_schema", json!(3)),
         ("namespace", json!("community")),
         ("stable_id", json!("different-port")),
         ("revision", json!(2)),
