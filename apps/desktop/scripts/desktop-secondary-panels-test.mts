@@ -451,7 +451,19 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         });
         assert.ok(choice);
         await clickVisible(browser, choice);
-        await browser.actions().sendKeys(Key.ARROW_DOWN, Key.ENTER).perform();
+        const [alternativeOriginal] = fixtures.original.instances;
+        assert.ok(alternativeOriginal);
+        const alternativeName = path.basename(alternativeOriginal.path);
+        const alternative = await browser.wait(
+          until.elementLocated(
+            By.xpath(
+              `//*[@role="option"][contains(normalize-space(.),${JSON.stringify(alternativeName)})]`,
+            ),
+          ),
+          5_000,
+          "The reviewed alternative original must be available in the open list",
+        );
+        await clickVisible(browser, alternative);
         await observedAction("select_mod_setup_original", () => click(button("Use this original")));
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-original-refused`, original);
