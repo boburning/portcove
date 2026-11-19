@@ -2664,24 +2664,22 @@ Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRunti
 ### Installing from GameBanana and Thunderstore
 
 ```text
-portcove --library PATH --json profile provider-browse PORT_ID [--page N]
-portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID
-portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID > plan.json
+portcove --library PATH --json profile provider-browse PORT_ID [--page N] [--provider PROVIDER]
+portcove --library PATH --json profile provider-project PORT_ID PROJECT_ID [--provider PROVIDER]
+portcove --library PATH --json profile provider-plan PORT_ID PROFILE_ID PROJECT_ID FILE_ID [--provider PROVIDER] > plan.json
 portcove --library PATH --json profile provider-apply PORT_ID PROFILE_ID plan.json --expected-plan SHA256 [--allow-mod-code] --yes
 ```
 
-A game has at most one reviewed provider binding, and the same commands work for
-either provider. Ship of Harkinian is bound to GameBanana game 16121, where a mod is
+A port can offer more than one reviewed provider. Use `--provider gamebanana` or
+`--provider thunderstore` to select a binding. Ship of Harkinian is bound to
+GameBanana game 16121, where a mod is
 a number and a file is a number. Zelda 64: Recompiled is bound to the Thunderstore
 community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
 of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
 the only byte identity, and a version Thunderstore no longer offers cannot be
 installed. Thunderstore listings are read once per community, conditionally and
-cached, and shown in Thunderstore's order. Desktop browses either provider the same
-way; when a reviewed file contains mods that run code, it names them, says Portcove
-cannot tell whether the code is safe, and installs only through **Allow their code and
-install** (or **Allow its code and install** for one mod), which consents to exactly
-that reviewed plan.
+cached, and shown in Thunderstore's order. Desktop names the reviewed mods that run
+code and asks for permission to apply those exact files.
 
 Desktop's **Mods** workspace uses the same reviewed bindings and exact file identities.
 **Browse mods** searches, filters, and sorts the available catalog before paging.

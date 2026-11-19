@@ -43,6 +43,13 @@ function metric(project: Project, sort: Sort) {
   return project.listing?.[sort] ?? undefined;
 }
 
+function catalogSearchText(value: string) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[\s_-]+/gu, " ")
+    .trim();
+}
+
 export function modProjectKey(
   provider: string,
   project: string,
@@ -144,7 +151,7 @@ export function ModProviderCatalog({
   };
   const isInstalled = (project: Project) =>
     installed.has(modProjectKey(project.provider, project.project_id, project.game_id));
-  const term = query.trim().toLocaleLowerCase();
+  const term = catalogSearchText(query);
   const matching = projects.filter((project) => {
     if (installation !== "all" && isInstalled(project) !== (installation === "only")) return false;
     if (
@@ -154,8 +161,8 @@ export function ModProviderCatalog({
       return false;
     return (
       !term ||
-      [project.name, project.submitter, project.version, project.project_id].some((value) =>
-        value?.toLocaleLowerCase().includes(term),
+      [project.name, project.submitter, project.version, project.project_id].some(
+        (value) => value != null && catalogSearchText(value).includes(term),
       )
     );
   });

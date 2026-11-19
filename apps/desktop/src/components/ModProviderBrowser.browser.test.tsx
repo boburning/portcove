@@ -306,17 +306,20 @@ it("offers a second same-port source and labels cached results and failed refres
     .mockImplementation(async (_port, source) =>
       source === "gamebanana"
         ? catalog([])
-        : catalog([mod("Author-Package", "Package", "thunderstore")], "stale"),
+        : catalog([mod("TSEG-Too_Many_Torches", "Too_Many_Torches", "thunderstore")], "stale"),
     );
   await render({ sources: ["gamebanana", "thunderstore"] });
   expect(read).not.toHaveBeenCalled();
   await page.getByRole("combobox", { name: /Source/ }).click();
   await page.getByRole("option", { name: "GameBanana" }).click();
+  const search = page.getByRole("searchbox", { name: "Search mods" });
+  await search.fill("Too Many Torches");
   await page.getByRole("button", { name: "Browse Thunderstore" }).click();
+  await expect.element(search).toHaveValue("Too Many Torches");
   await expect
     .element(page.getByText("The source could not be reached. Showing saved results."))
     .toBeVisible();
-  await expect.element(page.getByRole("button", { name: /Package/ })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Too_Many_Torches" })).toBeVisible();
   read.mockRejectedValueOnce(new Error("Unavailable"));
   await page.getByRole("button", { name: "Refresh" }).click();
   await expect
