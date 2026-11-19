@@ -179,6 +179,16 @@ jobs:
             printf '## Hosted Actions throughput\n\nObservation unavailable. See the sampling step log.\n' >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+      - name: Measure the imported observer attempt
+        if: ${{ !cancelled() && steps.report.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/maintenance-inventory.mts observer-usage \
+            --report work/maintenance-report/report/inventory.json \
+            --output work/maintenance-report/observer-operating-usage.json
       - name: Record run evidence
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 2
