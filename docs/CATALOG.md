@@ -41,11 +41,16 @@ platforms, package identities or setup routes. Desktop shows them under **How th
 project works** in details and comparison; **Implementation technique** is a
 separate filter from installation method. No provider request is needed to read it.
 
-ScummVM illustrates the runtime distinction: an individual game keeps its own
-reviewed original-game ID and source editions, while a `runtime` relationship may
-explain **Engine reimplementation · ScummVM**. There are no ScummVM game records
-in the inspected baseline, so this change exercises that shape in a fixture rather
-than inventing an integration or grouping all ScummVM games together.
+ScummVM listings keep each game's own original-game ID and reviewed game data
+edition. Each uses a `runtime` relationship to identify the shared ScummVM player.
+The compatibility chart describes upstream support by engine and game ID.
+The setup steps name the verified data archive and explain how to launch a saved
+ScummVM target. ScummVM owns its profile and save locations, and the selected
+package route determines who updates the runtime.
+See [ScummVM's default save locations](https://docs.scummvm.org/en/latest/use_scummvm/save_load_games.html#location-of-saved-game-files)
+and [direct launch with a saved target](https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game).
+The [shared player example](reference/scummvm.md) shows how to register two game
+targets against the same upstream installation.
 
 Descriptions require listing format 12. Formats 5 through 11 exported for older
 strict readers omit only this inert field; ordinary requirements and restrictions
@@ -2286,7 +2291,9 @@ one of the `reviewed_artifacts`.
 A hold with `excluded_artifacts` identifies excluded packages by version and
 SHA-256. If the selected platform's package matches an exclusion, Core looks for
 a `reviewed_artifacts` match on that platform and channel and includes the hold
-reason in the install plan. The fallback must match the reviewed digest using
+reason in the install plan. Release observations record `reviewed-artifact-excluded`
+for the candidate and retain the selected fallback as its own result. The fallback
+must match the reviewed digest using
 GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
 checks. An excluded package cannot be activated from staging or recovery.
 Installed copies retain their existing Play, backup and removal checks. A player

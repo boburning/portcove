@@ -44,6 +44,12 @@
       ],
       "warnings": [
         "Select the root Relic of the Past.exe with Update.exe and current/ retained. Preserve %APPDATA%/relic-of-the-past or the already active adjacent data/ folder, including imported originals and every profile; do not create a new portable data root during registration."
+      ],
+      "references": [
+        {
+          "title": "Use the upstream Android prerelease",
+          "instruction": "Relic of the Past v0.21.3 publishes rotp-android.apk with ARM64 libraries. The prerelease adds touch controls, a layout editor and save-state controls. Follow the project’s release instructions for its Android app and keep the existing profile when replacing it."
+        }
       ]
     },
     "original_game": {
