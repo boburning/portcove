@@ -159,6 +159,19 @@ async fn wario_land_4_linux_publication_does_not_displace_the_windows_beta() {
             assert_eq!(selected.id, player.id, "competitor: {competitor}");
         }
     }
+    let mut second_client: GithubAsset = serde_json::from_value(asset(
+        "WarioLand4-Native-PC-Port-v0.3.2-alternate-beta-Windows-x64.zip",
+        Some('b'),
+    ))
+    .unwrap();
+    second_client.id = Some(987_654_321);
+    for assets in [
+        [player.clone(), second_client.clone()],
+        [second_client, player.clone()],
+    ] {
+        let error = choose_asset(&port, windows, &assets).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+    }
 }
 
 fn every_asset_order<T>(assets: &mut [T], cursor: usize, check: &mut impl FnMut(&[T])) {
