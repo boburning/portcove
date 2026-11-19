@@ -4427,7 +4427,10 @@ export async function preparationScenarios({
       );
     };
     const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
-    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+    const authoredGame = port.presentation?.original_game?.id;
+    const favoriteId = authoredGame ? `game-${authoredGame}` : `port-${port.id}`;
+    const favoriteName = authoredGame ? gameTitle(port) : gameIdentityLabel(port);
+    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${favoriteName}"]`);
     const closeMembershipMenu = async (allowRemovedTrigger = false) => {
       const menu = By.xpath(
         `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
@@ -4456,6 +4459,7 @@ export async function preparationScenarios({
       const initial = await organization();
       const initialFavorites = await favorites();
       assert.equal(initialFavorites.includes(port.id), false, "Owned fixture starts unfavorited");
+      assert.equal(initial.saved_game_ids.includes(favoriteId), false);
       assert.ok(!Object.values(initial.collections).some((entry) => entry.name === collectionName));
       await manageCollections();
       await browser
@@ -4486,12 +4490,16 @@ export async function preparationScenarios({
       );
       await closeMembershipMenu();
       await click(favorite());
-      await browser.wait(async () => (await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => (await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
       await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 5_000);
       await capture("membership-favorite-saved");
       const persisted = await organization();
       const savedFavorites = await favorites();
+      assert.deepEqual(savedFavorites, initialFavorites);
       browser = await restartApplication("native-organization-persisted");
       await browser.manage().window().setRect({ width: 1280, height: 900 });
       await libraryView();
@@ -4521,7 +4529,10 @@ export async function preparationScenarios({
       await browser.wait(async () => !(await organization()).collections[collectionId], 15_000);
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await click(favorite());
-      await browser.wait(async () => !(await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => !(await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       const final = await organization();
       assert.deepEqual(final.collections, initial.collections);
       assert.deepEqual(await favorites(), initialFavorites);

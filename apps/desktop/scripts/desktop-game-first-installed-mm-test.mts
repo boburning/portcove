@@ -34,7 +34,7 @@ import {
   openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
-import { gameIdentityLabel, gameProjectLabel } from "../src/port-identity.ts";
+import { gameTitle, gameProjectLabel } from "../src/port-identity.ts";
 
 const scenarioId = "native-game-first-installed-mm";
 import { gameFirstMMHarnessDeadlineMs } from "../../../scripts/desktop-scenarios.mts";
@@ -582,8 +582,12 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       const chosen = required(
         required((await read()).workspace.catalog).ports.find((item) => item.id === portId),
       );
-      await click(By.css(`button[aria-label="Favorite ${gameIdentityLabel(chosen)}"]`));
-      await browser.wait(async () => (await favorites()).includes(portId), 15_000);
+      await click(By.css(`button[aria-label="Favorite ${gameTitle(chosen)}"]`));
+      await browser.wait(
+        async () => (await read()).organization.saved_game_ids.includes(`game-${gameId}`),
+        15_000,
+      );
+      assert.equal((await favorites()).includes(portId), false);
       const installedBeforeFilters = pair.map(async (id) => required((await row(id)).active));
       const activeRecords = await Promise.all(installedBeforeFilters);
       const filter = (method: "portable-package" | "portable-recompilation") =>

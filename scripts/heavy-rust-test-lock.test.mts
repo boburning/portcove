@@ -770,6 +770,116 @@ void test("legacy Unix process-group metadata blocks automatic reclamation", () 
   );
 });
 
+void test("Windows signal-zero absence skips CIM while possible liveness retains creation identity", () => {
+  for (const code of [
+    undefined,
+    false,
+    "ESRCH",
+    "EPERM",
+    "EACCES",
+    "EIO",
+    "ERR_OUT_OF_RANGE",
+    "unclassified",
+  ] as const) {
+    const calls: unknown[] = [];
+    const identity = readProcessIdentity(980, {
+      platform: "win32",
+      signalZero: (pid, signal) => {
+        calls.push([pid, signal]);
+        if (code === "unclassified") throw new Error("unclassified existence failure");
+        if (code) throw Object.assign(new Error("existence probe"), { code });
+        return code;
+      },
+      spawnSync: (command, args, options) => {
+        calls.push("CIM");
+        assert.equal(command, "pwsh.exe");
+        assert.ok(args.at(-1)?.includes("ProcessId = 980"));
+        assert.equal(options.timeout, 15_000);
+        return { status: 0, stdout: "639306200352970610", stderr: "" };
+      },
+    });
+    assert.equal(identity, code === "ESRCH" ? null : "win32:980:639306200352970610");
+    assert.deepEqual(calls, code === "ESRCH" ? [[980, 0]] : [[980, 0], "CIM"]);
+  }
+});
+
+void test("uncertain Windows existence retains the original CIM timeout failure", () => {
+  for (const code of [undefined, "EPERM", "EIO"] as const) {
+    const error = Object.assign(new Error("CIM timed out"), { code: "ETIMEDOUT" });
+    assert.throws(
+      () =>
+        readProcessIdentity(981, {
+          platform: "win32",
+          signalZero: () => {
+            if (code) throw Object.assign(new Error("existence uncertain"), { code });
+          },
+          spawnSync: () => ({ error, status: null, stdout: "", stderr: "" }),
+        }),
+      (failure: unknown) =>
+        failure instanceof Error &&
+        failure.cause === error &&
+        errorCode(failure) === "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    );
+  }
+});
+
+void test("an injected Windows CIM runner never probes native test-host PID existence", () => {
+  let calls = 0;
+  assert.equal(
+    readProcessIdentity(982, {
+      platform: "win32",
+      spawnSync: () => {
+        calls++;
+        return { status: 0, stdout: "639306200352970611", stderr: "" };
+      },
+    }),
+    "win32:982:639306200352970611",
+  );
+  assert.equal(calls, 1);
+});
+
+void test("Windows absent owners do not dismiss live children or uncertain containment", () => {
+  const processRecord = { pid: 983, identity: "win32:983:old" };
+  const liveChild = { pid: 984, identity: "win32:984:639306200352970612" };
+  const existing = { ...owner(null), process: processRecord, child: liveChild };
+  const inspectProcessIdentity = (pid: number) =>
+    readProcessIdentity(pid, {
+      platform: "win32",
+      signalZero: (_pid, signal) => {
+        assert.equal(signal, 0);
+        if (pid !== liveChild.pid) throw Object.assign(new Error("absent"), { code: "ESRCH" });
+      },
+      spawnSync: () => ({ status: 0, stdout: "639306200352970612", stderr: "" }),
+    });
+  assert.equal(heavyRustOwnerActivity(existing, { inspectProcessIdentity })?.kind, "child");
+  const missingChild = { pid: 985, identity: "win32:985:old" };
+  for (const [candidate, expected] of [
+    [{ ...existing, external: { kind: "remote" } }, "external work awaiting quiescence proof"],
+    [{ ...existing, child: missingChild }, "legacy child"],
+    [{ ...existing, child: { ...missingChild, tree_platform: "win32" } }, "child tree"],
+    [
+      {
+        ...existing,
+        child: {
+          ...missingChild,
+          containment: "unix-watchdog" as const,
+          cleanup_receipt: "owned-cleanup.json",
+        },
+      },
+      "Unix cleanup failed",
+    ],
+  ] as const) {
+    assert.equal(
+      heavyRustOwnerActivity(candidate, {
+        inspectProcessIdentity,
+        inspectProcessTree: () => ["retained descendant"],
+        readCleanupReceipt: () => '{"outcome":"failed"}',
+      })?.kind,
+      expected,
+    );
+  }
+});
+
 void test("platform identity probes fail closed on their bounded timeout", () => {
   const error = Object.assign(new Error("probe timeout"), { code: "ETIMEDOUT" });
   assert.throws(

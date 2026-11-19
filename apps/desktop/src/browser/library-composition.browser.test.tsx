@@ -43,6 +43,7 @@ async function mount(
   theme = "dark",
   journey: "collection" | "collection-large" = "collection",
   expectedLibraryEntries = journey === "collection-large" ? 60 : 12,
+  seed?: () => Promise<void>,
 ) {
   localStorage.clear();
   const root = document.createElement("div");
@@ -51,6 +52,7 @@ async function mount(
   transport = installInteractiveTransport(journey, (message) => {
     throw Error(message);
   });
+  await seed?.();
   initializeLocalization(["en"]);
   document.documentElement.dataset.theme = theme;
   await render(
@@ -428,7 +430,7 @@ it("names exact port choices from their visible identity and readiness inside gr
 it("keeps artwork favorites separate from details and restores filter focus when its last result disappears", async () => {
   await page.viewport(1366, 768);
   await mount();
-  const favorite = vi.spyOn(desktopApi, "setPortFavorite");
+  const favorite = vi.spyOn(desktopApi, "changeOrganization");
   const toggle = page.getByRole("button", {
     name: "Favorite Super Mario 64 · sm64-port",
     exact: true,
@@ -445,8 +447,10 @@ it("keeps artwork favorites separate from details and restores filter focus when
   expect(bounds.width).toBeGreaterThanOrEqual(32);
   button.focus();
   await userEvent.keyboard("{Enter}");
-  await expect.poll(() => favorite.mock.calls[0]).toEqual(["collection-0", true, 1]);
-  const filter = page.getByRole("radio", { name: "Favorites 1", exact: true });
+  await expect
+    .poll(() => favorite.mock.calls[0]?.[1])
+    .toMatchObject({ kind: "set_saved_group", saved: true });
+  const filter = page.getByRole("radio", { name: "Favorites 1 game", exact: true });
   await filter.click();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
   await expect.element(toggle).toHaveAttribute("aria-pressed", "true");
@@ -454,8 +458,10 @@ it("keeps artwork favorites separate from details and restores filter focus when
   toggle.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(0);
-  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
-  expect(favorite.mock.calls[1]).toEqual(["collection-0", false, 1]);
+  await expect
+    .element(page.getByRole("radio", { name: "Favorites 0 games", exact: true }))
+    .toHaveFocus();
+  expect(favorite.mock.calls[1]?.[1]).toMatchObject({ kind: "set_saved_group", saved: false });
 });
 
 it("shares the narrow filter row without losing query, independent readiness or view controls", async () => {
@@ -463,7 +469,7 @@ it("shares the narrow filter row without losing query, independent readiness or 
   await mount("light");
   const search = page.getByRole("textbox", { name: "Search your library" });
   await search.fill("Super Mario 64");
-  const favorites = page.getByRole("radio", { name: "Favorites 0", exact: true }).element();
+  const favorites = page.getByRole("radio", { name: "Favorites 0 games", exact: true }).element();
   const filters = page.getByRole("button", { name: "Filters (0)", exact: true }).element();
   expect(favorites.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     search.element().getBoundingClientRect().top,
@@ -1487,7 +1493,9 @@ it("opens Hidden games and restores Favorites focus when its last entry is shown
   await expect
     .element(page.getByRole("heading", { name: "Nothing in your library matches", exact: true }))
     .toBeVisible();
-  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toHaveFocus();
+  await expect
+    .element(page.getByRole("radio", { name: "Favorites 0 games", exact: true }))
+    .toHaveFocus();
   await captureParityState("library-hidden-final-entry-restored");
   await page.getByRole("button", { name: "Reset view", exact: true }).click();
   await expect
@@ -1501,8 +1509,8 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
   await page.viewport(1024, 800);
   await mount();
   let rejectWrite!: (reason: Error) => void;
-  const favorite = vi.spyOn(desktopApi, "setPortFavorite").mockReturnValueOnce(
-    new Promise<void>((_resolve, reject) => {
+  const favorite = vi.spyOn(desktopApi, "changeOrganization").mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
       rejectWrite = reject;
     }),
   );
@@ -1517,17 +1525,26 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
   await toggle.click();
   await expect.element(toggle).toBeDisabled();
   await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  expect(favorite).toHaveBeenCalledExactlyOnceWith("collection-0", true, 1);
+  expect(favorite.mock.calls[0]?.[1]).toMatchObject({ kind: "set_saved_group", saved: true });
   await captureParityState("library-favorite-write-pending");
   rejectWrite(new Error("Fixture favorite write refused"));
   await expect
-    .element(page.getByText("Favorite choice could not be confirmed", { exact: true }))
+    .element(
+      page.getByText("Portcove couldn’t confirm your favorites. Retry to check what was saved.", {
+        exact: true,
+      }),
+    )
     .toBeVisible();
-  await expect.element(toggle).toBeEnabled();
+  await expect.element(toggle).toBeDisabled();
   await expect.element(toggle).toHaveAttribute("aria-pressed", "false");
-  await expect.element(page.getByRole("radio", { name: "Favorites 0", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("radio", { name: "Favorites 0 games", exact: true }))
+    .toBeVisible();
   await captureParityState("library-favorite-write-rejected");
-  const rejection = page.getByText("Favorite choice could not be confirmed", { exact: true });
+  const rejection = page.getByText(
+    "Portcove couldn’t confirm your favorites. Retry to check what was saved.",
+    { exact: true },
+  );
   rejection.element().scrollIntoView({ block: "center" });
   await expect.element(rejection).toBeVisible();
   await expect
@@ -1542,6 +1559,8 @@ it("keeps the confirmed favorite state during a pending and rejected write", asy
     })
     .toBe(true);
   await captureParityState("library-favorite-write-rejected-notice");
+  await page.getByRole("button", { name: "Retry favorites", exact: true }).click();
+  await expect.element(toggle).toBeEnabled();
 }, 45_000);
 
 it("sorts actual Library entries by the selected title order without changing their identities", async () => {
@@ -1595,7 +1614,7 @@ it("sorts actual Library entries by the selected title order without changing th
   await captureParityState("library-sort-title-descending");
 }, 45_000);
 
-it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
+it("keeps a grouped Discover Favorite unselected while pending and after a rejected write", async () => {
   await page.viewport(1024, 800);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
   await mount("dark", "collection", 11);
@@ -1612,17 +1631,17 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
     }),
   );
   const group = discoverGroupForPort("collection-1");
-  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-save")!);
+  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-favorite")!);
   await expect.element(save).toHaveAttribute("aria-pressed", "false");
   await save.click();
   await expect.element(save).toBeDisabled();
   const requested = change.mock.calls[0]![1];
-  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Save");
+  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Favorite");
   expect(requested.legacy_port_ids).toEqual(["collection-0", "collection-1"]);
   expect(requested.saved).toBe(true);
   await captureParityState("discover-group-save-pending");
-  rejectWrite(new Error("Fixture grouped Save refused"));
-  await expect.element(save).toBeEnabled();
+  rejectWrite(new Error("Fixture grouped Favorite refused"));
+  await expect.element(save).toBeDisabled();
   await expect.element(save).toHaveAttribute("aria-pressed", "false");
   await expect
     .element(
@@ -1667,3 +1686,74 @@ it("keeps the Library favorite and overflow visible for pointer and keyboard use
   favorite.blur();
   expect(getComputedStyle(favorite).opacity).toBe("1");
 });
+
+it.each([false, true])(
+  "rereads mixed Favorites after a sibling write fails (reply lost: %s)",
+  async (replyLost) => {
+    await page.viewport(1366, 900);
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
+    const persisted = new Set(["collection-0", "collection-1", "unknown-port"]);
+    const gameId = "game-fixture-super-mario-64";
+    vi.spyOn(desktopApi, "favoritePorts").mockImplementation(async () => [...persisted]);
+    await mount("dark", "collection", 11, async () => {
+      await desktopApi.changeOrganization(
+        0,
+        { kind: "set_saved", game_id: gameId, saved: true },
+        1,
+      );
+      await desktopApi.changeOrganization(
+        1,
+        { kind: "set_saved", game_id: "port-unknown-port", saved: true },
+        1,
+      );
+    });
+    let finishWrite!: () => void;
+    const attempted = vi
+      .spyOn(desktopApi, "setPortFavorite")
+      .mockImplementation(async (portId, favorite) => {
+        expect(favorite).toBe(false);
+        persisted.delete(portId);
+      })
+      .mockImplementationOnce(async (portId, favorite) => {
+        await new Promise<void>((resolve) => {
+          finishWrite = resolve;
+        });
+        expect(favorite).toBe(false);
+        if (replyLost) persisted.delete(portId);
+        throw new Error("Fixture transport rejected the sibling clear");
+      });
+    const favorite = page.getByRole("button", { name: "Favorite Super Mario 64", exact: true });
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    const filter = page.getByRole("radio", { name: "Favorites 1 game", exact: true });
+    await expect.element(filter).toHaveAccessibleName("Favorites 1 game");
+    await filter.click();
+    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(1);
+    await favorite.click();
+    await expect.poll(() => attempted.mock.calls.length).toBe(1);
+    expect((await desktopApi.organizationPreferences(1)).saved_game_ids).toEqual([
+      "port-unknown-port",
+    ]);
+    await expect.element(favorite).toBeDisabled();
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    finishWrite();
+    const retry = page.getByRole("button", { name: "Retry favorites", exact: true });
+    await expect.element(retry).toBeVisible();
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    await retry.click();
+    await expect.element(retry).not.toBeInTheDocument();
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect
+      .element(page.getByRole("radio", { name: "Favorites 0 games", exact: true }))
+      .toBeVisible();
+    expect(attempted.mock.calls).toEqual([
+      ["collection-0", false, 1],
+      ...(!replyLost ? [["collection-0", false, 1]] : []),
+      ["collection-1", false, 1],
+    ]);
+    expect([...persisted]).toEqual(["unknown-port"]);
+    expect((await desktopApi.organizationPreferences(1)).saved_game_ids).toEqual([
+      "port-unknown-port",
+    ]);
+  },
+);

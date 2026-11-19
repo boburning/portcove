@@ -185,6 +185,7 @@ function Session({ library }: { library: string }) {
             failure: undefined,
             busy: false,
             toggle: async () => false,
+            setPorts: async () => false,
             refresh: async () => false,
           }}
           clearFilters={() => {
@@ -355,8 +356,8 @@ it.each(["dark", "light"])(
     await userEvent.click(button("Switch library"));
     await expectReadinessLabel("Readiness Ready to play (1)");
     // Ready remains an ordinary filter beneath the Favorites view.
-    await userEvent.click(quickView("Favorites 1"));
-    await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(quickView("Favorites 1 game"));
+    await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
     await expectReadinessLabel(/^Readiness Ready to play \(\d+\)$/);
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
@@ -398,7 +399,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
     .toHaveAttribute("aria-checked", "true");
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await userEvent.click(quickView("Favorites 2"));
+  await userEvent.click(quickView("Favorites 2 games"));
   await userEvent.click(button("Toggle favorite facts"));
   await expectReadinessOption("Ready to play (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
@@ -414,7 +415,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
 });
 it("clears retained Favorites when its facts are unavailable", async () => {
   flushSync(() => root.render(<Fixture />));
-  await userEvent.click(quickView("Favorites 2"));
+  await userEvent.click(quickView("Favorites 2 games"));
   await userEvent.click(button("Toggle favorite facts"));
   await expect.element(quickView("Favorites unavailable")).toBeDisabled();
   await userEvent.click(button("Reset view"));
@@ -580,14 +581,14 @@ it("selects one quick view at a time with counts from the shared search and filt
   const all = quickView("All");
   await expect.element(all).toHaveAttribute("aria-checked", "true");
   await expect.element(all).toHaveAccessibleDescription(/2 games$/);
-  await quickView("Favorites 1").click();
-  await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
+  await quickView("Favorites 1 game").click();
+  await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
   await expect.element(all).toHaveAttribute("aria-checked", "false");
   // Other views keep counting the shared base rather than the Favorites result.
   await expect.element(all).toHaveAccessibleDescription(/2 games$/);
   await quickView("Updates").click();
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
-  await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "false");
+  await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "false");
   await expect.element(all).toHaveAccessibleDescription(/2 games$/);
   await expect.element(button("Remove Runs on: Windows filter")).toBeVisible();
   // The view itself is the visible selection; it adds no engineering filter chips.
@@ -609,8 +610,8 @@ it("selects one quick view at a time with counts from the shared search and filt
   await expect.element(all).toHaveFocus();
   await expect.element(all).toHaveAttribute("aria-checked", "true");
   await userEvent.keyboard("{ArrowRight}");
-  await expect.element(quickView("Favorites 1")).toHaveFocus();
-  await expect.element(quickView("Favorites 1")).toHaveAttribute("aria-checked", "true");
+  await expect.element(quickView("Favorites 1 game")).toHaveFocus();
+  await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
   await userEvent.keyboard("{ArrowLeft}");
   await expect.element(all).toHaveFocus();
   await expect.element(search).toHaveValue("game");

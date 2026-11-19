@@ -133,8 +133,7 @@ void test("release tool help works before inputs, dependencies, network, or outp
     copyFileSync(new URL(`./${name}`, import.meta.url), target);
     return target;
   }
-  for (const name of ["runtime-values.mts", "brand-vector-contract.mts", "retcomm-index.mts"])
-    copyTool(name);
+  for (const name of ["runtime-values.mts", "brand-vector-contract.mts"]) copyTool(name);
   const aliasRoot = fixtureRoot + "-alias";
   symlinkSync(fixtureRoot, aliasRoot, process.platform === "win32" ? "junction" : "dir");
   t.after(() => unlinkSync(aliasRoot));

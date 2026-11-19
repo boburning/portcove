@@ -1982,6 +1982,14 @@ export default interface Resources {
     "collection": {
       "withCount": "<name/> ({{total}})"
     },
+    "comparisonNotice": {
+      "available": "New download found: {{version}}.",
+      "effect": "Portcove shows a notice when it finds a new download for this port. It does not install anything.",
+      "label": "Update notices for {{port}}",
+      "markSeen": "Mark update notice as seen",
+      "off": "Update notices off",
+      "on": "Update notices on"
+    },
     "edit": {
       "create": "Create collection",
       "nameLabel": "Collection name",
@@ -1995,6 +2003,17 @@ export default interface Resources {
       "reload": "Reload choices",
       "write": "Portcove couldn’t confirm the changes. Showing your last confirmed choices."
     },
+    "favorite": {
+      "countUnavailable": "unavailable",
+      "count_one": "{{count, number}} game",
+      "count_other": "{{count, number}} games",
+      "favorite": "Favorite",
+      "label": "Favorite {{game}}",
+      "removeTitle": "Remove from favorites",
+      "retry": "Retry favorites",
+      "title": "Add to favorites",
+      "unconfirmed": "Portcove couldn’t confirm your favorites. Retry to check what was saved."
+    },
     "group": {
       "discover": "Discover collections",
       "library": "Library collections"
@@ -2002,13 +2021,6 @@ export default interface Resources {
     "menu": {
       "hide": "Hide from Library",
       "show": "Show in Library"
-    },
-    "save": {
-      "label": "Save {{game}} for later",
-      "removeTitle": "Remove saved game",
-      "save": "Save",
-      "saved": "Saved",
-      "title": "Save for later"
     },
     "sidebar": {
       "collectionLabel": "Collection: {{name}}",
@@ -2029,9 +2041,9 @@ export default interface Resources {
     },
     "view": {
       "all": "All games",
-      "followed": "Followed",
+      "followed": "With update notices",
       "hidden": "Hidden",
-      "saved": "Saved"
+      "saved": "Favorites"
     }
   },
   "removal": {

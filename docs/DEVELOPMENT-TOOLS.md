@@ -3997,7 +3997,11 @@ retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
 message parser so stream lengths retain byte units.
 Windows process-identity inspection retains a finite 15-second harness
-budget under host I/O load; host release allows 65 seconds for its bounded
+budget under host I/O load. Native Windows first checks existence with signal0,
+which sends no signal: only ESRCH returns absent without CIM. A possibly live
+process, permissions error or uncertain result still requires the exact CIM
+creation identity. This does not prove descendant or external-work cleanup;
+their existing custody checks remain required. Host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
 requires an explicit completion marker. If registration is missing after launch,
