@@ -3484,6 +3484,9 @@ Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
 
+`prepare-port.mts` proposes this family form when the reviewed diagnostic code
+is unique and the expanded integration matches the explicit bytes.
+
 Reuse the shared staging, declared-data preservation and rollback evidence
 when the official Windows archive uses the reviewed picker, stays within its
 tracked process lifetime and has the same writer and update ownership.
