@@ -45,6 +45,12 @@
       ],
       "warnings": [
         "Select only the prepared recvx-runtime.exe with its complete Windows x64 folder and adjacent data/mods context. Preserve %APPDATA%/RECVX or the actual existing custom/development root; unfinished gameplay and validated-Windows acceptance remain open."
+      ],
+      "references": [
+        {
+          "title": "Prepare the experimental Android package on a computer",
+          "instruction": "Prepare data from your own supported PS2 disc on a computer. Install and open recvx-android-arm64.apk from build-0.7.261 once, then copy the data to Android/data/org.recvx.nativeport/files/data. A newer debug-signed build may require uninstalling first, which removes the app’s saves and data. The project documents emulator testing for this package."
+        }
       ]
     },
     "original_game": {
