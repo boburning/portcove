@@ -83791,6 +83791,80 @@
       }
     },
     {
+      "id": "warioland4",
+      "project_url": "https://github.com/BioRhythmicStudios/warioland4",
+      "name": "Wario Land 4 (BioRhythmic Studios)",
+      "original_game": {
+        "format_version": 1,
+        "id": "wario-land-4",
+        "evidence_urls": [
+          "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Wario-Land-4-267596.html"
+        ],
+        "source_editions": [
+          {
+            "id": "wario-land-4-gba-us",
+            "title": "Wario Land 4 (US Game Boy Advance)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta"
+            ]
+          }
+        ]
+      },
+      "summary": "An unofficial native PC port of Wario Land 4. Upstream offers Windows and Linux x64 beta packages. Its launcher needs your own unmodified US Game Boy Advance ROM.",
+      "listed_at": "2026-11-19",
+      "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
+      "original_game_title": "Wario Land 4",
+      "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "WarioLand4-Native-PC-Port-",
+          "Windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Wario_Land_4-",
+          "x86_64.AppImage"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
+        "steps": [
+          {
+            "title": "Open the upstream launcher",
+            "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+          },
+          {
+            "title": "Choose your original game",
+            "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select wl4-launcher.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+          }
+        ],
+        "warnings": [
+          "The packages contain recompiled game program code. Upstream's MIT notice covers its identified sources, and upstream documents inherited code with no recorded license. The launcher reads game data from your own original ROM.",
+          "The Windows v0.3.2-beta runtime could not start on the Windows 11 build 26300 host tested by Portcove. This release could not reserve the memory range it needs for the game. See upstream for newer beta releases.",
+          "The Windows launcher saves the selected ROM path in your user registry. Windows v0.3.2-beta can read earlier settings, but beta 1 and beta 2 cannot read the newer settings it saves. Back up settings before downgrading."
+        ],
+        "references": [
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg; the Windows user registry entry for the original ROM path; Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides). Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
+      }
+    },
+    {
       "id": "warzone-2100-official-maintained-source-port",
       "artwork": {
         "game_id": 51297,

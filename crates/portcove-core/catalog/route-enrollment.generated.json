@@ -349,6 +349,20 @@
         "executable": "z2rs.exe"
       },
       "managed_native": true
+    },
+    {
+      "port_id": "warioland4",
+      "prepared_player": {
+        "executable": "wl4-launcher.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg",
+          "the Windows user registry entry for the original ROM path",
+          "Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides)"
+        ]
+      },
+      "managed_native": false
     }
   ]
 }
