@@ -1072,6 +1072,54 @@ void test("PSX retail split-mods preparation preserves the reviewed multidisc co
   assert.equal(compactPsxManagedWindows(different), different);
 });
 
+void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const record = records.find((entry) => entry.listing.id === "alexbeav-alundra-recomp");
+  assert.ok(record);
+  assert.equal(record.psx_managed_windows_v1, "split-mods-overlay-directory");
+  const explicit = projectPsxManagedWindows(record);
+  delete explicit.psx_managed_windows_v1;
+  assert.deepEqual(explicit.integration!.persistent_paths, [
+    "saves",
+    "settings.toml",
+    "input.ini",
+    "keybinds.ini",
+    "config.ini",
+    "disc.cfg",
+    "bios.cfg",
+    "mods/installed",
+    "mods/packages",
+    "mods/.staging",
+    "mods/state.toml",
+    "mods/state.toml.tmp",
+    "mods/texture-packs",
+    "overlay-captures",
+  ]);
+  assert.deepEqual(explicit.integration!.runtime_mutable_file_patterns, [
+    { prefix: "psx_freeze_dump_psx-runtime_", suffix: ".json" },
+  ]);
+  assert.deepEqual(compactPsxManagedWindows(explicit), record);
+
+  const different = structuredClone(explicit);
+  (different.integration!.persistent_paths as string[]).push("diagnostics-location.txt");
+  assert.equal(compactPsxManagedWindows(different), different);
+
+  const multidisc = structuredClone(record);
+  Object.assign(multidisc.integration!, {
+    runtime_source_filename: "runtime-discs",
+    launch_disc_choice: "psx-settings-selected",
+    runtime_source_materialization: "psx-raw-set",
+  });
+  assert.throws(() => checkedAuthoredPort(multidisc), /multidisc/u);
+
+  const explicitException = records.find(
+    (entry) => entry.listing.id === "alexbeav-medievil-recomp",
+  );
+  assert.ok(explicitException);
+  assert.equal(explicitException.psx_managed_windows_v1, undefined);
+  assert.equal(compactPsxManagedWindows(explicitException), explicitException);
+});
+
 void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
   const { records } = readCatalogSource(catalogRoot);
   const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);
