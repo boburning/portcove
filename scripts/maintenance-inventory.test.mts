@@ -466,11 +466,24 @@ function stubCli(root: string) {
   writeFileSync(
     cli,
     `#!${process.execPath}
+  import { createHash } from "node:crypto";
   import { readFileSync } from "node:fs";
   import { appendFileSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
   import path from "node:path";
   const args = process.argv.slice(2);
   const responses = JSON.parse(readFileSync(${JSON.stringify(responses)}, "utf8"));
+  if (args.includes("inspect-proposal")) {
+    const input = readFileSync(args.at(-1));
+    console.log(JSON.stringify({ command: "catalog.inspect-proposal", ok: true, data: {
+      format_version: 1,
+      input_sha256: createHash("sha256").update(input).digest("hex"),
+      input_bytes: input.length,
+      ports: Object.entries(responses.observerDefinitionHashes ?? {}).map(([port_id, hash]) => ({
+        port_id, observation_definition_sha256: hash,
+      })),
+    } }));
+    process.exit(0);
+  }
   const preferences = process.env.PORTCOVE_PREFERENCES;
   mkdirSync(path.join(path.dirname(preferences), "diagnostics"), { recursive: true });
   const root = path.dirname(path.dirname(preferences));
@@ -1752,7 +1765,26 @@ void test(
     migrate(store.owner);
     const { cli, responses } = stubCli(fixture.root);
     const port = "2ship2harkinian";
-    writeFileSync(responses, JSON.stringify({ [port]: report("automatic") }));
+    const source = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const currentCatalog = execFileSync(
+      "git",
+      ["show", `${source}:crates/portcove-core/catalog/catalog.json`],
+      { maxBuffer: 16 * 1024 * 1024 },
+    );
+    writeFileSync(
+      responses,
+      JSON.stringify({
+        [port]: report("automatic"),
+        producer: {
+          source_revision: source,
+          features: [],
+          embedded_catalog_sha256: createHash("sha256").update(currentCatalog).digest("hex"),
+          embedded_listings_sha256: "e".repeat(64),
+          catalog_override: false,
+        },
+        observerDefinitionHashes: { [port]: "d".repeat(64) },
+      }),
+    );
     const published_at = new Date(Date.now() - 86_400_000).toISOString();
     const previous = progress("owner/alpha", [port]);
     let run = 0;
@@ -3548,6 +3580,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     candidates: { platform: string; state: string }[],
   ): CoverageInput => ({
     port_key: `port:${id}`,
+    definition_sha256: goodHash,
     targets: {
       presence: "operational",
       declared_platforms: offered.map(([platform]) => platform),
@@ -3558,6 +3591,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     upstream: {
       sources: [
         {
+          catalog_definition_sha256: goodHash,
           managed_release_candidates: candidates.map((candidate) => ({
             ...candidate,
             candidate_key: goodHash,
@@ -3595,7 +3629,9 @@ void test("managed observation coverage keeps stale or unverified membership out
     ...detail,
   });
   const catalog = run("catalog-records");
-  const targets = run("core-target-routes");
+  const targets = run("core-target-routes", {
+    source_revision: "cli;source=fixture;binding=verified",
+  });
   const upstream = run("upstream-observations", {
     coverage: "partial",
     observed_count: 1,
@@ -3617,6 +3653,14 @@ void test("managed observation coverage keeps stale or unverified membership out
     { reason: "no-managed-candidate", offered_platforms: 1 },
     { reason: "scope-changed", offered_platforms: 1 },
   ]);
+  const changed = managedRouteObservationCoverage(
+    [{ ...ports[0]!, definition_sha256: oldHash }, ...ports.slice(1)],
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.equal(changed.platforms_with_candidate_observed, 0);
+  assert.equal(changed.platforms_with_retained_candidate, 1);
+  assert.ok(changed.gaps.some(({ reason }) => reason === "definition-scope-unverified"));
   const mismatched = managedRouteObservationCoverage(ports, [catalog, targets, upstream], {
     ...members,
     "port:covered": oldHash,

@@ -23,6 +23,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
+import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
   batchedStatements,
@@ -231,11 +232,14 @@ function committedOperationalDefinition(revision: string) {
   const catalog = JSON.parse(
     git(["show", `${revision}:crates/portcove-core/catalog/catalog.json`]),
   ) as {
-    ports: { id: string }[];
+    ports: { id: string; release?: { curated?: Record<string, unknown> } }[];
     source_catalog?: { qualification?: { scope?: { port_id?: string } }[] };
   };
   return {
     ids: new Set(catalog.ports.map((port) => port.id)),
+    curated: new Map(
+      catalog.ports.map((port) => [port.id, Object.keys(port.release?.curated ?? {})]),
+    ),
     qualification: catalog.source_catalog?.qualification ?? [],
   };
 }
@@ -404,6 +408,8 @@ export interface CollectedSubject {
   record: unknown;
   operational: boolean;
   qualification: unknown[];
+  observationDefinitionSha256?: string | undefined;
+  curatedPlatforms?: string[] | undefined;
   /** Null when a selective run reused the subject's unchanged Core result without calling Core. */
   capabilities: CapabilityObservation | null;
 }
@@ -556,12 +562,19 @@ export function planReassessment(input: {
 
 /** The authored catalog fact of one subject, as stored by `catalog-records`. */
 export function catalogFactOf(
-  subject: Pick<CollectedSubject, "record" | "operational" | "qualification">,
+  subject: Pick<
+    CollectedSubject,
+    "record" | "operational" | "qualification" | "observationDefinitionSha256" | "curatedPlatforms"
+  >,
 ) {
   return {
     authored_record: subject.record,
     operational_definition: subject.operational,
     scoped_qualification: subject.qualification,
+    ...(subject.observationDefinitionSha256
+      ? { observation_definition_sha256: subject.observationDefinitionSha256 }
+      : {}),
+    ...(subject.curatedPlatforms?.length ? { curated_platforms: subject.curatedPlatforms } : {}),
   };
 }
 
@@ -1894,14 +1907,32 @@ export async function collect(options: {
   const requested = options.reassess ?? "full";
   if (requested === "changed" && (!options.all || !options.targets))
     throw new MaintenanceStoreError("--reassess changed requires --all and --targets");
+  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
+  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
+  const currentDefinitionHashes =
+    options.upstream && producer && bindingVerified
+      ? await sourceOutcome(async () => {
+          const bytes = committedBytes(revision, "crates/portcove-core/catalog/catalog.json");
+          if (sha256(bytes) !== producer.embedded_catalog_sha256)
+            throw new MaintenanceStoreError("Core target projection embeds a different catalog");
+          const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
+          try {
+            return await inspectCatalogDefinitions(options.cli, root, bytes);
+          } finally {
+            rmSync(root, { recursive: true, force: true });
+          }
+        })
+      : undefined;
   const authored = ids.map((id) => ({
     id,
     record: committedRecord(revision, id),
     operational: definitions.ids.has(id),
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
+    observationDefinitionSha256: currentDefinitionHashes?.ok
+      ? currentDefinitionHashes.value.get(id)
+      : undefined,
+    curatedPlatforms: definitions.curated.get(id),
   }));
-  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
-  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
   const reuseKey =
     producer && bindingVerified
       ? coreReuseKey({
@@ -2387,7 +2418,9 @@ SELECT json_build_object(
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
   'managed_route_inputs', (SELECT coalesce(json_agg(json_build_object(
-        'port_key', c.subject_key, 'targets', t.payload, 'upstream', u.payload)
+        'port_key', c.subject_key, 'targets', t.payload, 'upstream', u.payload,
+        'definition_sha256', c.payload ->> 'observation_definition_sha256',
+        'curated_platforms', c.payload -> 'curated_platforms')
         ORDER BY c.subject_key), '[]')
       FROM latest_catalog c
       LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
@@ -2796,6 +2829,8 @@ interface ManagedRouteCoverageInput {
   port_key: string;
   targets: TargetRoutesFact | null;
   upstream: unknown;
+  definition_sha256: string | null;
+  curated_platforms?: string[] | null;
 }
 
 /** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
@@ -2813,7 +2848,10 @@ export function managedRouteObservationCoverage(
     targets?.coverage === "complete" &&
     targets.member_digest !== null &&
     targets.acquisition === catalog.acquisition &&
-    targets.observed_count === catalog.observed_count;
+    targets.observed_count === catalog.observed_count &&
+    catalog.source_revision !== null &&
+    targets.source_revision?.includes(`;source=${catalog.source_revision};`) === true &&
+    targets.source_revision.endsWith(";binding=verified");
 
   const gaps = new Map(upstream?.gaps.map(({ subject_key, code }) => [subject_key, code]));
   // Partial collections retain older rows. Remove precisely the reported gaps
@@ -2835,13 +2873,14 @@ export function managedRouteObservationCoverage(
         : "observer-membership-unverified";
 
   let missingTargets = 0;
+  let retainedCandidates = 0;
   const platforms = new Map<
     string,
     { offered: number; fixed: number; candidate_observed: number }
   >();
   const reasons = new Map<string, number>();
   for (const port of ports) {
-    if (!targetScopeKnown || !port.targets?.targets) {
+    if (!targetScopeKnown || port.targets?.presence !== "operational") {
       missingTargets++;
       continue;
     }
@@ -2852,10 +2891,12 @@ export function managedRouteObservationCoverage(
         )
         .map(({ platform, qualification }) => [
           platform,
-          qualification.offered_artifact.state === "fixed",
+          qualification.offered_artifact.state === "fixed" ||
+            port.curated_platforms?.includes(platform) === true,
         ]),
     );
     const observed = new Set<string>();
+    const retained = new Set<string>();
     if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
       const sources = port.upstream.sources;
       if (Array.isArray(sources))
@@ -2868,20 +2909,35 @@ export function managedRouteObservationCoverage(
                 typeof candidate.candidate_key === "string" &&
                 /^[a-f0-9]{64}$/u.test(candidate.candidate_key) &&
                 (candidate.state === "eligible" || candidate.state === "pending")
-              )
-                observed.add(candidate.platform);
+              ) {
+                retained.add(candidate.platform);
+                if (
+                  port.definition_sha256 &&
+                  source.catalog_definition_sha256 === port.definition_sha256
+                )
+                  observed.add(candidate.platform);
+              }
     }
     for (const [platform, fixed] of offered) {
       const counts = platforms.get(platform) ?? { offered: 0, fixed: 0, candidate_observed: 0 };
       counts.offered++;
       if (fixed) counts.fixed++;
-      else if (observed.has(platform)) counts.candidate_observed++;
       else {
-        const reason =
-          observerFailure ??
-          gaps.get(port.port_key) ??
-          (members.has(port.port_key) ? "no-managed-candidate" : "outside-observer-scope");
-        reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+        if (retained.has(platform)) retainedCandidates++;
+        if (observed.has(platform)) counts.candidate_observed++;
+        else {
+          const reason =
+            observerFailure ??
+            gaps.get(port.port_key) ??
+            (retained.has(platform)
+              ? port.definition_sha256
+                ? "definition-scope-unverified"
+                : "current-definition-unbound"
+              : members.has(port.port_key)
+                ? "no-managed-candidate"
+                : "outside-observer-scope");
+          reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+        }
       }
       platforms.set(platform, counts);
     }
@@ -2914,12 +2970,14 @@ export function managedRouteObservationCoverage(
       membershipVerified && completeOffering
         ? byPlatform.reduce((total, { candidate_observed }) => total + (candidate_observed ?? 0), 0)
         : null,
+    platforms_with_retained_candidate:
+      membershipVerified && completeOffering ? retainedCandidates : null,
     by_platform: byPlatform,
     gaps: [...reasons.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([reason, offered_platforms]) => ({ reason, offered_platforms })),
     observer_revision: upstream?.source_revision ?? null,
-    observer_collection_completed_at: upstream?.completed_at ?? null,
+    observer_checkpoint_imported_at: upstream?.completed_at ?? null,
     observer_membership_verified: membershipVerified,
   };
 }
@@ -3612,7 +3670,7 @@ ${report.unsupported_sources
 ${
   report.managed_route_observation_coverage
     ? `<h2>Managed installation observation coverage</h2>
-<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers: ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")}. Collection completed at ${escapeHtml(report.managed_route_observation_coverage.observer_collection_completed_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
+<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(report.managed_route_observation_coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
     : ""
 }
 ${publicationSection(report)}
