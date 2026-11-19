@@ -251,7 +251,7 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
 
 void test("temporary controller keeps Windows and Linux requests on distinct existing concurrency keys", () => {
   const source = nativeDesignCompatibilityWorkflow;
-  const workflow = parseDocument(source).toJS();
+  const workflow: unknown = parseDocument(source).toJS();
   assert.ok(isRecord(workflow) && isRecord(workflow.concurrency));
   const concurrency = workflow.concurrency;
   assert.equal(
