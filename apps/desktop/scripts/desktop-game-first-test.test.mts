@@ -104,6 +104,11 @@ function reads(
   };
   return { invoke, calls };
 }
+// The 4783 local run exhausted Vitest's 5 s limit in these three fixture/module
+// cases. Allow a finite 60 s under contended filesystem/module scheduling;
+// assertions, refusal retries, cleanup and all application deadlines are unchanged.
+const gameFirstFixtureBudgetMs = 60_000;
+
 const attemptCommands = [
   "get_bootstrap_status",
   "get_library_organization",
@@ -175,35 +180,43 @@ test("catalog provenance reads both actual definition and independently selected
   }
 });
 
-test("a stale workspace refusal retries the full read and returns fresh organization/status joins", async () => {
-  const fixture = reads([refusal(), success(workspace)]);
-  const readbacks: unknown[] = [];
-  const result = await readGameFirstObservation(fixture.invoke, readbacks);
-  assert.equal(result.organization.revision, 2, "Do not reuse the refused attempt's organization");
-  assert.deepEqual(result.statuses, workspace.statuses);
-  assert.deepEqual(
-    fixture.calls.map((call) => call.command),
-    [...attemptCommands, ...attemptCommands],
-  );
-  for (const call of fixture.calls)
-    assert.deepEqual(
-      call.args,
-      ["get_library_organization", "get_workspace_snapshot"].includes(call.command)
-        ? { generation: 7 }
-        : undefined,
+test(
+  "a stale workspace refusal retries the full read and returns fresh organization/status joins",
+  async () => {
+    const fixture = reads([refusal(), success(workspace)]);
+    const readbacks: unknown[] = [];
+    const result = await readGameFirstObservation(fixture.invoke, readbacks);
+    assert.equal(
+      result.organization.revision,
+      2,
+      "Do not reuse the refused attempt's organization",
     );
-  assert.deepEqual(readbacks, [
-    {
-      phase: "workspace-snapshot-refusal",
-      attempt: 1,
-      generation: 7,
-      code: "conflict",
-      workspace_snapshot_stale: "true",
-      retryable: "true",
-    },
-  ]);
-  assert.ok(!JSON.stringify(readbacks).includes("private-"));
-});
+    assert.deepEqual(result.statuses, workspace.statuses);
+    assert.deepEqual(
+      fixture.calls.map((call) => call.command),
+      [...attemptCommands, ...attemptCommands],
+    );
+    for (const call of fixture.calls)
+      assert.deepEqual(
+        call.args,
+        ["get_library_organization", "get_workspace_snapshot"].includes(call.command)
+          ? { generation: 7 }
+          : undefined,
+      );
+    assert.deepEqual(readbacks, [
+      {
+        phase: "workspace-snapshot-refusal",
+        attempt: 1,
+        generation: 7,
+        code: "conflict",
+        workspace_snapshot_stale: "true",
+        retryable: "true",
+      },
+    ]);
+    assert.ok(!JSON.stringify(readbacks).includes("private-"));
+  },
+  gameFirstFixtureBudgetMs,
+);
 
 test("a confirmed write between independent workspace and status reads repeats the full observation", async () => {
   const changed = statuses.map((row) => ({ ...row, successful_launches: 1 }));
@@ -521,75 +534,89 @@ test("capture waits for pending optional comparison but permits its failed resul
   assert.deepEqual(Array.from(failed.alerts as unknown[]), ["Optional comparison is unavailable."]);
 });
 
-test("retained runtime inventory selects before reading executable content and preserves data guards", async () => {
-  const { userDataInventory } = await import("./desktop-game-first-installed-test.mts");
-  const { mkdtemp, mkdir, writeFile, open, rm, symlink } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const path = await import("node:path");
-  const root = await mkdtemp(path.join(tmpdir(), "pcv-retained-selection-"));
-  try {
-    await mkdir(path.join(root, "assets"));
-    await writeFile(path.join(root, "assets", "save.bin"), "inert retained bytes");
-    const executable = await open(path.join(root, "tmc_pc.exe"), "wx");
-    await executable.truncate(64 * 1024 ** 2 + 1);
-    await executable.close();
-    await assert.rejects(userDataInventory(root));
-    const selected = await userDataInventory(root, ["assets"]);
-    assert.equal(selected.length, 1);
-    assert.equal(selected[0]?.name, path.join("assets", "save.bin"));
-    assert.equal(selected[0]?.bytes, Buffer.byteLength("inert retained bytes"));
-    for (const names of [[], ["missing"], ["assets", "assets"], ["../assets"], ["assets/save.bin"]])
-      await assert.rejects(userDataInventory(root, names));
-    const tooLarge = await open(path.join(root, "assets", "large.dat"), "wx");
-    await tooLarge.truncate(64 * 1024 ** 2 + 1);
-    await tooLarge.close();
-    await assert.rejects(userDataInventory(root, ["assets"]));
-    await rm(path.join(root, "assets", "large.dat"));
-    await symlink(path.join(root, "tmc_pc.exe"), path.join(root, "assets", "linked.dat"));
-    await assert.rejects(userDataInventory(root, ["assets"]));
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
+test(
+  "retained runtime inventory selects before reading executable content and preserves data guards",
+  async () => {
+    const { userDataInventory } = await import("./desktop-game-first-installed-test.mts");
+    const { mkdtemp, mkdir, writeFile, open, rm, symlink } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "pcv-retained-selection-"));
+    try {
+      await mkdir(path.join(root, "assets"));
+      await writeFile(path.join(root, "assets", "save.bin"), "inert retained bytes");
+      const executable = await open(path.join(root, "tmc_pc.exe"), "wx");
+      await executable.truncate(64 * 1024 ** 2 + 1);
+      await executable.close();
+      await assert.rejects(userDataInventory(root));
+      const selected = await userDataInventory(root, ["assets"]);
+      assert.equal(selected.length, 1);
+      assert.equal(selected[0]?.name, path.join("assets", "save.bin"));
+      assert.equal(selected[0]?.bytes, Buffer.byteLength("inert retained bytes"));
+      for (const names of [
+        [],
+        ["missing"],
+        ["assets", "assets"],
+        ["../assets"],
+        ["assets/save.bin"],
+      ])
+        await assert.rejects(userDataInventory(root, names));
+      const tooLarge = await open(path.join(root, "assets", "large.dat"), "wx");
+      await tooLarge.truncate(64 * 1024 ** 2 + 1);
+      await tooLarge.close();
+      await assert.rejects(userDataInventory(root, ["assets"]));
+      await rm(path.join(root, "assets", "large.dat"));
+      await symlink(path.join(root, "tmc_pc.exe"), path.join(root, "assets", "linked.dat"));
+      await assert.rejects(userDataInventory(root, ["assets"]));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  gameFirstFixtureBudgetMs,
+);
 
-test("installation source reuse permits only forward verification-time refresh", async () => {
-  const { requireReusedSource } = await import("./desktop-game-first-installed-mm-test.mts");
-  const source = {
-    profile_id: "majoras-mask",
-    path: "E:/owned/majoras-mask.z64",
-    sha256: "a".repeat(64),
-    size: 33554432,
-    storage_sha256: "a".repeat(64),
-    storage_size: 33554432,
-    updated_at: 100,
-    observed_identity: null,
-    future_identity: { value: "preserved" },
-  };
-  assert.deepEqual(requireReusedSource([source], source), source);
-  const refreshed = { ...source, updated_at: 101 };
-  assert.deepEqual(requireReusedSource([refreshed], source), refreshed);
-  for (const change of [
-    { path: "E:/other/majoras-mask.z64" },
-    { profile_id: "other-profile" },
-    { sha256: "b".repeat(64) },
-    { size: 1 },
-    { storage_sha256: "b".repeat(64) },
-    { storage_size: 1 },
-    { observed_identity: { schema_version: 1, digests: [] } },
-    { future_identity: { value: "changed" } },
-    { updated_at: 99 },
-    { updated_at: Number.NaN },
-    { updated_at: Infinity },
-    { updated_at: 100.5 },
-  ])
-    assert.throws(() => requireReusedSource([{ ...source, ...change }], source));
-  assert.throws(() => requireReusedSource([], source));
-  assert.throws(() => requireReusedSource([source, source], source));
-  assert.throws(
-    () => requireReusedSource([source], refreshed),
-    "A later integration must not move observation time backwards",
-  );
-});
+test(
+  "installation source reuse permits only forward verification-time refresh",
+  async () => {
+    const { requireReusedSource } = await import("./desktop-game-first-installed-mm-test.mts");
+    const source = {
+      profile_id: "majoras-mask",
+      path: "E:/owned/majoras-mask.z64",
+      sha256: "a".repeat(64),
+      size: 33554432,
+      storage_sha256: "a".repeat(64),
+      storage_size: 33554432,
+      updated_at: 100,
+      observed_identity: null,
+      future_identity: { value: "preserved" },
+    };
+    assert.deepEqual(requireReusedSource([source], source), source);
+    const refreshed = { ...source, updated_at: 101 };
+    assert.deepEqual(requireReusedSource([refreshed], source), refreshed);
+    for (const change of [
+      { path: "E:/other/majoras-mask.z64" },
+      { profile_id: "other-profile" },
+      { sha256: "b".repeat(64) },
+      { size: 1 },
+      { storage_sha256: "b".repeat(64) },
+      { storage_size: 1 },
+      { observed_identity: { schema_version: 1, digests: [] } },
+      { future_identity: { value: "changed" } },
+      { updated_at: 99 },
+      { updated_at: Number.NaN },
+      { updated_at: Infinity },
+      { updated_at: 100.5 },
+    ])
+      assert.throws(() => requireReusedSource([{ ...source, ...change }], source));
+    assert.throws(() => requireReusedSource([], source));
+    assert.throws(() => requireReusedSource([source, source], source));
+    assert.throws(
+      () => requireReusedSource([source], refreshed),
+      "A later integration must not move observation time backwards",
+    );
+  },
+  gameFirstFixtureBudgetMs,
+);
 
 test("normal installed launch captions retain Core permission and unknown compatibility", async () => {
   const { requireDirectLaunchLabel } = await import("./desktop-game-first-installed-mm-test.mts");
