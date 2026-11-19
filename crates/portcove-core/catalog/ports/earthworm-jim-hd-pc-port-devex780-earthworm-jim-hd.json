@@ -35,6 +35,12 @@
       "image_sha256": "471bf461081ae9a3a0737da24a5c559379bcf238bc1eca0f588b088be728051a",
       "game_slug": "earthworm-jim-hd",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "earthworm-jim-hd",
+      "evidence_urls": ["https://github.com/devEx780/earthworm-jim-hd-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

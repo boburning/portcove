@@ -5,7 +5,7 @@ use std::{
     process::Command,
 };
 
-use crate::{PortcoveError, Result};
+use crate::{PortcoveError, Result, failure::KnownFailureCause};
 
 /// The trust boundary crossed by a child process.
 ///
@@ -315,13 +315,15 @@ impl ChildProcessPolicy {
         if spec.fixed_arguments_only && !forwarded_arguments.is_empty() {
             return Err(PortcoveError::launch(
                 "this runtime offers only its fixed ordinary launch; additional arguments are not supported",
-            ));
+            )
+            .with_known_cause(KnownFailureCause::LaunchArgumentsUnsupported));
         }
         if spec.launch_kind == LaunchKind::WindowsBatch && !forwarded_arguments.is_empty() {
             return Err(PortcoveError::launch(
                 "caller-supplied arguments are not supported for Windows batch launchers",
             )
-            .detail("launch_kind", "windows_batch"));
+            .detail("launch_kind", "windows_batch")
+            .with_known_cause(KnownFailureCause::LaunchArgumentsUnsupported));
         }
         if spec.launch_kind == LaunchKind::WindowsBatch {
             for argument in &spec.fixed_arguments {
@@ -757,7 +759,14 @@ fn main() {
             &["--record".into(), "output & command".into()],
         )
         .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Launch);
         assert!(error.message.contains("fixed ordinary launch"));
+        let presentation = error.presentation();
+        assert_eq!(
+            presentation.presentation_key,
+            "launch_arguments_unsupported"
+        );
+        assert!(presentation.summary.contains("without extra arguments"));
         let ordinary = ChildProcessPolicy::game_command(&spec, &[]).unwrap();
         assert_eq!(
             ordinary.get_args().collect::<Vec<_>>(),
@@ -783,6 +792,11 @@ fn main() {
         };
         let error = ChildProcessPolicy::game_command(&spec, &["& whoami".into()]).unwrap_err();
         assert!(error.message.contains("caller-supplied arguments"));
+        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert_eq!(
+            error.presentation().presentation_key,
+            "launch_arguments_unsupported"
+        );
     }
 
     #[test]

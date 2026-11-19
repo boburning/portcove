@@ -993,6 +993,17 @@ pub struct PortDefinition {
     pub setup_output_paths: Vec<String>,
     #[serde(default)]
     pub upstream_status: UpstreamStatus,
+    /// An explicit review of an active project. Older serialized definitions
+    /// defaulted to Active, so that value alone cannot prove a declaration.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub upstream_active_reviewed: bool,
+    /// Provider coordinates reviewed alongside the existing mod loader contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_provider_bindings: Option<Vec<crate::ModProviderBinding>>,
+    /// A local selection once replaced the compiled provider mapping.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) legacy_mod_provider_held: bool,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1007,6 +1018,12 @@ pub struct PortDefinition {
 }
 
 impl PortDefinition {
+    /// Catalog-authored upstream state, independent of repository observations.
+    pub fn declared_upstream_status(&self) -> Option<UpstreamStatus> {
+        (self.upstream_status != UpstreamStatus::Active || self.upstream_active_reviewed)
+            .then_some(self.upstream_status)
+    }
+
     /// The runtime subdirectory that applies to `platform`: its own entry, else the default.
     pub fn runtime_subdirectory_for(&self, platform: Platform) -> Option<&str> {
         self.runtime_subdirectory_by_platform

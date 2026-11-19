@@ -3,7 +3,7 @@
   "listing": {
     "id": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
     "name": "Grand Theft Auto: Vice City Stories (PS2) — vcs-recomp (theurbanninja1993-sketch)",
-    "original_game_title": "Grand Theft Auto: Vice City Stories (PS2)",
+    "original_game_title": "Grand Theft Auto: Vice City Stories",
     "summary": "This source-only recompilation targets the PS2 edition. It is independent of PSP Vice City Stories implementations and their original-file editions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
     "platforms": [],
@@ -35,6 +35,21 @@
       "image_sha256": "fb6c19a35846e12f429222d8cbbfe8b04e48f6190143f4fbc7cd06173382d88f",
       "game_slug": "grand-theft-auto-vice-city-stories",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-vice-city-stories",
+      "evidence_urls": ["https://github.com/theurbanninja1993-sketch/vcs-recomp"],
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-vice-city-stories-playstation-2",
+          "title": "Grand Theft Auto: Vice City Stories (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/theurbanninja1993-sketch/vcs-recomp/blob/cb916041750e9ed944c1ee84f68df56ce14c9f29/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

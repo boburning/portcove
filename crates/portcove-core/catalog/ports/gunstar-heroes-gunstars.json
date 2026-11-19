@@ -26,7 +26,7 @@
         },
         {
           "title": "Start the Windows or Linux player",
-          "instruction": "The v0.2.2 Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
+          "instruction": "The Windows x64 ZIP runs gunstar.exe. The Linux x86-64 tar.gz runs gunstar and requires SDL2 and a system with glibc 2.28 or later. Keep each package together."
         }
       ],
       "warnings": [
@@ -35,10 +35,19 @@
       "references": [
         {
           "title": "Open the universal Mac app",
-          "instruction": "Unzip the v0.2.2 macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
+          "instruction": "Unzip the macos-universal ZIP and keep gunstars.app intact. The Intel and Apple silicon app needs macOS 11 or later. Open it in Finder for the profile under ~/Library/Application Support/gunstars. A direct Terminal launch uses its working directory. Maintain this copy outside Portcove."
         }
       ],
       "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gunstar-heroes",
+      "evidence_urls": [
+        "https://github.com/1nputs/gunstars",
+        "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

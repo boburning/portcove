@@ -38,6 +38,12 @@
           "instruction": "The guide covers Apple silicon macOS 26 or later or an older API on 15–25, iOS 26 or an older API on 18–25, and Android ARM64 API 31+ with Vulkan 1.1. The early Mac has keyboard and gamepad limits. HarmonyOS is community-supported and tvOS has reached character selection only."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo-ii-resurrected-reign-of-the-warlock",
+      "evidence_urls": ["https://github.com/jhaizhou-ops/d2r-mobile"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -40,6 +40,15 @@
         "The publisher has not published a license for the engine. The release archives require manual extraction.",
         "The publisher supplies an Intel Mac executable in v2.1. Apple Silicon through Rosetta has not been verified. There is no Android or Linux ARM64 package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "thimbleweed-park",
+      "evidence_urls": [
+        "https://github.com/scemino/engge2/blob/v2.1/README.MD",
+        "https://github.com/scemino/engge2"
+      ],
+      "source_editions": []
     }
   }
 }

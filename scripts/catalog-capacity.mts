@@ -128,8 +128,6 @@ export function catalogCapacity(catalog: unknown, limit: number, issuedAt: numbe
 export interface CatalogSizeBounds {
   /** Current signed-catalog, catalog-read and signer-input bound. */
   current: number;
-  /** The bound clients before writer protocol 60 still enforce. */
-  legacy: number;
   /** Published catalogs stay at or below this share of each guarded bound. */
   percent: number;
 }
@@ -137,34 +135,44 @@ export interface CatalogSizeBounds {
 export function catalogSizeBounds(signedCatalogSource: string): CatalogSizeBounds {
   const bounds = {
     current: capacityConstant(signedCatalogSource, "MAX_CATALOG_BYTES"),
-    legacy: capacityConstant(signedCatalogSource, "LEGACY_MAX_CATALOG_BYTES"),
-    percent: capacityConstant(signedCatalogSource, "CATALOG_GROWTH_CEILING_PERCENT"),
+    percent: capacityConstant(signedCatalogSource, "CATALOG_SUPPORTED_CAPACITY_PERCENT"),
   };
-  if (bounds.percent >= 100 || bounds.legacy > bounds.current)
-    throw new Error("Invalid catalog size guard bounds");
+  if (bounds.percent >= 100) throw new Error("Invalid catalog size guard bounds");
   return bounds;
 }
 
 /**
- * CI guard: fail before catalog growth reaches a bound. Bytes that older
- * clients receive (compact catalog, escaped signed envelope) are held below the
- * legacy 4 MiB floor; the generated pretty file only feeds this checkout's
- * tools, so it is held below the current bound. Core owns the serde projection
- * and retained-contract measures in its own growth test.
+ * CI guard for generated, compact and escaped catalog bytes. Core measures
+ * its serialized projection and retained representations in its growth test.
  */
-export function catalogSizeGuard(sourceBytes: number, catalog: unknown, bounds: CatalogSizeBounds) {
+export function catalogSizeGuard(
+  sourceBytes: number,
+  catalog: unknown,
+  bounds: CatalogSizeBounds,
+  listingDirectory?: { bytes: number; bound: number },
+) {
   // A fixed ten-digit issuance time keeps the placeholder envelope deterministic.
   const report = catalogCapacity(catalog, bounds.current, 4_102_444_800);
   const ceiling = (bound: number) => Math.floor((bound * bounds.percent) / 100);
   const measures = [
-    ["generated catalog.json bytes", sourceBytes, bounds.current, "current bound"],
-    ["compact catalog bytes", report.compact_catalog_bytes, bounds.legacy, "legacy floor"],
+    ["generated catalog.json bytes", sourceBytes, bounds.current, "generated input bound"],
+    ["compact catalog bytes", report.compact_catalog_bytes, bounds.current, "catalog input bound"],
     [
       "escaped signed envelope bytes (unsigned placeholder)",
       report.representative_envelope_bytes,
-      bounds.legacy,
-      "legacy floor",
+      bounds.current,
+      "signed envelope bound",
     ],
+    ...(listingDirectory
+      ? ([
+          [
+            "generated listings.json bytes",
+            listingDirectory.bytes,
+            listingDirectory.bound,
+            "embedded listing directory bound",
+          ],
+        ] as const)
+      : []),
   ] as const;
   const rows = measures.map(([name, bytes, bound, basis]) => ({
     name,
@@ -173,7 +181,6 @@ export function catalogSizeGuard(sourceBytes: number, catalog: unknown, bounds: 
     basis,
     ceiling: ceiling(bound),
     headroom: ceiling(bound) - bytes,
-    legacy_share_percent: Math.round((bytes / bounds.legacy) * 1000) / 10,
     ok: bytes <= ceiling(bound),
   }));
   return { ok: rows.every((row) => row.ok), percent: bounds.percent, rows };
@@ -184,8 +191,7 @@ export function formatCatalogSizeGuard(result: ReturnType<typeof catalogSizeGuar
     .map(
       (row) =>
         `${row.ok ? "ok  " : "FAIL"} ${row.name}: ${row.bytes} of ${row.ceiling} ` +
-        `(${result.percent}% of the ${row.basis} ${row.bound}); headroom ${row.headroom}; ` +
-        `${row.legacy_share_percent}% of the legacy floor`,
+        `(${result.percent}% of the ${row.basis} ${row.bound}); headroom ${row.headroom}`,
     )
     .join("\n");
 }
@@ -212,11 +218,32 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       values.catalog ??
       fileURLToPath(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url));
     const bytes = boundedInput(filename, bounds.current);
-    const result = catalogSizeGuard(bytes.length, JSON.parse(bytes.toString("utf8")), bounds);
+    const repositoryListings = new URL(
+      "../crates/portcove-core/catalog/listings.json",
+      import.meta.url,
+    );
+    const listingBound = capacityConstant(
+      readFileSync(
+        new URL("../crates/portcove-core/src/catalog/listings.rs", import.meta.url),
+        "utf8",
+      ),
+      "MAX_LISTING_BYTES",
+    );
+    const result = catalogSizeGuard(
+      bytes.length,
+      JSON.parse(bytes.toString("utf8")),
+      bounds,
+      values.catalog
+        ? undefined
+        : {
+            bytes: boundedInput(fileURLToPath(repositoryListings), listingBound).length,
+            bound: listingBound,
+          },
+    );
     process.stdout.write(`${formatCatalogSizeGuard(result)}\n`);
     if (!result.ok) {
       process.stderr.write(
-        "Catalog size guard failed: reduce catalog bytes, or record an owner decision before moving the compatibility floor (#5894).\n",
+        "Catalog size guard failed: reduce catalog bytes or resolve the limiting supported consumer (#5894).\n",
       );
       process.exitCode = 1;
     }

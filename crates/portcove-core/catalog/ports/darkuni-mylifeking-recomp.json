@@ -39,10 +39,16 @@
       "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
     },
     "release_url": "https://github.com/darkuni/mylifeking-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["MyLifeAsAKing-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md",
+        "https://github.com/darkuni/mylifeking-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -71,5 +77,6 @@
         "executables": ["mylifeking.exe", "record-audio.bat"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

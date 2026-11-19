@@ -5,6 +5,15 @@ use std::{
 };
 
 #[cfg(test)]
+pub(crate) fn grow_catalog_evidence(document: &mut crate::CatalogDocument, bytes: usize) {
+    let evidence = &mut document.source_catalog.as_mut().unwrap().evidence;
+    let mut record = evidence.first().unwrap().clone();
+    record.id = "synthetic-catalog-capacity".into();
+    record.claim = "Synthetic capacity fixture. ".repeat(bytes.div_ceil(28));
+    evidence.push(record);
+}
+
+#[cfg(test)]
 pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     serde_json::json!({
         "provider":"gitlab", "repository":"example/game", "repository_id":7,
@@ -186,6 +195,11 @@ pub(crate) fn definition_requirements(
             .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
     {
         default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.mod_provider_bindings.is_some() {
+        default_version.max(crate::provider_binding::capability(port).unwrap().1)
     } else {
         default_version
     };

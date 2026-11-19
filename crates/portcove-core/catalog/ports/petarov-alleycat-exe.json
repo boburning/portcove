@@ -43,6 +43,24 @@
           "instruction": "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback. Before changing versions, close the game and preserve the actual preferences folder and a separate copy of the working runtime. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alley-cat",
+      "evidence_urls": [
+        "https://github.com/petarov/alleycat.exe#readme",
+        "https://github.com/petarov/alleycat.exe"
+      ],
+      "source_editions": [
+        {
+          "id": "alley-cat-pc",
+          "title": "Alley Cat (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+          ]
+        }
+      ]
     }
   }
 }

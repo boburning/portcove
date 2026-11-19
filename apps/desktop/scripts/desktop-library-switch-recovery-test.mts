@@ -27,6 +27,7 @@ function text(value: unknown): string {
   return value;
 }
 import { executeBrowserScript } from "./browser-script.mts";
+import { readWorkspaceSnapshotObservation } from "./desktop-review-observation.mts";
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -117,14 +118,7 @@ export async function librarySwitchRecoveryScenario({
     command: "get_library_identity",
     args?: object,
   ): Promise<TransportOutputs["library_identity"]>;
-  function read(
-    command: "get_workspace_snapshot",
-    args?: object,
-  ): Promise<TransportOutputs["desktop_workspace_snapshot"]>;
-  async function read(
-    command: "get_bootstrap_status" | "get_library_identity" | "get_workspace_snapshot",
-    args?: object,
-  ) {
+  async function read(command: "get_bootstrap_status" | "get_library_identity", args?: object) {
     const result = object(await invoke(command, args));
     assert.equal(result.ok, true, JSON.stringify(result));
     switch (command) {
@@ -132,10 +126,9 @@ export async function librarySwitchRecoveryScenario({
         return transportValue("desktop_bootstrap_status", result.value);
       case "get_library_identity":
         return transportValue("library_identity", result.value);
-      case "get_workspace_snapshot":
-        return transportValue("desktop_workspace_snapshot", result.value);
     }
   }
+  const workspaceReadbacks: unknown[] = [];
   const before = await read("get_bootstrap_status");
   assert.equal(before.ready, true);
   assert.equal(canonicalPath(required(before.library_root)), canonicalPath(fixture.currentRoot));
@@ -193,7 +186,7 @@ export async function librarySwitchRecoveryScenario({
     await read("get_library_identity", { generation: rejected.generation }),
     originalIdentity,
   );
-  await read("get_workspace_snapshot", { generation: rejected.generation });
+  await readWorkspaceSnapshotObservation(invoke, rejected, workspaceReadbacks);
   assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
   await assertPreservation();
   await browser.wait(until.elementIsEnabled(await browser.findElement(trigger)), 5_000);
@@ -252,14 +245,14 @@ export async function librarySwitchRecoveryScenario({
     await read("get_library_identity", { generation: restarted.generation }),
     recoveredIdentity,
   );
-  await read("get_workspace_snapshot", { generation: restarted.generation });
+  await readWorkspaceSnapshotObservation(invoke, restarted, workspaceReadbacks);
   assert.deepEqual(await readFile(fixture.preferences), recoveredPreferences);
   await assertPreservation();
   await captureScreenshot("library-switch-saved-restart");
   const evidence = path.join(output, "library-switch-recovery.json");
   await writeFile(
     evidence,
-    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, recovered, recoveredIdentity, restarted, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
+    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, recovered, recoveredIdentity, restarted, workspace_readbacks: workspaceReadbacks, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
     { flag: "wx" },
   );
   artifacts.push(evidence);

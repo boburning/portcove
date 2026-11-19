@@ -35,6 +35,21 @@
       "image_sha256": "b472f6b566bf2da62235d4586b656b50d0a1cbdf2a4706fa79be5c8db6696729",
       "game_slug": "amped-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-3",
+      "evidence_urls": ["https://github.com/minty-hippo/amped3revamped"],
+      "source_editions": [
+        {
+          "id": "amped-3-xbox-360",
+          "title": "Amped 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/minty-hippo/amped3revamped/blob/efb511a12e557ed1d91d0701ab5ac51584a2f162/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -45,7 +45,20 @@
       ],
       "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
     },
-    "issue_number": 3387
+    "issue_number": 3387,
+    "original_game": {
+      "format_version": 1,
+      "id": "kula-world",
+      "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"],
+      "source_editions": [
+        {
+          "id": "kula-world-playstation-europe-sces-01000",
+          "title": "Kula World (Europe, SCES-01000)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

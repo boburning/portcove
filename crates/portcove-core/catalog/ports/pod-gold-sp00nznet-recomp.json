@@ -41,6 +41,15 @@
         "Keep a separate backup of the whole game working folder, including game/UbiSoft/Ubi.ini, before rebuilding. The active working copy and generated player belong to your upstream setup.",
         "The setup application is x64. Its generated game player is Win32 and runs on compatible Windows x64. This release has no native Linux, Mac, or Android setup path."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pod-gold",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
+        "https://github.com/sp00nznet/pod-recomp"
+      ],
+      "source_editions": []
     }
   }
 }

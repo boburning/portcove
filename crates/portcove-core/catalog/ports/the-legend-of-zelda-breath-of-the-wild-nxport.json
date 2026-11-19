@@ -38,6 +38,12 @@
           "instruction": "The builder targets Apple silicon. There is no confirmed Windows or Linux player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-breath-of-the-wild",
+      "evidence_urls": ["https://github.com/nxporting/nxport"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

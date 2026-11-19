@@ -50,6 +50,15 @@
           "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-3-nobita-no-machi-sos",
+      "evidence_urls": [
+        "https://github.com/citrongames/Dora64-3",
+        "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/docs/user-guide.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

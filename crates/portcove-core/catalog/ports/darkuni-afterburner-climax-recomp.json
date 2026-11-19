@@ -43,10 +43,25 @@
       "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
     },
     "release_url": "https://github.com/darkuni/afterburner-climax-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["AfterBurnerClimax-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": [
+        "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md",
+        "https://github.com/darkuni/afterburner-climax-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -77,5 +92,6 @@
       }
     },
     "windows_tracked_handoff": true
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

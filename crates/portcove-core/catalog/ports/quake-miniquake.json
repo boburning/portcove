@@ -41,6 +41,15 @@
         }
       ],
       "help_url": "https://github.com/MiniLangProject/MiniQuake/blob/v2026.10.23/README.md#quick-start"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/MiniLangProject/MiniQuake/blob/v2026.10.23/README.md#quick-start",
+        "https://github.com/MiniLangProject/MiniQuake"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

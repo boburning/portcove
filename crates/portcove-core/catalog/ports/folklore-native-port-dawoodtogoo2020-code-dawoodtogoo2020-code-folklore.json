@@ -35,6 +35,21 @@
       "image_sha256": "d1ffd856cea68a9685dd75760cfd6aa02ba1119539511efa1d713558b809c956",
       "game_slug": "folklore",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "folklore",
+      "evidence_urls": ["https://github.com/dawoodtogoo2020-code/folklore-native-port"],
+      "source_editions": [
+        {
+          "id": "folklore-playstation-3",
+          "title": "Folklore (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/dawoodtogoo2020-code/folklore-native-port/blob/1fc59432f3c1a069d70e265a399e527428961676/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

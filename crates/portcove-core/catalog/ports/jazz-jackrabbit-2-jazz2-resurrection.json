@@ -47,6 +47,15 @@
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jazz-jackrabbit-2",
+      "evidence_urls": [
+        "https://github.com/deathkiller/jazz2-native",
+        "https://github.com/deathkiller/jazz2-native/tree/81f315f1f62d1716c489df349e5ebfdc017603da"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

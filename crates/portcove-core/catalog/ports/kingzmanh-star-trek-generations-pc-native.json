@@ -39,6 +39,15 @@
       "warnings": [
         "The Windows preview uses your original disc contents and its own installer and uninstaller. Preserve both discs for future setup."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-trek-generations",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/v0.1.1/README.md",
+        "https://github.com/kingzmanh/star-trek-generations-pc-native"
+      ],
+      "source_editions": []
     }
   }
 }

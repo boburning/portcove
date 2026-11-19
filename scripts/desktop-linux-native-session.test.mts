@@ -43,10 +43,25 @@ void test(
       }),
       {
         harness: 240_000,
-        outer: 270_000,
+        outer: 510_000,
         inputCapture: 300_000,
         inputVerification: 120_000,
-        command: 750_000,
+        namespaceCapture: 60_000,
+        command: 1_050_000,
+      },
+    );
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "keyboard-layout"],
+      }),
+      {
+        harness: 420_000,
+        outer: 690_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_230_000,
       },
     );
     for (const scenario of [
@@ -58,20 +73,22 @@ void test(
         linuxX11ExecutionBudgets({ stage: "harness", harness_args: ["--scenario", scenario] }),
         {
           harness: 660_000,
-          outer: 690_000,
+          outer: 930_000,
           inputCapture: 300_000,
           inputVerification: 120_000,
-          command: 1_170_000,
+          namespaceCapture: 60_000,
+          command: 1_470_000,
         },
       );
     assert.deepEqual(
       linuxX11ExecutionBudgets({ stage: "gtk", harness_args: ["not-a-harness-option"] }),
       {
         harness: 240_000,
-        outer: 270_000,
+        outer: 390_000,
         inputCapture: 300_000,
         inputVerification: 120_000,
-        command: 750_000,
+        namespaceCapture: 60_000,
+        command: 930_000,
       },
     );
     assert.throws(
@@ -175,7 +192,7 @@ void test("private-X11 input checks outlive the former minute and still refuse f
         };
       },
       waitExit: async (_launch: unknown, milliseconds: number) => {
-        assert.equal(milliseconds, 270_000);
+        assert.equal(milliseconds, 390_000);
         return { code: 0 };
       },
     };
@@ -236,7 +253,7 @@ void test("private-X11 direct Linux admission includes input checks and preserve
     assert.equal(admitted.profile, platform === "linux" ? "browser" : "rust");
     assert.equal(
       admitted.options.executionTimeoutMilliseconds,
-      platform === "linux" ? 750_000 : undefined,
+      platform === "linux" ? 930_000 : undefined,
     );
     assert.equal(reads, platform === "linux" ? 1 : 0);
   }

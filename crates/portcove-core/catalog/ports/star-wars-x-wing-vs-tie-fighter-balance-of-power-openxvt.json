@@ -49,6 +49,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
       "macos-aarch64": ["-macos-arm64-release.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md",
+        "https://github.com/elyosh/OpenXvT"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

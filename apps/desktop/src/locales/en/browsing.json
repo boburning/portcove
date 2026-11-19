@@ -96,6 +96,7 @@
     "chosen": "<name/> · Your choice",
     "chosenOutside": "<name/> · Your choice · Outside current filters",
     "independence": "Choosing a project does not select a release, transfer saves or replace another installation.",
+    "label": "Library entries",
     "outside": "<name/> · Outside current filters",
     "portCount_one": "{{count, number}} port",
     "portCount_other": "{{count, number}} ports",
@@ -162,6 +163,7 @@
     "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
     "label": "Upstream activity on GitHub",
     "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
-    "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
+    "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}.",
+    "unknown": "GitHub was checked on {{checked}}. The latest change date is unknown."
   }
 }

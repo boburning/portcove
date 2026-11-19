@@ -52,14 +52,22 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["teambuddies-", "-linux-x64.zip"],
       "macos-aarch64": ["teambuddies-", "-macos-arm64.zip"],
-      "macos-x86-64": ["teambuddies-", "-macos-x64.zip"],
-      "windows-x86-64": ["teambuddies-", "-windows-x64.zip"]
+      "macos-x86-64": ["teambuddies-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "team-buddies",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

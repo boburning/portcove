@@ -53,6 +53,15 @@
           "instruction": "The Windows wrapper uses x86 code and matching DLLs. The project also documents Unix and macOS source builds, with macOS support through Mojave. Supported non-Windows CPUs, disc language, patch and original binary fingerprint have not been confirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-ii-special-edition",
+      "evidence_urls": [
+        "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+        "https://github.com/zaps166/NFSIISE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

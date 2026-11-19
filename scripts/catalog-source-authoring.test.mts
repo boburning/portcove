@@ -9,10 +9,16 @@ import {
   assembleCatalogRecords,
   checkedAuthoredPort,
   checkedCurrentCatalog,
+  compactGbaArchive,
   parseCatalogSource,
   projectAuthoredPort,
+  projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  compactPsxManagedWindows,
+  projectPsxManagedWindows,
+} from "./catalog-psx-managed-windows.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 
@@ -429,6 +435,53 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.deepEqual(projected.catalog.ports[0], port);
   assert.equal(Object.hasOwn(authored.integration ?? {}, "name"), false);
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
+});
+
+void test("inherits only reviewed descriptive selectors for the same package scope", () => {
+  const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const record = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "alariq-mc2.json"))),
+  );
+  const platform = "windows-x86-64";
+  const integrated = assembleCatalogRecords(shared, [record]);
+  assert.deepEqual(integrated.directory.listings[0]?.download_asset_hints, {
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  const literal = structuredClone(record);
+  delete literal.listing_inherit_asset_hints;
+  literal.listing.download_asset_hints = { [platform]: ["mc2-win64-", ".zip"] };
+  assert.deepEqual(assembleCatalogRecords(shared, [literal]).directory, integrated.directory);
+  const override = structuredClone(record);
+  override.listing.download_asset_hints = { [platform]: ["other-reviewed.zip"] };
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [override]).directory.listings[0]?.download_asset_hints,
+    {
+      [platform]: ["other-reviewed.zip"],
+    },
+  );
+  const suppressed = structuredClone(record);
+  suppressed.listing.download_asset_hints = {};
+  assert.deepEqual(
+    assembleCatalogRecords(shared, [suppressed]).directory.listings[0]?.download_asset_hints,
+    {},
+  );
+  const broader = structuredClone(record);
+  broader.listing.platforms = ["linux-x86-64"];
+  broader.listing.download_asset_hints = { "linux-x86-64": ["linux-package.tar.gz"] };
+  const projection = assembleCatalogRecords(shared, [broader]);
+  assert.deepEqual(projection.directory.listings[0]?.download_asset_hints, {
+    "linux-x86-64": ["linux-package.tar.gz"],
+    [platform]: ["mc2-win64-", ".zip"],
+  });
+  assert.deepEqual(projection.catalog, integrated.catalog);
+  const fork = structuredClone(record);
+  fork.listing.release_url = "https://github.com/fork/mc2/releases";
+  const differentTag = structuredClone(record);
+  differentTag.listing.release_url = "https://github.com/alariq/mc2/releases/tag/v1";
+  const wrongPlatform = structuredClone(record);
+  wrongPlatform.listing_inherit_asset_hints = ["linux-x86-64"];
+  for (const invalid of [fork, differentTag, wrongPlatform])
+    assert.throws(() => assembleCatalogRecords(shared, [invalid]), /same-project GitHub/);
 });
 
 void test("listing download hints remain advisory and reject ambiguous authoring shapes", () => {
@@ -968,6 +1021,44 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     };
     delete release.asset_hints["linux-x86-64"];
     assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
+  }
+});
+
+void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  for (const record of records.filter((entry) => entry.psx_managed_windows_v1 !== undefined)) {
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const compact = compactPsxManagedWindows(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.persistent_paths = ["custom-save"];
+    assert.equal(compactPsxManagedWindows(custom), custom);
+  }
+});
+
+void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);
+  assert.ok(supported.length > 0);
+  for (const record of supported) {
+    const explicit = projectGbaArchive(record);
+    delete explicit.gba_staged_archive_v1;
+    const compact = compactGbaArchive(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.runtime_mutable_paths = ["recomp_coverage_XXXX.json"];
+    assert.equal(compactGbaArchive(custom), custom);
   }
 });
 

@@ -19,8 +19,6 @@
     },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Digimon-World-2003-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Digimon-World-2003-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Digimon-World-2003-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Digimon-World-2003-Recomp-", "-macos-arm64.zip"]
     },
@@ -53,8 +51,18 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp"
+      ],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

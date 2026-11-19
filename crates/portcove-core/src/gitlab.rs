@@ -718,7 +718,10 @@ fn choose_link<'a>(
         .iter()
         .filter_map(|link| {
             let name = link.name.to_ascii_lowercase();
-            if link.link_type != "package" || conflicts_with_platform(&name, platform) {
+            if link.link_type != "package"
+                || crate::service::package_selection::is_server_package(&name)
+                || conflicts_with_platform(&name, platform)
+            {
                 return None;
             }
             if port.n64_runtime_at_executable_parent {
@@ -957,6 +960,11 @@ fn resolve_observed_asset(
                 .unwrap_or_else(|| link.url.clone()),
         )
     };
+    if crate::service::package_selection::is_server_package(&name) {
+        return Err(PortcoveError::verification(
+            "GitLab package filename identifies a dedicated server",
+        ));
+    }
     if port.n64_runtime_at_executable_parent
         && native_archive_score(
             &name.to_ascii_lowercase(),

@@ -1,13 +1,11 @@
-//! The mod provider a game has a reviewed binding for. A game has at most one;
-//! its binding, never a provider listing, says which community or game ID is
-//! authoritative.
+//! Provider clients scoped to the coordinates of a reviewed port definition.
 use std::path::Path;
 
 use crate::{
-    GameBananaClient, Library, PortcoveError, Result, ThunderstoreClient,
+    GameBananaClient, Library, ModProviderBinding, PortDefinition, PortcoveError, Result,
+    ThunderstoreClient,
     mod_provider::{Observed, ProviderFileCandidate, ProviderPage, ProviderProject},
-    provider_install::gamebanana_game,
-    thunderstore::thunderstore_community,
+    provider_binding::{default_binding, reviewed_binding},
 };
 
 #[derive(Clone)]
@@ -18,31 +16,54 @@ pub(crate) enum ProviderClient {
     },
     Thunderstore {
         client: ThunderstoreClient,
-        community: &'static str,
+        community: String,
     },
 }
 
 impl ProviderClient {
-    pub(crate) fn for_port(library: &Library, port_id: &str) -> Result<Self> {
-        if let Some(game) = gamebanana_game(port_id) {
-            return Ok(Self::GameBanana {
+    pub(crate) fn for_definition(
+        library: &Library,
+        port: &PortDefinition,
+        provider: Option<&str>,
+    ) -> Result<Self> {
+        let binding = match provider {
+            Some(provider) => reviewed_binding(port, provider),
+            None => default_binding(port),
+        };
+        match binding {
+            Some(ModProviderBinding::Gamebanana { game_id }) => Ok(Self::GameBanana {
                 client: GameBananaClient::for_library(library)?,
-                game,
-            });
-        }
-        if let Some(community) = thunderstore_community(port_id) {
-            return Ok(Self::Thunderstore {
+                game: game_id,
+            }),
+            Some(ModProviderBinding::Thunderstore { community }) => Ok(Self::Thunderstore {
                 client: ThunderstoreClient::for_library(library)?,
                 community,
-            });
+            }),
+            None if provider.is_none()
+                && crate::provider_binding::configured_bindings(port)
+                    .is_some_and(|bindings| bindings.len() > 1) =>
+            {
+                Err(PortcoveError::usage(
+                    "select one reviewed mod provider for this game",
+                ))
+            }
+            None => Err(unbound()),
         }
-        Err(unbound())
+    }
+
+    pub(crate) fn binding(&self) -> ModProviderBinding {
+        match self {
+            Self::GameBanana { game, .. } => ModProviderBinding::Gamebanana { game_id: *game },
+            Self::Thunderstore { community, .. } => ModProviderBinding::Thunderstore {
+                community: community.clone(),
+            },
+        }
     }
 
     /// The GameBanana binding with a given client (tests).
     #[cfg(test)]
     pub(crate) fn gamebanana(client: &GameBananaClient, port_id: &str) -> Result<Self> {
-        let game = gamebanana_game(port_id).ok_or_else(|| {
+        let game = crate::provider_install::gamebanana_game(port_id).ok_or_else(|| {
             PortcoveError::unsupported("this game has no reviewed GameBanana binding yet")
         })?;
         Ok(Self::GameBanana {
@@ -59,19 +80,11 @@ impl ProviderClient {
         }
     }
 
-    /// The provider's name in messages.
-    pub(crate) fn label(&self) -> &'static str {
-        match self {
-            Self::GameBanana { .. } => "GameBanana",
-            Self::Thunderstore { .. } => "Thunderstore",
-        }
-    }
-
     /// The game or community identity a project must carry to belong to this port.
     pub(crate) fn game_id(&self) -> String {
         match self {
             Self::GameBanana { game, .. } => game.to_string(),
-            Self::Thunderstore { community, .. } => (*community).to_owned(),
+            Self::Thunderstore { community, .. } => community.clone(),
         }
     }
 
