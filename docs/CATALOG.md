@@ -49,6 +49,8 @@ ScummVM target. ScummVM owns its profile and save locations, and the selected
 package route determines who updates the runtime.
 See [ScummVM's default save locations](https://docs.scummvm.org/en/latest/use_scummvm/save_load_games.html#location-of-saved-game-files)
 and [direct launch with a saved target](https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game).
+The [shared player example](reference/scummvm.md) shows how to register two game
+targets against the same upstream installation.
 
 Descriptions require listing format 12. Formats 5 through 11 exported for older
 strict readers omit only this inert field; ordinary requirements and restrictions
