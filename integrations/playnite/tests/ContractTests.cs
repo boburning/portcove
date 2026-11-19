@@ -432,7 +432,6 @@ internal static class ContractTests
         {
             var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
             capabilities["schema_version"] = boundarySchema;
-            capabilities["operation_event_schema_version"] = 3;
             var result = Json.Object(Json.Parse(Result("status", new object[0])));
             result["schema_version"] = boundarySchema;
             var boundaryReader = new ProtocolStream("status");
@@ -440,7 +439,7 @@ internal static class ContractTests
             {
                 foreach (Action request in new Action[]
                 {
-                    () => ProtocolStream.Negotiate(capabilities),
+                    () => ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library),
                     () => boundaryReader.Line(Json.Print(result))
                 })
                 {
@@ -458,7 +457,7 @@ internal static class ContractTests
             }
             else
             {
-                ProtocolStream.Negotiate(capabilities);
+                ProtocolStream.Negotiate(capabilities, ConsumerCapability.Library);
                 boundaryReader.Line(Json.Print(result));
                 Check(Json.Array(boundaryReader.Finish(0)).Length == 0, "both readers accept schema " + boundarySchema);
             }
