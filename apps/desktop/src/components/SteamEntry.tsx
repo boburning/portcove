@@ -821,6 +821,7 @@ function SteamProfileFields({
           <Input
             data-focusable
             id={`${idPrefix}-installation`}
+            dir="ltr"
             value={steamRoot}
             disabled={pending}
             onChange={(event) => {
@@ -865,7 +866,9 @@ function SteamProfileFields({
                   className="h-auto min-w-0 text-start [overflow-wrap:anywhere] whitespace-normal"
                   onClick={() => changeRoot(root)}
                 >
-                  <bdi>{root}</bdi>
+                  <bdi className="path-value" dir="ltr">
+                    {root}
+                  </bdi>
                 </Button>
               ))}
             </ActionRow>
@@ -959,11 +962,17 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
         <strong>{message}</strong>
       </p>
       <p className="[overflow-wrap:anywhere]">
-        Shortcut file: <code>{result.shortcuts_path}</code>
+        Shortcut file:{" "}
+        <code className="path-value" dir="ltr">
+          {result.shortcuts_path}
+        </code>
       </p>
       {result.backup_path && (
         <p className="[overflow-wrap:anywhere]">
-          Backup: <code>{result.backup_path}</code>
+          Backup:{" "}
+          <code className="path-value" dir="ltr">
+            {result.backup_path}
+          </code>
         </p>
       )}
       {result.artwork.length > 0 && (
@@ -1085,15 +1094,24 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
         <dl className="grid gap-3 wrap-anywhere">
           <div>
             <dt>Shortcut file</dt>
-            <dd>{review.shortcuts_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.shortcuts_path}
+            </dd>
           </div>
           <div>
             <dt>Portcove library</dt>
-            <dd>{review.library_root}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.library_root}
+            </dd>
           </div>
           <div>
             <dt>Standalone CLI</dt>
-            <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
+            <dd
+              className={review.cli_path ? "path-value" : undefined}
+              dir={review.cli_path ? "ltr" : undefined}
+            >
+              {review.cli_path ?? "Not required for this removal review"}
+            </dd>
           </div>
           {review.cli_sha256 && (
             <div>
@@ -1221,7 +1239,9 @@ function SteamArtworkReviewDetails({
           </div>
           <div>
             <dt>Artwork folder</dt>
-            <dd>{review.grid_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.grid_path}
+            </dd>
           </div>
           {review.app_id !== null && review.app_id !== undefined && (
             <div>
@@ -1258,7 +1278,10 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
       </ul>
       {result.backup_paths.map((path) => (
         <p className="[overflow-wrap:anywhere]" key={path}>
-          Backup: <code>{path}</code>
+          Backup:{" "}
+          <code className="path-value" dir="ltr">
+            {path}
+          </code>
         </p>
       ))}
     </section>
