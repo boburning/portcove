@@ -126,6 +126,23 @@ function noticeScope(
   ));
 }
 
+export function CapabilityNoticeScope({
+  notice,
+}: {
+  notice: PortCapabilityReport["advisories"][number]["notice"];
+}) {
+  const { t } = useAppTranslation("detail");
+  return (
+    <p>
+      <Trans
+        t={t}
+        i18nKey="capabilities.notice.scope"
+        components={{ scope: <span>{noticeScope(t, notice)}</span> }}
+      />
+    </p>
+  );
+}
+
 /** Selected-entry read only. Cancellation and generation keys prevent stale detail publication. */
 export function PortCapabilities({
   entry,
@@ -289,13 +306,7 @@ export function PortCapabilities({
             </dl>
           )}
           <p>{notice.explanation}</p>
-          <p>
-            <Trans
-              t={t}
-              i18nKey="capabilities.notice.scope"
-              components={{ scope: <span>{noticeScope(t, notice)}</span> }}
-            />
-          </p>
+          <CapabilityNoticeScope notice={notice} />
           {(notice.release || notice.artifact_sha256 || notice.edition) && (
             <p>{t("capabilities.notice.versionSpecific")}</p>
           )}

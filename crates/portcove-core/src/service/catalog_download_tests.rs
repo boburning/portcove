@@ -53,6 +53,63 @@ fn archive() -> Vec<u8> {
 }
 
 #[test]
+fn bulk_listing_status_includes_scoped_launch_behavior_without_granting_play() {
+    let (_temporary, mut service, request) = fixture();
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.compatibility = Some(json!({
+        "format_version": 2,
+        "records": [{
+            "id": "prepare-once",
+            "feature": "launch",
+            "platform": Platform::current().unwrap(),
+            "route": "upstream-setup",
+            "release": "v1",
+            "artifact_sha256": "a".repeat(64),
+            "explanation": "Import the original once to prepare the game.",
+            "provenance": "https://example.com/v1/setup",
+            "observed_at": 1,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+                "first_launch": "asks-for-game-files",
+                "repeat_launch": "starts-game-directly"
+            }
+        }]
+    }));
+    service.catalog = service
+        .catalog
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 7,
+            listings: vec![listing],
+        })
+        .unwrap();
+
+    let [status]: [crate::PortListingStatus; 1] =
+        service.listing_statuses().unwrap().try_into().unwrap();
+    let report = status.capabilities.unwrap();
+    assert_eq!(report.advisories.len(), 1);
+    let notice = &report.advisories[0];
+    assert!(matches!(
+        notice.applicability,
+        crate::AdvisoryApplicability::ContextRequired
+    ));
+    assert_eq!(
+        notice
+            .notice
+            .launch_behavior
+            .as_ref()
+            .unwrap()
+            .repeat_launch,
+        crate::LaunchEntryBehavior::StartsGameDirectly
+    );
+    assert!(
+        status
+            .actions
+            .iter()
+            .any(|action| action.action == crate::ListingAction::Launch && !action.allowed)
+    );
+}
+
+#[test]
 fn legacy_catalog_artifact_json_keeps_pre_gitlab_numeric_wire_representation() {
     // Candidate field order and numeric IDs at baseline5821d359, independent of
     // the new provider-qualified model and its constructors.
