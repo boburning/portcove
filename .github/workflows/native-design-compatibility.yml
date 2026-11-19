@@ -10,6 +10,7 @@ on:
         options:
           [
             compatibility,
+            released-preview7-macos-startup,
             presentation,
             product-workflows,
             linux-namespace-preflight,
@@ -63,6 +64,48 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  released-preview7-macos-startup:
+    if: ${{ inputs.operation == 'released-preview7-macos-startup' && !inputs.edge_driver_proof && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify the exact published Preview.7 package and native host
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_RUNNER: ${{ inputs.runner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=nightly-0.1.0-preview.7
+          source=63231b8fabae2ab6b5312059505df65d9e5fe223
+          package=Portcove_0.1.0-preview.7_universal.dmg
+          digest=35bb2f79bb020db81316e88427226600534953e0bfee75292c5de1e8f618e396
+          architecture="$(uname -m)"
+          case "$MACOS_RUNNER/$architecture" in
+            macos-15/arm64|macos-15-intel/x86_64) ;;
+            *) echo "Hosted runner architecture does not match the selected platform" >&2; exit 1 ;;
+          esac
+          sw_vers
+          printf '%s\n' "host architecture $architecture" "published source $source"
+          gh api "repos/boburning/portcove/releases/tags/$tag" |
+            jq --exit-status --arg tag "$tag" --arg source "$source" --arg package "$package" --arg digest "$digest" '
+              .tag_name == $tag and .draft == false and .target_commitish == $source and
+              ([.assets[] | select(.id == 765107901 and .name == $package and
+                .size == 60124099 and .digest == ("sha256:" + $digest))] | length == 1)
+            '
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+            --max-time 120 --output "$RUNNER_TEMP/$package" \
+            "https://github.com/boburning/portcove/releases/download/$tag/$package"
+          printf '%s  %s\n' "$digest" "$RUNNER_TEMP/$package" | shasum -a 256 --check
+          shasum -a 256 scripts/verify-macos-release.ps1
+      - name: Launch and close the verified installed-style application
+        shell: pwsh
+        run: |
+          ./scripts/verify-macos-release.ps1 -DmgPath (Join-Path $env:RUNNER_TEMP 'Portcove_0.1.0-preview.7_universal.dmg') -Version 0.1.0-preview.7 -Architecture ((& /usr/bin/uname -m).Trim())
+
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
