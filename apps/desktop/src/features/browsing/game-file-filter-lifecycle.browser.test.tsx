@@ -61,6 +61,9 @@ const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot =
 let host: HTMLDivElement;
 let root: RenderResult;
 let state: ReturnType<typeof useGameFileFilterContext>;
+// The fixture's interaction spy stays in place. Only capture positioning uses
+// the native Element method so the visibility preflight observes real scrolling.
+const scrollIntoViewForCapture = Element.prototype.scrollIntoView;
 function Fixture({
   generation = 1,
   browsingBinding = "c".repeat(64),
@@ -91,22 +94,25 @@ function Fixture({
   const context = { library: { id: "scope", statuses: new Map() }, gameFiles: state.context };
   const result = evaluateCatalogQuery(ports, filter, context);
   return (
-    <>
-      <CatalogFilters
-        candidates={ports}
-        context={context}
-        filter={filter}
-        setFilter={(update) =>
-          setFilter(
-            (current) => (typeof update === "function" ? update(current) : update) as CatalogQuery,
-          )
-        }
-        gameFileQuery={state}
-      />
+    <div className="@container/library-query min-w-0">
+      <div className="library-query-tools mb-4" data-view="catalog">
+        <CatalogFilters
+          candidates={ports}
+          context={context}
+          filter={filter}
+          setFilter={(update) =>
+            setFilter(
+              (current) =>
+                (typeof update === "function" ? update(current) : update) as CatalogQuery,
+            )
+          }
+          gameFileQuery={state}
+        />
+      </div>
       <p data-matches>
         {result.state}:{result.ports.map((port) => port.id).join(",")}
       </p>
-    </>
+    </div>
   );
 }
 beforeEach(async () => {
@@ -320,10 +326,26 @@ it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
     const captureControls = async (phase: "producing-host" | "retained-explicit-target") => {
       await openAdvancedFilters();
       const selector = ".catalog-filter-advanced fieldset:not([aria-label])";
+      const control = fixtureValue(document.querySelector<HTMLElement>(selector), selector);
+      const groups = fixtureValue(control.closest(".catalog-filter-groups"), "filter groups");
+      const tools = fixtureValue(host.querySelector(".library-query-tools"), "query tools");
+      expect(
+        getComputedStyle(fixtureValue(tools.parentElement, "query container")).containerName,
+      ).toBe("library-query");
+      expect(getComputedStyle(groups).display).toBe("grid");
+      const columns = getComputedStyle(groups).gridTemplateColumns.trim().split(/\s+/u);
+      expect(innerWidth).toBe(hostPlatform === "macos-aarch64" ? 430 : 960);
+      expect(columns).toHaveLength(hostPlatform === "macos-aarch64" ? 1 : 3);
+      expect(columns.every((column) => column !== "none")).toBe(true);
       await prepareCaptureTarget({
         target: selector,
         label: `game-file host controls ${hostPlatform} ${phase}`,
-        scroll: () => document.querySelector(selector)?.scrollIntoView({ block: "center" }),
+        scroll: () =>
+          scrollIntoViewForCapture.call(control, {
+            block: "center",
+            inline: "nearest",
+            behavior: "instant",
+          }),
         observe: () => observeVisibleTarget(selector, "visual"),
       });
       await expect.element(page.getByRole("combobox", { name: /^Platform/ })).toBeVisible();
