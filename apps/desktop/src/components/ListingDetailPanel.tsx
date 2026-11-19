@@ -169,8 +169,8 @@ export function ListingDetailPanel({
     <div className="flex flex-wrap gap-4 text-sm">
       <ExternalLink href={listing.project_url}>Project website</ExternalLink>
       {updates?.releases && <ExternalLink href={updates.url}>Upstream releases</ExternalLink>}
-      {listing.setup_url && (
-        <ExternalLink href={listing.setup_url}>Setup instructions</ExternalLink>
+      {!entry.pendingSetup && listing.setup_url && (
+        <ExternalLink href={listing.setup_url}>Project setup guide</ExternalLink>
       )}
     </div>
   );

@@ -84,6 +84,7 @@ export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
   setup,
+  openGuide,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
@@ -91,6 +92,7 @@ export function AuthoredPreparationGuidance({
     | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
     | null
     | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 }) {
   const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
   const note =
@@ -128,7 +130,9 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
           {guide.help_url && (
-            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+            <ExternalLink href={guide.help_url} {...(openGuide ? { openUrl: openGuide } : {})}>
+              Detailed preparation guide
+            </ExternalLink>
           )}
           {note && !externalManaged && (
             <details className="text-xs">
@@ -288,6 +292,7 @@ type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
@@ -316,6 +321,7 @@ function useUserSelectedRuntimeEditor({
   listingStatus,
   initialDirectory,
   libraryRoot,
+  openGuide,
 }: UserSelectedRuntimeProps) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
@@ -468,6 +474,7 @@ function useUserSelectedRuntimeEditor({
     canRemove,
     chooseExecutable,
     chooseDirectory,
+    openGuide,
   };
 }
 
@@ -1083,6 +1090,7 @@ function RuntimeRegistrationForm({
   | "canRemove"
   | "chooseExecutable"
   | "chooseDirectory"
+  | "openGuide"
 >) {
   return registered && !model.editing ? (
     <ExistingRuntimeActions {...{ registered, model }} />
@@ -1099,7 +1107,7 @@ function RuntimeRegistrationForm({
         Confirm the game executable or its supported native launcher. You or upstream provide
         runtime updates. Adding it saves launch details; Play remains a separate action.
       </p>
-      <AuthoredPreparationGuidance port={model.port} />
+      <AuthoredPreparationGuidance port={model.port} openGuide={model.openGuide} />
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
