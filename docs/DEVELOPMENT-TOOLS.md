@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 

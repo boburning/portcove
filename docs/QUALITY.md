@@ -2,13 +2,13 @@
 
 ## Required hosted baseline
 
-An ordinary change finishes when its owning acceptance is met, applicable review
-is complete, the five required exact-head contexts pass, and guarded merge and
-remote readback succeed. The contexts remain `catalog`, `dependency-review`,
-`frontend`, `rust`, and `rust-quality`; GitHub protections remain enforced.
-[Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge) owns
-the delivery operations. Supplementary runs, diagnostics and personal preferences
-do not become merge prerequisites merely because somebody invoked them.
+Meet the acceptance criteria in the issue. Complete the applicable review.
+Make sure that all five required checks pass on the exact pull request commit.
+GitHub requires `catalog`, `dependency-review`, `frontend`, `rust`, and
+`rust-quality`. Follow the guarded merge procedure and read back the result
+from GitHub. See [Contribution conventions](CONTRIBUTION-CONVENTIONS.md#review-and-merge).
+Supplementary tests and diagnostics remain optional unless an existing rule
+requires them.
 
 Local commands are optional feedback. Bare `just`, `just local-check`, focused
 tests and analyzers may help development; omitted local checks need no explanation.
