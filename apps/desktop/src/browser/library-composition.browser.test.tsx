@@ -113,7 +113,7 @@ it.each([1, 0])(
       snapshot.catalog,
       snapshot.listing_catalog ?? undefined,
       snapshot.listing_statuses,
-      snapshot.pending_setups,
+      snapshot.pending_setups ?? [],
     );
     const statuses = indexStatuses([
       ...snapshot.listing_statuses.map(({ status }) => status),
