@@ -548,9 +548,11 @@ exposes the writer's `writer_plan_sha256`; the apply result reports the latter
 as `plan_sha256`.
 The durable writer applies the batch as one shortcut-file publication, retaining
 its original backup and journal recovery behavior.
-The user chooses a Steam installation folder, then explicitly selects a
-discovered local numeric profile folder or enters its ID manually. Discovery
-reads only bounded regular profile directories beneath that installation's
+Both shortcut flows can show local Steam installations found through Windows
+registration or the usual Linux, Flatpak and macOS locations. A suggestion
+must have a usable local profile. The player chooses a suggested installation
+or selects a folder manually, then explicitly selects a local numeric profile
+or enters its ID. Profile discovery reads bounded regular directories beneath the installation's
 `userdata`; it does not infer the active Steam account. Changing the installation
 clears the prior profile selection. The user then reviews the resolved shortcut
 file, library, standalone CLI and Add/Repair/Remove result before a separate
