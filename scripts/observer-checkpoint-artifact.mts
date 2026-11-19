@@ -38,7 +38,7 @@ import {
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
-export const observerStreamingSnapshotLimit = 8 * 1024 * 1024;
+export const observerStreamingSnapshotLimit = 16 * 1024 * 1024;
 const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
@@ -53,7 +53,7 @@ const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
 // Already-compressed members can grow slightly under ZIP's deflate framing.
-// Keep that packaging inside the existing four-MiB complete archive budget.
+// Keep that packaging inside each format's complete archive budget.
 const binaryMemberLimit = observerSnapshotLimit - 16 * 1024;
 const streamingMemberLimit = observerStreamingSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
