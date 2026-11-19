@@ -1555,7 +1555,7 @@ async fn refresh_game_file_query_at_generation(
     let snapshot = blocking_worker(move || {
         let service = service_at_generation(&worker_state, generation)?;
         service
-            .refresh_game_file_query_with_progress(&request, emit)
+            .refresh_browsing_game_file_query_with_progress(&request, emit)
             .map_err(Into::into)
     })
     .await?;

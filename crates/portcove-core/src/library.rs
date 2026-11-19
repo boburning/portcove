@@ -2206,18 +2206,25 @@ impl Library {
         let mut profile_ids = profile_ids.to_vec();
         profile_ids.sort_unstable();
         profile_ids.dedup();
-        let connection = self.connection()?;
-        let sql = format!(
-            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
-             FROM sources
-             WHERE profile_id IN ({})
-             ORDER BY profile_id",
-            sql_placeholders(profile_ids.len())
-        );
-        let mut statement = connection.prepare(&sql)?;
-        let rows =
-            statement.query_map(params_from_iter(&profile_ids), StoredSourceRow::from_row)?;
-        rows.map(|row| row?.into_record()).collect()
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let mut records = Vec::new();
+        for batch in profile_ids.chunks(256) {
+            let sql = format!(
+                "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
+                 FROM sources
+                 WHERE profile_id IN ({})
+                 ORDER BY profile_id",
+                sql_placeholders(batch.len())
+            );
+            let mut statement = transaction.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(batch), StoredSourceRow::from_row)?;
+            for row in rows {
+                records.push(row?.into_record()?);
+            }
+        }
+        transaction.commit()?;
+        Ok(records)
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
@@ -2636,8 +2643,14 @@ impl Library {
         &self,
         port_id: &str,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let row = self
-            .connection()?
+        Self::external_runtime_with_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn external_runtime_with_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let row = connection
             .query_row(
                 "SELECT record_json, retained_catalog_json FROM external_runtime_registrations
              WHERE port_id=?1",

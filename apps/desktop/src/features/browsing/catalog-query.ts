@@ -594,6 +594,30 @@ function coherentMatcher(
         ),
       ),
     }));
+    const observed = context.gameFiles?.byPort.get(port.id);
+    if (
+      observed?.reason === "route_not_offered" &&
+      context.gameFiles?.library.id === browsing.library.id &&
+      context.gameFiles.library.root === browsing.library.root &&
+      !facts.some(
+        (fact) =>
+          fact.route === observed.route &&
+          fact.platform === observed.platform &&
+          fact.channel === observed.channel,
+      ) &&
+      values("gameFiles").includes(observed.state)
+    ) {
+      // An unoffered selection has no matching route to join. It contributes
+      // to port-level facets without borrowing another route's facts.
+      entries.push({
+        match: selected.every(
+          (group) =>
+            group === "gameFiles" ||
+            (["portOptions", "implementationMethods", "originalSystems"].includes(group) &&
+              values(group).some((value) => matches(port, group, value, context))),
+        ),
+      });
+    }
     if (selected.includes("platforms") && listingOnlyPlatforms(port).length) {
       const portMember = facts.some((fact) => fact.port_member);
       entries.push({
