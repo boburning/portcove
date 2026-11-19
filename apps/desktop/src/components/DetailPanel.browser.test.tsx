@@ -322,7 +322,7 @@ it.each(
       const requirements = page.getByText("Current game-file requirements", { exact: true });
       await expect.element(requirements).toBeVisible();
       expect(requirements.element().closest("details")).toBeNull();
-      requirements.element().scrollIntoView({ block: "start", behavior: "instant" });
+      requirements.element().scrollIntoView({ block: "center", behavior: "instant" });
       const requirementsBounds = requirements.element().getBoundingClientRect();
       expect(requirementsBounds.top).toBeGreaterThanOrEqual(0);
       expect(requirementsBounds.bottom).toBeLessThanOrEqual(innerHeight);
