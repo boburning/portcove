@@ -24,7 +24,13 @@
         "This is experimental. The project reports Android menus, scenery and video near 60 FPS on an S25.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP"
+      "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP",
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get NFSCarbon-Android-v0.3.3-arm64.apk from the project's v0.3.3 release. Use ARM64 Android 8 or later with Vulkan 1.1 or later, descriptor indexing and about 6 GB free. Put default.xex, NFS and Movies from your own Xbox 360 game directly in Internal storage/NFSCARBON or import them in the upstream launcher. Grant file access, choose settings and press Jugar. For an update, install the publisher's APK over the existing app to keep settings and saves."
+        }
+      ]
     },
     "issue_number": 3240,
     "listed_at": "2026-10-25",

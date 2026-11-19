@@ -47,6 +47,10 @@
         {
           "title": "Use permitted content and check this guide’s limits",
           "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
+        },
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get Takedawn-0.3.1-android-arm64.apk from the project's v0.3.1 release. Use Android 13 or later on ARM64 with Snapdragon/Adreno graphics and Vulkan 1.3. On first launch, select your own supported original Xbox retail disc image or extracted game folder. The app checks and copies it. If the copy stops, select the same source to resume. Open settings with the on-screen control or press Back and Start together. Saves and settings are under Android/data/io.github.xenophobentx.takedawn/files/takedawn."
         }
       ]
     }

@@ -17,6 +17,18 @@
       "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
       "game_slug": "muscle-march",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get MuscleMarch-android.apk from the project's v0.1.0-beta.5 release. Use an ARM64 device with Android 8 or later. Open the app, choose your own USA WiiWare WAD and supply your own Wii common key as text or a key file, then tap Install and play. The app prepares the game files. The publisher says later starts go directly to the game."
+        }
+      ],
+      "help_url": "https://github.com/tmcleroy/muscle-march-recomp/releases/tag/v0.1.0-beta.5",
+      "warnings": [
+        "Portcove has verified the package, but has not tested setup or Play on Android."
+      ]
     }
   }
 }

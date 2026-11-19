@@ -16232,6 +16232,10 @@
           {
             "title": "Optional content and license terms",
             "instruction": "The base Hunters route does not require Prime1/2/3/Trilogy discs, Prime4Beyond files/keys or optional imported characters/music/arenas. Each additional source has its own ownership/permission requirements. Online/LAN/voice/chat/profile sharing and replay-preparation workers are upstream features, not qualifications or operations offered through this guide. Replay preparation can use background helper invocations; close all actual players/helpers/successors before replacement or another attachment. Second Hunt original post-October20 code/art/documents uses PolyForm Strict with additional personal/noncommercial private modification permission and a redistribution prohibition; MphRead-derived and earlier MIT parts and third-party components retain their own terms. Official licensor-published builds are distinguished in that license; do not mirror or redistribute a copy through this guide. These terms grant no Nintendo/game rights."
+          },
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get SecondHunt-0.5.1-beta.apk from the project's v0.5.1-beta release. Use Android 8 or later with OpenGL ES 3.0. On first launch, select your own USA Metroid Prime Hunters ROM, version 1.0 or 1.1. The publisher says the app unpacks it once, then starts the game directly on later launches. Touch and physical controllers are supported."
           }
         ]
       }
@@ -16763,6 +16767,10 @@
           {
             "title": "Use permitted content and check this guide’s limits",
             "instruction": "Preserve the project MIT notice and separate LGPL, GPL and other component notices and corresponding-source information shipped by upstream. These grants cover their own code, not Electronic Arts game content; your original-disc and other component rights remain separate. Public release metadata and upstream BUILDINFO are publisher assertions, not a reproduced build or independently inspected installed package. This guide offers local completed-copy launch only; it grants no network/account setup, gameplay, installed-client, Supported or protected-publication acceptance."
+          },
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get Takedawn-0.3.1-android-arm64.apk from the project's v0.3.1 release. Use Android 13 or later on ARM64 with Snapdragon/Adreno graphics and Vulkan 1.3. On first launch, select your own supported original Xbox retail disc image or extracted game folder. The app checks and copies it. If the copy stops, select the same source to resume. Open settings with the on-screen control or press Back and Start together. Saves and settings are under Android/data/io.github.xenophobentx.takedawn/files/takedawn."
           }
         ]
       }
@@ -30991,7 +30999,13 @@
           "Upstream reports Act 1 gameplay. Android slows heavily under sustained load, and internet co-op remains experimental.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port"
+        "help_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get gow2-recomp-0.4.6-android-arm64.apk from the project's v0.4.6 release. Use ARM64 Android 10 or later with Vulkan and room for a full copy of your own retail Xbox 360 game. Choose game folder or Choose .iso file to import it. Use the Device Options gear for settings. If the game closes unexpectedly, long-press its app icon and choose Launch options for recovery."
+          }
+        ]
       },
       "issue_number": 3208,
       "listed_at": "2026-10-25",
@@ -41599,6 +41613,18 @@
         "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
         "game_slug": "super-smash-bros-melee",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get Melee-Android-arm64.apk from the project's v0.4.2 release. Use an ARM64 device with Vulkan 1.1. In the upstream launcher, provide your own Super Smash Bros. Melee USA revision 2 disc image (GALE01). The project accepts ISO, GCM, CISO or RVZ. The touch overlay can be adjusted and hides when you use a physical controller."
+          }
+        ],
+        "help_url": "https://github.com/999sian/melee-pc/releases/tag/v0.4.2",
+        "warnings": [
+          "Portcove has verified the package, but has not tested setup or Play on Android."
+        ]
       }
     },
     {
@@ -44352,6 +44378,18 @@
         "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
         "game_slug": "muscle-march",
         "match_kind": "underlying-game"
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get MuscleMarch-android.apk from the project's v0.1.0-beta.5 release. Use an ARM64 device with Android 8 or later. Open the app, choose your own USA WiiWare WAD and supply your own Wii common key as text or a key file, then tap Install and play. The app prepares the game files. The publisher says later starts go directly to the game."
+          }
+        ],
+        "help_url": "https://github.com/tmcleroy/muscle-march-recomp/releases/tag/v0.1.0-beta.5",
+        "warnings": [
+          "Portcove has verified the package, but has not tested setup or Play on Android."
+        ]
       }
     },
     {
@@ -45803,7 +45841,13 @@
           "This is experimental. The project reports Android menus, scenery and video near 60 FPS on an S25.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP"
+        "help_url": "https://github.com/codepdbh/NFS-CARBON-360-ANDROID-RECOMP",
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get NFSCarbon-Android-v0.3.3-arm64.apk from the project's v0.3.3 release. Use ARM64 Android 8 or later with Vulkan 1.1 or later, descriptor indexing and about 6 GB free. Put default.xex, NFS and Movies from your own Xbox 360 game directly in Internal storage/NFSCARBON or import them in the upstream launcher. Grant file access, choose settings and press Jugar. For an update, install the publisher's APK over the existing app to keep settings and saves."
+          }
+        ]
       },
       "issue_number": 3240,
       "listed_at": "2026-10-25",
@@ -46605,7 +46649,19 @@
         "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2857
+      "issue_number": 2857,
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get WindWakerHD-Android-Plus-v1.14.apk from the project's v1.14 release. Use an ARM64 device with Android 11 or later and Vulkan 1.1. Select your own Wii U Wind Waker HD files from the USA, Europe or Japan release. Use a WUA archive, or use a WUD or WUX image with your own matching disc key and Wii U common key. Let the app prepare the game. An update can rebuild the prepared game code. Before reinstalling, use Saves outside the app or export your saves from the app."
+          }
+        ],
+        "help_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus/releases/tag/v1.14",
+        "warnings": [
+          "Portcove has verified the package, but has not tested setup or Play on Android."
+        ]
+      }
     },
     {
       "id": "obaidr1-hercules-recompiled",
@@ -49567,7 +49623,13 @@
           "Work in progress: a match reportedly runs on a Galaxy S20 FE.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/dzakyraf/pes2017-recomp"
+        "help_url": "https://github.com/dzakyraf/pes2017-recomp",
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get pes2017-recomp-0.2.0.apk from the project's 0.2.0 release. Use ARM64 Android 8 or later with Vulkan and about 9 GB free. In the launcher, choose Install from disc image and select your own matching Xbox 360 European disc ISO or complete extracted files. Press Kick Off after setup. To export a save ZIP, go to Settings, then Back up saves."
+          }
+        ]
       },
       "issue_number": 3180
     },
@@ -55604,7 +55666,13 @@
           "Native setup generates the game on your device. Rendering, input, save-state and widescreen features are project claims.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp"
+        "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get RoadTripRecomp-0.2.3-Android-arm64.apk from the project's v0.2.3 release. Use ARM64 Android 12 or later with Vulkan and about 2 GB free. On first launch, select your own USA PS2 SLUS-20398 disc image in CUE/BIN, ISO or CHD format. Wait for the app to copy the game files and build the player. The publisher says later launches go directly to the game. The app stores saves in its own Android storage. Before changing to a package signed with a different key, back up your saves."
+          }
+        ]
       },
       "issue_number": 3062
     },
@@ -55847,6 +55915,12 @@
         ],
         "warnings": [
           "Keep the full Unreal package, supported originals and actual Weltall data. Select the native Shipping entry; bootstrap, optional patches, movie-audio formats and save imports have separate scope."
+        ],
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get Weltall-1.0.3-Android.apk from the project's v1.0.3 release. Use Android 10 or later on ARM64 with Vulkan. Put your own Xenogears disc images in a subfolder of Download. In Weltall, use Add folder or Add disc images. For BIN/CUE, select both file types together. The app copies the images. To add another disc or back up saves later, go to Options, then Saves. The publisher recommends installing APK updates over the existing app to keep data."
+          }
         ]
       }
     },
@@ -73863,7 +73937,13 @@
           "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/iMrBurn/wwe12-pc"
+        "help_url": "https://github.com/iMrBurn/wwe12-pc",
+        "references": [
+          {
+            "title": "Set up the upstream Android app",
+            "instruction": "Get WWE12-PC-Android-v1.3.0.apk from the project's v1.3.0 release. Install the ARM64 package and choose your own WWE '12 Xbox 360 ISO in the app. The graphics driver must support Vulkan buffer device address and descriptor indexing. The upstream app handles its own updates."
+          }
+        ]
       },
       "issue_number": 3210
     },

@@ -17,6 +17,18 @@
       "image_sha256": "b27bb8db7367c3b4413717e6ca1cac199ffa1cea9191abe1a427360e5ad1e63f",
       "game_slug": "super-smash-bros-melee",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get Melee-Android-arm64.apk from the project's v0.4.2 release. Use an ARM64 device with Vulkan 1.1. In the upstream launcher, provide your own Super Smash Bros. Melee USA revision 2 disc image (GALE01). The project accepts ISO, GCM, CISO or RVZ. The touch overlay can be adjusted and hides when you use a physical controller."
+        }
+      ],
+      "help_url": "https://github.com/999sian/melee-pc/releases/tag/v0.4.2",
+      "warnings": [
+        "Portcove has verified the package, but has not tested setup or Play on Android."
+      ]
     }
   }
 }

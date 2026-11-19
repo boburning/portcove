@@ -33,7 +33,13 @@
         "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/iMrBurn/wwe12-pc"
+      "help_url": "https://github.com/iMrBurn/wwe12-pc",
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get WWE12-PC-Android-v1.3.0.apk from the project's v1.3.0 release. Install the ARM64 package and choose your own WWE '12 Xbox 360 ISO in the app. The graphics driver must support Vulkan buffer device address and descriptor indexing. The upstream app handles its own updates."
+        }
+      ]
     },
     "issue_number": 3210
   },

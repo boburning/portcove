@@ -46,6 +46,12 @@
       ],
       "warnings": [
         "Keep the full Unreal package, supported originals and actual Weltall data. Select the native Shipping entry; bootstrap, optional patches, movie-audio formats and save imports have separate scope."
+      ],
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get Weltall-1.0.3-Android.apk from the project's v1.0.3 release. Use Android 10 or later on ARM64 with Vulkan. Put your own Xenogears disc images in a subfolder of Download. In Weltall, use Add folder or Add disc images. For BIN/CUE, select both file types together. The app copies the images. To add another disc or back up saves later, go to Options, then Saves. The publisher recommends installing APK updates over the existing app to keep data."
+        }
       ]
     }
   },

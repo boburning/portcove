@@ -33,7 +33,13 @@
         "Native setup generates the game on your device. Rendering, input, save-state and widescreen features are project claims.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp"
+      "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get RoadTripRecomp-0.2.3-Android-arm64.apk from the project's v0.2.3 release. Use ARM64 Android 12 or later with Vulkan and about 2 GB free. On first launch, select your own USA PS2 SLUS-20398 disc image in CUE/BIN, ISO or CHD format. Wait for the app to copy the game files and build the player. The publisher says later launches go directly to the game. The app stores saves in its own Android storage. Before changing to a package signed with a different key, back up your saves."
+        }
+      ]
     },
     "issue_number": 3062
   },

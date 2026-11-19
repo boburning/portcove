@@ -18,7 +18,19 @@
       "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2857
+    "issue_number": 2857,
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get WindWakerHD-Android-Plus-v1.14.apk from the project's v1.14 release. Use an ARM64 device with Android 11 or later and Vulkan 1.1. Select your own Wii U Wind Waker HD files from the USA, Europe or Japan release. Use a WUA archive, or use a WUD or WUX image with your own matching disc key and Wii U common key. Let the app prepare the game. An update can rebuild the prepared game code. Before reinstalling, use Saves outside the app or export your saves from the app."
+        }
+      ],
+      "help_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus/releases/tag/v1.14",
+      "warnings": [
+        "Portcove has verified the package, but has not tested setup or Play on Android."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

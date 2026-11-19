@@ -33,7 +33,13 @@
         "Work in progress: a match reportedly runs on a Galaxy S20 FE.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/dzakyraf/pes2017-recomp"
+      "help_url": "https://github.com/dzakyraf/pes2017-recomp",
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get pes2017-recomp-0.2.0.apk from the project's 0.2.0 release. Use ARM64 Android 8 or later with Vulkan and about 9 GB free. In the launcher, choose Install from disc image and select your own matching Xbox 360 European disc ISO or complete extracted files. Press Kick Off after setup. To export a save ZIP, go to Settings, then Back up saves."
+        }
+      ]
     },
     "issue_number": 3180
   },

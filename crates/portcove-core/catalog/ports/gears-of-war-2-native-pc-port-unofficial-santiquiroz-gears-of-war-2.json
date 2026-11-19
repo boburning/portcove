@@ -24,7 +24,13 @@
         "Upstream reports Act 1 gameplay. Android slows heavily under sustained load, and internet co-op remains experimental.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port"
+      "help_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
+      "references": [
+        {
+          "title": "Set up the upstream Android app",
+          "instruction": "Get gow2-recomp-0.4.6-android-arm64.apk from the project's v0.4.6 release. Use ARM64 Android 10 or later with Vulkan and room for a full copy of your own retail Xbox 360 game. Choose game folder or Choose .iso file to import it. Use the Device Options gear for settings. If the game closes unexpectedly, long-press its app icon and choose Launch options for recovery."
+        }
+      ]
     },
     "issue_number": 3208,
     "listed_at": "2026-10-25",
