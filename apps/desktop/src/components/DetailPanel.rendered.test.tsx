@@ -1995,7 +1995,12 @@ describe("desktop components", () => {
 
   it("keeps adapter internals out of the primary detail view", () => {
     const html = renderToStaticMarkup(
-      <DetailPanel port={port} sourcePath="" setSourcePath={vi.fn()} actions={actions} />,
+      <DetailPanel
+        port={{ ...port, upstream_active_reviewed: true }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={actions}
+      />,
     );
     expect(html).toContain("Windows");
     expect(html).toContain("Installation method");

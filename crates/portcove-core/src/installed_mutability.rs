@@ -273,6 +273,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         setup_marker,
         setup_output_paths,
         upstream_status: _,
+        upstream_active_reviewed: _,
         managed_acquisition_hold: _,
         reviewed_package_layouts: _,
         presentation: _,

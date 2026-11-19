@@ -19,9 +19,6 @@ const unsupportedByReason: Record<string, string[]> = {
   "interactive fixtures publish no saved scan": ["get_game_file_scan_registered_matches"],
   "interactive fixture catalogs have no paired cover mappings": ["get_companion_cover_thumbnail"],
   "interactive fixture catalogs have no cover collections": ["get_collection_cover_thumbnail"],
-  "user-started Steam discovery inspects native installations the fixtures do not model": [
-    "discover_steam_client_roots",
-  ],
   "mutation or native action the fixtures do not model; they never change the host": `
     apply_profile_recovery apply_provider_install discard_provider_install
     retire_mod_setup_recovery_build
@@ -79,7 +76,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     browse_provider_mods get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
-    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
+    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles

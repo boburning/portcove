@@ -118,6 +118,48 @@ void test("excludes fallback, stale, cross-run, noncanonical and unreviewable ro
   );
 });
 
+void test("inspects issue-free routes and preserves comparison identity when issue links change", async () => {
+  const [linked] = collect([observation()]);
+  const unlinkedListings = { listings: [{ id: "example" }] };
+  const [unlinked] = collectDriftTargets(
+    catalog,
+    unlinkedListings,
+    table,
+    [observation()],
+    source,
+    now,
+  );
+  assert.ok(linked);
+  assert.ok(unlinked);
+  assert.equal(Object.hasOwn(unlinked, "issue"), false);
+  assert.equal(driftTargetKey(unlinked), driftTargetKey(linked));
+
+  const inspection = {
+    status: "drifted" as const,
+    shapeVersion: 1,
+    derivationSha256: "c".repeat(64),
+    components: ["top_level_folders"],
+  };
+  const result = await scanDriftTargets(
+    [unlinked],
+    new Map([[driftTargetKey(linked), inspection]]),
+    now + 60_000,
+    {
+      now: () => now,
+      download: async () => assert.fail("existing comparison should be reused"),
+      inspect: async () => assert.fail("existing comparison should be reused"),
+    },
+  );
+  assert.deepEqual(
+    result.observations.map((entry) => entry.inspection),
+    [inspection],
+  );
+  assert.equal(result.unassessed.length, 0);
+  const report = { format: 1, run: source, ...result };
+  assert.deepEqual(driftNotices(report, unlinkedListings, source), []);
+  assert.deepEqual(driftNotices(report, listings, source), []);
+});
+
 void test("preserves an exact prior inspection and reports failures and unknown separately", async () => {
   const [target] = collect([observation()]);
   assert.ok(target);

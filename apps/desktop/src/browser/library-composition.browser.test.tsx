@@ -1009,10 +1009,14 @@ it.each([
     }));
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     const renderedEntries = entryCount - Number(grouped);
+    const firstRowEntries = Math.min(renderedEntries, 3);
     await mount(theme, "collection-large", renderedEntries);
     await page.getByRole("textbox", { name: "Search your library" }).fill("Harbor");
     await expect
-      .poll(() => document.querySelectorAll(".collection-cover").length)
+      .poll(() => {
+        const first = document.querySelector('[data-library-port-ids][aria-posinset="1"]');
+        return Number(first?.getAttribute("aria-setsize"));
+      })
       .toBe(renderedEntries);
     if (grouped) {
       const prompt = document.querySelector<HTMLElement>(
@@ -1026,25 +1030,22 @@ it.each([
         .getByRole("button", { name: "Choose Harbor desktop project 1", exact: true })
         .click();
     }
-    await expect
-      .poll(() => document.querySelectorAll("button.collection-identity").length)
-      .toBe(renderedEntries);
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
     page.getByRole("button", { name: "Covers", exact: true }).element().focus();
     main.scrollTop = 0;
     window.scrollTo(0, 0);
     await expect
       .poll(() => {
-        const row = document.querySelector<HTMLElement>("[data-collection-row]");
-        return row?.querySelectorAll("[data-library-port-ids]").length;
+        const row = document.querySelector<HTMLElement>('[data-collection-row="0"]');
+        return row?.querySelectorAll("button.collection-identity").length;
       })
-      .toBe(Math.min(renderedEntries, 3));
+      .toBe(firstRowEntries);
     const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
     const firstTop = cards[0]!.getBoundingClientRect().top;
     const firstRow = cards.filter(
       (card) => Math.abs(card.getBoundingClientRect().top - firstTop) < 1,
     );
-    expect(firstRow.length).toBe(Math.min(renderedEntries, 3));
+    expect(firstRow.length).toBe(firstRowEntries);
     await expect
       .poll(() =>
         firstRow.every((card) => {
@@ -1088,7 +1089,12 @@ it.each([
     await captureParityState(
       `library-medium-four-platform-${theme}-${width}-${grouped ? "grouped" : "plain"}-${entryCount}`,
     );
-    await focusFooterControlsInViewport(cards.at(-1)!);
+    // The trailing cards can mount only when their row enters the virtual window.
+    main.scrollTop = main.scrollHeight;
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const last = `[data-library-port-ids][aria-posinset="${renderedEntries}"] .collection-cover`;
+    await expect.poll(() => document.querySelector(last)).not.toBeNull();
+    await focusFooterControlsInViewport(document.querySelector<HTMLElement>(last)!);
   },
 );
 
