@@ -27,6 +27,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
+import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
@@ -935,6 +936,8 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
+    const compact = compactPsxManagedWindows(record);
+    if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

@@ -1,7 +1,7 @@
 import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { exactButtonXPath, executeBrowserScript } from "./browser-script.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
 import assert from "node:assert/strict";
@@ -364,7 +364,7 @@ export const setupConfirmButton = () =>
 
 export function reviewControls(browser: WebDriver) {
   return {
-    button: (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`),
+    button: (label: string) => By.xpath(exactButtonXPath(label)),
     click: async (locator: Locator) =>
       clickVisible(browser, await browser.wait(until.elementLocated(locator), 15_000)),
   };

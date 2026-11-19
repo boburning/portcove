@@ -1098,40 +1098,62 @@ void test("encoded snapshots retain strict transfer, expansion, digest and envel
   assert.throws(() => encodeObserverSnapshot(good, Date.now() - 1), /deadline exhausted/);
 });
 
-void test("format four recovery restores an archive above the legacy limit before cache continuation", async (t) => {
+void test("format four recovery restores an archive above eight MiB before cache continuation", async (t) => {
   const root = await directory(t),
     f = transport();
   f.value.files["catalog/checkpoint.json"].sequence = 361;
+  const fixtureEntropy = Array.from({ length: 290000 }, (_, index) =>
+    createHash("sha256").update(`snapshot-transfer-${index}`).digest("base64"),
+  ).join("");
   Object.assign(f.value.files["catalog/checkpoint.json"], {
-    fixture_entropy: Array.from({ length: 145000 }, (_, index) =>
-      createHash("sha256").update(`snapshot-transfer-${index}`).digest("base64"),
-    ).join(""),
+    fixture_entropy: fixtureEntropy,
   });
   const encoded = await encodeStreamingObserverSnapshot(
     validateObserverSnapshot(f.value, config, Date.now()),
     Date.now() + 60000,
   );
   const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
-  assert.ok(archive.length > observerSnapshotLimit);
+  assert.ok(archive.length > 8 * 1024 * 1024);
   assert.ok(archive.length <= observerStreamingSnapshotLimit);
   assert.throws(() => readObserverSnapshotArchive(archive, config, Date.now(), Date.now() + 60000));
   f.artifact.size_in_bytes = archive.length;
   f.artifact.digest = `sha256:${digest(archive)}`;
   let downloads = 0;
-  const restored = await recoverObserverCheckpoint({
+  const signed =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/observer?sig=inert";
+  const restored = await recoverObserverCheckpointWithSdk({
     root,
     config,
     current,
     deadline: Date.now() + 60000,
-    api: f.api,
-    download: (_endpoint, { maxBytes }) => {
-      assert.equal(maxBytes, archive.length);
-      downloads++;
-      return archive;
+    token: "inert-observer-reader",
+    fetch: async (input, init) => {
+      const request = new Request(input, init),
+        url = new URL(request.url);
+      if (url.href === signed) {
+        assert.equal(request.headers.get("authorization"), null);
+        assert.equal(init?.credentials, "omit");
+        downloads++;
+        return new Response(new Uint8Array(archive));
+      }
+      assert.equal(url.origin, "https://api.github.com");
+      assert.equal(request.headers.get("authorization"), "token inert-observer-reader");
+      if (url.pathname === "/repos/boburning/portcove/actions/artifacts/7/zip")
+        return new Response(null, { status: 302, headers: { location: signed } });
+      const response = await f.api.read(url.pathname.slice(1) + url.search);
+      return Response.json(response.body, {
+        status: response.status,
+        headers: Object.fromEntries(response.headers),
+      });
     },
   });
   assert.deepEqual(restored, { origin: "artifact", producer: source, artifact: 7, sequence: 361 });
   assert.equal(downloads, 1);
+  const controller: unknown = JSON.parse(
+    await readFile(path.join(root, "work/upstream-observer/catalog/checkpoint.json"), "utf8"),
+  );
+  assert.ok(isRecord(controller));
+  assert.equal(digest(String(controller.fixture_entropy)), digest(fixtureEntropy));
   assert.deepEqual(
     await recoverObserverCheckpoint({
       root,

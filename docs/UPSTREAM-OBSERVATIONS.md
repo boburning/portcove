@@ -329,9 +329,12 @@ Each source operation admits response bytes, including identity lookups, while
 reading. Its finite byte envelope does not cap cumulative catalog-session work:
 further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
+An exhausted observation deadline during provider setup or a batch-limited
+Core inspection is a budget stop. The next admitted batch resumes the retained
+state.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
-The output reserves eight MiB separately for a complete inert recovery snapshot.
+The output reserves sixteen MiB separately for a complete inert recovery snapshot.
 The four-MiB summary and eight-MiB standalone handoff limits still apply across
 all batches. Provider request and response budgets are unchanged.
 A hosted opportunity gives source handoffs thirty-two MiB in aggregate,
@@ -343,7 +346,7 @@ it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
-byte count and SHA-256. The format 4 ZIP is limited to eight MiB, with sixteen KiB reserved for ZIP
+byte count and SHA-256. The format 4 ZIP is limited to sixteen MiB, with sixteen KiB reserved for ZIP
 framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
 limit. Record, expansion and recovery metadata bounds are unchanged.
 
@@ -402,11 +405,10 @@ projected fact JSON, stored JSON bytes, largest source and file count. Export lo
 the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
 compressed Actions-cache size alone cannot establish snapshot fit.
 
-If the lossless encoding cannot fit its reserve, publication fails visibly and
-the original checkpoints and cache remain retained. This is no increase to the
-request, runtime, response or
-aggregate output allowances, and does not guarantee capacity for every future
-catalog workset.
+If the lossless encoding cannot fit its reserve, export fails visibly and the
+original checkpoints and cache remain retained. The snapshot transfer has its
+own reserve. The request, runtime, provider response, summary and handoff
+allowances retain their existing bounds.
 
 A handoff that cannot fit the remaining batch stays checkpointed for a later
 automatic batch. An individual handoff exceeding the physical response envelope

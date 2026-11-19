@@ -1252,7 +1252,9 @@ function ActivityRow({
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
       {activity.operation === "prepare" && (
-        <ActivityDiagnostic activityId={activity.id} generation={generation} />
+        <div className={`${activityDetailsClass} pt-2`}>
+          <ActivityDiagnostic activityId={activity.id} generation={generation} />
+        </div>
       )}
       <details className={activityDetailsClass}>
         <summary data-focusable>Task details</summary>

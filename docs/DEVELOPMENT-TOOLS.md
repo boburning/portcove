@@ -2404,6 +2404,18 @@ and fail complete-collection acceptance. Browser fixtures for Library/Manage rem
 separate evidence; this listing-only native case does not qualify those installed
 surfaces, gameplay or publication. It is absent from routine profiles.
 
+The collection case collects bounded diagnostic observations before checking its
+unchanged-catalog invariant and retains them in a sidecar during finalization.
+It records document and indexed entry hashes, the
+existing catalog and listing delivery status, and early command/request IDs from
+the private host logs. Object-key-normalized hashes are diagnostic transport
+identities, not Core definition or trust identities; array order remains meaningful.
+The sidecar is limited to 2 MiB within the unchanged 12 MiB evidence codec. Host
+logging is best effort: missing, changing, malformed or excessive logs are recorded
+as incomplete, never as proof that a command did not run. These observations do not
+reset the initial catalog digest or weaken source, status, artwork-choice or cleanup
+assertions.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a

@@ -28,6 +28,14 @@ interface SourceDialogContext {
   command: FixtureCommand;
 }
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+
+export function assertPreliminarySourceReviewExplanation(text: string) {
+  assert.match(
+    text,
+    /Basic\s+file\s+checks\s+passed\.\s+These\s+checks\s+alone\s+don[’']t\s+identify\s+the\s+edition\.\s+Check\s+which\s+files\s+this\s+port\s+needs\./u,
+  );
+}
+
 type SetupFixture = Omit<InstallFixture, "sourceJourney"> & {
   sourceJourney: (NonNullable<InstallFixture["sourceJourney"]> & { root?: GameFileRoot }) | null;
   hashResumeInitial?: GameFileScanSnapshot;
@@ -1436,7 +1444,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
         15_000,
       );
       const reviewText = await review.getText();
-      assert.match(reviewText, /validation.*not.*run|not.*validated|structural/i);
+      assertPreliminarySourceReviewExplanation(reviewText);
       report.observations.review_text = reviewText;
       await captureAccessibilityReport(
         browser,
@@ -1562,7 +1570,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
         15_000,
       );
       const sourceText = await sourceReview.getText();
-      assert.match(sourceText, /validation.*not.*run|not.*validated|structural/i);
+      assertPreliminarySourceReviewExplanation(sourceText);
       assertOwnedSelectedSetupPath(
         await sourceReview.findElement(By.css("code")).getText(),
         owned.path,
