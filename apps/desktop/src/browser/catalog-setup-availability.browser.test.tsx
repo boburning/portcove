@@ -100,6 +100,7 @@ function Fixture() {
           view="catalog"
           ports={ports}
           statuses={statuses}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}

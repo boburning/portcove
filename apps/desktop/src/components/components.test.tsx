@@ -57,7 +57,7 @@ describe("desktop components", () => {
       <Sidebar
         view="library"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={2}
         activities={[...completed, current]}
       />,
@@ -86,7 +86,7 @@ describe("desktop components", () => {
       <Sidebar
         view="catalog"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[activity({ started_at: now - 24 * 60 * 60 })]}
       />,
@@ -97,7 +97,7 @@ describe("desktop components", () => {
       <Sidebar
         view="catalog"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[
           activity({
@@ -257,6 +257,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[untestedPort]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -330,6 +331,7 @@ describe("desktop components", () => {
         view="library"
         ports={[retiredPort]}
         statuses={new Map()}
+        libraryCount={1}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}
@@ -347,6 +349,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -359,6 +362,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}

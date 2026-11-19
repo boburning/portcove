@@ -36,6 +36,7 @@ it.each([false, true])(
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={summarizeLibrary([port], new Map([[port.id, status]])).installed}
         overview={summarizeLibrary([port], new Map([[port.id, status]]))}
         recent={{ port, status }}
         filter="all"
@@ -69,6 +70,7 @@ it.each(["blocker", "action"] as const)(
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={summarizeLibrary([port], new Map([[port.id, status]])).installed}
         overview={summarizeLibrary([port], new Map([[port.id, status]]))}
         recent={{ port, status }}
         filter="all"

@@ -89,6 +89,7 @@ function Fixture({
           ports={matching}
           catalogUniverse={ports}
           statuses={new Map()}
+          libraryCount={ports.length}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}

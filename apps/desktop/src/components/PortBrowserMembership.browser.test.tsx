@@ -57,6 +57,7 @@ it.each([
           ports={[installed, available]}
           statuses={statuses}
           queryContext={{ library: { id: "/fixture/library", statuses } }}
+          libraryCount={1}
           overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
           filter={filter}
           setFilter={setFilter}
