@@ -263,7 +263,13 @@ impl LifecycleFaultInjector for InterruptPublishedBackupRestore {
 
 #[test]
 fn reviewed_full_snapshot_records_settings_deletion_only_after_recovered_projection() {
-    let fixture = settings_fixture(true);
+    for partitioned in [false, true] {
+        check_reviewed_full_snapshot_deletion(partitioned);
+    }
+}
+
+fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
+    let fixture = settings_fixture(partitioned);
     let canonical = fixture.library.user_dir(PORT);
     let player = canonical.join(FILE);
     let active = fixture.old.path.join(FILE);

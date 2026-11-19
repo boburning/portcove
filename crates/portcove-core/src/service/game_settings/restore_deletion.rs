@@ -18,10 +18,17 @@ struct RestoreDeletion {
     file_id: String,
     format: crate::GameSettingsFormat,
     relative_path: String,
-    policy_sha256: String,
+    scope: RestoreSettingsScope,
     reviewed_manifest_sha256: String,
     shipped_sha256: String,
     player_sha256: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+enum RestoreSettingsScope {
+    Partitioned { policy_sha256: String },
+    Native { policy_sha256: String },
 }
 
 struct RestoreCoordinate {
@@ -29,13 +36,14 @@ struct RestoreCoordinate {
     file: GameSettingsFile,
     shipped_sha256: String,
     runtime_root: Option<PathBuf>,
+    policy_sha256: String,
 }
 
 impl PortcoveService {
     fn settings_restore_coordinate(
         &self,
         port_id: &str,
-        policy_sha256: &str,
+        partitioned: bool,
     ) -> Result<Option<RestoreCoordinate>> {
         if Platform::current()? != Platform::WindowsX86_64 {
             return Ok(None);
@@ -60,19 +68,22 @@ impl PortcoveService {
         };
         let policy = self.persistence_contract_for_install(&active)?;
         let port = &policy.port;
-        // The backup binds its producing persistence layout into its payload
-        // digest. A predecessor or unframed backup cannot establish coverage.
-        if port.runtime_data_policy.is_some()
-            || port
-                .archive_data_compatibility_v1
+        let scoped = if partitioned {
+            port.archive_data_compatibility_v1
                 .as_ref()
-                .is_none_or(|policy| !policy.shared_paths.contains(&file.path))
+                .is_some_and(|policy| policy.shared_paths.contains(&file.path))
+        } else {
+            port.adapter == AdapterKind::NativePortable
+                && port.archive_data_compatibility_v1.is_none()
+                && !crate::persistence::requires_restore_receipt(port)
+        };
+        if !scoped
+            || port.runtime_data_policy.is_some()
             || !port.persistent_paths.contains(&file.path)
             || port
                 .persistent_paths
                 .iter()
                 .any(|path| file.path.starts_with(&format!("{path}/")))
-            || crate::archive_data::policy_sha256(port)? != policy_sha256
         {
             return Ok(None);
         }
@@ -85,7 +96,46 @@ impl PortcoveService {
             file: file.clone(),
             shipped_sha256: digest(&shipped),
             runtime_root,
+            policy_sha256: crate::archive_data::policy_sha256(port)?,
         }))
+    }
+
+    /// Bind an ordinary explicit full backup to the exact local producer.
+    /// Portable and historical backups retain their existing restore scope.
+    pub(in crate::service) fn record_native_settings_backup(
+        &self,
+        backup: &BackupRecord,
+    ) -> Result<()> {
+        let coverage = (|| {
+            let Some(coordinate) = self.settings_restore_coordinate(&backup.port_id, false)? else {
+                return Ok(None);
+            };
+            let file = &coordinate.file;
+            if observe_player_settings_copy(&backup.path.join("data"), file)?.is_some()
+                || observe_player_settings_copy(&self.library.user_dir(&backup.port_id), file)?
+                    .is_some()
+            {
+                return Ok(None);
+            }
+            if let Some(runtime) = &coordinate.runtime_root
+                && observe_player_settings_copy(runtime, file)?.is_some()
+            {
+                return Ok(None);
+            }
+            let manifest = crate::path::read_bounded_regular(
+                &backup.path.join("backup.json"),
+                crate::service::backups::BACKUP_MANIFEST_MAX_BYTES,
+            )?;
+            Ok::<_, PortcoveError>(Some(coordinate.native_coverage(&manifest)?))
+        })();
+        if let Ok(Some(coverage)) = coverage {
+            self.library.connection()?.execute(
+                "INSERT INTO settings_backup_coverage (backup_id, port_id, coverage_sha256)
+                 VALUES (?1, ?2, ?3)",
+                params![backup.id, backup.port_id, coverage],
+            )?;
+        }
+        Ok(())
     }
 
     /// Called before the existing authorized restore publishes either tree, and
@@ -96,22 +146,46 @@ impl PortcoveService {
         staged: &Path,
         canonical: &Path,
         policy_sha256: Option<&str>,
+        backup: &BackupRecord,
         reviewed_manifest: &[u8],
-    ) -> Result<()> {
-        let Some(policy_sha256) = policy_sha256 else {
-            return Ok(());
-        };
+    ) -> Result<bool> {
         if !operation.activate
             || operation.kind != LifecycleOperationKind::Restore
             || operation.phase != LifecyclePhase::Preparing
         {
-            return Ok(());
+            return Ok(false);
         }
         let proof = (|| {
             let Some(coordinate) =
-                self.settings_restore_coordinate(&operation.port_id, policy_sha256)?
+                self.settings_restore_coordinate(&operation.port_id, policy_sha256.is_some())?
             else {
                 return Ok(None);
+            };
+            let scope = if let Some(policy_sha256) = policy_sha256 {
+                if coordinate.policy_sha256 != policy_sha256 {
+                    return Ok(None);
+                }
+                RestoreSettingsScope::Partitioned {
+                    policy_sha256: coordinate.policy_sha256.clone(),
+                }
+            } else {
+                let expected = coordinate.native_coverage(reviewed_manifest)?;
+                let retained = self
+                    .library
+                    .connection()?
+                    .query_row(
+                        "SELECT coverage_sha256 FROM settings_backup_coverage
+                     WHERE backup_id=?1 AND port_id=?2",
+                        params![backup.id, operation.port_id],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()?;
+                if retained.as_deref() != Some(&expected) {
+                    return Ok(None);
+                }
+                RestoreSettingsScope::Native {
+                    policy_sha256: coordinate.policy_sha256.clone(),
+                }
             };
             let file = &coordinate.file;
             if observe_player_settings_copy(staged, file)?.is_some() {
@@ -133,7 +207,7 @@ impl PortcoveService {
                 file_id: file.id.clone(),
                 format: file.format,
                 relative_path: file.path.clone(),
-                policy_sha256: policy_sha256.to_owned(),
+                scope,
                 reviewed_manifest_sha256: digest(reviewed_manifest),
                 shipped_sha256: coordinate.shipped_sha256,
                 player_sha256: digest(&previous),
@@ -142,7 +216,7 @@ impl PortcoveService {
         // Optional evidence cannot widen or prevent the already-reviewed
         // backup restore. Any unsupported preimage leaves settings unobserved.
         let Ok(Some(proof)) = proof else {
-            return Ok(());
+            return Ok(false);
         };
         self.library.connection()?.execute(
             "INSERT INTO settings_restore_deletions (restore_id, pending_id, port_id, install_id, file_id, evidence)
@@ -155,7 +229,7 @@ impl PortcoveService {
                 serde_json::to_vec(&proof)?,
             ],
         )?;
-        Ok(())
+        Ok(true)
     }
 
     /// The existing restore verifies publication and projects persistent data
@@ -196,11 +270,18 @@ impl PortcoveService {
             {
                 return Ok(false);
             }
+            let (partitioned, policy_sha256) = match &proof.scope {
+                RestoreSettingsScope::Partitioned { policy_sha256 } => (true, policy_sha256),
+                RestoreSettingsScope::Native { policy_sha256 } => (false, policy_sha256),
+            };
             let Some(coordinate) =
-                self.settings_restore_coordinate(&operation.port_id, &proof.policy_sha256)?
+                self.settings_restore_coordinate(&operation.port_id, partitioned)?
             else {
                 return Ok(false);
             };
+            if coordinate.policy_sha256 != *policy_sha256 {
+                return Ok(false);
+            }
             let file = &coordinate.file;
             if proof.install_id != coordinate.active.id
                 || proof.install_manifest_sha256 != coordinate.active.manifest_sha256
@@ -245,6 +326,22 @@ impl PortcoveService {
         }
         transaction.commit()?;
         Ok(())
+    }
+}
+
+impl RestoreCoordinate {
+    fn native_coverage(&self, manifest: &[u8]) -> Result<String> {
+        Ok(digest(&serde_json::to_vec(&(
+            "native-settings-full-backup-v1",
+            digest(manifest),
+            &self.active.port_id,
+            &self.active.id,
+            &self.active.manifest_sha256,
+            &self.active.artifact.sha256,
+            &self.file,
+            &self.shipped_sha256,
+            &self.policy_sha256,
+        ))?))
     }
 }
 

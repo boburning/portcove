@@ -460,7 +460,7 @@ impl BackupDeletionOperation {
     }
 }
 
-const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+pub(super) const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -662,7 +662,9 @@ impl PortcoveService {
             self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
-            self.create_backup_locked(port_id)
+            let backup = self.create_backup_locked(port_id)?;
+            self.record_native_settings_backup(&backup)?;
+            Ok(backup)
         })();
         self.finish_activity(activity, result)
     }
@@ -1715,7 +1717,15 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
-            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
+            let settings_deletion = self.prepare_restore_settings_deletion(
+                &lifecycle,
+                &staged_data,
+                &user_root,
+                manifest.partitioned_data_v1.as_deref(),
+                &restored_backup,
+                &reviewed_manifest,
+            )?;
+            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest, settings_deletion)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
             let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
@@ -1735,13 +1745,6 @@ impl PortcoveService {
                 Ok(())
             };
             require_reviewed_data(&lifecycle)?;
-            self.prepare_restore_settings_deletion(
-                &lifecycle,
-                &staged_data,
-                &user_root,
-                manifest.partitioned_data_v1.as_deref(),
-                &reviewed_manifest,
-            )?;
             restore.advance(RestorePhase::ReadyToPublish, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RestorePrepared)?;
             let final_review = self

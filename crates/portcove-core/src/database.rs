@@ -463,6 +463,11 @@ fn migration_71(transaction: &Transaction<'_>) -> Result<()> {
             install_id TEXT NOT NULL,
             file_id TEXT NOT NULL,
             evidence BLOB NOT NULL CHECK(length(evidence) BETWEEN 1 AND 4096)
+        );
+        CREATE TABLE settings_backup_coverage (
+            backup_id TEXT PRIMARY KEY NOT NULL,
+            port_id TEXT NOT NULL,
+            coverage_sha256 TEXT NOT NULL CHECK(length(coverage_sha256) = 64)
         );",
     )?;
     verify_migration_71(transaction)
@@ -482,6 +487,11 @@ fn verify_migration_71(connection: &Connection) -> Result<()> {
             "file_id",
             "evidence",
         ],
+    )?;
+    require_columns(
+        connection,
+        "settings_backup_coverage",
+        &["backup_id", "port_id", "coverage_sha256"],
     )
 }
 
