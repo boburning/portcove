@@ -1200,6 +1200,9 @@ is already a saved game-file folder. A known store product has an optional
 `product_id`. A reviewed product-to-profile mapping can add an
 `original_folder` with the source profile and candidate path. Desktop offers
 the reviewed Steam or Windows GOG original folder directly in compatible setup.
+Portcove ships the mappings in its reviewed `catalog/store-original-layouts.json`
+data. Each mapping binds a store product to an existing source profile and
+declares the relative original folder and any required child directories.
 Use `--profile <profile-id>` to request suggestions for one known source profile.
 For Blake Stone, this selects the Aliens of Gold or Planet Strike child folder
 inside the Steam anthology. Without a selected profile, the anthology has no
