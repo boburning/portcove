@@ -323,8 +323,9 @@ fn shipped_default_reconciliation_preserves_exact_bytes_and_recorded_deletion() 
     };
     let old = receipt(old_bytes);
     let incoming = receipt(incoming_bytes);
-    let plan =
-        |old, player, incoming| reconcile_shipped_default(&file, old, player, incoming).unwrap();
+    let plan = |old: Option<&ShippedDefault>, player, incoming| {
+        reconcile_shipped_default(&file, old.map(|value| (&file, value)), player, incoming).unwrap()
+    };
 
     assert_eq!(
         plan(
@@ -380,10 +381,61 @@ fn shipped_default_reconciliation_preserves_exact_bytes_and_recorded_deletion() 
     assert!(
         reconcile_shipped_default(
             &file,
-            Some(&old),
+            Some((&file, &old)),
             PlayerSettings::Present(old_bytes),
             Some(&altered)
         )
         .is_err()
+    );
+}
+
+#[test]
+fn retained_settings_plan_binds_the_player_preimage_and_file_identity() {
+    let old_bytes = b"ui_scale=1.0\r\n";
+    let incoming_bytes = b"ui_scale=1.5\r\n";
+    let retained = |bytes: &[u8]| {
+        let contract = fixture();
+        let shipped = BTreeMap::from([(
+            contract.files[0].path.clone(),
+            ShippedDefault {
+                sha256: hex::encode(Sha256::digest(bytes)),
+                bytes_hex: hex::encode(bytes),
+            },
+        )]);
+        RetainedSettingsDefaults { contract, shipped }
+    };
+    let prior = retained(old_bytes);
+    let mut incoming = retained(incoming_bytes);
+    let path = incoming.contract.files[0].path.clone();
+    let player = BTreeMap::from([(path.clone(), PlayerSettings::Present(old_bytes))]);
+    let plan = incoming.plan_update(Some(&prior), &player).unwrap();
+    assert_eq!(plan.len(), 1);
+    assert_eq!(plan[0].path, path);
+    assert_eq!(
+        plan[0].player_preimage,
+        SettingsPreimage::Present {
+            sha256: hex::encode(Sha256::digest(old_bytes))
+        }
+    );
+    assert_eq!(
+        plan[0].update,
+        SettingsUpdate::InstallDefault(incoming_bytes.to_vec())
+    );
+
+    let deleted = BTreeMap::from([(path, PlayerSettings::RecordedDeletion)]);
+    let plan = incoming.plan_update(Some(&prior), &deleted).unwrap();
+    assert_eq!(plan[0].player_preimage, SettingsPreimage::RecordedDeletion);
+    assert_eq!(
+        plan[0].update,
+        SettingsUpdate::KeepPlayerAndDefault(incoming_bytes.to_vec())
+    );
+
+    incoming.contract.files[0].id = "replacement".into();
+    let plan = incoming.plan_update(Some(&prior), &player).unwrap();
+    assert_eq!(
+        plan[0].update,
+        SettingsUpdate::MissingBaseline {
+            incoming_default: Some(incoming_bytes.to_vec())
+        }
     );
 }

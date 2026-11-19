@@ -3123,6 +3123,32 @@ impl Installer {
         retained_catalog_for_install(install)
     }
 
+    pub(crate) fn retained_settings_defaults(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::game_settings::RetainedSettingsDefaults>> {
+        let manifest = verified_manifest(install)?;
+        let (Some(contract), Some(platform)) = (&manifest.retained_contract, manifest.platform)
+        else {
+            return Ok(None);
+        };
+        let catalog = contract.catalog(&install.port_id)?;
+        let Some(settings) = catalog
+            .port(&install.port_id)?
+            .game_settings
+            .as_ref()
+            .filter(|settings| {
+                settings.covers_archive(platform, &manifest.version, &manifest.artifact.sha256)
+            })
+        else {
+            return Ok(None);
+        };
+        Ok(Some(crate::game_settings::RetainedSettingsDefaults {
+            contract: settings.clone(),
+            shipped: manifest.shipped_settings_defaults,
+        }))
+    }
+
     pub(crate) fn archive_data_port(
         &self,
         install: &InstallRecord,
@@ -8358,6 +8384,12 @@ mod tests {
         assert!(retained_query_context_with_budget(&install, Some(&mut too_small)).is_err());
         assert_eq!(too_small, 0);
         assert!(installer.verify(&install).unwrap().valid);
+        assert!(
+            installer
+                .retained_settings_defaults(&install)
+                .unwrap()
+                .is_none()
+        );
         assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer
             .verify_import_contract(&install, &qualification)

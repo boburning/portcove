@@ -54,6 +54,7 @@ impl ShippedDefault {
 
 /// The persistence owner must provide a deletion receipt. Filesystem absence
 /// alone leaves the live state unobserved.
+#[derive(Clone, Copy)]
 pub(crate) enum PlayerSettings<'a> {
     Present(&'a [u8]),
     RecordedDeletion,
@@ -73,14 +74,14 @@ pub(crate) enum SettingsUpdate {
 /// must recheck the same player preimage and retain both versions on conflict.
 pub(crate) fn reconcile_shipped_default(
     file: &GameSettingsFile,
-    old: Option<&ShippedDefault>,
+    old: Option<(&GameSettingsFile, &ShippedDefault)>,
     player: PlayerSettings<'_>,
     incoming: Option<&ShippedDefault>,
 ) -> Result<SettingsUpdate> {
     let incoming = incoming
         .map(|value| value.verified_bytes(file))
         .transpose()?;
-    let Some(old) = old else {
+    let Some((old_file, old)) = old else {
         return Ok(SettingsUpdate::MissingBaseline {
             incoming_default: incoming,
         });
@@ -90,7 +91,9 @@ pub(crate) fn reconcile_shipped_default(
             incoming_default: None,
         });
     };
-    let old = old.verified_bytes(file)?;
+    // The earlier default was verified against its own retained declaration.
+    // A newer range or enumeration can legitimately exclude an older value.
+    let old = old.verified_bytes(old_file)?;
     if old == incoming {
         return Ok(SettingsUpdate::KeepPlayer);
     }
@@ -106,6 +109,73 @@ pub(crate) fn reconcile_shipped_default(
         }
         PlayerSettings::Unobserved => SettingsUpdate::MissingPlayerEvidence(incoming),
     })
+}
+
+pub(crate) struct SettingsFileUpdate {
+    pub path: String,
+    pub player_preimage: SettingsPreimage,
+    pub update: SettingsUpdate,
+}
+
+/// An expected absent file has different authority from an unobserved file.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum SettingsPreimage {
+    Present { sha256: String },
+    RecordedDeletion,
+    Unobserved,
+}
+
+pub(crate) struct RetainedSettingsDefaults {
+    pub contract: GameSettingsContract,
+    pub shipped: BTreeMap<String, ShippedDefault>,
+}
+
+impl RetainedSettingsDefaults {
+    /// Compare incoming declared settings with the prior retained package.
+    /// The caller supplies the persistence owner's coherent file observations.
+    pub(crate) fn plan_update(
+        &self,
+        prior: Option<&Self>,
+        player: &BTreeMap<String, PlayerSettings<'_>>,
+    ) -> Result<Vec<SettingsFileUpdate>> {
+        let mut updates = Vec::new();
+        for file in &self.contract.files {
+            let incoming = self.shipped.get(&file.path);
+            let old = prior.and_then(|prior| {
+                let old_file = prior.contract.files.iter().find(|old| {
+                    old.id == file.id && old.path == file.path && old.format == file.format
+                })?;
+                Some((old_file, prior.shipped.get(&file.path)?))
+            });
+            if incoming.is_none() && old.is_none() {
+                continue;
+            }
+            let player = player
+                .get(&file.path)
+                .copied()
+                .unwrap_or(PlayerSettings::Unobserved);
+            let player_preimage = match player {
+                PlayerSettings::Present(bytes) => {
+                    if bytes.len() as u64 > MAX_SETTINGS_BYTES {
+                        return Err(PortcoveError::verification(
+                            "player settings exceed the reconciliation file limit",
+                        ));
+                    }
+                    SettingsPreimage::Present {
+                        sha256: hex::encode(Sha256::digest(bytes)),
+                    }
+                }
+                PlayerSettings::RecordedDeletion => SettingsPreimage::RecordedDeletion,
+                PlayerSettings::Unobserved => SettingsPreimage::Unobserved,
+            };
+            updates.push(SettingsFileUpdate {
+                path: file.path.clone(),
+                player_preimage,
+                update: reconcile_shipped_default(file, old, player, incoming)?,
+            });
+        }
+        Ok(updates)
+    }
 }
 
 /// Only the verified package's pristine private extraction may supply these
