@@ -2668,6 +2668,11 @@ routes, changed accepted bytes, failed integrity and unsafe operations still
 hold at their actual scope. Exact direct manifests retain their existing
 per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
+Hosted managed selection and listing download recommendations exclude packages
+whose names label them as dedicated servers. GitLab checks both the release-link
+label and the resolved registry filename. The server label supplies no evidence
+about a separate game client's platform, architecture, or integrity.
+
 GitLab generic-package links can use the same reusable project, channel and
 native-archive selectors. Core joins the selected versioned URL to independently
 published package names, versions, filenames, sizes and SHA-256 values. It reads
