@@ -236,6 +236,10 @@ fn tekken_tag_tournament_2_server_archives_are_not_game_packages() {
     use crate::service::package_selection::assess_package_name;
 
     let observation = historical_observation("tekken_tag_tournament_2");
+    let catalog = crate::Catalog::embedded().unwrap();
+    let listing = catalog
+        .listing("shihabal3amri-tekken-tag-tournament-2-pc")
+        .unwrap();
     let mut port = windows_archive_case("shihabal3amri/tekken-tag-tournament-2-pc");
     port.release
         .asset_hints
@@ -254,12 +258,16 @@ fn tekken_tag_tournament_2_server_archives_are_not_game_packages() {
                 (Platform::WindowsX86_64, ["ttt2_setup.exe"].as_slice()),
                 (Platform::LinuxX86_64, [].as_slice()),
             ] {
+                let hints = listing
+                    .download_asset_hints
+                    .get(&platform)
+                    .map(Vec::as_slice)
+                    .unwrap_or_default();
                 let offered = assets
                     .iter()
                     .filter(|asset| {
-                        let can_extract =
-                            asset.name.ends_with(".zip") || asset.name.ends_with(".tar.gz");
-                        assess_package_name(&asset.name, can_extract, platform, &["ttt2".into()])
+                        let can_extract = crate::archive::can_extract_download_archive(&asset.name);
+                        assess_package_name(&asset.name, can_extract, platform, hints)
                             .2
                             .is_some()
                     })
