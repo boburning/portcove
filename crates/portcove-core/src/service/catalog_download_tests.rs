@@ -1933,6 +1933,23 @@ fn continuation_registration_uses_retained_listing_and_consumes_only_matching_pe
             )
             .unwrap();
         assert_eq!(selected.port_id, record.port_id);
+        let retained = selected.setup_download.as_ref().unwrap();
+        assert_eq!(retained.release_id, replacement.artifact.release_id);
+        assert_eq!(retained.asset_id, replacement.artifact.asset_id);
+        assert_eq!(retained.release_tag, replacement.artifact.release_tag);
+        assert_eq!(retained.filename, replacement.artifact.name);
+        assert_eq!(retained.download_sha256, replacement.archive_sha256);
+        assert_eq!(
+            service
+                .library
+                .status(&record.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .setup_download
+                .as_ref(),
+            Some(retained),
+        );
         assert!(service.pending_setups().unwrap().is_empty());
         assert!(service.library.all_installs().unwrap().is_empty());
         assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
@@ -1961,6 +1978,7 @@ fn workspace_retains_legacy_registered_description_without_new_listing_revalidat
         }]
     }).to_string()).unwrap();
     let record = ExternalRuntimeRecord {
+        setup_download: None,
         id: Uuid::new_v4().to_string(),
         port_id: "retained-legacy-listing".into(),
         path: request.destination_parent,
@@ -2028,6 +2046,14 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
             &authorization.token,
         )
         .unwrap();
+    let legacy_json = serde_json::to_value(&original).unwrap();
+    assert!(legacy_json.get("setup_download").is_none());
+    assert!(
+        serde_json::from_value::<ExternalRuntimeRecord>(legacy_json)
+            .unwrap()
+            .setup_download
+            .is_none()
+    );
     eprintln!("replacement fixture: registered at {:?}", started.elapsed());
     let before_download = service
         .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
@@ -2130,6 +2156,20 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
     assert_eq!(changed.id, original.id);
     assert_eq!(changed.registered_at, original.registered_at);
     assert_eq!(changed.executable, new_executable);
+    assert_eq!(
+        changed.setup_download,
+        Some(pending.clone().into_setup_download()),
+    );
+    assert_eq!(
+        service
+            .library
+            .status(&request.port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .external_runtime
+            .unwrap()
+            .setup_download,
+        changed.setup_download,
+    );
     assert!(service.pending_setups().unwrap().is_empty());
     assert_eq!(
         fs::read(old_root.join("player-save.dat")).unwrap(),
@@ -2141,6 +2181,31 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         changed.archive_sha256.is_empty(),
         "external replacement is not authenticated ownership"
     );
+
+    let manual_review = service
+        .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime_relink(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &manual_review.preview_sha256,
+        )
+        .unwrap();
+    let manual_relink = service
+        .relink_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    assert_eq!(manual_relink.id, changed.id);
+    assert_eq!(manual_relink.executable, original.executable);
+    assert_eq!(manual_relink.setup_download, changed.setup_download);
 }
 
 #[tokio::test]

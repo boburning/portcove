@@ -5267,6 +5267,7 @@ impl PortcoveService {
             )?;
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
+                setup_download: None,
                 user_selected: None,
                 id: Uuid::new_v4().to_string(),
                 port_id: port_id.to_owned(),

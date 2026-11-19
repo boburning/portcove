@@ -3420,6 +3420,11 @@ and asset IDs and confirms the displayed release URL. Resuming a saved setup
 uses the matching download record for its release notes and retained setup
 links, even when the current directory describes a different package. Those
 retained links require the saved setup identity.
+Completing a user-selected setup or replacement carries the matching download's
+release and asset IDs, filename and observed checksum into the registration.
+Desktop and CLI show its release and filename as the last recorded setup
+download. A later launch-details edit keeps that history. Launch and update
+ownership continue to follow the selected external program and its registration.
 
 ### Choose a reusable authoring route
 

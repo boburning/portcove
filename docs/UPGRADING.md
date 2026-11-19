@@ -157,6 +157,10 @@ Use the application version that created the pre-upgrade copy. Keep the two
 databases separate and retain both states until you have checked the recovered
 games and saves.
 
+Use a version that records setup download history to edit or remove registrations
+with that history. An earlier version that can open the library may refuse to
+remove those registrations or omit the history when it saves a change.
+
 ## Technical recovery reference
 
 ### Runtime qualification and release metadata
