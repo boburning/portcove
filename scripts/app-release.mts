@@ -26,6 +26,10 @@ import {
   loadPackagePolicy,
 } from "./release-package-policy.mts";
 import path from "node:path";
+import {
+  nativeCompatibilitySourcePaths,
+  readCliApiDeclaration,
+} from "./release-native-source-contract.mts";
 import { fileURLToPath } from "node:url";
 
 export type Channel = "preview" | "beta" | "stable";
@@ -834,9 +838,11 @@ export async function renderAppReleaseDownloadSection(
   tag: string,
   version: string,
   names: readonly string[],
+  cliApi: number,
   profile = appReleaseProfile,
 ) {
   const cli = await assertAppReleaseAssets(version, names, profile);
+  if (!Number.isSafeInteger(cliApi) || cliApi < 1) throw new Error("invalid CLI API version");
   const channel = classifyRelease(version).channel;
   if (tag !== `v${version}` && !(channel === "preview" && tag === `nightly-${version}`))
     throw new Error("download section tag and version disagree");
@@ -849,7 +855,7 @@ export async function renderAppReleaseDownloadSection(
     bundleName(version, download.suffix),
   ]);
   for (const entry of cli)
-    rows.push([entry.label, "Standalone CLI (extract and run)", entry.filename]);
+    rows.push([entry.label, `Standalone CLI (extract and run, API ${cliApi})`, entry.filename]);
   return [
     `## Download Portcove ${version}`,
     "",
@@ -891,6 +897,7 @@ export async function publishRelease(options: {
   commit?: string;
 }) {
   const expected = readdirSync(options.distDir).sort();
+  const cliApi = currentCliApi();
   await assertAppReleaseAssets(options.version, expected);
   for (const name of expected.filter((entry) => entry.endsWith(".sig")))
     updaterSignature(readFileSync(path.join(options.distDir, name), "utf8"), name);
@@ -937,7 +944,12 @@ export async function publishRelease(options: {
       `release assets differ from this build: ${JSON.stringify({ expected, actual })}`,
     );
   if (current.draft) {
-    const downloads = await renderAppReleaseDownloadSection(options.tag, options.version, actual);
+    const downloads = await renderAppReleaseDownloadSection(
+      options.tag,
+      options.version,
+      actual,
+      cliApi,
+    );
     await api.request("PATCH /repos/{owner}/{repo}/releases/{release_id}", {
       owner: "boburning",
       repo: "portcove",
@@ -1258,6 +1270,10 @@ async function withdrawApi(token: string): Promise<WithdrawApi> {
   };
 }
 
+function currentCliApi() {
+  return readCliApiDeclaration(readFileSync(nativeCompatibilitySourcePaths[0], "utf8"));
+}
+
 async function main(argv: string[]) {
   const [command, ...rest] = argv;
   const token = () => {
@@ -1302,6 +1318,7 @@ async function main(argv: string[]) {
     assertVersionUnclaimed(flag("version"), flag("tag"));
     console.log(`no other tag names ${flag("version")}`);
   } else if (command === "stamp") stampVersion(process.cwd(), flag("version"));
+  else if (command === "cli-api") console.log(currentCliApi());
   else if (command === "feed")
     console.log(
       JSON.stringify(

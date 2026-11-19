@@ -119,6 +119,8 @@ jobs:
         env:
           CLI_TARGETS: ${{ matrix.cli_targets }}
         run: |
+          $cliApi = node scripts/app-release.mts cli-api
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $targets = ConvertFrom-Json -InputObject $env:CLI_TARGETS -AsHashtable
           New-Item -ItemType Directory -Force dist | Out-Null
           foreach ($platform in $targets.Keys) {
@@ -126,7 +128,7 @@ jobs:
             cargo build --release -p portcove-cli --target $target
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             $archive = ./scripts/package-cli.ps1 -PlatformLabel $platform -TargetRoot "target/$target"
-            ./scripts/smoke-test-cli-archive.ps1 -ArchivePath $archive -PlatformLabel $platform -Version $env:VERSION
+            ./scripts/smoke-test-cli-archive.ps1 -ArchivePath $archive -PlatformLabel $platform -Version $env:VERSION -ExpectedCliApi $cliApi
             Copy-Item -LiteralPath $archive -Destination dist/
           }
       - name: Build and sign desktop bundles

@@ -1156,7 +1156,7 @@ void test("the release requires every desktop bundle, signature and standalone C
     "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
     "SHA256SUMS",
   ];
-  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names);
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names, 100);
   assert.match(section, /Channel: Nightly Preview/u);
   assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
   assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
@@ -1164,11 +1164,16 @@ void test("the release requires every desktop bundle, signature and standalone C
   assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
   assert.match(section, /\.\/portcove --json capabilities/u);
   assert.match(section, /schema_version/u);
+  assert.equal([...section.matchAll(/Standalone CLI \(extract and run, API 100\)/gu)].length, 4);
+  await assert.rejects(
+    renderAppReleaseDownloadSection(`v${version}`, version, names, 0),
+    /invalid CLI API version/u,
+  );
   for (const name of names.filter((name) => !name.endsWith(".sig"))) {
     assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
   }
   await assert.rejects(
-    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names),
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names, 100),
     /tag and version disagree/u,
   );
   await assert.rejects(
@@ -1176,6 +1181,7 @@ void test("the release requires every desktop bundle, signature and standalone C
       `v${version}`,
       version,
       names.filter((name) => !name.includes("cli-")),
+      100,
     ),
     /missing:.*portcove-cli/u,
   );
@@ -1249,8 +1255,8 @@ void test("collects the universal bundle and preserves a one-platform CLI invent
     `Portcove_${version}_amd64.AppImage`,
     `Portcove_${version}_amd64.AppImage.sig`,
   ];
-  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, profile);
-  assert.equal(notes.match(/Standalone CLI \(extract and run\)/gu)?.length, 1);
+  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, 100, profile);
+  assert.equal(notes.match(/Standalone CLI \(extract and run, API 100\)/gu)?.length, 1);
   assert.match(notes, /Standalone CLI.*windows-x86_64\.zip/u);
   assert.match(notes, /Apple Silicon and Intel.*Desktop disk image/u);
   await assert.rejects(
