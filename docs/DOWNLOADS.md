@@ -17,7 +17,7 @@ your operating system and processor.
 The macOS `*.app.tar.gz` file and `*.sig` files serve the automatic updater.
 GitHub's **Source code** archives require a [source build](../README.md#prerequisites).
 
-### Public prerelease archive
+### Published previews
 
 | Channel and version                                                                                               | Published standalone CLI                                    | CLI API |
 | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------- |

@@ -88,7 +88,7 @@ $library = Join-Path $temporaryDirectory "Library $unicodeMarker space"
 
 try {
     Invoke-IsolatedCliSmoke -LibraryPath $library -PreferencePath (Join-Path $temporaryDirectory "preferences.json") -Operation {
-        param($PlatformLabel, $Version)
+        param($PlatformLabel, $Version, $ExpectedCliApi)
         $expectedExecutableName = if ($PlatformLabel -eq "windows-x86_64") { "portcove.exe" } else { "portcove" }
         if ($archive.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
             if ($PlatformLabel -ne "windows-x86_64") { throw "Only the Windows CLI package may use ZIP" }
@@ -194,7 +194,7 @@ try {
             throw "Packaged CLI failed its isolated-library doctor smoke test"
         }
         Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show and launch.recover"
-    } -Arguments @($PlatformLabel, $Version)
+    } -Arguments @($PlatformLabel, $Version, $ExpectedCliApi)
 }
 finally {
         $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
