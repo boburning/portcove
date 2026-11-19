@@ -291,7 +291,7 @@ function CandidateRow({
 }) {
   return (
     <div
-      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 @min-[38rem]/row:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]"
+      className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-pc-border py-4 not-last:border-b @min-[38rem]/row:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]"
       data-candidate-row
       data-completed-candidate={completed || undefined}
       data-live-candidate={!completed || undefined}

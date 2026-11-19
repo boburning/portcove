@@ -167,7 +167,11 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
             {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
-            then choose the folder containing <code>{required.executable}</code>.{" "}
+            then choose the folder containing <br />
+            <code dir="ltr" className="path-value whitespace-normal">
+              {required.executable}
+            </code>
+            .{" "}
             <details>
               <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
             </details>
@@ -221,8 +225,11 @@ function ExternalRuntimeContext({
       {registered ? (
         <div>
           <p>
-            Portcove uses version {registered.version} in place at <code>{registered.path}</code>.
-            It does not copy, update, back up, or delete these files.
+            Portcove uses version {registered.version} in place at <br />
+            <code dir="ltr" className="path-value whitespace-normal">
+              {registered.path}
+            </code>
+            . It does not copy, update, back up, or delete these files.
           </p>
           <Button
             data-focusable
@@ -600,9 +607,13 @@ function SelectedRuntimeDialog({
         className="grid gap-2 [overflow-wrap:anywhere]"
       >
         <dt>Game program</dt>
-        <dd>{preview?.executable ?? selected.executable}</dd>
+        <dd dir="ltr" className="path-value whitespace-normal">
+          {preview?.executable ?? selected.executable}
+        </dd>
         <dt>Start in folder</dt>
-        <dd>{preview?.path ?? selected.workingDirectory}</dd>
+        <dd dir="ltr" className="path-value whitespace-normal">
+          {preview?.path ?? selected.workingDirectory}
+        </dd>
         <dt>Launch options (advanced)</dt>
         <dd>
           {selected.arguments.length
@@ -861,7 +872,10 @@ function RemoveExternalDialog({
         {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            Files will stay in: <code>{preview.path}</code>
+            Files will stay in: <br />
+            <code dir="ltr" className="path-value whitespace-normal">
+              {preview.path}
+            </code>
           </p>
         )}
         <ActionReviewFailure error={error} />
@@ -1035,7 +1049,10 @@ function RuntimeLaunchSuggestions({
               )}
             {model.executable === suggestions.recommended_executable && (
               <p className="[overflow-wrap:anywhere]">
-                Game or launcher: <code>{model.executable}</code>
+                Game or launcher: <br />
+                <code dir="ltr" className="path-value whitespace-normal">
+                  {model.executable}
+                </code>
               </p>
             )}
           </>
@@ -1111,7 +1128,10 @@ function RuntimeRegistrationForm({
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
-          Game or launcher: <code>{model.executable}</code>
+          Game or launcher: <br />
+          <code dir="ltr" className="path-value whitespace-normal">
+            {model.executable}
+          </code>
         </p>
       )}
       <Button
@@ -1189,13 +1209,17 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Game program: <code>{model.executable}</code>
+            Game program: <br />
+            <code dir="ltr" className="path-value whitespace-normal">
+              {model.executable}
+            </code>
           </p>
         )}
         <label className="grid gap-1" htmlFor={model.workingDirectoryId}>
           Start in folder
           <Input
             id={model.workingDirectoryId}
+            dir="ltr"
             aria-label="Start in folder"
             value={model.workingDirectory}
             disabled={model.busy}
@@ -1435,8 +1459,15 @@ function ExistingRuntimeActions({
     <>
       <p>
         You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
-        <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
-        directory. It does not manage its files, settings or saves.
+        <br />
+        <code dir="ltr" className="path-value whitespace-normal">
+          {registered.executable}
+        </code>{" "}
+        using <br />
+        <code dir="ltr" className="path-value whitespace-normal">
+          {registered.path}
+        </code>{" "}
+        as its working directory. It does not manage its files, settings or saves.
         {registered.user_selected && " It does not authenticate it as an official package."}
       </p>
       <Button

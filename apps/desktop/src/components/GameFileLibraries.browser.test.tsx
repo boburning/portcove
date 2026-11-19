@@ -138,6 +138,20 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+function expectSettingsFixtureNavigation() {
+  expect(window.scrollY).toBe(0);
+  expect(document.scrollingElement?.scrollTop).toBe(0);
+  for (const name of ["Primary navigation", "Settings categories"]) {
+    const navigation = page.getByRole("navigation", { name, exact: true }).element();
+    expect(navigation.checkVisibility()).toBe(true);
+    const bounds = navigation.getBoundingClientRect();
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  }
+}
+
 function expectCandidateComposition(
   selector: string,
   stacked: boolean,
@@ -278,8 +292,8 @@ it.each(
       document.documentElement.dataset.theme = theme;
       await root.rerender(
         <GameFileScanProvider generation={1}>
-          <div className="interface-root">
-            <div className="interface-workspace">
+          <div className="interface-root flex h-full min-h-0 flex-col">
+            <div className="interface-workspace min-h-0 flex-1">
               <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
                 <Sidebar
                   view="settings"
@@ -308,6 +322,10 @@ it.each(
           </div>
         </GameFileScanProvider>,
       );
+      fixtureValue(
+        document.querySelector(".interface-root")?.parentElement,
+        "viewport fixture host",
+      ).classList.add("h-dvh");
       await expect
         .element(page.getByRole("navigation", { name: "Primary navigation", exact: true }))
         .toBeVisible();
@@ -354,11 +372,13 @@ it.each(
       await userEvent.keyboard("{Enter}");
       expect(open).toHaveBeenCalledExactlyOnceWith(port.id, "game-file-libraries-setup");
       expect(document.activeElement).toBe(view);
+      expectSettingsFixtureNavigation();
       await captureParityState(`game-file-candidates-${layout}`);
       vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
       await act(async () => fixtureValue(finish, "owned scan settlement")(completed));
       expect(document.querySelector("[data-live-candidate]")).toBeNull();
       expectCandidateComposition("[data-completed-candidate]", stacked, source.path, profile.label);
+      expectSettingsFixtureNavigation();
       expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
       expect(desktopApi.importSource).not.toHaveBeenCalled();
     } finally {
@@ -394,6 +414,7 @@ function expectWholeFolderIssueList(
       expect(line.right).toBeLessThanOrEqual(bounds.right + 1);
     }
   }
+  expectSettingsFixtureNavigation();
   const bounds = list.getBoundingClientRect();
   requireCompleteCaptureTarget(
     {
@@ -450,8 +471,8 @@ it.each(["dark", "light"] as const)(
       document.documentElement.dataset.theme = theme;
       await root.rerender(
         <GameFileScanProvider generation={1}>
-          <div className="interface-root">
-            <div className="interface-workspace">
+          <div className="interface-root flex h-full min-h-0 flex-col">
+            <div className="interface-workspace min-h-0 flex-1">
               <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
                 <Sidebar
                   view="settings"
@@ -480,6 +501,10 @@ it.each(["dark", "light"] as const)(
           </div>
         </GameFileScanProvider>,
       );
+      fixtureValue(
+        document.querySelector(".interface-root")?.parentElement,
+        "viewport fixture host",
+      ).classList.add("h-dvh");
       await expect
         .element(page.getByRole("list", { name: "Folder search issues", exact: true }))
         .toBeVisible();

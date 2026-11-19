@@ -1,4 +1,4 @@
-param(
+﻿param(
     [Parameter(Mandatory)][int]$DriverProcessId,
     [Parameter(Mandatory)][string]$ApplicationPath,
     [Parameter(Mandatory, ParameterSetName='Confirmation')][string]$Title,

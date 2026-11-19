@@ -536,10 +536,13 @@ it.each([true, false])("renders an empty Activity feed with completeness %s", as
 });
 
 it.each(
-  (["dark", "light"] as const).flatMap((theme) => [960, 430].map((width) => ({ theme, width }))),
+  (["dark", "light"] as const).flatMap((theme) => [
+    { theme, width: 960, display: "grid", sidebarWidth: 192, pageScrolls: false },
+    { theme, width: 430, display: "flex", sidebarWidth: 60, pageScrolls: true },
+  ]),
 )(
   "separates the retained preparation log focus outline from its operation ID in $theme at $width",
-  async ({ theme, width }) => {
+  async ({ theme, width, display, sidebarWidth, pageScrolls }) => {
     const previousTheme = document.documentElement.dataset.theme;
     const previousViewport = { width: innerWidth, height: innerHeight };
     const activity: ActivityRecord = {
@@ -571,13 +574,14 @@ it.each(
     const select = vi.fn();
     const check = vi.fn();
     const host = document.body.appendChild(document.createElement("div"));
+    host.className = "h-dvh";
     let rendered: RenderResult | undefined;
     try {
       await page.viewport(width, 780);
       document.documentElement.dataset.theme = theme;
       rendered = await renderComponent(
-        <div className="interface-root">
-          <div className="interface-workspace">
+        <div className="interface-root flex h-full min-h-0 flex-col">
+          <div className="interface-workspace min-h-0 flex-1">
             <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
               <Sidebar
                 view="updates"
@@ -619,10 +623,8 @@ it.each(
       );
       const appShell = fixtureValue(host.querySelector<HTMLElement>(".app-shell"), "app shell");
       const sidebar = fixtureValue(appShell.querySelector<HTMLElement>(".sidebar"), "sidebar");
-      expect(getComputedStyle(appShell).display).toBe(width < 672 ? "flex" : "grid");
-      if (width < 672) {
-        expect(sidebar.getBoundingClientRect().width).toBe(60);
-      }
+      expect(getComputedStyle(appShell).display).toBe(display);
+      expect(sidebar.getBoundingClientRect().width).toBe(sidebarWidth);
       const taskDetails = page.getByText("Task details", { exact: true });
       await expect.element(taskDetails).toBeVisible();
       taskDetails.element().focus();
@@ -667,6 +669,19 @@ it.each(
           ?.value,
       ).toBe(stderr);
       expect(host.textContent).toContain("Both output streams ended. Saved output is shown below.");
+      const stationaryScrollContainer = pageScrolls
+        ? host.querySelector(".workspace-main")
+        : document.scrollingElement;
+      expect(stationaryScrollContainer?.scrollTop).toBe(0);
+      const navigation = page
+        .getByRole("navigation", { name: "Primary navigation", exact: true })
+        .element();
+      expect(navigation.checkVisibility()).toBe(true);
+      const navigationBounds = navigation.getBoundingClientRect();
+      expect(navigationBounds.top).toBeGreaterThanOrEqual(0);
+      expect(navigationBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(navigationBounds.left).toBeGreaterThanOrEqual(0);
+      expect(navigationBounds.right).toBeLessThanOrEqual(innerWidth);
       await captureParityState("activity-retained-preparation-log-spacing");
       expect(select).not.toHaveBeenCalled();
       expect(check).not.toHaveBeenCalled();

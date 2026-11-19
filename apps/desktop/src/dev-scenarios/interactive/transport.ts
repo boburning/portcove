@@ -714,7 +714,6 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     discover_steam_client_roots: (args) => {
       requireArgs("discover_steam_client_roots", args, { generation });
-      // This synthetic workspace declares no Steam installations; no host read occurs.
       return [];
     },
     get_steamgriddb_key_status: (args) => {
