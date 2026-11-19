@@ -3042,6 +3042,7 @@ fn large_retained_registration_stays_visible_in_listings_and_artwork() {
     let working = temporary.path().join("fixture-registration");
     fs::create_dir(&working).unwrap();
     let record = crate::ExternalRuntimeRecord {
+        setup_download: None,
         id: "catalog-capacity-runtime".into(),
         port_id: id.into(),
         path: working.clone(),

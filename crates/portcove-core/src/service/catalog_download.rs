@@ -201,6 +201,18 @@ pub struct PendingSetupRecord {
     pub reason: Option<String>,
 }
 
+impl PendingSetupRecord {
+    pub(crate) fn into_setup_download(self) -> crate::SetupDownloadSelection {
+        crate::SetupDownloadSelection {
+            release_id: self.artifact.release_id,
+            asset_id: self.artifact.asset_id,
+            release_tag: self.artifact.release_tag,
+            filename: self.artifact.name,
+            download_sha256: self.archive_sha256,
+        }
+    }
+}
+
 fn legacy_record_format() -> u8 {
     1
 }

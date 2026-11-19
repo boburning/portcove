@@ -97,10 +97,20 @@ async function click(label: string) {
   await act(async () => button?.click());
 }
 
-it("shows one shared refusal while retaining both disabled external maintenance controls", async () => {
+it("shows recorded setup alongside one shared external-maintenance refusal", async () => {
   const status = {
     ...portStatus(),
-    external_runtime: { ...record, user_selected: { arguments: [] } },
+    external_runtime: {
+      ...record,
+      user_selected: { arguments: [] },
+      setup_download: {
+        release_id: 200,
+        asset_id: 201,
+        release_tag: "v1.0.2",
+        filename: "wave-race-windows-x64.zip",
+        download_sha256: "c".repeat(64),
+      },
+    },
   };
   const reason =
     "Current action availability is unavailable. Refresh the workspace to check again.";
@@ -127,6 +137,11 @@ it("shows one shared refusal while retaining both disabled external maintenance 
     .element(page.getByRole("button", { name: "Remove registration", exact: true }))
     .toBeDisabled();
   expect(page.getByText(reason, { exact: true }).elements()).toHaveLength(1);
+  await expect
+    .element(page.getByText("Last recorded setup download", { exact: true }))
+    .toBeVisible();
+  await expect.element(page.getByText("wave-race-windows-x64.zip", { exact: true })).toBeVisible();
+  await expect.element(page.getByText("Release v1.0.2", { exact: true })).toBeVisible();
 });
 
 it("retains external launch drafts across detail tabs and reviews the same target and generation", async () => {

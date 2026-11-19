@@ -2519,6 +2519,7 @@ mod tests {
         fs::write(root.join("game.exe"), b"untouched external executable").unwrap();
         fs::write(root.join("save.dat"), b"external player progress").unwrap();
         let record = ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: Some(crate::UserSelectedLaunch {
                 arguments: Vec::new(),
             }),
