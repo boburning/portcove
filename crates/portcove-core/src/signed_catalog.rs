@@ -248,6 +248,14 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        if port.mod_provider_bindings.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver mod provider bindings",
+            ));
+        }
+        port.mod_provider_bindings
+            .clone_from(&original.mod_provider_bindings);
+
         if port.windows_shipwright_persistence {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver Shipwright working-directory persistence",

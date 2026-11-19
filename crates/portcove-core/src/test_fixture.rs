@@ -198,6 +198,11 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    let default_version = if port.mod_provider_bindings.is_some() {
+        default_version.max(crate::provider_binding::capability(port).unwrap().1)
+    } else {
+        default_version
+    };
     let mut requirements = vec![
         json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
     ];

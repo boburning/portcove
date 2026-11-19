@@ -245,7 +245,7 @@ pub(crate) fn resolve_before_listings(
     let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
         connection, &baseline, now,
     );
-    match selected {
+    let (mut catalog, provenance) = match selected {
         Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
         Ok(None) => Ok((baseline, provenance)),
         Err(error) => {
@@ -257,7 +257,14 @@ pub(crate) fn resolve_before_listings(
             );
             Ok((baseline, provenance))
         }
+    }?;
+    let mut statement =
+        connection.prepare("SELECT port_id FROM definition_provider_scope_floor")?;
+    let held_ports = statement.query_map([], |row| row.get::<_, String>(0))?;
+    for port in held_ports {
+        catalog.hold_legacy_mod_provider(&port?);
     }
+    Ok((catalog, provenance))
 }
 
 fn resolve_effective_catalog_from_baseline(

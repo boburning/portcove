@@ -178,6 +178,18 @@ impl DefinitionContentIndex {
                 "a reviewed active project requires indexed definition schema 2",
             ));
         }
+        crate::provider_binding::validate(&port)?;
+        if port.mod_provider_bindings.is_some() {
+            let (template, minimum) = crate::provider_binding::capability(&port)
+                .expect("binding validation requires a supported adapter");
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "mod provider bindings require {template} capability version {minimum}"
+                )));
+            }
+        }
         require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());

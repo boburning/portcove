@@ -481,6 +481,69 @@ async fn acquire(
     .await
 }
 
+#[tokio::test]
+async fn provider_scope_floor_survives_expiry_revocation_and_reopen() {
+    use crate::provider_binding::default_binding;
+    let port_id = "shipwright";
+    let embedded = Catalog::embedded().unwrap();
+    let mut document = embedded.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    let scope = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
+    assert_ne!(default_binding(port).unwrap(), scope);
+    port.mod_provider_bindings = Some(vec![scope.clone()]);
+    let catalog = Catalog::from_document(document).unwrap();
+    let fixture = RepositoryFixture::new();
+    let targets = repository_targets_for(&catalog, port_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let temporary = TempDir::new().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    select_candidate(&library, &candidate, port_id);
+    let (active, active_provenance) = library.load_catalog().unwrap();
+    assert_eq!(default_binding(active.port(port_id).unwrap()), Some(scope));
+
+    let connection = library.connection().unwrap();
+    let expired = active_provenance.expires_at.unwrap() + 1;
+    let (baseline, provenance) = crate::catalog_store::CatalogState::read(&connection)
+        .unwrap()
+        .resolve(expired)
+        .unwrap();
+    let (fallback, _) =
+        crate::catalog_store::resolve_before_listings(&connection, baseline, provenance, expired)
+            .unwrap();
+    assert!(default_binding(fallback.port(port_id).unwrap()).is_none());
+    assert!(default_binding(fallback.port("zelda64-recomp").unwrap()).is_some());
+    assert_eq!(
+        serde_json::to_vec(fallback.port(port_id).unwrap()).unwrap(),
+        serde_json::to_vec(embedded.port(port_id).unwrap()).unwrap(),
+    );
+
+    connection
+        .execute(
+            "UPDATE definition_publisher_policy SET status='revoked' WHERE stable_id=?1",
+            [port_id],
+        )
+        .unwrap();
+    assert!(default_binding(library.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
+    connection
+        .execute(
+            "UPDATE definition_selection_state
+             SET active_json=NULL,replay_floor_json=NULL WHERE singleton=1",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+    drop(library);
+    let reopened = Library::open(temporary.path()).unwrap();
+    assert!(default_binding(reopened.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
+}
+
 #[test]
 fn public_source_requires_credential_free_https_bases() {
     let source = DefinitionRepositorySource::new(

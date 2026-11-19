@@ -1891,3 +1891,27 @@ manifest, encoded current/prior content and changed-source evidence. Attempts
 that exhaust that budget refuse complete review and remain held. The transport
 fixture exercises a 2 MiB current directory and retained prior copy; it supplies
 no actual semantic-review acceptance or production qualification.
+
+### Reviewed mod provider bindings
+
+An indexed definition can carry one exact GameBanana game ID and one
+Thunderstore community under `mod_provider_bindings`. The port must already
+have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
+require template versions 6 and 8 respectively. Legacy signed catalog
+envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
+An explicit empty list withdraws the provider choices. The library records
+which ports have adopted explicit scopes. If that selection expires, is
+revoked or is replaced by another port, its compiled provider is held until
+a fresh authenticated definition appoints an exact scope. Shared profile writes
+require library schema 69 or newer. Recipes carrying an explicit scope use
+format 4.
+
+When multiple providers are available, select the provider before requesting
+a project or planning an install. Desktop offers the choices and the CLI
+accepts `--provider`. A plan or installed reference for a new scope carries its
+exact binding. A historical reference with no binding resolves only to its
+original compiled scope. Install, update and recipe replay refuse a changed
+scope.
+
+Keep newly authored scopes out of public projections until the matching
+reader and profile writer are available to the clients using those scopes.
