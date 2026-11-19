@@ -75107,6 +75107,28 @@
             ]
           }
         ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "queen-queen-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "aa5820ed4e6d136dfcc9badf171119cecf94844098d928512987be88a5022af9",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
+          }
+        ]
       }
     },
     {
@@ -75195,6 +75217,45 @@
               "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
               "https://www.scummvm.org/compatibility/2026.4.0/sky:sky/"
             ]
+          }
+        ]
+      },
+      "compatibility": {
+        "format_version": 2,
+        "records": [
+          {
+            "id": "sky-sky-entry-linux-x86-64",
+            "feature": "launch",
+            "platform": "linux-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "aa5820ed4e6d136dfcc9badf171119cecf94844098d928512987be88a5022af9",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
+          },
+          {
+            "id": "sky-sky-entry-windows-x86-64",
+            "feature": "launch",
+            "platform": "windows-x86-64",
+            "route": "upstream-setup",
+            "release": "2026.4.0",
+            "artifact_sha256": "fb60cfc0828ed86ef24a60c04b9390676493ab85892d81c56d1de90367d56736",
+            "edition": "Freeware floppy edition",
+            "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+            "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+            "observed_at": 1795043416,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+              "first_launch": "opens-project-launcher",
+              "repeat_launch": "starts-game-directly"
+            }
           }
         ]
       }

@@ -599,67 +599,116 @@ export async function ciConclusion(token: string, sha: string) {
   return runs.at(-1)?.conclusion ?? "";
 }
 
-/**
- * Conclusion of the newest completed `CI` push run per commit, from the latest
- * `nightlyLookback` completed `ci.yml` push runs on `main` in one read. The nightly looks up its
- * candidate commits here instead of reading each commit's runs.
- */
+type MainCiRun = {
+  name: string;
+  head_sha: string;
+  head_branch: string;
+  path: string;
+  event: string;
+  head_repository: { full_name: string } | null;
+  status: string;
+  conclusion: string | null;
+  run_attempt: number;
+  id: number;
+};
+
 export async function mainCiConclusions(token: string) {
-  const api = await client(token);
-  // Scoped to ci.yml: the repository-wide list mixes every push workflow, which
-  // would cover far fewer than `nightlyLookback` commits. Replaced pending runs
-  // complete as cancelled, so 100 completed runs span about 100 main commits.
-  const response = await api.request(
-    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
-    {
-      owner: "boburning",
-      repo: "portcove",
-      workflow_id: "ci.yml",
-      branch: "main",
-      event: "push",
-      status: "completed",
-      per_page: nightlyLookback,
-      ...read(),
-    },
-  );
+  return readMainCiConclusions(await client(token));
+}
+
+/** Read the completed lookback and a recent view of the same main CI pushes.
+ * GitHub's status index can omit an already completed recent run. Keep both
+ * reads bounded and use the run's own current attempt and completion fields. */
+export async function readMainCiConclusions(api: Awaited<ReturnType<typeof client>>) {
+  const route = "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs";
+  const scope = {
+    owner: "boburning",
+    repo: "portcove",
+    workflow_id: "ci.yml",
+    branch: "main",
+    event: "push",
+    per_page: nightlyLookback,
+    ...read(),
+  };
+  const views = await Promise.all([
+    api.request(route, { ...scope, status: "completed" }),
+    api.request(route, scope),
+  ]);
   return newestConclusions(
-    (
-      response.data as {
-        workflow_runs: {
-          name: string;
-          head_sha: string;
-          conclusion: string | null;
-          run_attempt: number;
-          id: number;
-        }[];
-      }
-    ).workflow_runs,
+    views.flatMap(({ data }) => {
+      const { workflow_runs } = data as { workflow_runs: MainCiRun[] };
+      if (!Array.isArray(workflow_runs) || workflow_runs.length > nightlyLookback)
+        throw new Error("main CI run inventory exceeds its expected page");
+      return workflow_runs;
+    }),
   );
 }
 
-/** The conclusion of each commit's newest `CI` run and attempt. */
-export function newestConclusions(
-  runs: readonly {
-    name: string;
-    head_sha: string;
-    conclusion: string | null;
-    run_attempt: number;
-    id: number;
-  }[],
-) {
-  const newest = new Map<string, { id: number; attempt: number; conclusion: string }>();
+type MainCiConclusion = string | { unresolved: string };
+export type MainCiConclusions = ReadonlyMap<string, MainCiConclusion>;
+
+/** Read one first-parent decision. Earlier selection leaves older disputes alone. */
+export function mainCiConclusion(conclusions: MainCiConclusions, sha: string) {
+  const finding = conclusions.get(sha);
+  if (typeof finding === "object") throw new Error(finding.unresolved);
+  return finding ?? "";
+}
+
+/** Reconcile the newest observed main CI run and attempt per commit. */
+export function newestConclusions(runs: readonly MainCiRun[]): MainCiConclusions {
+  const newest = new Map<string, MainCiRun>();
+  const attempts = new Map<string, MainCiRun>();
+  const commits = new Map<number, string>();
+  const successfulHeads = new Set<string>();
+  const unresolved = new Map<string, string>();
   for (const run of runs) {
-    if (run.name !== "CI") continue;
-    const known = newest.get(run.head_sha);
-    if (known && (known.id > run.id || (known.id === run.id && known.attempt >= run.run_attempt)))
+    if (
+      run.name !== "CI" ||
+      run.path !== ".github/workflows/ci.yml" ||
+      run.head_branch !== "main" ||
+      run.event !== "push" ||
+      run.head_repository?.full_name !== "boburning/portcove" ||
+      !/^[a-f0-9]{40}$/u.test(run.head_sha) ||
+      !Number.isSafeInteger(run.id) ||
+      run.id <= 0 ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      run.run_attempt <= 0
+    )
       continue;
-    newest.set(run.head_sha, {
-      id: run.id,
-      attempt: run.run_attempt,
-      conclusion: run.conclusion ?? "",
-    });
+    const oldCommit = commits.get(run.id);
+    if (oldCommit !== undefined && oldCommit !== run.head_sha) {
+      const reason = `main CI inventory disagrees about the commit for run ${run.id}`;
+      unresolved.set(oldCommit, reason);
+      unresolved.set(run.head_sha, reason);
+      continue;
+    }
+    commits.set(run.id, run.head_sha);
+    const identity = `${run.id}/${run.run_attempt}`;
+    const seen = attempts.get(identity);
+    if (seen) {
+      const complete = run.status === "completed";
+      if (
+        (seen.status === "completed") !== complete ||
+        (complete && seen.conclusion !== run.conclusion)
+      )
+        unresolved.set(run.head_sha, `main CI inventory disagrees about run attempt ${identity}`);
+      continue;
+    }
+    attempts.set(identity, run);
+    if (run.status === "completed" && run.conclusion === "success")
+      successfulHeads.add(run.head_sha);
+    const known = newest.get(run.head_sha);
+    if (!known || run.id > known.id || (run.id === known.id && run.run_attempt > known.run_attempt))
+      newest.set(run.head_sha, run);
   }
-  return new Map([...newest].map(([sha, run]) => [sha, run.conclusion]));
+  const findings = new Map<string, MainCiConclusion>();
+  for (const [sha, run] of newest) {
+    if (run.status !== "completed" && successfulHeads.has(sha) && !unresolved.has(sha))
+      unresolved.set(sha, `main CI success is superseded by an unfinished attempt for ${sha}`);
+    findings.set(sha, run.status === "completed" ? (run.conclusion ?? "") : "");
+  }
+  for (const [sha, reason] of unresolved) findings.set(sha, { unresolved: reason });
+  return findings;
 }
 
 type Release = {
@@ -1300,7 +1349,7 @@ async function main(argv: string[]) {
     console.log(nextPreviewVersion(listVersionTags(), readWorkspaceVersion(process.cwd())));
   else if (command === "nightly-preview") {
     const conclusions = await mainCiConclusions(token());
-    const result = await nightlyPreview((sha) => Promise.resolve(conclusions.get(sha) ?? ""));
+    const result = await nightlyPreview(async (sha) => mainCiConclusion(conclusions, sha));
     if ("skipped" in result) {
       console.error(`::notice::No nightly preview: ${result.skipped}`);
       console.log("tag=");

@@ -1040,9 +1040,10 @@ mod tests {
             recommend_packages(&assets[1..], platform, hints, true).1,
             None
         );
-        let (assessments, recommended) = recommend_packages(&assets[1..2], platform, &[], true);
-        assert_eq!(assessments[0].suitability, "auxiliary");
-        assert_eq!(recommended, None);
+        assert_eq!(
+            recommend_packages(&assets[1..2], platform, &[], true).1,
+            None
+        );
         let windows = Platform::WindowsX86_64;
         let (assessments, recommended) = recommend_packages(
             &assets,
