@@ -39,6 +39,25 @@ async function renderApp() {
   );
 }
 
+async function expectUnbrokenAppearanceLabels() {
+  await document.fonts.ready;
+  const appearance = page.getByRole("button", { name: "Appearance", exact: true });
+  await expect.element(appearance).toHaveAttribute("aria-current", "page");
+  for (const element of [
+    appearance.element(),
+    page.getByRole("heading", { name: "Appearance", exact: true }).element(),
+  ]) {
+    const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    expect(range.getClientRects()).toHaveLength(1);
+    const label = range.getBoundingClientRect();
+    const bounds = element.getBoundingClientRect();
+    expect(label.left).toBeGreaterThanOrEqual(bounds.left);
+    expect(label.right).toBeLessThanOrEqual(bounds.right);
+  }
+}
+
 for (const theme of ["dark", "light"]) {
   it(`fits the full ${theme} brand and navigation at intermediate widths`, async () => {
     transport = installInteractiveTransport("library", (message) => {
@@ -240,22 +259,7 @@ for (const theme of ["dark", "light"]) {
         document.head.append(spacing);
       } else {
         document.documentElement.style.fontSize = "32px";
-        await document.fonts.ready;
-        const appearance = page.getByRole("button", { name: "Appearance", exact: true });
-        await expect.element(appearance).toHaveAttribute("aria-current", "page");
-        for (const element of [
-          appearance.element(),
-          page.getByRole("heading", { name: "Appearance", exact: true }).element(),
-        ]) {
-          const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
-          const range = document.createRange();
-          range.selectNodeContents(text);
-          expect(range.getClientRects()).toHaveLength(1);
-          const label = range.getBoundingClientRect();
-          const bounds = element.getBoundingClientRect();
-          expect(label.left).toBeGreaterThanOrEqual(bounds.left);
-          expect(label.right).toBeLessThanOrEqual(bounds.right);
-        }
+        await expectUnbrokenAppearanceLabels();
       }
       expect(getComputedStyle(document.querySelector(".settings-section-index")!).position).toBe(
         "static",
