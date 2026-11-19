@@ -56,6 +56,9 @@ pub struct ProviderProjectView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderCatalog {
     pub projects: Vec<ProviderProject>,
+    /// Scope of older unscoped package references, when they belong to this catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_game_id: Option<String>,
     /// False when additional or unreadable records may exist.
     pub complete: bool,
     pub observed_at: i64,
@@ -73,6 +76,9 @@ impl PortcoveService {
             self.catalog().port(port_id)?,
             Some(source),
         )?;
+        let legacy_game_id = crate::provider_binding::legacy_binding(port_id, source)
+            .filter(|legacy| *legacy == client.binding())
+            .map(|_| client.game_id());
         match client {
             ProviderClient::GameBanana { client, game } => {
                 let first = client.search(game, 1, 50).await?;
@@ -110,6 +116,7 @@ impl PortcoveService {
                 // GameBanana does not return download counts on every listing.
                 // Preserve its Most Downloaded order even when counts are absent.
                 Ok(ProviderCatalog {
+                    legacy_game_id,
                     complete: consistent && terminal && projects.len() as u64 == expected,
                     projects,
                     observed_at,
@@ -117,7 +124,7 @@ impl PortcoveService {
                 })
             }
             ProviderClient::Thunderstore { client, community } => {
-                let observed = client.community_catalog(community).await?;
+                let observed = client.community_catalog(&community).await?;
                 let (mut projects, expected) = observed.value;
                 let mut seen = std::collections::HashSet::new();
                 projects.retain(|project| seen.insert(project.project_id.clone()));
@@ -125,6 +132,7 @@ impl PortcoveService {
                     project.files.clear();
                 }
                 Ok(ProviderCatalog {
+                    legacy_game_id,
                     complete: projects.len() == expected,
                     projects,
                     observed_at: observed.observed_at,

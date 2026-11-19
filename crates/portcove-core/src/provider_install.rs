@@ -479,12 +479,18 @@ impl PortcoveService {
         source: &str,
         project_id: &str,
         file_id: &str,
+        expected_game_id: &str,
     ) -> Result<ProviderInstallPlan> {
         let client = ProviderClient::for_definition(
             &self.library,
             self.catalog().port(port_id)?,
             Some(source),
         )?;
+        if client.game_id() != expected_game_id {
+            return Err(PortcoveError::conflict(
+                "the selected mod source changed scope",
+            ));
+        }
         self.plan_provider_install_in_mode(
             &client,
             port_id,

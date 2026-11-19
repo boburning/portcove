@@ -61,6 +61,7 @@ const catalog = (
 ) => ({
   projects,
   complete: true,
+  legacy_game_id: "16121",
   observed_at: 1800000000,
   freshness,
 });
@@ -252,7 +253,7 @@ it("queues exact identities, undoes one addition and applies the remainder as a 
     "10",
     7,
     "gamebanana",
-    true,
+    "16121",
   );
   expect(applied).toHaveBeenCalledExactlyOnceWith(
     "shipwright",
@@ -281,6 +282,24 @@ it("discards private plans on cancel and keeps the queued selection", async () =
   await expect.element(page.getByText("Pending addition", { exact: true })).toBeVisible();
 });
 
+it("does not mark the same project ID in another provider scope as installed", async () => {
+  vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(catalog());
+  await render({
+    packages: [
+      {
+        native_id: "other.o2r",
+        enabled: false,
+        provider: {
+          provider: "gamebanana",
+          project: "42",
+          binding: { provider: "gamebanana", game_id: 7 },
+        },
+      },
+    ] as ModSetupView["revision"]["packages"],
+  });
+  await expect.element(page.getByRole("button", { name: "Add", exact: true })).toBeVisible();
+});
+
 it("offers a second same-port source and labels cached results and failed refreshes", async () => {
   const read = vi
     .spyOn(desktopApi, "modProviderCatalog")
@@ -290,6 +309,9 @@ it("offers a second same-port source and labels cached results and failed refres
         : catalog([mod("Author-Package", "Package", "thunderstore")], "stale"),
     );
   await render({ sources: ["gamebanana", "thunderstore"] });
+  expect(read).not.toHaveBeenCalled();
+  await page.getByRole("combobox", { name: /Source/ }).click();
+  await page.getByRole("option", { name: "GameBanana" }).click();
   await page.getByRole("button", { name: "Browse Thunderstore" }).click();
   await expect
     .element(page.getByText("The source could not be reached. Showing saved results."))

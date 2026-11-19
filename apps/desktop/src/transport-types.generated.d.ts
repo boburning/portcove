@@ -6079,6 +6079,10 @@ export interface OutputProviderCatalog {
    */
   complete: boolean;
   freshness: ProviderFreshness;
+  /**
+   * Scope of older unscoped package references, when they belong to this catalog.
+   */
+  legacy_game_id?: string | null;
   observed_at: number;
   projects: ProviderProject[];
   [k: string]: unknown;

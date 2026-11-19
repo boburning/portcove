@@ -94,6 +94,18 @@ fn live_mods(w: &World) -> Vec<String> {
 }
 
 #[tokio::test]
+async fn workspace_review_refuses_provider_scope_changes_before_download() {
+    let w = world();
+    let error = w
+        .service
+        .plan_workspace_provider_install("starship", &w.profile, "gamebanana", "42", "10", "123")
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(live_mods(&w).is_empty());
+}
+
+#[tokio::test]
 async fn a_provider_draft_retries_the_same_review_after_an_interrupted_commit() {
     let w = world();
     let service = &w.service;

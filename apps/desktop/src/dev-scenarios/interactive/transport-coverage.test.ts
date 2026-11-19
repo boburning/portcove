@@ -77,7 +77,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
     get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
-    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
+    forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles

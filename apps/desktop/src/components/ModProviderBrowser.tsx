@@ -84,8 +84,13 @@ export function ModProviderBrowser({
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
   const { id: profileId, current_revision: revision } = selected.profile;
-  const [sourceChoice, setSource] = useState(sources[0]);
-  const source = sourceChoice && sources.includes(sourceChoice) ? sourceChoice : sources[0];
+  const [sourceChoice, setSource] = useState<string>();
+  const source =
+    sourceChoice && sources.includes(sourceChoice)
+      ? sourceChoice
+      : sources.length === 1
+        ? sources[0]
+        : undefined;
   const [catalogs, setCatalogs] = useState<Record<string, ProviderCatalog>>({});
   const [catalogFailures, setCatalogFailures] = useState<
     Record<string, { browseUrl?: string } | undefined>
@@ -200,12 +205,21 @@ export function ModProviderBrowser({
   const installed = new Map<string, string[]>();
   for (const item of selected.revision.packages ?? []) {
     if (!item.provider) continue;
-    const key = modProjectKey(item.provider.provider, item.provider.project);
+    const { provider, project: projectId, binding } = item.provider;
+    const gameId = binding
+      ? binding.provider === "gamebanana"
+        ? String(binding.game_id)
+        : binding.community
+      : catalogs[provider]?.legacy_game_id;
+    if (!gameId) continue;
+    const key = modProjectKey(provider, projectId, gameId);
     installed.set(key, [...(installed.get(key) ?? []), item.native_id]);
   }
-  const lookup = (item: Project) => modProjectKey(item.provider, item.project_id);
+  const lookup = (item: Project) => modProjectKey(item.provider, item.project_id, item.game_id);
   const queued = (item: Project) =>
-    draft.additions.some((entry) => modProjectKey(entry.provider, entry.project) === lookup(item));
+    draft.additions.some(
+      (entry) => modProjectKey(entry.provider, entry.project, entry.gameId) === lookup(item),
+    );
   const eligible = (view: ProviderProjectView) =>
     view.freshness === "stale" || view.project.obsolete || view.project.status_unknown
       ? []
@@ -213,6 +227,8 @@ export function ModProviderBrowser({
           (file) => !file.status_unknown && view.eligible_file_ids?.includes(file.file_id),
         );
   const queue = (item: Project, file: File) => {
+    if (!item.game_id) return;
+    const gameId = item.game_id;
     if (draft.additions.length + localFiles.length >= 16) {
       setFailure(t("mods.workspace.draftLimit"));
       return;
@@ -221,10 +237,11 @@ export function ModProviderBrowser({
       ...current,
       additions: [
         ...current.additions.filter(
-          (entry) => modProjectKey(entry.provider, entry.project) !== lookup(item),
+          (entry) => modProjectKey(entry.provider, entry.project, entry.gameId) !== lookup(item),
         ),
         {
           provider: item.provider,
+          gameId,
           project: item.project_id,
           file: file.file_id,
           fileName: file.file_name,
@@ -233,11 +250,13 @@ export function ModProviderBrowser({
       ],
     }));
   };
-  const undo = (provider: string, projectId: string) =>
+  const undo = (provider: string, projectId: string, gameId: string | null | undefined) =>
     setDraft((current) => ({
       ...current,
       additions: current.additions.filter(
-        (item) => item.provider !== provider || item.project !== projectId,
+        (item) =>
+          modProjectKey(item.provider, item.project, item.gameId) !==
+          modProjectKey(provider, projectId, gameId),
       ),
     }));
   const inspect = async (item: Project, add: boolean) => {
@@ -259,7 +278,11 @@ export function ModProviderBrowser({
         item.provider,
       );
       if (!alive.current || id !== requestId.current.generation) return;
-      if (read.project.provider !== item.provider || read.project.project_id !== item.project_id) {
+      if (
+        read.project.provider !== item.provider ||
+        read.project.project_id !== item.project_id ||
+        (read.project.game_id !== null && read.project.game_id !== item.game_id)
+      ) {
         throw new Error(t("mods.gameChanged"));
       }
       const candidates = eligible(read);
@@ -304,6 +327,7 @@ export function ModProviderBrowser({
       await cleanup.current;
       if (!alive.current) return;
       for (const entry of draft.additions) {
+        if (!entry.gameId) throw new Error(t("mods.workspace.chooseFileAgain"));
         const result = await desktopApi.planProviderInstall(
           portId,
           profileId,
@@ -311,7 +335,7 @@ export function ModProviderBrowser({
           entry.file,
           generation,
           entry.provider,
-          true,
+          entry.gameId,
         );
         prepared.push(result);
         if (!alive.current) {
@@ -424,7 +448,7 @@ export function ModProviderBrowser({
         variant="outline"
         size="sm"
         disabled={disabled || busy}
-        onClick={() => undo(item.provider, item.project_id)}
+        onClick={() => undo(item.provider, item.project_id, item.game_id)}
       >
         {t("mods.workspace.undo")}
       </Button>
@@ -489,17 +513,19 @@ export function ModProviderBrowser({
         <p role="status">{t("mods.browse.checking", { provider: providerName(source) })}</p>
       )}
       <div hidden={review || !browsing || Boolean(project)}>
-        {source && (
+        {sources.length > 0 && (
           <ModProviderCatalog
-            catalog={catalogs[source]}
-            source={source}
+            catalog={source ? catalogs[source] : undefined}
+            source={source ?? ""}
             sources={sources}
-            loading={catalogLoading === source}
-            failed={Boolean(catalogFailures[source])}
-            browseUrl={catalogFailures[source]?.browseUrl}
+            loading={Boolean(source && catalogLoading === source)}
+            failed={Boolean(source && catalogFailures[source])}
+            browseUrl={source ? catalogFailures[source]?.browseUrl : undefined}
             locked={disabled}
             setSource={setSource}
-            refresh={() => loadCatalog(source)}
+            refresh={() => {
+              if (source) loadCatalog(source);
+            }}
             installed={new Set(installed.keys())}
             showProject={(item) => void inspect(item, false)}
             action={rowAction}
@@ -626,14 +652,18 @@ export function ModProviderBrowser({
           )}
         </section>
       )}
-      {!browsing && !review && updates && source && (
+      {!browsing && !review && updates && sources.length > 0 && (
         <ModUpdateControl
           portId={portId}
           profileId={profileId}
           generation={generation}
           disabled={disabled || busy}
           {...updates}
-          showProject={(projectId, provider = source, candidateFiles) => {
+          providerForPackage={(nativeId) =>
+            selected.revision.packages?.find((item) => item.native_id === nativeId)?.provider
+              ?.provider
+          }
+          showProject={(projectId, provider, candidateFiles) => {
             if (!sources.includes(provider)) return;
             onBrowse();
             const request = ++requestId.current.generation;
@@ -651,20 +681,7 @@ export function ModProviderBrowser({
                 }
                 setProject(item.project);
                 setFiles(item);
-                setUpdateFiles(
-                  candidateFiles ??
-                    item.project.files
-                      .filter(
-                        (file) =>
-                          !(selected.revision.packages ?? []).some(
-                            (pkg) =>
-                              pkg.provider?.provider === provider &&
-                              pkg.provider.project === projectId &&
-                              pkg.provider.file === file.file_id,
-                          ),
-                      )
-                      .map((file) => file.file_id),
-                );
+                setUpdateFiles(candidateFiles);
               })
               .catch((error) => {
                 if (alive.current && request === requestId.current.generation)
@@ -688,7 +705,7 @@ export function ModProviderBrowser({
             </p>
             <ul className="m-0 grid list-none gap-2 p-0">
               {draft.additions.map((entry) => (
-                <li key={modProjectKey(entry.provider, entry.project)}>
+                <li key={modProjectKey(entry.provider, entry.project, entry.gameId)}>
                   <ActionRow>
                     <span>
                       {t("mods.workspace.pendingAddition")} <bdi>{entry.name}</bdi> ·{" "}
@@ -700,7 +717,7 @@ export function ModProviderBrowser({
                       disabled={Boolean(working)}
                       onClick={() => {
                         clearPlans();
-                        undo(entry.provider, entry.project);
+                        undo(entry.provider, entry.project, entry.gameId);
                         if (count === 1) closeReview();
                       }}
                     >

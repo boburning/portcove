@@ -558,7 +558,7 @@ export const desktopApi = {
     fileId: string,
     generation: number,
     provider?: string,
-    workspace = false,
+    expectedGameId?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -567,7 +567,7 @@ export const desktopApi = {
       fileId,
       generation,
       provider,
-      workspace,
+      expectedGameId,
     }),
   previewModSetupDraft: (
     portId: string,

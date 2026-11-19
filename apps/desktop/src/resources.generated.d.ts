@@ -1520,6 +1520,8 @@ export default interface Resources {
         "checkFiles": "Check files",
         "checked": "Checked {{time}}",
         "checkingFiles": "Downloading and checking files…",
+        "chooseFileAgain": "Choose the mod file again. The saved choice has no source scope.",
+        "chooseSource": "Choose a source",
         "clearFilters": "Clear filters",
         "count_one": "{{count}} mod",
         "count_other": "{{count}} mods",

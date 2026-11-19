@@ -648,13 +648,13 @@ pub(crate) async fn plan_provider_install(
     project_id: String,
     file_id: String,
     provider: Option<String>,
-    workspace: Option<bool>,
+    expected_game_id: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            if workspace.unwrap_or(false) {
+            if let Some(expected_game_id) = expected_game_id {
                 let source = provider.as_deref().ok_or_else(|| {
                     portcove_core::PortcoveError::usage(
                         "Choose a mod source before reviewing the file",
@@ -667,6 +667,7 @@ pub(crate) async fn plan_provider_install(
                         source,
                         &project_id,
                         &file_id,
+                        &expected_game_id,
                     )
                     .await
                     .map_err(Into::into);

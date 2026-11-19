@@ -17,6 +17,7 @@ export type LocalModSelection = {
 
 export type ModAddition = {
   provider: string;
+  gameId?: string;
   project: string;
   file: string;
   name: string;
@@ -77,7 +78,9 @@ function readDraft(key: string): ModDraft {
       draft.additions.length > 16 ||
       !draft.additions.every(
         (item) =>
-          item && [item.provider, item.project, item.file, item.name, item.fileName].every(text),
+          item &&
+          (item.gameId === undefined || text(item.gameId)) &&
+          [item.provider, item.project, item.file, item.name, item.fileName].every(text),
       ) ||
       !Array.isArray(draft.packages) ||
       draft.packages.length > 1024 ||

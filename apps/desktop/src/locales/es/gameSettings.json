@@ -350,6 +350,8 @@
       "checked": "Comprobado el {{time}}",
       "checkFiles": "Comprobar archivos",
       "checkingFiles": "Descargando y comprobando los archivos…",
+      "chooseFileAgain": "Vuelve a elegir el archivo del mod. La selección guardada no indica el juego de origen.",
+      "chooseSource": "Elige una fuente",
       "clearFilters": "Borrar filtros",
       "count_one": "{{count}} mod",
       "count_many": "{{count}} mods",

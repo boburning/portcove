@@ -847,6 +847,9 @@ it("opens review for the exact project named by a saved automatic hold", async (
   });
   const active = ready.inventory?.profiles[0];
   if (!active) throw new Error("missing selected setup fixture");
+  const installed = active.revision.packages?.find(({ native_id }) => native_id === "hd.o2r");
+  if (!installed) throw new Error("missing installed provider mod");
+  installed.provider = { provider: "gamebanana", project: "42", file: "10" };
   active.profile.intent = { update_policy: "automatic_eligible" };
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(ready);
   const project = vi.spyOn(desktopApi, "providerProject").mockRejectedValue(new Error("offline"));
@@ -2091,6 +2094,7 @@ function fixtureProviderMods() {
   const addition = listing("43", "Retro HUD");
   vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue({
     projects: [installed, addition],
+    legacy_game_id: "16121",
     complete: true,
     observed_at: 1,
     freshness: "fresh",

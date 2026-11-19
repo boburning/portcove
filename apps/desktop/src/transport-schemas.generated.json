@@ -47265,6 +47265,13 @@
       "freshness": {
         "$ref": "#/$defs/ProviderFreshness"
       },
+      "legacy_game_id": {
+        "description": "Scope of older unscoped package references, when they belong to this catalog.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "observed_at": {
         "format": "int64",
         "type": "integer"

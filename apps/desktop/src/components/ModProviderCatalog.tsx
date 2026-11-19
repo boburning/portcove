@@ -43,8 +43,12 @@ function metric(project: Project, sort: Sort) {
   return project.listing?.[sort] ?? undefined;
 }
 
-export function modProjectKey(provider: string, project: string) {
-  return JSON.stringify([provider, project]);
+export function modProjectKey(
+  provider: string,
+  project: string,
+  gameId: string | null | undefined,
+) {
+  return JSON.stringify([provider, gameId ?? null, project]);
 }
 
 export function ModArtwork({ project }: { project: Project }) {
@@ -139,7 +143,7 @@ export function ModProviderCatalog({
     setPage(1);
   };
   const isInstalled = (project: Project) =>
-    installed.has(modProjectKey(project.provider, project.project_id));
+    installed.has(modProjectKey(project.provider, project.project_id, project.game_id));
   const term = query.trim().toLocaleLowerCase();
   const matching = projects.filter((project) => {
     if (installation !== "all" && isInstalled(project) !== (installation === "only")) return false;
@@ -312,7 +316,10 @@ export function ModProviderCatalog({
                 value={source}
                 onChange={switchSource}
                 disabled={locked}
-                options={sources.map((value) => ({ value, label: providerLabel(value) }))}
+                options={[
+                  ...(source ? [] : [{ value: "", label: t("mods.workspace.chooseSource") }]),
+                  ...sources.map((value) => ({ value, label: providerLabel(value) })),
+                ]}
               />
             </div>
           ) : (
@@ -374,7 +381,7 @@ export function ModProviderCatalog({
               type="button"
               variant="ghost"
               size="sm"
-              disabled={locked || loading}
+              disabled={locked || loading || !source}
               onClick={refresh}
             >
               <RefreshCw aria-hidden="true" /> {t("mods.workspace.refresh")}
@@ -419,7 +426,7 @@ export function ModProviderCatalog({
         {visible.map((project) => (
           <li
             className="mod-catalog-item"
-            key={modProjectKey(project.provider, project.project_id)}
+            key={modProjectKey(project.provider, project.project_id, project.game_id)}
           >
             <button
               type="button"

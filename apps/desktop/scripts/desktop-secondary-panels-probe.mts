@@ -88,6 +88,7 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
     inspect_mod_recipe: fixtures.recipe,
     get_mod_provider_catalog: {
       projects: fixtures.providerPage.page.projects,
+      legacy_game_id: "owned-presentation-game",
       complete: true,
       observed_at: fixtures.providerPage.observed_at,
       freshness: fixtures.providerPage.freshness,
@@ -175,12 +176,13 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
       serializedPlan: fixtures.recipe.serialized_plan,
     },
     get_mod_provider_catalog: { source: "gamebanana" },
-    get_provider_project: { projectId: "42", source: "gamebanana" },
+    get_provider_project: { projectId: "42", provider: "gamebanana" },
     plan_provider_install: {
       profileId: setupId,
       projectId: "42",
       fileId: "10",
-      source: "gamebanana",
+      provider: "gamebanana",
+      expectedGameId: "owned-presentation-game",
     },
     preview_mod_setup_draft: { profileId: setupId, expectedRevision: 2 },
     apply_mod_setup_draft: { profileId: setupId, expectedRevision: 2 },
