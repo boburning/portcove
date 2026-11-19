@@ -6920,6 +6920,10 @@
           "support_tier": {
             "$ref": "#/$defs/SupportTier"
           },
+          "upstream_active_reviewed": {
+            "description": "An explicit review of an active project. Older serialized definitions\ndefaulted to Active, so that value alone cannot prove a declaration.",
+            "type": "boolean"
+          },
           "upstream_status": {
             "$ref": "#/$defs/UpstreamStatus",
             "default": "active"
@@ -37871,6 +37875,10 @@
       "support_tier": {
         "$ref": "#/$defs/SupportTier"
       },
+      "upstream_active_reviewed": {
+        "description": "An explicit review of an active project. Older serialized definitions\ndefaulted to Active, so that value alone cannot prove a declaration.",
+        "type": "boolean"
+      },
       "upstream_status": {
         "$ref": "#/$defs/UpstreamStatus",
         "default": "active"
@@ -55347,6 +55355,10 @@
           },
           "support_tier": {
             "$ref": "#/$defs/SupportTier"
+          },
+          "upstream_active_reviewed": {
+            "description": "An explicit review of an active project. Older serialized definitions\ndefaulted to Active, so that value alone cannot prove a declaration.",
+            "type": "boolean"
           },
           "upstream_status": {
             "$ref": "#/$defs/UpstreamStatus",

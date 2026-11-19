@@ -66,6 +66,46 @@ fn provider_bindings_require_the_adapter_floor_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    port.upstream_active_reviewed = true;
+    let binding = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
+    port.mod_provider_bindings = Some(vec![binding.clone()]);
+    let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(version);
+    for (schema, minimum, refusal) in [
+        (1, version, Some("indexed definition schema 2")),
+        (2, version - 1, Some("mod provider bindings")),
+        (2, version, None),
+    ] {
+        entry["definition_schema"] = json!(schema);
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if let Some(message) = refusal {
+                assert!(result.unwrap_err().message.contains(message));
+            } else {
+                let accepted = result.unwrap();
+                assert!(accepted.capabilities().compatible);
+                assert_eq!(
+                    accepted.port().declared_upstream_status(),
+                    Some(crate::UpstreamStatus::Active)
+                );
+                assert_eq!(
+                    accepted.port().mod_provider_bindings.as_deref(),
+                    Some(std::slice::from_ref(&binding))
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn executable_grants_require_their_adapter_floor_for_fresh_and_retained_reads() {
     for (adapter, version) in [
         (crate::AdapterKind::NativePortable, 22),

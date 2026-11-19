@@ -668,6 +668,7 @@ impl Library {
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
             let mut catalog = candidate.projection.catalog().clone();
             catalog.retain_embedded_file_patterns(&baseline, candidate.publisher.stable_id())?;
+            catalog.retain_unrelated_upstream_reviews(&baseline, candidate.publisher.stable_id());
             crate::definition_loader::validate_definition_transition(
                 &baseline,
                 &catalog,
@@ -921,6 +922,9 @@ pub(crate) fn load_selected_definition_catalog(
     }
     let mut catalog = projection.catalog().clone();
     catalog.retain_embedded_file_patterns(baseline, &selection.stable_id)?;
+    // The retained publisher scope is the selected port. An unrelated active
+    // review comes from the current baseline while authenticated bytes are retained.
+    catalog.retain_unrelated_upstream_reviews(baseline, &selection.stable_id);
     crate::definition_loader::validate_definition_transition(
         baseline,
         &catalog,

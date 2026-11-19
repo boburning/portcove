@@ -4382,3 +4382,14 @@ explicit CLI legacy exports flatten references without losing text. See
 uses the same source authority as schema 2; this presentation metadata does not
 change eligibility, runtime ownership or save compatibility. Do not add an unknown
 field to an older strict format or infer reference sections from heading text.
+
+### Reviewed upstream status
+
+The operational definition retains the legacy `upstream_status` values. Use
+`upstream_active_reviewed: true` to declare that an upstream project was
+reviewed as active. A legacy `active` value without this marker is unrecorded.
+Retired, superseded, and abandoned values are explicit declarations on their
+own. Repository activity observations retain their own dates and do not supply
+a catalog declaration. An indexed definition carrying this marker uses entry
+schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
+readers that only support schema 1.
