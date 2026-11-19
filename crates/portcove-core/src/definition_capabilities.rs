@@ -28,10 +28,6 @@ impl EngineTemplateCapability {
             .collect();
         supported.push(Self {
             template: AdapterKind::LibultrashipPortable,
-            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
-        });
-        supported.push(Self {
-            template: AdapterKind::LibultrashipPortable,
             contract_version: 2,
         });
         supported.push(Self {
@@ -101,10 +97,6 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 14,
-        });
-        supported.push(Self {
-            template: AdapterKind::N64RecompPortable,
-            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
         });
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,
@@ -360,6 +352,14 @@ impl EngineTemplateCapability {
                 contract_version,
             })
         }));
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+        });
         supported
     }
 }
@@ -969,6 +969,41 @@ mod tests {
             .map(|entry| (entry.template, entry.contract_version))
             .collect();
         assert_eq!(pairs.len(), EngineTemplateCapability::current().len());
+    }
+
+    #[test]
+    fn reviewed_provider_bindings_require_a_version_newer_than_package_shape() {
+        for (template, adapter, binding_version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+            ),
+            (
+                "n64-recomp-portable",
+                AdapterKind::N64RecompPortable,
+                crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+            ),
+        ] {
+            let shape_version = crate::package_shape::enforcement_capability(adapter).unwrap();
+            assert!(binding_version > shape_version);
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != adapter || entry.contract_version <= shape_version
+                })
+                .collect();
+            let shape = request(template, shape_version, shape_version);
+            let binding = request(template, binding_version, binding_version);
+            assert!(check_with_inventory(&shape, &previous).unwrap().compatible);
+            assert!(
+                !check_with_inventory(&binding, &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(check_definition_capabilities(&shape).unwrap().compatible);
+            assert!(check_definition_capabilities(&binding).unwrap().compatible);
+        }
     }
 
     #[test]

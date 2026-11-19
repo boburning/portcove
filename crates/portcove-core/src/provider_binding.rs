@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{AdapterKind, PortDefinition, PortcoveError, Result};
 
-pub(crate) const LIBULTRASHIP_BINDING_CAPABILITY: u32 = 5;
-pub(crate) const N64_RECOMP_BINDING_CAPABILITY: u32 = 7;
+pub(crate) const LIBULTRASHIP_BINDING_CAPABILITY: u32 = 6;
+pub(crate) const N64_RECOMP_BINDING_CAPABILITY: u32 = 8;
 
 /// Exact provider-side scope from a reviewed definition.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]

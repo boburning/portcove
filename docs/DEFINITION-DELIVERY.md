@@ -1886,7 +1886,7 @@ no actual semantic-review acceptance or production qualification.
 An indexed definition can carry one exact GameBanana game ID and one
 Thunderstore community under `mod_provider_bindings`. The port must already
 have a reviewed mod loader. Indexed Libultraship and N64 recomp bindings
-require template versions 5 and 7 respectively. Legacy signed catalog
+require template versions 6 and 8 respectively. Legacy signed catalog
 envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
 An explicit empty list withdraws the provider choices. The library records
 which ports have adopted explicit scopes. If that selection expires, is
