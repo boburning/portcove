@@ -15,7 +15,7 @@
     "original_game_title": "Crash Team Racing",
     "project_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp",
     "issue_number": 2879,
@@ -23,7 +23,16 @@
       "format_version": 1,
       "id": "crash-team-racing",
       "evidence_urls": ["https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "crash-team-racing-playstation",
+          "title": "Crash Team Racing (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Crash-Team-Racing-Recomp/blob/c13050a79ce77fb503c1dcbcaefd3b6e8a57ce7c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

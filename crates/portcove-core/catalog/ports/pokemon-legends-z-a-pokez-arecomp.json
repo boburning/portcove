@@ -7,7 +7,7 @@
     "original_game_title": "Pokémon Legends: Z-A",
     "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
     "artwork": {
@@ -45,7 +45,16 @@
       "format_version": 1,
       "id": "pokemon-legends-z-a",
       "evidence_urls": ["https://github.com/Hexveil404/PokeZ-ARecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-legends-z-a-nintendo-switch",
+          "title": "Pokémon Legends: Z-A (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Hexveil404/PokeZ-ARecomp/blob/280098af357b302ba0b22fcd4127eed47c69cdc3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

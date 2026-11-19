@@ -14,7 +14,7 @@
       "game_slug": "might-and-magic-vii-for-blood-and-honor",
       "match_kind": "underlying-game"
     },
-    "platforms": [],
+    "platforms": ["windows-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/OpenEnroth/OpenEnroth",
     "issue_number": 2885,
@@ -51,6 +51,10 @@
         {
           "title": "Version and platform notes",
           "instruction": "Nightly downloads include Windows x86 and x86-64 ZIPs, a Linux x86-64 Flatpak, Mac Intel and Apple silicon disk images, and an Android universal APK. Nightly builds can have bugs. The exact accepted language and retail patch are unconfirmed."
+        },
+        {
+          "title": "Use the experimental Android nightly",
+          "instruction": "The upstream OpenEnroth nightly APK includes ARM64, ARMv7, x86 and x86-64 libraries. Copy ANIMS, DATA, MUSIC and SOUNDS from your own supported game to Android/data/io.github.openenroth.openenroth/files. The project describes this package as experimental. Retain the app’s data when replacing a nightly."
         }
       ]
     },
@@ -61,7 +65,16 @@
         "https://github.com/OpenEnroth/OpenEnroth",
         "https://github.com/OpenEnroth/OpenEnroth/tree/a644b752f05af0cdbb1c5d96d120d6967bd8b790"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "might-and-magic-vii-pc",
+          "title": "Might and Magic VII (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenEnroth/OpenEnroth/blob/cfaf0beace2272c15832677147d1cef696705c8b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

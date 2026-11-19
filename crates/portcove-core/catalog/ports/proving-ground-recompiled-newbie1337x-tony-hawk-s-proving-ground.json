@@ -15,7 +15,7 @@
     "summary": "The project describes performance and control features. Complete gameplay and Linux compatibility have not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Newbie1337x/ProvingGroundRecomp",
     "manual_setup": {
@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "tony-hawks-proving-ground",
-      "evidence_urls": ["https://github.com/Newbie1337x/ProvingGroundRecomp"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/Newbie1337x/ProvingGroundRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground.json"
+      ],
+      "source_editions": [
+        {
+          "id": "tony-hawks-proving-ground-xbox-360",
+          "title": "Tony Hawk's Proving Ground (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/proving-ground-recompiled-newbie1337x-tony-hawk-s-proving-ground.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

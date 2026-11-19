@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "doritos-crash-course",
       "evidence_urls": ["https://github.com/portingpete/DoritosCrashCourse"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doritos-crash-course-xbox-360",
+          "title": "Doritos Crash Course (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/portingpete/DoritosCrashCourse/blob/fed996e162ae5398506e0acc428c5662841ffa66/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

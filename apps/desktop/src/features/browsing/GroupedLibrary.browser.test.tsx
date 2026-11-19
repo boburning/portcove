@@ -737,7 +737,7 @@ it("keeps stable game presentation while selected actions and file drops use the
   expect(organization.commit).not.toHaveBeenCalled();
 });
 
-it("reviews ambiguous grouped file drops without changing preferences or checking sibling sources", async () => {
+it("keeps direct details separate from cancelled and confirmed ambiguous file drops", async () => {
   const first = {
     ...portDefinition(),
     id: "first-port",
@@ -746,6 +746,7 @@ it("reviews ambiguous grouped file drops without changing preferences or checkin
     source_profile: "first-source",
   };
   const secondPort = { ...second, source_profile: "second-source" };
+  const onSelect = vi.fn();
   const onGameDropSelect = vi.fn();
   const onGameDropDismiss = vi.fn();
   const commit = vi.fn();
@@ -756,42 +757,51 @@ it("reviews ambiguous grouped file drops without changing preferences or checkin
     refresh: async () => true,
     commit,
   };
-  const screen = await render(
+  const view = (pendingGameDrop?: { gameId: string; paths: string[] }) => (
     <GroupedDiscover
       all={[first, secondPort]}
       matching={[secondPort]}
       statuses={new Map()}
       organization={organization}
       nativeSourceDrag={{ active: true, pathCount: 1 }}
-      onSelect={vi.fn()}
-    />,
+      pendingGameDrop={pendingGameDrop}
+      onGameDropSelect={onGameDropSelect}
+      onGameDropDismiss={onGameDropDismiss}
+      onSelect={onSelect}
+    />
   );
+  const screen = await render(view());
   expect(
     document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropPortId,
   ).toBeUndefined();
   expect(document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropGameId).toBe(
     "game:original-game",
   );
-  await screen.rerender(
-    <GroupedDiscover
-      all={[first, secondPort]}
-      matching={[secondPort]}
-      statuses={new Map()}
-      organization={organization}
-      pendingGameDrop={{ gameId: "game:original-game", paths: ["D:/Game.z64"] }}
-      onGameDropSelect={onGameDropSelect}
-      onGameDropDismiss={onGameDropDismiss}
-      onSelect={vi.fn()}
-    />,
-  );
+  await page.getByRole("button", { name: /Matching port: Second project/u }).click();
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(second.id, `catalog:card:${second.id}`);
+  expect(onGameDropSelect).not.toHaveBeenCalled();
+  expect(commit).not.toHaveBeenCalled();
+  onGameDropDismiss.mockClear();
+
+  await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
   await expect.element(page.getByRole("dialog")).toBeVisible();
   expect(onGameDropSelect).not.toHaveBeenCalled();
-  await page.getByRole("button", { name: "Check files with Second project" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+  expect(onGameDropDismiss).toHaveBeenCalledExactlyOnceWith();
+  await screen.rerender(view());
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  expect(onGameDropSelect).not.toHaveBeenCalled();
+  expect(commit).not.toHaveBeenCalled();
+
+  await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
+  await expect.element(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("button", { name: "Check files with Second project", exact: true }).click();
   expect(onGameDropSelect).toHaveBeenCalledExactlyOnceWith({
     portId: second.id,
     profileId: secondPort.source_profile,
     paths: ["D:/Game.z64"],
   });
+  expect(onSelect).toHaveBeenCalledTimes(1);
   expect(commit).not.toHaveBeenCalled();
 });
 
@@ -1254,8 +1264,7 @@ it("names Library details with the visible stable game and exact project while o
     name: "View details for Original game Second project",
     exact: true,
   });
-  await expect.element(details).toHaveTextContent("Original game");
-  await expect.element(details).toHaveTextContent("Second project");
+  await expect.element(details).toHaveTextContent("Original game Second project");
   await details.click();
   expect(onSelect).toHaveBeenCalledWith(selected.id, `library:card:${selected.id}`);
 });

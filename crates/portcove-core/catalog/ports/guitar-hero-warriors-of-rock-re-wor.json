@@ -59,9 +59,19 @@
       "id": "guitar-hero-warriors-of-rock",
       "evidence_urls": [
         "https://github.com/ronniecloud/re-wor",
-        "https://github.com/ronniecloud/re-wor/releases"
+        "https://github.com/ronniecloud/re-wor/releases",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/guitar-hero-warriors-of-rock-re-wor.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "guitar-hero-warriors-of-rock-xbox-360",
+          "title": "Guitar Hero: Warriors of Rock (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/guitar-hero-warriors-of-rock-re-wor.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Guitar Hero: Warriors of Rock"
   }

@@ -70,7 +70,16 @@
         "https://cxong.github.io/cdogs-sdl/downloads.html",
         "https://github.com/cxong/cdogs-sdl"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "c-dogs-pc",
+          "title": "C-Dogs (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/cxong/cdogs-sdl/blob/d9f13c1510174e1006101558b4923ea7b27e40c9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

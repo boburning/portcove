@@ -15,7 +15,7 @@
     "summary": "Firstlevelplays; later parts of the game have not been played;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SuperChargersRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/tsapZ/SuperChargersRecomp",
     "manual_setup": {
@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "skylanders-superchargers",
-      "evidence_urls": ["https://github.com/tsapZ/SuperChargersRecomp"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/tsapZ/SuperChargersRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-superchargersrecomp-tsapz-skylanders-superchargers.json"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-superchargers-xbox-360",
+          "title": "Skylanders: SuperChargers (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-superchargersrecomp-tsapz-skylanders-superchargers.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -31,9 +31,19 @@
       "format_version": 1,
       "id": "marvel-vs-capcom-clash-of-super-heroes",
       "evidence_urls": [
-        "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp"
+        "https://github.com/TechnicallyComputers/Marvel-vs.-Capcom-Clash-of-Super-Heroes-Recomp",
+        "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "marvel-vs-capcom-clash-of-super-heroes-playstation",
+          "title": "Marvel vs. Capcom: Clash of Super Heroes (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

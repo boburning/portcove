@@ -60,9 +60,19 @@
       "id": "x-men-destiny",
       "evidence_urls": [
         "https://github.com/florinp93/xmd-recompiled/releases",
-        "https://github.com/florinp93/xmd-recompiled"
+        "https://github.com/florinp93/xmd-recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/x-men-destiny-xmd-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "x-men-destiny-xbox-360",
+          "title": "X-Men: Destiny (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/x-men-destiny-xmd-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "X-Men: Destiny"
   }

@@ -62,9 +62,19 @@
       "id": "warcraft-orcs-and-humans",
       "evidence_urls": [
         "https://wargus.github.io/war1gus.html",
-        "https://github.com/Wargus/war1gus"
+        "https://github.com/Wargus/war1gus",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wargus-war1gus.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "warcraft-orcs-and-humans-pc",
+          "title": "Warcraft: Orcs & Humans (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wargus-war1gus.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Warcraft: Orcs & Humans"
   }

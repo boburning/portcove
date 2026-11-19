@@ -55,9 +55,20 @@
       "id": "kirbys-pinball-land",
       "evidence_urls": [
         "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md",
-        "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp"
+        "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/omegakatana92-kirby-pinball-land-recomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kirbys-pinball-land-game-boy",
+          "title": "Kirby's Pinball Land (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/omegakatana92/Kirby-Pinball-Land-Recomp/blob/502d3bd646819fe5b7d15cd668d30c1ef7ca7cf3/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/omegakatana92-kirby-pinball-land-recomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Kirby's Pinball Land"
   }

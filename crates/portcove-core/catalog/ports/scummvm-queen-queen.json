@@ -1,0 +1,116 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "scummvm-queen-queen",
+    "name": "Flight of the Amazon Queen (ScummVM)",
+    "original_game_title": "Flight of the Amazon Queen",
+    "original_game": {
+      "format_version": 1,
+      "id": "flight-of-the-amazon-queen",
+      "evidence_urls": ["https://www.scummvm.org/compatibility/2026.4.0/queen:queen/"],
+      "source_editions": [
+        {
+          "id": "fotaq-floppy",
+          "title": "Floppy freeware release",
+          "evidence_urls": ["https://www.scummvm.org/games/#games-queen:queen"]
+        }
+      ]
+    },
+    "summary": "Play Flight of the Amazon Queen in ScummVM using the game data from the upstream games page.",
+    "issue_number": 7929,
+    "listed_at": "2026-11-18",
+    "project_url": "https://github.com/scummvm/scummvm",
+    "release_url": "https://www.scummvm.org/downloads/",
+    "setup_url": "https://www.scummvm.org/games/#games-queen:queen",
+    "availability": "packages",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get ScummVM for your system",
+          "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+        },
+        {
+          "title": "Extract and add the game files",
+          "instruction": "On the ScummVM games page, find Flight of the Amazon Queen and choose FOTAQ_Floppy.zip. Extract the ZIP, then use Add Game in ScummVM and select the FOTAQ_Floppy folder from the ZIP."
+        },
+        {
+          "title": "Play again from the saved target",
+          "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://www.scummvm.org/games/#games-queen:queen",
+      "references": [
+        {
+          "title": "Find your launch target",
+          "instruction": "ScummVM detects these files as queen:queen. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+        },
+        {
+          "title": "Update your player",
+          "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+        },
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+        }
+      ]
+    },
+    "implementation": {
+      "format_version": 1,
+      "methods": [
+        {
+          "kind": "engine-reimplementation",
+          "evidence_urls": ["https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"]
+        }
+      ],
+      "dependencies": [
+        {
+          "kind": "runtime",
+          "project_url": "https://github.com/scummvm/scummvm",
+          "name": "ScummVM",
+          "confidence": "confirmed",
+          "version_scope": "ScummVM 2026.4.0",
+          "evidence_urls": [
+            "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+            "https://www.scummvm.org/compatibility/2026.4.0/queen:queen/"
+          ]
+        }
+      ]
+    },
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "queen-queen-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "2026.4.0",
+          "artifact_sha256": "aa5820ed4e6d136dfcc9badf171119cecf94844098d928512987be88a5022af9",
+          "edition": "Freeware floppy edition",
+          "explanation": "Open ScummVM to add the game folder during setup. After setup, use the saved target ID to start the game directly. Opening ScummVM on its own still shows the project launcher.",
+          "provenance": "https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game",
+          "observed_at": 1795043416,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "opens-project-launcher",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "scummvm-queen-queen",
+    "origin": {
+      "project_url": "https://github.com/scummvm/scummvm",
+      "repository": {
+        "host": "github.com",
+        "id": "1358940"
+      }
+    },
+    "decisions": []
+  }
+}

@@ -6,7 +6,7 @@
     "summary": "OpenChaos runs Urban Chaos using files from your own 1999 PC copy on Steam, GOG or disc. Follow the setup for Windows, Linux or Apple silicon Mac. The project reports an end-to-end playthrough, with some bugs remaining.",
     "original_game_title": "Urban Chaos",
     "project_url": "https://github.com/UltimaBeaR/OpenChaos",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/UltimaBeaR/OpenChaos",
     "artwork": {
@@ -67,9 +67,19 @@
       "id": "urban-chaos",
       "evidence_urls": [
         "https://github.com/UltimaBeaR/OpenChaos/tree/b893450a04c9ae2a7f6b6cf6eaefe10fcf2562ad",
-        "https://github.com/UltimaBeaR/OpenChaos"
+        "https://github.com/UltimaBeaR/OpenChaos",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/urban-chaos-openchaos.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "urban-chaos-pc",
+          "title": "Urban Chaos (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/urban-chaos-openchaos.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

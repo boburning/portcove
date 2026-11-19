@@ -63,7 +63,17 @@
         "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
         "https://github.com/ZDoom/Raze"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blood-pc",
+          "title": "Blood (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blood-raze.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

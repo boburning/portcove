@@ -48,7 +48,16 @@
         "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md",
         "https://github.com/Blizz127/xenogears-decomp-port"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "xenogears-playstation",
+          "title": "Xenogears (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Blizz127/xenogears-decomp-port/blob/7c729166cbcf076cd5a30872a7022171fc7f6bbb/README.md"
+          ]
+        }
+      ]
     }
   }
 }

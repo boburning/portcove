@@ -49,7 +49,16 @@
         "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
         "https://github.com/Paril/q2repro"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "quake-ii-pc",
+          "title": "Quake II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md"
+          ]
+        }
+      ]
     }
   }
 }

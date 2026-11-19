@@ -7,7 +7,7 @@
     "project_url": "https://github.com/ethannicholas/bluestorm-recomp",
     "issue_number": 1572,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "source-only",
     "setup_url": "https://github.com/ethannicholas/bluestorm-recomp#readme",
     "artwork": {
@@ -57,7 +57,16 @@
         "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md",
         "https://github.com/ethannicholas/bluestorm-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wave-race-blue-storm-nintendo-gamecube",
+          "title": "Wave Race: Blue Storm (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/bluestorm-recomp/blob/3d864805fb781354d59c95a5a9715302b62984ab/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Wave Race: Blue Storm"
   }

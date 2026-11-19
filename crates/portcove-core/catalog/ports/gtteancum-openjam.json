@@ -56,9 +56,20 @@
       "id": "nba-jam-on-fire-edition",
       "evidence_urls": [
         "https://github.com/GTTeancum/OpenJam",
-        "https://github.com/GTTeancum/OpenJam/blob/8daa317846f34125a147114b129f47063b7c23ee/RELEASE.md"
+        "https://github.com/GTTeancum/OpenJam/blob/8daa317846f34125a147114b129f47063b7c23ee/RELEASE.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/gtteancum-openjam.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nba-jam-on-fire-edition-xbox-360",
+          "title": "NBA JAM: On Fire Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/OpenJam/blob/8daa317846f34125a147114b129f47063b7c23ee/RELEASE.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/gtteancum-openjam.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

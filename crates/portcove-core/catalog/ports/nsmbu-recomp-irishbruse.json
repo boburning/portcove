@@ -7,7 +7,7 @@
     "project_url": "https://github.com/nsmbu-recomp/nsmbu-recomp",
     "issue_number": 1712,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nsmbu-recomp/nsmbu-recomp",
     "artwork": {
@@ -55,9 +55,17 @@
       "id": "new-super-mario-bros-u",
       "evidence_urls": [
         "https://github.com/nsmbu-recomp/nsmbu-recomp/blob/8495be501f133b57a9070511d2178e810b8eceee/README.md",
-        "https://github.com/nsmbu-recomp/nsmbu-recomp"
+        "https://github.com/nsmbu-recomp/nsmbu-recomp",
+        "https://github.com/nsmbu-recomp/nsmbu-recomp/releases/tag/v0.9.1"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "new-super-mario-bros-u-wii-u",
+          "title": "New Super Mario Bros. U (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": ["https://github.com/nsmbu-recomp/nsmbu-recomp/releases/tag/v0.9.1"]
+        }
+      ]
     },
     "original_game_title": "New Super Mario Bros. U"
   },

@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp",
     "issue_number": 2713,
@@ -55,7 +55,16 @@
         "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp/blob/cb6287f3f5a72fd3f33c2c97876b7e3800649a03/PLAYING.md",
         "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "strike-gunner-s-t-g-super-nintendo",
+          "title": "Strike Gunner S.T.G (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp/blob/f507564744619c791d8779e8f2e9c60e15c6bc5e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

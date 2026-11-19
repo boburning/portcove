@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { PortBrowser } from "../../components/PortBrowser";
 import { portDefinition } from "../../test-fixtures";
+import { initializeLocalization } from "../../localization";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import {
   captureCollectionDestination,
@@ -141,6 +142,7 @@ async function draw(props: Parameters<typeof Fixture>[0] = {}) {
   await frames();
 }
 beforeEach(async () => {
+  initializeLocalization(["en"]);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   fixture = browserFixture({ viewport: true });
   await page.viewport(1280, 800);

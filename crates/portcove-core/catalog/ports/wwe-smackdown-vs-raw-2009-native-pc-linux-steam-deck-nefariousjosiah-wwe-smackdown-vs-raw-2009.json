@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "wwe-smackdown-vs-raw-2009",
-      "evidence_urls": ["https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wwe-smackdown-vs-raw-2009-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2009.json"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2009-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2009 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wwe-smackdown-vs-raw-2009-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2009.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

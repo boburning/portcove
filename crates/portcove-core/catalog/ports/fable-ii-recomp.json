@@ -53,9 +53,20 @@
       "id": "fable-ii",
       "evidence_urls": [
         "https://github.com/himdo/Fable-2-Recomp",
-        "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0"
+        "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fable-ii-recomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "fable-ii-xbox-360",
+          "title": "Fable II (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/himdo/Fable-2-Recomp/releases/tag/1.5.0",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fable-ii-recomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Fable II"
   }

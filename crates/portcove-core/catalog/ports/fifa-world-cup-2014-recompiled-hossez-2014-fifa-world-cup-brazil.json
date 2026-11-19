@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "2014-fifa-world-cup-brazil",
-      "evidence_urls": ["https://github.com/HossEz/fifa-world-cup-2014-recompiled"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/HossEz/fifa-world-cup-2014-recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fifa-world-cup-2014-recompiled-hossez-2014-fifa-world-cup-brazil.json"
+      ],
+      "source_editions": [
+        {
+          "id": "2014-fifa-world-cup-brazil-xbox-360",
+          "title": "2014 FIFA World Cup Brazil (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/fifa-world-cup-2014-recompiled-hossez-2014-fifa-world-cup-brazil.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

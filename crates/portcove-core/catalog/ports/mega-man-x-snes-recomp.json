@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mstan/MegaManXSNESRecomp",
     "issue_number": 146,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
     "original_game_title": "Mega Man X (USA) (Rev 1)",
@@ -56,7 +56,16 @@
         "https://github.com/mstan/MegaManXSNESRecomp",
         "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mega-man-x-usa-rev-1-super-nintendo",
+          "title": "Mega Man X (USA) (Rev 1) (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManXSNESRecomp/blob/16cf34fc17e75225bc38bf20933530e7089aec5f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

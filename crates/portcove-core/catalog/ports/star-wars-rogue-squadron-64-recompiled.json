@@ -7,7 +7,7 @@
     "project_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
     "issue_number": 1576,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "source-only",
     "setup_url": "https://github.com/MikeSemicolonD/RogueSquadron64Recomp#readme",
     "artwork": {
@@ -55,9 +55,19 @@
       "id": "star-wars-rogue-squadron",
       "evidence_urls": [
         "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/bee164655638263b7a748236bdeab411e9394afe/docs/guides/building-all-platforms.md",
-        "https://github.com/MikeSemicolonD/RogueSquadron64Recomp"
+        "https://github.com/MikeSemicolonD/RogueSquadron64Recomp",
+        "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/ef4e46f67c9a6a4831620e63f8fcb5309cbac5dd/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-rogue-squadron-nintendo-64",
+          "title": "Star Wars: Rogue Squadron (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/MikeSemicolonD/RogueSquadron64Recomp/blob/ef4e46f67c9a6a4831620e63f8fcb5309cbac5dd/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Star Wars: Rogue Squadron"
   }

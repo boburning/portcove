@@ -48,9 +48,20 @@
       "id": "tanks-rebirth",
       "evidence_urls": [
         "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
-        "https://github.com/RighteousRyan1/TanksRebirth"
+        "https://github.com/RighteousRyan1/TanksRebirth",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wii-play-tanks-rebirth.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tanks-rebirth-wii",
+          "title": "Tanks Rebirth (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wii-play-tanks-rebirth.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Tanks Rebirth"
   }

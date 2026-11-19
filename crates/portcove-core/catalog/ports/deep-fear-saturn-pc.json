@@ -37,9 +37,19 @@
       "id": "deep-fear",
       "evidence_urls": [
         "https://github.com/vs-sr-dev/pc-deepfear#readme",
-        "https://github.com/vs-sr-dev/pc-deepfear"
+        "https://github.com/vs-sr-dev/pc-deepfear",
+        "https://github.com/vs-sr-dev/pc-deepfear/blob/c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "deep-fear-sega-saturn",
+          "title": "Deep Fear (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": [
+            "https://github.com/vs-sr-dev/pc-deepfear/blob/c3d3e4aed34678139e97b5cb83c4fd7b0cf1d343/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Deep Fear"
   }

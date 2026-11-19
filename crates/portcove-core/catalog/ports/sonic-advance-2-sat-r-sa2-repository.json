@@ -35,8 +35,21 @@
     "original_game": {
       "format_version": 1,
       "id": "sonic-advance-2",
-      "evidence_urls": ["https://github.com/SAT-R/sa2#readme", "https://github.com/SAT-R/sa2"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/SAT-R/sa2#readme",
+        "https://github.com/SAT-R/sa2",
+        "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-advance-2-game-boy-advance",
+          "title": "Sonic Advance 2 (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/SAT-R/sa2/blob/2dd3f17d30cd3c156e508aac0017620ae485b9ba/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Sonic Advance 2"
   }

@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mstan/MegaManX4Recomp",
     "issue_number": 144,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MegaManX4Recomp",
     "artwork": {
@@ -47,9 +47,19 @@
       "id": "mega-man-x4",
       "evidence_urls": [
         "https://github.com/mstan/MegaManX4Recomp",
-        "https://github.com/mstan/MegaManX4Recomp/tree/81612a235bac1cd39720988c7a69866cb01cf613"
+        "https://github.com/mstan/MegaManX4Recomp/tree/81612a235bac1cd39720988c7a69866cb01cf613",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mega-man-x4-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mega-man-x4-playstation",
+          "title": "Mega Man X4 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/mega-man-x4-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Mega Man X4"
   }

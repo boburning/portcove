@@ -52,9 +52,20 @@
       "evidence_urls": [
         "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
         "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
-        "https://github.com/BeyondTomrrow/2K5Remade"
+        "https://github.com/BeyondTomrrow/2K5Remade",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/espn-nfl-2k5-remade.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "espn-nfl-2k5-xbox",
+          "title": "ESPN NFL 2K5 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/espn-nfl-2k5-remade.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "ESPN NFL 2K5"
   }

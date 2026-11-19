@@ -51,8 +51,20 @@
     "original_game": {
       "format_version": 1,
       "id": "the-simpsons-game",
-      "evidence_urls": ["https://github.com/YesterMester/TheSimpsonsGameRecomp"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/YesterMester/TheSimpsonsGameRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/the-simpsons-game-thesimpsonsgamerecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "the-simpsons-game-xbox-360",
+          "title": "The Simpsons Game (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/the-simpsons-game-thesimpsonsgamerecomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "The Simpsons Game"
   }

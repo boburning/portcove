@@ -7,7 +7,7 @@
     "project_url": "https://github.com/KIexster/god-of-war-recomp",
     "issue_number": 1671,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "source-only",
     "setup_url": "https://github.com/KIexster/god-of-war-recomp#readme",
     "artwork": {
@@ -37,9 +37,19 @@
       "id": "god-of-war",
       "evidence_urls": [
         "https://github.com/KIexster/god-of-war-recomp#readme",
-        "https://github.com/KIexster/god-of-war-recomp"
+        "https://github.com/KIexster/god-of-war-recomp",
+        "https://github.com/KIexster/god-of-war-recomp/blob/d1d11ec545c3baf2f3fc17e2df4247ac4b732d5c/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-of-war-playstation-2",
+          "title": "God of War (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/KIexster/god-of-war-recomp/blob/d1d11ec545c3baf2f3fc17e2df4247ac4b732d5c/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "God of War"
   }

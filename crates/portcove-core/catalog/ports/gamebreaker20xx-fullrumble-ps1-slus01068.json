@@ -17,7 +17,7 @@
     "listed_at": "2026-11-05",
     "original_game_title": "NASCAR Rumble",
     "availability": "unknown",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",
     "manual_setup": {
       "help_url": "https://github.com/GameBreaker20XX/FullRumble/blob/1089369f3a05916319524004977314af6a305703/README.md",

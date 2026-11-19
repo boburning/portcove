@@ -400,7 +400,8 @@ async function openGroupedFileReview(favoritesOnly = false) {
   });
   await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
-  if (favoritesOnly) await page.getByRole("button", { name: "Favorites 1", exact: true }).click();
+  if (favoritesOnly)
+    await page.getByRole("button", { name: "Favorites 1 game", exact: true }).click();
   const group = await mountDiscoverPort("collection-1");
   const gameId = group.dataset.sourceDropGameId;
   expect(gameId).toBe("game:fixture-super-mario-64");
@@ -446,10 +447,12 @@ it("retires an accepted grouped file drop after a view switch", async () => {
 
 it("retires an accepted grouped file drop after removing the last favorite", async () => {
   const review = await openGroupedFileReview(true);
-  await review.getByRole("button", { name: /Favorite.*Mario modern port/ }).click();
+  const favorite = review.getByRole("button", { name: "Favorite Super Mario 64", exact: true });
+  await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+  await favorite.click();
   await expectEmptyDiscover();
   await expect.element(review).not.toBeInTheDocument();
-  await page.getByRole("button", { name: "Favorites 0", exact: true }).click();
+  await page.getByRole("button", { name: "Favorites 0 games", exact: true }).click();
   await mountDiscoverPort("collection-1");
   await expect.element(review).not.toBeInTheDocument();
 });
@@ -950,7 +953,9 @@ it("keeps a singleton port review readable below its close control at narrow wid
     );
   }
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
-  await expect.element(dialog.getByRole("region", { name: "Comparison options" })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("group", { name: "Comparison options and reports", exact: true }))
+    .toBeVisible();
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())

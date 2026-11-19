@@ -51,7 +51,16 @@
         "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md",
         "https://github.com/darkuni/mylifedarklord-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a Darklord (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

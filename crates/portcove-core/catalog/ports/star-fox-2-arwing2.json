@@ -7,7 +7,7 @@
     "project_url": "https://github.com/carl0srmz/arwing2",
     "issue_number": 1946,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/carl0srmz/arwing2",
     "artwork": {
@@ -52,9 +52,20 @@
       "id": "star-fox-2",
       "evidence_urls": [
         "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
-        "https://github.com/carl0srmz/arwing2"
+        "https://github.com/carl0srmz/arwing2",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-fox-2-super-nintendo",
+          "title": "Star Fox 2 (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/star-fox-2-arwing2.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Star Fox 2"
   },

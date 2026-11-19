@@ -68,9 +68,19 @@
       "id": "road-rash-64",
       "evidence_urls": [
         "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
-        "https://github.com/linkssy2/RoadRash64Recompiled"
+        "https://github.com/linkssy2/RoadRash64Recompiled",
+        "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "road-rash-64-nintendo-64",
+          "title": "Road Rash 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

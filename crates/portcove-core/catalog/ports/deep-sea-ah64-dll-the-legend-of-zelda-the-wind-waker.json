@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "the-legend-of-zelda-the-wind-waker",
       "evidence_urls": ["https://github.com/AH64-dll/DeepSea"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-nintendo-gamecube",
+          "title": "The Legend of Zelda: The Wind Waker (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/AH64-dll/DeepSea/blob/a343c138a3bb990667a70bf1b91cae34ee7b0892/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

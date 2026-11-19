@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "rival-schools-united-by-fate-playstation",
+          "title": "Rival Schools: United by Fate (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/rival-schools-evolution-recomp/blob/d9238d53bdce61a35e02fcd4adc57690c2598d3b/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

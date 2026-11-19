@@ -61,9 +61,20 @@
       "id": "einhander",
       "evidence_urls": [
         "https://github.com/strider973/Einhander-Recompiled",
-        "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3"
+        "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/einhander-einhander-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "einhander-playstation",
+          "title": "Einhänder (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/strider973/Einhander-Recompiled/releases/tag/v0.1.3",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/einhander-einhander-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Einhänder"
   }

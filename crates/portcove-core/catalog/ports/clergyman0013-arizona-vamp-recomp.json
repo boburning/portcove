@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Clergyman0013/arizona-vamp-recomp",
     "issue_number": 2740,
@@ -56,9 +56,20 @@
       "id": "darkwatch",
       "evidence_urls": [
         "https://github.com/Clergyman0013/arizona-vamp-recomp/blob/e4fa6f32661decb0850b9336cfc45af238435946/darkwatch-hle/tools/README-release-windows.txt",
-        "https://github.com/Clergyman0013/arizona-vamp-recomp"
+        "https://github.com/Clergyman0013/arizona-vamp-recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/clergyman0013-arizona-vamp-recomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "darkwatch-xbox",
+          "title": "Darkwatch (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Clergyman0013/arizona-vamp-recomp/blob/e4fa6f32661decb0850b9336cfc45af238435946/darkwatch-hle/tools/README-release-windows.txt",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/clergyman0013-arizona-vamp-recomp.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

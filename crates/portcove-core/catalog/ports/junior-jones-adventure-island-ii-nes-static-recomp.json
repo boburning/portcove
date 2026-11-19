@@ -67,9 +67,20 @@
       "id": "adventure-island-ii",
       "evidence_urls": [
         "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp",
-        "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md"
+        "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/junior-jones-adventure-island-ii-nes-static-recomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "adventure-island-ii-nes",
+          "title": "Adventure Island II (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/Junior-Jones/Adventure-Island-II-NES-Static-Recomp/blob/8e5fa91ec08a6de5ad52df648ad6d6a4a6533ecd/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/junior-jones-adventure-island-ii-nes-static-recomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Adventure Island II"
   }

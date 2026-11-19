@@ -57,7 +57,16 @@
         "https://github.com/florinp93/hells-gate-recomp/blob/1c455387570b9d1daad87688707c8d6ba118f750/README.md",
         "https://github.com/florinp93/hells-gate-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dante-s-inferno-xbox-360",
+          "title": "Dante's Inferno (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/florinp93/hells-gate-recomp/blob/3ce28ec04511756795402a363da8d9779889733f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

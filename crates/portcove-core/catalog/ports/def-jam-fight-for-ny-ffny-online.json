@@ -1,0 +1,50 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "def-jam-fight-for-ny-ffny-online",
+    "name": "Def Jam: Fight for NY / FFNY Online",
+    "original_game_title": "Def Jam: Fight for NY",
+    "summary": "Use the upstream Windows setup to build the game from your own supported USA Xbox disc.",
+    "project_url": "https://github.com/sweeax-exe/ffny-online",
+    "issue_number": 5934,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["DefJamSetup-", "-windows-x64.exe"]
+    },
+    "release_url": "https://github.com/sweeax-exe/ffny-online/releases/tag/v0.13.0-remaster.95",
+    "setup_url": "https://github.com/sweeax-exe/ffny-online/blob/v0.13.0-remaster.95/docs/setup-installer.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Build from your own Xbox game",
+          "instruction": "Open the Windows setup and choose your own USA Xbox disc image or matching extracted dump. The installer checks the original against the project's manifest, then builds the player in a writable NTFS or ReFS folder. Allow 16 GB of build space plus the game copy and 1 GB, with another 15 GB for optional HD textures. Setup may install the Microsoft C++ Build Tools if they are missing."
+        },
+        {
+          "title": "Play again from the project launcher",
+          "instruction": "After setup succeeds, use the installed FFNY Online launcher to play again. Open its settings before Play or use F1 in the game. The Play action at the end of setup runs the installed launcher with --launch."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the installation's data folder",
+          "instruction": "The setup stores settings and saves in data beside app. Preserve data before updating or repairing the installation. Choose Update in the installed upstream launcher. Its setup updates the existing installation in place and keeps its data. Portcove does not replace this player or back up that folder."
+        }
+      ],
+      "warnings": [
+        "Check the setup guide's storage and folder requirements. The Windows package is an installer that builds the game locally."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": [
+        "https://github.com/sweeax-exe/ffny-online/blob/v0.13.0-remaster.95/docs/setup-installer.md",
+        "https://github.com/vyanhursky/DefJamFFNY-recomp",
+        "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"
+      ],
+      "source_editions": []
+    }
+  }
+}

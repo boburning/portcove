@@ -304,3 +304,98 @@ A filtered-out sibling still contributes to the game's Favorite state; removal
 must receive the full family. Stable game presentation must not select a runtime
 action. Native and published-app observations remain separate outstanding
 acceptance under #8076.
+
+
+## November 19 target reconciliation at `021fb577`
+
+The complete target delta adds 83 authored records. Preserve the 25 existing ScummVM game and edition declarations. Assign 57 remaining records to evidenced games: 13 join existing game IDs and 44 establish distinct IDs. Keep SFIII Native as a multi-game entry because its three scenarios have separate campaigns and data paths. Shared runtime or project lineage does not establish shared game identity.
+
+Retain the target platform, source edition, support and runtime facts by stable port ID. The 113 incoming edition arrays extend previously empty declarations; 111 incoming evidence arrays contain every prior reference. No existing game ID or edition declaration is removed. The six named Street Fighter II releases remain separate; Street Fighter Zero 2 Alpha uses the established Street Fighter Alpha 2 ID. These decisions grant no source interchangeability, save compatibility or platform qualification.
+
+The reviewed expectation now accounts for 1,647 records, 255 complete multi-option families, 39 project entries and 17 explicit separation checks. Actual generated and loaded-application counts remain subject to validation. This table accounts for every added record.
+
+| Stable port ID | Game identity or disposition | Primary evidence |
+| --- | --- | --- |
+| `blood-nblood` | `blood` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood) |
+| `cubis-2-ipod-ipod-clickwheel-recomps` | `cubis-2` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md) |
+| `cyberbots-fullmetal-madness-cps2-recomp` | `cyberbots-fullmetal-madness` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/cybots/README.md) |
+| `darkstalkers-the-night-warriors-cps2-recomp` | `darkstalkers-the-night-warriors` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dstlk/README.md) |
+| `def-jam-fight-for-ny-ffny-online` | `def-jam-fight-for-ny` | [Upstream source](https://github.com/sweeax-exe/ffny-online/blob/v0.13.0-remaster.95/docs/setup-installer.md) |
+| `diamic-days-openbgi` | `diamic-days` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `dimahoo-cps2-recomp` | `dimahoo` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/dimahoo/README.md) |
+| `disgaea-d2-luukasr1-win-port` | `disgaea-d2-a-brighter-darkness` | [Upstream source](https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md) |
+| `duke-nukem-3d-atomic-edition-nblood` | `duke-nukem-3d` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `duke-nukem-64-nblood` | `duke-nukem-64` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `final-fight-cps2-recomp` | `final-fight` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ffight/README.md) |
+| `gakuou-it-s-heartful-days-openbgi` | `gakuou-its-heartful-days` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `gakuou-the-royal-seven-stars-openbgi` | `gakuou-the-royal-seven-stars` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `ghouls-n-ghosts-cps2-recomp` | `ghouls-n-ghosts` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ghouls/README.md) |
+| `giga-wing-cps2-recomp` | `giga-wing` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/gigawing/README.md) |
+| `gti-club-2-konami-viper-recomp` | `gti-club-2` | [Upstream source](https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play) |
+| `hanairo-heptagram-openbgi` | `hanairo-heptagram` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `hyper-street-fighter-ii-cps2-recomp` | `hyper-street-fighter-ii-the-anniversary-edition` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/hsf2/README.md) |
+| `itsuka-todoku-ano-sora-ni-openbgi` | `itsuka-todoku-ano-sora-ni` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `kenshi-meitou-client` | `kenshi` | [Upstream source](https://github.com/VlcekM/MeitouClient/blob/v0.22.2-nightly.20261118/README.md#download-and-requirements) |
+| `kodomo-no-asobi-openbgi` | `kodomo-no-asobi` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `lost-ipod-ipod-clickwheel-recomps` | `lost-ipod` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Lost/README.md) |
+| `magical-charming-openbgi` | `magical-charming` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `marvel-super-heroes-vs-street-fighter-cps2-recomp` | `marvel-super-heroes-vs-street-fighter` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mshvsf/README.md) |
+| `marvel-vs-capcom-cps2-recomp` | `marvel-vs-capcom-clash-of-super-heroes` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/mvsc/README.md) |
+| `mini-golf-ipod-ipod-clickwheel-recomps` | `mini-golf-ipod` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md) |
+| `nam-napalm-nblood` | `nam` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `night-warriors-darkstalkers-revenge-cps2-recomp` | `night-warriors-darkstalkers-revenge` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/nwarr/README.md) |
+| `nursery-rhyme-openbgi` | `nursery-rhyme` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `powerslave-exhumed-dos-nblood` | `powerslave-exhumed-dos` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#pcexhumed) |
+| `prism-rhythm-openbgi` | `prism-rhythm` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `progear-cps2-recomp` | `progear` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/progear/README.md) |
+| `project-i-g-i-i-m-going-in-openigi` | `project-i-g-i-im-going-in` | [Upstream source](https://github.com/OpenIGI/OpenIGI/blob/v0.6.9-beta.4/README.md#playing) |
+| `redguard-maiko` | `the-elder-scrolls-adventures-redguard` | [Upstream source](https://github.com/michidk/maiko/blob/v1.1.0/README.md#setup) |
+| `redneck-rampage-nblood` | `redneck-rampage` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `redneck-rampage-rides-again-nblood` | `redneck-rampage-rides-again` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `scummvm-adl-hires1` | `hi-res-adventure-1-mystery-house` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/adl:hires1/) |
+| `scummvm-cge-soltys` | `soltys` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/cge:soltys/) |
+| `scummvm-cge2-sfinx` | `sfinx` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/cge2:sfinx/) |
+| `scummvm-drascula-drascula` | `drascula-the-vampire-strikes-back` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/drascula:drascula/) |
+| `scummvm-dreamweb-dreamweb` | `dreamweb` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/dreamweb:dreamweb/) |
+| `scummvm-got-got` | `god-of-thunder` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/got:got/) |
+| `scummvm-griffon-griffon` | `the-griffon-legend` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/griffon:griffon/) |
+| `scummvm-lure-lure` | `lure-of-the-temptress` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/lure:lure/) |
+| `scummvm-parallaction-nippon` | `nippon-safes-inc` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/parallaction:nippon/) |
+| `scummvm-queen-queen` | `flight-of-the-amazon-queen` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/queen:queen/) |
+| `scummvm-sky-sky` | `beneath-a-steel-sky` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sky:sky/) |
+| `scummvm-sludge-atw` | `above-the-waves` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:atw/) |
+| `scummvm-sludge-cubert` | `cubert-badbone-p-i` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:cubert/) |
+| `scummvm-sludge-frasse` | `frasse-and-the-peas-of-kejick` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:frasse/) |
+| `scummvm-sludge-interview` | `the-interview` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:interview/) |
+| `scummvm-sludge-leptonsquest` | `lepton-s-quest` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:leptonsquest/) |
+| `scummvm-sludge-life` | `life-flashes-by` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:life/) |
+| `scummvm-sludge-mandy` | `mandy-christmas-adventure` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:mandy/) |
+| `scummvm-sludge-nsc` | `nathan-s-second-chance` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:nsc/) |
+| `scummvm-sludge-outoforder` | `out-of-order` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:outoforder/) |
+| `scummvm-sludge-robinsrescue` | `robin-s-rescue` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:robinsrescue/) |
+| `scummvm-sludge-tgttpoacs` | `the-game-that-takes-place-on-a-cruise-ship` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:tgttpoacs/) |
+| `scummvm-sludge-tsotc` | `the-secret-of-tremendous-corporation` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sludge:tsotc/) |
+| `scummvm-sword25-sword25` | `broken-sword-2-5-the-return-of-the-templars` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/sword25:sword25/) |
+| `scummvm-wintermute-helga` | `helga-deep-in-trouble` | [Upstream source](https://www.scummvm.org/compatibility/2026.4.0/wintermute:helga/) |
+| `sekai-to-sekai-no-mannaka-de-openbgi` | `sekai-to-sekai-no-mannaka-de` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `sfiii-native-mattkuhnqaai-shining-force-iii` | `multi-game: three distinct Shining Force III scenarios` | [Upstream source](https://github.com/mattkuhnQAAI/sfiii-native/blob/v0.9.2/README.md#playing-and-updating) |
+| `street-fighter-alpha-3-cps2-recomp` | `street-fighter-alpha-3` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md) |
+| `street-fighter-ii-champion-edition-cps2-recomp` | `street-fighter-ii-champion-edition` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2ce/README.md) |
+| `street-fighter-ii-hyper-fighting-cps2-recomp` | `street-fighter-ii-hyper-fighting` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2hf/README.md) |
+| `street-fighter-ii-the-world-warrior-cps2-recomp` | `street-fighter-ii-the-world-warrior` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sf2/README.md) |
+| `street-fighter-zero-2-alpha-cps2-recomp` | `street-fighter-alpha-2` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfz2al/README.md) |
+| `super-street-fighter-ii-cps2-recomp` | `super-street-fighter-ii` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2/README.md) |
+| `super-street-fighter-ii-turbo-cps2-recomp` | `super-street-fighter-ii-turbo` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/ssf2t/README.md) |
+| `tayutama-2-after-stories-openbgi` | `tayutama-2-after-stories` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `tayutama-it-s-happy-days-openbgi` | `tayutama-its-happy-days` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `tayutama-kiss-on-my-deity-openbgi` | `tayutama-kiss-on-my-deity` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `texas-hold-em-ipod-ipod-clickwheel-recomps` | `texas-holdem-ipod` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/HoldEm/README.md) |
+| `the-order-1886-divinusx` | `the-order-1886` | [Upstream source](https://github.com/DivinusX/a-port-of-the-order-1886-thats-actually-alive/releases/tag/v0.2.33) |
+| `the-punisher-cps2-recomp` | `the-punisher-1993` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/punisher/README.md) |
+| `the-sims-bowling-ipod-ipod-clickwheel-recomps` | `the-sims-bowling` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Sims%20Bowling/README.md) |
+| `thrill-drive-2-konami-viper-recomp` | `thrill-drive-2` | [Upstream source](https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play) |
+| `unmei-senjou-no-phi-openbgi` | `unmei-senjou-no-phi` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `vortex-ipod-ipod-clickwheel-recomps` | `vortex-ipod` | [Upstream source](https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Vortex/README.md) |
+| `wakabairo-no-quartet-openbgi` | `wakabairo-no-quartet` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
+| `world-war-ii-gi-nblood` | `world-war-ii-gi` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
+| `x-men-children-of-the-atom-cps2-recomp` | `x-men-children-of-the-atom` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md) |

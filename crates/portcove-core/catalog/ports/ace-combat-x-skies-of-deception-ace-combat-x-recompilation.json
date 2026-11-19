@@ -53,8 +53,20 @@
     "original_game": {
       "format_version": 1,
       "id": "ace-combat-x-skies-of-deception",
-      "evidence_urls": ["https://github.com/sal063/Ace-Combat-X-Recompilation"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/sal063/Ace-Combat-X-Recompilation",
+        "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/README.txt"
+      ],
+      "source_editions": [
+        {
+          "id": "ace-combat-x-skies-of-deception-playstation-portable",
+          "title": "Ace Combat X: Skies of Deception (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/sal063/Ace-Combat-X-Recompilation/blob/f6268e959cac75481989077a94305b22e55ec8ad/README.txt"
+          ]
+        }
+      ]
     },
     "original_game_title": "Ace Combat X: Skies of Deception"
   }

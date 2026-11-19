@@ -56,9 +56,20 @@
       "id": "dead-cells",
       "evidence_urls": [
         "https://github.com/OverkillLabs3/DC-PS5/blob/e60d55a4c0c6dde66ea8b27a29ec0216dbc82308/README.md",
-        "https://github.com/OverkillLabs3/DC-PS5"
+        "https://github.com/OverkillLabs3/DC-PS5",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/overkilllabs3-dc-ps5.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dead-cells-pc",
+          "title": "Dead Cells (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OverkillLabs3/DC-PS5/blob/e60d55a4c0c6dde66ea8b27a29ec0216dbc82308/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/overkilllabs3-dc-ps5.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

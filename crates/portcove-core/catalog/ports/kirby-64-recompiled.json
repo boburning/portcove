@@ -48,9 +48,20 @@
       "evidence_urls": [
         "https://github.com/Kirby64Ret/Kirby64Recomp#readme",
         "https://github.com/Kirby64Ret/Kirby64Recomp/blob/480ed7e2a3160087bbe5f680f08e601eef7a4d69/README.md",
-        "https://github.com/Kirby64Ret/Kirby64Recomp"
+        "https://github.com/Kirby64Ret/Kirby64Recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kirby-64-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kirby-64-the-crystal-shards-nintendo-64",
+          "title": "Kirby 64: The Crystal Shards (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Kirby64Ret/Kirby64Recomp/blob/480ed7e2a3160087bbe5f680f08e601eef7a4d69/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/kirby-64-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Kirby 64: The Crystal Shards"
   }

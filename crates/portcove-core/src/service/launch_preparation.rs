@@ -63,6 +63,11 @@ impl PortcoveService {
         crate::install::check_retained_runtime_paths(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
+        crate::runtime_path_policy::check_user_data_root(
+            port,
+            Platform::current()?,
+            &self.library.user_dir(&port.id),
+        )?;
         let qualification = self.installed_mutability_qualification(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         checkpoint()?;

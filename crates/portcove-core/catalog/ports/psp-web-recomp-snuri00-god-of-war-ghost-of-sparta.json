@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "god-of-war-ghost-of-sparta",
       "evidence_urls": ["https://github.com/snuri00/psp-web-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-of-war-ghost-of-sparta-playstation-portable",
+          "title": "God of War: Ghost of Sparta (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/snuri00/psp-web-recomp/blob/37826ab881d9a593efb842fe47adfae2e9118b5d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

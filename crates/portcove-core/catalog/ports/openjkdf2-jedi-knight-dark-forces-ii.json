@@ -75,7 +75,16 @@
         "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
         "https://github.com/shinyquagsire23/OpenJKDF2"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-jedi-knight-dark-forces-ii-pc",
+          "title": "Star Wars Jedi Knight: Dark Forces II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/shinyquagsire23/OpenJKDF2/blob/ae6ed8a81b316421f08a46719b12a4fa9e2fbed9/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

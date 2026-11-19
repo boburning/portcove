@@ -7,7 +7,7 @@
     "project_url": "https://github.com/khasinski/rage-racer-pc",
     "issue_number": 349,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/khasinski/rage-racer-pc",
     "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",

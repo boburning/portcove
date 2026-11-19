@@ -51,9 +51,20 @@
       "id": "legendary-wings",
       "evidence_urls": [
         "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC/blob/f571cefe5b0469437699ea73a31cd2ce508c3c22/README.md",
-        "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC"
+        "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/retroreplay82-legendary-wings-nes-to-pc.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "legendary-wings-nes",
+          "title": "Legendary Wings (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/retroreplay82/Legendary-Wings-NES-to-PC/blob/f571cefe5b0469437699ea73a31cd2ce508c3c22/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/retroreplay82-legendary-wings-nes-to-pc.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Legendary Wings"
   }

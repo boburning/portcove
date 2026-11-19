@@ -7,7 +7,7 @@
     "project_url": "https://github.com/LittleBitUA/DPRecomp",
     "issue_number": 812,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/LittleBitUA/DPRecomp",
     "artwork": {
@@ -52,9 +52,19 @@
       "id": "deadly-premonition",
       "evidence_urls": [
         "https://github.com/LittleBitUA/DPRecomp",
-        "https://github.com/LittleBitUA/DPRecomp#readme"
+        "https://github.com/LittleBitUA/DPRecomp#readme",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/deadly-premonition-dprecomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "deadly-premonition-xbox-360",
+          "title": "Deadly Premonition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/deadly-premonition-dprecomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Deadly Premonition"
   }

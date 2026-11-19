@@ -57,9 +57,20 @@
       "id": "exit-2",
       "evidence_urls": [
         "https://github.com/FluffyQuack/ReXGlue-EXIT",
-        "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1"
+        "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/exit-2-rexglue-exit-exit2.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "exit-2-xbox-360",
+          "title": "EXIT 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/FluffyQuack/ReXGlue-EXIT/releases/tag/v0.9.1",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/exit-2-rexglue-exit-exit2.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "EXIT 2"
   }

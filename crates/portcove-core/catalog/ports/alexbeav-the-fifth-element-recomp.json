@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-fifth-element-playstation",
+          "title": "The Fifth Element (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/a85e6d21d8aed95e6b5039896d61ce07397dc34f/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

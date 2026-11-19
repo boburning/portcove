@@ -14,7 +14,7 @@
       "game_slug": "whiplash--1",
       "match_kind": "underlying-game"
     },
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FatalDecomp/ROLLER",
     "issue_number": 2792,

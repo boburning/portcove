@@ -7,7 +7,7 @@
     "project_url": "https://github.com/elyosh/OpenTIE",
     "issue_number": 1975,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/elyosh/OpenTIE",
     "download_block_reason": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",

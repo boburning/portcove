@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "stuntman-ignition",
-      "evidence_urls": ["https://github.com/giangra/stuntdouble-reignition"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/giangra/stuntdouble-reignition",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/stunt-double-reignition-giangra-stuntman-ignition.json"
+      ],
+      "source_editions": [
+        {
+          "id": "stuntman-ignition-xbox-360",
+          "title": "Stuntman: Ignition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/stunt-double-reignition-giangra-stuntman-ignition.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

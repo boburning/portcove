@@ -7,7 +7,7 @@
     "original_game_title": "Super Mario Maker 2",
     "project_url": "https://github.com/smm2recomp/smm2recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/smm2recomp/smm2recomp",
     "artwork": {
@@ -43,7 +43,16 @@
       "format_version": 1,
       "id": "super-mario-maker-2",
       "evidence_urls": ["https://github.com/smm2recomp/smm2recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-maker-2-nintendo-switch",
+          "title": "Super Mario Maker 2 (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/smm2recomp/smm2recomp/blob/f2289a27e4e664541fe8597d9eb063b3ed1cb894/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

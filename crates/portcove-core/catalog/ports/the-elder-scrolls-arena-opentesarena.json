@@ -55,9 +55,19 @@
       "id": "the-elder-scrolls-arena",
       "evidence_urls": [
         "https://github.com/afritz1/OpenTESArena/blob/opentesarena-0.18.0/README.md#playing-opentesarena",
-        "https://github.com/afritz1/OpenTESArena"
+        "https://github.com/afritz1/OpenTESArena",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/the-elder-scrolls-arena-opentesarena.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-elder-scrolls-arena-pc",
+          "title": "The Elder Scrolls: Arena (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/the-elder-scrolls-arena-opentesarena.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

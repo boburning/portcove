@@ -57,7 +57,16 @@
         "https://github.com/elyosh/OpenXWA/blob/9ff0e22109264629288401726589f4c1a901bc73/README.md",
         "https://github.com/elyosh/OpenXWA"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-x-wing-alliance-pc",
+          "title": "Star Wars: X-Wing Alliance (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/elyosh/OpenXWA/blob/ec6c0f32d1e7dcfce65bb3ff626f498e0fa9e161/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

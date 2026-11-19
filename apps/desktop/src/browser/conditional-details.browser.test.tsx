@@ -349,7 +349,19 @@ it("retains the quiet carried outcome and update disclosure in actual App at dar
   expect(Number.parseFloat(getComputedStyle(summary).paddingBlockStart)).toBeGreaterThanOrEqual(0);
   await userEvent.keyboard("{Enter}");
   expect(details.open).toBe(true);
+  const description = page.getByText(/Saving them does not run an update\./);
+  await expect.element(description).toBeVisible();
+  await expect.element(preferences).toHaveFocus();
   await capture("future-update-preferences-expanded", summary);
+  const focusedStyle = getComputedStyle(summary);
+  const outlineWidth = Number.parseFloat(focusedStyle.outlineWidth);
+  expect(focusedStyle.outlineStyle).toBe("solid");
+  expect(outlineWidth).toBeGreaterThan(0);
+  const outlineBottom =
+    summary.getBoundingClientRect().bottom +
+    outlineWidth +
+    Number.parseFloat(focusedStyle.outlineOffset);
+  expect(outlineBottom).toBeLessThanOrEqual(description.element().getBoundingClientRect().top);
   await userEvent.keyboard("{Enter}");
   expect(details.open).toBe(false);
   await expect.element(preferences).toHaveFocus();

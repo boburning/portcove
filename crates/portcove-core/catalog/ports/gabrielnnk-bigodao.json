@@ -53,6 +53,10 @@
         {
           "title": "Preserve saves, preferences and mods",
           "instruction": "Preserve the complete saves/ folder, legacy save copies, preferences, mods/ including 3d_marcas.txt, captures and custom packs. The selected runtime uses wario_land_sm3_dx_v12 for saves; upstream owns save-slot replacement/deletion and all compatibility decisions. Save or mod compatibility across other ports, builds or editions is not established."
+        },
+        {
+          "title": "Use the Android Bigodao package",
+          "instruction": "The project’s 1.8.0 release publishes Bigodao-1.8-release.apk for ARM64. Use Android’s file picker to give the app your own unmodified Wario Land: Super Mario Land 3 (World) ROM. The APK includes the patch manifest. On Android, Back opens the project menu so you can reach controls and settings again."
         }
       ]
     },

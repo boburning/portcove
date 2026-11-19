@@ -59,7 +59,16 @@
         "https://github.com/jackpoison-prog/RingOut#installing",
         "https://github.com/jackpoison-prog/RingOut"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "soulcalibur-ii-nintendo-gamecube",
+          "title": "Soulcalibur II (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

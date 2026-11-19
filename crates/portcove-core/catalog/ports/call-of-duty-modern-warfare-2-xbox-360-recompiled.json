@@ -7,7 +7,7 @@
     "project_url": "https://github.com/PaulCombal/mw2-recompiled",
     "issue_number": 1397,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/PaulCombal/mw2-recompiled",
     "artwork": {
@@ -51,9 +51,20 @@
       "id": "call-of-duty-modern-warfare-2",
       "evidence_urls": [
         "https://github.com/PaulCombal/mw2-recompiled",
-        "https://github.com/PaulCombal/mw2-recompiled/blob/f42aa5596dd7f11c50df1d3d48b90085a8581384/README.md"
+        "https://github.com/PaulCombal/mw2-recompiled/blob/f42aa5596dd7f11c50df1d3d48b90085a8581384/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/call-of-duty-modern-warfare-2-xbox-360-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "call-of-duty-modern-warfare-2-xbox-360",
+          "title": "Call of Duty: Modern Warfare 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/PaulCombal/mw2-recompiled/blob/f42aa5596dd7f11c50df1d3d48b90085a8581384/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/call-of-duty-modern-warfare-2-xbox-360-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Call of Duty: Modern Warfare 2"
   }

@@ -70,7 +70,16 @@
         "https://github.com/dxx-rebirth/dxx-rebirth/actions",
         "https://github.com/dxx-rebirth/dxx-rebirth"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "descent-pc",
+          "title": "Descent (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

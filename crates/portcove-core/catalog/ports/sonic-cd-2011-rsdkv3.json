@@ -56,9 +56,19 @@
       "id": "sonic-cd",
       "evidence_urls": [
         "https://github.com/RSDKModding/RSDKv3-Decompilation/blob/1.3.3/README.md",
-        "https://github.com/RSDKModding/RSDKv3-Decompilation"
+        "https://github.com/RSDKModding/RSDKv3-Decompilation",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-cd-2011-rsdkv3.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-cd-pc",
+          "title": "Sonic CD (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-cd-2011-rsdkv3.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

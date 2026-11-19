@@ -39,8 +39,20 @@
     "original_game": {
       "format_version": 1,
       "id": "ufc-undisputed-3",
-      "evidence_urls": ["https://github.com/360recomper/UFC3ReX"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/360recomper/UFC3ReX",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3.json"
+      ],
+      "source_editions": [
+        {
+          "id": "ufc-undisputed-3-xbox-360",
+          "title": "UFC Undisputed 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

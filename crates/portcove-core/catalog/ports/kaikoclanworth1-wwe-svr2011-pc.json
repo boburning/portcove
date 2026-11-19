@@ -36,6 +36,10 @@
         {
           "title": "Version and platform notes",
           "instruction": "The README names a Galaxy Z Fold 7 test but also retains an older untested-phone statement. Portcove has not confirmed gameplay or qualified these packages."
+        },
+        {
+          "title": "Use the Android SmackDown vs. Raw package",
+          "instruction": "SvR2011-Android-v2.2.5.apk requires ARM64, Vulkan and about 7 GB free. Use Install to import your own Xbox 360 ISO, then use Play in the app. Reopen Settings there. Keep the game and its saves under games/WWE SmackDown vs. Raw 2011 on the phone. The app handles its own updates."
         }
       ]
     },

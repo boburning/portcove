@@ -49,8 +49,22 @@
     "original_game": {
       "format_version": 1,
       "id": "40-winks",
-      "evidence_urls": ["https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme",
+        "https://github.com/Faderz48/40-Winks-PC-Port/releases/tag/v0.1.7-alpha",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/40-winks-faderz48.json"
+      ],
+      "source_editions": [
+        {
+          "id": "40-winks-nintendo-64",
+          "title": "40 Winks (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Faderz48/40-Winks-PC-Port/releases/tag/v0.1.7-alpha",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/40-winks-faderz48.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "40 Winks"
   }

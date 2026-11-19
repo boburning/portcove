@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "duke-nukem-3d-atomic-edition-nblood",
+    "name": "Duke Nukem 3D: Atomic Edition (Rednukem)",
+    "original_game_title": "Duke Nukem 3D",
+    "summary": "Play Duke Nukem 3D: Atomic Edition through Rednukem using your own matching game files.",
+    "project_url": "https://github.com/NBlood/NBlood",
+    "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+    "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+    "issue_number": 7397,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["rednukem_win64_", ".7z"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Extract the matching Windows player",
+          "instruction": "Choose the rednukem_win64 archive. Extract the complete archive to a folder for this game and keep rednukem.exe with its packaged files."
+        },
+        {
+          "title": "Add your game files to this copy",
+          "instruction": "Use DUKE3D.GRP and DUKE.RTS from your own Atomic Edition installation. Keep the original copy separately."
+        },
+        {
+          "title": "Run setup and play again",
+          "instruction": "Use the extracted folder as the working directory and start rednukem.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+      "references": [
+        {
+          "title": "Keep the game folder and its saves",
+          "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-3d",
+      "evidence_urls": [
+        "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "duke-nukem-3d-atomic-edition-nblood",
+    "origin": {
+      "project_url": "https://github.com/NBlood/NBlood",
+      "repository": {
+        "host": "github.com",
+        "id": "170327194"
+      }
+    },
+    "decisions": []
+  }
+}

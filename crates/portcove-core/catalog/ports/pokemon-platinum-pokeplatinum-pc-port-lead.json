@@ -59,8 +59,20 @@
     "original_game": {
       "format_version": 1,
       "id": "pokemon-platinum",
-      "evidence_urls": ["https://github.com/cybervisi0n/pokeplatinum"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/cybervisi0n/pokeplatinum",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-platinum-pokeplatinum-pc-port-lead.json"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-platinum-nintendo-ds",
+          "title": "Pokémon Platinum (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-platinum-pokeplatinum-pc-port-lead.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Pokémon Platinum"
   }

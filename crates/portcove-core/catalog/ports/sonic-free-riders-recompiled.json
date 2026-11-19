@@ -64,9 +64,19 @@
       "id": "sonic-free-riders",
       "evidence_urls": [
         "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases",
-        "https://github.com/YuutaTsubasa/Free-Riders-Recompiled"
+        "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-free-riders-recompiled.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-free-riders-xbox-360",
+          "title": "Sonic Free Riders (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-free-riders-recompiled.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Sonic Free Riders"
   }

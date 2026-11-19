@@ -19,15 +19,23 @@ GitHub's **Source code** archives require a [source build](../README.md#prerequi
 
 ### Published previews
 
-| Release                                                                                         | Published standalone CLI                                                |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| [Preview 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)                | Windows x86-64, CLI API 93                                              |
-| [Nightly Preview 6](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.6) | Windows x86-64, CLI API 100                                             |
-| [Alpha 2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)                    | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS, CLI API 34 |
+| Channel and version                                                                                               | Published standalone CLI                                    | CLI API |
+| ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ------- |
+| [Nightly Preview 8 (0.1.0-preview.8)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.8) | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 100     |
+| [Nightly Preview 7 (0.1.0-preview.7)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.7) | Windows x86-64                                              | 100     |
+| [Nightly Preview 6 (0.1.0-preview.6)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.6) | Windows x86-64                                              | 100     |
+| [Nightly Preview 4 (0.1.0-preview.4)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.4) | Windows x86-64                                              | 93      |
+| [Nightly Preview 3 (0.1.0-preview.3)](https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.3) | Windows x86-64                                              | 93      |
+| [Preview 2 (0.1.0-preview.2)](https://github.com/boburning/portcove/releases/tag/v0.1.0-preview.2)                | Windows x86-64                                              | 93      |
+| [Alpha 2 (0.1.0-alpha.2)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 34      |
+| [Alpha 1 (0.1.0-alpha.1)](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)                      | Windows x86-64, Linux x86-64, Apple Silicon and Intel macOS | 12      |
 
-Preview 2 and Nightly Preview 6 include a Desktop AppImage and a universal DMG.
-They offer a matching CLI for Add or Repair in Steam only on Windows. Use the
-Alpha 2 CLI with Alpha 2.
+Nightly Preview 8 publishes a Desktop package and a standalone CLI for Windows,
+Linux, Apple Silicon, and Intel macOS. Preview 2 and Nightly Previews 3, 4, 6,
+and 7 publish Linux and macOS Desktop packages, with a matching CLI for Steam on
+Windows only. Choose the CLI for the same Desktop version and processor, even
+when another version reports the same CLI API. Alpha archive filenames begin
+with `portcove-` followed by the operating system and processor.
 
 ## Verify a download
 
@@ -42,7 +50,9 @@ Extract the standalone archive and open a terminal in that folder. Run
 `./portcove --version` and `./portcove --json capabilities` on Linux or macOS.
 In Windows PowerShell, use `.\portcove.exe` in both commands. Frontends can read
 `schema_version` and the advertised commands before using the
-[CLI task guide](CLI.md#task-guides).
+[CLI task guide](CLI.md#task-guides). When checking an older CLI, add
+`--library <path>` before `--json capabilities` and point it at a fresh folder.
+This keeps the older CLI from opening a library created by a newer release.
 
 Windows packages lack Authenticode signing and may show unknown-publisher or
 reputation warnings. macOS packages lack Developer ID signing and notarization

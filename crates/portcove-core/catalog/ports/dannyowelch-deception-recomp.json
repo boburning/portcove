@@ -6,7 +6,7 @@
     "summary": "Prepared Windows Deception player for your own North American SLUS-00340 disc. Upstream owns first-run compilation, runtime updates and external profiles; full playthrough remains unverified.",
     "original_game_title": "Tecmo's Deception: Invitation to Darkness",
     "project_url": "https://github.com/dannyowelch/deception-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/dannyowelch/deception-recomp",
     "artwork": {

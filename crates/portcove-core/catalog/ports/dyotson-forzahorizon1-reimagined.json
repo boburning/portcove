@@ -6,7 +6,7 @@
     "summary": "An independent Forza Horizon 1: ReImagined implementation with project-reported racing, free roam and co-op. The Windows installer or Linux Flatpak/tar.gz launcher downloads tools and builds locally from your own 2012 Xbox 360 disc, GOD or extracted game. TU4 is optional for Rally and 1000 Club. The launcher manages setup and updates. macOS is a source experiment without a launcher download: opening drives render, but full races, save/reload and physical controllers remain unconfirmed. Exact PC package architecture, original revision/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Forza Horizon",
     "project_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined",
     "artwork": {
@@ -57,7 +57,16 @@
         "https://api.github.com/repos/FH1-ReImagined/ForzaHorizon1-ReImagined/contributors",
         "https://api.github.com/repos/Dyotson/ForzaHorizon1-ReImagined"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "forza-horizon-xbox-360",
+          "title": "Forza Horizon (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined/blob/2a75fb7cfc70485d10dfdad865d50398c30c3d42/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -14,7 +14,7 @@
     "summary": "A Perfect Dark port with project-reported Defection mission progress and persistent saves. Linux WSL/Dozen GPU tests caused hangs and a host freeze; Windows audio was tested only with a disk driver and short plays. Full-game progress, long sessions and physical controllers remain unconfirmed. Windows/Linux x86-64 and browser routes are documented; Windows uses Direct3D 12. Use your own USA revision 1 N64 ROM, NPDE version 01, 32 MiB, MD5 e03b088b6ac9e0080440efed07c1e40f. Further accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
     "original_game_title": "Perfect Dark",
     "project_url": "https://github.com/n64hub/perfect-dark-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/n64hub/perfect-dark-recomp",
     "issue_number": 2776,

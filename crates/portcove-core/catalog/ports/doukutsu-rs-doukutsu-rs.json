@@ -67,9 +67,20 @@
       "id": "cave-story",
       "evidence_urls": [
         "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
-        "https://github.com/doukutsu-rs/doukutsu-rs"
+        "https://github.com/doukutsu-rs/doukutsu-rs",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/doukutsu-rs-doukutsu-rs.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "cave-story-pc",
+          "title": "Cave Story (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/doukutsu-rs/doukutsu-rs/blob/8d85b0f69fd5a293a32f5d632f83ce6a0759cf7c/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/doukutsu-rs-doukutsu-rs.json"
+          ]
+        }
+      ]
     }
   }
 }

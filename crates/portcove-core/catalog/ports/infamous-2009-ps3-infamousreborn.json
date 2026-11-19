@@ -6,7 +6,7 @@
     "summary": "An early inFamous PS3 recompilation with setup 1.1. The Windows 10/11 x86-64 Direct3D 12 setup EXE checks or installs build tools, imports your own European BCES00220 ISO or game folder, then generates and compiles locally. Encrypted ISOs need their matching .dkey. A launch announcement does not establish playable progress; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "inFamous (2009 PS3)",
     "project_url": "https://github.com/whompay/inFAMOUSreborn",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/whompay/inFAMOUSreborn",
     "artwork": {

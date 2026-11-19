@@ -39,8 +39,18 @@
     "original_game": {
       "format_version": 1,
       "id": "mortal-kombat-vs-dc-universe",
-      "evidence_urls": ["https://github.com/KawaiiBunga/MKVDCU-Recomp"],
-      "source_editions": []
+      "evidence_urls": [
+        "https://github.com/KawaiiBunga/MKVDCU-Recomp",
+        "https://github.com/KawaiiBunga/MKVDCU-Recomp/releases/tag/v0.2.1"
+      ],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-vs-dc-universe-xbox-360",
+          "title": "Mortal Kombat vs. DC Universe (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": ["https://github.com/KawaiiBunga/MKVDCU-Recomp/releases/tag/v0.2.1"]
+        }
+      ]
     }
   },
   "upstream_lineage": {

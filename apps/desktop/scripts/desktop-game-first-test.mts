@@ -77,10 +77,10 @@ export async function readGameFirstRelationships() {
       isRecord(value.project_entries),
   );
   const expected = value as unknown as GameFirstRelationships;
-  assert.equal(expected.audited_port_ids.length, 1564);
-  assert.equal(Object.keys(expected.families).length, 245);
-  assert.equal(Object.keys(expected.project_entries).length, 38);
-  assert.equal(Object.keys(expected.intentionally_separate).length, 11);
+  assert.equal(expected.audited_port_ids.length, 1647);
+  assert.equal(Object.keys(expected.families).length, 255);
+  assert.equal(Object.keys(expected.project_entries).length, 39);
+  assert.equal(Object.keys(expected.intentionally_separate).length, 17);
   return { expected, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 

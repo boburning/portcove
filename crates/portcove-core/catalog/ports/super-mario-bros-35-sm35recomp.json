@@ -7,7 +7,7 @@
     "original_game_title": "Super Mario Bros. 35",
     "project_url": "https://github.com/sm35recomp/sm35recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/sm35recomp/sm35recomp",
     "artwork": {
@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "super-mario-bros-35",
-      "evidence_urls": [
-        "https://github.com/sm35recomp/sm35recomp"
-      ],
+      "evidence_urls": ["https://github.com/sm35recomp/sm35recomp"],
       "source_editions": []
     }
   },

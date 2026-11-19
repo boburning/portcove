@@ -65,9 +65,19 @@
       "id": "silent-hill-downpour",
       "evidence_urls": [
         "https://github.com/LittleBitUA/DownpourRecomp/releases",
-        "https://github.com/LittleBitUA/DownpourRecomp"
+        "https://github.com/LittleBitUA/DownpourRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/silent-hill-downpour-downpourrecomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "silent-hill-downpour-xbox-360",
+          "title": "Silent Hill: Downpour (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/silent-hill-downpour-downpourrecomp.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Silent Hill: Downpour"
   }

@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mega-man-legends-2-playstation",
+          "title": "Mega Man Legends 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/mega-man-legends-2-recomp/blob/01b162a70f12beacc85c2526e34c7a19177c29bb/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

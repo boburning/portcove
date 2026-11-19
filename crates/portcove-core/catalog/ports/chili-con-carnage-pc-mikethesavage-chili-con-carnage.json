@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "chili-con-carnage",
       "evidence_urls": ["https://github.com/MikeTheSavage/chili-con-carnage-pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "chili-con-carnage-playstation-portable",
+          "title": "Chili Con Carnage (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -60,9 +60,20 @@
       "id": "halo-combat-evolved",
       "evidence_urls": [
         "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
-        "https://github.com/OpenCommunityEdition/OpenCE"
+        "https://github.com/OpenCommunityEdition/OpenCE",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/opencommunityedition-opence.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "halo-combat-evolved-xbox",
+          "title": "Halo: Combat Evolved (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/opencommunityedition-opence.json"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

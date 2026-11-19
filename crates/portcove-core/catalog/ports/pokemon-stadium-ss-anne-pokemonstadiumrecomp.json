@@ -49,9 +49,20 @@
       "id": "pokemon-stadium",
       "evidence_urls": [
         "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
-        "https://github.com/mstan/PokemonStadiumRecomp"
+        "https://github.com/mstan/PokemonStadiumRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-stadium-ss-anne-pokemonstadiumrecomp.json"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-stadium-nintendo-64",
+          "title": "Pokémon Stadium (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-stadium-ss-anne-pokemonstadiumrecomp.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {
