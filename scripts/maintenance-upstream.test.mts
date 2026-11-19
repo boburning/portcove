@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { canonicalJson, sha256 } from "./maintenance-inventory.mts";
 import {
+  managedReleaseEligibilityWindow,
   readUpstreamObservations,
   upstreamAttention,
   upstreamFacts,
@@ -24,6 +25,50 @@ import {
 } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const now = Date.parse("2026-11-11T00:00:00.000Z");
+
+void test("rolling eligibility counts one candidate per target separately from client availability", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const row = (
+    key: string,
+    recorded_at: string,
+    eligible = false,
+    published_at: string | null = published,
+  ) => ({
+    candidate_key: key.repeat(64),
+    recorded_at,
+    published_at,
+    state: eligible ? "eligible" : "pending",
+    hold_reasons: eligible ? [] : ["missing-digest", "missing-digest"],
+  });
+  const result = managedReleaseEligibilityWindow(
+    [
+      row("a", "2026-11-10T12:00:00.000Z", true),
+      row("a", "2026-11-09T12:00:00.000Z"),
+      row("a", "2026-11-10T18:00:00.000Z", true),
+      row("b", "2026-11-09T12:00:00.000Z"),
+      row("c", "2026-11-09T12:00:00.000Z", false, null),
+      row("d", "2026-11-09T12:00:00.000Z", false, "2026-09-08T12:00:00.000Z"),
+      row("e", "2026-11-12T12:00:00.000Z", true),
+    ],
+    new Date(now),
+  );
+  assert.equal(result.first_recorded_evidence_at, "2026-11-09T12:00:00.000Z");
+  assert.equal(result.distinct_candidates, 2);
+  assert.equal(result.eligible_candidates, 1);
+  assert.equal(result.pending_candidates, 1);
+  assert.equal(result.unknown_publication_times, 1);
+  assert.equal(result.oldest_pending_age_ms, 216_000_000);
+  assert.deepEqual(result.hold_reasons, [{ reason: "missing-digest", distinct_candidates: 1 }]);
+  assert.deepEqual(result.publication_to_recorded_eligibility_ms, {
+    samples: 1,
+    median: 172_800_000,
+    max: 172_800_000,
+  });
+  assert.equal(result.released_client_unattended_availability, null);
+  assert.equal(result.human_interventions, null);
+  assert.equal(result.signed_automatic_repairs, null);
+  assert.equal(result.operating_cost, null);
+});
 
 void test("upstream facts keep stable source facts and report coverage gaps", () => {
   const result = upstreamFacts(
