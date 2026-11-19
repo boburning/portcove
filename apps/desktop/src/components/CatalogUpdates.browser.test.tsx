@@ -374,11 +374,11 @@ it("refreshes descriptive directory data through Core and reloads the workspace"
       .toHaveAttribute("aria-label", "Technical details for catalog fallback 1 of 1");
     await details.click();
     await expect.element(diagnostic).toBeVisible();
-    await expect
-      .element(page.getByRole("textbox", { name: "Catalog metadata address" }))
-      .not.toBeVisible();
+    const settings = page.getByText("Listing refresh settings", { exact: true });
+    await expect.element(settings).toBeVisible();
+    expect(settings.element().closest("details")?.open).toBe(false);
     expect(apply).not.toHaveBeenCalled();
-    await page.getByText("Listing refresh settings", { exact: true }).click();
+    await settings.click();
     await page
       .getByRole("textbox", { name: "Catalog metadata address" })
       .fill("https://catalog.example/metadata/");
