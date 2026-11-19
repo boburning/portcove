@@ -1,15 +1,16 @@
 # Development storage
 
-Portcove development can use any writable contributor-owned volume with sufficient
-free space, including the Windows system drive. Repository defaults check physical
-paths, capacity and cleanup containment; a drive letter alone is not a failure.
-The primary maintainer retains a stricter non-system-drive machine policy.
+Use a volume that you own, can write to, and that has enough free space. The
+Windows system drive is an option for contributors. The default checks use
+physical paths and available space. They limit which paths cleanup can touch.
+A drive letter alone never causes a check to fail. The primary maintainer's
+machine policy requires a non-system drive.
 
-Start with [what preflight checks](#what-preflight-checks), then read
-[when it stops](#when-it-stops) before [changing an override intentionally](#how-to-override-intentionally).
-For reclamation, use [checked cleanup](#clean-up-verified-disposable-content);
-[retained verification evidence](#retained-verification-evidence) has a separate
-custody and cleanup decision.
+Read [what preflight checks](#what-preflight-checks). Before you
+[change an override](#how-to-override-intentionally), read
+[when preflight stops](#when-it-stops). If you need to free space, use
+[checked cleanup](#clean-up-verified-disposable-content). For test records you
+need to keep, follow the separate [evidence rules](#retained-verification-evidence).
 
 Prefer a non-system **SSD** for active development. Free capacity alone does not
 make an HDD suitable for the many small reads and writes in dependency loading,

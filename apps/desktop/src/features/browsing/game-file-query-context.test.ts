@@ -1,7 +1,8 @@
+import { readFileSync } from "node:fs";
 import { fixtureValue } from "../../test-fixtures";
 import { expect, it } from "vite-plus/test";
 import { portDefinition } from "../../test-fixtures";
-import type { GameFileQuerySnapshot } from "../../types";
+import type { CatalogDocument, GameFileQuerySnapshot } from "../../types";
 import { evaluateCatalogQuery } from "./catalog-query";
 import { gameFileFilterContext, gameFileFilterRequest } from "./game-file-query-context";
 
@@ -57,7 +58,7 @@ const context = () => ({
   gameFiles: gameFileFilterContext(snapshot(), request, library, "scope", now)!,
 });
 
-it("builds one finite complete-catalog request and refuses empty, duplicate and oversized selections", () => {
+it("builds one complete-catalog request and refuses empty, duplicate and invalid identifiers", () => {
   expect(request.routes).toHaveLength(5);
   expect(request.limits.max_elapsed_ms).toBe(30000);
   const selection = {
@@ -68,14 +69,31 @@ it("builds one finite complete-catalog request and refuses empty, duplicate and 
   for (const invalid of [
     [],
     [fixtureValue(ports[0], "ports[0]"), fixtureValue(ports[0], "ports[0]")],
-    Array.from({ length: 257 }, (_, index) => ({
-      ...fixtureValue(ports[0], "ports[0]"),
-      id: `port-${index}`,
-    })),
     [{ ...fixtureValue(ports[0], "ports[0]"), id: "é".repeat(65) }],
   ])
     expect(gameFileFilterRequest(invalid, selection)).toBeUndefined();
 });
+it("requests all bundled definitions across the original route boundary", () => {
+  const bundled = JSON.parse(
+    readFileSync(
+      new URL("../../../../../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      "utf8",
+    ),
+  ) as CatalogDocument;
+  expect(bundled.ports.length).toBeGreaterThan(257);
+  const selection = {
+    route: "managed_install",
+    platform: "windows-x86-64",
+    channel: "stable",
+  } as const;
+  for (const count of [256, 257, bundled.ports.length]) {
+    const selected = bundled.ports.slice(0, count);
+    const full = gameFileFilterRequest(selected, selection)!;
+    expect(full.limits).toEqual(request.limits);
+    expect(full.routes.map((route) => route.port_id)).toEqual(selected.map((port) => port.id));
+  }
+});
+
 it("rejects incomplete, extra, duplicate, stale, foreign-library and route-inconsistent observations", () => {
   const baseline = snapshot();
   expect(gameFileFilterContext(baseline, request, library, "scope", now)).toBeDefined();

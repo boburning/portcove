@@ -1,12 +1,11 @@
 # Tier 2: carrying files Portcove didn't install (design, November 15, 2026)
 
-Status: **proposal, revision 2 after critical review** (BLOCK on `fc2f7fb2a`;
-findings B1–B3, M1–M6 and L1–L6 are addressed below). Implemented: T2-1
-planner (#6185), T2-1b deduplication and the free-space backups (#6213), and
-T2-2 carry (this PR); T2-3 visibility remains. Owning issue: [#5359](https://github.com/boburning/portcove/issues/5359)
-phase 5. Once the phases ship, the stable contract moves into
-[ARCHITECTURE](../ARCHITECTURE.md#unknown-player-side-files) and this note
-becomes dated design history. Line references are to `origin/main` `2488ebb5d`.
+Historical design, revision 2. The planner (#6185), backup deduplication and
+free-space checks (#6213), carry, and T2-3 visibility were implemented. The
+[current contract](../ARCHITECTURE.md#unknown-player-side-files) explains which
+files can be copied and how CLI and Desktop report the result for the active
+target. The proposal below records the original decisions for
+[#5359](https://github.com/boburning/portcove/issues/5359) at `2488ebb5d`.
 
 ## Summary
 

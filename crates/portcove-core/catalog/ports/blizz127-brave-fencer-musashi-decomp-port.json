@@ -20,10 +20,6 @@
     "release_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/releases",
     "original_game_title": "Brave Fencer Musashi",
     "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["bfm-", "windows-x64", ".zip"],
-      "linux-x86-64": ["bfm-", "linux-x86_64", ".tar.gz"]
-    },
     "manual_setup": {
       "steps": [
         {
@@ -42,6 +38,7 @@
       "help_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md"
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable", "beta"],

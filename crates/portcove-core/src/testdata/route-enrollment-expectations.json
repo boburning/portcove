@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "provenance": "Preserved independently reviewed argument/executable expectations from PR4253, source f2f35b614a59d524df71860c46edcd7d276e7b24; owned-probe tests, not execution or authentication of upstream binaries. Managed expected identity derives from separately accepted PR4231 member observations. Windows N64 ROM-picker additions use the executable members observed in the official release ZIPs and the no-argument launch documented by each tagged README. Full Rumble and Muppet RaceMania use the executable members observed in their Windows ZIPs and the startup arguments checked against pinned upstream source. Yakumo uses the Yakumo.exe member observed in the official v0.7.5 Windows portable ZIP and the no-argument start that selects the shipped portable.txt data folder in pinned upstream source. Super Smash Bros. and Rayman 2 managed copies use the same players observed in the official n64hub Windows x64 ZIPs (v0.1.13 and v0.1.17) and their no-argument start. Sin and Punishment uses the SnPRecompiled.exe member observed in the official 0.2.11 Windows ZIP and its no-argument start. ECWolf uses ecwolf.exe observed in the official 1.4.2 x64 ZIP and the --data WL1 argument pair checked against tagged wl_main.cpp/wl_iwad.cpp and the uppercase .WL1 public-shareware filenames.",
+  "provenance": "Preserved independently reviewed argument/executable expectations from PR4253, source f2f35b614a59d524df71860c46edcd7d276e7b24; owned-probe tests, not execution or authentication of upstream binaries. Managed expected identity derives from separately accepted PR4231 member observations. Windows N64 ROM-picker additions use the executable members observed in the official release ZIPs and the no-argument launch documented by each tagged README. Full Rumble and Muppet RaceMania use the executable members observed in their Windows ZIPs and the startup arguments checked against pinned upstream source. Yakumo uses the Yakumo.exe member observed in the official v0.7.5 Windows portable ZIP and the no-argument start that selects the shipped portable.txt data folder in pinned upstream source. Super Smash Bros. and Rayman 2 managed copies use the same players observed in the official n64hub Windows x64 ZIPs (v0.1.13 and v0.1.17) and their no-argument start. Sin and Punishment uses the SnPRecompiled.exe member observed in the official 0.2.11 Windows ZIP and its no-argument start. ECWolf uses ecwolf.exe observed in the official 1.4.2 x64 ZIP and the --data WL1 argument pair checked against tagged wl_main.cpp/wl_iwad.cpp and the uppercase .WL1 public-shareware filenames. Teeworlds uses the native teeworlds.exe client observed in the publisher 0.7.5 win64 ZIP, distinct from teeworlds_srv.exe, with empty arguments and the containing directory checked against pinned client/storage source.",
   "cases": [
     {
       "port_id": "body-harvest-recompiled",
@@ -165,6 +165,12 @@
       "port_id": "ecwolf-wolfenstein3d",
       "executable": "ecwolf.exe",
       "arguments": ["--data", "WL1"],
+      "managed_native": false
+    },
+    {
+      "port_id": "teeworlds",
+      "executable": "teeworlds.exe",
+      "arguments": [],
       "managed_native": false
     }
   ]

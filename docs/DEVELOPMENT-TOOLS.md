@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 
@@ -2195,6 +2196,19 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`keyboard-layout` reads back the native window and WebView viewport after its
+narrow-size request. A native minimum-width clamp keeps the desktop navigation
+journey active; it does not establish compact drawer coverage. The retained
+`keyboard-layout-navigation.json` records the actual dimensions and explicitly
+marks compact navigation unexercised outside its breakpoint. Where the actual
+viewport is compact, drawer visibility and both navigation landmarks remain
+required. Browser compact-navigation coverage and `native-interface-size` cover
+their own responsive and enlargement contracts separately.
+Native fixture text replacement uses explicit WebDriver select-all actions and
+modifier release before separate Backspace and plain-text commands. This keeps
+real keyboard editing coverage on WebKitGTK drivers that retain the modifier
+across a NULL within one Element Send Keys command; it does not set DOM values.
+
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and
 checks the highlighted option before committing. A mounted listbox alone does
@@ -2340,6 +2354,8 @@ with selection preserved. No validator, preparation, acquisition, gameplay,
 physical-storage or Linux execution is claimed. The existing preliminary
 review-only scenario remains separately selectable.
 
+### Select a native scenario and profile
+
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
 in catalog order. The pure `scripts/desktop-execution-plan.mts` supplies fixture
@@ -2442,6 +2458,8 @@ preparation and actual-device evidence gaps belong to #51/#217 for the Public be
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
 turn missing evidence into a pass.
+
+### Choose a verification profile
 
 The curated profiles are:
 
@@ -2566,6 +2584,8 @@ registration removal preserves the complete postgame inventory. Failure cleanup
 can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
+
+### Capture a game-first scenario
 
 Game-first visual captures scroll to one complete identified target, then let the
 shared settled-capture owner wait for fresh, stable geometry before taking its
@@ -2855,6 +2875,8 @@ native scenarios always execute in a fresh evidence directory. The run metadata
 records whether frontend bytes were rebuilt or reused, while source revision and
 `--require-clean` evidence remain independent and unchanged.
 
+### Coordinate focus and session ownership
+
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
@@ -3042,6 +3064,8 @@ retry plus refresh recovery, not upstream availability, game compatibility,
 gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
+
+### Restart and recover a Windows test session
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,

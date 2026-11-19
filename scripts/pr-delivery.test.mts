@@ -2775,8 +2775,11 @@ void test("the closing-inventory workflow is the trusted check the REST path acc
   assert.match(workflow, new RegExp(`^ {4}name: ${closingInventoryCheckName}$`, "m"));
   assert.match(workflow, /ref: \$\{\{ github\.sha \}\}/);
   assert.match(workflow, /persist-credentials: false/);
-  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  const install = workflow.indexOf(
+    "run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
   assert.ok(install > 0 && workflow.indexOf("GH_TOKEN:") > install);
   assert.doesNotMatch(workflow.slice(0, install), /GH_TOKEN:|GITHUB_TOKEN:/u);
+  assert.match(workflow, /EXPECTED_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(workflow, /run: node scripts\/closing-inventory\.mts$/m);
 });

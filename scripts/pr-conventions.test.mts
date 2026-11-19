@@ -417,14 +417,14 @@ void test("advisory workflow executes only trusted base metadata with read permi
   );
   assert.match(workflow, /^name: PR conventions \(advisory\)$/m);
   const triggerList = workflow.match(
-    /pull_request_target:\s+types:\s+\[([\s\S]*?)\]\s+workflow_dispatch:/,
+    /pull_request_target:\s+(?:#.*\n\s+)?types:\s+\[([\s\S]*?)\]\s+workflow_dispatch:/,
   )?.[1];
   assert.deepEqual(
     triggerList
       ?.split(",")
       .map((value: string) => value.trim())
       .filter(Boolean),
-    ["opened", "edited", "synchronize", "reopened", "converted_to_draft", "ready_for_review"],
+    ["converted_to_draft"],
   );
   assert.match(workflow, /^ {2}workflow_dispatch:/m);
   assert.match(workflow, /^permissions:\r?\n {2}contents: read\r?\n {2}pull-requests: read$/m);
@@ -433,7 +433,9 @@ void test("advisory workflow executes only trusted base metadata with read permi
     /ref: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.repository\.default_branch \}\}/,
   );
   assert.match(workflow, /persist-credentials: false/);
-  const install = workflow.indexOf("run: pnpm install --frozen-lockfile --ignore-scripts");
+  const install = workflow.indexOf(
+    "run: pnpm install --filter portcove-repository --frozen-lockfile --ignore-scripts --ignore-pnpmfile",
+  );
   const credential = workflow.indexOf("GH_TOKEN:");
   assert.ok(
     install > 0 && credential > install,
@@ -447,4 +449,28 @@ void test("advisory workflow executes only trusted base metadata with read permi
     /pull-requests: write|contents: write|secrets\.|issue-comment|continue-on-error/,
   );
   assert.doesNotMatch(workflow, /pull_request\.head|pull_request\.(?:title|body)|github\.head_ref/);
+});
+
+void test("shared trusted events report conventions without changing closing inventory conclusions", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/closing-inventory.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /types: \[opened, edited, synchronize, reopened, ready_for_review\]/);
+  assert.match(
+    workflow,
+    /^permissions:\n  contents: read\n  issues: read\n  pull-requests: read$/m,
+  );
+  assert.match(workflow, /ref: \$\{\{ github\.sha \}\}\n +persist-credentials: false/);
+  const inventory = workflow.indexOf("run: node scripts/closing-inventory.mts");
+  const advisory = workflow.indexOf("- name: Report advisory PR conventions");
+  assert.ok(advisory > 0 && inventory > advisory);
+  const inventoryStep = workflow.indexOf("- name: Compare GitHub");
+  assert.doesNotMatch(workflow.slice(inventoryStep), /continue-on-error/);
+  assert.match(workflow.slice(advisory, inventoryStep), /continue-on-error: true/);
+  assert.match(workflow.slice(advisory, inventoryStep), /timeout-minutes: 3/);
+  assert.match(
+    workflow.slice(advisory, inventoryStep),
+    /node scripts\/pr-conventions\.mts --pr "\$PR_NUMBER"/,
+  );
 });

@@ -1,15 +1,15 @@
 # Portcove Playnite reference client
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Map game release preferences as described in the [CLI game-channel contract](../../docs/CLI.md#release-channels).
 
-A small Windows library extension consuming the standalone CLI. It uses the
-public Playnite SDK and Portcove JSON/JSONL commands. Core owns catalog, sources,
-readiness, downloads, trust, installation, persistence and recovery. The client
-has no per-port branches, SQLite access, Rust dependency or private Playnite
-assembly reference.
+This Windows library extension uses the public Playnite SDK. It calls the
+standalone Portcove CLI through JSON/JSONL commands. Core owns the catalog,
+sources, readiness, downloads, trust, installation, saved data, and recovery.
+The client has no per-port rules or SQLite access. It depends on neither Rust
+nor private Playnite assemblies.
 
-This source builds a locally installable `.pext` candidate. It is not a
-marketplace release or a claim of completed Public beta qualification.
+This source builds a `.pext` package for local testing. Marketplace release
+and Public beta qualification require separate evidence.
 [#243](https://github.com/boburning/portcove/issues/243) retains the separate
 frontend, lifecycle, independent-consumer and human evidence. [Issue
 #910](https://github.com/boburning/portcove/issues/910) also owns personal-library
@@ -159,7 +159,7 @@ it does not consume format-7/8 listings or invoke `port-capabilities`. Its exist
 status and operation decisions remain authoritative. These optional reports do
 not widen its negotiated API or event window.
 
-Schema 87 adds optional Desktop official-catalog setup contracts. This client invokes none of those Desktop-only commands and accepts no Root or transport input; existing CLI status, lifecycle, trust and event negotiation remain unchanged. Unknown future API89 and consequential semantics are refused.
+Schema 87 adds optional Desktop official-catalog setup contracts. This client invokes none of those Desktop-only commands and accepts no Root or transport input; existing CLI status, lifecycle, trust and event negotiation remain unchanged. The supported API bands above apply to all schema notes in this section.
 Schema 69 adds the optional reviewed Ghostship legacy recovery commands and backup deletion disclosure. This client does not invoke those commands or backup deletion; its existing lifecycle decisions remain unchanged.
 Schema 84 adds optional IGDB key art, game logos and reviewed edition applicability to descriptive catalog media. This client does not render or acquire that media; these fields cannot change port identity, ownership, readiness, trust or action eligibility. Existing cover/title handling remains unchanged. Strict media listing format 5 does not change the CLI catalog/status responses consumed here, and event schemas remain 2–3. Unknown future APIs and consequential semantics are refused.
 Schema 83 adds optional advisory recommendation metadata and comparison/following surfaces. This client does not consume comparison or following commands; missing, malformed or future recommendation metadata leaves its identity, display, installation, trust and Core action decisions unchanged. Event authority remains the separately advertised version 3 (legacy version 2), and accepting this API adds no operation permission.
@@ -175,11 +175,11 @@ protected current, attention, and recovery rows even when they fall beyond its
 ordinary eight-row preview. Schema 52 adds optional saved-root commands that this
 client does not use. Schema 53 adds optional saved-root scan and snapshot commands
 that this client also does not use. It accepts both additive schemas while
-continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
-schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-100 candidate until a matching public
-standalone release exists; the older published technical previews must not be
-described as supporting these new commands.
+continuing to negotiate only its required capabilities. The [published CLI table](../../docs/DOWNLOADS.md#published-previews)
+lists Windows x86-64 Preview 2 (API 93) and Nightly Preview 6 (API 100).
+Check the actual executable's capabilities before enabling a feature. For
+a host or API without a matching published CLI, use an identified compatible
+build and record its provenance.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
 
 User-prepared runtimes use **supported schema 67 or later plus `external.review`**. Register any
