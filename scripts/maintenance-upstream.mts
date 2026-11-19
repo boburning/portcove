@@ -177,6 +177,7 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
   const end = now.getTime();
   const start = end - eligibilityWindowMs;
   let firstRecorded = Infinity;
+  let lastRecorded = -Infinity;
   const series = new Map<
     string,
     {
@@ -201,6 +202,7 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     const recorded = Date.parse(row.recorded_at);
     if (!(recorded >= start && recorded <= end)) continue;
     firstRecorded = Math.min(firstRecorded, recorded);
+    lastRecorded = Math.max(lastRecorded, recorded);
     const candidate: RetainedCandidateObservation = {
       state: row.state,
       published_at: typeof row.published_at === "string" ? row.published_at : null,
@@ -237,18 +239,25 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     .filter((lag) => lag >= 0)
     .sort((left, right) => left - right);
   const reasons = new Map<string, number>();
-  for (const { latest } of held)
-    for (const reason of new Set(latest.hold_reasons))
-      reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  let pendingWithoutReason = 0;
+  for (const { latest } of held) {
+    const recordedReasons = new Set(latest.hold_reasons.filter((reason) => reason.trim().length));
+    if (!recordedReasons.size) pendingWithoutReason++;
+    for (const reason of recordedReasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
   return {
     from: new Date(start).toISOString(),
     through: now.toISOString(),
     first_recorded_evidence_at: Number.isFinite(firstRecorded)
       ? new Date(firstRecorded).toISOString()
       : null,
+    last_recorded_evidence_at: Number.isFinite(lastRecorded)
+      ? new Date(lastRecorded).toISOString()
+      : null,
     distinct_candidates: recent.length,
     eligible_candidates: eligible.length,
     pending_candidates: held.length,
+    pending_without_recorded_hold_reason: pendingWithoutReason,
     observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
       Number.isFinite(firstPendingAt),
     ).length,

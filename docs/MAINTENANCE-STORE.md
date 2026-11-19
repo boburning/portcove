@@ -736,11 +736,13 @@ publication has been verified.
     how many later had an eligible observation at a strictly later recording time.
     Repeated observations and multiple transitions count once for each target.
     A missing publication time is reported separately. Pending
-    age uses publication time. Publication-to-recorded-eligibility lag uses
-    the first retained eligible observation. Evidence can start partway through
-    the window. The report's existing source freshness and gaps still describe
-    coverage. Released-client availability, interventions, repairs, and cost
-    stay unknown until their receipts are available.
+    age uses publication time. The report counts pending candidates whose latest
+    observation has no recorded hold reason. Publication-to-recorded-eligibility
+    lag uses the first retained eligible observation. The first and last retained
+    recording times show the observed span within the reporting window. The
+    report's source freshness and gaps still describe coverage. Released-client
+    availability, interventions, repairs, and cost stay unknown until their
+    receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
