@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import {
   collectPortFacts,
   githubRepository,
@@ -2244,6 +2245,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
+  assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
@@ -2251,6 +2253,7 @@ void test("preparation reports all declared route projections across the current
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
+    if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2258,6 +2261,51 @@ void test("preparation reports all declared route projections across the current
     );
     assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
     assert.match(feedback.original_files, /does not establish/, id);
+  }
+});
+
+void test("official URL preparation proposes the exact reviewed N64 persistence layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "quest-64-recompiled";
+    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectN64RecompPersistence(selected);
+    delete explicit.n64_recomp_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const result = await preparePort({
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, full_name: "Rainchus/Quest64-Recomp", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(result.report.port_id, id);
+    assert.deepEqual(result.report.changed_records, [id]);
+    assert.equal(result.report.operational_changed, false);
+    const proposed = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(proposed.n64_recomp_persistence_v1, true);
+    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(
+      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
   }
 });
 

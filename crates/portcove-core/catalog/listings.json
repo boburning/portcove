@@ -31479,7 +31479,7 @@
           "devilutionx-windows-x86_64.zip"
         ],
         "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
+          "devilutionx-linux-x86_64.tar.xz"
         ]
       },
       "manual_setup": {
@@ -31510,7 +31510,7 @@
         "references": [
           {
             "title": "Choose a DevilutionX route on Linux",
-            "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+            "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -31578,7 +31578,7 @@
           "devilutionx-windows-x86_64.zip"
         ],
         "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
+          "devilutionx-linux-x86_64.tar.xz"
         ]
       },
       "manual_setup": {
@@ -31609,7 +31609,7 @@
         "references": [
           {
             "title": "Choose a DevilutionX route on Linux",
-            "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+            "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -40499,16 +40499,10 @@
         "game_slug": "freeorion",
         "match_kind": "underlying-game"
       },
-      "summary": "Explore the galaxy, develop colonies, and lead a space empire in turn-based strategy.",
+      "summary": "Explore the galaxy, develop colonies and lead a space empire in FreeOrion. Prepare the upstream client, then add it to Portcove.",
       "project_url": "https://github.com/freeorion/freeorion",
       "issue_number": 6461,
       "listed_at": "2026-11-16",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "release_url": "https://github.com/freeorion/freeorion/releases",
       "setup_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
@@ -40532,19 +40526,37 @@
         "steps": [
           {
             "title": "Install the stable client",
-            "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon."
+            "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon. For Intel or Apple Silicon Mac registration, keep its name FreeOrion.app and select /Applications/FreeOrion.app/Contents/MacOS/FreeOrion with its containing folder. Keep the whole bundle and leave ordinary launch arguments empty. Review the details, add the client and choose Play. The later FreeOrion.exe selection and executable-containing folder instructions apply only to Windows. On Mac or Ubuntu, use the program and working folder specified for that platform."
           },
           {
             "title": "Use your Linux package manager",
-            "instruction": "Install org.freeorion.FreeOrion from Flathub, or use the FreeOrion package from your Linux distribution. Update the copy through the same package manager. The source archive in the project’s releases is for building the game."
+            "instruction": "On Ubuntu x64, install matching freeorion and freeorion-data packages with all dependencies. In the reviewed 0.5.1.2-1 package, select the native /usr/lib/freeorion/freeorion and set /usr/share/games/freeorion as the working folder, with no arguments. Keep the sibling server/AI programs and package data/libraries installed. /usr/games/freeorion is a shell wrapper, not the native selection. Review the details, add the client and choose Play. Other distributions can use different paths; verify their complete native installation first. Flathub remains a separate option: install and run org.freeorion.FreeOrion through Flatpak, which owns its runtime and updates. Do not select Flatpak’s internal /app/bin path as a host-native program. Update through the same package manager."
           },
           {
             "title": "Keep your saves and settings",
-            "instruction": "Close FreeOrion before backing up. Copy the FreeOrion folder under %APPDATA% on Windows or ~/Library/Application Support on Mac. On Linux, keep the freeorion folders under ~/.config and ~/.local/share, using your configured XDG folders if they differ. For Flathub, keep ~/.var/app/org.freeorion.FreeOrion. Also keep any separate save directory you chose in the game."
+            "instruction": "Close FreeOrion and any separately hosted local servers before backing up. A local server and its AI can finish shutdown after the client closes; wait for their exit before copying or changing the installation or data. Copy the FreeOrion folder under %APPDATA% on Windows or ~/Library/Application Support on Mac. On Linux, keep the freeorion folders under ~/.config and ~/.local/share, using your configured XDG folders if they differ. For Flathub, keep ~/.var/app/org.freeorion.FreeOrion. Also keep any separate save directory you chose in the game."
+          },
+          {
+            "title": "Select the prepared player",
+            "instruction": "Select FreeOrion.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md"
+        "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+        "references": [
+          {
+            "title": "Client and server ownership",
+            "instruction": "Portcove tracks the graphical client you select. FreeOrion starts its own server and AI processes for games; a local server you host can stay separate after the client closes. Portcove does not take ownership of those servers or certify that every companion has stopped. You and upstream own installation, updates, saves, settings, mods, backups and removal. Removing the registration preserves all external files. The current official release has no Android package or native Windows ARM64 build."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/FreeOrion saves, settings and mods; Linux XDG configuration and data/freeorion folders, or ~/.config/freeorion and ~/.local/share/freeorion; Mac ~/Library/Application Support/FreeOrion settings, saves and mods; every custom save or user-data location; separately running upstream servers and AI retain their own writes. Back up these locations separately; registration does not migrate or certify their compatibility."
+          }
+        ]
       },
       "original_game": {
         "format_version": 1,
@@ -40554,7 +40566,13 @@
           "https://github.com/freeorion/freeorion"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "freespace-2-freespace-open",
@@ -60570,16 +60588,16 @@
     {
       "id": "naev",
       "name": "Naev",
-      "summary": "Explore space, trade and take missions in Naev. Use the official desktop package with its included game data.",
+      "summary": "Explore space, trade and take missions in Naev. Prepare the official package, then add your Windows or Mac installation to Portcove.",
       "original_game_title": "Naev",
       "project_url": "https://codeberg.org/naev/naev",
       "issue_number": 6817,
       "listed_at": "2026-11-17",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64",
         "macos-x86-64",
-        "macos-aarch64"
+        "macos-aarch64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://naev.org/downloads/",
@@ -60593,26 +60611,34 @@
           },
           {
             "title": "Set up Naev on your computer",
-            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it."
+            "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows. Leave arguments empty only for a fresh default setup. For an existing installation, keep its established launch arguments, including any custom profile or data-folder options."
           },
           {
-            "title": "Keep your profile before upgrading or removing files",
-            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well."
+            "title": "Preserve current and older profiles before changes",
+            "instruction": "Close every copy of Naev and back up its whole profile, including conf.lua, saves and plugins. A normal Windows install uses %APPDATA%/naev. A portable Windows copy uses naev-data beside the player unless you changed datapath.lua. Linux normally uses ~/.local/share/naev, or naev under XDG_DATA_HOME. Mac normally uses ~/Library/Application Support/naev. Keep any custom data folder as well. Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
           },
           {
-            "title": "Preserve older profiles before the first upgrade launch",
-            "instruction": "Naev 0.13 can move files from older profile locations when the new location has no matching file. Before starting an upgrade, keep copies of the existing profile and configuration folders, including an older ~/.config/naev on Linux, or ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev on Mac. Follow the actual profile path reported by your game."
+            "title": "Select the prepared player",
+            "instruction": "Select naev.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [],
         "references": [
           {
             "title": "Updates, backups and existing installations",
-            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. When registering a prepared Windows copy in Portcove, select naev.exe and its containing folder as the working directory so an existing datapath.lua applies. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
+            "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. A Windows installation uses naev.exe and its parent so an existing datapath.lua applies. Mac uses the native player inside the complete app. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
           },
           {
             "title": "Host requirements and other platforms",
-            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification."
+            "instruction": "The publisher lists Windows 10 or newer, macOS 11 or newer for the universal app, and glibc 2.30 or newer for the Linux x64 AppImage. Naev needs a working OpenGL context. The reviewed release has no Android or Linux ARM64 package. These requirements and package listings do not establish Portcove gameplay or minimum-system qualification. Linux registration is not offered by this entry; use the complete upstream AppImage, whose environment and bundled dependencies must remain intact."
+          },
+          {
+            "title": "Registration ownership and removal",
+            "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+          },
+          {
+            "title": "Player-data ownership",
+            "instruction": "You and upstream own the external copy's data: Windows %APPDATA%/naev or portable naev-data beside the player, including datapath.lua overrides; Mac ~/Library/Application Support/naev and predecessor ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev profiles; all custom profile, save, settings and plugin folders, including predecessor locations before upstream migration. Back up these locations separately; registration does not migrate or certify their compatibility."
           }
         ],
         "help_url": "https://naev.org/downloads/"

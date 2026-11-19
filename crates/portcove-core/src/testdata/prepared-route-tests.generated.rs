@@ -6,6 +6,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "dune-ii-dune-dynasty",
     "ecwolf-wolfenstein3d",
     "elasota-aerofoil",
+    "freeorion",
     "gamebreaker20xx-fullrumble-ps1-slus01068",
     "gothic-ii-night-of-the-raven-opengothic",
     "heroes-of-might-and-magic-ii-fheroes2",
@@ -16,6 +17,7 @@ const DECLARED_PREPARED_ROUTE_TEST_IDS: &[&str] = &[
     "n64hub-rayman-2-recomp-n64-usa",
     "n64hub-super-mario-64-recomp",
     "n64hub-super-smash-bros-n64-usa-recomp",
+    "naev",
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
@@ -54,6 +56,11 @@ fn prepared_guide_adoption_declared_ecwolf_wolfenstein3d() {
 #[test]
 fn prepared_guide_adoption_declared_elasota_aerofoil() {
     assert_declarative_prepared_player_route("elasota-aerofoil");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_freeorion() {
+    assert_declarative_prepared_player_route("freeorion");
 }
 
 #[test]
@@ -104,6 +111,11 @@ fn prepared_guide_adoption_declared_n64hub_super_mario_64_recomp() {
 #[test]
 fn prepared_guide_adoption_declared_n64hub_super_smash_bros_n64_usa_recomp() {
     assert_declarative_prepared_player_route("n64hub-super-smash-bros-n64-usa-recomp");
+}
+
+#[test]
+fn prepared_guide_adoption_declared_naev() {
+    assert_declarative_prepared_player_route("naev");
 }
 
 #[test]

@@ -925,6 +925,9 @@ pub struct PortDefinition {
     /// is the whole session.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_tracked_handoff: bool,
+    /// An immutable library shipped beside the selected Linux executable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_packaged_library: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -1426,10 +1429,24 @@ pub struct InstallRecord {
     pub selected_executable: PathBuf,
 }
 
+/// The exact download reviewed during a user-selected setup or replacement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SetupDownloadSelection {
+    pub release_id: crate::CatalogDownloadReleaseId,
+    pub asset_id: crate::CatalogDownloadAssetId,
+    pub release_tag: String,
+    pub filename: String,
+    /// SHA-256 of the observed download, without any claim about the launched program.
+    pub download_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalRuntimeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_selected: Option<UserSelectedLaunch>,
+    /// Last setup download bound to this registration's reviewed local choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_download: Option<SetupDownloadSelection>,
     pub id: String,
     pub port_id: String,
     pub path: PathBuf,

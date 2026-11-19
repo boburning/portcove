@@ -2739,8 +2739,19 @@ pub(crate) fn external_paths(
     } else {
         "Registered installation folder"
     };
+    let setup = runtime
+        .setup_download
+        .as_ref()
+        .map(|selection| {
+            format!(
+                "\nLast recorded setup download was {} from release {}.",
+                clean(&selection.filename),
+                clean(&selection.release_tag)
+            )
+        })
+        .unwrap_or_default();
     format!(
-        "Paths for {}\n{registered_folder}: {}\nSelected program: {}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
+        "Paths for {}\n{registered_folder}: {}\nSelected program: {}{setup}\nSaves and settings: Check the project's setup instructions or your game's settings for the actual save location.\nBack up the external profile separately.\nUpstream or you update this installation. Removing the registration keeps its files in place.",
         port_name(catalog, &runtime.port_id),
         clean(&runtime.path.display().to_string()),
         clean(&runtime.executable.display().to_string()),
@@ -4695,6 +4706,7 @@ mod tests {
         let mut external = status_disclosure_fixture();
         external.port_id = "external\tport\n\u{1b}".into();
         external.external_runtime = Some(portcove_core::ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "fixture-registration".into(),
             port_id: external.port_id.clone(),

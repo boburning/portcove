@@ -403,6 +403,7 @@ impl PortcoveService {
             };
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
+                setup_download: None,
                 user_selected: preview.user_selected,
                 id: Uuid::new_v4().to_string(),
                 port_id: port_id.into(),
@@ -419,13 +420,12 @@ impl PortcoveService {
                 shared_preferences: None,
             };
             self.library.register_external_runtime_finishing_setup(
-                &record,
+                record,
                 &retained,
                 pending
                     .as_ref()
                     .map(|(record, json)| (record.id.as_str(), json.as_str())),
-            )?;
-            Ok(record)
+            )
         })();
         self.finish_activity(activity, result)
     }

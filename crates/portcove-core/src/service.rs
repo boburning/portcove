@@ -5267,6 +5267,7 @@ impl PortcoveService {
             )?;
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
+                setup_download: None,
                 user_selected: None,
                 id: Uuid::new_v4().to_string(),
                 port_id: port_id.to_owned(),
@@ -6796,6 +6797,8 @@ impl PortcoveService {
                             crate::native_external_profile::applies_to(policy, platform)
                         })
                         || current.n64_runtime_at_executable_parent
+                        || (platform == Platform::LinuxX86_64
+                            && current.linux_packaged_library.is_some())
                         || (cfg!(windows) && current.windows_shipwright_persistence)
                         || (cfg!(windows) && current.windows_tracked_handoff)
                 }) {
@@ -21459,6 +21462,33 @@ fn main() {
         assert_eq!(inherited.is_err(), cfg!(windows));
         if let Err(error) = inherited {
             assert!(error.message.contains("legacy installation cannot inherit"));
+        }
+    }
+
+    #[test]
+    fn legacy_fallback_cannot_inherit_linux_packaged_library_binding() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        let registered = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        for port in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+            let install = InstallRecord {
+                port_id: port.into(),
+                ..registered.clone()
+            };
+            let inherited = service.installed_catalog_or_fallback(&install, None);
+            assert_eq!(
+                inherited.is_err(),
+                Platform::current().unwrap() == Platform::LinuxX86_64
+            );
+            if let Err(error) = inherited {
+                assert!(error.message.contains("legacy installation cannot inherit"));
+            }
         }
     }
 

@@ -586,6 +586,18 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
+NativePortable capability 40 allows a reviewed flat Linux x86-64 TAR.XZ
+runtime to declare its immutable sibling `linux_packaged_library`. Core
+requires the native player and library in the archive before publication.
+The retained managed launch verifies the installed library and binds the
+loader to a private directory containing that verified library before starting the ELF
+directly. Declared originals and the managed profile stay in their own
+subdirectories. The Linux declaration leaves the Windows launch unchanged
+and requires a separate review before replacing an existing AppImage.
+Retained format 11 carries the loader rule through source-only preparation.
+Embedded Windows installations retain the Windows package route using
+the existing format.
+
 NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
 `release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
 GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a
@@ -2004,6 +2016,25 @@ removal. The launched program can make its normal writes; this is no sandbox. Th
 non-owning Windows/Linux/Intel Mac/Apple Silicon registration, separate Android
 setup and external data locations.
 
+Naev's external route selects the complete upstream Windows installation or Mac
+app, with its native player and containing working folder. Windows portable
+`datapath.lua`, Mac bundle resources and upstream profile migration keep their
+existing behavior. Keep current and predecessor profiles recoverable before an
+upgrade. Upstream/player own package replacement, saves, settings, plugins,
+backups and removal; Portcove removes only its registration. Linux retains the
+upstream AppImage guide until a complete native environment contract fits the
+existing selector. Package/source inspection does not establish native loading,
+graphics, gameplay or minimum-host qualification.
+
+FreeOrion's external route tracks the selected graphical client. Its upstream
+server and AI processes can finish shutdown after that client exits; optional
+local multiplayer hosting can keep a separate server. Registration grants no
+server ownership or whole-installation quiescence. Keep the complete upstream
+installation, wait for actual writers before copying or changing external data,
+and use upstream/package-manager updates and backups. The reviewed Ubuntu native
+selection uses its real player and package data working folder, preserving the
+wrapper's startup coordinates without selecting a script.
+
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder
 successors in its process tree. An upstream launcher can hand off and close
@@ -3420,6 +3451,11 @@ and asset IDs and confirms the displayed release URL. Resuming a saved setup
 uses the matching download record for its release notes and retained setup
 links, even when the current directory describes a different package. Those
 retained links require the saved setup identity.
+Completing a user-selected setup or replacement carries the matching download's
+release and asset IDs, filename and observed checksum into the registration.
+Desktop and CLI show its release and filename as the last recorded setup
+download. A later launch-details edit keeps that history. Launch and update
+ownership continue to follow the selected external program and its registration.
 
 ### Choose a reusable authoring route
 
@@ -3509,6 +3545,15 @@ The Ruby and Sapphire example shows when explicit variant and fallback paths
 can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
+Optional authoring-only `n64_recomp_persistence_v1: true` expands the reviewed
+root-level N64Recomp persistence layout for managed GitHub packages. It supplies
+the shared mod, save and settings paths and includes the explicit
+`runtime_source_filename`. Keep the source profile, ROM filename, repository,
+asset selectors and executable hints in the integration. A nested layout,
+different provider, optional settings declaration or different writer set uses
+an explicit integration. URL preparation proposes the family form when its
+expanded integration reproduces the reviewed explicit bytes.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the
@@ -3534,8 +3579,13 @@ with the same title prefix and the platform-specific `-windows-x64.zip` and
 `-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
-For the reviewed retail multidisc split-mods kits, keep `runtime-discs`,
-`psx-settings-selected` and `psx-raw-set` explicit in the integration.
+Use `"split-mods-overlay-directory"` for the reviewed single-disc retail kits
+whose writer contract keeps the `overlay-captures` directory without a separate
+`settings.toml.bad` path, the root-level overlay JSON, sidecar and addendum paths,
+or the overlay temporary-file pattern. The dual-platform selector, BIOS and
+split mod rules still apply. For the reviewed retail multidisc split-mods kits,
+keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
+integration.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.

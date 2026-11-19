@@ -16,6 +16,7 @@ import type {
   SettingsQualificationObservation,
 } from "./settings-qualification.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -84,7 +85,14 @@ export interface AuthoredPort extends Record<string, unknown> {
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
-  psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
+  psx_managed_windows_v1?:
+    | true
+    | "bundled-openbios"
+    | "split-mods"
+    | "split-mods-openbios"
+    | "split-mods-overlay-directory";
+  /** Shared root-level persistence for reviewed N64Recomp packages. */
+  n64_recomp_persistence_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -708,6 +716,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   const record = value as AuthoredPort;
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
+  projectN64RecompPersistence(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -748,7 +757,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
-      projectRouteFacts(projectPsxManagedWindows(projectGbaArchive(input))),
+      projectRouteFacts(
+        projectN64RecompPersistence(projectPsxManagedWindows(projectGbaArchive(input))),
+      ),
     ),
   );
   if (!record.integration) return undefined;

@@ -35,7 +35,7 @@ async fn same_release_linux_asset_and_integrity_arrive_without_disturbing_window
     let tag = "v1.8.0";
     let mut windows_asset = asset("devilutionx-windows-x86_64.zip", Some('a'));
     windows_asset["id"] = 301.into();
-    let mut linux_asset = asset("devilutionx-linux-x86_64.appimage", None);
+    let mut linux_asset = asset("devilutionx-linux-x86_64.tar.xz", None);
     linux_asset["id"] = 302.into();
     let snapshot = |assets| {
         let mut release = release(tag, assets);
@@ -618,7 +618,7 @@ async fn native10_original_sibling_assets_follow_stable_successors() {
         (
             include_str!("../../testdata/devilution-release-selection-2026-10-29.json"),
             ["diablo-devilutionx", "diablo-hellfire-devilutionx"],
-            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.appimage")][..],
+            &[(Platform::LinuxX86_64, "devilutionx-linux-x86_64.tar.xz")][..],
             "1.5.6",
         ),
     ] {
@@ -678,7 +678,7 @@ async fn native10_original_sibling_assets_follow_stable_successors() {
 
 #[test]
 fn native10_appimage_selector_refuses_archive_fallback_and_legacy_routes() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
     let mut port = catalog.port("diablo-devilutionx").unwrap().clone();
     let platform = Platform::LinuxX86_64;
     let assets = serde_json::from_value::<Vec<GithubAsset>>(serde_json::json!([

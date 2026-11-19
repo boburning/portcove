@@ -399,3 +399,15 @@ The reviewed expectation now accounts for 1,647 records, 255 complete multi-opti
 | `wakabairo-no-quartet-openbgi` | `wakabairo-no-quartet` | [Upstream source](https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running) |
 | `world-war-ii-gi-nblood` | `world-war-ii-gi` | [Upstream source](https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem) |
 | `x-men-children-of-the-atom-cps2-recomp` | `x-men-children-of-the-atom` | [Upstream source](https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/xmcota/README.md) |
+
+## November 19 target reconciliation: upstream-owned registrations
+
+Target `146547b5ba1f711a4bb82b4640c7bf2babed86e8` promotes Naev and
+FreeOrion through upstream-owned registration. The universe remains 1,647
+records, with 1,608 identified records, 1,247 game identities, 1,286 groups,
+255 complete multi-option families and 39 project entries. Operational
+definitions increase from 440 to 442. Preserve both reviewed game identities
+in their new authoritative definition presentations, together with all incoming
+registration, source, platform and runtime-ownership facts. Standard generation
+rebuilds both catalog and listing projections. The PSX directory-layout
+extraction preserves expanded compiled facts and changes no game relationships.

@@ -13,6 +13,7 @@ import {
 } from "./features/source-health/source-actions";
 import desktopPackage from "../package.json";
 import { AddGames } from "./components/AddGames";
+import { useAppTranslation } from "./localization";
 import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
@@ -276,6 +277,7 @@ export function BootstrapRecovery({
   chooseFolder?: (current: string) => Promise<string | null>;
   resetLibrary?: () => Promise<void>;
 }) {
+  const { t } = useAppTranslation("common");
   const [actionError, setActionError] = useState<string>();
   const [transferPending, setTransferPending] = useState(false);
   const [readingDestination, setReadingDestination] = useState(false);
@@ -313,12 +315,15 @@ export function BootstrapRecovery({
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
   const pending = recoveryPending || transferPending || readingDestination;
+  const hasGenericUncertainty =
+    error.presentation?.presentation_key === "state_unavailable" &&
+    error.presentation.mutation_state === "unknown";
   return (
     <main className="bootstrap-state bootstrap-error startup-recovery">
       <header className="startup-recovery-heading">
         <h1>Portcove couldn’t start</h1>
         <p className="text-pc-muted-foreground" role="alert">
-          {errorText(error)}
+          {hasGenericUncertainty ? t("failure.outcome.unknown") : errorText(error)}
         </p>
       </header>
       {error.presentation ? (
@@ -326,6 +331,7 @@ export function BootstrapRecovery({
           presentation={error.presentation}
           code={error.code}
           contextLabel={startupDetailLabel}
+          showMutationSummary={!hasGenericUncertainty}
         />
       ) : (
         <StartupTechnicalDetails error={error} />
