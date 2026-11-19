@@ -55,7 +55,16 @@
       "macos-x86-64": ["metal-gear-solid-", "-macos-x64.zip"],
       "macos-aarch64": ["metal-gear-solid-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-solid",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/metal-gear-solid-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {

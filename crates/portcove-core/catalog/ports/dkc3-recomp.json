@@ -48,6 +48,12 @@
           "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-3-dixie-kong-s-double-trouble",
+      "evidence_urls": ["https://github.com/elliotttate/DKC3Recomp"],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

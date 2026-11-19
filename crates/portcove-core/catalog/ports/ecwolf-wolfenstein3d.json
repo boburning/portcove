@@ -37,6 +37,15 @@
           "instruction": "The official download page also offers Android APKs, Windows ARM64 and Linux ARM packages. Choose the matching upstream build and follow its setup notes. Upstream warns that Android support is buggy; check its system-version notes before installing. Android installation, updates and saved data stay with the app and the player. Portcove desktop registration does not manage these other host routes."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-3d",
+      "evidence_urls": [
+        "https://maniacsvault.net/ecwolf/",
+        "https://maniacsvault.net/ecwolf/download.php"
+      ],
+      "source_editions": []
     }
   },
   "route_facts_v1": {

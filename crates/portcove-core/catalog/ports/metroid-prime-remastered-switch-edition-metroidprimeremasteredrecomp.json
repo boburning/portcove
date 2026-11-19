@@ -4,7 +4,7 @@
     "id": "metroid-prime-remastered-switch-edition-metroidprimeremasteredrecomp",
     "name": "Metroid Prime Remastered — Switch edition (MetroidPrimeRemasteredRecomp)",
     "summary": "The Windows player for Metroid Prime Remastered imports your own version 1.0.0 Switch game. The project reports manual play from the opening Frigate into early Tallon and Chozo Ruins. Vertical controller aim is broken, and some loads can crash.",
-    "original_game_title": "Metroid Prime Remastered — Switch edition",
+    "original_game_title": "Metroid Prime",
     "project_url": "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -38,6 +38,15 @@
           "instruction": "Loading all 275 areas was a separate test. The project has not confirmed full gameplay, physical controllers, HDR or exclusive fullscreen. Its release instructions do not say whether translated game code is included."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime",
+      "evidence_urls": [
+        "https://github.com/drakolordx7/MetroidPrimeRemasteredRecomp",
+        "https://www.nintendo.com/us/whatsnew/metroid-prime-remastered-rolled-out-in-latest-nintendo-direct-available-now-for-nintendo-switch/"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

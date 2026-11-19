@@ -64,7 +64,25 @@
       "windows-x86-64": ["Crackdown-", "-windows-x64.zip"],
       "linux-x86-64": ["CrackdownRecompiled-", "-x86_64.AppImage"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "crackdown",
+      "evidence_urls": [
+        "https://github.com/saulob/crackdown-xbox360-recompiled",
+        "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crackdown-xbox-360",
+          "title": "Crackdown (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/crackdown-xbox360-recompiled/blob/33ab1b632e38cb5c1c39a3d56c479537b9e0d185/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

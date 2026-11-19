@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/LightVelox/sotc-vibe-pc"
     },
-    "issue_number": 3063
+    "issue_number": 3063,
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": ["https://github.com/LightVelox/sotc-vibe-pc"],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/LightVelox/sotc-vibe-pc/blob/1ce4a5ea4955878bd2edabdc4e1a6b6f49a8e1ad/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

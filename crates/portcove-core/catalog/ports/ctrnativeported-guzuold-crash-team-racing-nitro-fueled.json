@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/guzuold/CTRNativePorted"
     },
-    "issue_number": 3468
+    "issue_number": 3468,
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing-nitro-fueled",
+      "evidence_urls": ["https://github.com/guzuold/CTRNativePorted"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

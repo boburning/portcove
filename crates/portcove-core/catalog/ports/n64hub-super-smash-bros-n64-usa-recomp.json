@@ -38,7 +38,25 @@
       ]
     },
     "release_url": "https://github.com/n64hub/super-smash-bros-recomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros",
+      "evidence_urls": [
+        "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+        "https://github.com/n64hub/super-smash-bros-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-nintendo-64",
+          "title": "Super Smash Bros. (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/super-smash-bros-recomp/blob/fbd1fef8d6ec2cdba5779d30d1ea275a0bda3013/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -60,7 +78,6 @@
       ]
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -88,5 +105,6 @@
         "executables": ["smashbrosrecompiled.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

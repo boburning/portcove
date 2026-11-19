@@ -36,6 +36,15 @@
         "Linux requires glibc 2.38 or newer plus system OpenGL, X11 or Wayland, and ALSA or PulseAudio/PipeWire libraries. Custom native mods may need disabling or rebuilding when changing runtimes; preserving their files does not establish compatibility."
       ],
       "help_url": "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "brave-fencer-musashi",
+      "evidence_urls": [
+        "https://github.com/Blizz127/Brave-Fencer-Musashi-decomp-port/blob/ad71556b44506599fb08e654e28651d81eba7206/README.md",
+        "https://github.com/Blizz127/brave-fencer-musashi-decomp-port"
+      ],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

@@ -58,7 +58,17 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "icewind-dale-ii",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+        "https://gemrb.org/Install.html",
+        "https://github.com/gemrb/gemrb"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

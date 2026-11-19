@@ -51,6 +51,15 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blood-omen-legacy-of-kain",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp"
+      ],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

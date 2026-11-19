@@ -36,7 +36,13 @@
       ],
       "help_url": "https://github.com/phobos665/Rainbow-six-three-recomp"
     },
-    "issue_number": 3185
+    "issue_number": 3185,
+    "original_game": {
+      "format_version": 1,
+      "id": "tom-clancys-rainbow-six-3-xbox",
+      "evidence_urls": ["https://github.com/phobos665/Rainbow-six-three-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -50,9 +50,17 @@
         }
       ]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen-ii",
+      "evidence_urls": [
+        "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+        "https://github.com/TDRRmk2/uhexen2-tweaked"
+      ],
+      "source_editions": []
+    }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -82,5 +90,6 @@
         "executables": ["glh2.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

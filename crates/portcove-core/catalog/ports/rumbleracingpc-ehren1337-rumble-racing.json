@@ -35,6 +35,12 @@
       "image_sha256": "dfa90f77a0249f9ed553ee4f4123eb4c3040114972515612994e2068f89fb387",
       "game_slug": "rumble-racing",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rumble-racing",
+      "evidence_urls": ["https://github.com/Ehren1337/RumbleRacingPC"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

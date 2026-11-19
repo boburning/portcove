@@ -1125,9 +1125,8 @@ immutable manifest digest covers both the snapshot and admission record. Format 
 continues to retain canonical legacy catalog content. Format 2 remains readable as
 exact supplied successor content but does not acquire invented authentication.
 Pure decode caching is bounded to one exact format/content pair and never caches
-filesystem integrity, source admission or revocation decisions. Each content
-component keeps its existing 4 MiB bound; the three retained components total at
-most 12 MiB before JSON string encoding and decoding overhead.
+filesystem integrity, source admission or revocation decisions. The index and individual definition entry keep 4 MiB bounds. A complete
+projection may use 16 MiB. Selection rows have their own 16 MiB serialized bound.
 
 SQLite writer protocols 25 and 27 prevent older clients from discarding exact
 successor bytes and authenticated admission provenance respectively. They change
@@ -1147,8 +1146,7 @@ catalog limit and rejects unknown or discarded semantics. SQLite writer protocol
 60 raised that limit from 4 MiB: it rebuilds `catalog_state` with the larger BLOB
 checks and makes older clients, which refuse retained content above 4 MiB, refuse
 the library before they read or rewrite a manifest. A Core test and the CI size
-guard keep the catalog, its projection and the escaped retained copy below 85% of
-the 4 MiB floor ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
+guard reserve 15% below supported bounds ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
 Core memoizes pure decoding of the most recently validated exact content string,
 bounded to one catalog. Each read still verifies the current manifest bytes and
 digest; the cache contains no filesystem, source-admission, or revocation decision.
@@ -4175,12 +4173,13 @@ Current managed-install and external-registration routes share Core's existing
 route exclusions with action presentation. Managed and external launch use their
 retained definitions and recorded platform; missing, oversized, changed or legacy
 retained context stays unavailable and has no guessed definition digest. Query
-manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
-immutable manifest verification. Explicit CLI queries accept at most 256 unique known routes. Desktop browsing
-can cover its full admitted definition catalog for one selection. Core reads
-routes in batches of at most 256 and shares one source inspection, observation
-window and cancellation scope. Each request uses identifiers of at most 128 bytes,
-a cooperative 30-second budget and a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+manifest reads use the existing stable no-follow object reader, a 32 MiB bound and
+immutable manifest verification. Explicit CLI queries accept at most 256 unique
+known routes. Desktop browsing can cover its full admitted definition catalog for
+one selection. Core reads routes in batches of at most 256 and shares one source
+inspection, observation window and cancellation scope. Each request uses identifiers
+of at most 128 bytes, a cooperative 30-second budget and a 4 MiB response. These
+checks cannot interrupt an individual filesystem call.
 
 A current, admitted exact identity establishes compatible files only when its
 variant and complete representation satisfy an enforced source contract bound to

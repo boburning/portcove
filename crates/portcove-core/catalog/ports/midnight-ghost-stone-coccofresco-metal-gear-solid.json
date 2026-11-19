@@ -35,6 +35,21 @@
       "image_sha256": "2acd6f7ec640cb08c1c6bd7b52aec1d69133d371905f8c0a89d09bb68dd58863",
       "game_slug": "metal-gear-solid",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-solid",
+      "evidence_urls": ["https://github.com/coccofresco/mgsone-recomp"],
+      "source_editions": [
+        {
+          "id": "metal-gear-solid-playstation",
+          "title": "Metal Gear Solid (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/coccofresco/mgsone-recomp/blob/2ae09d4f9a29332a4058393dab0bc1435af27dc6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

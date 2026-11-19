@@ -35,6 +35,21 @@
       "image_sha256": "c8955e9c4efa5b718ce2028f4dd05adf5620ff04f5b5ea6e4f169e7275f0864a",
       "game_slug": "yu-gi-oh-gx-tag-force",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-gx-tag-force",
+      "evidence_urls": ["https://github.com/Artknighty/tagforcerecomp-preview"],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-gx-tag-force-playstation-portable",
+          "title": "Yu-Gi-Oh! GX Tag Force (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Artknighty/tagforcerecomp-preview/blob/29233827dfbd97d4e60116b56ad85d2d0583cb4e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

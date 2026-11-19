@@ -46,6 +46,18 @@
       "warnings": [
         "Select the installed forza-launcher.exe after upstream preparation. Its waiting session preserves the actual data/profile context; keep both launcher settings and all active/historical game roots."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-horizon",
+      "evidence_urls": [
+        "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined/blob/c44f31461566a95cf050d32ccde6db389c305b78/README.md",
+        "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined",
+        "https://api.github.com/repositories/1413230318",
+        "https://api.github.com/repos/FH1-ReImagined/ForzaHorizon1-ReImagined/contributors",
+        "https://api.github.com/repos/Dyotson/ForzaHorizon1-ReImagined"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

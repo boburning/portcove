@@ -471,6 +471,72 @@ async fn catalog_online_targets_two_renewals_preserve_authority_history_and_requ
 }
 
 #[tokio::test]
+async fn publisher_round_trips_a_projection_above_four_mib() {
+    let fixture = Fixture::new().await;
+    let root = fixture.root();
+    let bundle = root.join("bundle");
+    let index_path = bundle.join("definitions/index.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&fs::read(&index_path).unwrap()).unwrap();
+    let mut catalog: serde_json::Value =
+        serde_json::from_str(include_str!("../../../portcove-core/catalog/catalog.json")).unwrap();
+    catalog["source_catalog"]["evidence"][0]["claim"] =
+        json!("Synthetic full graph fixture. ".repeat(75_000));
+    let projection = serde_json::to_vec(&json!({
+        "contract_schema": 1, "representation": "catalog_projection", "catalog": catalog
+    }))
+    .unwrap();
+    assert!(projection.len() > 4 * 1024 * 1024);
+    let digest = sha(&projection);
+    let name = format!("sha256/{digest}.json");
+    fs::write(bundle.join(&name), &projection).unwrap();
+    index["contents"].as_array_mut().unwrap().push(json!({
+        "target": name, "sha256": digest, "length": projection.len()
+    }));
+    let index = serde_json::to_vec(&index).unwrap();
+    fs::write(index_path, &index).unwrap();
+    let policy_path = bundle.join("policy/official/fixture.json");
+    let mut policy: serde_json::Value =
+        serde_json::from_slice(&fs::read(&policy_path).unwrap()).unwrap();
+    policy["decision"]["index_sha256"] = json!(sha(&index));
+    fs::write(policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
+
+    let inspection_path = root.join("inspection.json");
+    let mut inspection: serde_json::Value =
+        serde_json::from_slice(&fs::read(&inspection_path).unwrap()).unwrap();
+    inspection["index_sha256"] = json!(sha(&index));
+    inspection["files"] = json!(bundle::identities(
+        &io::tree(&bundle, BUNDLE_FILES, BUNDLE_MAX).unwrap()
+    ));
+    let raw = serde_json::to_vec(&inspection).unwrap();
+    fs::write(inspection_path, &raw).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&raw));
+    fixture.set_context(context);
+
+    fixture.sign_all().await;
+    let assembled = assemble_definition_repository(&fixture.assembly("published"))
+        .await
+        .unwrap();
+    let config = json_file(
+        root,
+        "verify-large.json",
+        json!({
+            "schema_version":1,
+            "trusted_root":"root.json","trusted_root_sha256":assembled.root_sha256,
+            "offline_targets":"targets.json","offline_targets_sha256":assembled.offline_targets_sha256,
+            "repository":"published"
+        }),
+    );
+    let verified = verify_definition_repository(&config).await.unwrap();
+    assert_eq!(verified.files, assembled.files);
+    let signed_target = root
+        .join("published/targets")
+        .join(format!("{digest}.{name}"));
+    assert_eq!(fs::read(signed_target).unwrap(), projection);
+}
+
+#[tokio::test]
 async fn catalog_read_only_public_verification_does_not_reopen_generation_or_keys() {
     let fixture = Fixture::new().await;
     fixture.sign_all().await;

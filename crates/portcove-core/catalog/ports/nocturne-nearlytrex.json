@@ -43,6 +43,15 @@
         "Upstream’s 0BSD license covers its original work. The release includes reconstructed game code that this license does not cover."
       ],
       "help_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nocturne",
+      "evidence_urls": [
+        "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11",
+        "https://github.com/NearlyTRex/NocturneDecomp"
+      ],
+      "source_editions": []
     }
   }
 }

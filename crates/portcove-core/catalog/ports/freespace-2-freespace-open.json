@@ -50,6 +50,15 @@
           "instruction": "Keep the complete game root, data, mods, launcher settings and all actual player/pilot/campaign files. Current FreeSpace Open normally uses the current account’s AppData/HardLightProductions/FreeSpaceOpen preferences on Windows. FSO_PREFERENCES_PATH can redirect it; -portable_mode uses local paths, and legacy settings or failed profile lookup can change the effective location. Retain the effective preferences root, cmdline_fso.cfg, logs, captures, custom and unknown files. Preserve any launcher-provided environment; attaching a standalone player does not reconstruct it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "freespace-2",
+      "evidence_urls": [
+        "https://github.com/scp-fs2open/fs2open.github.com",
+        "https://github.com/scp-fs2open/fs2open.github.com/tree/feed085710869ccd8d998fc07a04ffccc8ed479a"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

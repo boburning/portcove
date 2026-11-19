@@ -4,7 +4,7 @@
     "id": "mstan-tetrisgbrecomp",
     "name": "Tetris (TetrisGBRecomp)",
     "summary": "A native Tetris Game Boy player for your own matching World v1.0 original. Includes a separate in-process launcher; the corrected upstream route and original requirements are described below.",
-    "original_game_title": "Tetris",
+    "original_game_title": "Tetris (Game Boy)",
     "artwork": {
       "game_id": 86490,
       "cover_id": 132753,
@@ -36,6 +36,24 @@
         "Preserve separately selected or absolute output paths too. Moving the original may require correcting the upstream ROM selection; registration does not migrate paths or certify cross-version state compatibility."
       ],
       "references": []
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tetris-1989-game-boy",
+      "evidence_urls": [
+        "https://github.com/mstan/TetrisGBRecomp",
+        "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tetris-1989-game-boy-game-boy",
+          "title": "Tetris (Game Boy) (Game Boy)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

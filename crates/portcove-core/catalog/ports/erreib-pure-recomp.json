@@ -55,6 +55,24 @@
           "instruction": "Original US DLC packs and optional external HD texture packs are separate player-supplied material, not a prerequisite or a grant supplied by this registration. Preserve their actual original/mod/profile roots; do not convert European/Japanese packs or fetch the third-party HD pack through this guide. Project GPL2-or-later, PortableKit MIT, FFmpeg LGPL and other component notices apply separately from Sony/game/art rights. Upstream/user owns all preparation, runtime replacement and recovery. Close actual sessions, keep the old working copy and data, then review/relink changed selected bytes. Removing registration preserves all external files; no external update, backup, rollback, migration or deletion is offered."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-pure",
+      "evidence_urls": [
+        "https://github.com/erreib/pure-recomp",
+        "https://github.com/erreib/pure-recomp/blob/13ac3986efccc87bc6ebe0218ca005ec838e0652/packaging/windows/README.txt"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-pure-playstation-portable",
+          "title": "Wipeout Pure (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

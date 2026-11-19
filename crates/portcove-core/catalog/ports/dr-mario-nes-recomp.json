@@ -51,6 +51,24 @@
       "image_sha256": "6e3f1685fe9ff2560baa7d050ae204917597b163e5af0fc0166619b61993c523",
       "game_slug": "dr-mario",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dr-mario",
+      "evidence_urls": [
+        "https://github.com/mstan/DrMarioNesRecomp/releases",
+        "https://github.com/mstan/DrMarioNesRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dr-mario-nes",
+          "title": "Dr. Mario (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

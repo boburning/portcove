@@ -47,6 +47,15 @@
         "The selected v0.3.0 tag and current source differ; the published package is not a precompiled ready-native artifact. Only an already completed working output is offered. Original/ROM-derived code, project/framework and third-party terms remain distinct; no redistribution grant is broadened.",
         "No Core source extraction/generation, toolchain/setup hosting, managed Install/Update/Backup/Rollback/migration/deletion, real game/save/state/mod/installed/protected acceptance or Supported promotion. Upstream disclosed audio/fallback/known-issue limits remain; no full-game stability pass."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "strike-gunner-s-t-g",
+      "evidence_urls": [
+        "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp/blob/cb6287f3f5a72fd3f33c2c97876b7e3800649a03/PLAYING.md",
+        "https://github.com/SlippyGetBackHere/Strike-Gunner-STG-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

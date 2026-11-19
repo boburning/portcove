@@ -35,6 +35,21 @@
       "image_sha256": "3b0748c7ef37ddf198ce6a7d5e8c7319870568e66b88a1db5320be70193e7877",
       "game_slug": "wwe-2k14",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k14",
+      "evidence_urls": ["https://github.com/Jarrodfeng/wwe2k14-recomp"],
+      "source_editions": [
+        {
+          "id": "wwe-2k14-xbox-360",
+          "title": "WWE 2K14 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/stuken/pgr3"
     },
-    "issue_number": 3256
+    "issue_number": 3256,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-3",
+      "evidence_urls": ["https://github.com/stuken/pgr3"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
