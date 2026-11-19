@@ -11,6 +11,7 @@ import {
 } from "./package-player-observation.mts";
 import type { PackagePlayerObservationV1 } from "./package-player-observation.mts";
 import { checkSettingsPolicy, projectSettingsQualification } from "./settings-qualification.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import type {
   SettingsQualificationPolicy,
   SettingsQualificationObservation,
@@ -85,6 +86,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Shared official Raze Windows package and portable-profile layout. */
   raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Ordered platforms with an independently reviewed flat, single-program archive. */
+  reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
@@ -720,6 +723,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectReviewedFlatPackageLayout(record);
   projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
@@ -763,7 +767,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectRazeWindowsProfile(input);
+  const declared = projectReviewedFlatPackageLayout(projectRazeWindowsProfile(input));
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(

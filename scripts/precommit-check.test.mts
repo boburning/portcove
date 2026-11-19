@@ -228,6 +228,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-portable-reflectionhle.mts",
       "scripts/catalog-psx-managed-windows.mts",
       "scripts/catalog-raze-windows-profile.mts",
+      "scripts/catalog-reviewed-flat-package-layout.mts",
       "scripts/catalog-route-facts.mts",
       "scripts/catalog-staged-check.mts",
       "scripts/development-evidence.mts",

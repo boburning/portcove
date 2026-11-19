@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   collectPortFacts,
   githubRepository,
@@ -2292,11 +2293,13 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
+  assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
+    if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
     if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
@@ -2491,6 +2494,45 @@ void test("unsupported managed subshapes and contradictory GBA paths fail author
   const gba = structuredClone(records.find((record) => record.gba_staged_archive_v1)!);
   gba.integration!.persistent_paths = ["contradictory"];
   assert.throws(() => checkedAuthoredPort(gba), /already own persistent_paths/);
+});
+
+void test("official URL preparation compacts an already reviewed exact flat package layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "gunstar-heroes-gunstars";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectReviewedFlatPackageLayout(selected);
+    delete explicit.reviewed_flat_package_layout_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 1424763220, full_name: "1nputs/gunstars", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(candidate.reviewed_flat_package_layout_v1, ["windows-x86-64", "linux-x86-64"]);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
 });
 
 void test("settings qualification requests complete exact package facts and limits missing evidence to settings", async () => {
