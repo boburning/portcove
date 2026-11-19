@@ -37,7 +37,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["MuppetRaceManiaRecompiled-", "-windows-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "muppet-racemania",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/muppet-racemania-recompiled/blob/63caf5cfafe22a76cbcce5c91b055cbde861c957/README.md",
+        "https://github.com/TekRantGaming/muppet-racemania-recompiled"
+      ],
+      "source_editions": []
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

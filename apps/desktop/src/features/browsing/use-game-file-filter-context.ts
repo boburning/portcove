@@ -28,39 +28,55 @@ export function useGameFileFilterContext({
   generation: number;
   libraryKey?: string | null;
 }) {
-  const [selection, setSelection] = useState<Omit<Route, "port_id">>({
-    route: "managed_install",
-    platform: "windows-x86-64",
-    channel: "stable",
-  });
+  const [route, setRoute] = useState<Route["route"]>("managed_install");
+  const [channel, setChannel] = useState<Route["channel"]>("stable");
+  const [platformOverride, setPlatform] = useState<Route["platform"]>();
+  const platform = platformOverride ?? browsing?.host_platform;
   const binding = browsing?.workspace_binding_sha256;
   // Content identity, serialized only when an input reference changes rather than per render.
   const key = useMemo(
-    () => JSON.stringify([catalog, sources, statuses, binding, generation, libraryKey, selection]),
-    [catalog, sources, statuses, binding, generation, libraryKey, selection],
+    () =>
+      JSON.stringify([
+        catalog,
+        sources,
+        statuses,
+        binding,
+        generation,
+        libraryKey,
+        route,
+        platform,
+        channel,
+      ]),
+    [catalog, sources, statuses, binding, generation, libraryKey, route, platform, channel],
   );
   const observation = useGameFileObservation({
     contextKey: key,
     generation,
-    request: () => (catalog ? gameFileFilterRequest(catalog.ports, selection) : undefined),
-    refusal: "catalog_too_large",
+    request: () =>
+      catalog && platform
+        ? gameFileFilterRequest(catalog.ports, { route, platform, channel })
+        : undefined,
+    refusal: "catalog_mismatch",
     accept: (snapshot, request, library, now) => {
       const accepted = gameFileFilterContext(snapshot, request, library, libraryKey ?? "", now);
       if (!accepted) throw new GameFileCheckError("catalog_mismatch");
       return accepted;
     },
   });
+  const available = Boolean(catalog && libraryKey && platform);
   const refresh = async () => {
-    if (!catalog || !libraryKey) return;
+    if (!available) return;
     await observation.refresh();
   };
   return {
-    selection,
-    setSelection,
+    selection: { route, platform, channel },
+    setRoute,
+    setPlatform,
+    setChannel,
     refresh,
     pending: observation.pending,
     context: observation.current,
-    available: Boolean(catalog && libraryKey),
+    available,
     operationId: observation.operationId,
     error: observation.error,
     expired: observation.expired,

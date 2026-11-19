@@ -46,6 +46,15 @@
     "release_url": "https://github.com/Novum/vkQuake/releases",
     "download_asset_hints": {
       "linux-x86-64": ["vkquake-", "-x86_64.appimage"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/Novum/vkQuake#installation",
+        "https://github.com/Novum/vkQuake"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

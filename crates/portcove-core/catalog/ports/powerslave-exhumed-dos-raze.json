@@ -54,6 +54,15 @@
       "image_sha256": "5ec5d61d695d9cd2c0496457d697a33fb2644749ac721bbeb55182d1be346dfc",
       "game_slug": "powerslave--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "powerslave-exhumed-dos",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/19e5f308de065fb432beb9d11070ece12da3ea3c/wadsrc/static/engine/grpinfo.txt",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

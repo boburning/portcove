@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["alien-resurrection-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["alien-resurrection-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["alien-resurrection-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["alien-resurrection-recomp-", "-macos-arm64.zip"]
     },
@@ -54,8 +52,18 @@
           "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp"
+      ],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

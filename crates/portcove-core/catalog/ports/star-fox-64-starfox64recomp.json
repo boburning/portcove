@@ -44,7 +44,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["Starfox64Recompiled-", "-Windows-RelWithDebInfo"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+        "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

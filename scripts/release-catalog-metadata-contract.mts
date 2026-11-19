@@ -4,7 +4,11 @@ import { createHash } from "node:crypto";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { metadataInstant, inspectPublishedMetadata } from "./release-metadata-contract.mts";
-import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
+import {
+  catalogDefinitionContentBytes,
+  isCatalogDefinitionContent,
+  inspectCatalogPublicationDescriptor,
+} from "./release-catalog-publication-contract.mts";
 
 const roles = ["targets", "definitions", "policy", "snapshot", "timestamp"] as const;
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
@@ -60,7 +64,8 @@ function files(raw: unknown) {
       typeof file.bytes !== "number" ||
       !Number.isSafeInteger(file.bytes) ||
       file.bytes < 1 ||
-      file.bytes > 8 * 1024 * 1024
+      file.bytes >
+        (isCatalogDefinitionContent(file.target) ? catalogDefinitionContentBytes : 8 * 1024 * 1024)
     )
       throw new Error("catalog file bytes outside retained bound");
     total += file.bytes;

@@ -3,7 +3,7 @@
   "listing": {
     "id": "comix-zone-xbla-static-recompilation-sp00nznet-comix-zone-xbox-live-arcade",
     "name": "Comix Zone (Xbox Live Arcade) — Comix Zone XBLA - Static Recompilation (sp00nznet)",
-    "original_game_title": "Comix Zone (Xbox Live Arcade)",
+    "original_game_title": "Comix Zone",
     "summary": "Code generation complete; playable build remains future work. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/comixzone",
     "platforms": ["windows-x86-64"],
@@ -35,6 +35,12 @@
       "image_sha256": "1ea4c64687266ddb04262a56cec6e55533e7c94df83807868273d726112faa75",
       "game_slug": "comix-zone",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "comix-zone",
+      "evidence_urls": ["https://github.com/sp00nznet/comixzone"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

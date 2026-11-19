@@ -35,7 +35,22 @@
       ],
       "help_url": "https://github.com/jM5557/poka-poka"
     },
-    "issue_number": 3100
+    "issue_number": 3100,
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-diary-poka-poka-felyne-village-g",
+      "evidence_urls": ["https://github.com/jM5557/poka-poka"],
+      "source_editions": [
+        {
+          "id": "monster-hunter-diary-poka-poka-felyne-village-g-playstation-portable",
+          "title": "Monster Hunter Diary: Poka Poka Felyne Village G (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/jM5557/poka-poka/blob/9d110e05687ea1e057eb33b1cb41392edf949854/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

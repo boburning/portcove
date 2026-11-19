@@ -4,7 +4,7 @@
     "id": "nycolazs-windwakerhd-android-plus",
     "name": "The Legend of Zelda: The Wind Waker HD (Wind Waker HD Recompiled [Android] - Plus)",
     "summary": "A maintained Android Plus Wind Waker HD fork adding Brazilian Portuguese, localization and performance changes over the Enhanced and original Android ports. The APK prepares and statically compiles your own Wii U USA/Europe/Japan data on-device for ARM64/Vulkan. Keep this fork’s package, signing/update key and launcher together; parent packages are not interchangeable. Source builds need SDK 36, NDK 27.2 and JDK 17. Desktop support and independent campaign/device coverage are unconfirmed. Exact accepted game revision/hashes and BIOS/firmware requirements are unconfirmed. The project’s launcher manages replacement; Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "The Legend of Zelda: The Wind Waker HD",
+    "original_game_title": "The Legend of Zelda: The Wind Waker",
     "project_url": "https://github.com/Nycolazs/WindWakerHD-Android-Plus",
     "listed_at": "2026-10-25",
     "platforms": [],
@@ -18,7 +18,22 @@
       "game_slug": "the-legend-of-zelda-the-wind-waker-hd",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2857
+    "issue_number": 2857,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": ["https://github.com/Nycolazs/WindWakerHD-Android-Plus"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+          "title": "The Legend of Zelda: The Wind Waker (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": [
+            "https://github.com/Nycolazs/WindWakerHD-Android-Plus/blob/e5709a637db5d221b1176381d2b105fd5b3672db/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

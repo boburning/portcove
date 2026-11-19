@@ -3,13 +3,13 @@
   "listing": {
     "id": "super-smash-bros-ultimate-ssbu-arena",
     "name": "Super Smash Bros. Ultimate (ssbu-arena)",
-    "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. It uses your own 13.0.4 or 13.0.5 game. The project tested rollback with two windows on one PC. Ranked play and replays are planned.",
+    "summary": "SSBU Arena is an independent Windows fork for competitive one-on-one Super Smash Bros. Ultimate. The v0.2.52 release provides SSBU-Arena.exe to prepare and update the game from your own supported files. Upstream reported testing rollback with two windows on one PC. Portcove has yet to verify setup, matchmaking or gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/SSBUArena/ssbu-arena",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/SSBUArena/ssbu-arena",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
     "artwork": {
       "game_id": 90101,
       "cover_id": 96089,
@@ -19,25 +19,36 @@
       "match_kind": "underlying-game"
     },
     "issue_number": 2938,
+    "release_url": "https://github.com/SSBUArena/ssbu-arena/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SSBU-Arena.exe"]
+    },
     "manual_setup": {
-      "help_url": "https://github.com/SSBUArena/ssbu-arena",
+      "help_url": "https://github.com/SSBUArena/ssbu-arena/releases/tag/v0.2.52",
       "steps": [
         {
-          "title": "Check your original game files",
-          "instruction": "Use your own 13.0.4 or 13.0.5 game dump and keys, with any matching updates or DLC you own. Separate firmware needs are unclear."
+          "title": "Supply your own game files",
+          "instruction": "Follow the instructions for your own Super Smash Bros. Ultimate dump, matching update, and any keys required for the selected build. The project documents 13.0.4 and 13.0.5."
         },
         {
-          "title": "Follow the project’s setup",
-          "instruction": "Check the Windows 10 or 11 x64 guide against the selected release. The README describes a local source install, while v0.2.7 contains SSBU-Arena.exe, a player ZIP and a manifest."
+          "title": "Start the upstream launcher",
+          "instruction": "On Windows x64, choose SSBU-Arena.exe. Let the launcher install or update its companion files. The separate runtime archive and release manifest are for the launcher."
         }
       ],
-      "warnings": [],
-      "references": [
-        {
-          "title": "Version and platform notes",
-          "instruction": "The reported network tests used one computer. Linux and macOS guide links do not establish confirmed gameplay or CPU support there."
-        }
+      "warnings": [
+        "The publisher requires compatible versions for online play. Linux and macOS availability and gameplay have not been verified by Portcove."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": [
+        "https://github.com/SSBUArena/ssbu-arena",
+        "https://api.github.com/repositories/1428182133",
+        "https://api.github.com/repos/SSBUArena/ssbu-arena/contributors",
+        "https://api.github.com/repos/Acid236/ssbu-arena"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

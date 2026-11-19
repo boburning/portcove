@@ -131,35 +131,42 @@ export function catalogEntries(
   });
 }
 
-export function listingAvailabilityLabel(listing: PortListing, now = Date.now()): string {
-  const authored = () => {
-    switch (listing.availability) {
-      case "packages":
-        return "Upstream packages";
-      case "source-only":
-        return "Source only";
-      case "unavailable":
-        return "Upstream unavailable";
-      default:
-        return "Package availability unknown";
-    }
-  };
-  if (listing.availability_override_reason) return `${authored()} (authored override)`;
+type ListingAvailabilityAssessment = {
+  availability: NonNullable<PortListing["availability"]>;
+  label: string;
+  observedPlatforms?: PortDefinition["platforms"];
+};
+
+export function assessListingAvailability(
+  listing: PortListing,
+  now = Date.now(),
+): ListingAvailabilityAssessment {
+  const availability = listing.availability ?? "unknown";
+  const authoredLabel = {
+    packages: "Upstream packages",
+    "source-only": "Source only",
+    unavailable: "Upstream unavailable",
+    unknown: "Package availability unknown",
+  }[availability];
+  if (listing.availability_override_reason)
+    return { availability, label: `${authoredLabel} (catalog setting)` };
   const observation = listing.upstream_observation;
-  if (!observation) return authored();
+  if (!observation) return { availability, label: authoredLabel };
   const assets = observation.releases.flatMap((release) => release.assets);
-  const packages = assets.some((asset) => asset.platform_hints.length > 0);
-  const facts = !observation.observed_at
+  const observedPlatforms = [...new Set(assets.flatMap((asset) => asset.platform_hints))];
+  const observedAt = Date.parse(observation.observed_at ?? "");
+  const freshUntil = Date.parse(observation.fresh_until ?? "");
+  const observed = Number.isFinite(observedAt) && observedAt <= now;
+  const fresh = observed && now < freshUntil;
+  const facts = !observed
     ? "Package availability unknown"
-    : packages
+    : observedPlatforms.length
       ? "Package candidates observed"
       : assets.length
         ? "Release assets observed; package availability unknown"
         : "No package observed in checked releases";
   const limits = [
-    ...(observation.fresh_until != null && Date.parse(observation.fresh_until) <= now
-      ? ["stale observation"]
-      : []),
+    ...(observed && !fresh ? ["stale observation"] : []),
     ...(observation.status === "complete"
       ? []
       : [
@@ -170,7 +177,18 @@ export function listingAvailabilityLabel(listing: PortListing, now = Date.now())
               : "check failed",
         ]),
   ];
-  return limits.length ? `${facts} (${limits.join("; ")})` : facts;
+  const label = limits.length ? `${facts} (${limits.join("; ")})` : facts;
+  if (fresh && observation.status === "complete" && observedPlatforms.length)
+    return { availability, label, observedPlatforms };
+  // A bounded release window cannot establish that all upstream packages are absent.
+  return {
+    availability,
+    label: availability !== "unknown" ? `${authoredLabel}. ${label}` : label,
+  };
+}
+
+export function listingAvailabilityLabel(listing: PortListing, now = Date.now()): string {
+  return assessListingAvailability(listing, now).label;
 }
 
 /** Display only: require one current Core assessment, never infer a permission. */

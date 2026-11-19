@@ -271,8 +271,6 @@ it("checks a chosen game's files from its Discover details, preserves failures a
     .element(page.getByRole("heading", { name: "Harbor Adventure", level: 1 }))
     .toHaveFocus();
   await page.getByRole("tab", { name: "Game files" }).click();
-  const requirements = document.querySelector<HTMLDetailsElement>(".requirements-disclosure")!;
-  requirements.open = true;
   const opener = page
     .getByRole("group", { name: "Check game files" })
     .getByRole("button", { name: "Check game files", exact: true });
@@ -330,4 +328,22 @@ it.each([320, 240])("returns to the actual document reading position at %spx", a
   await expect.element(origin).toHaveFocus();
   expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
   expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
+});
+
+it("returns from Add games scan results to the saved-folder settings action", async () => {
+  await mount();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories" })
+    .getByRole("button", { name: "Game files", exact: true })
+    .click();
+  const openScan = page.getByRole("button", { name: /Scan in Add games|View scan results/ });
+  await expect.element(openScan).toBeVisible();
+  await openScan.click();
+  await expect.element(page.getByRole("heading", { name: "Add games", level: 1 })).toHaveFocus();
+  await expect
+    .element(page.getByRole("button", { name: "Scan saved folders", exact: true }))
+    .toBeVisible();
+  await page.getByRole("button", { name: "Back to Game files settings", exact: true }).click();
+  await expect.element(openScan).toHaveFocus();
 });

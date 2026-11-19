@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/awest813/DMC-Recomp"
     },
-    "issue_number": 2996
+    "issue_number": 2996,
+    "original_game": {
+      "format_version": 1,
+      "id": "devil-may-cry",
+      "evidence_urls": ["https://github.com/awest813/DMC-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

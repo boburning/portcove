@@ -541,7 +541,7 @@ it.each(
     { theme, width: 430, display: "flex", sidebarWidth: 60, pageScrolls: true },
   ]),
 )(
-  "separates the retained preparation log focus outline from its operation ID in $theme at $width",
+  "separates the retained preparation log focus outline from surrounding task information in $theme at $width",
   async ({ theme, width, display, sidebarWidth, pageScrolls }) => {
     const previousTheme = document.documentElement.dataset.theme;
     const previousViewport = { width: innerWidth, height: innerHeight };
@@ -631,7 +631,7 @@ it.each(
       await userEvent.keyboard("{Enter}");
       const log = page.getByText("View preparation log", { exact: true });
       await expect.element(log).toBeVisible();
-      await userEvent.tab();
+      await userEvent.tab({ shift: true });
       expect(document.activeElement).toBe(log.element());
       await userEvent.keyboard("{Enter}");
       await expect.poll(() => read.mock.calls.length).toBe(1);
@@ -649,15 +649,32 @@ it.each(
         "operation ID",
       );
       expect(operationId.textContent?.trim()).toBe(activity.id);
-      const idBounds = operationId.getBoundingClientRect();
+      const logDetails = fixtureValue(summary.closest("details"), "preparation log");
+      const logOwner = fixtureValue(logDetails.parentElement, "preparation log grid owner");
+      expect(logOwner.nextElementSibling).toBe(taskContainer);
+      const preceding = fixtureValue(logOwner.previousElementSibling, "preceding task failure");
+      expect(preceding.matches(".activity-details")).toBe(true);
+      expect(preceding.textContent).toContain(
+        fixtureValue(activity.failure, "preparation failure").presentation.summary,
+      );
+      expect(preceding.checkVisibility()).toBe(true);
+      const precedingBounds = preceding.getBoundingClientRect();
+      expect(precedingBounds.width).toBeGreaterThan(0);
+      expect(precedingBounds.height).toBeGreaterThan(0);
+      expect(precedingBounds.top).toBeGreaterThanOrEqual(0);
+      expect(precedingBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(precedingBounds.left).toBeGreaterThanOrEqual(0);
+      expect(precedingBounds.right).toBeLessThanOrEqual(innerWidth);
       const summaryBounds = summary.getBoundingClientRect();
       const style = getComputedStyle(summary);
       const outlineExtent =
         parseFloat(style.outlineWidth) + Math.max(0, parseFloat(style.outlineOffset));
       expect(style.outlineStyle).not.toBe("none");
       expect(outlineExtent).toBeGreaterThan(0);
-      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(idBounds.bottom + 4);
-      expect(idBounds.top).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(precedingBounds.bottom + 4);
+      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.left - outlineExtent).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.right + outlineExtent).toBeLessThanOrEqual(innerWidth);
       expect(summaryBounds.bottom + outlineExtent).toBeLessThanOrEqual(innerHeight);
       expect(
         host.querySelector<HTMLTextAreaElement>(

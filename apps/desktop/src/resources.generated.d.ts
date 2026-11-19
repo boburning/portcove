@@ -412,7 +412,8 @@ export default interface Resources {
       "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
       "label": "Upstream activity on GitHub",
       "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
-      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}.",
+      "unknown": "GitHub was checked on {{checked}}. The latest change date is unknown."
     }
   },
   "catalogUpdates": {
@@ -476,7 +477,7 @@ export default interface Resources {
       "fallbackGeneric": "A saved catalog could not be used. Portcove continued with the available catalog information.",
       "fallbackNotLoaded": "The selected catalog definition could not be loaded. Portcove continued with the available catalog information.",
       "fallbackReplay": "Portcove couldn’t accept this catalog update. Portcove continued with the available catalog information.",
-      "fallbackSignature": "A saved catalog did not pass signature verification. Portcove continued with the available catalog information.",
+      "fallbackSignature": "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
       "fallbackUntrusted": "A saved catalog was signed by a publisher that is no longer trusted. Portcove continued with the available catalog information.",
       "fingerprint": "Publisher fingerprint",
       "loadingInformation": "Loading catalog information…",
@@ -533,13 +534,18 @@ export default interface Resources {
     "listings": {
       "addressPlaceholder": "https://",
       "builtIn": "Using the built-in directory",
+      "checkingStatus": "Checking game listing status…",
       "contentAddress": "Catalog content address",
       "description": "Refresh port listings, artwork and setup information from the configured official publisher. Game installations keep their existing permissions and files.",
       "metadataAddress": "Catalog metadata address",
       "refresh": "Refresh game listings",
       "refreshing": "Refreshing game listings…",
+      "retryStatus": "Retry listing status",
       "revision_one": "Game listings revision {{revision}} · {{count}} published listing",
       "revision_other": "Game listings revision {{revision}} · {{count}} published listings",
+      "savedDirectoryUnavailable": "Portcove could not use the saved listing directory.",
+      "settings": "Listing refresh settings",
+      "statusFailed": "Game listing status is unknown. Could not read it: {{error}}",
       "title": "Game listings"
     }
   },
@@ -851,6 +857,7 @@ export default interface Resources {
       "website": "Project website"
     },
     "section": {
+      "configuration": "Game settings & mods",
       "files": "Game files",
       "label": "Game detail sections",
       "manage": "Manage",
@@ -1209,6 +1216,7 @@ export default interface Resources {
         "conflictsHeading": "Changes the same files as your other mods",
         "digests": "Download SHA-256 <download />; review <review />.",
         "downloading": "Downloading and checking {{file}}…",
+        "eligibilityUnknown": "The provider did not confirm availability. Check the project page, then refresh the listing.",
         "entry": "<name />",
         "entryVersion": "<name /> (<version />)",
         "file": "<file /> ({{size}})",
@@ -1858,6 +1866,16 @@ export default interface Resources {
           "inspect": "Files left by unfinished setup"
         }
       },
+      "consequence": {
+        "backup": "This check found a problem with a backup. Review saves and backups before relying on it.",
+        "malformed": "Portcove could not read this operation record. There is no supported recovery action here. Keep the files and contact support.",
+        "missing": "Portcove cannot use this registered copy at its recorded location. Review the installation to decide how to recover it.",
+        "orphaned": "Portcove found a folder in managed storage without a matching registration. Review library storage before moving any files.",
+        "retained": "Setup left a record or working files behind. Review what remains before deciding whether to clean up.",
+        "unfinished": "Portcove found an unfinished operation. Review its state before changing the game or library.",
+        "unknown": "Portcove could not recognize this recovery record. There is no supported recovery action here.",
+        "unreviewable": "Portcove cannot identify the setup to review. Keep the files and contact support."
+      },
       "details": {
         "cleanupLabel": "Cleanup changes and preserved data",
         "clearScope": "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
@@ -1888,13 +1906,14 @@ export default interface Resources {
       "failedRetained": "Recovery information could not be refreshed: <error /> The last completed check remains visible.",
       "heading": "Unfinished work and recovery",
       "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
-      "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",
+      "intro": "Review the next step for each item. Open Record details for its recorded location and diagnostic information.",
       "item": {
         "location": "Recorded location",
         "nextStep": "Suggested next step",
         "noGuidance": "No recovery guidance was recorded.",
         "noLocation": "No location was recorded.",
         "observation": "Diagnostic observation",
+        "recordDetails": "Record details",
         "reference": "Operation reference",
         "reviewFiles": "Review unfinished setup files",
         "summary": "<game /> · {{label}}"
@@ -1964,6 +1983,14 @@ export default interface Resources {
     "collection": {
       "withCount": "<name/> ({{total}})"
     },
+    "comparisonNotice": {
+      "available": "New download found: {{version}}.",
+      "effect": "Portcove shows a notice when it finds a new download for this port. It does not install anything.",
+      "label": "Update notices for {{port}}",
+      "markSeen": "Mark update notice as seen",
+      "off": "Update notices off",
+      "on": "Update notices on"
+    },
     "edit": {
       "create": "Create collection",
       "nameLabel": "Collection name",
@@ -1977,6 +2004,17 @@ export default interface Resources {
       "reload": "Reload choices",
       "write": "Portcove couldn’t confirm the changes. Showing your last confirmed choices."
     },
+    "favorite": {
+      "countUnavailable": "unavailable",
+      "count_one": "{{count, number}} game",
+      "count_other": "{{count, number}} games",
+      "favorite": "Favorite",
+      "label": "Favorite {{game}}",
+      "removeTitle": "Remove from favorites",
+      "retry": "Retry favorites",
+      "title": "Add to favorites",
+      "unconfirmed": "Portcove couldn’t confirm your favorites. Retry to check what was saved."
+    },
     "group": {
       "discover": "Discover collections",
       "library": "Library collections"
@@ -1984,13 +2022,6 @@ export default interface Resources {
     "menu": {
       "hide": "Hide from Library",
       "show": "Show in Library"
-    },
-    "save": {
-      "label": "Save {{game}} for later",
-      "removeTitle": "Remove saved game",
-      "save": "Save",
-      "saved": "Saved",
-      "title": "Save for later"
     },
     "sidebar": {
       "collectionLabel": "Collection: {{name}}",
@@ -2011,9 +2042,9 @@ export default interface Resources {
     },
     "view": {
       "all": "All games",
-      "followed": "Followed",
+      "followed": "With update notices",
       "hidden": "Hidden",
-      "saved": "Saved"
+      "saved": "Favorites"
     }
   },
   "removal": {

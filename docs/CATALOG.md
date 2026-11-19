@@ -1,10 +1,11 @@
 # Catalog policy
 
-Start with [Integration ownership](#integration-ownership) for the management
-boundary and [Adding or changing a port](#adding-or-changing-a-port) for per-ID
-authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
-owns engine negotiation; detailed port examples and dated receipts below retain
-their original scope and do not establish another port's admission or support.
+Read [Integration ownership](#integration-ownership) to find who manages a
+port. If you need to edit an individual port record, read
+[Adding or changing a port](#adding-or-changing-a-port). Use the
+[definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+to learn how clients choose supported adapters. Apply each example and dated
+test result only to the port and scope it covers.
 
 ## Implementation methods and shared dependencies
 
@@ -830,6 +831,12 @@ release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
+An authored `listing_inherit_asset_hints` array can reuse the same record's reviewed
+GitHub selectors for named managed platforms, provided the public project and
+release scope and selected channel agree. Keep literal overrides for distinct
+upstream packages and additional descriptive platforms. An explicit empty
+`download_asset_hints` map suppresses inheritance. This projection only supplies
+descriptive selectors.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
 A player's explicit saved channel or release takes precedence. For a genuinely
@@ -1040,8 +1047,8 @@ host preference. Core compares the SHA-1 or SHA-256 and size it already
 observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
-when every file that has a SHA-1 or SHA-256 and isn't a cue or gdi descriptor
-matches; CRC32- or MD5-only files can't be compared and don't count. A disc
+when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor
+matches; CRC32- or MD5-only files cannot be compared and do not count. A disc
 whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
 admission, registration or a contract result, and a catalog identity does not
 depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
@@ -3018,6 +3025,14 @@ independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
 
+Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
+OS coverage. Add `--json` for per-port detail. An authored
+`original_game_review` records deliberate multi-game, framework or unresolved
+scope. The report counts these separately from missing edition facts. Update
+ownership stays with upstream for listing-only records. A same-title match is a
+research lead. Check the implementation's actual input edition against pinned
+upstream evidence before adding a source system.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
@@ -3388,6 +3403,11 @@ index derived from an accepted project or release repository identity, including
 retained and pending listing projections. Comparison is exact: extra queries,
 fragments, download paths and foreign repositories need their own reviewed URL.
 This navigation rule grants no package acquisition, registration or launch action.
+Desktop hands off selected download notes after Core resolves the same release
+and asset IDs and confirms the displayed release URL. Resuming a saved setup
+uses the matching download record for its release notes and retained setup
+links, even when the current directory describes a different package. Those
+retained links require the saved setup identity.
 
 ### Choose a reusable authoring route
 
@@ -3795,6 +3815,7 @@ to each record. These checks add no runtime inheritance or shared policy registr
 ```text
 node scripts/prepare-port.mts --issue 156 --output-dir /path/to/preparation
 node scripts/prepare-port.mts --project https://github.com/owner/project --id stable-id --name "Project name" --output-dir /path/to/preparation
+node scripts/prepare-port.mts --project https://github.com/owner/project --original-game /path/to/game-identity.json --output-dir /path/to/preparation
 node scripts/prepare-port.mts --record /path/to/stable-id.json --route download --release-tag v1.2 --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/preparation
 node scripts/prepare-port.mts --listing-observations /path/to/catalog-upstream-observations/source.json --validator-cli TRUSTED_PORTCOVE_CLI --output-dir /path/to/observation-preparation
 ```
@@ -3810,6 +3831,22 @@ metadata only. `--route download` collects one 20-release candidate window or th
 explicit `--release-tag` and at most two 100-asset pages. Truncated or unavailable
 assets remain Unknown. Metadata never supplies package authenticity or executable
 acceptance.
+
+The `--original-game` input uses the same reviewed object as
+`listing.original_game` in an authored record. It carries the stable game ID,
+evidence URLs and identified source editions. Paired with the official project
+URL, it starts issue-free preparation and collects the initial bounded GitHub
+release window by default. Use `--route listing` for identity-only preparation.
+When GitHub confirms the repository identity, the proposal records its
+immutable ID as the initial lineage. GitHub URL aliases reuse the existing
+authored origin. A repository ID already recorded under a different project
+URL needs lineage review before it can move.
+Use the existing `--id` if the upstream project names several implementations
+or the existing listing has no reviewed game identity.
+For a non-GitHub project, supply `--name` if the game identity has no single
+source edition to name the listing. Resolving a different previously reviewed
+game or edition requires a reviewed record edit. The observed release window
+is evidence for assessing a route and does not declare one.
 
 `--listing-observations` consumes a retained source handoff from the existing
 catalog observer. It prepares complete canonical records through the same
@@ -4327,7 +4364,10 @@ adds no managed GitLab authority and leaves unsupported package layouts incomple
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact
-clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+clock, expiry and complete/incomplete/unavailable/failed attempt state. Discover
+uses the same assessment for rank and detail. Only a fresh complete observation
+with a recognized package platform can raise a listing's rank over its authored
+availability. An empty
 or incomplete bounded window never means source-only, unsupported or unavailable
 upstream. Provider digest claims remain unverified. The renderer does not query
 providers, update action permissions or rewrite acquisition links.
@@ -4379,3 +4419,14 @@ explicit CLI legacy exports flatten references without losing text. See
 uses the same source authority as schema 2; this presentation metadata does not
 change eligibility, runtime ownership or save compatibility. Do not add an unknown
 field to an older strict format or infer reference sections from heading text.
+
+### Reviewed upstream status
+
+The operational definition retains the legacy `upstream_status` values. Use
+`upstream_active_reviewed: true` to declare that an upstream project was
+reviewed as active. A legacy `active` value without this marker is unrecorded.
+Retired, superseded, and abandoned values are explicit declarations on their
+own. Repository activity observations retain their own dates and do not supply
+a catalog declaration. An indexed definition carrying this marker uses entry
+schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
+readers that only support schema 1.

@@ -1,13 +1,13 @@
 # Maintenance inventory store
 
-This document owns the stable source, identity, coverage and storage contracts
-for the maintainer-facing maintenance application specified in
-[#4129](https://github.com/boburning/portcove/issues/4129). The issue owns the
-executable acceptance and checkpoint evidence; this page is not a backlog.
+This guide explains how the maintenance application identifies its sources,
+records coverage, and stores data. Use
+[#4129](https://github.com/boburning/portcove/issues/4129) for the implementation
+requirements and checkpoint results.
 
-The application is maintainer tooling. Player installation, update, backup and
-launch never depend on it, and it grants no admission, support, qualification,
-publication or credential authority.
+Maintainers use this application. Players can install, update, back up, and
+launch games without it. Use the separate approval paths for admission,
+support, qualification, publication, and credentials.
 
 ## Ownership boundary
 
@@ -452,8 +452,12 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - `port:<id>` from authored records, with its canonical issue;
   - `implementation:<key>` from each record's validated lineage history, using
     the lineage contract's own keys (`lineageIdentityKeys`);
-  - `issue:<n>` for issues that name catalog IDs or port keys, so an
-    uncataloged implementation is searchable without a catalog entry;
+  - `upstream:repository:<host>:<id>` for an immutable repository ID from
+    reviewed catalog lineage or a validated hosted intake request. Search for
+    this identity to find the listings it serves and journal requests that
+    observed it. Each listing keeps its own target and Core assessments;
+  - `issue:<n>` for issues named by a catalog record or hosted request, and
+    issues that name catalog IDs or port keys. Closed issues remain searchable;
   - `intake:<request>` with its candidate port keys, candidate upstream URL and
     repository identities, and linked work;
   - `definition:<namespace>/<id>` from the publication source.

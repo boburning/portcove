@@ -37,7 +37,25 @@
         }
       ]
     },
-    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use."
+    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+    "original_game": {
+      "format_version": 1,
+      "id": "wetrix",
+      "evidence_urls": [
+        "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
+        "https://github.com/scottjco/Wetrix_Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wetrix-nintendo-64",
+          "title": "Wetrix (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,

@@ -417,7 +417,11 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ),
-        format!("Upstream state: {}", upstream_status(port.upstream_status)),
+        format!(
+            "Upstream state: {}",
+            port.declared_upstream_status()
+                .map_or("unrecorded", upstream_status)
+        ),
     ];
     if let Some(profile_id) = port.source_profile.as_deref() {
         lines.push(format!("Game-file profile ID: {}", clean(profile_id)));
@@ -4073,7 +4077,11 @@ mod tests {
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
-        let output = catalog_show(catalog.port("shipwright").unwrap());
+        let embedded = catalog.port("shipwright").unwrap();
+        assert!(catalog_show(embedded).contains("Upstream state: unrecorded"));
+        let mut reviewed = embedded.clone();
+        reviewed.upstream_active_reviewed = true;
+        let output = catalog_show(&reviewed);
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
         assert!(output.contains("Check method: Required files and format checks"));
@@ -4104,6 +4112,7 @@ mod tests {
                 key_id: Some("publisher-id".into()),
                 expires_at: Some(42),
                 fallback_reasons: vec!["active catalog expired\rcheck trust".into()],
+                fallback_codes: Vec::new(),
             },
             trusted_keys: vec![CatalogTrustKey {
                 key_id: "trusted-id".into(),
@@ -4146,6 +4155,7 @@ mod tests {
                 key_id: None,
                 expires_at: None,
                 fallback_reasons: Vec::new(),
+                fallback_codes: Vec::new(),
             },
             trusted_keys: Vec::new(),
             highest_sequence: 0,

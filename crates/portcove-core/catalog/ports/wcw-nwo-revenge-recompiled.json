@@ -16,7 +16,13 @@
       "game_slug": "wcw-nwo-revenge",
       "match_kind": "underlying-game"
     },
-    "issue_number": 92
+    "issue_number": 92,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-nwo-revenge",
+      "evidence_urls": ["https://github.com/jessetbh/WCWnWoRevengeRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

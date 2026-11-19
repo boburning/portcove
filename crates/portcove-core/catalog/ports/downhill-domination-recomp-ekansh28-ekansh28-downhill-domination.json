@@ -35,6 +35,21 @@
       "image_sha256": "e12a11410c2a7d150527f7c44a297717fca25f7c222c2d00be3a809decbdf711",
       "game_slug": "downhill-domination",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "downhill-domination",
+      "evidence_urls": ["https://github.com/ekansh28/Recomp-Domination"],
+      "source_editions": [
+        {
+          "id": "downhill-domination-playstation-2",
+          "title": "Downhill Domination (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/ekansh28/Recomp-Domination/blob/2131704b5d56f8ad9bbf0baaa4581759a1aaf87a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -43,6 +43,7 @@ import type {
   ActivityRecord,
   OperationEvent,
   DoctorReport,
+  GithubAuthStatus,
   PortDefinition,
   PortStatus,
   SourceProfile,
@@ -120,8 +121,10 @@ function useUpdateCenter({
   busy,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
   onSelect,
   onOpenSettings,
   generation,
@@ -167,8 +170,10 @@ function useUpdateCenter({
   busy?: string | undefined;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
@@ -284,8 +289,10 @@ function useUpdateCenter({
     busy,
     checkAll,
     signInOffer,
+    githubStatus,
     onCheckAnyway,
     onDismissSignInOffer,
+    onReviewGithub,
     onSelect,
     onOpenSettings,
     generation,
@@ -381,8 +388,10 @@ function renderUpdateCheckToolbar(model: ReturnType<typeof useUpdateCenter>) {
         hasInstalled={model.installed.length > 0}
         checkAll={model.checkAll}
         signInOffer={model.signInOffer}
+        githubStatus={model.githubStatus}
         onCheckAnyway={model.onCheckAnyway}
         onDismissSignInOffer={model.onDismissSignInOffer}
+        onReviewGithub={model.onReviewGithub}
       />
     </div>
   );
@@ -617,6 +626,14 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
   return (
     <>
       {renderUpdateCheckToolbar(model)}
+      <Button
+        data-focusable
+        variant="link"
+        size="sm"
+        onClick={() => model.onOpenSettings("application-updates")}
+      >
+        Open Portcove update settings
+      </Button>
       <UpdateBatchNotice read={model.batchRead} />
       <details className="update-check-details">
         <summary data-focusable>About update checks</summary>
@@ -626,17 +643,6 @@ function GameUpdatesContent({ model }: { model: UpdateCenterModel }) {
         </p>
         <h3>Update statistics</h3>
         {model.renderStatistics()}
-        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          Looking for Portcove or catalog updates?{" "}
-          <Button
-            data-focusable
-            variant="link"
-            size="xs"
-            onClick={() => model.onOpenSettings("application-updates")}
-          >
-            Open Portcove update settings
-          </Button>
-        </p>
       </details>
       {model.installed.length > 0 && (
         <div className="update-list grid max-w-5xl gap-3" data-focus-group>
@@ -835,22 +841,30 @@ function UpdateCheckControl({
   hasInstalled,
   checkAll,
   signInOffer,
+  githubStatus,
   onCheckAnyway,
   onDismissSignInOffer,
+  onReviewGithub,
 }: {
   busy?: string | undefined;
   status?: UpdateBatchRead["status"] | undefined;
   hasInstalled: boolean;
   checkAll: () => void | Promise<void>;
   signInOffer?: SignInOffer | undefined;
+  githubStatus?: GithubAuthStatus | undefined;
   onCheckAnyway?: (() => void | Promise<void>) | undefined;
   onDismissSignInOffer?: (() => void) | undefined;
+  onReviewGithub?: (() => void) | undefined;
 }) {
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
+  const checkButton = useRef<HTMLButtonElement>(null);
   const labelId = useId();
+  const signedIn = githubStatus?.authenticated ? githubStatus : undefined;
+  const allowance = signedIn?.rate_limit;
   return (
     <div className="update-buttons flex min-w-0 flex-wrap items-center gap-2">
       <Button
+        ref={checkButton}
         data-focusable
         variant="outline"
         className="max-w-full min-w-0 text-start whitespace-normal [&_span]:min-w-0 [&_span]:wrap-anywhere"
@@ -880,16 +894,45 @@ function UpdateCheckControl({
           role="status"
           className="basis-full text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground"
         >
-          <p>
-            Checking every installed port may use about {signInOffer.countedRequests} GitHub
-            requests, and about {signInOffer.remainingRequests} are left without signing in. Signing
-            in under Settings raises that allowance. Nothing is checked until you choose.
-          </p>
+          {signedIn ? (
+            <p>
+              {signedIn.login?.trim()
+                ? `Signed in to GitHub as ${signedIn.login}.`
+                : "Signed in to GitHub."}{" "}
+              {allowance
+                ? `${allowance.remaining.toLocaleString()} of ${allowance.limit.toLocaleString()} GitHub requests remaining.`
+                : "GitHub request limit unavailable."}{" "}
+              Nothing is checked until you choose.
+            </p>
+          ) : (
+            <p>
+              Checking every installed port may use about {signInOffer.countedRequests} GitHub
+              requests, and about {signInOffer.remainingRequests} are left without signing in.
+              Signing in under Settings raises that allowance. Nothing is checked until you choose.
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button data-focusable variant="outline" onClick={() => void onCheckAnyway?.()}>
-              Check anyway
+            {onReviewGithub && !signedIn && (
+              <Button data-focusable variant="link" onClick={onReviewGithub}>
+                Open GitHub connection
+              </Button>
+            )}
+            <Button
+              data-focusable
+              variant="outline"
+              data-github-check-decision
+              onClick={() => void onCheckAnyway?.()}
+            >
+              {signedIn ? "Check for updates" : "Check anyway"}
             </Button>
-            <Button data-focusable variant="ghost" onClick={() => onDismissSignInOffer?.()}>
+            <Button
+              data-focusable
+              variant="ghost"
+              onClick={() => {
+                checkButton.current?.focus();
+                onDismissSignInOffer?.();
+              }}
+            >
               Not now
             </Button>
           </div>
@@ -1208,6 +1251,11 @@ function ActivityRow({
         </div>
       )}
       <ActivityFailure activity={activity} target={target} onSelect={onSelect} />
+      {activity.operation === "prepare" && (
+        <div className={`${activityDetailsClass} pt-2`}>
+          <ActivityDiagnostic activityId={activity.id} generation={generation} />
+        </div>
+      )}
       <details className={activityDetailsClass}>
         <summary data-focusable>Task details</summary>
         <dl className="mt-2 grid gap-1">
@@ -1216,15 +1264,6 @@ function ActivityRow({
             <code>{activity.id}</code>
           </dd>
         </dl>
-        {activity.operation === "prepare" && (
-          <div className="mt-4">
-            <ActivityDiagnostic
-              key={`${generation}:${activity.id}`}
-              activityId={activity.id}
-              generation={generation}
-            />
-          </div>
-        )}
       </details>
     </div>
   );

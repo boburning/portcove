@@ -46,7 +46,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/DiegoDeDios/AlienReRecomp#quick-save",
+        "https://github.com/DiegoDeDios/AlienReRecomp"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

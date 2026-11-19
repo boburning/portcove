@@ -4,7 +4,7 @@ import {
   openAdvancedFilters as openAdvancedPanel,
 } from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -20,7 +20,14 @@ import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-w
 import { useLibraryBrowsingContext } from "../features/app-shell/use-library-browsing-context";
 import { useGameFileFilterContext } from "../features/browsing/use-game-file-filter-context";
 import { portDefinition } from "../test-fixtures";
-import type { GameFileQueryRefreshRequest, GameFileQuerySnapshot, PortStatus } from "../types";
+import type {
+  CatalogBrowsingSnapshot,
+  CatalogDocument,
+  GameFileQueryRefreshRequest,
+  GameFileQuerySnapshot,
+  PortStatus,
+} from "../types";
+import bundledCatalog from "../../../../crates/portcove-core/catalog/catalog.json";
 import { filterPorts, summarizeLibrary } from "../view-model";
 import "../styles/index.css";
 
@@ -36,9 +43,9 @@ const ports = ["Complete", "Missing", "Checking", "Empty", "Unknown"]
     channels: ["stable", "beta"] as const,
   }))
   .map((port) => ({ ...port, platforms: [...port.platforms], channels: [...port.channels] }));
-const catalog = { schema_version: 2, ports };
+const fixtureCatalog = { schema_version: 2, ports };
+const bundledDefinitions = bundledCatalog as CatalogDocument;
 const empty = new Map<string, PortStatus>();
-const availableIds = new Set(ports.map((port) => port.id));
 const remember = () => {};
 const switchLibrary = async () => {};
 const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot => ({
@@ -76,7 +83,9 @@ const response = (request: GameFileQueryRefreshRequest): GameFileQuerySnapshot =
   })),
 });
 
-function Session({ library }: { library: string }) {
+function Session({ library, catalog }: { library: string; catalog: CatalogDocument }) {
+  const ports = catalog.ports;
+  const availableIds = useMemo(() => new Set(ports.map((port) => port.id)), [ports]);
   const { ui, workspace } = useLibraryBrowsingContext({
     root: library,
     remember,
@@ -89,11 +98,48 @@ function Session({ library }: { library: string }) {
     catalog,
     sources: [],
     statuses: [],
+    browsing: {
+      schema_version: 1,
+      library: { id: "opaque-core", root: "/private-game-files" },
+      host_platform: "windows-x86-64",
+      contexts: [],
+      retained_metadata_complete: false,
+      workspace_binding_sha256: "a".repeat(64),
+    },
     generation,
     libraryKey: library,
   });
   const navigation = useDetailWorkspaceNavigation(workspace, ui.setSelectedId, availableIds);
-  const context = { library: { id: library, statuses: empty }, gameFiles: observation.context };
+  const browsing = useMemo((): CatalogBrowsingSnapshot | undefined => {
+    if (catalog === fixtureCatalog) return undefined;
+    return {
+      schema_version: 1,
+      library: { id: "opaque-core", root: library },
+      host_platform: "windows-x86-64",
+      retained_metadata_complete: true,
+      workspace_binding_sha256: "a".repeat(64),
+      contexts: ports.map((port, index) => ({
+        port_id: port.id,
+        context_id: (index + 1).toString(16).padStart(64, "0"),
+        definition_sha256: "e".repeat(64),
+        route: "managed_install",
+        platform: index === 0 ? "linux-x86-64" : "windows-x86-64",
+        channel: "stable",
+        port_member: false,
+        member_context: false,
+        instance_sha256: null,
+        installation_id: null,
+        installation_method: null,
+        release_version: null,
+        artifact_sha256: null,
+      })),
+    };
+  }, [catalog, library, ports]);
+  const context = {
+    library: { id: library, statuses: empty },
+    gameFiles: observation.context,
+    browsing,
+  };
   const { setView } = ui;
   useEffect(() => setView("catalog"), [setView]);
   return (
@@ -144,6 +190,7 @@ function Session({ library }: { library: string }) {
           view={ui.view}
           ports={filterPorts(ports, empty, ui.view, ui.filter, ui.query, ui.catalogSort, context)}
           catalogFilterCandidates={filterPorts(ports, empty, "catalog", "all", ui.query)}
+          libraryFilterCandidates={ports}
           queryContext={context}
           gameFileQuery={observation}
           statuses={empty}
@@ -164,7 +211,7 @@ function Session({ library }: { library: string }) {
     </main>
   );
 }
-function Fixture() {
+function Fixture({ catalog = fixtureCatalog }: { catalog?: CatalogDocument } = {}) {
   const [library, setLibrary] = useState("/game-filter-library-a");
   return (
     <DirectionProvider direction="ltr">
@@ -177,7 +224,7 @@ function Fixture() {
       >
         Switch library
       </button>
-      <Session key={library} library={library} />
+      <Session key={library} library={library} catalog={catalog} />
     </DirectionProvider>
   );
 }
@@ -403,3 +450,56 @@ it("retains catalog history through Catalog/Library section navigation without i
   await expect.element(page.getByLabelText("Catalog check history")).toBeInTheDocument();
   noAdditionalChecks();
 });
+
+it.each([256, 257, bundledDefinitions.ports.length])(
+  "uses complete bundled route coverage for %i definitions in Discover and Library",
+  async (count) => {
+    const catalog = { ...bundledDefinitions, ports: bundledDefinitions.ports.slice(0, count) };
+    const identity = { id: "opaque-core", root: "/game-filter-library-a" };
+    vi.mocked(desktopApi.libraryIdentity).mockResolvedValue(identity);
+    vi.mocked(desktopApi.refreshGameFileQuery).mockImplementation(async (request) => ({
+      ...response(request),
+      library: identity,
+      routes: request.routes.map((route, index) => ({
+        ...route,
+        state: index === count - 1 ? "no_files_required" : "needs_checking",
+        reason:
+          index === 0
+            ? "route_not_offered"
+            : index === count - 1
+              ? "explicit_empty_requirements"
+              : "observation_unavailable",
+        contract_id: null,
+        identity: null,
+        source_instance_sha256: null,
+        route_definition_sha256: "e".repeat(64),
+        route_instance_sha256: null,
+      })),
+    }));
+    flushSync(() => root.render(<Fixture catalog={catalog} />));
+    await openAdvancedFilters("Filters (0)");
+    await expect
+      .element(await filterChoice("No files to add in Portcove (unavailable)"))
+      .toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button("Check game-file filters"));
+    await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    await expect
+      .element(await filterChoice(`Needs checking (${count - 1})`))
+      .not.toHaveAttribute("aria-disabled", "true");
+    expect(
+      vi
+        .mocked(desktopApi.refreshGameFileQuery)
+        .mock.calls[0]?.[0].routes.map((route) => route.port_id),
+    ).toEqual(catalog.ports.map((port) => port.id));
+    await closeFilters();
+    await userEvent.click(button("Go to Library"));
+    await openAdvancedFilters("Filters (0)");
+    await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
+    await expect
+      .element(await filterChoice(`Needs checking (${count - 1})`))
+      .not.toHaveAttribute("aria-disabled", "true");
+    noAdditionalChecks();
+  },
+  // Opening both views renders hundreds of real cards under concurrent browser CI.
+  40_000,
+);

@@ -596,6 +596,14 @@ export type CatalogForeignReleaseId = {
  */
 export type CatalogDownloadRefusal = "managed-route";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
+export type CatalogFallbackCode =
+  | "unknown"
+  | "replay_floor"
+  | "untrusted_key"
+  | "signature_invalid"
+  | "invalid_validity"
+  | "selected_definition_unavailable"
+  | "listing_directory_unavailable";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
@@ -962,6 +970,10 @@ export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove
 export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
 export type RecipeModSettingValue = number | string;
 export type ProfileRecoveryProgress = "keep_current";
+/**
+ * Why a provider's eligibility flag could not be determined.
+ */
+export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -2496,6 +2508,11 @@ export interface PortDefinition {
   source_profile: string | null;
   summary: string;
   support_tier: SupportTier;
+  /**
+   * An explicit review of an active project. Older serialized definitions
+   * defaulted to Active, so that value alone cannot prove a declaration.
+   */
+  upstream_active_reviewed?: boolean;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
   windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
@@ -3338,6 +3355,10 @@ export interface ListingObservedAsset {
 export interface CatalogProvenance {
   catalog_sha256: string;
   expires_at: number | null;
+  /**
+   * Stable codes in the same order as the legacy diagnostic strings.
+   */
+  fallback_codes?: CatalogFallbackCode[];
   fallback_reasons: string[];
   key_id: string | null;
   origin: CatalogOrigin;
@@ -4930,6 +4951,7 @@ export interface ListingDeliveryStatus {
   anchor_sha256: string | null;
   delivery_schema: number;
   expires_at: string | null;
+  fallback_code?: CatalogFallbackCode | null;
   fallback_reason: string | null;
   listing_count: number;
   repository_root_sha256: string | null;
@@ -5927,6 +5949,10 @@ export interface ProviderProject {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is
@@ -5964,6 +5990,10 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Present when the wire response did not establish archival status.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   /**
    * Exact provider coordinates, independent of native loader requirements.
    * Absent for providers that do not supply this field.
@@ -6081,6 +6111,10 @@ export interface ProviderProject1 {
   profile_url: string;
   project_id: string;
   provider: string;
+  /**
+   * Present when the wire response did not establish project eligibility.
+   */
+  status_unknown?: ProviderStatusUnknown | null;
   submitter: string | null;
   /**
    * File records the adapter could not read. Non-zero means the file list is

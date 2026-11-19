@@ -448,7 +448,7 @@ it("prioritizes interrupted-transfer recovery and excludes generic reload until 
   const reset = vi.fn(async () => {});
   await root.rerender(
     <BootstrapRecovery
-      chooseLibrary={choose}
+      switchLibrary={choose}
       resetLibrary={reset}
       error={{
         code: "conflict",

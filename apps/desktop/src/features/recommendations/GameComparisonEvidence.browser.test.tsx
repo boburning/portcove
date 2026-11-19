@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { auditAccessibility } from "../../../test/accessibility";
 import { desktopApi } from "../../api";
+import { initializeLocalization } from "../../localization";
 import { Button } from "../../components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "../../components/ui/dialog";
 import { useGamepadNavigation } from "../../gamepad";
@@ -16,7 +17,13 @@ import "../../styles/index.css";
 
 let pressed: number[] = [];
 const back = vi.fn();
-function Fixture({ generation = 1 }: { generation?: number }) {
+function Fixture({
+  generation = 1,
+  siblings = false,
+}: {
+  generation?: number;
+  siblings?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const organization = useOrganization(generation);
@@ -45,6 +52,13 @@ function Fixture({ generation = 1 }: { generation?: number }) {
             portId="sample"
             organization={organization}
           />
+          {siblings && (
+            <GameComparisonEvidence
+              comparison={comparison}
+              portId="sibling"
+              organization={organization}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </main>
@@ -91,21 +105,25 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "changeOrganization").mockImplementation(async (revision, change) => {
     if (revision !== organization.revision || change.kind !== "set_followed_project")
       throw new Error("Unexpected organization fixture change");
-    if (change.kind === "set_followed_project")
-      organization = {
-        ...organization,
-        revision: organization.revision + 1,
-        followed_port_ids: change.followed ? [change.port_id] : [],
-        followed_release_acknowledgments: change.observed_identity
-          ? { [change.port_id]: [change.observed_identity] }
-          : {},
-      };
+    organization = {
+      ...organization,
+      revision: organization.revision + 1,
+      followed_port_ids: change.followed
+        ? [...new Set([...organization.followed_port_ids, change.port_id])]
+        : organization.followed_port_ids.filter((id) => id !== change.port_id),
+    };
     return globalThis.structuredClone(organization);
   });
   vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(async (request) => {
     const report = comparisonFixture();
     report.required_capabilities = request.required_capabilities ?? [];
     report.ports[0]!.followed = organization.followed_port_ids.includes("sample");
+    report.ports.push({
+      ...report.ports[0]!,
+      port_id: "sibling",
+      name: "Sibling project",
+      followed: organization.followed_port_ids.includes("sibling"),
+    });
     if (request.required_capabilities?.includes("multiplayer")) {
       report.assessment!.status = "insufficient-evidence";
       report.assessment!.candidates[0]!.recommendation_eligible = false;
@@ -118,6 +136,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await cleanup();
+  await initializeLocalization().changeLanguage("en");
   delete globalThis.document.documentElement.dataset.inputMode;
   vi.restoreAllMocks();
 });
@@ -167,9 +186,11 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   expect(
     vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].required_capabilities,
   ).toEqual(["multiplayer"]);
-  await userEvent.click(page.getByRole("button", { name: "Follow Fixture project", exact: true }));
+  await userEvent.click(
+    page.getByRole("button", { name: "Update notices for Fixture project", exact: true }),
+  );
   await expect
-    .element(page.getByRole("button", { name: "Following Fixture project", exact: true }))
+    .element(page.getByRole("button", { name: "Update notices for Fixture project", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
   expect(desktopApi.changeOrganization).toHaveBeenCalledExactlyOnceWith(
     0,
@@ -328,5 +349,77 @@ it.each(["failed", "unassessed"] as const)(
       .element(page.getByRole("button", { name: "Refresh version information", exact: true }))
       .toBeVisible();
     expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  [
+    "en",
+    "Update notices for Fixture project",
+    "Update notices for Sibling project",
+    "Update notices on",
+    "Update notices off",
+    "Portcove shows a notice when it finds a new download for this port. It does not install anything.",
+  ],
+  [
+    "es",
+    "Avisos de actualización de Fixture project",
+    "Avisos de actualización de Sibling project",
+    "Avisos de actualización activos",
+    "Avisos de actualización desactivados",
+    "Portcove muestra un aviso cuando encuentra una nueva descarga para esta adaptación. No instala nada.",
+  ],
+  [
+    "ar-XB",
+    "إشعارات تحديث Fixture project",
+    "إشعارات تحديث Sibling project",
+    "إشعارات التحديث مفعّلة",
+    "إشعارات التحديث متوقفة",
+    "يعرض Portcove إشعارًا عند العثور على تنزيل جديد لهذا المنفذ. لا يثبّت أي شيء.",
+  ],
+])(
+  "keeps sibling update notices independent and explains the effect in %s",
+  async (locale, firstLabel, secondLabel, on, off, effect) => {
+    await initializeLocalization().changeLanguage(locale);
+    await render(<Fixture siblings />);
+    await page.getByRole("button", { name: "Compare projects", exact: true }).click();
+    const first = page.getByRole("button", { name: firstLabel, exact: true });
+    const second = page.getByRole("button", { name: secondLabel, exact: true });
+    const firstEvidence = page.getByRole("region", {
+      name: "Reports and updates for Fixture project",
+      exact: true,
+    });
+    await expect.element(firstEvidence.getByText(off, { exact: true })).toBeVisible();
+    await expect.element(first).toHaveAccessibleDescription(effect);
+    await expect.element(second).toHaveAccessibleDescription(effect);
+    await first.click();
+    await expect.element(firstEvidence.getByText(on, { exact: true })).toBeVisible();
+    await expect.element(first).toHaveAttribute("aria-pressed", "true");
+    await expect.element(second).toHaveAttribute("aria-pressed", "false");
+    await second.click();
+    await expect.element(second).toHaveAttribute("aria-pressed", "true");
+    await first.click();
+    await expect.element(firstEvidence.getByText(off, { exact: true })).toBeVisible();
+    await expect.element(first).toHaveAttribute("aria-pressed", "false");
+    await expect.element(second).toHaveAttribute("aria-pressed", "true");
+    expect(vi.mocked(desktopApi.changeOrganization).mock.calls.map(([, change]) => change)).toEqual(
+      [
+        expect.objectContaining({
+          kind: "set_followed_project",
+          port_id: "sample",
+          followed: true,
+        }),
+        expect.objectContaining({
+          kind: "set_followed_project",
+          port_id: "sibling",
+          followed: true,
+        }),
+        expect.objectContaining({
+          kind: "set_followed_project",
+          port_id: "sample",
+          followed: false,
+        }),
+      ],
+    );
   },
 );

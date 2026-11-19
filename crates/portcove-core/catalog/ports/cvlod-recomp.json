@@ -48,6 +48,15 @@
         }
       ],
       "help_url": "https://github.com/fliperama86/cvlod_recomp/blob/v0.2.29/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-legacy-of-darkness",
+      "evidence_urls": [
+        "https://github.com/fliperama86/cvlod_recomp/blob/v0.2.29/README.md",
+        "https://github.com/fliperama86/cvlod_recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

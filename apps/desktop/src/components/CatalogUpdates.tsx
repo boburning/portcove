@@ -1,3 +1,4 @@
+import { CatalogFallbackReason } from "./CatalogFallbackReason";
 import { SettingsRow } from "./ui/patterns";
 import { useEffect, useId, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -138,6 +139,7 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
         <CatalogFallbackReason
           key={`${index}:${reason}`}
           reason={reason}
+          code={provenance.fallback_codes?.[index]}
           position={index + 1}
           count={provenance.fallback_reasons.length}
         />
@@ -146,45 +148,7 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
   );
 }
 
-function CatalogFallbackReason({
-  reason,
-  position,
-  count,
-}: {
-  reason: string;
-  position: number;
-  count: number;
-}) {
-  const { t } = useAppTranslation("catalogUpdates");
-  return (
-    <div className="catalog-fallback-reason">
-      <p>{catalogFallbackSummary(t, reason)}</p>
-      <details>
-        <summary
-          data-focusable
-          aria-label={t("custom.fallbackDetailsLabel", { position, total: count })}
-        >
-          {t("custom.technicalDetails")}
-        </summary>
-        <code className="[overflow-wrap:anywhere]">{reason}</code>
-      </details>
-    </div>
-  );
-}
-
-// Known limitation: Core reports fallback reasons as English diagnostics without
-// stable codes, so this classifier still matches their text. Unknown reasons use
-// the generic message; the original diagnostic stays visible verbatim.
-function catalogFallbackSummary(t: TFunction<"catalogUpdates">, reason: string) {
-  if (reason.includes("selected definition was not loaded")) return t("custom.fallbackNotLoaded");
-  if (reason.includes("replay floor")) return t("custom.fallbackReplay");
-  if (reason.includes("signing key is not trusted")) return t("custom.fallbackUntrusted");
-  if (reason.includes("signature verification failed")) return t("custom.fallbackSignature");
-  if (reason.includes("validity interval")) return t("custom.fallbackExpired");
-  return t("custom.fallbackGeneric");
-}
-
-function CatalogUpdatesDialog({
+export function CatalogUpdatesDialog({
   close,
   onChanged,
 }: {
@@ -633,6 +597,8 @@ function ListingDeliveryControls({
   const [targets, setTargets] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [statusError, setStatusError] = useState<string>();
+  const [statusAttempt, setStatusAttempt] = useState(0);
   useEffect(() => {
     let current = true;
     void desktopApi
@@ -641,17 +607,18 @@ function ListingDeliveryControls({
         if (current) setStatus(value);
       })
       .catch((cause: unknown) => {
-        if (current) setError(errorText(cause));
+        if (current) setStatusError(errorText(cause));
       });
     return () => {
       current = false;
     };
-  }, []);
+  }, [statusAttempt]);
   const refresh = async () => {
     setBusy(true);
     setError(undefined);
     try {
       setStatus(await desktopApi.refreshCatalogListings(metadata, targets, () => {}));
+      setStatusError(undefined);
       await onChanged?.();
     } catch (cause) {
       setError(errorText(cause));
@@ -660,9 +627,25 @@ function ListingDeliveryControls({
     }
   };
   return (
-    <details>
-      <summary>{t("listings.title")}</summary>
-      <p>{t("listings.description")}</p>
+    <section className="grid gap-2">
+      <h3>{t("listings.title")}</h3>
+      {statusError !== undefined && (
+        <div>
+          <p role="alert">{t("listings.statusFailed", { error: statusError })}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setStatusError(undefined);
+              setStatusAttempt((attempt) => attempt + 1);
+            }}
+          >
+            {t("listings.retryStatus")}
+          </Button>
+        </div>
+      )}
+      {!status && statusError === undefined && !busy && !error && (
+        <p role="status">{t("listings.checkingStatus")}</p>
+      )}
       {status && (
         <p>
           {status.selected
@@ -673,36 +656,53 @@ function ListingDeliveryControls({
             : t("listings.builtIn")}
         </p>
       )}
-      {status?.fallback_reason && <p>{status.fallback_reason}</p>}
-      <label htmlFor={metadataId}>
-        {t("listings.metadataAddress")}
-        <Input
-          id={metadataId}
-          value={metadata}
-          onChange={(event) => setMetadata(event.target.value)}
-          placeholder={t("listings.addressPlaceholder")}
-          disabled={disabled || busy}
+      {status?.fallback_reason && (
+        <CatalogFallbackReason
+          reason={status.fallback_reason}
+          code={status.fallback_code}
+          position={1}
+          count={1}
         />
-      </label>
-      <label htmlFor={targetsId}>
-        {t("listings.contentAddress")}
-        <Input
-          id={targetsId}
-          value={targets}
-          onChange={(event) => setTargets(event.target.value)}
-          placeholder={t("listings.addressPlaceholder")}
-          disabled={disabled || busy}
-        />
-      </label>
-      <Button
-        disabled={disabled || busy || !metadata || !targets}
-        onClick={() => {
-          void refresh();
-        }}
-      >
-        {busy ? t("listings.refreshing") : t("listings.refresh")}
-      </Button>
-      {error && <p role="alert">{error}</p>}
-    </details>
+      )}
+      <details>
+        <summary>{t("listings.settings")}</summary>
+        <p>{t("listings.description")}</p>
+        <label htmlFor={metadataId}>
+          {t("listings.metadataAddress")}
+          <Input
+            id={metadataId}
+            value={metadata}
+            onChange={(event) => setMetadata(event.target.value)}
+            placeholder={t("listings.addressPlaceholder")}
+            disabled={disabled || busy}
+          />
+        </label>
+        <label htmlFor={targetsId}>
+          {t("listings.contentAddress")}
+          <Input
+            id={targetsId}
+            value={targets}
+            onChange={(event) => setTargets(event.target.value)}
+            placeholder={t("listings.addressPlaceholder")}
+            disabled={disabled || busy}
+          />
+        </label>
+        <Button
+          disabled={
+            disabled ||
+            busy ||
+            (!status && statusError === undefined && !error) ||
+            !metadata ||
+            !targets
+          }
+          onClick={() => {
+            void refresh();
+          }}
+        >
+          {busy ? t("listings.refreshing") : t("listings.refresh")}
+        </Button>
+        {error && <p role="alert">{error}</p>}
+      </details>
+    </section>
   );
 }

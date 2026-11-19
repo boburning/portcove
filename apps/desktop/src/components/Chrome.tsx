@@ -95,7 +95,7 @@ import type { SourceInspectionReadState } from "../features/source-health/use-so
 import { BrandAvatar, BrandMascot } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
 import { LibraryRecovery } from "./LibraryRecovery";
-import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
@@ -821,7 +821,9 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
   return (
     <>
       <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
-        <h2 className="m-0 flex items-center gap-2">GitHub connection</h2>
+        <h2 id="settings-github-connection" tabIndex={-1} className="m-0 flex items-center gap-2">
+          GitHub connection
+        </h2>
         <span className={stateClass}>
           <Icon glyph={StateIcon} size="sm" />
           {connectionStatus}
@@ -1431,7 +1433,11 @@ function SourceInspectionPresentation({
     <div className="col-span-full min-w-0">
       <div>
         {currentReport ? (
-          <SourceIdentityPanel report={currentReport} openEvidence={openEvidence} />
+          <SourceIdentityPanel
+            report={currentReport}
+            evidenceLabel="File details and test results"
+            openEvidence={openEvidence}
+          />
         ) : (
           <p
             className={
@@ -1739,6 +1745,8 @@ type SettingsViewProps = {
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
+  onOpenGameFileScan?: () => void;
+  onReturnToUpdateDecision?: (() => void) | undefined;
   onOpenActivity?: () => void;
   onReviewSaves?: (portId: string, origin: string) => void;
   hostToolActions?: HostToolActions | undefined;
@@ -1786,6 +1794,8 @@ export function SettingsView(props: SettingsViewProps) {
     setSetupSource,
     onCatalogChanged,
     onOpenGameUpdates,
+    onOpenGameFileScan,
+    onReturnToUpdateDecision,
     onOpenActivity,
     onReviewSaves,
     hostToolActions,
@@ -1800,6 +1810,7 @@ export function SettingsView(props: SettingsViewProps) {
   const [localCategory, setLocalCategory] = useState<SettingsCategory>("appearance");
   const selectedCategory = category ?? localCategory;
   const [steamOpen, setSteamOpen] = useState(false);
+  const [catalogManagerOpen, setCatalogManagerOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
     <nav className="settings-section-index" aria-label="Settings categories" data-focus-group>
@@ -1887,6 +1898,8 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <GameFileLibraries
         key={generation}
+        active={selectedCategory === "game-files"}
+        onOpenScan={onOpenGameFileScan}
         generation={generation}
         ports={ports}
         statuses={statuses}
@@ -1991,13 +2004,17 @@ export function SettingsView(props: SettingsViewProps) {
         <Button
           data-focusable
           variant="link"
-          onClick={() => {
-            (onCategoryChange ?? setLocalCategory)("advanced");
-            revealSettingsHeading("settings-advanced-heading");
-          }}
+          disabled={Boolean(busy)}
+          onClick={() => setCatalogManagerOpen(true)}
         >
           Manage custom catalog sources
         </Button>
+        {catalogManagerOpen && (
+          <CatalogUpdatesDialog
+            close={() => setCatalogManagerOpen(false)}
+            onChanged={onCatalogChanged}
+          />
+        )}
       </SettingsRow>
     </SettingsSection>
   );
@@ -2047,12 +2064,18 @@ export function SettingsView(props: SettingsViewProps) {
               />
             ) : steamOpen ? (
               <SteamBatchEntryDialog
+                allowSingle
                 ports={steamPorts}
                 generation={generation}
                 close={() => setSteamOpen(false)}
               />
             ) : null}
           </SettingsRow>
+          {onReturnToUpdateDecision && (
+            <Button data-focusable variant="outline" onClick={onReturnToUpdateDecision}>
+              Return to update check
+            </Button>
+          )}
           <GithubSettings github={github} busy={busy} />
           <SteamGridDbSettings generation={generation} />
         </SettingsSection>

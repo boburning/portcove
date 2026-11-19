@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/mercurialw0rld/thebeatlesrockband-pcport"
     },
-    "issue_number": 3213
+    "issue_number": 3213,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-beatles-rock-band",
+      "evidence_urls": ["https://github.com/mercurialw0rld/thebeatlesrockband-pcport"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -480,18 +480,20 @@ export async function interruptedPreparationScenario({
     artifacts.push(evidence);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', row);
     const review = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"] > details`)),
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
       15_000,
     );
-    await review.findElement(By.css("summary")).click();
+    const recordDetails = await review.findElement(By.css("details"));
+    assert.equal(await recordDetails.getAttribute("open"), null);
     assert.match(await review.getText(), /Unfinished setup files/);
-    assert.ok((await review.getText()).includes(required(privatePath)));
-    assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );
-    assert.equal((await review.findElements(By.css("button,a"))).length, 1);
+    assert.equal(await cleanupReview.isDisplayed(), true);
+    await recordDetails.findElement(By.css("summary")).click();
+    assert.ok((await recordDetails.getText()).includes(required(privatePath)));
+    assert.match(await recordDetails.getText(), /this interrupted setup cannot resume/);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', review);
     const recoveryAccessibility = await observeAccessibility(browser);
     const recoveryReport = path.join(output, "recovery-review-accessibility.json");
@@ -734,23 +736,11 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
-    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
-    let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
-    await recoveredReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await recoveredReview.getAttribute("open")) !== null,
-      5_000,
-      "The recovered preparation disclosure must be open before cleanup review",
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    const recoveredReview = await browser.wait(
+      until.elementLocated(recoveredReviewLocator),
+      15_000,
     );
-    recoveredReview = await browser.findElement(recoveredReviewLocator);
-    if ((await recoveredReview.getAttribute("open")) === null) {
-      await recoveredReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await recoveredReview.getAttribute("open")) !== null,
-        5_000,
-        "The current recovered preparation disclosure must be open before cleanup review",
-      );
-    }
     await clickVisible(
       browser,
       await recoveredReview.findElement(
@@ -831,9 +821,7 @@ export async function interruptedPreparationScenario({
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     controls = reviewControls(browser);
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-    const journalOnlyReviewLocator = By.css(
-      `[data-recovery-operation="${journalOnlyId}"] > details`,
-    );
+    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(
       async () =>
@@ -847,22 +835,7 @@ export async function interruptedPreparationScenario({
       15_000,
       "Recovery diagnostics must settle before journal-only cleanup review",
     );
-    let journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    await journalOnlyReview.findElement(By.css("summary")).click();
-    await browser.wait(
-      async () => (await journalOnlyReview.getAttribute("open")) !== null,
-      5_000,
-      "The journal-only recovery disclosure must be open before cleanup review",
-    );
-    journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
-    if ((await journalOnlyReview.getAttribute("open")) === null) {
-      await journalOnlyReview.findElement(By.css("summary")).click();
-      await browser.wait(
-        async () => (await journalOnlyReview.getAttribute("open")) !== null,
-        5_000,
-        "The current journal-only recovery disclosure must be open before cleanup review",
-      );
-    }
+    const journalOnlyReview = await browser.findElement(journalOnlyReviewLocator);
     const journalOnlyCleanupReview = await journalOnlyReview.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
     );

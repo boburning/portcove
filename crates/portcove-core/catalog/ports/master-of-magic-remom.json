@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "master-of-magic-remom",
+    "name": "Master of Magic / ReMoM",
+    "summary": "Run Master of Magic with ReMoM using the original game data from your own DOS installation.",
+    "project_url": "https://github.com/jbalcomb/ReMoM",
+    "original_game_title": "Master of Magic",
+    "issue_number": 5833,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["ReMoM-", "-Windows-AMD64.zip"],
+      "linux-x86-64": ["ReMoM-", "-Linux-x86_64.tar.gz"]
+    },
+    "release_url": "https://github.com/jbalcomb/ReMoM/releases/tag/v0.1.0",
+    "setup_url": "https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the engine archive",
+          "instruction": "Extract the full Windows ZIP and open ReMoM.exe. On Linux, extract the tarball and run ReMoM with SDL2 and SDL2_mixer installed."
+        },
+        {
+          "title": "Point ReMoM at your own Master of Magic files",
+          "instruction": "ReMoM looks for version 1.31 files in the usual GOG, Steam and CD install locations. If it cannot find them, follow the upstream guide to set game_data in ReMoM.ini, or put the original .LBX files next to the executable. Open the same program again to play."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the working save folder",
+          "instruction": "The default save folder is %APPDATA%/ReMoM on Windows or ~/.local/share/ReMoM on Linux. The program can copy SAVE1.GAM through SAVE9.GAM from your original on first run. Keep the working copies before replacing the engine with a newer upstream release."
+        }
+      ],
+      "warnings": ["Portcove does not back up your ReMoM saves."]
+    }
+  }
+}

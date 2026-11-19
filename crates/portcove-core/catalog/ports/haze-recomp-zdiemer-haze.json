@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/zdiemer/haze-recomp"
     },
-    "issue_number": 3317
+    "issue_number": 3317,
+    "original_game": {
+      "format_version": 1,
+      "id": "haze",
+      "evidence_urls": ["https://github.com/zdiemer/haze-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

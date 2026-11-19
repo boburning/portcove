@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 
@@ -205,15 +206,148 @@ Use `node scripts/report-summary.mts watch FILE` for its bounded final summary.
 Consume the watch result or retained snapshots; retrieve the identified failed
 job when needed.
 
-For agent delivery sessions, use that watcher rather than repeated snapshot reads.
-Retain raw reports, then use `report-summary` or project the identity, changed
-state and next required action before printing. A collector timeout is an
-observation failure: inspect the bound run before deciding whether execution
-needs repeating. The personal `github-pull-request-delivery` skill provides
-bounded MCP reads and checkpoint helpers when those surfaces are used.
-When a tool returns a running session, consume it with a bounded wait of at most
-60 seconds before the next commentary update. Reuse its final report; do not
-start another watcher or repeatedly fetch unchanged state.
+For agent delivery, hand off the wait to the local worker when available. End
+the turn once the worker acknowledges the saved watch. For a foreground run,
+consume the final report or retained evidence. A collector timeout calls for
+inspection of the bound run before deciding whether execution needs repeating.
+
+### Local Codex PR handoff
+
+Run the watcher on the Linux runner under the account that owns the Codex daemon
+and the authenticated GitHub CLI. A systemd user service keeps the worker alive
+after logout and recovers its SQLite journal at boot. Use a stable, reviewed
+Portcove tools checkout for the service. Install the checkout's pinned Node and
+dependencies, `just`, `gh`, and a Codex build whose `queue --help` includes
+`--resume`. The worker uses Python 3.11+ and its `websockets` package for local
+daemon readback. Run these once on that host, with those tools on PATH.
+
+```sh
+cd /absolute/path/to/portcove-tools
+gh auth status
+codex app-server daemon start
+codex app-server daemon version
+codex queue --help
+python3 -m venv work/pr-wake-venv
+work/pr-wake-venv/bin/pip install websockets==16.0
+install -d -m 700 "$HOME/.local/state/portcove/pr-wake" "$HOME/.config/systemd/user"
+tools_checkout=$(pwd -P)
+codex_cli=$(command -v codex)
+cat > "$HOME/.config/systemd/user/portcove-codex-start.service" <<EOF
+[Unit]
+Description=Start the existing local Codex daemon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment="PATH=$PATH"
+ExecStart="$codex_cli" app-server daemon start
+EOF
+cat > "$HOME/.config/systemd/user/portcove-pr-wake.service" <<EOF
+[Unit]
+Description=Portcove local pull request watcher
+Wants=portcove-codex-start.service
+After=portcove-codex-start.service
+
+[Service]
+Environment="PATH=$PATH"
+Environment="PORTCOVE_PR_WAKE_STATE=%h/.local/state/portcove/pr-wake"
+ExecStart="$tools_checkout/work/pr-wake-venv/bin/python" "$tools_checkout/scripts/pr_wake.py" serve
+UMask=0077
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+loginctl enable-linger "$(id -un)"
+systemctl --user daemon-reload
+systemctl --user enable --now portcove-pr-wake.service
+systemctl --user status portcove-pr-wake.service
+```
+
+Use the same `CODEX_HOME` and GitHub CLI configuration in the service and owning
+session. If either uses a custom location, set it explicitly in the service
+environment for each relevant unit. The units use the existing logged-in
+accounts. If the runner already starts its Codex daemon at boot, point
+`Wants` and `After` at that service instead of installing the oneshot unit.
+The watcher can restart independently of the shared daemon. Confirm that
+the shell PATH written into the units contains persistent tool directories.
+
+Start the owning Codex thread on that local daemon in the PR worktree, with
+write access to the journal directory. For the Codex CLI with workspace-write
+sandboxing, run `codex --add-dir "$HOME/.local/state/portcove/pr-wake"` in
+that worktree. Supply the actual run and attempt. A queued workflow may have
+a run and attempt before any job starts. Supply a finite UTC observation
+deadline at handoff, and retain it across restarts. The journal records GitHub's
+run creation and first observed attempt-job start separately. The timeout
+configured on GitHub still governs job execution.
+
+```sh
+export PORTCOVE_PR_WAKE_STATE="$HOME/.local/state/portcove/pr-wake"
+tools_checkout=/absolute/path/to/portcove-tools
+python3 "$tools_checkout/scripts/pr_wake.py" handoff --pr NUMBER --head SHA --run RUN --attempt ATTEMPT --deadline UTC
+```
+
+The command reads the thread UUID injected by Codex and checks the local
+worktree HEAD. The service reads that exact thread and its queue and turn history,
+verifies its worktree, and commits the acceptance timestamp to the journal.
+Wait for the receipt with `accepted` before ending the model turn. An
+unacknowledged handoff can be retried with the same binding. After the required
+review of a new head, the same owner can hand off its new binding while the
+repair turn is active. The worker reconciles the previous event before
+accepting the replacement.
+
+The worker runs `just pr-watch --sample --json` locally. Ordinary polling
+starts no Codex turns. The worker also listens
+for PR events when supported by the account and `gh`. Each attachment and
+reconnection triggers a fresh read because GitHub does not replay missed events.
+A check-suite event triggers the full required-check evaluation. The three-minute
+poll also catches conversation comments that address the PR author from a
+repository owner, member, or collaborator, and submitted review feedback on the
+bound head. Duplicate hints coalesce before evaluation. The GitHub CLI's
+preview subscriptions expire automatically.
+
+Each actionable event is written to disk before the worker invokes
+`codex queue --thread UUID --resume --message EVENT`. The worker reads the
+target thread's persisted user message and turn ID as pickup evidence. After
+an outage it checks the target's queue and history and resumes an existing
+queued message if it finds one. The message asks the owner to claim the event
+once and re-read the live PR before proceeding. A completed, claimed turn
+settles the event. The worker retries once after a failed or interrupted turn,
+or after a turn ends without claiming the event. The recovery turn reads prior
+work and current PR state before repeating any action. If `status` reports a
+`delivery_error`, open the saved UUID, inspect its last turn and current PR,
+and resolve the retained action in that thread. `receipt EVENT` shows both
+turn IDs. Raw check evidence stays local.
+To read its bounded summary, redirect the event's `report EVENT` output to
+a file, then run `node scripts/report-summary.mts watch FILE`.
+
+Use these commands under the same account to inspect or recover delivery.
+
+```sh
+python3 "$tools_checkout/scripts/pr_wake.py" status NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" receipt EVENT
+python3 "$tools_checkout/scripts/pr_wake.py" pause NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" resume NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" cancel NUMBER
+codex app-server daemon start
+systemctl --user restart portcove-pr-wake.service
+journalctl --user -u portcove-pr-wake.service -n 50
+```
+
+Pausing stops new sends and removes an outstanding queued copy when reachable.
+Use `resume` to re-enable the watch. Cancellation, merge, and closure retire
+the watch after queued copies are reconciled. The event journal retains delivery
+receipts. A pause or cancellation after a turn has started prevents new claims.
+Use the thread's normal interrupt control to stop work already claimed.
+
+Use a disposable local Codex thread to validate host activation. Register a
+disposable PR with pending checks, end the turn and close the Codex window.
+After an actionable condition, use `status NUMBER` to get the event ID and
+`receipt EVENT` to verify the picked-up turn and registered UUID against the
+daemon's thread history. The
+fixture command `python3 scripts/pr_wake_test.py` covers controlled-clock
+polling and recovery independently of host activation.
 
 ### Connector delivery observations
 
@@ -2416,7 +2550,9 @@ routine profiles. It retains malformed preferences and player-data before copies
 checks the actual startup diagnostics and absence of the normal workspace, and
 proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
-library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
+library identity and player data. A six-minute harness watchdog covers the
+initial refusal, both restarts, and owned-process cleanup. The failed-startup
+screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
 Technical labels retain their exact spelling while wrapping within their column;
 the scenario checks actual label/value separation and requires no unresolved
@@ -3873,7 +4009,11 @@ retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
 message parser so stream lengths retain byte units.
 Windows process-identity inspection retains a finite 15-second harness
-budget under host I/O load; host release allows 65 seconds for its bounded
+budget under host I/O load. Native Windows first checks existence with signal0,
+which sends no signal: only ESRCH returns absent without CIM. A possibly live
+process, permissions error or uncertain result still requires the exact CIM
+creation identity. This does not prove descendant or external-work cleanup;
+their existing custody checks remain required. Host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
 requires an explicit completion marker. If registration is missing after launch,

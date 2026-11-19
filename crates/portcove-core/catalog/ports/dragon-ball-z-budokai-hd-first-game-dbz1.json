@@ -18,5 +18,13 @@
       "game_slug": "dragon-ball-z-budokai-hd-collection",
       "match_kind": "underlying-game"
     }
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "The retained listing labels the first Budokai game, but primary DBZ1 README/configuration only identifies generic Budokai HD/default.xex and includes copied rb2/RE2 setup. It does not prove whether the imported executable is the first game or the HD Collection launcher. Obtain a title-specific executable/member identity and upstream entrypoint/source mapping before assigning one original game. Shared collection artwork and the DBZ1 repository name do not establish that scope.",
+    "evidence_urls": [
+      "https://github.com/WistfulHopes/DBZ1",
+      "https://github.com/WistfulHopes/DBZ1/blob/1c88aaf/README.md"
+    ]
   }
 }

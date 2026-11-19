@@ -45,6 +45,16 @@
       "warnings": [
         "Select completed data/bin/wwhd.exe with the actual prepared game and save paths. Keep the whole data tree and existing portable/user-root choice; the top-level Windows setup interface detaches."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": [
+        "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/blob/f55548214ac2d029c3c92d6d4be9a4f6e77ba35e/README.md",
+        "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Legend of Zelda: The Wind Waker"
   }
 }

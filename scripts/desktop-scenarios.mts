@@ -1068,6 +1068,10 @@ export function desktopHarnessDeadlineMs(
     installSteamArtwork.every((id) => selection.selected_scenarios.includes(id))
   )
     return 1_800_000;
+  // On Windows, 26a0748b reached the repaired workspace and began its final
+  // restart before the 180 s watchdog stopped the driver. Allow time to check
+  // the saved preferences after restart and join the owned processes.
+  if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
   // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
   if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.

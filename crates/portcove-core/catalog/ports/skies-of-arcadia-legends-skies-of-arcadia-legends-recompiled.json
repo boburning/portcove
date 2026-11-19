@@ -46,6 +46,24 @@
       "warnings": [
         "Use the complete user beta and matching regional import. Keep the selected data root, original discs, regional cards and separate state sets; optional Dreamcast content remains separately supplied."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "skies-of-arcadia-legends",
+      "evidence_urls": [
+        "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md",
+        "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "skies-of-arcadia-legends-nintendo-gamecube",
+          "title": "Skies of Arcadia Legends (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ogdanimal/SkiesOfArcadiaLegends-Recomp/blob/88f81eaa11034a36b88683e0ab54b33a00cf2a91/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

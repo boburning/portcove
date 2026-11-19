@@ -439,6 +439,9 @@ void test("scan cleanup attempts every owned action and retains the primary scen
         throw error;
       },
       requireTrustedProbeCleanup,
+      openGameFileScan: async () => {
+        throw primary;
+      },
       reviewControls: () => ({
         button: (name: string) => name,
         click: async () => {
@@ -1523,6 +1526,7 @@ void test("preferences recovery is standalone and preserves a malformed original
   assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 360_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-preferences-recovery-"));
   t.after(() => rm(output, { recursive: true, force: true }));

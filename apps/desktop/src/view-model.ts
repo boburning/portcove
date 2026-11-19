@@ -5,12 +5,13 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
-import { availablePlatforms } from "./features/browsing/catalog-entry";
+import { assessListingAvailability, availablePlatforms } from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
   DesktopError,
   OperationEvent,
+  CatalogBrowsingSnapshot,
   PortDefinition,
   PortStatus,
   ReadinessBlocker,
@@ -221,7 +222,7 @@ function progressDetail(completed: number, total: number, unit: ProgressUnit | u
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
-export type DetailDestination = "updates" | "saves" | "files";
+export type DetailDestination = "updates" | "saves" | "files" | "manage";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =
@@ -257,15 +258,20 @@ export interface SourceRequirement {
   }>;
 }
 
-const platformLabels: Record<string, string> = {
+type MachinePlatform = CatalogBrowsingSnapshot["host_platform"];
+const platformLabels: Record<MachinePlatform, string> = {
   "windows-x86-64": "Windows",
   "linux-x86-64": "Linux",
   "macos-x86-64": "macOS Intel",
   "macos-aarch64": "Apple silicon",
 };
 
+export const machinePlatforms = Object.keys(platformLabels) as MachinePlatform[];
+
 export function platformLabel(value: string) {
-  const label = Object.hasOwn(platformLabels, value) ? platformLabels[value] : undefined;
+  const label = Object.hasOwn(platformLabels, value)
+    ? platformLabels[value as MachinePlatform]
+    : undefined;
   return label ?? "Unknown platform";
 }
 
@@ -478,6 +484,7 @@ export function filterPorts(
   query: string,
   catalogSort: CatalogSort = "catalog",
   context: CatalogQueryContext = {},
+  now = Date.now(),
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
@@ -507,12 +514,18 @@ export function filterPorts(
   )
     return visible;
   return visible
-    .map((port, index) => ({ port, index }))
+    .map((port, index) => ({
+      port,
+      index,
+      rank:
+        catalogSort === "catalog"
+          ? catalogRank(port, selectedStatuses.get(port.id), context.devicePlatform, now)
+          : 0,
+    }))
     .sort((left, right) => {
       const comparison =
         catalogSort === "catalog"
-          ? catalogRank(left.port, selectedStatuses.get(left.port.id), context.devicePlatform) -
-            catalogRank(right.port, selectedStatuses.get(right.port.id), context.devicePlatform)
+          ? left.rank - right.rank
           : catalogSort === "name" || catalogSort === "name-desc"
             ? (catalogSort === "name-desc" ? -1 : 1) *
               gameNameCollator.compare(gameTitle(left.port), gameTitle(right.port))
@@ -536,14 +549,22 @@ export function filterPorts(
     .map(({ port }) => port);
 }
 
-function catalogRank(port: CatalogEntry, status: PortStatus | undefined, platform?: string) {
+function catalogRank(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+  platform: string | undefined,
+  now: number,
+) {
   if (status?.active || status?.external_runtime || port.pendingSetup) return 0;
   if (port.release && !portActionPresentation(status, "install").blocked) return 1;
-  if (port.listing?.availability === "unavailable" || port.listing?.availability === "source-only")
-    return 5;
-  const platforms = availablePlatforms(port);
-  if (platforms.some((candidate) => candidate === platform)) return 2;
-  return platforms.length ? 4 : 3;
+  const assessment = port.listing ? assessListingAvailability(port.listing, now) : undefined;
+  const observed = assessment?.observedPlatforms ?? [];
+  if (observed.some((candidate) => candidate === platform)) return 2;
+  const authoredAvailability = assessment?.availability;
+  if (authoredAvailability === "unavailable" || authoredAvailability === "source-only") return 5;
+  const authored = availablePlatforms(port);
+  if (authored.some((candidate) => candidate === platform)) return 2;
+  return authored.length ? 4 : 3;
 }
 
 function visibleInView(port: CatalogEntry, statuses: ReadonlyMap<string, PortStatus>, view: View) {

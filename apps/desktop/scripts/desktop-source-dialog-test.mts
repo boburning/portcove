@@ -302,6 +302,7 @@ import {
   openCatalogPortAfterRefresh,
   reviewControls,
   selectGameFilesSettings,
+  openGameFileScan,
 } from "./desktop-review-controls.mts";
 
 async function progressiveScanNavigation({
@@ -354,6 +355,7 @@ async function progressiveScanNavigation({
   let cleanupError;
   try {
     try {
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
         const scan = await browser.findElements(button("Scan saved folders"));
@@ -663,16 +665,6 @@ export async function sourceDialogScenario({
 
     await openCatalogPortAfterRefresh(browser, port);
     await revealDetailSection(browser, "Game files");
-    const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
-    const detailsOpen = (element: Element) => {
-      if (!(element instanceof HTMLDetailsElement))
-        throw new Error("Expected requirements disclosure details element");
-      return element.open;
-    };
-    if (!(await executeBrowserScript(browser, detailsOpen, disclosure))) {
-      await click(By.css(".requirements-disclosure > .requirements-summary"));
-    }
-    assert.equal(await executeBrowserScript(browser, detailsOpen, disclosure), true);
     const intakeTrigger = await browser.findElement(button("Check game files"));
     await executeBrowserScript(
       browser,
@@ -1388,7 +1380,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(
         async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
@@ -1532,7 +1524,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await enabled(button("Scan saved folders"));
       const activities = new Set(
@@ -1905,7 +1897,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
         const controls = await browser.findElements(button("Finish scanning these folders"));
@@ -2205,7 +2197,7 @@ export async function selectedSetupScenario({
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();
       assert.deepEqual(
