@@ -52,7 +52,7 @@
       "references": [
         {
           "title": "Choose a DevilutionX route on Linux",
-          "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+          "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
         },
         {
           "title": "Prepare DevilutionX on Mac",
@@ -106,15 +106,17 @@
     "manually_validated_platforms": [],
     "release": {
       "repository": "diasurgical/DevilutionX",
+      "linux_tar_xz": true,
       "asset_hints": {
         "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
-        "linux-x86-64": ["devilutionx-linux-x86_64.appimage"]
+        "linux-x86-64": ["devilutionx-linux-x86_64.tar.xz"]
       }
     },
     "executable_hints": {
       "windows-x86-64": ["devilutionx.exe"],
-      "linux-x86-64": ["devilutionx.AppImage"]
+      "linux-x86-64": ["devilutionx"]
     },
+    "linux_packaged_library": "discord_game_sdk.so",
     "windows_runtime_path_policy": "relative-file-max-path",
     "source_profile": "diablo-devilutionx-retail-originals",
     "runtime_source_set": [
@@ -154,7 +156,7 @@
           }
         ],
         "warnings": [
-          "The managed DevilutionX 1.5.5 Linux x86-64 AppImage can stop before the menu because its bundled engine files become unavailable. If that is the selected package, follow the upstream Linux instructions for a separate installation. Keep your current originals and profile."
+          "On Linux x86-64, the tar.xz player needs glibc 2.34 or later, SDL2 and SDL2_image. Keep any existing AppImage installation and its profile. Use a separate library to try this package."
         ],
         "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
       },
@@ -164,6 +166,10 @@
       "windows-x86-64": {
         "directories": ["license"],
         "executables": ["devilutionx.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["devilutionx", "devilutionx.sh"]
       }
     }
   }

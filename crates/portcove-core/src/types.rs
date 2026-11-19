@@ -925,6 +925,9 @@ pub struct PortDefinition {
     /// is the whole session.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_tracked_handoff: bool,
+    /// An immutable library shipped beside the selected Linux executable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_packaged_library: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations

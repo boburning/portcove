@@ -586,6 +586,18 @@ and a required Linux TAR.XZ asset hint. That route accepts only matching TAR.XZ
 players and uses the same bounded reader as downloaded setup. Independent
 definitions require NativePortable capability 8 for this declaration.
 
+NativePortable capability 40 allows a reviewed flat Linux x86-64 TAR.XZ
+runtime to declare its immutable sibling `linux_packaged_library`. Core
+requires the native player and library in the archive before publication.
+The retained managed launch verifies the installed library and binds the
+loader to a private directory containing that verified library before starting the ELF
+directly. Declared originals and the managed profile stay in their own
+subdirectories. The Linux declaration leaves the Windows launch unchanged
+and requires a separate review before replacing an existing AppImage.
+Retained format 11 carries the loader rule through source-only preparation.
+Embedded Windows installations retain the Windows package route using
+the existing format.
+
 NativePortable capability 26 adds checked Mac TAR.XZ app bundles through
 `release.tar_xz_platforms`. Each declared Mac route needs its own mandatory
 GitHub archive hints, a single exact `.app/Contents/MacOS/` executable and a

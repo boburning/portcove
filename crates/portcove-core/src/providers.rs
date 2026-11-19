@@ -230,6 +230,7 @@ mod tests {
             game_settings: None,
             windows_shipwright_persistence: false,
             windows_tracked_handoff: false,
+            linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

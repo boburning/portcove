@@ -2431,6 +2431,10 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   /**
+   * An immutable library shipped beside the selected Linux executable.
+   */
+  linux_packaged_library?: string | null;
+  /**
    * Native25: keep the Linux player's portable profile in this declared
    * directory beside the executable, creating it when absent before Play.
    */

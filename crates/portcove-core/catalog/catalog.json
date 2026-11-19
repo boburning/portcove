@@ -61752,12 +61752,13 @@
       "manually_validated_platforms": [],
       "release": {
         "repository": "diasurgical/DevilutionX",
+        "linux_tar_xz": true,
         "asset_hints": {
           "windows-x86-64": [
             "devilutionx-windows-x86_64.zip"
           ],
           "linux-x86-64": [
-            "devilutionx-linux-x86_64.appimage"
+            "devilutionx-linux-x86_64.tar.xz"
           ]
         }
       },
@@ -61766,9 +61767,10 @@
           "devilutionx.exe"
         ],
         "linux-x86-64": [
-          "devilutionx.AppImage"
+          "devilutionx"
         ]
       },
+      "linux_packaged_library": "discord_game_sdk.so",
       "windows_runtime_path_policy": "relative-file-max-path",
       "source_profile": "diablo-devilutionx-retail-originals",
       "runtime_source_set": [
@@ -61832,7 +61834,7 @@
             }
           ],
           "warnings": [
-            "The managed DevilutionX 1.5.5 Linux x86-64 AppImage can stop before the menu because its bundled engine files become unavailable. If that is the selected package, follow the upstream Linux instructions for a separate installation. Keep your current originals and profile."
+            "On Linux x86-64, the tar.xz player needs glibc 2.34 or later, SDL2 and SDL2_image. Keep any existing AppImage installation and its profile. Use a separate library to try this package."
           ],
           "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
         },
@@ -61852,6 +61854,13 @@
           ],
           "executables": [
             "devilutionx.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "devilutionx",
+            "devilutionx.sh"
           ]
         }
       }
@@ -61874,12 +61883,13 @@
       "manually_validated_platforms": [],
       "release": {
         "repository": "diasurgical/DevilutionX",
+        "linux_tar_xz": true,
         "asset_hints": {
           "windows-x86-64": [
             "devilutionx-windows-x86_64.zip"
           ],
           "linux-x86-64": [
-            "devilutionx-linux-x86_64.appimage"
+            "devilutionx-linux-x86_64.tar.xz"
           ]
         }
       },
@@ -61888,9 +61898,10 @@
           "devilutionx.exe"
         ],
         "linux-x86-64": [
-          "devilutionx.AppImage"
+          "devilutionx"
         ]
       },
+      "linux_packaged_library": "discord_game_sdk.so",
       "windows_runtime_path_policy": "relative-file-max-path",
       "source_profile": "diablo-hellfire-devilutionx-originals",
       "runtime_source_set": [
@@ -61983,7 +61994,7 @@
             }
           ],
           "warnings": [
-            "The managed DevilutionX 1.5.5 Linux x86-64 AppImage can stop before the menu because its bundled engine files become unavailable. If that is the selected package, follow the upstream Linux instructions for a separate installation. Keep your current originals and profile."
+            "On Linux x86-64, the tar.xz player needs glibc 2.34 or later, SDL2 and SDL2_image. Keep any existing AppImage installation and its profile. Use a separate library to try this package."
           ],
           "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
         },
@@ -62003,6 +62014,13 @@
           ],
           "executables": [
             "devilutionx.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "devilutionx",
+            "devilutionx.sh"
           ]
         }
       }

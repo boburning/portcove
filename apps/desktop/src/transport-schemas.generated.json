@@ -6711,6 +6711,13 @@
             "default": false,
             "type": "boolean"
           },
+          "linux_packaged_library": {
+            "description": "An immutable library shipped beside the selected Linux executable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "linux_portable_data_directory": {
             "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
             "type": [
@@ -38308,6 +38315,13 @@
         "default": false,
         "type": "boolean"
       },
+      "linux_packaged_library": {
+        "description": "An immutable library shipped beside the selected Linux executable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "linux_portable_data_directory": {
         "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
         "type": [
@@ -55788,6 +55802,13 @@
           "launch_from_install_root": {
             "default": false,
             "type": "boolean"
+          },
+          "linux_packaged_library": {
+            "description": "An immutable library shipped beside the selected Linux executable.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "linux_portable_data_directory": {
             "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",

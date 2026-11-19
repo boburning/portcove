@@ -20,6 +20,8 @@ use crate::{
     },
 };
 use futures_util::StreamExt;
+
+const LINUX_PACKAGED_LIBRARY_DIRECTORY: &str = "linux-libraries";
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -215,7 +217,11 @@ impl InstallQualification {
     ) -> Result<Self> {
         let mut qualification = Self::from_port(catalog.port(port_id)?, platform)?;
         qualification.retained_contract = Some(
-            crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
+            crate::installed_contract::InstalledContract::capture_for_platform(
+                catalog,
+                port_id,
+                Some(platform),
+            )?,
         );
         Ok(qualification)
     }
@@ -1531,6 +1537,27 @@ impl Installer {
                 ));
             }
             package_shape = Some(shape);
+            if platform == Platform::LinuxX86_64
+                && let Some(library) = port.linux_packaged_library.as_deref()
+            {
+                let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
+                let working = request.qualification.runtime_root(&payload_root, &selected);
+                let sibling = working.join(library);
+                refuse_symlink_path_within(&payload_root, &sibling, "packaged Linux library")?;
+                if selected.parent() != Some(working.as_path())
+                    || !crate::permissions::is_platform_binary(&selected, platform)?
+                    || !crate::package_layout::is_elf_shared_library(
+                        &mut crate::external_runtime::open_single_link_file(&sibling)?,
+                    )?
+                {
+                    return Err(PortcoveError::verification(
+                        "the package needs its Linux x86-64 player and sibling library beside it",
+                    ));
+                }
+                let private = working.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+                fs::create_dir(&private)?;
+                fs::rename(&sibling, private.join(library))?;
+            }
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -2780,6 +2807,69 @@ impl Installer {
         qualification: &InstallQualification,
     ) -> Result<PathBuf> {
         self.verify_critical_for(install, qualification, CriticalCheck::Launch)
+    }
+
+    pub(crate) fn bind_linux_packaged_library(
+        &self,
+        install: &InstallRecord,
+        library: &str,
+        spec: &mut crate::LaunchSpec,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        let directory = &spec.working_directory;
+        if manifest.platform != Some(Platform::LinuxX86_64)
+            || manifest.retained_contract.is_none()
+            || !directory.is_absolute()
+            || spec.executable.parent() != Some(directory)
+            || !directory.starts_with(&install.path)
+        {
+            return Err(PortcoveError::verification(
+                "packaged Linux libraries require the verified executable directory",
+            ));
+        }
+        let directory = directory.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+        let path = directory.join(library);
+        refuse_symlink_path_within(&install.path, &path, "packaged Linux library")?;
+        for entry in fs::read_dir(&directory)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() || entry.file_name() != library {
+                return Err(PortcoveError::verification(
+                    "the packaged Linux library directory contains an unexpected file or folder",
+                ));
+            }
+        }
+        let relative = manifest_relative(&install.path, &path)?;
+        let recorded = manifest
+            .files
+            .iter()
+            .find(|file| file.path == relative)
+            .filter(|_| !manifest_path_is_mutable(&manifest, &relative))
+            .ok_or_else(|| PortcoveError::verification("the packaged Linux library is missing"))?;
+        let mut digest = Sha256::new();
+        let size = crate::external_runtime::stream_single_link_metadata(
+            &path,
+            recorded.size,
+            checkpoint,
+            &mut |bytes| {
+                digest.update(bytes);
+                Ok(())
+            },
+        )?;
+        if size != recorded.size || hex::encode(digest.finalize()) != recorded.sha256 {
+            return Err(PortcoveError::verification(
+                "the packaged Linux library changed",
+            ));
+        }
+        let directory = crate::path::unicode(&directory, "packaged Linux library directory")?;
+        if directory.contains([':', ';', '$']) {
+            return Err(PortcoveError::launch(
+                "choose a library folder without colons, semicolons or dollar signs for this Linux package",
+            ));
+        }
+        spec.environment.insert("LD_LIBRARY_PATH".into(), directory);
+        spec.fixed_arguments_only = true;
+        Ok(())
     }
 
     /// The same check before a managed update or version switch away from or
@@ -6746,6 +6836,65 @@ mod tests {
                 selected_executable,
             },
         )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn packaged_linux_library_binding_requires_a_clean_immutable_directory() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let directory = root.join(LINUX_PACKAGED_LIBRARY_DIRECTORY);
+        fs::create_dir_all(&directory).unwrap();
+        let executable = root.join("devilutionx");
+        fs::write(&executable, b"inert fixture player").unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o755)).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("diablo-devilutionx").unwrap();
+        let library = port.linux_packaged_library.as_deref().unwrap();
+        let sibling = directory.join(library);
+        fs::write(&sibling, b"reviewed library").unwrap();
+        let qualification =
+            InstallQualification::from_catalog(&catalog, &port.id, Platform::LinuxX86_64).unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        let spec = crate::LaunchSpec {
+            executable,
+            working_directory: root.clone(),
+            install_root: root,
+            arguments: port.launch_arguments.clone(),
+            environment: [("LD_LIBRARY_PATH".into(), "caller-path".into())].into(),
+            fixed_arguments_only: false,
+            launch_kind: crate::LaunchKind::Native,
+        };
+        let mut ready = spec.clone();
+        installer
+            .bind_linux_packaged_library(&install, library, &mut ready, &|| Ok(()))
+            .unwrap();
+        assert_eq!(
+            ready.environment["LD_LIBRARY_PATH"],
+            directory.to_str().unwrap()
+        );
+        assert!(ready.fixed_arguments_only);
+        assert_eq!(ready.arguments, spec.arguments);
+
+        let unexpected = directory.join("unrecorded-library");
+        fs::write(&unexpected, b"unexpected").unwrap();
+        assert!(
+            installer
+                .bind_linux_packaged_library(&install, library, &mut spec.clone(), &|| Ok(()))
+                .is_err()
+        );
+        fs::remove_file(unexpected).unwrap();
+
+        fs::write(&sibling, b"modified library").unwrap();
+        let mut refused = spec.clone();
+        assert!(
+            installer
+                .bind_linux_packaged_library(&install, library, &mut refused, &|| Ok(()))
+                .is_err()
+        );
+        assert_eq!(refused.environment, spec.environment);
     }
 
     fn nested_executable_integrity_fixture() -> (

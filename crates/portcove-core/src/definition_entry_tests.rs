@@ -2541,7 +2541,7 @@ fn windows_temporary_data_requires_native5_in_fresh_and_retained_interpretation(
 
 #[test]
 fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
     for id in [
         "blake-stone-aliens-of-gold-bstone",
         "blake-stone-planet-strike-bstone",
@@ -2566,6 +2566,43 @@ fn native_original_siblings_require_native10_in_fresh_and_retained_readers() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn packaged_linux_libraries_require_the_native_reader_floor() {
+    let capability = crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY;
+    let catalog = crate::Catalog::embedded().unwrap();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(
+            port.linux_packaged_library.as_deref(),
+            Some("discord_game_sdk.so")
+        );
+        let mut entry = entry_for_port(port);
+        entry["required_capabilities"][0]["maximum_version"] = json!(capability);
+        for minimum in [capability - 1, capability] {
+            entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+            let bytes = serde_json::to_vec(&entry).unwrap();
+            for result in [
+                inspect(&entry),
+                index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+            ] {
+                if minimum < capability {
+                    assert!(
+                        result
+                            .unwrap_err()
+                            .message
+                            .contains(&format!("native capability version {capability}"))
+                    );
+                } else {
+                    assert!(result.unwrap().capabilities().compatible);
+                }
+            }
+        }
+        let mut unsafe_port = port.clone();
+        unsafe_port.linux_packaged_library = Some("../discord_game_sdk.so".into());
+        assert!(crate::runtime::validate_linux_packaged_library(&unsafe_port).is_err());
     }
 }
 
