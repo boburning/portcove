@@ -1797,15 +1797,20 @@ void test(
     const pending = buildReport(store.owner).managed_release_eligibility;
     assert.equal(pending?.distinct_candidates, 1);
     assert.equal(pending.pending_candidates, 1);
+    assert.equal(pending.observed_pending_candidates, 1);
+    assert.equal(pending.observed_pending_to_eligible_candidates, 0);
     await observe(true);
     const eligible = buildReport(store.owner).managed_release_eligibility;
     assert.equal(eligible?.distinct_candidates, 1);
     assert.equal(eligible.eligible_candidates, 1);
     assert.equal(eligible.pending_candidates, 0);
+    assert.equal(eligible.observed_pending_candidates, 1);
+    assert.equal(eligible.observed_pending_to_eligible_candidates, 1);
     assert.equal(eligible.publication_to_recorded_eligibility_ms?.samples, 1);
     await observe(true);
     const repeated = buildReport(store.owner).managed_release_eligibility;
     assert.equal(repeated?.first_recorded_evidence_at, eligible.first_recorded_evidence_at);
+    assert.equal(repeated.observed_pending_to_eligible_candidates, 1);
     assert.deepEqual(
       repeated.publication_to_recorded_eligibility_ms,
       eligible.publication_to_recorded_eligibility_ms,

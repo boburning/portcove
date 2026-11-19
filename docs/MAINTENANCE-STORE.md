@@ -718,7 +718,10 @@ publication has been verified.
     separate receipts. The JSON report's `managed_release_eligibility` uses
     the last 30 days of retained complete and partial collection observations.
     It counts each candidate published in that window once, using its latest
-    recorded state. A missing publication time is reported separately. Pending
+    recorded state. The same window also counts candidates observed pending and
+    how many later had an eligible observation at a strictly later recording time.
+    Repeated observations and multiple transitions count once for each target.
+    A missing publication time is reported separately. Pending
     age uses publication time. Publication-to-recorded-eligibility lag uses
     the first retained eligible observation. Evidence can start partway through
     the window. The report's existing source freshness and gaps still describe

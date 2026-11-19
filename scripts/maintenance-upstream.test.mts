@@ -56,6 +56,8 @@ void test("rolling eligibility counts one candidate per target separately from c
   assert.equal(result.distinct_candidates, 2);
   assert.equal(result.eligible_candidates, 1);
   assert.equal(result.pending_candidates, 1);
+  assert.equal(result.observed_pending_candidates, 2);
+  assert.equal(result.observed_pending_to_eligible_candidates, 1);
   assert.equal(result.unknown_publication_times, 1);
   assert.equal(result.oldest_pending_age_ms, 216_000_000);
   assert.deepEqual(result.hold_reasons, [{ reason: "missing-digest", distinct_candidates: 1 }]);
@@ -68,6 +70,33 @@ void test("rolling eligibility counts one candidate per target separately from c
   assert.equal(result.human_interventions, null);
   assert.equal(result.signed_automatic_repairs, null);
   assert.equal(result.operating_cost, null);
+});
+
+void test("pending transitions require ordered evidence and count repeated changes once", () => {
+  const published = "2026-11-08T12:00:00.000Z";
+  const candidate = (id: string, date: string, state: "pending" | "eligible") => ({
+    candidate_key: id.repeat(64),
+    published_at: published,
+    recorded_at: date,
+    state,
+    hold_reasons: [],
+  });
+  const early = "2026-11-09T12:00:00.000Z";
+  const later = "2026-11-10T12:00:00.000Z";
+  const report = managedReleaseEligibilityWindow(
+    [
+      candidate("a", later, "pending"),
+      candidate("a", early, "eligible"),
+      candidate("b", later, "pending"),
+      candidate("b", later, "eligible"),
+      candidate("c", later, "eligible"),
+      candidate("c", early, "pending"),
+      candidate("c", later, "eligible"),
+    ],
+    new Date(now),
+  );
+  assert.equal(report.observed_pending_candidates, 3);
+  assert.equal(report.observed_pending_to_eligible_candidates, 1);
 });
 
 void test("upstream facts keep stable source facts and report coverage gaps", () => {
