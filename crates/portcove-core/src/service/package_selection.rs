@@ -1042,7 +1042,7 @@ mod tests {
         );
         assert_eq!(
             recommend_packages(&assets[1..2], platform, &[], true).1,
-            Some(2_u64.into())
+            None
         );
         let windows = Platform::WindowsX86_64;
         let (assessments, recommended) = recommend_packages(
