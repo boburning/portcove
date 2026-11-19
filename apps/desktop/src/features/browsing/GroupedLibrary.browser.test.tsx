@@ -20,6 +20,7 @@ import { browserFixture } from "../../../test/browser-fixture";
 import { captureParityState } from "../../../test/parity-capture";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import { comparisonFixture } from "../recommendations/comparison-test-fixture";
+import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
 import "../../styles/index.css";
 
 let fixture: ReturnType<typeof browserFixture>;
@@ -135,18 +136,26 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
       "comparison launch notice",
     );
     noticeBlock.scrollIntoView({ block: "center", behavior: "instant" });
-    await expect
-      .poll(() => {
-        const bounds = noticeBlock.getBoundingClientRect();
-        return (
-          bounds.top >= 0 &&
-          bounds.bottom <= innerHeight &&
-          bounds.left >= 0 &&
-          bounds.right <= innerWidth
-        );
-      })
-      .toBe(true);
-    await captureParityState(`comparison-launch-notice-${state}`);
+    const target = "data-launch-notice-capture";
+    noticeBlock.setAttribute(target, "");
+    try {
+      await expect
+        .poll(() => {
+          const { visible, rect } = observeVisibleTarget(`[${target}]`, "visual");
+          return Boolean(
+            visible &&
+            rect &&
+            rect.y >= 0 &&
+            rect.y + rect.height <= innerHeight &&
+            rect.x >= 0 &&
+            rect.x + rect.width <= innerWidth,
+          );
+        })
+        .toBe(true);
+      await captureParityState(`comparison-launch-notice-${state}`);
+    } finally {
+      noticeBlock.removeAttribute(target);
+    }
   };
   await expect.element(firstLaunch).toBeVisible();
   await expect.element(project.getByText("Starts the game directly")).toBeVisible();
