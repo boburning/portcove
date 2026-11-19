@@ -68366,6 +68366,2258 @@
       "issue_number": 3567
     },
     {
+      "id": "scummvm-adl-hires1",
+      "name": "Hi-Res Adventure #1: Mystery House (ScummVM)",
+      "original_game_title": "Hi-Res Adventure #1: Mystery House",
+      "original_game": {
+        "format_version": 1,
+        "id": "hi-res-adventure-1-mystery-house",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/adl:hires1/"
+        ],
+        "source_editions": [
+          {
+            "id": "mysthous",
+            "title": "public domain version (Apple II)",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-adl:hires1"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Hi-Res Adventure #1: Mystery House in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7512,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-adl:hires1",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Hi-Res Adventure #1: Mystery House and choose MYSTHOUS.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-adl:hires1",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as adl:hires1. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/adl:hires1/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-cge-soltys",
+      "name": "Sołtys (ScummVM)",
+      "original_game_title": "Sołtys",
+      "original_game": {
+        "format_version": 1,
+        "id": "soltys",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/cge:soltys/"
+        ],
+        "source_editions": [
+          {
+            "id": "soltys-en-v1-0",
+            "title": "English v1.0",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-cge:soltys"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Sołtys in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7870,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-cge:soltys",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Sołtys and choose soltys-en-v1.0.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-cge:soltys",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as cge:soltys. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/cge:soltys/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-cge2-sfinx",
+      "name": "Sfinx (ScummVM)",
+      "original_game_title": "Sfinx",
+      "original_game": {
+        "format_version": 1,
+        "id": "sfinx",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/cge2:sfinx/"
+        ],
+        "source_editions": [
+          {
+            "id": "sfinx-en-v1-1",
+            "title": "English v1.1",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-cge2:sfinx"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Sfinx in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7868,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-cge2:sfinx",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Sfinx and choose sfinx-en-v1.1.zip. Extract the ZIP, then use Add Game in ScummVM and select the sfinx-en-v1.1 folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-cge2:sfinx",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as cge2:sfinx. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/cge2:sfinx/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-drascula-drascula",
+      "name": "Dráscula: The Vampire Strikes Back (ScummVM)",
+      "original_game_title": "Dráscula: The Vampire Strikes Back",
+      "original_game": {
+        "format_version": 1,
+        "id": "drascula-the-vampire-strikes-back",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/drascula:drascula/"
+        ],
+        "source_editions": [
+          {
+            "id": "drascula-1-0",
+            "title": "Freeware Version (English)",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-drascula:drascula"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Dráscula: The Vampire Strikes Back in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7709,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-drascula:drascula",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Dráscula: The Vampire Strikes Back and choose drascula-1.0.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-drascula:drascula",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as drascula:drascula. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/drascula:drascula/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-dreamweb-dreamweb",
+      "name": "DreamWeb (ScummVM)",
+      "original_game_title": "DreamWeb",
+      "original_game": {
+        "format_version": 1,
+        "id": "dreamweb",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/dreamweb:dreamweb/"
+        ],
+        "source_editions": [
+          {
+            "id": "dreamweb-uk-1-1",
+            "title": "Freeware Floppy DOS Version (English UK)",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-dreamweb:dreamweb"
+            ]
+          }
+        ]
+      },
+      "summary": "Play DreamWeb in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7912,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-dreamweb:dreamweb",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find DreamWeb and choose dreamweb-uk-1.1.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-dreamweb:dreamweb",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as dreamweb:dreamweb. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/dreamweb:dreamweb/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-got-got",
+      "name": "God of Thunder (ScummVM)",
+      "original_game_title": "God of Thunder",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-thunder",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/got:got/"
+        ],
+        "source_editions": [
+          {
+            "id": "gotfree",
+            "title": "Freeware Version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-got:got"
+            ]
+          }
+        ]
+      },
+      "summary": "Play God of Thunder in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7937,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-got:got",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find God of Thunder and choose gotfree.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [
+          "ScummVM lists this title as untested in 2026.4.0. The game files were detected successfully. Gameplay and saving still need verification."
+        ],
+        "help_url": "https://www.scummvm.org/games/#games-got:got",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as got:got. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/got:got/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-griffon-griffon",
+      "name": "The Griffon Legend (ScummVM)",
+      "original_game_title": "The Griffon Legend",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-griffon-legend",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/griffon:griffon/"
+        ],
+        "source_editions": [
+          {
+            "id": "griffon-1-0",
+            "title": "Freeware Version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-griffon:griffon"
+            ]
+          }
+        ]
+      },
+      "summary": "Play The Griffon Legend in ScummVM using the game data from the upstream games page.",
+      "issue_number": 8034,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-griffon:griffon",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find The Griffon Legend and choose griffon-1.0.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-griffon:griffon",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as griffon:griffon. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/griffon:griffon/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-lure-lure",
+      "name": "Lure of the Temptress (ScummVM)",
+      "original_game_title": "Lure of the Temptress",
+      "original_game": {
+        "format_version": 1,
+        "id": "lure-of-the-temptress",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/lure:lure/"
+        ],
+        "source_editions": [
+          {
+            "id": "lure-1-1",
+            "title": "Freeware Version (English)",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-lure:lure"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Lure of the Temptress in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7643,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-lure:lure",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Lure of the Temptress and choose lure-1.1.zip. Extract the ZIP, then use Add Game in ScummVM and select the lure folder from the ZIP. Choose the edition or language you want when ScummVM offers a choice."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-lure:lure",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as lure:lure. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/lure:lure/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-parallaction-nippon",
+      "name": "Nippon Safes, Inc. (ScummVM)",
+      "original_game_title": "Nippon Safes, Inc.",
+      "original_game": {
+        "format_version": 1,
+        "id": "nippon-safes-inc",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/parallaction:nippon/"
+        ],
+        "source_editions": [
+          {
+            "id": "nippon-1-0",
+            "title": "Freeware DOS Version (English/French/German/Italian)",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-parallaction:nippon"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Nippon Safes, Inc. in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7978,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-parallaction:nippon",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Nippon Safes, Inc. and choose nippon-1.0.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-parallaction:nippon",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as parallaction:nippon. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/parallaction:nippon/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-queen-queen",
+      "name": "Flight of the Amazon Queen (ScummVM)",
+      "original_game_title": "Flight of the Amazon Queen",
+      "original_game": {
+        "format_version": 1,
+        "id": "flight-of-the-amazon-queen",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/queen:queen/"
+        ],
+        "source_editions": [
+          {
+            "id": "fotaq-floppy",
+            "title": "Floppy freeware release",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-queen:queen"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Flight of the Amazon Queen in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7929,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-queen:queen",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Flight of the Amazon Queen and choose FOTAQ_Floppy.zip. Extract the ZIP, then use Add Game in ScummVM and select the FOTAQ_Floppy folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-queen:queen",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as queen:queen. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/queen:queen/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sky-sky",
+      "name": "Beneath a Steel Sky (ScummVM)",
+      "original_game_title": "Beneath a Steel Sky",
+      "original_game": {
+        "format_version": 1,
+        "id": "beneath-a-steel-sky",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sky:sky/"
+        ],
+        "source_editions": [
+          {
+            "id": "bass-floppy-1-3",
+            "title": "Floppy freeware release",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sky:sky"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Beneath a Steel Sky in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7640,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sky:sky",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Beneath a Steel Sky and choose BASS-Floppy-1.3.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sky:sky",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sky:sky. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sky:sky/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-atw",
+      "name": "Above The Waves (ScummVM)",
+      "original_game_title": "Above The Waves",
+      "original_game": {
+        "format_version": 1,
+        "id": "above-the-waves",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:atw/"
+        ],
+        "source_editions": [
+          {
+            "id": "atw",
+            "title": "SLUDGE engine game. Version v0.1",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:atw"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Above The Waves in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7416,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:atw",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Above The Waves and choose atw.zip. Extract the ZIP, then use Add Game in ScummVM and select the atw/data folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:atw",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:atw. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:atw/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-cubert",
+      "name": "Cubert Badbone, P.I. (ScummVM)",
+      "original_game_title": "Cubert Badbone, P.I.",
+      "original_game": {
+        "format_version": 1,
+        "id": "cubert-badbone-p-i",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:cubert/"
+        ],
+        "source_editions": [
+          {
+            "id": "cubert",
+            "title": "SLUDGE engine game. Version Dec 15, 2005",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:cubert"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Cubert Badbone, P.I. in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7695,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:cubert",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Cubert Badbone, P.I. and choose cubert.zip. Extract the ZIP, then use Add Game in ScummVM and select the cubert folder from the ZIP. Choose the edition or language you want when ScummVM offers a choice."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:cubert",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:cubert. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:cubert/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-frasse",
+      "name": "Frasse and the Peas of Kejick (ScummVM)",
+      "original_game_title": "Frasse and the Peas of Kejick",
+      "original_game": {
+        "format_version": 1,
+        "id": "frasse-and-the-peas-of-kejick",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:frasse/"
+        ],
+        "source_editions": [
+          {
+            "id": "frasse-2-02",
+            "title": "SLUDGE engine game. Version v2.02",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:frasse"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Frasse and the Peas of Kejick in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7933,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:frasse",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Frasse and the Peas of Kejick and choose frasse-2.02.zip. Extract the ZIP, then use Add Game in ScummVM and select the frasse-2.02 folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:frasse",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:frasse. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:frasse/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-interview",
+      "name": "The Interview (ScummVM)",
+      "original_game_title": "The Interview",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-interview",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:interview/"
+        ],
+        "source_editions": [
+          {
+            "id": "interview",
+            "title": "SLUDGE engine game",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:interview"
+            ]
+          }
+        ]
+      },
+      "summary": "Play The Interview in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7699,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:interview",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find The Interview and choose interview.zip. Extract the ZIP, then use Add Game in ScummVM and select the interview folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:interview",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:interview. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:interview/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-leptonsquest",
+      "name": "Lepton's Quest (ScummVM)",
+      "original_game_title": "Lepton's Quest",
+      "original_game": {
+        "format_version": 1,
+        "id": "lepton-s-quest",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:leptonsquest/"
+        ],
+        "source_editions": [
+          {
+            "id": "leptonsquest-linux",
+            "title": "SLUDGE engine game. Linux version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:leptonsquest"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Lepton's Quest in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7426,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:leptonsquest",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Lepton's Quest and choose leptonsquest-linux.zip. Extract the ZIP, then use Add Game in ScummVM and select the leptonsquest-linux folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:leptonsquest",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:leptonsquest. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:leptonsquest/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-life",
+      "name": "Life Flashes By (ScummVM)",
+      "original_game_title": "Life Flashes By",
+      "original_game": {
+        "format_version": 1,
+        "id": "life-flashes-by",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:life/"
+        ],
+        "source_editions": [
+          {
+            "id": "lifeflashesby",
+            "title": "SLUDGE engine game. SLG version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:life"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Life Flashes By in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7696,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:life",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Life Flashes By and choose lifeflashesby.zip. Extract the ZIP, then use Add Game in ScummVM and select the lifeflashesby folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:life",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:life. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:life/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-mandy",
+      "name": "Mandy Christmas Adventure (ScummVM)",
+      "original_game_title": "Mandy Christmas Adventure",
+      "original_game": {
+        "format_version": 1,
+        "id": "mandy-christmas-adventure",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:mandy/"
+        ],
+        "source_editions": [
+          {
+            "id": "mandy-1-4",
+            "title": "SLUDGE engine game. English, Italian, Polish, Slovak, v1.4",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:mandy"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Mandy Christmas Adventure in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7966,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:mandy",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Mandy Christmas Adventure and choose mandy-1.4.zip. Extract the ZIP, then use Add Game in ScummVM and select the mandy-1.4 folder from the ZIP. Choose the edition or language you want when ScummVM offers a choice."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:mandy",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:mandy. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:mandy/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-nsc",
+      "name": "Nathan's Second Chance (ScummVM)",
+      "original_game_title": "Nathan's Second Chance",
+      "original_game": {
+        "format_version": 1,
+        "id": "nathan-s-second-chance",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:nsc/"
+        ],
+        "source_editions": [
+          {
+            "id": "nsc",
+            "title": "SLUDGE engine game. Version v1.03",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:nsc"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Nathan's Second Chance in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7428,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:nsc",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Nathan's Second Chance and choose nsc.zip. Extract the ZIP, then use Add Game in ScummVM and select the nsc folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:nsc",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:nsc. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:nsc/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-outoforder",
+      "name": "Out Of Order (ScummVM)",
+      "original_game_title": "Out Of Order",
+      "original_game": {
+        "format_version": 1,
+        "id": "out-of-order",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:outoforder/"
+        ],
+        "source_editions": [
+          {
+            "id": "outoforder",
+            "title": "SLUDGE engine game. Linux version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:outoforder"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Out Of Order in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7987,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:outoforder",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Out Of Order and choose outoforder.zip. Extract the ZIP, then use Add Game in ScummVM and select the outoforder folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:outoforder",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:outoforder. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:outoforder/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-robinsrescue",
+      "name": "Robin's Rescue (ScummVM)",
+      "original_game_title": "Robin's Rescue",
+      "original_game": {
+        "format_version": 1,
+        "id": "robin-s-rescue",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:robinsrescue/"
+        ],
+        "source_editions": [
+          {
+            "id": "robinsrescue",
+            "title": "SLUDGE engine game. SLG version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:robinsrescue"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Robin's Rescue in ScummVM using the game data from the upstream games page.",
+      "issue_number": 8005,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:robinsrescue",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Robin's Rescue and choose robinsrescue.zip. Extract the ZIP, then use Add Game in ScummVM and select the robinsrescue folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:robinsrescue",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:robinsrescue. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:robinsrescue/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-tgttpoacs",
+      "name": "The Game That Takes Place on a Cruise Ship (ScummVM)",
+      "original_game_title": "The Game That Takes Place on a Cruise Ship",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-game-that-takes-place-on-a-cruise-ship",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:tgttpoacs/"
+        ],
+        "source_editions": [
+          {
+            "id": "tgttpoacs",
+            "title": "SLUDGE engine game",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:tgttpoacs"
+            ]
+          }
+        ]
+      },
+      "summary": "Play The Game That Takes Place on a Cruise Ship in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7702,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:tgttpoacs",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find The Game That Takes Place on a Cruise Ship and choose tgttpoacs.zip. Extract the ZIP, then use Add Game in ScummVM and select the tgttpoacs folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:tgttpoacs",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:tgttpoacs. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:tgttpoacs/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sludge-tsotc",
+      "name": "The Secret of Tremendous Corporation (ScummVM)",
+      "original_game_title": "The Secret of Tremendous Corporation",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-secret-of-tremendous-corporation",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sludge:tsotc/"
+        ],
+        "source_editions": [
+          {
+            "id": "tsotc-v6",
+            "title": "SLUDGE engine game. Version v6",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sludge:tsotc"
+            ]
+          }
+        ]
+      },
+      "summary": "Play The Secret of Tremendous Corporation in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7439,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sludge:tsotc",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find The Secret of Tremendous Corporation and choose tsotc-v6.zip. Extract the ZIP, then use Add Game in ScummVM and select the tsotc-v6 folder from the ZIP."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sludge:tsotc",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sludge:tsotc. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sludge:tsotc/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-sword25-sword25",
+      "name": "Broken Sword 2.5: The Return of the Templars (ScummVM)",
+      "original_game_title": "Broken Sword 2.5: The Return of the Templars",
+      "original_game": {
+        "format_version": 1,
+        "id": "broken-sword-2-5-the-return-of-the-templars",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/sword25:sword25/"
+        ],
+        "source_editions": [
+          {
+            "id": "sword25-v1-0",
+            "title": "Freeware Version",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-sword25:sword25"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Broken Sword 2.5: The Return of the Templars in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7890,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-sword25:sword25",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Broken Sword 2.5: The Return of the Templars and choose sword25-v1.0.zip. Extract the ZIP, then use Add Game in ScummVM and select the folder you extracted the ZIP into."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-sword25:sword25",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as sword25:sword25. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/sword25:sword25/"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "scummvm-wintermute-helga",
+      "name": "Helga Deep In Trouble (ScummVM)",
+      "original_game_title": "Helga Deep In Trouble",
+      "original_game": {
+        "format_version": 1,
+        "id": "helga-deep-in-trouble",
+        "evidence_urls": [
+          "https://www.scummvm.org/compatibility/2026.4.0/wintermute:helga/"
+        ],
+        "source_editions": [
+          {
+            "id": "helga-deep-in-trouble",
+            "title": "English or Czech release",
+            "evidence_urls": [
+              "https://www.scummvm.org/games/#games-wintermute:helga"
+            ]
+          }
+        ]
+      },
+      "summary": "Play Helga Deep In Trouble in ScummVM using the game data from the upstream games page.",
+      "issue_number": 7673,
+      "listed_at": "2026-11-18",
+      "project_url": "https://github.com/scummvm/scummvm",
+      "release_url": "https://www.scummvm.org/downloads/",
+      "setup_url": "https://www.scummvm.org/games/#games-wintermute:helga",
+      "availability": "packages",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get ScummVM for your system",
+            "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+          },
+          {
+            "title": "Extract and add the game files",
+            "instruction": "On the ScummVM games page, find Helga Deep In Trouble and choose helga_deep_in_trouble.zip. Extract the ZIP, then use Add Game in ScummVM and select the Helga Deep in Trouble Demo folder from the ZIP. Choose the edition or language you want when ScummVM offers a choice."
+          },
+          {
+            "title": "Play again from the saved target",
+            "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.scummvm.org/games/#games-wintermute:helga",
+        "references": [
+          {
+            "title": "Find your launch target",
+            "instruction": "ScummVM detects these files as wintermute:helga. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+          },
+          {
+            "title": "Update your player",
+            "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+          }
+        ]
+      },
+      "implementation": {
+        "format_version": 1,
+        "methods": [
+          {
+            "kind": "engine-reimplementation",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md"
+            ]
+          }
+        ],
+        "dependencies": [
+          {
+            "kind": "runtime",
+            "project_url": "https://github.com/scummvm/scummvm",
+            "name": "ScummVM",
+            "confidence": "confirmed",
+            "version_scope": "ScummVM 2026.4.0",
+            "evidence_urls": [
+              "https://github.com/scummvm/scummvm/blob/v2026.4.0/README.md",
+              "https://www.scummvm.org/compatibility/2026.4.0/wintermute:helga/"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "sdlpal-sdlpal",
       "name": "Legend of Sword and Fairy / SDLPal (sdlpal)",
       "summary": "Play The Legend of Sword and Fairy with SDLPAL and a working copy of your original game data.",
