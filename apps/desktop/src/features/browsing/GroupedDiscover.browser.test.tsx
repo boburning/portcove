@@ -54,7 +54,6 @@ it("updates shared card translations and pending actions without remounting the 
   const ports = [port];
   const statuses = new Map<string, PortStatus>();
   const onSelect = vi.fn();
-  const onFavoriteToggle = vi.fn();
   const onTask = vi.fn();
   const refresh = vi.fn().mockResolvedValue(undefined);
   let state!: ReturnType<typeof useOperationState>;
@@ -68,7 +67,6 @@ it("updates shared card translations and pending actions without remounting the 
           statuses={statuses}
           devicePlatform="windows-x86-64"
           onSelect={onSelect}
-          onFavoriteToggle={onFavoriteToggle}
           onTask={onTask}
         />
       </OperationPresentationProvider>
@@ -156,13 +154,7 @@ it.each(["control", "origin"] as const)(
       root.render(
         <OperationPresentationProvider generation={7} pending={new Map()}>
           <main data-focus-region="workspace" style={{ height: 500, overflow: "auto" }}>
-            <GroupedDiscover
-              all={ports}
-              matching={ports}
-              statuses={new Map()}
-              onSelect={vi.fn()}
-              onFavoriteToggle={vi.fn()}
-            />
+            <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />
           </main>
         </OperationPresentationProvider>,
       ),
@@ -263,7 +255,6 @@ it.each(["query", "generation"] as const)(
     const ports = [portDefinition()];
     const statuses = new Map<string, PortStatus>();
     const onSelect = vi.fn();
-    const favorite = vi.fn();
     const render = async (generation: number, queryKey: string) => {
       await act(async () =>
         root.render(
@@ -275,7 +266,6 @@ it.each(["query", "generation"] as const)(
                 statuses={statuses}
                 queryKey={queryKey}
                 onSelect={onSelect}
-                onFavoriteToggle={favorite}
               />
             </main>
           </OperationPresentationProvider>,

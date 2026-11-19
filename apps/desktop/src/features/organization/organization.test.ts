@@ -1,6 +1,12 @@
 import { expect, it } from "vite-plus/test";
 import type { LibraryOrganization } from "../../types";
-import { organizedPorts, savedGameId, savedForPort } from "./OrganizationControls";
+import {
+  favoriteForPort,
+  favoriteGroupIds,
+  organizedPorts,
+  savedGameId,
+  savedForPort,
+} from "./OrganizationControls";
 import { portDefinition } from "../../test-fixtures";
 import { setupConfirmed, updateNoticeHidden } from "./organization";
 
@@ -107,7 +113,7 @@ it("preserves port-scoped Saved choices when reviewed game identity is added", (
   expect(organization.snapshot.saved_game_ids).toEqual([`port-${original.id}`]);
 });
 
-it("Followed is an explicit independent-project filter, not an alias for Saved", () => {
+it("Followed is an explicit independent-project filter, not an alias for Favorites", () => {
   const port = portDefinition();
   const other = { ...port, id: "another-project" };
   const organization = {
@@ -129,4 +135,48 @@ it("Followed is an explicit independent-project filter, not an alias for Saved",
   expect(organizedPorts([port, other], organization, "followed", true)).toEqual([port]);
   expect(organizedPorts([port, other], organization, "saved", true)).toEqual([]);
   expect(organizedPorts([port, other], undefined, "followed", true)).toEqual([]);
+});
+
+it("treats a port-level Favorite and a game-level choice as one favorite game", () => {
+  const port = portDefinition();
+  const empty = {
+    snapshot: {
+      revision: 1,
+      followed_port_ids: [],
+      followed_release_acknowledgments: {},
+      collections: {},
+      hidden_port_ids: [],
+      saved_game_ids: [],
+      update_notices: {},
+      setup_confirmations: [],
+    },
+    busy: false,
+    failure: undefined,
+    commit: async () => true,
+    refresh: async () => true,
+  };
+  const gameLevel = {
+    ...empty,
+    snapshot: { ...empty.snapshot, saved_game_ids: [savedGameId(port)] },
+  };
+  expect(favoriteForPort(empty, undefined, port)).toBe(false);
+  expect(favoriteForPort(empty, new Set([port.id]), port)).toBe(true);
+  expect(favoriteForPort(gameLevel, new Set(), port)).toBe(true);
+  expect(organizedPorts([port], empty, "saved", true, [port], new Set([port.id]))).toEqual([port]);
+  expect(organizedPorts([port], empty, "saved", true, [port], new Set())).toEqual([]);
+});
+
+it("resolves Favorite from a filtered-out sibling without treating unknown IDs as games", () => {
+  const identity = {
+    format_version: 1 as const,
+    id: "authored-title",
+    source_editions: [],
+    evidence_urls: ["https://example.com/game"],
+  };
+  const first = { ...portDefinition(), id: "first", presentation: { original_game: identity } };
+  const second = { ...first, id: "second" };
+  const other = { ...portDefinition(), id: "other" };
+  expect(
+    favoriteGroupIds([first, second, other], undefined, new Set(["second", "unknown"])),
+  ).toEqual(new Set(["game:authored-title"]));
 });

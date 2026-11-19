@@ -2,7 +2,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vite-plus/test";
 import { portDefinition } from "../../test-fixtures";
 import type { LibraryOrganization } from "../../types";
-import { OrganizationControls, SaveGameButton, type Organization } from "./OrganizationControls";
+import {
+  OrganizationControls,
+  FavoriteGameButton,
+  type Organization,
+} from "./OrganizationControls";
 
 const snapshot: LibraryOrganization = {
   revision: 1,
@@ -59,14 +63,14 @@ describe("organization controls localization", () => {
     expect(controls(false, undefined, "hidden")).toContain("Collections · Hidden");
   });
 
-  it("renders the controls and save action in the current language", async () => {
+  it("renders the controls and favorite action in the current language", async () => {
     const markup = await inArabicPreview(() =>
       [
         controls(true, "read"),
         controls(false, undefined, "collection:favourites"),
         controls(false, undefined, "hidden"),
         renderToStaticMarkup(
-          <SaveGameButton port={portDefinition()} organization={organization()} />,
+          <FavoriteGameButton port={portDefinition()} organization={organization()} />,
         ),
       ].join(""),
     );
@@ -76,8 +80,28 @@ describe("organization controls localization", () => {
     expect(markup).toContain("تعذر تحديث الاختيارات المحفوظة.");
     expect(markup).toContain("المجموعات · <bdi>Weekend {{name}}</bdi>");
     expect(markup).toContain("المجموعات · المخفية");
-    expect(markup).toContain('title="حفظ لوقت لاحق"');
+    expect(markup).toContain('title="إضافة إلى المفضلة"');
     expect(markup).not.toContain("Collections");
-    expect(markup).not.toContain("Save for later");
+    expect(markup).not.toContain("Add to favorites");
+  });
+
+  it("keeps the port-level Favorite available without organization choices", () => {
+    const favorites = {
+      ids: new Set<string>(),
+      only: false,
+      busy: false,
+      toggle: async () => true,
+      setPorts: async () => true,
+      setOnly: () => {},
+      refresh: async () => true,
+      failure: undefined,
+    };
+    const port = portDefinition();
+    const withFavorites = renderToStaticMarkup(
+      <FavoriteGameButton card port={port} favorites={favorites} />,
+    );
+    expect(withFavorites).toContain('aria-label="Favorite ');
+    expect(withFavorites).not.toMatch(/\sdisabled(=|\s|>)/u);
+    expect(renderToStaticMarkup(<FavoriteGameButton card port={port} />)).toBe("");
   });
 });
