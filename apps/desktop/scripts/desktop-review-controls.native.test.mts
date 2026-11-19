@@ -365,11 +365,17 @@ void test("native review diagnostics bound encoded error fields and tolerate unr
     const long = new Error("x".repeat(10000));
     const revoked = Proxy.revocable({}, {});
     revoked.revoke();
+    let nameReads = 0;
+    let messageReads = 0;
+    const changingGetters = {
+      get name() { return ++nameReads === 1 ? "First error name" : null; },
+      get message() { return ++messageReads === 1 ? "First error message" : null; },
+    };
     for (const [original, type] of [
       [long, "Error"], [escaped, "Error"], ["primitive rejection", "string"],
       [{ get name() { throw Error("Unreadable name"); },
          get message() { throw Error("Unreadable message"); } }, "object"],
-      [revoked.proxy, "object"],
+      [revoked.proxy, "object"], [changingGetters, "object"],
     ]) {
       const f = fixture("webdriver-click", original, escaped);
       await assert.rejects(clickVisible(f.browser, f.element), error => {
@@ -385,6 +391,11 @@ void test("native review diagnostics bound encoded error fields and tolerate unr
           assert.equal(d.error.name_truncated, original === escaped);
         } else if (typeof original === "string") {
           assert.equal(d.error.message, original);
+        } else if (original === changingGetters) {
+          assert.equal(d.error.name, "First error name");
+          assert.equal(d.error.message, "First error message");
+          assert.equal(nameReads, 1);
+          assert.equal(messageReads, 1);
         } else {
           assert.equal(d.error.message, "<unreadable error>");
         }

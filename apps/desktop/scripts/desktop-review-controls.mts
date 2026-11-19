@@ -1,6 +1,6 @@
 import type { WebDriver, WebElement, Locator } from "selenium-webdriver";
 import type { PortDefinition } from "../src/transport-types.generated.js";
-import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
+import { isRecord, recordField } from "../../../scripts/runtime-values.mts";
 import { exactButtonXPath, executeBrowserScript } from "./browser-script.mts";
 import { decodeDiscoverPortIds } from "./desktop-review-presentation.mts";
 // Shared native review interactions; visibility waits never bypass product consent.
@@ -282,12 +282,14 @@ export async function clickVisible(
       let message = "<unreadable error>";
       try {
         if (value instanceof Error) type = "Error";
-        if (isRecord(value) && typeof value.name === "string") name = value.name;
+        const reportedName = recordField(value, "name");
+        if (typeof reportedName === "string") name = reportedName;
       } catch {
         /* A diagnostic inspection must not replace the original rejection. */
       }
       try {
-        message = errorMessage(value);
+        const reportedMessage = recordField(value, "message");
+        message = typeof reportedMessage === "string" ? reportedMessage : String(value);
       } catch {
         /* Retain the original cause below. */
       }
