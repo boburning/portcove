@@ -318,6 +318,7 @@ class WatchTests(unittest.TestCase):
         }
         wake.register_watch(self.state, replacement)
         self.assertEqual(self.row()["status"], "replacing")
+        wake.control(self.state, argparse.Namespace(action="pause", pr=1))
         self.tick()
         self.assertIsNone(self.row()["accepted"])
         self.tick()  # A hint can wake the old worker before the replacement's acceptance.
@@ -325,6 +326,7 @@ class WatchTests(unittest.TestCase):
         wake.accept(self.state, 1, lambda _: None)
         self.assertEqual(self.row()["head"], OTHER_HEAD)
         self.assertIsNotNone(self.row()["accepted"])
+        self.assertEqual(self.row()["status"], "paused")
         self.assertEqual(self.events()[0]["turn"], "turn-1")
         self.assertEqual(len(self.daemon.turns), 1)
 

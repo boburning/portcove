@@ -624,9 +624,14 @@ def control(state, args):
         if args.action == "status":
             print(json.dumps(watch))
             return
-        if watch["status"] in ("closed", "cancelled") or (watch["status"] == "replacing" and args.action != "cancel"):
+        if watch["status"] in ("closed", "cancelled"):
             raise RuntimeError("PR is being cleaned up")
-        watch["status"] = {"pause": "paused", "resume": "watching", "cancel": "cancelled"}[args.action]
+        requested = {"pause": "paused", "resume": "watching", "cancel": "cancelled"}[args.action]
+        if watch["status"] == "replacing" and args.action != "cancel":
+            watch["replacement"]["status"] = requested
+            save(db, watch)
+            return
+        watch["status"] = requested
         watch["revision"] = watch.get("revision", 0) + 1
         if args.action == "cancel" and not watch["pending"]:
             db.execute("DELETE FROM watches WHERE pr=?", (args.pr,))
