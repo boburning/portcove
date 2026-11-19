@@ -7,7 +7,9 @@ use crate::game_settings::{
     PlayerSettings, RetainedSettingsDefaults, SettingsFileUpdate, SettingsPreimage, SettingsUpdate,
     observe_player_settings_copy,
 };
-use crate::operation::game_settings::FileCustody;
+use crate::operation::game_settings::{
+    ActivationSettingsJournal, FileCustody, SettingsFileWitness,
+};
 
 pub(in crate::service) struct PreparedSettingsDefaultActivation {
     pub(in crate::service) previous: InstallRecord,
@@ -23,8 +25,47 @@ pub(in crate::service) struct HeldDefaultReplacement {
     pub(in crate::service) canonical: FileCustody,
     pub(in crate::service) runtime: Option<FileCustody>,
     // The predecessor is a read-only witness, not one of the two write legs.
-    _previous_runtime: Option<HeldFile>,
+    previous_runtime: Option<HeldFile>,
     _copies: HeldSettingsCopies,
+}
+
+impl PreparedSettingsDefaultActivation {
+    /// Bind custody before staging. The caller keeps these held originals
+    /// through checked readback of the newly written lifecycle intent.
+    pub(in crate::service) fn bind_journal(
+        &self,
+        operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        if operation.kind != LifecycleOperationKind::Activate
+            || operation.phase != LifecyclePhase::Preparing
+            || operation.settings_activation.is_some()
+            || operation.port_id != self.target.port_id
+            || !operation.install.as_ref().is_some_and(|target| {
+                crate::recovery::same_activation_install(target, &self.target)
+            })
+        {
+            return Err(PortcoveError::conflict(
+                "settings custody does not match the pending staged activation",
+            ));
+        }
+        operation.settings_activation = Some(ActivationSettingsJournal {
+            format_version: 1,
+            previous: self.previous.clone(),
+            file_id: self.file_id.clone(),
+            relative_path: self.relative_path.clone(),
+            maximum_bytes: self.maximum_bytes,
+            previous_runtime: self.files.previous_runtime.as_ref().map(|held| {
+                SettingsFileWitness {
+                    path: held.path.clone(),
+                    parent_identity: held.parent_identity.clone(),
+                    original_identity: held.identity.clone(),
+                }
+            }),
+            canonical: self.files.canonical.clone(),
+            runtime: self.files.runtime.clone(),
+        });
+        Ok(())
+    }
 }
 
 fn hold(file: &GameSettingsFile, reason: &str) -> PortcoveError {
@@ -195,7 +236,7 @@ fn freeze_replacement(
     Ok(HeldDefaultReplacement {
         canonical,
         runtime,
-        _previous_runtime: previous_runtime,
+        previous_runtime,
         _copies: copies,
     })
 }

@@ -715,6 +715,7 @@ impl ActivationOperation {
     ) -> Result<Self> {
         if operation.kind != LifecycleOperationKind::Activate
             || operation.activate
+            || operation.settings_activation.is_some()
             || operation.relocation.is_some()
             || operation.source_import.is_some()
             || operation.preparation.is_some()

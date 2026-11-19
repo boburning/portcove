@@ -715,6 +715,16 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for candidate in store.all()? {
+            if candidate.settings_activation.is_some() {
+                // This protocol can recognize the exact owner without running
+                // ordinary collection or changing the active pointer.
+                tracing::warn!(
+                    operation_id = candidate.id,
+                    port_id = candidate.port_id,
+                    "managed settings activation remains held for its recovery writer"
+                );
+                continue;
+            }
             if candidate.kind == LifecycleOperationKind::AcquireUpdate {
                 let acquisition = crate::operation::acquisition::AcquisitionOperation::decode(
                     &self.library,

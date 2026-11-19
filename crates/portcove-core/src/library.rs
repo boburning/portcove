@@ -1065,8 +1065,10 @@ impl Library {
         operation_id: &str,
     ) -> Result<PortOperationGuard> {
         let owned: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='settings_change')",
-            rusqlite::params![operation_id, port_id], |row| row.get(0),
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
+            rusqlite::params![operation_id, port_id],
+            |row| row.get(0),
         )?;
         if !owned {
             return Err(PortcoveError::verification(
@@ -1125,7 +1127,8 @@ impl Library {
 
     fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
         let blocked: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND (?2 IS NULL OR id<>?2)
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
             rusqlite::params![port_id, allowed], |row| row.get(0),
         )?;
         if blocked {
