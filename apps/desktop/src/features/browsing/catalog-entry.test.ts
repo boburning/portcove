@@ -520,7 +520,7 @@ it("keeps accepted listing facts, uncertainty, staleness and reason-bearing over
       { ...observed, availability_override_reason: "Reviewed distribution restriction" },
       current,
     ),
-  ).toBe("Source only (authored override)");
+  ).toBe("Source only (catalog setting)");
   expect(listingAvailabilityLabel(observed, Date.parse("2026-10-28T00:00:00Z"))).toContain(
     "stale observation",
   );

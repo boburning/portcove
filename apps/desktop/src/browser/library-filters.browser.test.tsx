@@ -300,7 +300,7 @@ it.each(["dark", "light"])(
     await page.viewport(1100, 800);
     document.documentElement.dataset.theme = theme;
     flushSync(() => root.render(<Fixture />));
-    await chooseReadiness("Ready (2)");
+    await chooseReadiness("Ready to play (2)");
     await openAdvancedFilters("Filters (0)");
     await userEvent.click(await filterChoice("Linux (1)"));
     await captureParityState("library-filters-expanded");
@@ -309,7 +309,7 @@ it.each(["dark", "light"])(
       .element(page.getByRole("region", { name: "Filter options", exact: true }))
       .not.toBeInTheDocument();
     await expect.element(button("Filters (1)")).toHaveFocus();
-    await expectReadinessLabel("Readiness Ready (1)");
+    await expectReadinessLabel("Readiness Ready to play (1)");
     await expectReadinessOption("Needs attention (1)", false);
     await chooseReadiness("Needs attention (1)");
     await expect.element(button("Remove Runs on: Linux filter")).toBeInTheDocument();
@@ -317,7 +317,7 @@ it.each(["dark", "light"])(
     await expect.element(await filterChoice("Windows (1)")).toBeEnabled();
     await userEvent.click(await filterChoice("Preview (1)"));
     await closeFilters();
-    await chooseReadiness("Ready (1)");
+    await chooseReadiness("Ready to play (1)");
     await expect.element(button("Remove Update channels: Preview filter")).toBeInTheDocument();
     const footers = [
       ...document.querySelectorAll<HTMLElement>(".collection-cover .library-entry-footer"),
@@ -342,7 +342,7 @@ it.each(["dark", "light"])(
     await captureParityState("library-selected-filter-chips");
     await userEvent.click(button("View details for Linux game"));
     await userEvent.click(button("Back to library"));
-    await expectReadinessLabel("Readiness Ready (1)");
+    await expectReadinessLabel("Readiness Ready to play (1)");
     await userEvent.click(button("Switch section"));
     await expect.element(button("Filters (0)")).toBeInTheDocument();
     await userEvent.click(button("Switch section"));
@@ -350,21 +350,21 @@ it.each(["dark", "light"])(
     flushSync(() => root.unmount());
     root = createRoot(host);
     flushSync(() => root.render(<Fixture />));
-    await expectReadinessLabel("Readiness Ready (1)");
+    await expectReadinessLabel("Readiness Ready to play (1)");
     await userEvent.click(button("Switch library"));
     await expectReadinessLabel("Readiness All (3)");
     await userEvent.click(button("Switch library"));
-    await expectReadinessLabel("Readiness Ready (1)");
+    await expectReadinessLabel("Readiness Ready to play (1)");
     // Ready remains an ordinary filter beneath the Favorites view.
     await userEvent.click(quickView("Favorites 1 game"));
     await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
-    await expectReadinessLabel(/^Readiness Ready \(\d+\)$/);
+    await expectReadinessLabel(/^Readiness Ready to play \(\d+\)$/);
     await expectReadinessOption("Needs attention (1)");
     await userEvent.fill(
       page.getByRole("textbox", { name: "Search library" }),
       "no matching title",
     );
-    await expectReadinessOption("Ready (0)");
+    await expectReadinessOption("Ready to play (0)");
     await openAdvancedFilters("Filters (2)");
     await expect.element(await filterChoice("Linux (0)")).toBeEnabled();
     await closeFilters();
@@ -392,7 +392,7 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await userEvent.click(await filterChoice("Linux (2)"));
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (unavailable)");
+  await expectReadinessOption("Ready to play (unavailable)");
   await openAdvancedFilters("Filters (1)");
   await expect
     .element(await filterChoice("Linux (unavailable)"))
@@ -401,12 +401,12 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await userEvent.click(button("Toggle snapshot"));
   await userEvent.click(quickView("Favorites 2 games"));
   await userEvent.click(button("Toggle favorite facts"));
-  await expectReadinessOption("Ready (unavailable)");
+  await expectReadinessOption("Ready to play (unavailable)");
   await expect.element(page.getByText("Ports unavailable", { exact: true })).toBeInTheDocument();
   await captureParityState("library-unavailable-facts");
   await userEvent.click(button("Toggle favorite facts"));
   await userEvent.click(button("Toggle empty"));
-  await expectReadinessOption("Ready (0)");
+  await expectReadinessOption("Ready to play (0)");
   await openAdvancedFilters("Filters (1)");
   await expect.element(await filterChoice("Linux (0)")).toHaveAttribute("aria-checked", "true");
   await userEvent.click(button("Clear filters"));
@@ -424,7 +424,7 @@ it("clears retained Favorites when its facts are unavailable", async () => {
 });
 it("holds unknown migrated readiness and query separately until correction", async () => {
   flushSync(() => root.render(<Fixture />));
-  await chooseReadiness("Ready (2)");
+  await chooseReadiness("Ready to play (2)");
   const key = libraryBrowsingPreferenceKey("/library-filters-a");
   const stored = JSON.parse(localStorage.getItem(key)!) as {
     inputs: { sections: { library: { filter: unknown; readiness: string } } };
@@ -455,21 +455,21 @@ it("retains Library narrowing and readiness counts for membership without relaxi
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
-  await expectReadinessOption("Ready (0)");
+  await expectReadinessOption("Ready to play (0)");
   await expect
     .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
   await openAdvancedFilters("Filters (1)");
   await userEvent.click(await filterChoice("In my library (3)"));
   await closeFilters();
-  await expectReadinessOption("Ready (2)");
-  await chooseReadiness("Ready (2)");
+  await expectReadinessOption("Ready to play (2)");
+  await chooseReadiness("Ready to play (2)");
   await openAdvancedFilters("Filters (2)");
   await expect.element(await filterChoice("In my library (2)")).toBeEnabled();
   await userEvent.click(await filterChoice("Not in my library (0)"));
   await closeFilters();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (unavailable)", true);
+  await expectReadinessOption("Ready to play (unavailable)", true);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
     .toHaveTextContent("Loading search results");
@@ -487,7 +487,7 @@ it("retains Library narrowing and readiness counts for membership without relaxi
     .element(button("Remove Library membership: In my library filter"))
     .not.toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (2)", true);
+  await expectReadinessOption("Ready to play (2)", true);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
     .not.toHaveTextContent("Loading search results");
@@ -500,9 +500,9 @@ it("retains specific attention with independent Library readiness, zero counts a
   await userEvent.click(await filterChoice("Missing game files (1)"));
   await expect.element(await filterChoice("Finish setup (0)")).toBeEnabled();
   await closeFilters();
-  await expectReadinessOption("Ready (0)");
+  await expectReadinessOption("Ready to play (0)");
   await expectReadinessOption("Needs attention (1)");
-  await chooseReadiness("Ready (0)");
+  await chooseReadiness("Ready to play (0)");
   await expect
     .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
@@ -518,7 +518,7 @@ it("retains specific attention with independent Library readiness, zero counts a
     .element(button("Remove Installation attention: Missing game files filter"))
     .toBeInTheDocument();
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (unavailable)");
+  await expectReadinessOption("Ready to play (unavailable)");
   document
     .querySelector<HTMLButtonElement>(
       'button[aria-label="Remove Installation attention: Missing game files filter"]',
@@ -536,7 +536,7 @@ it("retains specific attention with independent Library readiness, zero counts a
 
 it("keeps playable plus matching staged updates independent from attention with self-excluding counts and zero IPC", async () => {
   flushSync(() => root.render(<Fixture />));
-  await chooseReadiness("Ready (2)");
+  await chooseReadiness("Ready to play (2)");
   await openAdvancedFilters("Filters (0)");
   await userEvent.click(await filterChoice("Matching update staged (1)"));
   await expect.element(await filterChoice("Available at last check (1)")).toBeEnabled();
@@ -546,7 +546,7 @@ it("keeps playable plus matching staged updates independent from attention with 
   await expect
     .element(button("Remove Observed updates: Matching update staged filter"))
     .toBeVisible();
-  await expectReadinessLabel("Readiness Ready (1)");
+  await expectReadinessLabel("Readiness Ready to play (1)");
   await expectReadinessOption("Needs attention (0)");
   await userEvent.click(button("View details for Windows game"));
   await userEvent.click(button("Back to library"));
@@ -556,18 +556,18 @@ it("keeps playable plus matching staged updates independent from attention with 
   await closeFilters();
   // Both update states are exactly the Updates view, with Ready still applied.
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
-  await expectReadinessLabel("Readiness Ready (0)");
+  await expectReadinessLabel("Readiness Ready to play (0)");
   await expect
     .element(page.getByText("Nothing in your library matches", { exact: true }))
     .toBeInTheDocument();
   await userEvent.click(button("Remove Installation attention: Missing game files filter"));
-  await expectReadinessLabel("Readiness Ready (2)");
+  await expectReadinessLabel("Readiness Ready to play (2)");
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessOption("Ready (unavailable)");
+  await expectReadinessOption("Ready to play (unavailable)");
   await userEvent.click(quickView("All"));
   await expect.element(quickView("All")).toHaveAttribute("aria-checked", "true");
   await userEvent.click(button("Toggle snapshot"));
-  await expectReadinessLabel("Readiness Ready (2)");
+  await expectReadinessLabel("Readiness Ready to play (2)");
   expect(invoke).not.toHaveBeenCalled();
 }, 45_000);
 

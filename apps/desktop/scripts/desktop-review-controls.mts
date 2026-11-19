@@ -20,13 +20,8 @@ export async function replaceKeyboardText(browser: WebDriver, element: WebElemen
   if (text.length > 0) await element.sendKeys(text);
 }
 
-/** Reveal the retained log through its real enclosing disclosure. */
+/** Find the direct preparation log disclosure in the Activity row. */
 export async function preparationLogControl(browser: WebDriver, row: WebElement) {
-  const taskDetails = await row.findElement(
-    By.xpath('.//summary[normalize-space(.)="Task details"]'),
-  );
-  const details = await taskDetails.findElement(By.xpath(".."));
-  if ((await details.getAttribute("open")) === null) await clickVisible(browser, taskDetails);
   const log = await row.findElement(
     By.xpath('.//summary[normalize-space(.)="View preparation log"]'),
   );
@@ -34,10 +29,26 @@ export async function preparationLogControl(browser: WebDriver, row: WebElement)
   return log;
 }
 
+/** Open the scan workspace from the Game files settings category. */
+export async function openGameFileScan(browser: WebDriver) {
+  const trigger = await browser.wait(
+    until.elementLocated(By.css("[data-open-game-file-scan]")),
+    5_000,
+  );
+  await clickVisible(browser, trigger);
+  await browser.wait(until.elementLocated(By.id("add-games-folders-heading")), 5_000);
+}
+
 /** Reveal the real panel through its tab; scrolling cannot reveal hidden content. */
 export async function revealDetailSection(
   browser: WebDriver,
-  label: "Overview" | "Game files" | "Saves & backups" | "Versions & updates" | "Manage",
+  label:
+    | "Overview"
+    | "Game files"
+    | "Saves & backups"
+    | "Versions & updates"
+    | "Game settings & mods"
+    | "Manage",
 ) {
   const tab = await browser.wait(
     until.elementLocated(

@@ -84,6 +84,7 @@ export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
   setup,
+  openGuide,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
@@ -91,6 +92,7 @@ export function AuthoredPreparationGuidance({
     | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
     | null
     | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 }) {
   const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
   const note =
@@ -128,7 +130,9 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
           {guide.help_url && (
-            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+            <ExternalLink href={guide.help_url} {...(openGuide ? { openUrl: openGuide } : {})}>
+              Detailed preparation guide
+            </ExternalLink>
           )}
           {note && !externalManaged && (
             <details className="text-xs">
@@ -288,6 +292,7 @@ type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
@@ -316,6 +321,7 @@ function useUserSelectedRuntimeEditor({
   listingStatus,
   initialDirectory,
   libraryRoot,
+  openGuide,
 }: UserSelectedRuntimeProps) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
@@ -468,6 +474,7 @@ function useUserSelectedRuntimeEditor({
     canRemove,
     chooseExecutable,
     chooseDirectory,
+    openGuide,
   };
 }
 
@@ -504,6 +511,44 @@ function UserSelectedRuntimeEditorView(model: ReturnType<typeof useUserSelectedR
         />
       )}
     </section>
+  );
+}
+
+export function RuntimeLaunchFacts({
+  executable,
+  workingDirectory,
+  launchArguments,
+}: {
+  executable: string;
+  workingDirectory: string;
+  launchArguments?: readonly string[] | undefined;
+}) {
+  return (
+    <dl className="grid gap-2 [overflow-wrap:anywhere]">
+      <dt>Game program</dt>
+      <dd>{executable}</dd>
+      <dt>Start in folder</dt>
+      <dd>{workingDirectory}</dd>
+      {launchArguments && (
+        <>
+          <dt>Launch options (advanced)</dt>
+          <dd>
+            {launchArguments.length
+              ? launchArguments.map((argument, index) => (
+                  <div key={index}>
+                    <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
+                    {argument ? (
+                      <code className="block whitespace-pre-wrap">{argument}</code>
+                    ) : (
+                      <span className="block">Empty argument</span>
+                    )}
+                  </div>
+                ))
+              : "None"}
+          </dd>
+        </>
+      )}
+    </dl>
   );
 }
 
@@ -571,6 +616,7 @@ function SelectedRuntimeDialog({
     failureMessage:
       "Portcove couldn't register these launch details. Review the selected executable and working directory.",
   });
+  const launchArguments = preview?.user_selected?.arguments ?? selected.arguments;
   const content = (
     <>
       {inline ? (
@@ -595,30 +641,11 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl
-        hidden={inline && (!preview || preview.executable === selected.executable)}
-        className="grid gap-2 [overflow-wrap:anywhere]"
-      >
-        <dt>Game program</dt>
-        <dd>{preview?.executable ?? selected.executable}</dd>
-        <dt>Start in folder</dt>
-        <dd>{preview?.path ?? selected.workingDirectory}</dd>
-        <dt>Launch options (advanced)</dt>
-        <dd>
-          {selected.arguments.length
-            ? selected.arguments.map((argument, index) => (
-                <div key={index}>
-                  <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
-                  {argument ? (
-                    <code className="block whitespace-pre-wrap">{argument}</code>
-                  ) : (
-                    <span className="block">Empty argument</span>
-                  )}
-                </div>
-              ))
-            : "None"}
-        </dd>
-      </dl>
+      <RuntimeLaunchFacts
+        executable={preview?.executable ?? selected.executable}
+        workingDirectory={preview?.path ?? selected.workingDirectory}
+        launchArguments={launchArguments}
+      />
       {pending === "review" && <p role="status">Checking executable and paths…</p>}
       <ActionReviewFailure error={error} />
       <DialogFooter>
@@ -1083,6 +1110,7 @@ function RuntimeRegistrationForm({
   | "canRemove"
   | "chooseExecutable"
   | "chooseDirectory"
+  | "openGuide"
 >) {
   return registered && !model.editing ? (
     <ExistingRuntimeActions {...{ registered, model }} />
@@ -1099,7 +1127,7 @@ function RuntimeRegistrationForm({
         Confirm the game executable or its supported native launcher. You or upstream provide
         runtime updates. Adding it saves launch details; Play remains a separate action.
       </p>
-      <AuthoredPreparationGuidance port={model.port} />
+      <AuthoredPreparationGuidance port={model.port} openGuide={model.openGuide} />
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">

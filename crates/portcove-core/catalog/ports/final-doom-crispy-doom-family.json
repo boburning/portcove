@@ -182,5 +182,13 @@
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide accepts either TNT.WAD (TNT: Evilution) or PLUTONIA.WAD (The Plutonia Experiment) and explicitly requires the campaigns to remain distinct. This is a collection-scoped player, not Doom II or one uniquely scoped campaign.",
+    "evidence_urls": [
+      "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+      "https://github.com/fabiangreffrath/crispy-doom"
+    ]
   }
 }

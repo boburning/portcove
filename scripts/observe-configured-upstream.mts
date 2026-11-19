@@ -529,7 +529,8 @@ async function inspectCoreJson(
   argumentsFor: (input: string) => string[],
   bounds?: InspectionBounds,
 ): Promise<unknown> {
-  if (bytes.length > 4 * 1024 * 1024)
+  const inputLimit = command === "catalog.inspect-proposal" ? 16 * 1024 * 1024 : 4 * 1024 * 1024;
+  if (bytes.length > inputLimit)
     throw new ObservationFailure(
       "core-input-size",
       "Core inspection input exceeds its existing byte boundary",
@@ -721,7 +722,7 @@ async function main(args: string[]) {
       throw new Error("existing report belongs to another operation or configuration");
     const catalog = await boundedJson(
       path.join(repositoryRoot, "crates/portcove-core/catalog/catalog.json"),
-      4 * 1024 * 1024,
+      16 * 1024 * 1024,
     );
     if (!isRecord(catalog) || !Array.isArray(catalog.ports))
       throw new Error("Invalid catalog ports");

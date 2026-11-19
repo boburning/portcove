@@ -60,6 +60,15 @@
       "warnings": [
         "Preserve the exact PAL language/disc and its data tree. Optional HD packs, overlays, upstream updates and other editions have separate boundaries."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disneys-hercules",
+      "evidence_urls": [
+        "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md",
+        "https://github.com/obaidr1/hercules-recompiled"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

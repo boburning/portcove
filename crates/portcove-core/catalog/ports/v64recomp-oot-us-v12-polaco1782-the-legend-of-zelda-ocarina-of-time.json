@@ -45,6 +45,15 @@
       "image_sha256": "1af50c5c3feeb1edba00661abafbd61d0f4f67d259e43729ec5e9f09c197afa3",
       "game_slug": "the-legend-of-zelda-ocarina-of-time",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Shipwright/blob/de1ab1b63383c15f694a7c551300cccc28c63365/README.md",
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

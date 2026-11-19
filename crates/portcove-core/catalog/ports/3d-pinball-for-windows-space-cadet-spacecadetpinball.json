@@ -50,6 +50,14 @@
           "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "3d-pinball-for-windows-space-cadet",
+      "evidence_urls": [
+        "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

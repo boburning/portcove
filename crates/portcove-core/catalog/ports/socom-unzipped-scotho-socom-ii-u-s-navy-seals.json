@@ -35,6 +35,12 @@
       "image_sha256": "0a6e19060030b1593fc431cec23fce1b66a4f442ceb42b1c3efed01b36814ff0",
       "game_slug": "socom-ii-us-navy-seals",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "socom-ii-u-s-navy-seals",
+      "evidence_urls": ["https://github.com/Scotho/socom-unzipped"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -754,7 +754,12 @@ async fn composed_availability_binds_replay_without_consuming_or_repairing_the_f
 #[tokio::test]
 async fn library_selection_persists_the_exact_candidate_and_floor_together() {
     let fixture = RepositoryFixture::new();
-    let (port_id, targets) = repository_targets();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 2 * 1024 * 1024);
+    let catalog = Catalog::from_document(document).unwrap();
+    let port_id = catalog.ports()[0].id.clone();
+    let targets = repository_targets_for(&catalog, &port_id);
+    assert!(targets.iter().any(|(_, raw)| raw.len() > 4 * 1024 * 1024));
     let root = fixture
         .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
@@ -835,6 +840,13 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         )
         .unwrap();
     let stored: Value = serde_json::from_str(&active_json).unwrap();
+    let exact_contract = stored["snapshot"]["contract_json"].as_str().unwrap();
+    assert!(exact_contract.len() > 4 * 1024 * 1024);
+    assert!(
+        targets
+            .iter()
+            .any(|(_, raw)| raw.as_slice() == exact_contract.as_bytes())
+    );
     assert!(
         stored["snapshot"]["index_json"]
             .as_str()

@@ -35,6 +35,21 @@
       "image_sha256": "d82029c253fcd97e6bcd5ca3e81b7acad498a8d0caa8d546d07e2990da2fc9c8",
       "game_slug": "dragon-ball-z-infinite-world",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-infinite-world",
+      "evidence_urls": ["https://github.com/TheSlackbringer/dbziw-recomp"],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-infinite-world-playstation-2",
+          "title": "Dragon Ball Z: Infinite World (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheSlackbringer/dbziw-recomp/blob/f272bd545cca2da826249b93666d01ea04519cef/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

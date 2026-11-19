@@ -50,6 +50,24 @@
       "warnings": [
         "Use USA V1.0 and the actual WG3DRecomp data root. Controller Pak storage, other revisions, devices and real save compatibility remain distinct."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wayne-gretzkys-3d-hockey",
+      "evidence_urls": [
+        "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md",
+        "https://github.com/geno55/wg3d-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wayne-gretzkys-3d-hockey-nintendo-64",
+          "title": "Wayne Gretzky's 3D Hockey (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/geno55/wg3d-recomp/blob/f7de1d6f15f680e995c7894e405361e363a3f1ef/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

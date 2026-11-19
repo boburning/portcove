@@ -35,6 +35,12 @@
       "image_sha256": "6312e7a79df0feee32a73dbde3de34c662962c2fb9116f4cac0be7a909c0ffb3",
       "game_slug": "twisted-metal-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "twisted-metal-2",
+      "evidence_urls": ["https://github.com/jcoker85/TwistedMetal1234Recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

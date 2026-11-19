@@ -70,6 +70,15 @@
           "instruction": "The upstream APK includes ARM64, ARMv7, x86 and x86-64 builds. On first launch, choose a folder with your original master.dat, critter.dat, patch000.dat and the data folder. Open the same app again to use the imported data. Its release profile is under Android/data/com.alexbatalov.fallout2ce/files on typical Android devices. Debug builds use a separate profile. Keep the actual profile when updating."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout-2",
+      "evidence_urls": [
+        "https://github.com/alexbatalov/fallout2-ce",
+        "https://github.com/alexbatalov/fallout2-ce/tree/9fb917c357b20d95d597bed4d67904c29cd5c753"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

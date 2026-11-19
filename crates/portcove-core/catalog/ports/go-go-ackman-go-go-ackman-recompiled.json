@@ -57,7 +57,16 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question."
+    "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question.",
+    "original_game": {
+      "format_version": 1,
+      "id": "go-go-ackman",
+      "evidence_urls": [
+        "https://github.com/catmidori/gogoackman1recomp",
+        "https://github.com/catmidori/gogoackman1recomp/blob/9f12ba1e59185e6fbe70eb7822338c7709f0c86a/README.md"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

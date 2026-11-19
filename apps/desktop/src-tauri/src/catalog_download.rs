@@ -1,7 +1,7 @@
 //! Thin host transport for upstream package handoff. Core owns acquisition and recovery.
 use crate::{
     DesktopResult, DesktopState, blocking_service_at_generation, blocking_worker, open_directory,
-    service_at_generation,
+    open_host_target, require_library_generation, service_at_generation, state_generation,
 };
 use portcove_core::{
     CatalogDownloadCandidates, CatalogDownloadPreview, CatalogDownloadRequest, OperationEvent,
@@ -109,6 +109,48 @@ pub(crate) async fn open_pending_setup_folder(
         let path = service.pending_setup_folder(&port_id, &pending_id)?;
         open_directory(&path)?;
         Ok(path)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn open_pending_setup_resource(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    pending_id: String,
+    url: String,
+    generation: u64,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let url = service.pending_setup_resource(&port_id, &pending_id, &url)?;
+        require_library_generation(state_generation(&state), generation)?;
+        open_host_target(std::ffi::OsStr::new(&url))
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn open_catalog_download_release_notes(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    release_id: portcove_core::CatalogDownloadReleaseId,
+    asset_id: portcove_core::CatalogDownloadAssetId,
+    url: String,
+    generation: u64,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let url = tauri::async_runtime::block_on(service.catalog_download_release_notes(
+            &port_id,
+            &release_id,
+            &asset_id,
+            &url,
+        ))?;
+        require_library_generation(state_generation(&state), generation)?;
+        open_host_target(std::ffi::OsStr::new(&url))
     })
     .await
 }

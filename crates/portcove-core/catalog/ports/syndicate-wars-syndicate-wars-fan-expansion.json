@@ -53,6 +53,15 @@
           "instruction": "The project was formerly mefistotelis/swars. The installer can convert music and does not need the disc image after completing setup. The project also documents a Windows MinGW32 source path. Confirm the selected package architecture and retail revision upstream."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "syndicate-wars",
+      "evidence_urls": [
+        "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
+        "https://github.com/swfans/syndwarsfx"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

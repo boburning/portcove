@@ -452,8 +452,12 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - `port:<id>` from authored records, with its canonical issue;
   - `implementation:<key>` from each record's validated lineage history, using
     the lineage contract's own keys (`lineageIdentityKeys`);
-  - `issue:<n>` for issues that name catalog IDs or port keys, so an
-    uncataloged implementation is searchable without a catalog entry;
+  - `upstream:repository:<host>:<id>` for an immutable repository ID from
+    reviewed catalog lineage or a validated hosted intake request. Search for
+    this identity to find the listings it serves and journal requests that
+    observed it. Each listing keeps its own target and Core assessments;
+  - `issue:<n>` for issues named by a catalog record or hosted request, and
+    issues that name catalog IDs or port keys. Closed issues remain searchable;
   - `intake:<request>` with its candidate port keys, candidate upstream URL and
     repository identities, and linked work;
   - `definition:<namespace>/<id>` from the publication source.

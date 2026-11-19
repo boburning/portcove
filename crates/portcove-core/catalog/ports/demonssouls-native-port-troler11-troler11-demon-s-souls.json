@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/troler11/demons-souls-port-pc"
     },
-    "issue_number": 3374
+    "issue_number": 3374,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/troler11/demons-souls-port-pc"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

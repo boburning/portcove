@@ -20,6 +20,7 @@ import { platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
 import { DetailLayout } from "./DetailLayout";
 import { SetupStatement, type DetailOrganization } from "./DetailChoices";
+import { RuntimeLaunchFacts } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
 import { SelfServiceSetup } from "./SelfServiceSetup";
 import { PortCapabilities } from "./PortCapabilities";
@@ -169,8 +170,8 @@ export function ListingDetailPanel({
     <div className="flex flex-wrap gap-4 text-sm">
       <ExternalLink href={listing.project_url}>Project website</ExternalLink>
       {updates?.releases && <ExternalLink href={updates.url}>Upstream releases</ExternalLink>}
-      {listing.setup_url && (
-        <ExternalLink href={listing.setup_url}>Setup instructions</ExternalLink>
+      {!entry.pendingSetup && listing.setup_url && (
+        <ExternalLink href={listing.setup_url}>Project setup guide</ExternalLink>
       )}
     </div>
   );
@@ -410,9 +411,15 @@ export function ListingDetailPanel({
                 <CurrentStateSummary title="Installation" className="mb-6">
                   {registered ? (
                     <>
-                      <p className="[overflow-wrap:anywhere]">{registered.path}</p>
+                      <RuntimeLaunchFacts
+                        executable={registered.executable}
+                        workingDirectory={registered.path}
+                        launchArguments={registered.user_selected?.arguments}
+                      />
                       <p>
                         You or the upstream launcher maintain this installation and its updates.
+                        Keep backups of your external saves with the tools or instructions from the
+                        project.
                       </p>
                       <Button
                         variant="link"

@@ -43,9 +43,26 @@
       "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
     },
     "release_url": "https://github.com/darkuni/outrun-arcade-recomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": [
+        "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md",
+        "https://github.com/darkuni/outrun-arcade-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+          ]
+        }
+      ]
+    }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -73,5 +90,6 @@
         "executables": ["outrun_arcade.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

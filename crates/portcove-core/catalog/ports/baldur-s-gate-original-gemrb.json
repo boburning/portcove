@@ -12,7 +12,7 @@
     },
     "name": "Baldur's Gate (original) (GemRB)",
     "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
-    "original_game_title": "Baldur's Gate (original)",
+    "original_game_title": "Baldur's Gate",
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -58,7 +58,17 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "baldur-s-gate",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+        "https://gemrb.org/Install.html",
+        "https://github.com/gemrb/gemrb"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

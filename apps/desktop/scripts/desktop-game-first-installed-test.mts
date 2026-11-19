@@ -47,6 +47,7 @@ import {
   clickVisible,
   selectCatalogPort,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { gameIdentityLabel, gameTitle } from "../src/port-identity.ts";
@@ -339,6 +340,7 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         );
         return value.some((root) => samePath(root.path, prepared.sourceDirectory));
       }, 15_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       // Refresh reads saved state; the scan starts through its separate action.
       await click(button("Scan saved folders"));

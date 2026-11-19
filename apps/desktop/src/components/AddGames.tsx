@@ -9,6 +9,7 @@ import { Icon } from "./ui";
 
 export function AddGames({
   active,
+  scanRequest = 0,
   generation,
   ports,
   profiles,
@@ -24,6 +25,7 @@ export function AddGames({
   setSetupSource,
 }: {
   active: boolean;
+  scanRequest?: number;
   generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -39,8 +41,16 @@ export function AddGames({
   setSetupSource: (source?: SourceRecord) => void;
 }) {
   // Choosing a game always happens in Discover, where artwork and details help.
-  const [mode, setMode] = useState<"choose" | "folders" | "existing">("choose");
-  const [foldersVisited, setFoldersVisited] = useState(false);
+  const [mode, setMode] = useState<"choose" | "folders" | "existing">(
+    scanRequest ? "folders" : "choose",
+  );
+  const [foldersVisited, setFoldersVisited] = useState(Boolean(scanRequest));
+  const [seenScanRequest, setSeenScanRequest] = useState(scanRequest);
+  if (scanRequest !== seenScanRequest) {
+    setSeenScanRequest(scanRequest);
+    setFoldersVisited(true);
+    setMode("folders");
+  }
   return (
     <section hidden={!active} aria-label="Add games workspace" className="add-games">
       <p className="add-games-intro">
@@ -148,6 +158,7 @@ export function AddGames({
       {foldersVisited && (
         <div id="add-games-scan" hidden={mode !== "folders"} className="add-route-panel">
           <GameFileLibraries
+            active={active && mode === "folders"}
             scanAfterAdd
             instanceId="add-games-folders"
             generation={generation}

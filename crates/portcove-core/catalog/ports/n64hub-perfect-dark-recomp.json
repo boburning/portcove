@@ -47,6 +47,24 @@
           "instruction": "The reviewed Windows profile defaults to %LOCALAPPDATA%/PerfectDarkRecompiled. An existing portable.txt in the working folder selects that folder instead. Keep the creating mode and actual locations; adding or removing the marker does not migrate existing data. Keep the whole profile, its selected original/EEPROM data, all JSON settings, controller profiles, mods and any separately chosen outputs. Preserve the complete runtime folder and any custom or external paths too. Edit settings only while the player is closed; registration does not move profiles or certify state compatibility between versions."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/n64hub/perfect-dark-recomp/blob/cb7a2900cf2b216aa39f44daaece2cdb5599ba32/README.md",
+        "https://github.com/n64hub/perfect-dark-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/perfect-dark-recomp/blob/ea46a3a49da515b5982d98b2270e5782eab98cd3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

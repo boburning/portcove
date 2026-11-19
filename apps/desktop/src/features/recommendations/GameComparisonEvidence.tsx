@@ -131,6 +131,19 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
           </Button>
         )}
       </header>
+      {comparison.enabled && (
+        <p className="text-sm">
+          Comparing{" "}
+          {report?.editions.find((edition) => edition.id === context.edition)?.title ??
+            (report?.editions.length === 1
+              ? report.editions[0]?.title
+              : "the available editions")}{" "}
+          on {context.platform ? platformLabel(context.platform) : "this device"}.{" "}
+          {context.environment
+            ? `Using reports for ${context.environment}.`
+            : "Device-specific test results may be unavailable."}
+        </p>
+      )}
       <p className="text-xs text-pc-muted-foreground">
         Refreshing checks version information. It doesn’t run the game or test your device.
       </p>
@@ -280,6 +293,39 @@ export function GameComparisonEvidence({
           ? `Offered version ${port.offered_release.version}`
           : "No confirmed version for this comparison."}
       </p>
+      <p className="text-xs text-pc-muted-foreground">
+        {port.freshness.state === "catalog-pinned"
+          ? "Catalog-pinned identity; not a new upstream check."
+          : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
+      </p>
+      {candidate && !comparison.loading && (
+        <div className="grid gap-2 text-sm">
+          {candidate.reasons.map((reason) => (
+            <p key={reason}>
+              {reason === "operation-held" && port.operation.kind === "held"
+                ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
+                : reasons[reason]}
+            </p>
+          ))}
+          <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            {candidate.dimensions.map((dimension) => (
+              <div key={dimension.dimension}>
+                <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
+                <dd>
+                  {dimension.state === "known" &&
+                  (dimension.dimension === "controls" || dimension.dimension === "setup")
+                    ? candidate.evidence.find(
+                        (record) =>
+                          record.disposition === "current" &&
+                          record.evidence.dimension === dimension.dimension,
+                      )?.evidence.explanation || dimensionStates.known
+                    : dimensionStates[dimension.state]}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
       <details
         open={disclosure.scope === disclosureScope && disclosure.open}
         onToggle={(event) =>
@@ -295,21 +341,6 @@ export function GameComparisonEvidence({
           ))}
           {candidate ? (
             <>
-              {candidate.reasons.map((reason) => (
-                <p key={reason}>
-                  {reason === "operation-held" && port.operation.kind === "held"
-                    ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
-                    : reasons[reason]}
-                </p>
-              ))}
-              <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-                {candidate.dimensions.map((dimension) => (
-                  <div key={dimension.dimension}>
-                    <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
-                    <dd>{dimensionStates[dimension.state]}</dd>
-                  </div>
-                ))}
-              </dl>
               {candidate.evidence.map((record, index) => (
                 <div
                   key={`${record.evidence.id}-${index}`}
@@ -354,11 +385,6 @@ export function GameComparisonEvidence({
               {port.offered_release
                 ? `Offered ${port.offered_release.version} · ${releaseChannelPresentation(port.offered_release.channel).label} · SHA-256 ${port.offered_release.artifact_sha256.slice(0, 12)}`
                 : "We couldn’t confirm a download for this comparison."}
-            </p>
-            <p className="text-xs text-pc-muted-foreground">
-              {port.freshness.state === "catalog-pinned"
-                ? "Catalog-pinned identity; not a new upstream check."
-                : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
             </p>
             {port.offered_release?.published_at && (
               <p className="text-xs text-pc-muted-foreground">

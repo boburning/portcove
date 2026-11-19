@@ -12,7 +12,7 @@
     },
     "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
-    "original_game_title": "The Sims",
+    "original_game_title": "The Sims (console)",
     "project_url": "https://github.com/abilliontokens/sims1-recomp",
     "platforms": [],
     "availability": "unknown",
@@ -49,6 +49,24 @@
         {
           "title": "Keep the complete profile with its game version",
           "instruction": "The inspected SDK places settings.toml, logs/ and hdd/ beside the executable; numbered upstream instances can use separately numbered hdd roots. Its virtual hard-disk partitions E, C, X, Y and Z live under that effective root; preserve the whole tree, including saves, caches and data another executable can share. Keep assets/originals, config, mods, shader caches, diagnostics, captures, backups and all custom/external roots with the creating runtime. No cross-title or cross-version save compatibility is inferred. Preserve the exact project/SDK/dependency notices; code grants do not license EA/Maxis originals or arbitrary components."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sims-console",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/sims1-recomp",
+        "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-sims-console-xbox",
+          "title": "The Sims (console) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+          ]
         }
       ]
     }

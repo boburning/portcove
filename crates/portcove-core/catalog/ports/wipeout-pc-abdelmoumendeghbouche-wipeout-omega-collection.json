@@ -63,5 +63,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "WipEoutOmegaCollection combines HD/Fury and2048 content. Preserve the collection’s actual distinct game/campaign scope.",
+    "evidence_urls": ["https://github.com/AbdelmoumenDeghbouche/wipeout_pc"]
   }
 }

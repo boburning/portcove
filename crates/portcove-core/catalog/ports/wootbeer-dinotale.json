@@ -50,6 +50,15 @@
       "warnings": [
         "Use the exact supported Yoshi’s Story ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshis-story",
+      "evidence_urls": [
+        "https://github.com/wootbeer/dinotale/blob/0bd9635a0db14a7e2e31602a6ec33b54714756e3/README.md",
+        "https://github.com/wootbeer/dinotale"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

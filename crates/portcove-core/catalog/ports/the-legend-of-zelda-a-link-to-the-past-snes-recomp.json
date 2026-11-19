@@ -16,7 +16,22 @@
       "game_slug": "the-legend-of-zelda-a-link-to-the-past",
       "match_kind": "underlying-game"
     },
-    "issue_number": 151
+    "issue_number": 151,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-a-link-to-the-past",
+      "evidence_urls": ["https://github.com/mstan/ZeldaAlttPSNESRecomp"],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+          "title": "The Legend of Zelda: A Link to the Past (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

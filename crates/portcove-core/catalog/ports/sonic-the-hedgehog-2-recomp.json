@@ -16,7 +16,13 @@
       "game_slug": "sonic-the-hedgehog-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 153
+    "issue_number": 153,
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2",
+      "evidence_urls": ["https://github.com/mstan/SonicTheHedgehog2Recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

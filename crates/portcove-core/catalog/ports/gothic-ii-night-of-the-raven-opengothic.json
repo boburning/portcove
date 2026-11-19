@@ -42,6 +42,15 @@
           "instruction": "The selected Windows code uses working-directory Gothic.ini and log.txt, separately from original System/Gothic.ini, and writes save_slot_0.sav/save_slot_N.sav relative to the working directory. Preserve the complete creating working directory, actual original-data root, every save/config/mod and unknown file; do not assume the original vendor save directory contains all OpenGothic state."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gothic-ii-night-of-the-raven",
+      "evidence_urls": [
+        "https://github.com/Try/OpenGothic",
+        "https://github.com/Try/OpenGothic/tree/2855fa51957bac9e7ce83f938ec127a0ab3badce"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

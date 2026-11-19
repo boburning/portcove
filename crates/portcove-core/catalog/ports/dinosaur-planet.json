@@ -17,7 +17,13 @@
       "game_slug": "dinosaur-planet-recompiled",
       "match_kind": "port"
     },
-    "issue_number": 68
+    "issue_number": 68,
+    "original_game": {
+      "format_version": 1,
+      "id": "dinosaur-planet",
+      "evidence_urls": ["https://github.com/DinosaurPlanetRecomp/dino-recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

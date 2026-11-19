@@ -16,7 +16,13 @@
       "game_slug": "super-bomberman",
       "match_kind": "underlying-game"
     },
-    "issue_number": 724
+    "issue_number": 724,
+    "original_game": {
+      "format_version": 1,
+      "id": "super-bomberman",
+      "evidence_urls": ["https://github.com/elliotttate/BombermanRecomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

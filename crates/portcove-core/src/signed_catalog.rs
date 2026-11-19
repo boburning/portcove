@@ -15,14 +15,13 @@ use crate::{Catalog, CatalogDocument, PortcoveError, Result, SourceCatalog};
 /// catalog. Raised from 4 MiB with database writer protocol 60; content above
 /// it is refused, never truncated.
 pub(crate) const MAX_CATALOG_BYTES: usize = 16 * 1024 * 1024;
-/// The bound every client before writer protocol 60 still enforces. Historical
-/// migration 11 keeps it, and the catalog size guard keeps published catalogs
-/// within a stated margin below it until the owner retires those clients.
+/// Historical database constraint used by migration 11. Clients before writer
+/// protocol 60 enforce this bound independently of new publication.
 pub(crate) const LEGACY_MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
-/// Published catalogs stay below this share of the legacy bound. The Core
+/// Published catalogs stay below this share of each supported bound. The Core
 /// growth test and `scripts/catalog-capacity.mts --check` both enforce it.
 #[cfg(test)]
-pub(crate) const CATALOG_GROWTH_CEILING_PERCENT: usize = 85;
+pub(crate) const CATALOG_SUPPORTED_CAPACITY_PERCENT: usize = 85;
 pub(crate) const MAX_CATALOG_LIMIT_MESSAGE: &str = "signed catalog exceeds the 16 MiB limit";
 pub(crate) const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
 const SIGNING_DOMAIN: &[u8] = b"Portcove signed catalog v1\n";
@@ -330,6 +329,7 @@ pub(crate) fn validate_installed_port_contract(
         "platforms",
         "release",
         "upstream_status",
+        "upstream_active_reviewed",
         "presentation",
     ] {
         contract

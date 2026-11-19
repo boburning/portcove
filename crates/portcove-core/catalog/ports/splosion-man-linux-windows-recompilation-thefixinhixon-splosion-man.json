@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/thefixinhixon/SplosionManRecomp"
     },
-    "issue_number": 3246
+    "issue_number": 3246,
+    "original_game": {
+      "format_version": 1,
+      "id": "splosion-man",
+      "evidence_urls": ["https://github.com/thefixinhixon/SplosionManRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

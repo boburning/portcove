@@ -31,6 +31,7 @@ import {
   selectCatalogPort,
   revealDetailSection,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { gameTitle, gameProjectLabel } from "../src/port-identity.ts";
@@ -409,6 +410,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
           ).some((item) => samePath(item.path, sourceDirectory)),
         15_000,
       );
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       // Refresh reads saved-folder state; this ordinary action actually starts hashing.
       const scanActivitiesBefore = new Set(

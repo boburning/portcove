@@ -51,7 +51,16 @@
       "macos-x86-64": ["Die-Hard-Trilogy-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Die Hard Trilogy"
+    "original_game_title": "Die Hard Trilogy",
+    "original_game": {
+      "format_version": 1,
+      "id": "die-hard-trilogy",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/die-hard-trilogy-recomp"
+      ],
+      "source_editions": []
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

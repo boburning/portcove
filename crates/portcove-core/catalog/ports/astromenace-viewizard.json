@@ -43,6 +43,16 @@
           "instruction": "Preserve config.xml and the versioned PilotProfiles_*.data file in the active profile. Windows and Mac use the Viewizard/AstroMenace user folder. On native Linux keep astromenace under XDG_CONFIG_HOME or ~/.config. If you use Flatpak, keep its separate app profile."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "astromenace",
+      "evidence_urls": [
+        "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",
+        "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md",
+        "https://github.com/viewizard/astromenace"
+      ],
+      "source_editions": []
     }
   }
 }

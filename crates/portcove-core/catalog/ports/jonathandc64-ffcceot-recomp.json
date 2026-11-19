@@ -46,6 +46,24 @@
       "warnings": [
         "Keep the exact supported DS ROM and region-specific data. First-use/rebuild work stays upstream; alpha reports, Wii cutscenes and community online services retain separate scope."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-echoes-of-time",
+      "evidence_urls": [
+        "https://github.com/JonathanDC64/FFCCEOT-Recomp",
+        "https://github.com/JonathanDC64/FFCCEOT-Recomp/blob/5ca5221db2584621448465d983ba42ab9b5a40c1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-echoes-of-time-nintendo-ds",
+          "title": "Final Fantasy Crystal Chronicles: Echoes of Time (Nintendo DS)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/JonathanDC64/FFCCEOT-Recomp/blob/934c7434c9a6c2866fea17fa36098ef9c0652fc4/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

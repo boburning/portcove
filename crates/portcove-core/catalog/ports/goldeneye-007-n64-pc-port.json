@@ -50,7 +50,16 @@
     "download_asset_hints": {
       "linux-x86-64": ["goldeneye-pc-port-", "-linux-x86_64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
+        "https://github.com/jkdansereau/goldeneye-pc-port"
+      ],
+      "source_editions": []
+    }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {

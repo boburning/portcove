@@ -35,6 +35,21 @@
       "image_sha256": "3fd8af4d3905cace5735714fce10ee1a11146b874ecb9956c82426e17379ed24",
       "game_slug": "3d-dot-game-heroes",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "3d-dot-game-heroes",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-3ddotgameheroes"],
+      "source_editions": [
+        {
+          "id": "3d-dot-game-heroes-playstation-3",
+          "title": "3D Dot Game Heroes (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/vs-sr-dev/pc-3ddotgameheroes/blob/a9ef70da1c4440b243efe51b124cd1e5bb4f10f9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

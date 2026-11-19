@@ -412,7 +412,8 @@ export default interface Resources {
       "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
       "label": "Upstream activity on GitHub",
       "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
-      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}.",
+      "unknown": "GitHub was checked on {{checked}}. The latest change date is unknown."
     }
   },
   "catalogUpdates": {
@@ -533,13 +534,18 @@ export default interface Resources {
     "listings": {
       "addressPlaceholder": "https://",
       "builtIn": "Using the built-in directory",
+      "checkingStatus": "Checking game listing status…",
       "contentAddress": "Catalog content address",
       "description": "Refresh port listings, artwork and setup information from the configured official publisher. Game installations keep their existing permissions and files.",
       "metadataAddress": "Catalog metadata address",
       "refresh": "Refresh game listings",
       "refreshing": "Refreshing game listings…",
+      "retryStatus": "Retry listing status",
       "revision_one": "Game listings revision {{revision}} · {{count}} published listing",
       "revision_other": "Game listings revision {{revision}} · {{count}} published listings",
+      "savedDirectoryUnavailable": "Portcove could not use the saved listing directory.",
+      "settings": "Listing refresh settings",
+      "statusFailed": "Game listing status is unknown. Could not read it: {{error}}",
       "title": "Game listings"
     }
   },
@@ -851,6 +857,7 @@ export default interface Resources {
       "website": "Project website"
     },
     "section": {
+      "configuration": "Game settings & mods",
       "files": "Game files",
       "label": "Game detail sections",
       "manage": "Manage",
@@ -1859,6 +1866,16 @@ export default interface Resources {
           "inspect": "Files left by unfinished setup"
         }
       },
+      "consequence": {
+        "backup": "This check found a problem with a backup. Review saves and backups before relying on it.",
+        "malformed": "Portcove could not read this operation record. There is no supported recovery action here. Keep the files and contact support.",
+        "missing": "Portcove cannot use this registered copy at its recorded location. Review the installation to decide how to recover it.",
+        "orphaned": "Portcove found a folder in managed storage without a matching registration. Review library storage before moving any files.",
+        "retained": "Setup left a record or working files behind. Review what remains before deciding whether to clean up.",
+        "unfinished": "Portcove found an unfinished operation. Review its state before changing the game or library.",
+        "unknown": "Portcove could not recognize this recovery record. There is no supported recovery action here.",
+        "unreviewable": "Portcove cannot identify the setup to review. Keep the files and contact support."
+      },
       "details": {
         "cleanupLabel": "Cleanup changes and preserved data",
         "clearScope": "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
@@ -1889,13 +1906,14 @@ export default interface Resources {
       "failedRetained": "Recovery information could not be refreshed: <error /> The last completed check remains visible.",
       "heading": "Unfinished work and recovery",
       "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
-      "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",
+      "intro": "Review the next step for each item. Open Record details for its recorded location and diagnostic information.",
       "item": {
         "location": "Recorded location",
         "nextStep": "Suggested next step",
         "noGuidance": "No recovery guidance was recorded.",
         "noLocation": "No location was recorded.",
         "observation": "Diagnostic observation",
+        "recordDetails": "Record details",
         "reference": "Operation reference",
         "reviewFiles": "Review unfinished setup files",
         "summary": "<game /> · {{label}}"

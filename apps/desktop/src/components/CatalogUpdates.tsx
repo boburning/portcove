@@ -148,7 +148,7 @@ export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance |
   );
 }
 
-function CatalogUpdatesDialog({
+export function CatalogUpdatesDialog({
   close,
   onChanged,
 }: {
@@ -597,6 +597,8 @@ function ListingDeliveryControls({
   const [targets, setTargets] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [statusError, setStatusError] = useState<string>();
+  const [statusAttempt, setStatusAttempt] = useState(0);
   useEffect(() => {
     let current = true;
     void desktopApi
@@ -605,17 +607,18 @@ function ListingDeliveryControls({
         if (current) setStatus(value);
       })
       .catch((cause: unknown) => {
-        if (current) setError(errorText(cause));
+        if (current) setStatusError(errorText(cause));
       });
     return () => {
       current = false;
     };
-  }, []);
+  }, [statusAttempt]);
   const refresh = async () => {
     setBusy(true);
     setError(undefined);
     try {
       setStatus(await desktopApi.refreshCatalogListings(metadata, targets, () => {}));
+      setStatusError(undefined);
       await onChanged?.();
     } catch (cause) {
       setError(errorText(cause));
@@ -624,9 +627,25 @@ function ListingDeliveryControls({
     }
   };
   return (
-    <details>
-      <summary>{t("listings.title")}</summary>
-      <p>{t("listings.description")}</p>
+    <section className="grid gap-2">
+      <h3>{t("listings.title")}</h3>
+      {statusError !== undefined && (
+        <div>
+          <p role="alert">{t("listings.statusFailed", { error: statusError })}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setStatusError(undefined);
+              setStatusAttempt((attempt) => attempt + 1);
+            }}
+          >
+            {t("listings.retryStatus")}
+          </Button>
+        </div>
+      )}
+      {!status && statusError === undefined && !busy && !error && (
+        <p role="status">{t("listings.checkingStatus")}</p>
+      )}
       {status && (
         <p>
           {status.selected
@@ -645,35 +664,45 @@ function ListingDeliveryControls({
           count={1}
         />
       )}
-      <label htmlFor={metadataId}>
-        {t("listings.metadataAddress")}
-        <Input
-          id={metadataId}
-          value={metadata}
-          onChange={(event) => setMetadata(event.target.value)}
-          placeholder={t("listings.addressPlaceholder")}
-          disabled={disabled || busy}
-        />
-      </label>
-      <label htmlFor={targetsId}>
-        {t("listings.contentAddress")}
-        <Input
-          id={targetsId}
-          value={targets}
-          onChange={(event) => setTargets(event.target.value)}
-          placeholder={t("listings.addressPlaceholder")}
-          disabled={disabled || busy}
-        />
-      </label>
-      <Button
-        disabled={disabled || busy || !metadata || !targets}
-        onClick={() => {
-          void refresh();
-        }}
-      >
-        {busy ? t("listings.refreshing") : t("listings.refresh")}
-      </Button>
-      {error && <p role="alert">{error}</p>}
-    </details>
+      <details>
+        <summary>{t("listings.settings")}</summary>
+        <p>{t("listings.description")}</p>
+        <label htmlFor={metadataId}>
+          {t("listings.metadataAddress")}
+          <Input
+            id={metadataId}
+            value={metadata}
+            onChange={(event) => setMetadata(event.target.value)}
+            placeholder={t("listings.addressPlaceholder")}
+            disabled={disabled || busy}
+          />
+        </label>
+        <label htmlFor={targetsId}>
+          {t("listings.contentAddress")}
+          <Input
+            id={targetsId}
+            value={targets}
+            onChange={(event) => setTargets(event.target.value)}
+            placeholder={t("listings.addressPlaceholder")}
+            disabled={disabled || busy}
+          />
+        </label>
+        <Button
+          disabled={
+            disabled ||
+            busy ||
+            (!status && statusError === undefined && !error) ||
+            !metadata ||
+            !targets
+          }
+          onClick={() => {
+            void refresh();
+          }}
+        >
+          {busy ? t("listings.refreshing") : t("listings.refresh")}
+        </Button>
+        {error && <p role="alert">{error}</p>}
+      </details>
+    </section>
   );
 }

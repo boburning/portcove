@@ -44,6 +44,15 @@
       "warnings": [
         "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-settlers",
+      "evidence_urls": [
+        "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+        "https://github.com/freeserf/freeserf"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

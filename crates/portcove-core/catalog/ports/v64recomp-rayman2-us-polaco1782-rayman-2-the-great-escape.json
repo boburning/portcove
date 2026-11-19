@@ -45,6 +45,15 @@
       "image_sha256": "d6927888c6f6184250267a1bf04115a97b1145679102e7627863df4b5de866d2",
       "game_slug": "rayman-2-the-great-escape",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-2-the-great-escape",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

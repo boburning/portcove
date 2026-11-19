@@ -38,9 +38,17 @@
         }
       ]
     },
-    "original_game_title": "Chris Sawyer's Locomotion"
+    "original_game_title": "Chris Sawyer's Locomotion",
+    "original_game": {
+      "format_version": 1,
+      "id": "chris-sawyers-locomotion",
+      "evidence_urls": [
+        "https://github.com/OpenLoco/OpenLoco#readme",
+        "https://github.com/OpenLoco/OpenLoco"
+      ],
+      "source_editions": []
+    }
   },
-  "listing_inherit_asset_hints": ["linux-x86-64", "macos-aarch64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -77,5 +85,6 @@
         "executables": ["contents/macos/openloco"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-aarch64"]
 }

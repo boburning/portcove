@@ -72,5 +72,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide explicitly combines ClayFighter 63⅓ gameplay with Sculptor's Cut donor characters and requires both originals. It does not recreate all of Sculptor's Cut; preserve this fusion identity separately from either source title.",
+    "evidence_urls": [
+      "https://github.com/djultra64/ClayFighter64",
+      "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+    ]
   }
 }

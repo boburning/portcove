@@ -42,7 +42,13 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-classic",
+      "evidence_urls": ["https://dhewm3.org/#how-to-install", "https://github.com/dhewm/dhewm3"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

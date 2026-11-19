@@ -35,6 +35,21 @@
       "image_sha256": "68e429d2f0f88aab3ea86ba65fb289808955b841ca0a4cce3c2c7b9b37267a4e",
       "game_slug": "metropolismania",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metropolismania",
+      "evidence_urls": ["https://github.com/koaque/Metropolismania-PC"],
+      "source_editions": [
+        {
+          "id": "metropolismania-playstation-2",
+          "title": "Metropolismania (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/koaque/Metropolismania-PC/blob/7b23b0188fa13e12a39577496043a9f19d641c62/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

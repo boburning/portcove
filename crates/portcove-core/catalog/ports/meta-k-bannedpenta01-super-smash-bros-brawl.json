@@ -35,6 +35,12 @@
       "image_sha256": "8d4568cea0ba75745c55ed26b6dd99dd3d1fd60e5213c6b39cad02e55a7241a6",
       "game_slug": "super-smash-bros-brawl",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-brawl",
+      "evidence_urls": ["https://github.com/BannedPenta01/META-K"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

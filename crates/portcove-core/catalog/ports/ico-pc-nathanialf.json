@@ -36,6 +36,15 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/nathanialf/ico-pc/blob/v0.8.5/docs/PORTABLE_MODE.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ico",
+      "evidence_urls": [
+        "https://github.com/nathanialf/ico-pc/blob/v0.8.5/docs/PORTABLE_MODE.md",
+        "https://github.com/nathanialf/ico-pc"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -35,6 +35,12 @@
       "image_sha256": "0f8dc17248ec17180cfd4e8b3274456e671bd9a235012759c8d6070a78a2ae2d",
       "game_slug": "halo-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-2",
+      "evidence_urls": ["https://github.com/andrewnakas/openhalo2"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

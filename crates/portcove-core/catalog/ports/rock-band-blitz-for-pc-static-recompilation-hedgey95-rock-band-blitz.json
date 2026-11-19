@@ -35,6 +35,12 @@
       "image_sha256": "a42b68e97c4a2ad0e50adaa9349c1ab75c6392d486e6eec6167a934eca9faf0f",
       "game_slug": "rock-band-blitz",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-band-blitz",
+      "evidence_urls": ["https://github.com/hedgey95/rock-band-blitz-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

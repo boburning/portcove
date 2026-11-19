@@ -40,5 +40,10 @@
       ],
       "help_url": "https://github.com/sp00nznet/ww#readme"
     }
+  },
+  "original_game_review": {
+    "disposition": "framework",
+    "reason": "The authored summary explicitly identifies a development renderer/framework rather than a complete game runtime. Original-game identity must not imply playable game scope; review a future title-specific runtime separately.",
+    "evidence_urls": ["https://github.com/sp00nznet/ww#readme", "https://github.com/sp00nznet/ww"]
   }
 }

@@ -1,4 +1,7 @@
 import { openAdvancedFilters } from "../../test/filter-fields";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -171,6 +174,8 @@ beforeEach(async () => {
   );
   vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue(null);
   vi.spyOn(desktopApi, "openPendingSetupFolder").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openPendingSetupResource").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openCatalogDownloadReleaseNotes").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "forgetPendingSetup").mockResolvedValue(undefined);
   root = await render(
     <CatalogDownloadControl entry={entry} generation={9} busy={false} perform={perform} />,
@@ -179,6 +184,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await cleanup();
   await page.viewport(1280, 800);
+  delete document.documentElement.dataset.theme;
   vi.restoreAllMocks();
 });
 
@@ -312,6 +318,7 @@ it("retains a deliberate older release and package across refresh", async () => 
     release_id: 41,
     asset_id: 8,
     release_tag: "v1.1",
+    release_url: `${listing.project_url}/releases/tag/v1.1`,
     name: "game-variant.zip",
   };
   const previous = {
@@ -330,6 +337,9 @@ it("retains a deliberate older release and package across refresh", async () => 
     })
     .mockResolvedValue(previous);
   await click("Check upstream downloads");
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
   await click("Change download options");
   await page.getByRole("combobox", { name: /^Release v/ }).click();
   await page.getByRole("option", { name: /v1.1/ }).click();
@@ -343,6 +353,18 @@ it("retains a deliberate older release and package across refresh", async () => 
     41,
     "stable",
   );
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.1" }))
+    .toHaveAttribute("href", older.release_url);
+  await page.getByRole("link", { name: "Release notes for v1.1" }).click();
+  expect(desktopApi.openCatalogDownloadReleaseNotes).toHaveBeenCalledExactlyOnceWith(
+    listing.id,
+    older.release_id,
+    older.asset_id,
+    older.release_url,
+    9,
+  );
+  expect(document.querySelector(`a[href="${artifact.release_url}"]`)).toBeNull();
   await click("Review download");
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
     { ...selection, release_id: 41, asset_id: 8 },
@@ -985,7 +1007,9 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
   await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
-  await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("option", { name: "Ready to play (1)", exact: true }))
+    .toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");
@@ -994,6 +1018,90 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await click("Continue setup");
   expect(select.mock.calls[0]?.[0]).toBe(listing.id);
   expect(launch).not.toHaveBeenCalled();
+  expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
+});
+
+it("uses the downloaded package’s release and retained setup guide when the directory changes", async () => {
+  const retained = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/Original-setup`,
+    manual_setup: {
+      steps: [{ title: "Prepare the archive", instruction: "Use the companion data folder." }],
+      warnings: [],
+      help_url: `${listing.project_url}/blob/v1.2/guide.md`,
+    },
+  };
+  const current = {
+    ...listing,
+    setup_url: `${listing.project_url}/wiki/New-installer`,
+    manual_setup: {
+      steps: [{ title: "New installer", instruction: "Follow the new setup wizard." }],
+      warnings: [],
+    },
+  };
+  const [resumed] = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [current] },
+    [listingStatus],
+    [{ ...saved, listing: retained }],
+  );
+  await root.rerender(
+    <ListingDetailPanel
+      entry={resumed!}
+      status={status}
+      close={vi.fn()}
+      generation={9}
+      perform={perform}
+      onChanged={changed}
+    />,
+  );
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  await expect
+    .element(page.getByRole("link", { name: "Release notes for v1.2" }))
+    .toHaveAttribute("href", artifact.release_url);
+  expect(document.body.textContent).toContain("Use the companion data folder.");
+  expect(document.body.textContent).not.toContain("Follow the new setup wizard.");
+  expect(document.querySelector(`a[href="${retained.setup_url}"]`)).toBeTruthy();
+  expect(document.querySelector(`a[href="${current.setup_url}"]`)).toBeNull();
+  await page.getByRole("link", { name: "Release notes for v1.2" }).click();
+  await page
+    .getByRole("region", { name: "Upstream setup instructions" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
+  await page
+    .getByRole("region", { name: "Your existing installation" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
+  await page.getByRole("link", { name: "Setup guide on the project’s website" }).click();
+  expect(desktopApi.openPendingSetupResource).toHaveBeenCalledTimes(4);
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    1,
+    listing.id,
+    saved.id,
+    artifact.release_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    2,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    3,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    4,
+    listing.id,
+    saved.id,
+    retained.setup_url,
+    9,
+  );
   expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
 });
 
@@ -1321,7 +1429,12 @@ it("retains a manually selected setup target and literal arguments across remoun
     10,
   );
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain(executable);
+  const launchReview = page.getByText("Game program", { exact: true }).element().closest("dl")!;
+  for (const value of [executable, "C:/Upstream data", "--data", "C:/Original files"]) {
+    await expect
+      .element(page.elementLocator(launchReview).getByText(value, { exact: true }))
+      .toBeVisible();
+  }
 });
 
 it("shows save warnings without promoting an unscoped guide step to a download instruction", async () => {
@@ -1464,14 +1577,13 @@ it("separates stable update navigation, selected-package notes and historical se
     .element(page.getByRole("link", { name: "Upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
   await expect
-    .element(page.getByRole("link", { name: "Setup instructions", exact: true }))
+    .element(page.getByRole("link", { name: "Project setup guide", exact: true }))
     .toHaveAttribute("href", historical);
   await expect
     .element(page.getByRole("link", { name: "View upstream releases", exact: true }))
     .toHaveAttribute("href", `${listing.project_url}/releases`);
-  await click("Change download options");
   await expect
-    .element(page.getByRole("link", { name: "Release notes and requirements", exact: true }))
+    .element(page.getByRole("link", { name: "Release notes for v1.2", exact: true }))
     .toHaveAttribute("href", artifact.release_url);
 });
 
@@ -1541,7 +1653,143 @@ it("renders accepted GitLab listing observations through the shared descriptive 
     .toHaveAttribute("href", "https://gitlab.com/example/subgroup/game/-/releases/v1");
   await expect.element(evidence.getByText("game-windows-x64.zip", { exact: false })).toBeVisible();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
-});
+
+  const observation = observedListing.upstream_observation!;
+  const variants: {
+    name: string;
+    theme: "dark" | "light";
+    width: number;
+    listing: PortListing;
+    label: string;
+    observedFirst: boolean;
+  }[] = [
+    {
+      name: "fresh-package",
+      theme: "dark",
+      width: 1280,
+      listing: observedListing,
+      label: "Package candidates observed",
+      observedFirst: true,
+    },
+    {
+      name: "no-package",
+      theme: "light",
+      width: 430,
+      listing: { ...observedListing, upstream_observation: { ...observation, releases: [] } },
+      label: "No package observed in checked releases",
+      observedFirst: false,
+    },
+    {
+      name: "stale-package",
+      theme: "dark",
+      width: 960,
+      listing: {
+        ...observedListing,
+        upstream_observation: {
+          ...observation,
+          attempted_at: new Date(Date.now() - 7200000).toISOString(),
+          observed_at: new Date(Date.now() - 7200000).toISOString(),
+          fresh_until: new Date(Date.now() - 3600000).toISOString(),
+        },
+      },
+      label: "Package candidates observed (stale observation)",
+      observedFirst: false,
+    },
+    {
+      name: "unavailable-poll",
+      theme: "light",
+      width: 430,
+      listing: {
+        ...observedListing,
+        upstream_observation: { ...observation, status: "unavailable" },
+      },
+      label: "Package candidates observed (check unavailable)",
+      observedFirst: false,
+    },
+    {
+      name: "reviewed-override",
+      theme: "light",
+      width: 960,
+      listing: {
+        ...observedListing,
+        availability: "source-only",
+        availability_override_reason:
+          "Reviewed distribution restriction: use the upstream source instructions for this project.",
+      },
+      label: "Source only (catalog setting)",
+      observedFirst: false,
+    },
+  ];
+  const peerListing: PortListing = { ...listing, id: "unobserved-peer", name: "Unobserved peer" };
+  const peer = catalogEntries(
+    undefined,
+    { format_version: 1, listings: [peerListing] },
+    [],
+    [],
+  )[0]!;
+  for (const variant of variants) {
+    await page.viewport(variant.width, 800);
+    document.documentElement.dataset.theme = variant.theme;
+    const selected = { ...entry, listing: variant.listing };
+    const statuses = new Map([[entry.id, status]]);
+    const ordered = filterPorts([peer, selected], statuses, "catalog", "all", "", "catalog", {
+      devicePlatform: "windows-x86-64",
+    });
+    expect(ordered[0]?.id).toBe(variant.observedFirst ? selected.id : peer.id);
+    await root.rerender(
+      <PortBrowser
+        view="catalog"
+        ports={ordered}
+        statuses={statuses}
+        overview={summarizeLibrary(ordered, statuses)}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+        queryContext={{ devicePlatform: "windows-x86-64" }}
+      />,
+    );
+    const cardSelector = `.discover-game:has([data-detail-game-id="${selected.id}"])`;
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-detail-game-id]")];
+    expect(cards.map((card) => card.dataset.detailGameId)).toEqual(ordered.map((item) => item.id));
+    expect(document.querySelector(cardSelector)?.textContent).toContain(variant.label);
+    await prepareCaptureTarget({
+      target: cardSelector,
+      label: `availability ${variant.name} card`,
+      scroll: () => document.querySelector(cardSelector)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(cardSelector, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-discover`);
+    await root.rerender(
+      <ListingDetailPanel
+        entry={selected}
+        status={status}
+        generation={9}
+        perform={perform}
+        onChanged={changed}
+        close={vi.fn()}
+      />,
+    );
+    await page.getByRole("tab", { name: "Overview", exact: true }).click();
+    const currentEvidence = page.getByRole("region", {
+      name: "Project information and checks",
+      exact: true,
+    });
+    await currentEvidence
+      .getByText("Project status and compatibility qualifications", { exact: true })
+      .click();
+    await expect.element(currentEvidence.getByText(variant.label, { exact: true })).toBeVisible();
+    const facts = ".detail-evidence > details > .detail-facts";
+    await prepareCaptureTarget({
+      target: facts,
+      label: `availability ${variant.name} detail facts`,
+      scroll: () => document.querySelector(facts)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(facts, "visual"),
+    });
+    await captureRenderedState(`availability-${variant.name}-detail`);
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+  }
+}, 30_000);
 
 it("shows the saved-download setup state in the current language with an exact path", async () => {
   const { initializeLocalization } = await import("../localization");

@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/LasVola/godhand-recomp"
     },
-    "issue_number": 2992
+    "issue_number": 2992,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-hand",
+      "evidence_urls": ["https://github.com/LasVola/godhand-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

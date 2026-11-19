@@ -38,7 +38,25 @@
       ]
     },
     "release_url": "https://github.com/n64hub/rayman-2-recomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-2-the-great-escape",
+      "evidence_urls": [
+        "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
+        "https://github.com/n64hub/rayman-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rayman-2-the-great-escape-nintendo-64",
+          "title": "Rayman 2: The Great Escape (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/n64hub/rayman-2-recomp/blob/86d47fb1855af5a28bbf7f6b2ca04fa3cf67cc5d/README.md"
+          ]
+        }
+      ]
+    }
   },
   "route_facts_v1": {
     "format_version": 1,
@@ -60,7 +78,6 @@
       ]
     }
   },
-  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -88,5 +105,6 @@
         "executables": ["rayman2recompiled.exe"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

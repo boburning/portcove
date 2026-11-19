@@ -47,6 +47,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["CorsixTH-", ".dmg"],
       "macos-aarch64": ["CorsixTH-", ".dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-hospital",
+      "evidence_urls": [
+        "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
+        "https://github.com/CorsixTH/CorsixTH"
+      ],
+      "source_editions": []
     }
   },
   "listing_inherit_asset_hints": ["linux-x86-64"],
