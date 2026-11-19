@@ -19,8 +19,6 @@
     },
     "release_url": "https://github.com/OpenSC2K/OpenSC2K/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["OpenSC2K-", "windows-x64-portable.zip"],
-      "linux-x86-64": ["OpenSC2K-", "-linux-x64.tar.gz"],
       "macos-x86-64": ["OpenSC2K-", "-macos-universal.dmg"],
       "macos-aarch64": ["OpenSC2K-", "-macos-universal.dmg"]
     },
@@ -111,6 +109,7 @@
       }
     ]
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

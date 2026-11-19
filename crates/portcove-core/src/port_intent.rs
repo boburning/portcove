@@ -266,7 +266,8 @@ impl IntentAssessmentPurpose {
     }
 }
 
-const ASSESSABLE_INTENTS: &str = "CASE WHEN json_valid(record_json)
+const ASSESSABLE_INTENTS: &str =
+    "CASE WHEN typeof(record_json) = 'text' AND json_valid(record_json)
     THEN json_extract(record_json, '$.mode') IN ('notify', 'set_up_when_ready')
     ELSE 0 END";
 
@@ -322,11 +323,21 @@ impl Library {
             )
             .optional()?
             .unwrap_or_default();
-        let total: usize = snapshot.query_row(
-            &format!("SELECT COUNT(*) FROM port_intents WHERE {ASSESSABLE_INTENTS}"),
+        let (total, invalid_storage): (usize, usize) = snapshot.query_row(
+            &format!(
+                "SELECT COUNT(*) FILTER (WHERE {ASSESSABLE_INTENTS}),
+                        COUNT(*) FILTER (WHERE typeof(port_id) <> 'text'
+                                               OR typeof(record_json) <> 'text')
+                 FROM port_intents"
+            ),
             [],
-            |row| row.get(0),
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )?;
+        if invalid_storage != 0 {
+            return Err(PortcoveError::verification(
+                "The remembered game queue contains a record stored in an unsupported format.",
+            ));
+        }
         let start = if total > MAX_PORT_INTENT_ASSESSMENTS {
             cursor.as_str()
         } else {
@@ -1371,6 +1382,60 @@ mod tests {
         assert!(!result.already_running);
         assert!(result.game_setup_unavailable.is_some());
         assert!(result.batches.is_empty());
+    }
+
+    #[test]
+    fn intent_scan_distinguishes_invalid_storage_from_malformed_text() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO port_intents VALUES ('good', 1, '{\"mode\":\"notify\"}');
+                 INSERT INTO port_intents VALUES ('broken', 1, X'00');",
+            )
+            .unwrap();
+
+        for purpose in [
+            IntentAssessmentPurpose::Readiness,
+            IntentAssessmentPurpose::StandingSetup,
+        ] {
+            assert!(matches!(
+                library.intent_assessment_pass(purpose),
+                Err(error) if error.code == crate::ErrorCode::Verification
+            ));
+        }
+
+        connection
+            .execute(
+                "UPDATE port_intents SET record_json='{' WHERE port_id='broken'",
+                [],
+            )
+            .unwrap();
+        let pass = library
+            .intent_assessment_pass(IntentAssessmentPurpose::StandingSetup)
+            .unwrap();
+        assert_eq!(pass.total, 1);
+        assert_eq!(pass.rows[0].0, "good");
+
+        for key in [
+            rusqlite::types::Value::Blob(vec![b'g']),
+            rusqlite::types::Value::Null,
+        ] {
+            connection
+                .execute("INSERT INTO port_intents VALUES (?1, 1, '{')", [key])
+                .unwrap();
+            assert!(matches!(
+                library.intent_assessment_pass(IntentAssessmentPurpose::StandingSetup),
+                Err(error) if error.code == crate::ErrorCode::Verification
+            ));
+            connection
+                .execute(
+                    "DELETE FROM port_intents WHERE typeof(port_id) <> 'text'",
+                    [],
+                )
+                .unwrap();
+        }
     }
 
     #[tokio::test]

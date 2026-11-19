@@ -4176,9 +4176,11 @@ route exclusions with action presentation. Managed and external launch use their
 retained definitions and recorded platform; missing, oversized, changed or legacy
 retained context stays unavailable and has no guessed definition digest. Query
 manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
-immutable manifest verification. Construction accepts at most 256 unique known
-routes with identifiers of at most 128 bytes, a cooperative 30-second budget and
-a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+immutable manifest verification. Explicit CLI queries accept at most 256 unique known routes. Desktop browsing
+can cover its full admitted definition catalog for one selection. Core reads
+routes in batches of at most 256 and shares one source inspection, observation
+window and cancellation scope. Each request uses identifiers of at most 128 bytes,
+a cooperative 30-second budget and a 4 MiB response. These checks cannot interrupt an individual filesystem call.
 
 A current, admitted exact identity establishes compatible files only when its
 variant and complete representation satisfy an enforced source contract bound to

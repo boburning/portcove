@@ -608,6 +608,14 @@ export type CatalogForeignReleaseId = {
  */
 export type CatalogDownloadRefusal = "managed-route";
 export type ListingObservationStatus = "complete" | "incomplete" | "unavailable" | "failed";
+export type CatalogFallbackCode =
+  | "unknown"
+  | "replay_floor"
+  | "untrusted_key"
+  | "signature_invalid"
+  | "invalid_validity"
+  | "selected_definition_unavailable"
+  | "listing_directory_unavailable";
 export type CatalogOrigin = "embedded" | "signed_active" | "signed_previous" | "definition_selected";
 export type CatalogUpdateSource =
   | {
@@ -3358,6 +3366,10 @@ export interface ListingObservedAsset {
 export interface CatalogProvenance {
   catalog_sha256: string;
   expires_at: number | null;
+  /**
+   * Stable codes in the same order as the legacy diagnostic strings.
+   */
+  fallback_codes?: CatalogFallbackCode[];
   fallback_reasons: string[];
   key_id: string | null;
   origin: CatalogOrigin;
@@ -4954,6 +4966,7 @@ export interface ListingDeliveryStatus {
   anchor_sha256: string | null;
   delivery_schema: number;
   expires_at: string | null;
+  fallback_code?: CatalogFallbackCode | null;
   fallback_reason: string | null;
   listing_count: number;
   repository_root_sha256: string | null;

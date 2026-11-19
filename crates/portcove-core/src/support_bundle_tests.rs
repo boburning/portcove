@@ -19,6 +19,7 @@ fn doctor_fixture() -> DoctorReport {
             key_id: None,
             expires_at: None,
             fallback_reasons: vec![],
+            fallback_codes: Vec::new(),
         },
         installed_port_count: 3,
         registered_source_count: 4,
