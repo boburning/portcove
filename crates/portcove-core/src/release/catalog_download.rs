@@ -499,9 +499,9 @@ mod tests {
     #[tokio::test]
     async fn default_download_follows_the_reviewed_desktop_stream() {
         let headers = serde_json::json!([
-            {"id":446416764,"tag_name":"baked-pbr-v1","draft":false,"prerelease":false},
-            {"id":443250877,"tag_name":"v0.9.9","draft":false,"prerelease":false},
-            {"id":435773723,"tag_name":"baked-ao-v1","draft":false,"prerelease":false}
+            {"id":446416764,"tag_name":"baked-pbr-v1","draft":false,"prerelease":false,"assets":[]},
+            {"id":443250877,"tag_name":"v0.9.9","draft":false,"prerelease":false,"assets":[]},
+            {"id":435773723,"tag_name":"baked-ao-v1","draft":false,"prerelease":false,"assets":[]}
         ]);
         let exclusions = ["baked-ao-".into(), "baked-pbr-".into()];
         for (requested, expected) in [(None, 443250877), (Some(446416764), 446416764)] {
