@@ -1298,6 +1298,8 @@ optional settings disclosure and aligned project facts/actions. Exact artifact,
 freshness, file health and evidence provenance remain in each project's existing
 explanation. Advisory context remains distinct from setup/launch checks, and
 shared compatibility cautions are stated once rather than repeated on every card.
+Discover launch notices keep the platform, route, release and edition visible.
+The full artifact checksum is available under View technical details.
 
 Compatibility and project-implementation disclosures shrink within their actual
 detail or comparison column. Long release, edition, artifact and dependency

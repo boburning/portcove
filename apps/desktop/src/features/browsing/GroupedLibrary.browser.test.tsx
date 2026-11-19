@@ -66,13 +66,14 @@ const empty: LibraryOrganization = {
 it("shows scoped launch stages beside the matching port in Discover", async () => {
   await page.viewport(960, 640);
   document.documentElement.dataset.theme = "dark";
+  const artifactSha = "a".repeat(64);
   const notice: PortCapabilityReport["advisories"][number]["notice"] = {
     id: "upstream-setup-fixture",
     feature: "launch",
     platform: "windows-x86-64",
     route: "upstream-setup",
     release: "v1",
-    artifact_sha256: "a".repeat(64),
+    artifact_sha256: artifactSha,
     edition: "Retail disc setup",
     explanation: "Import the disc once before using the prepared game.",
     provenance: "https://example.com/fixture",
@@ -183,6 +184,17 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await page.viewport(430, 780);
   document.documentElement.dataset.theme = "light";
   await captureLaunchNotice("explicit-platform");
+  const artifact = project.getByText(artifactSha, { exact: true });
+  const details = project.getByText("View technical details", { exact: true });
+  await expect.element(artifact).not.toBeVisible();
+  details.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).toBeVisible();
+  await expect.element(details).toHaveFocus();
+  await captureLaunchNotice("artifact-details");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).not.toBeVisible();
+  await expect.element(details).toHaveFocus();
 });
 
 it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {
