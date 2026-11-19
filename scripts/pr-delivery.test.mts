@@ -1115,6 +1115,46 @@ void test("watcher stops on replacement identity, failed workflow, absent gates 
   );
 });
 
+void test("managed watch samples keep queued jobs and absent gates quiet until the original deadline", async () => {
+  let queued = true;
+  const client = {
+    workflowRun: async () =>
+      workflow(
+        queued
+          ? { status: "queued", run_started_at: null }
+          : { status: "completed", conclusion: "success" },
+      ),
+    requiredCheckState: async () => ({
+      ...checkState(),
+      jobs: workflowJobs().map((job) => ({
+        ...job,
+        status: queued ? "queued" : "completed",
+        started_at: queued ? null : "2026-10-01T21:00:03Z",
+      })),
+    }),
+  };
+  const options = { ...watchOptions, sample: true, sleep: async () => assert.fail("one sample") };
+  await assert.rejects(watchRequiredChecks(client, options), (error) => {
+    assert.equal(evidence(error).watch_condition, "pending");
+    assert.equal(evidence(error).job_started_at, undefined);
+    return true;
+  });
+  queued = false;
+  await assert.rejects(watchRequiredChecks(client, options), (error) => {
+    assert.equal(evidence(error).watch_condition, "pending");
+    assert.equal(evidence(error).job_started_at, "2026-10-01T21:00:03Z");
+    return true;
+  });
+  await assert.rejects(
+    watchRequiredChecks(client, { ...options, now: () => Date.parse(options.deadline) }),
+    (error) => {
+      assert.equal(evidence(error).watch_condition, "deadline");
+      assert.equal(evidence(error).deadline, options.deadline);
+      return true;
+    },
+  );
+});
+
 void test("watcher rejects missing identity/deadline before querying and does not accept old green gates while the run is pending", async () => {
   const client = {
     workflowRun: async () => assert.fail("invalid options must stop before API access"),
