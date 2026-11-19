@@ -712,7 +712,7 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
   vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
   const review = vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
-  vi.mocked(desktopApi.previewModSetupDraft).mockResolvedValue({
+  vi.spyOn(desktopApi, "previewModSetupDraft").mockResolvedValue({
     order: [],
     conflicts: [],
     conflicts_truncated: false,
