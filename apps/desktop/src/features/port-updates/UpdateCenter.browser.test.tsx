@@ -576,43 +576,53 @@ it.each(
       await page.viewport(width, 780);
       document.documentElement.dataset.theme = theme;
       rendered = await renderComponent(
-        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
-          <Sidebar
-            view="updates"
-            setView={vi.fn()}
-            installedCount={1}
-            updateCount={0}
-            activities={[activity]}
-          />
-          <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
-            <UpdateCenter
-              section="tasks"
-              generation={7}
-              ports={[port]}
-              statuses={new Map()}
-              activities={[activity]}
-              activityFeed={{
-                records: [activity],
-                current_activity_ids: [],
-                attention_required_activity_ids: [activity.id],
-                recovery_required_activity_ids: [],
-                active_and_actionable_complete: true,
-                terminal_history_complete: true,
-                terminal_history_count: 1,
-                terminal_history_limit: 20,
-              }}
-              outcomes={[]}
-              diagnosticsRefreshing={false}
-              diagnosticsStale={false}
-              refreshDiagnostics={vi.fn()}
-              checkAll={check}
-              onSelect={select}
-              onOpenSettings={vi.fn()}
-            />
-          </main>
+        <div className="interface-root">
+          <div className="interface-workspace">
+            <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+              <Sidebar
+                view="updates"
+                setView={vi.fn()}
+                installedCount={1}
+                updateCount={0}
+                activities={[activity]}
+              />
+              <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                <UpdateCenter
+                  section="tasks"
+                  generation={7}
+                  ports={[port]}
+                  statuses={new Map()}
+                  activities={[activity]}
+                  activityFeed={{
+                    records: [activity],
+                    current_activity_ids: [],
+                    attention_required_activity_ids: [activity.id],
+                    recovery_required_activity_ids: [],
+                    active_and_actionable_complete: true,
+                    terminal_history_complete: true,
+                    terminal_history_count: 1,
+                    terminal_history_limit: 20,
+                  }}
+                  outcomes={[]}
+                  diagnosticsRefreshing={false}
+                  diagnosticsStale={false}
+                  refreshDiagnostics={vi.fn()}
+                  checkAll={check}
+                  onSelect={select}
+                  onOpenSettings={vi.fn()}
+                />
+              </main>
+            </div>
+          </div>
         </div>,
         { container: host },
       );
+      const appShell = fixtureValue(host.querySelector<HTMLElement>(".app-shell"), "app shell");
+      const sidebar = fixtureValue(appShell.querySelector<HTMLElement>(".sidebar"), "sidebar");
+      expect(getComputedStyle(appShell).display).toBe(width < 672 ? "flex" : "grid");
+      if (width < 672) {
+        expect(sidebar.getBoundingClientRect().width).toBe(60);
+      }
       const taskDetails = page.getByText("Task details", { exact: true });
       await expect.element(taskDetails).toBeVisible();
       taskDetails.element().focus();

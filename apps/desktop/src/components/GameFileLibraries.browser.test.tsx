@@ -278,29 +278,33 @@ it.each(
       document.documentElement.dataset.theme = theme;
       await root.rerender(
         <GameFileScanProvider generation={1}>
-          <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
-            <Sidebar
-              view="settings"
-              setView={vi.fn()}
-              installedCount={1}
-              updateCount={0}
-              activities={[]}
-            />
-            <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
-              <div style={{ inlineSize }}>
-                <SettingsView
-                  category="game-files"
-                  generation={1}
-                  ports={[port]}
-                  statuses={new Map([[port.id, status]])}
-                  sourceProfiles={[profile]}
-                  sources={[source]}
+          <div className="interface-root">
+            <div className="interface-workspace">
+              <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+                <Sidebar
+                  view="settings"
+                  setView={vi.fn()}
                   installedCount={1}
-                  sourceRequirementsState="available"
-                  onOpenPort={open}
+                  updateCount={0}
+                  activities={[]}
                 />
+                <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                  <div style={{ inlineSize }}>
+                    <SettingsView
+                      category="game-files"
+                      generation={1}
+                      ports={[port]}
+                      statuses={new Map([[port.id, status]])}
+                      sourceProfiles={[profile]}
+                      sources={[source]}
+                      installedCount={1}
+                      sourceRequirementsState="available"
+                      onOpenPort={open}
+                    />
+                  </div>
+                </main>
               </div>
-            </main>
+            </div>
           </div>
         </GameFileScanProvider>,
       );
@@ -446,29 +450,33 @@ it.each(["dark", "light"] as const)(
       document.documentElement.dataset.theme = theme;
       await root.rerender(
         <GameFileScanProvider generation={1}>
-          <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
-            <Sidebar
-              view="settings"
-              setView={vi.fn()}
-              installedCount={0}
-              updateCount={0}
-              activities={[]}
-            />
-            <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
-              <SettingsView
-                category="game-files"
-                generation={1}
-                ports={[port]}
-                statuses={new Map()}
-                sourceProfiles={[
-                  ...profiles,
-                  { ...sourceProfile(), id: "blank-profile", label: "  " },
-                ]}
-                sources={[]}
-                installedCount={0}
-                sourceRequirementsState="available"
-              />
-            </main>
+          <div className="interface-root">
+            <div className="interface-workspace">
+              <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+                <Sidebar
+                  view="settings"
+                  setView={vi.fn()}
+                  installedCount={0}
+                  updateCount={0}
+                  activities={[]}
+                />
+                <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                  <SettingsView
+                    category="game-files"
+                    generation={1}
+                    ports={[port]}
+                    statuses={new Map()}
+                    sourceProfiles={[
+                      ...profiles,
+                      { ...sourceProfile(), id: "blank-profile", label: "  " },
+                    ]}
+                    sources={[]}
+                    installedCount={0}
+                    sourceRequirementsState="available"
+                  />
+                </main>
+              </div>
+            </div>
           </div>
         </GameFileScanProvider>,
       );
