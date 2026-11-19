@@ -174,14 +174,15 @@ impl PortcoveService {
         context: &SettingsContext,
         file: &GameSettingsFile,
     ) -> Result<(String, Vec<Option<serde_json::Value>>)> {
-        let canonical = self.library.user_dir(&context.port.id).join(&file.path);
-        let bytes = crate::external_runtime::read_single_link_metadata(&canonical, file.maximum_bytes)
-            .map_err(|_| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
+        let canonical = self.library.user_dir(&context.port.id);
+        let bytes = crate::game_settings::observe_player_settings_copy(&canonical, file)
+            .ok()
+            .flatten()
+            .ok_or_else(|| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
         if !context.direct {
-            let runtime = context.runtime_root.join(&file.path);
             let runtime_bytes =
-                crate::external_runtime::read_single_link_metadata(&runtime, file.maximum_bytes)?;
-            if bytes != runtime_bytes {
+                crate::game_settings::observe_player_settings_copy(&context.runtime_root, file)?;
+            if runtime_bytes.as_deref() != Some(bytes.as_slice()) {
                 return Err(PortcoveError::conflict(
                     "runtime and canonical configuration differ; preserve both and complete normal synchronization before editing",
                 ));

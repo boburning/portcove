@@ -421,6 +421,13 @@ fn retained_settings_plan_binds_the_player_preimage_and_file_identity() {
         plan[0].update,
         SettingsUpdate::InstallDefault(incoming_bytes.to_vec())
     );
+    let temporary = tempfile::tempdir().unwrap();
+    let canonical = temporary.path().join(&path);
+    std::fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+    std::fs::write(&canonical, old_bytes).unwrap();
+    plan[0]
+        .require_unchanged_player(&incoming.contract.files[0], temporary.path(), None)
+        .unwrap();
 
     let deleted = BTreeMap::from([(path, PlayerSettings::RecordedDeletion)]);
     let plan = incoming.plan_update(Some(&prior), &deleted).unwrap();
@@ -438,4 +445,78 @@ fn retained_settings_plan_binds_the_player_preimage_and_file_identity() {
             incoming_default: Some(incoming_bytes.to_vec())
         }
     );
+}
+
+#[test]
+fn settings_preimage_rechecks_mirrors_and_requires_deletion_evidence() {
+    let temporary = tempfile::tempdir().unwrap();
+    let canonical = temporary.path().join("canonical");
+    let runtime = temporary.path().join("old-runtime");
+    let contract = fixture();
+    let file = &contract.files[0];
+    let config = canonical.join(&file.path);
+    let mirror = runtime.join(&file.path);
+    let original = b"ui_scale=1.25\r\n; player note\r\n";
+    for copy in [&config, &mirror] {
+        std::fs::create_dir_all(copy.parent().unwrap()).unwrap();
+        std::fs::write(copy, original).unwrap();
+    }
+    let mut plan = SettingsFileUpdate {
+        path: file.path.clone(),
+        file_id: file.id.clone(),
+        format: file.format,
+        player_preimage: SettingsPreimage::Present {
+            sha256: hex::encode(Sha256::digest(original)),
+        },
+        update: SettingsUpdate::InstallDefault(b"ui_scale=1.5\r\n".to_vec()),
+    };
+    plan.require_unchanged_player(file, &canonical, Some(&runtime))
+        .unwrap();
+
+    let mut unrelated = file.clone();
+    unrelated.id = "unrelated-config".into();
+    assert!(
+        plan.require_unchanged_player(&unrelated, &canonical, Some(&runtime))
+            .is_err()
+    );
+
+    let concurrent = b"ui_scale=1.75\r\n; newer player write\r\n";
+    std::fs::write(&mirror, concurrent).unwrap();
+    assert!(
+        plan.require_unchanged_player(file, &canonical, Some(&runtime))
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&config).unwrap(), original);
+    assert_eq!(std::fs::read(&mirror).unwrap(), concurrent);
+    std::fs::write(&config, concurrent).unwrap();
+    assert!(
+        plan.require_unchanged_player(file, &canonical, Some(&runtime))
+            .is_err()
+    );
+
+    std::fs::remove_file(&config).unwrap();
+    std::fs::remove_file(&mirror).unwrap();
+    plan.player_preimage = SettingsPreimage::Unobserved;
+    assert_eq!(
+        observe_player_settings_copy(&canonical, file).unwrap(),
+        None
+    );
+    assert!(
+        plan.require_unchanged_player(file, &canonical, Some(&runtime))
+            .is_err()
+    );
+    plan.player_preimage = SettingsPreimage::RecordedDeletion;
+    plan.require_unchanged_player(file, &canonical, Some(&runtime))
+        .unwrap();
+    std::fs::write(&config, concurrent).unwrap();
+    assert!(
+        plan.require_unchanged_player(file, &canonical, Some(&runtime))
+            .is_err()
+    );
+    assert!(
+        plan.require_unchanged_player(file, &canonical, None)
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&config).unwrap(), concurrent);
+    assert!(!mirror.exists());
 }

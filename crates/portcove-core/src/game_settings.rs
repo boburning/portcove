@@ -3,6 +3,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fs,
     path::Path,
 };
 
@@ -115,6 +116,8 @@ pub(crate) struct SettingsFileUpdate {
     pub path: String,
     pub player_preimage: SettingsPreimage,
     pub update: SettingsUpdate,
+    file_id: String,
+    format: GameSettingsFormat,
 }
 
 /// An expected absent file has different authority from an unobserved file.
@@ -123,6 +126,70 @@ pub(crate) enum SettingsPreimage {
     Present { sha256: String },
     RecordedDeletion,
     Unobserved,
+}
+
+/// Read one settings copy at a previously authorized persistence root. A
+/// missing coordinate is observable, but does not by itself establish deletion.
+pub(crate) fn observe_player_settings_copy(
+    root: &Path,
+    file: &GameSettingsFile,
+) -> Result<Option<Vec<u8>>> {
+    crate::archive::validate_relative_path(&file.path, false)?;
+    let path = root.join(&file.path);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    match fs::symlink_metadata(&path) {
+        Ok(_) => crate::external_runtime::read_single_link_metadata(
+            &path,
+            file.maximum_bytes.min(MAX_SETTINGS_BYTES),
+        )
+        .map(Some),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            crate::persistence::require_absent_path(root, &file.path)?;
+            Ok(None)
+        }
+        Err(error) => Err(error.into()),
+    }
+}
+
+impl SettingsFileUpdate {
+    /// Recheck the planned player bytes immediately before a transaction takes
+    /// custody. The old active mirror must still agree with canonical data.
+    /// Absence only matches an already recorded deletion; it never grants one.
+    pub(crate) fn require_unchanged_player(
+        &self,
+        file: &GameSettingsFile,
+        canonical_root: &Path,
+        active_mirror: Option<&Path>,
+    ) -> Result<()> {
+        if self.path != file.path || self.file_id != file.id || self.format != file.format {
+            return Err(PortcoveError::verification(
+                "the settings update differs from its declared file identity",
+            ));
+        }
+        let current = observe_player_settings_copy(canonical_root, file)?;
+        if let Some(root) = active_mirror
+            && observe_player_settings_copy(root, file)? != current
+        {
+            return Err(PortcoveError::conflict(
+                "the active and canonical settings files differ; preserve both before changing versions",
+            )
+            .detail("settings_file", &self.path));
+        }
+        let matches = match (&self.player_preimage, current.as_deref()) {
+            (SettingsPreimage::Present { sha256 }, Some(bytes)) => {
+                hex::encode(Sha256::digest(bytes)) == *sha256
+            }
+            (SettingsPreimage::RecordedDeletion, None) => true,
+            _ => false,
+        };
+        if !matches {
+            return Err(PortcoveError::conflict(
+                "the player's settings changed or lack a verified preimage; review this installation again",
+            )
+            .detail("settings_file", &self.path));
+        }
+        Ok(())
+    }
 }
 
 pub(crate) struct RetainedSettingsDefaults {
@@ -172,6 +239,8 @@ impl RetainedSettingsDefaults {
                 path: file.path.clone(),
                 player_preimage,
                 update: reconcile_shipped_default(file, old, player, incoming)?,
+                file_id: file.id.clone(),
+                format: file.format,
             });
         }
         Ok(updates)
