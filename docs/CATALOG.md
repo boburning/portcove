@@ -3534,6 +3534,8 @@ with the same title prefix and the platform-specific `-windows-x64.zip` and
 `-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
+For the reviewed retail multidisc split-mods kits, keep `runtime-discs`,
+`psx-settings-selected` and `psx-raw-set` explicit in the integration.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
