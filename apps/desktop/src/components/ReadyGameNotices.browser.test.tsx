@@ -1,7 +1,10 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState as captureRenderedState } from "../../test/parity-capture";
+import { prepareCaptureTarget } from "../../test/capture-target";
+import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { announceReadyNoticePreferenceChange } from "../features/game-file-discovery/use-standing-setup";
 import { portDefinition } from "../test-fixtures";
@@ -64,6 +67,8 @@ function button(label: string) {
 }
 
 beforeEach(async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
   vi.spyOn(desktopApi, "assessPortIntents").mockResolvedValue(assessed);
   vi.spyOn(desktopApi, "acknowledgePortReadiness").mockResolvedValue(null);
   const host = document.createElement("div");
@@ -74,6 +79,8 @@ afterEach(async () => {
   await cleanup();
   document.body.replaceChildren();
   vi.restoreAllMocks();
+  delete document.documentElement.dataset.theme;
+  document.documentElement.removeAttribute("dir");
 });
 
 it("announces ready games and available updates the player asked to hear about", async () => {
@@ -87,6 +94,7 @@ it("announces ready games and available updates the player asked to hear about",
   const setup = button("Review setup New Game");
   expect(update.textContent).toBe("Review update");
   expect(setup.textContent).toBe("Review setup");
+  await captureRenderedState("remembered-ready-and-update-notices");
   await act(async () => {
     update.click();
     setup.click();
@@ -124,6 +132,10 @@ it("renders notices in the current language with exact names and versions", asyn
     await expect.poll(text).toContain("New Game جاهزة للتثبيت.");
     expect(text()).toContain("يتوفر تحديث لـ Old Game: 2.0.");
     expect(button("مراجعة التحديث Old Game")).toBeDefined();
+    await page.viewport(430, 780);
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.dir = "rtl";
+    await captureRenderedState("remembered-notices-arabic-preview");
   } finally {
     await act(async () => {
       await localization.changeLanguage("en");
@@ -166,6 +178,7 @@ it("keeps pending dismissal focused, excludes repeat activation and restores foc
   const working = button("Dismissing… New Game");
   expect(working.getAttribute("aria-busy")).toBe("true");
   expect(document.activeElement).toBe(working);
+  await captureRenderedState("remembered-notice-dismissal-pending-focus");
 
   await act(async () => pending.confirm());
   expect(document.activeElement).toBe(button("Review update Old Game"));
@@ -187,6 +200,9 @@ it("keeps focus on failed dismissal, explains what happened and supports retry",
     "Couldn’t confirm dismissal. Try Dismiss again.",
   );
   expect(dismiss.getAttribute("aria-busy")).toBeNull();
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
+  await captureRenderedState("remembered-notice-dismissal-refused-focus");
 
   await userEvent.keyboard("{Enter}");
   await expect.poll(text).not.toContain("Old Game");
@@ -281,6 +297,8 @@ it("honors Core when an acknowledged release becomes newly ready again", async (
 });
 
 it("wraps exact long names and versions without expanding the settings grid", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
   const longPorts = ports.map((port) => ({
     ...port,
     name: `${port.name} ${"VeryLongReleaseProjectName".repeat(6)}`,
@@ -296,6 +314,18 @@ it("wraps exact long names and versions without expanding the settings grid", as
   const frame = document.getElementById("narrow-ready-notices")!;
   expect(frame.textContent).toContain(version);
   expect(frame.scrollWidth).toBeLessThanOrEqual(frame.clientWidth + 1);
+  for (const [part, selector] of [
+    ["upper", "#narrow-ready-notices [data-ready-notice]:first-child"],
+    ["lower", "#narrow-ready-notices [data-ready-notice]:last-child"],
+  ] as const) {
+    await prepareCaptureTarget({
+      target: selector,
+      label: `remembered long notice ${part}`,
+      scroll: () => document.querySelector(selector)?.scrollIntoView({ block: "center" }),
+      observe: () => observeVisibleTarget(selector, "visual"),
+    });
+    await captureRenderedState(`remembered-notices-long-values-${part}`);
+  }
 });
 
 it("keeps an out-of-page notice until another surface acknowledges its plan", async () => {
@@ -329,6 +359,7 @@ it("keeps an out-of-page notice until another surface acknowledges its plan", as
   await act(async () => announceReadyNoticePreferenceChange());
   await expect.poll(text).toContain("Old Game has an update available");
   expect(text()).toContain("New Game is ready to install.");
+  await captureRenderedState("remembered-notice-retained-across-partial-assessment");
   await act(async () => announceReadyNoticePreferenceChange());
   await expect.poll(text).not.toContain("New Game is ready to install.");
   expect(intents).toHaveBeenCalledWith(1);

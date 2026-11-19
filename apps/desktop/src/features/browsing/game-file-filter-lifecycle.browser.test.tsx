@@ -1,5 +1,8 @@
-import { filterChoice } from "../../../test/filter-fields";
-import { userEvent } from "vite-plus/test/browser";
+import { filterChoice, openAdvancedFilters } from "../../../test/filter-fields";
+import { captureParityState as captureRenderedState } from "../../../test/parity-capture";
+import { prepareCaptureTarget } from "../../../test/capture-target";
+import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
+import { page, userEvent } from "vite-plus/test/browser";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
@@ -121,6 +124,7 @@ afterEach(async () => {
   vi.clearAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
 });
 const render = async (generation = 1) => {
   await root.rerender(<Fixture generation={generation} />);
@@ -300,6 +304,8 @@ it("keeps history while retry and failure make classifications and counts unavai
 it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
   "waits for the workspace host %s and keeps an explicit cross-target choice",
   async (hostPlatform) => {
+    await page.viewport(hostPlatform === "macos-aarch64" ? 430 : 960, 800);
+    document.documentElement.dataset.theme = hostPlatform === "macos-aarch64" ? "light" : "dark";
     await root.rerender(<Fixture browsingBinding="" />);
     expect(state.selection.platform).toBeUndefined();
     expect(state.available).toBe(false);
@@ -311,6 +317,27 @@ it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
     expect(vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]?.[0].routes[0]?.platform).toBe(
       hostPlatform,
     );
+    const captureControls = async (phase: "producing-host" | "retained-explicit-target") => {
+      await openAdvancedFilters();
+      const selector = ".catalog-filter-advanced fieldset:not([aria-label])";
+      await prepareCaptureTarget({
+        target: selector,
+        label: `game-file host controls ${hostPlatform} ${phase}`,
+        scroll: () => document.querySelector(selector)?.scrollIntoView({ block: "center" }),
+        observe: () => observeVisibleTarget(selector, "visual"),
+      });
+      await expect.element(page.getByRole("combobox", { name: /^Platform/ })).toBeVisible();
+      const hostLabels = {
+        "linux-x86-64": "Linux",
+        "macos-aarch64": "Apple silicon",
+        "windows-x86-64": "Windows",
+      };
+      await expect
+        .element(page.getByRole("combobox", { name: /^Platform/ }))
+        .toHaveTextContent(phase === "producing-host" ? hostLabels[hostPlatform] : "macOS Intel");
+      await captureRenderedState(`game-file-host-${hostPlatform}-${phase}`);
+    };
+    await captureControls("producing-host");
     await act(() => state.setPlatform("macos-x86-64"));
     await root.rerender(
       <Fixture generation={2} hostPlatform={hostPlatform} browsingBinding={"f".repeat(64)} />,
@@ -319,5 +346,7 @@ it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
     expect(vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[1]?.[0].routes[0]?.platform).toBe(
       "macos-x86-64",
     );
+    await captureControls("retained-explicit-target");
   },
+  30_000,
 );
