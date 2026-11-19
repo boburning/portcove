@@ -138,7 +138,7 @@ for (const theme of ["dark", "light"]) {
     expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
     expect(origin.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
-    for (const width of [1280, 320]) {
+    for (const width of Array.from({ length: 8 }, () => [1280, 320]).flat()) {
       await page.viewport(width, 640);
       await expect.element(origin).toHaveFocus();
       await expect
