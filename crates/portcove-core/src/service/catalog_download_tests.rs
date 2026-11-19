@@ -2181,6 +2181,31 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         changed.archive_sha256.is_empty(),
         "external replacement is not authenticated ownership"
     );
+
+    let manual_review = service
+        .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime_relink(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &manual_review.preview_sha256,
+        )
+        .unwrap();
+    let manual_relink = service
+        .relink_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    assert_eq!(manual_relink.id, changed.id);
+    assert_eq!(manual_relink.executable, old_executable);
+    assert_eq!(manual_relink.setup_download, changed.setup_download);
 }
 
 #[tokio::test]
