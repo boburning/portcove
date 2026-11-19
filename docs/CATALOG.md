@@ -2004,6 +2004,25 @@ removal. The launched program can make its normal writes; this is no sandbox. Th
 non-owning Windows/Linux/Intel Mac/Apple Silicon registration, separate Android
 setup and external data locations.
 
+Naev's external route selects the complete upstream Windows installation or Mac
+app, with its native player and containing working folder. Windows portable
+`datapath.lua`, Mac bundle resources and upstream profile migration keep their
+existing behavior. Keep current and predecessor profiles recoverable before an
+upgrade. Upstream/player own package replacement, saves, settings, plugins,
+backups and removal; Portcove removes only its registration. Linux retains the
+upstream AppImage guide until a complete native environment contract fits the
+existing selector. Package/source inspection does not establish native loading,
+graphics, gameplay or minimum-host qualification.
+
+FreeOrion's external route tracks the selected graphical client. Its upstream
+server and AI processes can finish shutdown after that client exits; optional
+local multiplayer hosting can keep a separate server. Registration grants no
+server ownership or whole-installation quiescence. Keep the complete upstream
+installation, wait for actual writers before copying or changing external data,
+and use upstream/package-manager updates and backups. The reviewed Ubuntu native
+selection uses its real player and package data working folder, preserving the
+wrapper's startup coordinates without selecting a script.
+
 Supervision and launch results describe the selected native program; only a
 definition with the reviewed Windows tracked handoff also waits for in-folder
 successors in its process tree. An upstream launcher can hand off and close
