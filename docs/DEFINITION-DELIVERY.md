@@ -833,9 +833,10 @@ but occur once in the inventory. Empty snapshots are structurally valid; parsing
 one cannot remove catalog availability. Unknown or duplicate fields at every
 index boundary fail closed. Index bytes are retained exactly, not reserialized.
 
-The parser enforces the 4 MiB index, 4,096 definitions, 16 MiB per content target
-and 32 MiB aggregate bounds below before exposing an immutable inventory. This
-first representation conservatively bounds all listed content, including records
+The parser enforces a 4 MiB index, at most 4,096 definitions and a 32 MiB aggregate
+content bound before exposing an immutable inventory. The general per-target
+ceiling is 16 MiB. Individual definition entries keep their 4 MiB limit. This
+representation conservatively bounds all listed content, including records
 not referenced by a definition. A transport can obtain each target's validated
 length before its bounded read and then check supplied bytes against that length
 and SHA-256. Repeated reads remain the transport's responsibility.
