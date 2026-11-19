@@ -42,7 +42,6 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"],
       "linux-x86-64": ["MediEvilRecomp-", "-linux-x64.tar.gz"],
       "macos-aarch64": ["MediEvilRecomp-", "-macos-arm64.zip"],
       "macos-x86-64": ["MediEvilRecomp-", "-macos-x64.zip"]
@@ -51,6 +50,7 @@
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
     "recommended_download_channel": "stable"
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

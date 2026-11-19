@@ -53,12 +53,11 @@
     "recommended_download_channel": "stable",
     "original_game_title": "In Cold Blood",
     "download_asset_hints": {
-      "linux-x86-64": ["In-Cold-Blood-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["In-Cold-Blood-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["In-Cold-Blood-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["In-Cold-Blood-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["In-Cold-Blood-Recomp-", "-macos-x64.zip"]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

@@ -831,6 +831,12 @@ release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
+An authored `listing_inherit_asset_hints` array can reuse the same record's reviewed
+GitHub selectors for named managed platforms, provided the public project and
+release scope and selected channel agree. Keep literal overrides for distinct
+upstream packages and additional descriptive platforms. An explicit empty
+`download_asset_hints` map suppresses inheritance. This projection only supplies
+descriptive selectors.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
 A player's explicit saved channel or release takes precedence. For a genuinely
