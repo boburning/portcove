@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
+      - .github/actions/setup-rust/**
+      - .config/tool-bootstrap.json
       - scripts/release-controller-tool*.mts
       - scripts/release-controller-job-bootstrap.mts
       - scripts/release-controller-diagnostics.mts
@@ -66,6 +68,8 @@ on:
     branches: [main]
     paths:
       - .github/workflows/controller-tool-build-fixture.yml
+      - .github/actions/setup-rust/**
+      - .config/tool-bootstrap.json
       - scripts/release-controller-tool*.mts
       - scripts/release-controller-job-bootstrap.mts
       - scripts/release-controller-diagnostics.mts
@@ -133,7 +137,31 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  scope:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      catalog_data_only: ${{ steps.diff.outputs.catalog_data_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Identify complete catalog data changes
+        id: diff
+        env:
+          FIXTURE_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FIXTURE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/release-controller-fixture-scope.mts
   fixture:
+    needs: scope
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.catalog_data_only != 'true') }}
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -177,6 +205,8 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
   windows-tools:
+    needs: scope
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.catalog_data_only != 'true') }}
     runs-on: windows-2022
     timeout-minutes: 15
     steps:
