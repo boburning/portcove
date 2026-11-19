@@ -745,7 +745,8 @@ publication has been verified.
     candidate facts in the latest observer collection and reports its revision,
     import time, gaps, and per-platform counts. It uses the existing Core
     definition inspection to compare the current definition digest with the
-    observed definition digest. Older recorded candidates remain visible as
+    observed definition digest. The target projection reports whether the
+    CLI embeds the exact committed catalog bytes. Older recorded candidates remain visible as
     retained coverage when the current definition has changed or is unbound. Core's fixed package offers
     are counted separately from release-following offers. It verifies the retained
     checkpoint membership after removing explicitly reported gaps. Older facts

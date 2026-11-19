@@ -1836,7 +1836,7 @@ void test(
     assert.equal(routeCoverage.observer_membership_verified, true);
     assert.match(
       renderHtml(inventory),
-      /recorded candidates for 1 of 1 offered release-following port and platform pairs/u,
+      /recorded candidates that match the current definition for 1 of 1 offered release-following port and platform pairs/u,
     );
     const pending = inventory.managed_release_eligibility;
     assert.equal(pending?.distinct_candidates, 1);
@@ -1859,6 +1859,15 @@ void test(
       repeated.publication_to_recorded_eligibility_ms,
       eligible.publication_to_recorded_eligibility_ms,
     );
+    const differentCatalog = JSON.parse(readFileSync(responses, "utf8")) as {
+      producer: { embedded_catalog_sha256: string };
+    };
+    differentCatalog.producer.embedded_catalog_sha256 = "0".repeat(64);
+    writeFileSync(responses, JSON.stringify(differentCatalog));
+    await observe(true);
+    const unbound = buildReport(store.owner).managed_route_observation_coverage;
+    assert.equal(unbound?.offered_following_platforms, null);
+    assert.equal(unbound?.platforms_with_candidate_observed, null);
   },
 );
 
@@ -3630,7 +3639,7 @@ void test("managed observation coverage keeps stale or unverified membership out
   });
   const catalog = run("catalog-records");
   const targets = run("core-target-routes", {
-    source_revision: "cli;source=fixture;binding=verified",
+    source_revision: "cli;source=fixture;binding=verified;catalog=verified",
   });
   const upstream = run("upstream-observations", {
     coverage: "partial",

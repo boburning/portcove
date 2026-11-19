@@ -1234,6 +1234,7 @@ export function collectionSql(input: {
   targets?: {
     facts: ReadonlyMap<string, unknown>;
     expected: number;
+    catalogBytesVerified?: boolean;
     failure?: SourceGap;
   };
   issues?: {
@@ -1635,21 +1636,22 @@ export function collectionSql(input: {
   if (input.targets) {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Target-route collection requires --all");
+    const targetRevision = `${coreRevision};catalog=${input.targets.catalogBytesVerified ? "verified" : "unverified"}`;
     lines.push(
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(targetRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     const targetFacts = new Map<string, Fact>();
     for (const [key, payload] of input.targets.facts)
       targetFacts.set(key, {
         digest: sha256(canonicalJson(payload)),
         scope: { source: "core-target-routes", policy, isolation: "fresh-library" },
-        revision: coreRevision,
+        revision: targetRevision,
         payload,
       });
     runs.push([
       targetsRun,
-      coreRevision,
+      targetRevision,
       input.targets.failure ? "failed" : "complete",
       input.targets.failure ? [input.targets.failure] : [],
       targetFacts,
@@ -1909,15 +1911,18 @@ export async function collect(options: {
     throw new MaintenanceStoreError("--reassess changed requires --all and --targets");
   const producer = targetsRead?.ok ? targetsRead.value.producer : null;
   const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
+  const reviewedCatalogBytes = bindingVerified
+    ? committedBytes(revision, "crates/portcove-core/catalog/catalog.json")
+    : null;
+  const catalogBytesVerified =
+    reviewedCatalogBytes !== null &&
+    sha256(reviewedCatalogBytes) === producer?.embedded_catalog_sha256;
   const currentDefinitionHashes =
-    options.upstream && producer && bindingVerified
+    options.upstream && catalogBytesVerified
       ? await sourceOutcome(async () => {
-          const bytes = committedBytes(revision, "crates/portcove-core/catalog/catalog.json");
-          if (sha256(bytes) !== producer.embedded_catalog_sha256)
-            throw new MaintenanceStoreError("Core target projection embeds a different catalog");
           const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
           try {
-            return await inspectCatalogDefinitions(options.cli, root, bytes);
+            return await inspectCatalogDefinitions(options.cli, root, reviewedCatalogBytes);
           } finally {
             rmSync(root, { recursive: true, force: true });
           }
@@ -2109,7 +2114,11 @@ export async function collect(options: {
       ...(targetsRead
         ? {
             targets: targetsRead.ok
-              ? { facts: targetsRead.value.facts, expected: targetsRead.value.facts.size }
+              ? {
+                  facts: targetsRead.value.facts,
+                  expected: targetsRead.value.facts.size,
+                  catalogBytesVerified,
+                }
               : {
                   facts: new Map(),
                   expected: 0,
@@ -2851,7 +2860,7 @@ export function managedRouteObservationCoverage(
     targets.observed_count === catalog.observed_count &&
     catalog.source_revision !== null &&
     targets.source_revision?.includes(`;source=${catalog.source_revision};`) === true &&
-    targets.source_revision.endsWith(";binding=verified");
+    targets.source_revision.endsWith(";binding=verified;catalog=verified");
 
   const gaps = new Map(upstream?.gaps.map(({ subject_key, code }) => [subject_key, code]));
   // Partial collections retain older rows. Remove precisely the reported gaps
@@ -3670,7 +3679,7 @@ ${report.unsupported_sources
 ${
   report.managed_route_observation_coverage
     ? `<h2>Managed installation observation coverage</h2>
-<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(report.managed_route_observation_coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
+<p>The latest checkpoint recorded candidates that match the current definition for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(report.managed_route_observation_coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
     : ""
 }
 ${publicationSection(report)}
