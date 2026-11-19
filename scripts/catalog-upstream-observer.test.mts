@@ -41,6 +41,7 @@ import {
   encodeObserverSnapshot,
   observerSnapshotLimit,
   observerStreamingSnapshotLimit,
+  observerStreamingGraphLimit,
   collectCompactObserverSnapshot,
   encodeCompactObserverSnapshot,
   recoverObserverCheckpoint,
@@ -732,6 +733,94 @@ void test("419 source records stream globally when nested compressed snapshots e
       archive_bytes: archive.length,
     }),
   );
+});
+
+void test("format four collects and restores a named stored graph above the legacy allowance", async (t) => {
+  const root = await mkdtemp(
+    path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-full-graph-"),
+  );
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const h = harness();
+  const { checkpoint } = await advanceCatalogObservations(h.input, null, h.options);
+  const progress = Object.values(checkpoint.sources).find(
+    (entry) => entry.current_config && h.states.has(observationHash(entry.current_config)),
+  )!;
+  const source = progress.current_config!;
+  const sourceHash = observationHash(source);
+  const sourceBytes = JSON.stringify(h.states.get(sourceHash));
+  const tree = path.join(root, "work/upstream-observer");
+  await mkdir(path.join(tree, "catalog"), { recursive: true });
+  for (const [hash, value] of h.states) {
+    await mkdir(path.join(tree, hash), { recursive: true });
+    await writeFile(path.join(tree, hash, "checkpoint.json"), JSON.stringify(value));
+  }
+
+  // Incompressible per source and repeated across the stream, so the stored
+  // graph crosses the old limit while each record and archive remain bounded.
+  const entropy = Buffer.from(
+    Array.from({ length: 13500 }, (_, block) => observationHash({ block })).join(""),
+    "hex",
+  ).toString("base64");
+  for (let index = 0; index < 64; index++) {
+    const retained = validateObserverConfig({
+      ...source,
+      budget: { ...source.budget, duration_ms: 180000 - index - 1 },
+    });
+    const hash = observationHash(retained);
+    const value: unknown = JSON.parse(sourceBytes.replaceAll(sourceHash, hash));
+    assert.ok(isRecord(value) && isRecord(value.last_complete));
+    assert.ok(isRecord(value.last_complete.projection));
+    value.last_complete.projection.fixture_entropy = entropy;
+    progress.retired_configs.push(retained);
+    await mkdir(path.join(tree, hash), { recursive: true });
+    await writeFile(path.join(tree, hash, "checkpoint.json"), JSON.stringify(value));
+  }
+  await writeFile(path.join(tree, "catalog/checkpoint.json"), JSON.stringify(checkpoint));
+  const producer = { run: 119, attempt: 1, source: "a".repeat(40) };
+  const configuration = "c".repeat(64);
+  let metrics: Record<string, number> = {};
+  const snapshot = await collectFactObserverSnapshot(
+    root,
+    configuration,
+    producer,
+    Date.now(),
+    Date.now() + 60000,
+    (value) => {
+      metrics = { ...value };
+    },
+  );
+  const graphBytes = Buffer.byteLength(JSON.stringify(snapshot));
+  assert.ok(graphBytes > observerCheckpointByteLimit && graphBytes <= observerStreamingGraphLimit);
+  assert.equal(metrics.stored_graph_bytes, graphBytes);
+  assert.ok(metrics.stored_graph_bytes! > metrics.stored_json_bytes!);
+  assert.throws(
+    () => encodeCompactObserverSnapshot(snapshot, Date.now() + 60000),
+    /decoded snapshot exceeds checkpoint read envelope/,
+  );
+  const encoded = await encodeStreamingObserverSnapshot(snapshot, Date.now() + 60000);
+  assert.equal(encoded.decoded_bytes, graphBytes);
+  const archive = createAuditZip([["checkpoint.json", encoded.bytes]]);
+  assert.ok(archive.length <= observerStreamingSnapshotLimit);
+  const restored = await readRecoverableObserverSnapshotArchive(
+    archive,
+    configuration,
+    Date.now(),
+    Date.now() + 60000,
+  );
+  assert.deepEqual(restored, snapshot);
+  await rm(tree, { recursive: true });
+  await publishObserverSnapshot(root, restored, Date.now() + 60000);
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(tree, "catalog/checkpoint.json"), "utf8")),
+    checkpoint,
+  );
+  const lastName = `${observationHash(progress.retired_configs.at(-1)!)}/checkpoint.json`;
+  const retainedRecord = decodeStoredObserverCheckpoint(
+    JSON.parse(await readFile(path.join(tree, lastName), "utf8")),
+  );
+  assert.ok(isRecord(retainedRecord) && isRecord(retainedRecord.last_complete));
+  assert.ok(isRecord(retainedRecord.last_complete.projection));
+  assert.equal(retainedRecord.last_complete.projection.fixture_entropy, entropy);
 });
 
 const factGrowthTest =
