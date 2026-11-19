@@ -963,14 +963,14 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
       </p>
       <p className="[overflow-wrap:anywhere]">
         Shortcut file:{" "}
-        <code className="path-value" dir="ltr">
+        <code className="path-value block" dir="ltr">
           {result.shortcuts_path}
         </code>
       </p>
       {result.backup_path && (
         <p className="[overflow-wrap:anywhere]">
           Backup:{" "}
-          <code className="path-value" dir="ltr">
+          <code className="path-value block" dir="ltr">
             {result.backup_path}
           </code>
         </p>
@@ -1279,7 +1279,7 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
       {result.backup_paths.map((path) => (
         <p className="[overflow-wrap:anywhere]" key={path}>
           Backup:{" "}
-          <code className="path-value" dir="ltr">
+          <code className="path-value block" dir="ltr">
             {path}
           </code>
         </p>

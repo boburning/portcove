@@ -513,16 +513,29 @@ async function expectCompactCollectionNavigation(
     control.checkVisibility(),
   );
   expect(controls.length).toBeGreaterThanOrEqual(3);
+  const boxes = controls.map((control) => control.getBoundingClientRect());
   const rows: { top: number; bottom: number }[] = [];
   const bounds = navigation.element().getBoundingClientRect();
-  for (const control of controls) {
-    const box = control.getBoundingClientRect();
+  for (const [index, box] of boxes.entries()) {
     expect(box.height).toBeGreaterThanOrEqual(44);
     expect(box.left).toBeGreaterThanOrEqual(bounds.left - 1);
     expect(box.right).toBeLessThanOrEqual(bounds.right + 1);
-    const row = rows.find((row) => Math.abs(row.top - box.top) <= 1);
-    if (row) row.bottom = Math.max(row.bottom, box.bottom);
-    else rows.push({ top: box.top, bottom: box.bottom });
+    for (const previous of boxes.slice(0, index)) {
+      const horizontalOverlap =
+        Math.min(box.right, previous.right) - Math.max(box.left, previous.left);
+      const verticalOverlap =
+        Math.min(box.bottom, previous.bottom) - Math.max(box.top, previous.top);
+      expect(
+        Math.min(horizontalOverlap, verticalOverlap),
+        `${label} controls must not overlap`,
+      ).toBeLessThanOrEqual(0);
+    }
+    // Vertically centered controls can have different heights within one flex/grid row.
+    const row = rows.find((row) => box.top < row.bottom && box.bottom > row.top);
+    if (row) {
+      row.top = Math.min(row.top, box.top);
+      row.bottom = Math.max(row.bottom, box.bottom);
+    } else rows.push({ top: box.top, bottom: box.bottom });
   }
   rows.sort((left, right) => left.top - right.top);
   for (let index = 1; index < rows.length; index++) {
@@ -533,9 +546,9 @@ async function expectCompactCollectionNavigation(
     // Wrapped choices remain one navigation group, without a control-height gap.
     expect(clearance).toBeLessThanOrEqual(12);
   }
-  if (innerWidth === 320 && label === "Discover collections") {
-    expect(rows.length).toBeGreaterThan(1);
-  }
+  expect(rows.length).toBeGreaterThanOrEqual(
+    innerWidth === 320 && label === "Discover collections" ? 2 : 1,
+  );
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
 }
 

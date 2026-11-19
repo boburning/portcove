@@ -354,9 +354,16 @@ it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
         "macos-aarch64": "Apple silicon",
         "windows-x86-64": "Windows",
       };
-      await expect
-        .element(page.getByRole("combobox", { name: /^Platform/ }))
-        .toHaveTextContent(phase === "producing-host" ? hostLabels[hostPlatform] : "macOS Intel");
+      const expectedPlatform = phase === "producing-host" ? hostPlatform : "macos-x86-64";
+      const expectedLabel = phase === "producing-host" ? hostLabels[hostPlatform] : "macOS Intel";
+      const platformControl = page.getByRole("combobox", { name: /^Platform/ });
+      const selectedLabel = fixtureValue(
+        platformControl.element().querySelector('[data-slot="select-value"]'),
+        "selected platform label",
+      );
+      expect(state.selection.platform).toBe(expectedPlatform);
+      expect(selectedLabel.textContent).toBe(expectedLabel);
+      await expect.element(platformControl).toHaveAccessibleName(`Platform ${expectedLabel}`);
       await captureRenderedState(`game-file-host-${hostPlatform}-${phase}`);
     };
     await captureControls("producing-host");

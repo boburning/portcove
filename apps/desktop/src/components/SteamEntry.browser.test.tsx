@@ -989,21 +989,18 @@ it.each([
       expect(opaquePaths).toHaveLength(
         stage === "discovered" ? 2 : flow === "artwork" ? 1 : stage === "reviewed" ? 3 : 2,
       );
-      for (const path of opaquePaths) {
-        expect(path.direction).toBe("ltr");
-        if (path.tag !== "input") {
-          expect(path.wordBreak).toBe("break-all");
-          const isExtended = path.value!.startsWith("\\\\?\\");
-          expect(isExtended).toBe(path.value!.startsWith(extended));
-          const prefix = path.glyphs.slice(0, isExtended ? 7 : 3);
-          expect(prefix).toHaveLength(isExtended ? 7 : 3);
-          for (let index = 1; index < prefix.length; index++) {
-            expect(prefix[index]!.y).toBe(prefix[0]!.y);
-            // Arabic server names keep their natural shaping and visual run order.
-            if (isExtended || index === 1)
-              expect(prefix[index]!.x).toBeGreaterThan(prefix[index - 1]!.x);
-          }
-        }
+      for (const path of opaquePaths) expect(path.direction).toBe("ltr");
+      for (const path of opaquePaths.filter((path) => path.tag !== "input")) {
+        expect(path.wordBreak).toBe("break-all");
+        const isExtended = path.value.startsWith("\\\\?\\");
+        expect(isExtended).toBe(path.value.startsWith(extended));
+        const prefix = path.glyphs.slice(0, isExtended ? 7 : 3);
+        expect(prefix).toHaveLength(isExtended ? 7 : 3);
+        for (const glyph of prefix.slice(1)) expect(glyph.y).toBe(prefix[0]!.y);
+        // Arabic server names keep their natural shaping and visual run order.
+        const orderedPrefix = prefix.slice(0, isExtended ? 7 : 2);
+        for (const [index, glyph] of orderedPrefix.slice(1).entries())
+          expect(glyph.x).toBeGreaterThan(orderedPrefix[index]!.x);
       }
       const bounds = target.getBoundingClientRect();
       expect(bounds.top).toBeGreaterThanOrEqual(0);
@@ -1065,39 +1062,42 @@ it.each([
       expect(batchApply).not.toHaveBeenCalled();
       expect(artworkApply).not.toHaveBeenCalled();
       await observe("reviewed", details);
-      if (flow === "batch") {
-        expect(batchPreview).toHaveBeenCalledExactlyOnceWith(
-          {
-            portIds: [port.id, second.id],
-            steamRoot: unc,
-            steamUserId: "12345",
-            includeArtwork: true,
-          },
-          7,
-        );
-        expect(singlePreview).not.toHaveBeenCalled();
-      } else if (flow === "artwork") {
-        expect(artworkPreview).toHaveBeenCalledExactlyOnceWith(
-          {
-            portId: port.id,
-            steamRoot: unc,
-            steamUserId: "12345",
-            operation: { kind: "update", replace_existing: false },
-          },
-          7,
-        );
-        expect(singlePreview).not.toHaveBeenCalled();
-      } else {
-        expect(singlePreview).toHaveBeenCalledExactlyOnceWith(
-          port.id,
-          unc,
-          "12345",
-          "add_or_repair",
-          true,
-          7,
-        );
-        expect(batchPreview).not.toHaveBeenCalled();
-      }
+      const previews = {
+        batch: {
+          mock: batchPreview,
+          args: [
+            {
+              portIds: [port.id, second.id],
+              steamRoot: unc,
+              steamUserId: "12345",
+              includeArtwork: true,
+            },
+            7,
+          ],
+        },
+        artwork: {
+          mock: artworkPreview,
+          args: [
+            {
+              portId: port.id,
+              steamRoot: unc,
+              steamUserId: "12345",
+              operation: { kind: "update", replace_existing: false },
+            },
+            7,
+          ],
+        },
+        single: {
+          mock: singlePreview,
+          args: [port.id, unc, "12345", "add_or_repair", true, 7],
+        },
+      };
+      const preview = previews[flow];
+      expect(preview.mock.mock.calls).toEqual([preview.args]);
+      for (const other of [singlePreview, batchPreview, artworkPreview].filter(
+        (mock) => mock !== preview.mock,
+      ))
+        expect(other).not.toHaveBeenCalled();
       await click(
         flow === "batch"
           ? "Add or repair selected shortcuts"
@@ -1108,43 +1108,56 @@ it.each([
       const result = document.querySelector<HTMLElement>(
         `[aria-label="${flow === "artwork" ? "Steam artwork result" : flow === "batch" ? "Steam batch result" : "Steam shortcut result"}"]`,
       )!;
-      if (flow === "batch") {
-        expect(batchApply).toHaveBeenCalledExactlyOnceWith(
-          {
-            portIds: [port.id, second.id],
-            steamRoot: unc,
-            steamUserId: "12345",
-            includeArtwork: true,
-          },
-          selectedBatch.review_sha256,
-          selectedBatch.artwork_review_sha256,
-          7,
-        );
-      } else if (flow === "artwork") {
-        expect(artworkApply).toHaveBeenCalledExactlyOnceWith(
-          {
-            portId: port.id,
-            steamRoot: unc,
-            steamUserId: "12345",
-            operation: selectedArtwork.operation,
-          },
-          selectedArtwork.plan_sha256,
-          7,
-        );
-      } else {
-        expect(singleApply).toHaveBeenCalledExactlyOnceWith(
-          port.id,
-          unc,
-          "12345",
-          "add_or_repair",
-          true,
-          selectedReview.plan_sha256,
-          selectedReview.artwork_review_sha256,
-          7,
-        );
-      }
-      expect(result.textContent).toContain(backup);
-      if (flow !== "artwork") expect(result.textContent).toContain(shortcuts);
+      const applications = {
+        batch: {
+          mock: batchApply,
+          args: [
+            {
+              portIds: [port.id, second.id],
+              steamRoot: unc,
+              steamUserId: "12345",
+              includeArtwork: true,
+            },
+            selectedBatch.review_sha256,
+            selectedBatch.artwork_review_sha256,
+            7,
+          ],
+        },
+        artwork: {
+          mock: artworkApply,
+          args: [
+            {
+              portId: port.id,
+              steamRoot: unc,
+              steamUserId: "12345",
+              operation: selectedArtwork.operation,
+            },
+            selectedArtwork.plan_sha256,
+            7,
+          ],
+        },
+        single: {
+          mock: singleApply,
+          args: [
+            port.id,
+            unc,
+            "12345",
+            "add_or_repair",
+            true,
+            selectedReview.plan_sha256,
+            selectedReview.artwork_review_sha256,
+            7,
+          ],
+        },
+      };
+      const application = applications[flow];
+      expect(application.mock.mock.calls).toEqual([application.args]);
+      for (const other of [singleApply, batchApply, artworkApply].filter(
+        (mock) => mock !== application.mock,
+      ))
+        expect(other).not.toHaveBeenCalled();
+      for (const path of flow === "artwork" ? [backup] : [backup, shortcuts])
+        expect(result.textContent).toContain(path);
       await observe("result", result);
     } finally {
       if (previous.dir === null) document.documentElement.removeAttribute("dir");

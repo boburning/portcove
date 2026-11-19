@@ -330,6 +330,7 @@ it("renders mounted typed and legacy fallback summaries in the actual Advanced S
     theme: "dark" | "light";
     width: number;
     reasons: string[];
+    summary: string;
     codes?: CatalogProvenance["fallback_codes"];
   }[] = [
     {
@@ -337,6 +338,8 @@ it("renders mounted typed and legacy fallback summaries in the actual Advanced S
       theme: "dark",
       width: 960,
       reasons: [signature],
+      summary:
+        "Catalog information did not pass signature verification. Portcove kept the available catalog information.",
       codes: ["signature_invalid"],
     },
     {
@@ -344,6 +347,8 @@ it("renders mounted typed and legacy fallback summaries in the actual Advanced S
       theme: "light",
       width: 430,
       reasons: [unknown, "Legacy text-only catalog diagnostic"],
+      summary:
+        "A saved catalog could not be used. Portcove continued with the available catalog information.",
       codes: ["unknown"],
     },
   ];
@@ -396,21 +401,17 @@ it("renders mounted typed and legacy fallback summaries in the actual Advanced S
       expect(rows[0]?.closest(".settings-row")).not.toBeNull();
       expect(rows[0]?.isConnected).toBe(true);
       expect(rows[0]?.getBoundingClientRect().width).toBeGreaterThan(0);
-      if (variant.name === "typed") {
-        await expect
-          .element(
-            page
-              .getByRole("region", { name: "Advanced", exact: true })
-              .getByText(/did not pass signature verification/),
-          )
-          .toBeVisible();
-      } else {
-        expect(
-          rows.every((row) =>
-            row.querySelector("p")?.textContent?.includes("A saved catalog could not be used"),
-          ),
-        ).toBe(true);
-      }
+      expect(rows.map((row) => row.querySelector("p")?.textContent)).toEqual(
+        variant.reasons.map(() => variant.summary),
+      );
+      await expect
+        .element(
+          page
+            .getByRole("region", { name: "Advanced", exact: true })
+            .getByText(variant.summary, { exact: true })
+            .first(),
+        )
+        .toBeVisible();
       for (const [index, row] of rows.entries()) {
         // Identify the real mounted row without assuming its sibling element types.
         const target = `catalog-fallback-${variant.name}-${index}`;
