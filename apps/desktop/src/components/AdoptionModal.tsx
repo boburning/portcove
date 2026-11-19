@@ -16,6 +16,7 @@ export function AdoptionModal({
   preview,
   busy,
   applying = false,
+  refreshing = false,
   copyFailed,
   close,
   review,
@@ -29,6 +30,7 @@ export function AdoptionModal({
   preview?: AdoptionPreview | undefined;
   busy?: string | undefined;
   applying?: boolean;
+  refreshing?: boolean;
   copyFailed?: boolean;
   close: () => void;
   review: (selectedPortId?: string) => void;
@@ -246,6 +248,7 @@ export function AdoptionModal({
           preview={preview}
           busy={busy}
           applying={applying}
+          refreshing={refreshing}
           dismiss={dismiss}
           review={review}
           adopt={adopt}
@@ -260,6 +263,7 @@ function AdoptionActions({
   preview,
   busy,
   applying,
+  refreshing,
   dismiss,
   review,
   adopt,
@@ -268,45 +272,56 @@ function AdoptionActions({
   preview?: AdoptionPreview | undefined;
   busy?: string | undefined;
   applying: boolean;
+  refreshing: boolean;
   dismiss: () => void;
   review: () => void;
   adopt: () => void;
 }) {
   const { t } = useAppTranslation("installation");
+  const pendingLabel = refreshing ? t("workspace:refreshing") : t("adoption.copying");
   return (
-    <DialogFooter className="mt-4">
-      <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
-        {t("adoption.cancel")}
-      </Button>
-      {preview ? (
-        <Button
-          data-focusable
-          variant="primary"
-          aria-describedby={
-            preview.destination?.imported_user_data_paths.length ? "adopt-save-warning" : undefined
-          }
-          disabled={Boolean(busy) || applying || !preview.selected_port_id || !preview.destination}
-          onClick={adopt}
-        >
-          <Icon glyph={FolderInput} />
-          {applying ? t("adoption.copying") : t("adoption.continue")}
+    <>
+      <p role="status" className="sr-only">
+        {applying ? pendingLabel : ""}
+      </p>
+      <DialogFooter className="mt-4">
+        <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
+          {t("adoption.cancel")}
         </Button>
-      ) : (
-        <Button
-          data-focusable
-          variant="primary"
-          disabled={!path.trim() || Boolean(busy) || applying}
-          onClick={() => review()}
-        >
-          <Icon glyph={FolderInput} />
-          {applying
-            ? t("adoption.copying")
-            : busy === "preview adoption"
-              ? t("adoption.reviewing")
-              : t("adoption.review")}
-        </Button>
-      )}
-    </DialogFooter>
+        {preview ? (
+          <Button
+            data-focusable
+            variant="primary"
+            aria-describedby={
+              preview.destination?.imported_user_data_paths.length
+                ? "adopt-save-warning"
+                : undefined
+            }
+            disabled={
+              Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
+            }
+            onClick={adopt}
+          >
+            <Icon glyph={FolderInput} />
+            {applying ? pendingLabel : t("adoption.continue")}
+          </Button>
+        ) : (
+          <Button
+            data-focusable
+            variant="primary"
+            disabled={!path.trim() || Boolean(busy) || applying}
+            onClick={() => review()}
+          >
+            <Icon glyph={FolderInput} />
+            {applying
+              ? pendingLabel
+              : busy === "preview adoption"
+                ? t("adoption.reviewing")
+                : t("adoption.review")}
+          </Button>
+        )}
+      </DialogFooter>
+    </>
   );
 }
 
