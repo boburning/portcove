@@ -8220,7 +8220,8 @@ mod tests {
     #[test]
     fn saved_native_package_choice_survives_manifest_refresh() {
         let temporary = tempfile::tempdir().unwrap();
-        let library = Library::open(temporary.path().join("library")).unwrap();
+        let library_root = temporary.path().join("library");
+        let library = Library::open(&library_root).unwrap();
         let platform = Platform::WindowsX86_64;
         let id = "fragglet-sdl-sopwith";
         let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
@@ -8312,7 +8313,7 @@ mod tests {
             recorded_package_variant(&install).unwrap().as_ref(),
             Some(&variant)
         );
-        let installer = Installer::new(library).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
         let refreshed = installer
             .refresh_verified_manifest(&install, &ordinary)
             .unwrap();
@@ -8320,7 +8321,21 @@ mod tests {
             recorded_package_variant(&refreshed).unwrap().as_ref(),
             Some(&variant)
         );
-        let mut changed_channel = refreshed;
+        library.register_install(&refreshed, true).unwrap();
+        drop(installer);
+        drop(library);
+
+        let reopened = Library::open(library_root).unwrap();
+        let retained = reopened
+            .status(id, crate::ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap();
+        assert_eq!(
+            recorded_package_variant(&retained).unwrap().as_ref(),
+            Some(&variant)
+        );
+        let mut changed_channel = retained;
         changed_channel.channel = crate::ReleaseChannel::Beta;
         assert!(recorded_package_variant(&changed_channel).is_err());
     }
