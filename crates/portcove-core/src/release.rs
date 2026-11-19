@@ -198,7 +198,6 @@ pub(crate) struct ReleaseSelectionCacheKey {
     accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
     acquisition_policy: Option<crate::ManagedAcquisitionHold>,
-    saved_variant: Option<ManagedPackageVariant>,
 }
 
 impl ReleaseSelectionCacheKey {
@@ -234,7 +233,6 @@ impl ReleaseSelectionCacheKey {
                 || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
             acquisition_policy: port.managed_acquisition_hold.clone(),
-            saved_variant: None,
             repository: port.release.repository.clone(),
             channel,
             platform,
@@ -1517,6 +1515,83 @@ impl GithubSelection<'_> {
 }
 
 impl GithubReleaseProvider {
+    async fn refresh_saved_release_assets(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        releases: &mut [GithubRelease],
+    ) -> Result<()> {
+        // Only releases selected by the normal platform/channel stream and
+        // explicit reviewed fallback targets need their own complete listing.
+        let mut release_ids = std::collections::BTreeSet::new();
+        if releases
+            .iter()
+            .filter_map(|release| release.id)
+            .any(|id| !release_ids.insert(id))
+        {
+            return Err(PortcoveError::verification(
+                "the saved package release inventory repeats a provider release identity",
+            ));
+        }
+        let mut refreshed = std::collections::BTreeSet::new();
+        while let Some(release) = select_channel_candidate(
+            releases,
+            channel,
+            port.release.rolling_tag.as_deref(),
+            |release| !release.draft && native_release_applies_to_platform(port, platform, release),
+            is_beta_release,
+            |release| release.tag_name.as_str(),
+        ) {
+            let release_id = fresh_release_id(release)?;
+            if !refreshed.insert(release_id) {
+                break;
+            }
+            let release = releases
+                .iter_mut()
+                .find(|release| release.id == Some(release_id))
+                .unwrap();
+            release.assets = self
+                .release_assets_scoped(&port.release.repository, release_id, scope)
+                .await?;
+        }
+        if let Some(hold) = port.managed_acquisition_hold.as_ref()
+            && !hold.excluded_artifacts.is_empty()
+        {
+            for release in releases.iter_mut().filter(|release| {
+                !release.draft
+                    && hold
+                        .reviewed_artifacts
+                        .iter()
+                        .any(|artifact| artifact.version == release.tag_name)
+            }) {
+                let release_id = fresh_release_id(release)?;
+                if refreshed.insert(release_id) {
+                    release.assets = self
+                        .release_assets_scoped(&port.release.repository, release_id, scope)
+                        .await?;
+                }
+            }
+        }
+        for release in releases
+            .iter()
+            .filter(|release| release.id.is_some_and(|id| refreshed.contains(&id)))
+        {
+            let mut ids = std::collections::BTreeSet::new();
+            if release
+                .assets
+                .iter()
+                .any(|asset| !asset.id.is_some_and(|id| id != 0 && ids.insert(id)))
+            {
+                return Err(PortcoveError::verification(
+                    "the complete saved package inventory contains missing or repeated asset identities",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     async fn resolve_scoped_selection(
         &self,
         port: &PortDefinition,
@@ -1690,9 +1765,6 @@ impl GithubReleaseProvider {
         let activity = Some(repository.activity(&port.release.repository));
         observed_activity.clone_from(&activity);
         let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
-        if let GithubSelection::Saved(variant) = selection {
-            cache_key.saved_variant = Some(variant.clone());
-        }
         let withheld = match selection {
             GithubSelection::ReviewedFallback(withheld) => Some(withheld),
             _ => None,
@@ -1704,12 +1776,10 @@ impl GithubReleaseProvider {
             )
         });
         let curated = port.release.curated.get(&platform);
-        // Curated selection revalidates mutable release, asset and tag identity;
-        // only the separately verified byte cache may be reused.
-        if curated.is_none()
-            && withheld.is_none()
-            && let Some(mut selection) = self.cached_selection(&cache_key).await
-        {
+        // Curated and saved selections revalidate mutable provider facts. A
+        // previous match cannot prove that its release inventory is unique now.
+        let cache_selection = curated.is_none() && matches!(selection, GithubSelection::Ordinary);
+        if cache_selection && let Some(mut selection) = self.cached_selection(&cache_key).await {
             if selection
                 .identity
                 .as_ref()
@@ -1726,10 +1796,14 @@ impl GithubReleaseProvider {
             selection.activity = activity;
             return Ok(selection);
         }
-        let releases = match scope {
+        let mut releases = match scope {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
+        if matches!(selection, GithubSelection::Saved(_)) {
+            self.refresh_saved_release_assets(port, channel, platform, scope, &mut releases)
+                .await?;
+        }
         if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
             // Failover-capable records only: classify an accepted release or asset
             // that is gone as unavailable. Any partial match (a moved tag, a reused
@@ -1980,7 +2054,7 @@ impl GithubReleaseProvider {
             }
             _ => None,
         };
-        if withheld.is_none() {
+        if cache_selection {
             self.store_selection(
                 cache_key,
                 resolved.clone(),
@@ -2048,6 +2122,14 @@ fn preserved_resolution(
         identity: Some(identity),
         activity: None,
         fallback_reason: None,
+    })
+}
+
+fn fresh_release_id(release: &GithubRelease) -> Result<u64> {
+    release.id.filter(|id| *id != 0).ok_or_else(|| {
+        PortcoveError::verification(
+            "the current release has no stable provider identity for saved package resolution",
+        )
     })
 }
 
@@ -3693,7 +3775,6 @@ mod tests {
             rolling_tag: None,
             asset_hints: Vec::new(),
             acquisition_policy: None,
-            saved_variant: None,
             accepted_uploaders: Vec::new(),
         };
         provider
@@ -3724,7 +3805,6 @@ mod tests {
                         rolling_tag: None,
                         asset_hints: Vec::new(),
                         acquisition_policy: None,
-                        saved_variant: None,
                         accepted_uploaders: Vec::new(),
                     },
                     release.clone(),

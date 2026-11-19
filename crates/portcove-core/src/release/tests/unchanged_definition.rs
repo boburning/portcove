@@ -1495,8 +1495,22 @@ async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor
     let exact = identified("Game-hd-2.0.0-windows-x64.zip", Some('b'), 201);
     let different = identified("Game-hd-standard-2.0.0-windows-x64.zip", Some('c'), 202);
     let next = || snapshot("v2.0.0", 20, vec![different.clone(), exact.clone()]);
-    let (origin, _, server) =
-        serve_http(vec![repository(), old, repository(), next(), repository()]);
+    let assets = |values| ok_json(&serde_json::to_string(&values).unwrap(), "");
+    let replacement = identified("Game-hd-2.0.0-windows-x64.zip", Some('e'), 206);
+    let second_match = identified("Game-hd-v2.0.0-windows-x64.zip", Some('d'), 203);
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        old,
+        repository(),
+        next(),
+        assets(vec![different.clone(), exact.clone()]),
+        repository(),
+        next(),
+        assets(vec![different.clone(), replacement.clone()]),
+        repository(),
+        next(),
+        assets(vec![second_match.clone(), replacement]),
+    ]);
     let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
     let accepted = provider
         .resolve_scoped(&port, channel, platform, None)
@@ -1512,12 +1526,29 @@ async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor
     assert_eq!(offered.release.asset.sha256, "b".repeat(64));
     assert_eq!(offered.github_identity.as_ref().unwrap().asset_id, 201);
     assert_eq!(offered.saved_variant.as_ref(), Some(&receipt));
-    let cached = provider
+    // All calls use the same provider inside its ordinary cache TTL. The
+    // inline inventory, release ID and count stay unchanged. The complete
+    // asset listing first replaces the same filename, then adds an ambiguity.
+    let replaced = provider
         .resolve_saved_variant(&port, channel, platform, None, &receipt)
         .await
         .unwrap();
-    assert_eq!(cached.release.asset, offered.release.asset);
+    assert_eq!(replaced.release.asset.name, offered.release.asset.name);
+    assert_eq!(replaced.release.asset.sha256, "e".repeat(64));
+    assert_eq!(replaced.github_identity.as_ref().unwrap().asset_id, 206);
+    let ambiguous = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap_err();
+    assert_eq!(ambiguous.details["saved_package_variant"], "ambiguous");
     server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|path| path.contains("/releases/20/assets?"))
+            .count(),
+        3
+    );
 
     // The same provider inventory keeps the normal ambiguity for a fresh
     // install without a saved, reviewed choice.
@@ -1538,10 +1569,7 @@ async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor
             Some("no-matching-package"),
         ),
         (
-            vec![
-                exact.clone(),
-                identified("Game-hd-v2.0.0-windows-x64.zip", Some('d'), 203),
-            ],
+            vec![exact.clone(), second_match],
             crate::ErrorCode::Conflict,
             Some("ambiguous"),
         ),
@@ -1560,8 +1588,11 @@ async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor
             Some("no-matching-package"),
         ),
     ] {
-        let (origin, _, server) =
-            serve_http(vec![repository(), snapshot("v2.0.0", 20, candidates)]);
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            snapshot("v2.0.0", 20, candidates.clone()),
+            assets(candidates),
+        ]);
         let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
         let refused = provider
             .resolve_saved_variant(&port, channel, platform, None, &receipt)
