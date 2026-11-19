@@ -55,6 +55,10 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  compactCrispyDoomWindowsPersistence,
+  projectCrispyDoomWindowsPersistence,
+} from "./catalog-crispy-doom-windows-persistence.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
 import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
@@ -93,7 +97,7 @@ type PackageFacts = Pick<
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
 export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
-  const record = projectRazeWindowsProfile(input);
+  const record = projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input));
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -198,6 +202,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "raze_windows_profile_v1",
       scope: "Shared stable Raze Windows archive, executable and portable data layout.",
       next: "Keep the original edition, support, qualification and external routes explicit. A different runtime layout needs its own reviewed declaration.",
+    });
+  }
+  if (record.crispy_doom_windows_persistence_v1) {
+    projections.push({
+      field: "crispy_doom_windows_persistence_v1",
+      scope: "Shared reviewed Crispy Doom Windows persistent paths and filename patterns.",
+      next: "Keep each package selector, executable, game arguments, originals and temporary directory explicit. A different writer layout needs explicit paths.",
     });
   }
   return {
@@ -973,6 +984,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compact !== record) record = checkedAuthoredPort(compact);
     const compactReflection = compactReflectionHlePortablePaths(record);
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
+    const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
+    if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

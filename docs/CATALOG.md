@@ -3573,6 +3573,13 @@ package layouts explicit. Preparation proposes the shared form only when it
 can reproduce the exact reviewed integration bytes. A different writer scope
 or additional runtime layout declaration uses explicit paths.
 
+Optional authoring-only `crispy_doom_windows_persistence_v1: true` expands the
+reviewed Windows persistent paths and filename patterns shared by the Crispy
+Doom, Heretic, Hexen and Strife player routes. Keep each game mode, package
+selector, executable, original edition, launch values and qualification
+explicit. Preparation compacts only integrations that expand byte for byte.
+A fork or a different writer layout uses explicit paths.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the

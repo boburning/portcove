@@ -30,6 +30,10 @@ import {
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
+  compactCrispyDoomWindowsPersistence,
+  projectCrispyDoomWindowsPersistence,
+} from "./catalog-crispy-doom-windows-persistence.mts";
+import {
   compactReflectionHlePortablePaths,
   projectReflectionHlePortablePaths,
 } from "./catalog-portable-reflectionhle.mts";
@@ -178,6 +182,36 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Crispy Doom persistence preserves all six exact Windows package layouts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.crispy_doom_windows_persistence_v1);
+  assert.equal(family.length, 6);
+  for (const record of family) {
+    const projected = projectAuthoredPort(record);
+    assert.equal(JSON.stringify(projected), JSON.stringify(prior.get(record.listing.id)));
+    const explicit = projectCrispyDoomWindowsPersistence(record);
+    delete explicit.crispy_doom_windows_persistence_v1;
+    assert.deepEqual(compactCrispyDoomWindowsPersistence(explicit), record);
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_file_patterns = [];
+    assert.equal(compactCrispyDoomWindowsPersistence(alternate), alternate);
+    alternate.crispy_doom_windows_persistence_v1 = true;
+    assert.throws(() => checkedAuthoredPort(alternate), /already owns the persistent paths/u);
+  }
+  const startedWithOtherArguments = structuredClone(requiredFixture(family[0]));
+  startedWithOtherArguments.integration!.launch_arguments = [
+    "-game",
+    "doom",
+    "-savedir",
+    "another-folder",
+  ];
+  assert.throws(
+    () => checkedAuthoredPort(startedWithOtherArguments),
+    /requires the reviewed Windows portable data route/u,
+  );
 });
 
 void test("Raze Windows authoring preserves the exact shared package and profile facts", () => {
