@@ -58,6 +58,31 @@ async function expectUnbrokenAppearanceLabels() {
   }
 }
 
+async function expectSettingsCategoryLabelsFit() {
+  const categories = page.getByRole("navigation", { name: "Settings categories" });
+  const buttons = categories.getByRole("button");
+  const keyboardCategory = categories.getByRole("button", {
+    name: "Keyboard and controller",
+    exact: true,
+  });
+  const destinations = buttons.elements();
+  expect(destinations).toHaveLength(8);
+  buttons.first().element().focus();
+  for (const button of destinations) {
+    await expect.element(button).toHaveFocus();
+    if (button === keyboardCategory.element()) {
+      await captureParityState("settings-keyboard-category-text-200");
+    }
+    const strip = categories.element().getBoundingClientRect();
+    const label = document.createRange();
+    label.selectNodeContents(button);
+    const text = label.getBoundingClientRect();
+    expect.soft(text.left).toBeGreaterThanOrEqual(strip.left - 1);
+    expect.soft(text.right).toBeLessThanOrEqual(strip.right + 1);
+    await userEvent.keyboard("{Tab}");
+  }
+}
+
 for (const theme of ["dark", "light"]) {
   it(`fits the full ${theme} brand and navigation at intermediate widths`, async () => {
     transport = installInteractiveTransport("library", (message) => {
@@ -277,30 +302,7 @@ for (const theme of ["dark", "light"]) {
       await captureParityState(
         mode === "spacing overrides" ? "settings-spacing-overrides" : "settings-text-200",
       );
-      if (mode === "200% authored text") {
-        const categories = page.getByRole("navigation", { name: "Settings categories" });
-        const buttons = categories.getByRole("button");
-        const keyboardCategory = categories.getByRole("button", {
-          name: "Keyboard and controller",
-          exact: true,
-        });
-        const destinations = buttons.elements();
-        expect(destinations).toHaveLength(8);
-        buttons.first().element().focus();
-        for (const button of destinations) {
-          await expect.element(button).toHaveFocus();
-          if (button === keyboardCategory.element()) {
-            await captureParityState("settings-keyboard-category-text-200");
-          }
-          const strip = categories.element().getBoundingClientRect();
-          const label = document.createRange();
-          label.selectNodeContents(button);
-          const text = label.getBoundingClientRect();
-          expect.soft(text.left).toBeGreaterThanOrEqual(strip.left - 1);
-          expect.soft(text.right).toBeLessThanOrEqual(strip.right + 1);
-          await userEvent.keyboard("{Tab}");
-        }
-      }
+      if (mode === "200% authored text") await expectSettingsCategoryLabelsFit();
     });
   }
 }

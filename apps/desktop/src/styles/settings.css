@@ -246,7 +246,6 @@
 @layer utilities {
   @container settings (max-width: 12rem) {
     .settings-section-index > .settings-category {
-      white-space: normal;
       padding-inline: 6px;
       overflow-wrap: break-word;
     }

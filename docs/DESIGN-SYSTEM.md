@@ -951,9 +951,8 @@ disclosure without becoming hidden safety state. Settings uses Appearance,
 Library and storage, Game files, Updates, Integrations, Keyboard and controller,
 Advanced, and About categories. Wide layouts use a 13rem category column beside
 a reading column bounded at 47.5rem. Below 56.3125rem, navigation becomes one
-horizontally scrollable category strip above the panel. In narrow Settings panels,
-category labels can wrap so a focused category fits within the strip. Settings rows
-use open surfaces and dividing rules rather than a surrounding card for every group. Category changes hide rather
+horizontally scrollable category strip above the panel. Settings rows use open surfaces and dividing
+rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
 not persist settings or cancel work. Focus the selected heading and reveal its
 outline below any sticky category strip, using the existing workspace scroll owner
