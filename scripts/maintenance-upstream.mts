@@ -179,7 +179,13 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
   let firstRecorded = Infinity;
   const series = new Map<
     string,
-    { latest: RetainedCandidateObservation; recorded: number; eligibleAt: number | null }
+    {
+      latest: RetainedCandidateObservation;
+      recorded: number;
+      eligibleAt: number | null;
+      firstPendingAt: number;
+      lastEligibleAt: number;
+    }
   >();
   for (const row of rows) {
     if (
@@ -209,6 +215,14 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
       latest: previous && previous.recorded > recorded ? previous.latest : candidate,
       recorded: Math.max(previous?.recorded ?? recorded, recorded),
       eligibleAt: eligibleTimes.length ? Math.min(...eligibleTimes) : null,
+      firstPendingAt: Math.min(
+        previous?.firstPendingAt ?? Infinity,
+        row.state === "pending" ? recorded : Infinity,
+      ),
+      lastEligibleAt: Math.max(
+        previous?.lastEligibleAt ?? -Infinity,
+        row.state === "eligible" ? recorded : -Infinity,
+      ),
     });
   }
   const recent = [...series.values()].filter(({ latest }) => {
@@ -235,6 +249,12 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     distinct_candidates: recent.length,
     eligible_candidates: eligible.length,
     pending_candidates: held.length,
+    observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
+      Number.isFinite(firstPendingAt),
+    ).length,
+    observed_pending_to_eligible_candidates: recent.filter(
+      ({ firstPendingAt, lastEligibleAt }) => firstPendingAt < lastEligibleAt,
+    ).length,
     unknown_publication_times: [...series.values()].filter(
       ({ latest }) => !latest.published_at || !Number.isFinite(Date.parse(latest.published_at)),
     ).length,
