@@ -2822,6 +2822,8 @@ it("uses Core's registered path spelling even when the complete scan fits its pr
   );
   expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  button("Review installing 1 selected").scrollIntoView({ block: "center", behavior: "instant" });
+  await captureParityState("game-files-library-selected-setup-actions");
   await click("Review installing 1 selected");
   expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
   expect(start).not.toHaveBeenCalled();

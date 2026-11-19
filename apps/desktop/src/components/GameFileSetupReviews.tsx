@@ -167,85 +167,97 @@ export function GameFileSetupReviews({
       ))}
       {selected.length > 0 && (
         <>
-          <p>{t("setupReviews.returnNote")}</p>
-          <ol>
-            {selected.map((id) => (
-              <li key={id}>
-                <span>{ports.find((port) => port.id === id)?.name ?? id}</span>
-                {!canReview(id) && <p>{t("setupReviews.unavailable")}</p>}
-                <Button
-                  data-focusable
-                  variant="outline"
-                  disabled={!canReview(id)}
-                  onClick={() => {
-                    const channel = statuses.get(id)?.channel;
-                    if (!channel) return;
-                    requestReview(id, channel);
-                    onOpenPort?.(id, "game-file-libraries-setup");
-                  }}
-                >
-                  <Trans
-                    t={t}
-                    i18nKey="setupReviews.review"
-                    components={{
-                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
-                    }}
-                  />
-                </Button>
-                <Button
-                  data-focusable
-                  variant="ghost"
-                  onClick={() => {
-                    restoreFocus.current = true;
-                    toggle(id);
-                  }}
-                >
-                  <Trans
-                    t={t}
-                    i18nKey="setupReviews.remove"
-                    components={{
-                      name: <bdi>{ports.find((port) => port.id === id)?.name ?? id}</bdi>,
-                    }}
-                  />
-                </Button>
-              </li>
-            ))}
+          <p className="mt-3">{t("setupReviews.returnNote")}</p>
+          <ol className="mt-2 grid list-decimal gap-3 ps-5">
+            {selected.map((id) => {
+              const name = ports.find((port) => port.id === id)?.name ?? id;
+              const reviewable = canReview(id);
+              return (
+                <li key={id} className="min-w-0">
+                  <bdi className="block font-medium wrap-anywhere">{name}</bdi>
+                  {!reviewable && (
+                    <p className="text-xs text-pc-muted-foreground">
+                      {t("setupReviews.unavailable")}
+                    </p>
+                  )}
+                  <div className="mt-2 flex min-w-0 flex-wrap gap-2">
+                    <Button
+                      data-focusable
+                      variant="outline"
+                      disabled={!reviewable}
+                      onClick={() => {
+                        const channel = statuses.get(id)?.channel;
+                        if (!channel) return;
+                        requestReview(id, channel);
+                        onOpenPort?.(id, "game-file-libraries-setup");
+                      }}
+                    >
+                      <span className="min-w-0">
+                        <Trans
+                          t={t}
+                          i18nKey="setupReviews.review"
+                          components={{ name: <bdi>{name}</bdi> }}
+                        />
+                      </span>
+                    </Button>
+                    <Button
+                      data-focusable
+                      variant="ghost"
+                      onClick={() => {
+                        restoreFocus.current = true;
+                        toggle(id);
+                      }}
+                    >
+                      <span className="min-w-0">
+                        <Trans
+                          t={t}
+                          i18nKey="setupReviews.remove"
+                          components={{ name: <bdi>{name}</bdi> }}
+                        />
+                      </span>
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
-          {onAddToLibrary && (
+          <div className="mt-3 flex min-w-0 flex-wrap gap-2">
+            {onAddToLibrary && (
+              <Button
+                data-focusable
+                disabled={!current || busy}
+                onClick={() => {
+                  onAddToLibrary(selected);
+                  clear();
+                }}
+              >
+                {t("setupReviews.add", { total: selected.length })}
+              </Button>
+            )}
+            {onReviewInstall && (
+              <Button
+                data-focusable
+                disabled={!current || busy || !selected.some(canReview)}
+                onClick={(event) => {
+                  if (!section.current) return;
+                  onReviewInstall(selected, event.currentTarget, section.current);
+                  clear();
+                }}
+              >
+                {t("setupReviews.reviewInstall", { total: selected.length })}
+              </Button>
+            )}
             <Button
               data-focusable
-              disabled={!current || busy}
+              variant="outline"
               onClick={() => {
-                onAddToLibrary(selected);
+                restoreFocus.current = true;
                 clear();
               }}
             >
-              {t("setupReviews.add", { total: selected.length })}
+              {t("setupReviews.clear")}
             </Button>
-          )}
-          {onReviewInstall && (
-            <Button
-              data-focusable
-              disabled={!current || busy || !selected.some(canReview)}
-              onClick={(event) => {
-                if (!section.current) return;
-                onReviewInstall(selected, event.currentTarget, section.current);
-                clear();
-              }}
-            >
-              {t("setupReviews.reviewInstall", { total: selected.length })}
-            </Button>
-          )}
-          <Button
-            data-focusable
-            variant="outline"
-            onClick={() => {
-              restoreFocus.current = true;
-              clear();
-            }}
-          >
-            {t("setupReviews.clear")}
-          </Button>
+          </div>
         </>
       )}
     </section>
