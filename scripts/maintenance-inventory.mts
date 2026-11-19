@@ -2835,19 +2835,25 @@ export function managedRouteObservationCoverage(
         : "observer-membership-unverified";
 
   let missingTargets = 0;
-  const platforms = new Map<string, { offered: number; candidate_observed: number }>();
+  const platforms = new Map<
+    string,
+    { offered: number; fixed: number; candidate_observed: number }
+  >();
   const reasons = new Map<string, number>();
   for (const port of ports) {
     if (!targetScopeKnown || !port.targets?.targets) {
       missingTargets++;
       continue;
     }
-    const offered = new Set(
+    const offered = new Map(
       port.targets.targets
         .filter(({ routes }) =>
           routes.some(({ action, offered }) => action === "install" && offered),
         )
-        .map(({ platform }) => platform),
+        .map(({ platform, qualification }) => [
+          platform,
+          qualification.offered_artifact.state === "fixed",
+        ]),
     );
     const observed = new Set<string>();
     if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
@@ -2865,10 +2871,11 @@ export function managedRouteObservationCoverage(
               )
                 observed.add(candidate.platform);
     }
-    for (const platform of offered) {
-      const counts = platforms.get(platform) ?? { offered: 0, candidate_observed: 0 };
+    for (const [platform, fixed] of offered) {
+      const counts = platforms.get(platform) ?? { offered: 0, fixed: 0, candidate_observed: 0 };
       counts.offered++;
-      if (observed.has(platform)) counts.candidate_observed++;
+      if (fixed) counts.fixed++;
+      else if (observed.has(platform)) counts.candidate_observed++;
       else {
         const reason =
           observerFailure ??
@@ -2883,9 +2890,10 @@ export function managedRouteObservationCoverage(
   const completeOffering = targetScopeKnown && missingTargets === 0;
   const byPlatform = [...platforms.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
-    .map(([platform, { offered, candidate_observed }]) => ({
+    .map(([platform, { offered, fixed, candidate_observed }]) => ({
       platform,
       offered,
+      fixed,
       candidate_observed: membershipVerified ? candidate_observed : null,
     }));
   return {
@@ -2895,6 +2903,12 @@ export function managedRouteObservationCoverage(
     operational_definitions_without_target_projection: missingTargets,
     offered_managed_platforms: completeOffering
       ? byPlatform.reduce((total, { offered }) => total + offered, 0)
+      : null,
+    offered_following_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered, fixed }) => total + offered - fixed, 0)
+      : null,
+    fixed_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { fixed }) => total + fixed, 0)
       : null,
     platforms_with_candidate_observed:
       membershipVerified && completeOffering
@@ -3598,7 +3612,7 @@ ${report.unsupported_sources
 ${
   report.managed_route_observation_coverage
     ? `<h2>Managed installation observation coverage</h2>
-<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_managed_platforms ?? "unknown")} offered port and platform pairs. Collection completed at ${escapeHtml(report.managed_route_observation_coverage.observer_collection_completed_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
+<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers: ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")}. Collection completed at ${escapeHtml(report.managed_route_observation_coverage.observer_collection_completed_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
     : ""
 }
 ${publicationSection(report)}

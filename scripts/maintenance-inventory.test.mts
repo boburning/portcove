@@ -1804,7 +1804,7 @@ void test(
     assert.equal(routeCoverage.observer_membership_verified, true);
     assert.match(
       renderHtml(inventory),
-      /recorded candidates for 1 of 1 offered port and platform pairs/u,
+      /recorded candidates for 1 of 1 offered release-following port and platform pairs/u,
     );
     const pending = inventory.managed_release_eligibility;
     assert.equal(pending?.distinct_candidates, 1);
@@ -3578,15 +3578,18 @@ void test("managed observation coverage keeps stale or unverified membership out
     port("old", [["windows-x86-64"]], [{ platform: "windows-x86-64", state: "eligible" }]),
     port("external", [["linux-x86-64", "register_external"]], []),
   ];
+  const fixed = port("fixed", [["windows-x86-64"]], []);
+  fixed.targets!.targets[0]!.qualification.offered_artifact.state = "fixed";
+  ports.push(fixed);
   const run = (source: string, detail: Partial<CoverageRun> = {}): CoverageRun => ({
     source,
     source_revision: "fixture",
     acquisition: 2,
     completed_at: "2026-11-19T20:00:00Z",
     coverage: "complete",
-    expected_count: 3,
-    observed_count: 3,
-    member_count: 3,
+    expected_count: 4,
+    observed_count: 4,
+    member_count: 4,
     member_digest: goodHash,
     gaps: [],
     ...detail,
@@ -3602,11 +3605,13 @@ void test("managed observation coverage keeps stale or unverified membership out
   });
   const members = { "port:covered": goodHash, "port:old": oldHash };
   const coverage = managedRouteObservationCoverage(ports, [catalog, targets, upstream], members);
-  assert.equal(coverage.offered_managed_platforms, 3);
+  assert.equal(coverage.offered_managed_platforms, 4);
+  assert.equal(coverage.offered_following_platforms, 3);
+  assert.equal(coverage.fixed_managed_platforms, 1);
   assert.equal(coverage.platforms_with_candidate_observed, 1);
   assert.deepEqual(coverage.by_platform, [
-    { platform: "linux-x86-64", offered: 1, candidate_observed: 1 },
-    { platform: "windows-x86-64", offered: 2, candidate_observed: 0 },
+    { platform: "linux-x86-64", offered: 1, fixed: 0, candidate_observed: 1 },
+    { platform: "windows-x86-64", offered: 3, fixed: 1, candidate_observed: 0 },
   ]);
   assert.deepEqual(coverage.gaps, [
     { reason: "no-managed-candidate", offered_platforms: 1 },
@@ -3633,7 +3638,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     members,
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
-  assert.equal(oldProjection.operational_definitions_without_target_projection, 3);
+  assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
 });
 
 void test("source freshness ages the last good read against the report and flags stale sources", () => {

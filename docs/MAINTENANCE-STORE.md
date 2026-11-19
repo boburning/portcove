@@ -743,7 +743,8 @@ publication has been verified.
     report's `managed_route_observation_coverage` counts each Core-offered
     managed port and installation platform once. It joins those offers to
     candidate facts in the latest observer collection and reports its revision,
-    collection time, gaps, and per-platform counts. It verifies the retained
+    collection time, gaps, and per-platform counts. Core's fixed package offers
+    are counted separately from release-following offers. It verifies the retained
     checkpoint membership after removing explicitly reported gaps. Older facts
     remain visible in subject history. If the current catalog's Core target
     projection or the latest observer membership is unavailable, its count is
