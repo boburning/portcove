@@ -72,6 +72,69 @@ void test("a port added after its source completed is a scope change, not a fact
   assert.equal(result.gaps[0]?.code, "scope-changed");
 });
 
+void test("retained managed candidates keep their identity from pending to eligible under one tag", () => {
+  const offered = {
+    platform: "linux-x86-64",
+    channel: "stable",
+    channel_candidate: { id: 19, tag: "v2", published_at: "2026-11-10T09:00:00Z" },
+  };
+  const prior = progress("owner/alpha", ["alpha"]);
+  const read = (row: Record<string, unknown>) =>
+    upstreamFacts(
+      checkpoint({
+        [keyOf("owner/alpha")]: {
+          ...prior,
+          last_complete_policies: [
+            {
+              ...prior.last_complete_policies[0],
+              projections: [
+                row,
+                { ...row, channel: "rolling" },
+                { ...row, platform: "windows-x86-64" },
+              ],
+            },
+          ],
+        },
+      }),
+      {
+        ports: [
+          {
+            ...catalog.ports[0],
+            release: { repository: "owner/alpha", curated: { "windows-x86-64": {} } },
+          },
+        ],
+      },
+      now,
+    ).facts.get("port:alpha");
+  const pending = read({
+    ...offered,
+    latest_eligible: { release_id: 18, release: { version: "v1" } },
+    hold_reasons: ["checksum-observation-incomplete"],
+  });
+  const eligible = read({
+    ...offered,
+    latest_eligible: { release_id: 19, release: { version: "v2" } },
+    hold_reasons: [],
+  });
+  const identity = {
+    candidate_key: sha256(JSON.stringify(["alpha", "github", 7, 19, "linux-x86-64", "stable"])),
+    platform: "linux-x86-64",
+    channel: "stable",
+    release_id: 19,
+    tag: "v2",
+    published_at: "2026-11-10T09:00:00.000Z",
+  };
+  for (const [value, state, reasons] of [
+    [pending, "pending", ["checksum-observation-incomplete"]],
+    [eligible, "eligible", []],
+  ] as const) {
+    const fact = value as { sources: { managed_release_candidates: unknown }[] };
+    assert.deepEqual(fact.sources[0]?.managed_release_candidates, [
+      { ...identity, state, hold_reasons: reasons },
+    ]);
+  }
+});
+
 void test("observer exceptions are facts that need attention, or gaps when never completed", () => {
   const result = upstreamFacts(
     checkpoint({

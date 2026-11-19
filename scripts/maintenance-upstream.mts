@@ -14,6 +14,7 @@
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -58,11 +59,116 @@ export interface UpstreamObservation {
 
 const failedSubject = "source:upstream-observer-checkpoint";
 
+export interface ManagedReleaseCandidate {
+  candidate_key: string;
+  platform: string;
+  channel: string;
+  release_id: number | null;
+  tag: string;
+  published_at: string | null;
+  state: "eligible" | "pending";
+  hold_reasons: string[];
+}
+
+/** One retained Core result per offered target. A reviewed fallback is a
+ * different artifact and cannot make the current candidate eligible. */
+function managedReleaseCandidates(
+  policy: Record<string, unknown>,
+  source: {
+    provider: string;
+    repositoryId: number;
+    portId: string;
+    channels: readonly string[];
+    release: unknown;
+  },
+): ManagedReleaseCandidate[] | undefined {
+  const { provider, repositoryId, portId, channels, release } = source;
+  if (
+    !["github", "gitlab"].includes(provider) ||
+    !channels.length ||
+    !Array.isArray(policy.projections) ||
+    policy.projections.length > 12
+  )
+    return undefined;
+  const curated = isRecord(release) && isRecord(release.curated) ? release.curated : {};
+  const candidates: ManagedReleaseCandidate[] = [];
+  const targets = new Set<string>();
+  for (const row of policy.projections) {
+    if (
+      !isRecord(row) ||
+      typeof row.platform !== "string" ||
+      !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(row.platform) ||
+      Object.hasOwn(curated, row.platform) ||
+      typeof row.channel !== "string" ||
+      !channels.includes(row.channel) ||
+      !isRecord(row.channel_candidate)
+    )
+      continue;
+    const candidate = row.channel_candidate;
+    const { tag, published_at } = candidate;
+    const releaseId =
+      typeof candidate.id === "number" && Number.isSafeInteger(candidate.id) && candidate.id > 0
+        ? candidate.id
+        : null;
+    if (
+      typeof tag !== "string" ||
+      !tag.length ||
+      tag.length > 512 ||
+      /\p{Cc}/u.test(tag) ||
+      (provider === "github" && releaseId === null)
+    )
+      continue;
+    const target = `${row.platform}/${row.channel}`;
+    if (targets.has(target)) return undefined;
+    targets.add(target);
+    const selected = isRecord(row.latest_eligible) ? row.latest_eligible : null;
+    const exact =
+      selected !== null &&
+      isRecord(selected.release) &&
+      selected.release.version === tag &&
+      (provider === "github"
+        ? selected.release_id === releaseId
+        : isRecord(selected.identity) && selected.identity.tag === tag);
+    const holdReasons: unknown[] = Array.isArray(row.hold_reasons) ? row.hold_reasons : [];
+    candidates.push({
+      candidate_key: createHash("sha256")
+        .update(
+          JSON.stringify([
+            portId,
+            provider,
+            repositoryId,
+            releaseId ?? tag,
+            row.platform,
+            row.channel,
+          ]),
+        )
+        .digest("hex"),
+      platform: row.platform,
+      channel: row.channel,
+      release_id: releaseId,
+      tag,
+      published_at:
+        typeof published_at === "string" && Number.isFinite(Date.parse(published_at))
+          ? new Date(published_at).toISOString()
+          : null,
+      state: exact ? "eligible" : "pending",
+      hold_reasons: holdReasons
+        .filter((reason): reason is string => typeof reason === "string" && reason.length <= 512)
+        .slice(0, 16)
+        .sort(),
+    });
+  }
+  return candidates.sort(
+    (left, right) =>
+      left.platform.localeCompare(right.platform) || left.channel.localeCompare(right.channel),
+  );
+}
+
 /**
  * Per-port observer facts and coverage from one catalog checkpoint and the
  * catalog it observed. Each port's payload lists its observation sources with
- * stable facts only; per-observation clocks, sequences, cursors, retry state
- * and Core policy outputs (which embed observation clocks) are never stored.
+ * stable facts only. Retain exact managed candidate identities and their
+ * policy-projected result without copying the full policy or its observation clock.
  * A port is a fact only when every source serving it has a completed policy
  * for it; otherwise it is a coverage gap. The observer also lists a port as
  * held when one of its declarations is not observable while another source
@@ -125,6 +231,16 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         typeof progress.exception_rule === "string" &&
         partialProgressRules.includes(progress.exception_rule);
       const exceptionKey = routine ? null : progress.exception_key;
+      const candidates =
+        port.kind !== "listing" && progress.repository_id !== null
+          ? managedReleaseCandidates(policy, {
+              provider: source.provider ?? "github",
+              repositoryId: progress.repository_id,
+              portId: port.id,
+              channels: port.channels,
+              release: port.release,
+            })
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -141,6 +257,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
             typeof policy.catalog_definition_sha256 === "string"
               ? policy.catalog_definition_sha256
               : null,
+          ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
         },
       ]);
     }
@@ -417,6 +534,7 @@ export interface UpstreamSourceFact {
   exception_key: string | null;
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
+  managed_release_candidates?: ManagedReleaseCandidate[];
 }
 
 const storedSources = (payload: unknown) =>

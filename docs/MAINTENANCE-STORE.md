@@ -707,8 +707,15 @@ publication has been verified.
     completed scope and are stored as no exception, so they cause no churn.
   - Per-observation clocks and progress (freshness, completion and due times,
     attempted sequence, retry state, provider progress and cursors), result
-    digests and policy bodies are never stored: Core and listing policies embed
-    observation clocks, so a routine re-observation stays quiet.
+    digests and full policy bodies are omitted so routine re-observation stays
+    quiet. For a hosted managed route, retain the offered platform and channel,
+    exact release identity, publication time, and Core's retained pending or
+    eligible result. A reviewed fallback leaves the current release pending.
+    Curated pins and descriptive listing observations are outside this measure.
+    The identity stays the same when integrity or an asset arrives under the
+    same release. This records upstream candidate evidence for history. Actual
+    client availability, repair publication and human interventions require
+    separate receipts.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
