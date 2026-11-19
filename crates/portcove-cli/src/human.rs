@@ -4077,7 +4077,11 @@ mod tests {
     #[test]
     fn catalog_show_uses_structured_presentation_without_adapter_ids() {
         let catalog = portcove_core::Catalog::embedded().unwrap();
-        let output = catalog_show(catalog.port("shipwright").unwrap());
+        let embedded = catalog.port("shipwright").unwrap();
+        assert!(catalog_show(embedded).contains("Upstream state: unrecorded"));
+        let mut reviewed = embedded.clone();
+        reviewed.upstream_active_reviewed = true;
+        let output = catalog_show(&reviewed);
         assert!(output.contains("Installation: portable upstream package"));
         assert!(output.contains("Game files: The Legend of Zelda: Ocarina of Time source"));
         assert!(output.contains("Check method: Required files and format checks"));
