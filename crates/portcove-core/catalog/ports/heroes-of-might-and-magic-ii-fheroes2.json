@@ -41,10 +41,6 @@
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile.",
         "Back up the actual upstream profile before replacing the runtime. The Linux ZIP normally uses ~/.config/fheroes2 for settings and ~/.local/share/fheroes2 for data, including files/save and custom maps. If you set XDG_CONFIG_HOME or XDG_DATA_HOME, preserve those actual locations and use absolute paths outside the runtime folder. Flatpak, Mac and Android keep their own profiles."
       ]
-    },
-    "download_asset_hints": {
-      "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
-      "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
     }
   },
   "upstream_lineage": {
@@ -59,6 +55,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

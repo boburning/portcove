@@ -38,12 +38,9 @@
         }
       ]
     },
-    "original_game_title": "Chris Sawyer's Locomotion",
-    "download_asset_hints": {
-      "linux-x86-64": ["openloco-", "-linux-x64.appimage"],
-      "macos-aarch64": ["openloco-", "-macos-arm64.zip"]
-    }
+    "original_game_title": "Chris Sawyer's Locomotion"
   },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-aarch64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

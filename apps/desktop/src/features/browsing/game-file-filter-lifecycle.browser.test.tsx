@@ -60,10 +60,12 @@ let root: RenderResult;
 let state: ReturnType<typeof useGameFileFilterContext>;
 function Fixture({
   generation = 1,
-  browsingBinding,
+  browsingBinding = "c".repeat(64),
+  hostPlatform = "windows-x86-64",
 }: {
   generation?: number;
   browsingBinding?: string;
+  hostPlatform?: GameFileQueryRefreshRequest["routes"][number]["platform"];
 }) {
   state = useGameFileFilterContext({
     catalog,
@@ -75,7 +77,7 @@ function Fixture({
       ? {
           schema_version: 1,
           library,
-          host_platform: "windows-x86-64",
+          host_platform: hostPlatform,
           retained_metadata_complete: false,
           contexts: [],
           workspace_binding_sha256: browsingBinding,
@@ -294,3 +296,28 @@ it("keeps history while retry and failure make classifications and counts unavai
   expect(document.body.textContent).not.toContain("Last checked");
   expect(desktopApi.refreshGameFileQuery).toHaveBeenCalledTimes(2);
 });
+
+it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
+  "waits for the workspace host %s and keeps an explicit cross-target choice",
+  async (hostPlatform) => {
+    await root.rerender(<Fixture browsingBinding="" />);
+    expect(state.selection.platform).toBeUndefined();
+    expect(state.available).toBe(false);
+    await state.refresh();
+    expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
+    await root.rerender(<Fixture hostPlatform={hostPlatform} />);
+    expect(state.selection.platform).toBe(hostPlatform);
+    await act(() => state.refresh());
+    expect(vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[0]?.[0].routes[0]?.platform).toBe(
+      hostPlatform,
+    );
+    await act(() => state.setPlatform("macos-x86-64"));
+    await root.rerender(
+      <Fixture generation={2} hostPlatform={hostPlatform} browsingBinding={"f".repeat(64)} />,
+    );
+    await act(() => state.refresh());
+    expect(vi.mocked(desktopApi.refreshGameFileQuery).mock.calls[1]?.[0].routes[0]?.platform).toBe(
+      "macos-x86-64",
+    );
+  },
+);

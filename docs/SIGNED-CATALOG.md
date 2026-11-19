@@ -201,3 +201,8 @@ samples per case, the 1,000/10,000-row aggregate checks averaged 0.080/0.759ms;
 unconditional window eviction averaged 0.420/3.857ms. These are small-body fixture
 CPU observations, not application timings or provider costs. Live occupancy,
 API consumption, process memory and actual release throughput remain Unknown.
+
+Catalog provenance reports `fallback_codes` in the same order as the legacy
+`fallback_reasons` diagnostics. The codes drive localized Desktop guidance.
+Clients can continue to display the original diagnostic and use generic guidance
+when a reason code is absent or unfamiliar.
