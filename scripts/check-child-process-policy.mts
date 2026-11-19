@@ -13,6 +13,9 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-core/src/tool_process/linux_tests.rs",
   // The std-only writer test launches itself to verify the cross-process lease.
   "apps/desktop/src-tauri/src/diagnostics_writer_tests.rs",
+  // Isolated Tauri policy fixtures self-spawn and compile/run generated Rust
+  // literals in temporary directories; never a player or production adapter.
+  "apps/desktop/src-tauri/tests/runtime_policy.rs",
   // Exact owned host/adapter subprocess and cross-process lease fixtures.
   "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
   "crates/portcove-cli/tests/host_diagnostics.rs",

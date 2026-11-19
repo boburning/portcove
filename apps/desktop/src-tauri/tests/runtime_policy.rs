@@ -18,6 +18,7 @@ fn effective_config_child() {
             result,
             Err(tauri_codegen::CodegenConfigError::FormatInline(_))
         ));
+        println!("PORTCOVE_RUNTIME_POLICY_CHILD_COMPLETE");
         return;
     }
     let expected: Option<String> =
@@ -55,6 +56,7 @@ fn effective_config_child() {
         "{}",
         String::from_utf8_lossy(&executed.stderr)
     );
+    println!("PORTCOVE_RUNTIME_POLICY_CHILD_COMPLETE");
 }
 
 #[test]
@@ -142,6 +144,13 @@ fn effective_minimum_reaches_compiled_rust_with_platform_and_environment_precede
             "{name}: {}\n{}",
             String::from_utf8_lossy(&result.stdout),
             String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(
+            String::from_utf8_lossy(&result.stdout)
+                .matches("PORTCOVE_RUNTIME_POLICY_CHILD_COMPLETE")
+                .count(),
+            1,
+            "{name}: the selected child must actually complete its assertions"
         );
     }
 }

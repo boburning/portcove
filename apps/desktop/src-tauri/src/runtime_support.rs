@@ -83,6 +83,15 @@ mod tests {
     #[test]
     fn shipping_context_preserves_the_configured_runtime_floor() {
         let context = crate::startup_context::new();
+        assert_eq!(
+            context
+                .config()
+                .bundle
+                .windows
+                .minimum_webview2_version
+                .as_deref(),
+            crate::startup_context::WINDOWS_WEBVIEW2_MINIMUM
+        );
         let minimum = windows_floor(
             context
                 .config()

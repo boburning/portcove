@@ -5,11 +5,14 @@ mod runtime_policy {
     include!(concat!(env!("OUT_DIR"), "/windows-runtime-minimum.rs"));
 }
 
+#[cfg(windows)]
+pub(super) use runtime_policy::WINDOWS_WEBVIEW2_MINIMUM;
+
 pub(crate) fn new() -> tauri::Context<tauri::Wry> {
     let context = tauri::generate_context!();
     #[cfg(windows)]
     {
-        with_windows_minimum(context, runtime_policy::WINDOWS_WEBVIEW2_MINIMUM)
+        with_windows_minimum(context, WINDOWS_WEBVIEW2_MINIMUM)
     }
     #[cfg(not(windows))]
     context
