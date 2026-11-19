@@ -1,4 +1,4 @@
-//! Historical GitHub payloads replayed through the ordinary Core resolver.
+//! Historical provider payloads replayed through Core's selectors.
 //! Test-only port rules exercise selection. They confer no package authority.
 use super::*;
 use serde_json::Value;
@@ -305,4 +305,143 @@ fn psx_recomp_consumer_refuses_another_games_build_for_the_same_target() {
         let selected = choose_asset(port, platform, assets).unwrap();
         assert_eq!(selected.name, expected);
     });
+}
+
+#[test]
+fn resident_evil_x64_server_does_not_replace_the_multilib_linux_client() {
+    // Upstream identifies the i686 player, its multilib prerequisites, and the
+    // independent x86-64 co-op server in the actual v0.8.0 release notes.
+    // https://github.com/aikatore/recvx-enhanced-port/releases/tag/v0.8.0
+    use crate::service::package_selection::assess_package_name;
+
+    let observation = historical_observation("resident_evil_cv_x_enhanced");
+    let mut release: GithubRelease =
+        serde_json::from_value(observation["releases"][0].clone()).unwrap();
+    let platform = Platform::LinuxX86_64;
+    assert_eq!(release.assets.len(), 6);
+    every_asset_order(&mut release.assets, 0, &mut |assets| {
+        for asset in assets {
+            let can_extract = crate::archive::can_extract_download_archive(&asset.name);
+            let (suitability, _, score) =
+                assess_package_name(&asset.name, can_extract, platform, &[]);
+            assert!(score.is_none(), "unexpected native choice: {}", asset.name);
+            match asset.id {
+                Some(750950967) => assert_eq!(suitability, "auxiliary"),
+                Some(750950969) => assert_eq!(suitability, "emulation"),
+                _ => {}
+            }
+        }
+    });
+}
+
+#[test]
+fn gitlab_managed_client_targets_keep_their_linked_registry_artifacts() {
+    // The pinned links and package-file IDs come from these upstream releases.
+    // Intel and Apple silicon use the same reviewed universal macOS package.
+    // https://gitlab.com/sonicdcer/DNZHRecomp/-/releases/0.0.3
+    // https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0
+    let catalog = crate::Catalog::embedded().unwrap();
+    let stable = |projection: &Value| {
+        projection["projections"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|row| row["channel"] == "stable")
+            .map(|row| (row["platform"].as_str().unwrap().to_owned(), row.clone()))
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    for (id, fixture, recorded_ids) in [
+        (
+            "duke-nukem-zero-hour-recompiled",
+            "gitlab_duke_nukem_zero_hour",
+            [333736951, 333737109, 333737048, 333737048],
+        ),
+        (
+            "extreme-g-recompiled",
+            "gitlab_extreme_g",
+            [338153139, 338153275, 338153222, 338153222],
+        ),
+    ] {
+        let port = catalog.port(id).unwrap();
+        let facts = historical_observation(fixture);
+        let mut links = facts["releases"][0]["assets"]["links"]
+            .as_array()
+            .unwrap()
+            .clone();
+        let selected = stable(&crate::gitlab::project_observed_releases(port, &facts).unwrap());
+        assert_eq!(selected.len(), 4);
+        for (target, file_id) in [
+            "windows-x86-64",
+            "linux-x86-64",
+            "macos-x86-64",
+            "macos-aarch64",
+        ]
+        .into_iter()
+        .zip(recorded_ids)
+        {
+            let expected = facts["package_files"]
+                .as_object()
+                .unwrap()
+                .values()
+                .flat_map(|files| files.as_array().unwrap())
+                .find(|file| file["id"] == file_id)
+                .unwrap();
+            let eligible = &selected[target]["latest_eligible"];
+            assert_eq!(
+                eligible["identity"]["package_file_id"], file_id,
+                "{id} {target}"
+            );
+            assert_eq!(eligible["release"]["asset"]["name"], expected["file_name"]);
+            assert_eq!(
+                eligible["release"]["asset"]["sha256"],
+                expected["file_sha256"]
+            );
+        }
+
+        every_asset_order(&mut links, 0, &mut |links| {
+            let mut candidate = facts.clone();
+            candidate["releases"][0]["assets"]["links"] = Value::Array(links.to_vec());
+            assert_eq!(
+                stable(&crate::gitlab::project_observed_releases(port, &candidate).unwrap()),
+                selected
+            );
+        });
+
+        // Controlled sibling reuses a real registry link on this project.
+        // The shared Windows hint alone matches both release-link labels.
+        let mut sibling = facts.clone();
+        let flatpak_link = sibling["releases"][0]["assets"]["links"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|link| link["name"].as_str().unwrap().contains("Flatpak"))
+            .unwrap();
+        flatpak_link["name"] = "Windows-RelWithDebInfo-Dedicated-Server".into();
+        assert_eq!(
+            stable(&crate::gitlab::project_observed_releases(port, &sibling).unwrap()),
+            selected
+        );
+
+        // A neutral link must also fail if its exact registry file is a server.
+        let mut mislabeled = facts.clone();
+        let file = mislabeled["package_files"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .flat_map(|files| files.as_array_mut().unwrap())
+            .find(|file| file["id"] == recorded_ids[0])
+            .unwrap();
+        file["file_name"] = "Windows-RelWithDebInfo-Dedicated-Server.zip".into();
+        let changed = stable(&crate::gitlab::project_observed_releases(port, &mislabeled).unwrap());
+        assert!(changed["windows-x86-64"]["latest_eligible"].is_null());
+        assert!(
+            changed["windows-x86-64"]["hold_reasons"][0]
+                .as_str()
+                .unwrap()
+                .contains("dedicated server")
+        );
+        for target in ["linux-x86-64", "macos-x86-64", "macos-aarch64"] {
+            assert_eq!(changed[target], selected[target]);
+        }
+    }
 }

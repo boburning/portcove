@@ -390,5 +390,310 @@
         "tag_name": "v0.1.7"
       }
     ]
+  },
+  "resident_evil_cv_x_enhanced": {
+    "releases": [
+      {
+        "id": 446049318,
+        "tag_name": "v0.8.0",
+        "draft": false,
+        "prerelease": true,
+        "published_at": "2026-11-15T12:35:21Z",
+        "assets": [
+          {
+            "id": 750950963,
+            "name": "recvx-enhanced-port-0.8.0-linux-i686-debug.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-linux-i686-debug.tar.gz",
+            "size": 17599698,
+            "digest": "sha256:dc720010f180155f52eb024803a79ea82ff3f0829d97070964552d365da898e2"
+          },
+          {
+            "id": 750950969,
+            "name": "recvx-enhanced-port-0.8.0-linux-i686.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-linux-i686.tar.gz",
+            "size": 4385476,
+            "digest": "sha256:111d913aee9a4acce96691b1636b65ae3e2a77eb1cde8c737fc25829630a18b8"
+          },
+          {
+            "id": 750950966,
+            "name": "recvx-enhanced-port-0.8.0-windows-x86-debug.zip",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-windows-x86-debug.zip",
+            "size": 18456880,
+            "digest": "sha256:674fa6be6d9383cca6e98794a3ecbb762079236ac6f6875ad239dd983a632c6f"
+          },
+          {
+            "id": 750950970,
+            "name": "recvx-enhanced-port-0.8.0-windows-x86.zip",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-enhanced-port-0.8.0-windows-x86.zip",
+            "size": 4474959,
+            "digest": "sha256:aed2da2ddfac97eb5fe4521727129b9c9e5ad57bdb66a3cca5562532e3573b3b"
+          },
+          {
+            "id": 750950967,
+            "name": "recvx-server-0.8.0-linux-x86_64.tar.gz",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/recvx-server-0.8.0-linux-x86_64.tar.gz",
+            "size": 565391,
+            "digest": "sha256:b1ee73296e1b3b6e756d4f5277cc01d0069a3b75a06cb8be60c3d1d997ef194b"
+          },
+          {
+            "id": 750950998,
+            "name": "SHA256SUMS",
+            "browser_download_url": "https://github.com/aikatore/recvx-enhanced-port/releases/download/v0.8.0/SHA256SUMS",
+            "size": 553,
+            "digest": "sha256:272930513a483dc95b83b4528e8b020d9b6db79802d9030cc62134b7d174e239"
+          }
+        ]
+      }
+    ]
+  },
+  "gitlab_duke_nukem_zero_hour": {
+    "project": {
+      "id": 84110205,
+      "path_with_namespace": "sonicdcer/DNZHRecomp"
+    },
+    "coverage": {
+      "releases": true,
+      "packages": true
+    },
+    "releases": [
+      {
+        "tag_name": "0.0.3",
+        "released_at": "2025-11-01T03:00:00.000Z",
+        "upcoming_release": false,
+        "assets": {
+          "links": [
+            {
+              "id": 12399650,
+              "name": "DNZHRecompiled-0.0.3-Flatpak-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737226/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737226/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399649,
+              "name": "DNZHRecompiled-0.0.3-Linux-ARM64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737191/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737191/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399648,
+              "name": "DNZHRecompiled-0.0.3-Linux-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737109/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737109/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399647,
+              "name": "DNZHRecompiled-0.0.3-macOS-Release",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737048/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333737048/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12399646,
+              "name": "DNZHRecompiled-0.0.3-Windows-RelWithDebInfo",
+              "url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333736951/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/DNZHRecomp/-/package_files/333736951/download",
+              "link_type": "package"
+            }
+          ]
+        }
+      }
+    ],
+    "packages": [
+      {
+        "id": 66444421,
+        "name": "dnzh64recompiledwindows",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444460,
+        "name": "dnzh64recompiledmacos",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444482,
+        "name": "dnzhrecompiledlinuxx64",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444504,
+        "name": "dnzhrecompiledlinuxarm64",
+        "version": "0.0.3"
+      },
+      {
+        "id": 66444516,
+        "name": "dnzhrecompiledlinuxflatpakx64",
+        "version": "0.0.3"
+      }
+    ],
+    "package_files": {
+      "66444421": [
+        {
+          "id": 333736951,
+          "file_name": "DNZHRecompiled-0.0.3-Windows-RelWithDebInfo.zip",
+          "size": 24044294,
+          "file_sha256": "ece88320327ffc58ec73e084c23aca274a016e45dd3558a684d59c37f88bdbc3"
+        }
+      ],
+      "66444460": [
+        {
+          "id": 333737048,
+          "file_name": "DNZHRecompiled-0.0.3-macOS-Release.zip",
+          "size": 21206813,
+          "file_sha256": "bcfeb108c58eb0a8f1fd95df43129401f2d756c642bd713db14bbb6613619bfd"
+        }
+      ],
+      "66444482": [
+        {
+          "id": 333737109,
+          "file_name": "DNZHRecompiled-0.0.3-Linux-X64-Release.zip",
+          "size": 13271902,
+          "file_sha256": "7c7e07257d79aa00f3043407730001e8076d4138566464e7c1c11f8ac197429b"
+        }
+      ],
+      "66444504": [
+        {
+          "id": 333737191,
+          "file_name": "DNZHRecompiled-0.0.3-Linux-ARM64-Release.zip",
+          "size": 13235901,
+          "file_sha256": "add1ba91db84ac93d6dbfb34723cb33cc5de4bde3d42f838695447af2024ea5f"
+        }
+      ],
+      "66444516": [
+        {
+          "id": 333737226,
+          "file_name": "DNZHRecompiled-0.0.3-Flatpak-X64-Release.zip",
+          "size": 9790348,
+          "file_sha256": "edbf3efda7feb91f8c6f3cde2a9922b68a5440513fe3926d4189438d87daf2d8"
+        }
+      ]
+    }
+  },
+  "gitlab_extreme_g": {
+    "project": {
+      "id": 84983826,
+      "path_with_namespace": "sonicdcer/ExtremeGRecomp"
+    },
+    "coverage": {
+      "releases": true,
+      "packages": true
+    },
+    "releases": [
+      {
+        "tag_name": "v1.0.0",
+        "released_at": "2026-08-23T02:33:50.513Z",
+        "upcoming_release": false,
+        "assets": {
+          "links": [
+            {
+              "id": 12504219,
+              "name": "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153139/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153139/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504218,
+              "name": "ExtremeGRecompiled-v1.0.0-macOS-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153222/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153222/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504217,
+              "name": "ExtremeGRecompiled-v1.0.0-Linux-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153275/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153275/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504216,
+              "name": "ExtremeGRecompiled-v1.0.0-Linux-ARM64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153292/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153292/download",
+              "link_type": "package"
+            },
+            {
+              "id": 12504215,
+              "name": "ExtremeGRecompiled-v1.0.0-Flatpak-X64-Release",
+              "url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153302/download",
+              "direct_asset_url": "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/package_files/338153302/download",
+              "link_type": "package"
+            }
+          ]
+        }
+      }
+    ],
+    "packages": [
+      {
+        "id": 67429909,
+        "name": "extremegrecompiledwindows",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429947,
+        "name": "extremegrecompiledmacos",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429967,
+        "name": "extremegrecompiledlinuxx64",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429972,
+        "name": "extremegrecompiledlinuxarm64",
+        "version": "1.0.0"
+      },
+      {
+        "id": 67429975,
+        "name": "extremegrecompiledlinuxflatpakx64",
+        "version": "1.0.0"
+      }
+    ],
+    "package_files": {
+      "67429909": [
+        {
+          "id": 338153139,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Windows-RelWithDebInfo.zip",
+          "size": 18530070,
+          "file_sha256": "f72d1d2a77d1270b622e05e108fd30af408bd42c45e661552bff89ba339c1633"
+        }
+      ],
+      "67429947": [
+        {
+          "id": 338153222,
+          "file_name": "ExtremeGRecompiled-v1.0.0-macOS-Release.zip",
+          "size": 17269289,
+          "file_sha256": "10eed09d37154b59cfcaebc78ea5bd2b23f9923f2d820fd0a5458b7dc514fd8f"
+        }
+      ],
+      "67429967": [
+        {
+          "id": 338153275,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Linux-X64-Release.zip",
+          "size": 7763007,
+          "file_sha256": "0289e5cd4d39f043981ab13578a34dcedf383e169a9a57cf403afa1c61af154d"
+        }
+      ],
+      "67429972": [
+        {
+          "id": 338153292,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Linux-ARM64-Release.zip",
+          "size": 7659695,
+          "file_sha256": "8ed3a683df63cefedfdc948de8308a98a381805b55ba41c60315305ebb074d56"
+        }
+      ],
+      "67429975": [
+        {
+          "id": 338153302,
+          "file_name": "ExtremeGRecompiled-v1.0.0-Flatpak-X64-Release.zip",
+          "size": 5366011,
+          "file_sha256": "5a727014c2eddd68d5b1512ad92c8e71daa10ea77ee6a6e00afa516318fdd22e"
+        }
+      ]
+    }
   }
 }
