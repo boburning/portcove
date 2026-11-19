@@ -2695,8 +2695,10 @@ sanitized presentation data: names, popularity and version labels never establis
 compatibility, and a `stale` result is earlier data from an outage.
 
 `provider-plan` needs a reviewed binding and a current provider observation; cached
-data from an outage never produces a plan. It refuses another game's project, an
-obsolete or archived file and a file the provider's scan reports as infected, and it
+data from an outage never produces a plan. Missing, null, or malformed eligibility
+flags leave the provider status unknown. Inspect the provider's project page and
+refresh the listing before reviewing that package or update. The plan refuses
+another game's project, an obsolete or archived file and a file the provider's scan reports as infected, and it
 checks a GameBanana file's type before downloading (a Thunderstore version is always
 a zip). It downloads privately (following only the
 provider's own hosts, enforcing the declared size), unwraps only the loader's package

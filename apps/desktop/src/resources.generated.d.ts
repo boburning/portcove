@@ -1209,6 +1209,7 @@ export default interface Resources {
         "conflictsHeading": "Changes the same files as your other mods",
         "digests": "Download SHA-256 <download />; review <review />.",
         "downloading": "Downloading and checking {{file}}…",
+        "eligibilityUnknown": "The provider did not confirm availability. Check the project page, then refresh the listing.",
         "entry": "<name />",
         "entryVersion": "<name /> (<version />)",
         "file": "<file /> ({{size}})",

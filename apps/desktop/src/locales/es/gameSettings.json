@@ -39,6 +39,7 @@
       "conflictsHeading": "Cambia los mismos archivos que tus otros mods",
       "digests": "SHA-256 de la descarga <download />; revisión <review />.",
       "downloading": "Descargando y comprobando {{file}}…",
+      "eligibilityUnknown": "El proveedor no ha confirmado la disponibilidad. Consulta la página del proyecto y vuelve a cargar la lista.",
       "entry": "<name />",
       "entryVersion": "<name /> (<version />)",
       "file": "<file /> ({{size}})",
