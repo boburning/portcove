@@ -134,7 +134,7 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   expect(document.body.textContent).not.toContain("Different platform");
 
   await page.getByText("Comparison settings", { exact: true }).click();
-  await page.getByRole("combobox", { name: "Game edition", exact: true }).click();
+  await page.getByRole("combobox", { name: /Game edition/ }).click();
   await page.getByRole("option", { name: "Fixture original", exact: true }).click();
   await expect
     .poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id)
