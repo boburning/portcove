@@ -265,8 +265,8 @@ export function renewalDue(site: string | null, now: Date, hours: number) {
 }
 
 /** The newest first-parent `main` commit whose newest `CI` push run succeeded. */
-export function newestGreen(history: readonly string[], conclusions: ReadonlyMap<string, string>) {
-  return history.find((sha) => conclusions.get(sha) === "success") ?? null;
+export function newestGreen(history: readonly string[], conclusion: (sha: string) => string) {
+  return history.find((sha) => conclusion(sha) === "success") ?? null;
 }
 
 function flag(args: string[], name: string) {
@@ -282,7 +282,7 @@ async function main(argv: string[]) {
     // Scheduled and manual runs publish the newest CI-green main commit.
     const token = process.env.GH_TOKEN;
     if (!token) throw new Error("GH_TOKEN is required");
-    const { mainCiConclusions } = await import("./app-release.mts");
+    const { mainCiConclusion, mainCiConclusions } = await import("./app-release.mts");
     const history = execFileSync(
       "git",
       ["rev-list", "--first-parent", "-n", "100", "origin/main"],
@@ -292,7 +292,8 @@ async function main(argv: string[]) {
     )
       .split("\n")
       .filter(Boolean);
-    const commit = newestGreen(history, await mainCiConclusions(token));
+    const conclusions = await mainCiConclusions(token);
+    const commit = newestGreen(history, (sha) => mainCiConclusion(conclusions, sha));
     if (!commit) throw new Error("no CI-green commit among the latest 100 main commits");
     console.log(`commit=${commit}`);
   } else if (command === "prepare") {
