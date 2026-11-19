@@ -119,7 +119,6 @@
   "listings": {
     "addressPlaceholder": "https://",
     "builtIn": "يُستخدم الدليل المضمَّن",
-    "savedDirectoryUnavailable": "تعذّر على Portcove استخدام دليل القوائم المحفوظ.",
     "checkingStatus": "جارٍ التحقق من حالة قوائم الألعاب…",
     "contentAddress": "عنوان محتوى الكتالوج",
     "description": "حدّث قوائم المنافذ والصور الفنية ومعلومات الإعداد من الناشر الرسمي المهيأ. تحتفظ عمليات تثبيت الألعاب بأذوناتها وملفاتها الحالية.",
@@ -133,6 +132,7 @@
     "revision_few": "مراجعة قوائم الألعاب {{revision}} · {{count}} قوائم منشورة",
     "revision_many": "مراجعة قوائم الألعاب {{revision}} · {{count}} قائمة منشورة",
     "revision_other": "مراجعة قوائم الألعاب {{revision}} · {{count}} قائمة منشورة",
+    "savedDirectoryUnavailable": "تعذّر على Portcove استخدام دليل القوائم المحفوظ.",
     "settings": "إعدادات تحديث القوائم",
     "statusFailed": "حالة قوائم الألعاب غير معروفة. تعذّرت قراءتها: {{error}}",
     "title": "قوائم الألعاب"

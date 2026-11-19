@@ -116,7 +116,6 @@
   "listings": {
     "addressPlaceholder": "https://",
     "builtIn": "Using the built-in directory",
-    "savedDirectoryUnavailable": "Portcove could not use the saved listing directory.",
     "checkingStatus": "Checking game listing status…",
     "contentAddress": "Catalog content address",
     "description": "Refresh port listings, artwork and setup information from the configured official publisher. Game installations keep their existing permissions and files.",
@@ -126,6 +125,7 @@
     "retryStatus": "Retry listing status",
     "revision_one": "Game listings revision {{revision}} · {{count}} published listing",
     "revision_other": "Game listings revision {{revision}} · {{count}} published listings",
+    "savedDirectoryUnavailable": "Portcove could not use the saved listing directory.",
     "settings": "Listing refresh settings",
     "statusFailed": "Game listing status is unknown. Could not read it: {{error}}",
     "title": "Game listings"

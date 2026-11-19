@@ -117,7 +117,6 @@
   "listings": {
     "addressPlaceholder": "https://",
     "builtIn": "Se usa el directorio integrado",
-    "savedDirectoryUnavailable": "Portcove no pudo usar el directorio de listados guardado.",
     "checkingStatus": "Comprobando el estado de las fichas de juegos…",
     "contentAddress": "Dirección del contenido del catálogo",
     "description": "Actualiza las fichas de adaptaciones, las imágenes y la información de configuración desde el editor oficial configurado. Las instalaciones de juegos conservan sus permisos y archivos actuales.",
@@ -128,6 +127,7 @@
     "revision_one": "Revisión {{revision}} de las fichas de juegos · {{count}} ficha publicada",
     "revision_many": "Revisión {{revision}} de las fichas de juegos · {{count}} fichas publicadas",
     "revision_other": "Revisión {{revision}} de las fichas de juegos · {{count}} fichas publicadas",
+    "savedDirectoryUnavailable": "Portcove no pudo usar el directorio de listados guardado.",
     "settings": "Ajustes de actualización de las fichas",
     "statusFailed": "Se desconoce el estado de las fichas de juegos. No se pudo leer: {{error}}",
     "title": "Fichas de juegos"
