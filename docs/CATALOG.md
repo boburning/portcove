@@ -1,10 +1,11 @@
 # Catalog policy
 
-Start with [Integration ownership](#integration-ownership) for the management
-boundary and [Adding or changing a port](#adding-or-changing-a-port) for per-ID
-authoring. The [definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
-owns engine negotiation; detailed port examples and dated receipts below retain
-their original scope and do not establish another port's admission or support.
+Read [Integration ownership](#integration-ownership) to find who manages a
+port. If you need to edit an individual port record, read
+[Adding or changing a port](#adding-or-changing-a-port). Use the
+[definition contract](DEFINITION-DELIVERY.md#implemented-engine-capability-negotiation)
+to learn how clients choose supported adapters. Apply each example and dated
+test result only to the port and scope it covers.
 
 ## Implementation methods and shared dependencies
 
@@ -830,6 +831,12 @@ release links, hints and artwork enrichment do not resolve either condition.
 
 For an upstream-owned route, optional listing `download_asset_hints` maps a host
 platform to one through eight bounded, case-insensitive literal filename fragments.
+An authored `listing_inherit_asset_hints` array can reuse the same record's reviewed
+GitHub selectors for named managed platforms, provided the public project and
+release scope and selected channel agree. Keep literal overrides for distinct
+upstream packages and additional descriptive platforms. An explicit empty
+`download_asset_hints` map suppresses inheritance. This projection only supplies
+descriptive selectors.
 Optional `recommended_download_channel` selects `stable` or `beta` for the initial
 download lookup, for example when the reviewed player is published as a preview.
 A player's explicit saved channel or release takes precedence. For a genuinely
@@ -1040,8 +1047,8 @@ host preference. Core compares the SHA-1 or SHA-256 and size it already
 observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
-when every file that has a SHA-1 or SHA-256 and isn't a cue or gdi descriptor
-matches; CRC32- or MD5-only files can't be compared and don't count. A disc
+when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor
+matches; CRC32- or MD5-only files cannot be compared and do not count. A disc
 whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
 admission, registration or a contract result, and a catalog identity does not
 depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
@@ -4363,7 +4370,10 @@ adds no managed GitLab authority and leaves unsupported package layouts incomple
 Authored availability remains attributable. An explicit availability override
 requires its reason and takes display precedence. Otherwise accepted observations
 show package candidates or release assets with their provenance, original fact
-clock, expiry and complete/incomplete/unavailable/failed attempt state. An empty
+clock, expiry and complete/incomplete/unavailable/failed attempt state. Discover
+uses the same assessment for rank and detail. Only a fresh complete observation
+with a recognized package platform can raise a listing's rank over its authored
+availability. An empty
 or incomplete bounded window never means source-only, unsupported or unavailable
 upstream. Provider digest claims remain unverified. The renderer does not query
 providers, update action permissions or rewrite acquisition links.

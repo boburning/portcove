@@ -42,10 +42,6 @@
       ]
     },
     "release_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled-", "-Windows-x86_64.zip"],
-      "linux-x86-64": ["SnowboardKidsRecompiled-", "-Linux-x86_64.zip"]
-    },
     "recommended_download_channel": "beta",
     "original_game": {
       "format_version": 1,
@@ -57,6 +53,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

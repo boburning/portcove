@@ -19,9 +19,6 @@
     },
     "original_game_title": "MechCommander 2",
     "release_url": "https://github.com/alariq/mc2/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["mc2-win64-", ".zip"]
-    },
     "manual_setup": {
       "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
       "warnings": [
@@ -56,6 +53,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

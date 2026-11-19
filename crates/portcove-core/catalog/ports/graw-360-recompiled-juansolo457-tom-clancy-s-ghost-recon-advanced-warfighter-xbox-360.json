@@ -4,10 +4,10 @@
     "id": "graw-360-recompiled-juansolo457-tom-clancy-s-ghost-recon-advanced-warfighter-xbox-360",
     "name": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360) — GRAW 360 Recompiled (Juansolo457)",
     "original_game_title": "Tom Clancy's Ghost Recon Advanced Warfighter (Xbox 360)",
-    "summary": "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
+    "summary": "Play the Xbox 360 edition of Ghost Recon Advanced Warfighter using your own disc. The publisher’s v0.6 release provides a native Linux and Steam Deck package and reports campaign play. A full campaign playthrough and gameplay in Portcove remain unverified.",
     "project_url": "https://github.com/Juansolo457/graw360-recomp",
-    "platforms": [],
-    "availability": "unknown",
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/Juansolo457/graw360-recomp",
     "manual_setup": {
       "steps": [
@@ -16,12 +16,12 @@
           "instruction": "Use your own USA or Europe Xbox 360 game, title ID 555307D5. This guide has only an abbreviated default.xex SHA-256, 295ac4de...c023a; check the full upstream requirement before setup. Keep the main, multiplayer and campaign executables together as one game installation."
         },
         {
-          "title": "Follow upstream setup",
-          "instruction": "Follow upstream’s extraction and build scripts for port, port-mp and port-yeti. No release package is confirmed; use the source-build instructions."
+          "title": "Choose the upstream setup route",
+          "instruction": "On Steam Deck or a Linux x86-64 system with AVX2, FMA and Vulkan 1.3, extract the v0.6 Linux ZIP and follow its README.txt to supply your owned disc files. The publisher reports testing on Steam Deck. On Windows, follow the v0.6 source-build instructions. Keep your game files and saves before updating."
         }
       ],
       "warnings": [
-        "Upstream reports menus and Instant Action/co-op loading, but 3D output is black. The campaign menu starts; mission startup remains unfinished.",
+        "Upstream reports campaign missions playable in v0.6. Earlier builds reported black 3D output and unfinished campaign startup. Check the v0.6 release notes for current limitations.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
       "help_url": "https://github.com/Juansolo457/graw360-recomp"
@@ -35,6 +35,10 @@
       "image_sha256": "ee96e971a3f788e94b1a18ac0b125ce15707ba43c3a728c4456f4c1d4b3d3ec6",
       "game_slug": "tom-clancy-s-ghost-recon-advanced-warfighter",
       "match_kind": "underlying-game"
+    },
+    "release_url": "https://github.com/Juansolo457/graw360-recomp/releases",
+    "download_asset_hints": {
+      "linux-x86-64": ["GRAW360-Recompiled-", "-Linux.zip"]
     },
     "original_game": {
       "format_version": 1,

@@ -19,8 +19,6 @@
     },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Digimon-World-2003-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Digimon-World-2003-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Digimon-World-2003-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Digimon-World-2003-Recomp-", "-macos-arm64.zip"]
     },
@@ -64,6 +62,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

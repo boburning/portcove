@@ -203,6 +203,7 @@
     "blast-corps-blastcorps-recompiled",
     "blast-corps-power-dozer",
     "blastcorps-doridian-blast-corps",
+    "blinx-the-time-sweeper-mstan",
     "blinx-the-time-sweeper-recompilation-statique-magicseb-blinx-the-time-sweeper",
     "blizz127-brave-fencer-musashi-decomp-port",
     "blizz127-parasite-eve-decomp-port",
@@ -761,6 +762,7 @@
     "mario-party-4-party-board",
     "mariokartdd-recomp-ethannicholas-ethannicholas-mario-kart-double-dash",
     "marvel-vs-capcom-recompiled",
+    "master-of-magic-remom",
     "master-of-orion-1oom-vanilla-branch",
     "masters-of-teras-kasi-recompiled",
     "maxiboostport-johnnygentoo-mobile-suit-gundam-extreme-vs-maxiboost-on",
@@ -824,6 +826,7 @@
     "mortal-kombat-shaolin-monks-xbox-shaolinmonksrecomp",
     "moshferatu-zombies-ate-my-neighbors-pc-port",
     "mother-3-mother-3-recomp",
+    "motocross-madness-2-openmcm2",
     "mr-finster-stunts-hd",
     "mr-finster-vf1-recomp",
     "mr-finster-vf2-recomp",
@@ -1352,6 +1355,7 @@
     "theclub654-projectcane",
     "thegetawayrecomp-miguel-apereira-the-getaway",
     "theme-hospital-matteo-pacini-enhanced",
+    "theme-park-snes-junior-jones",
     "themuffinator-openq4",
     "therunaway5-phase-distorter",
     "thimbleweed-park-engge2",
@@ -2429,6 +2433,10 @@
       "unchiga-yu-gi-oh-forbidden-memories-recompiled",
       "yu-gi-oh-forbidden-memories-recompiled",
       "yugiohforbiddenmemoriesrecomp-eduardocalafell-eduardocalafell-yu-gi-oh-forbidden-memories"
+    ],
+    "blinx-the-time-sweeper": [
+      "blinx-the-time-sweeper-mstan",
+      "blinx-the-time-sweeper-recompilation-statique-magicseb-blinx-the-time-sweeper"
     ]
   },
   "intentionally_separate": {
@@ -2528,6 +2536,23 @@
         "https://github.com/lakshya16157/midtown-madness-3-PC-Native/blob/v2.8.1/README.md"
       ],
       "decision": "Pinned upstream original-game evidence joins the two Midtown Madness 3 implementations; openRTS explicitly reimplements RTrainSim, with compatible content formats not granting an MSTS game identity. Existing scopes and operational requirements remain unchanged."
+    },
+    {
+      "target_revision": "3132d15fd6930f35b0513994dd99d5a05a8f009b",
+      "added_port_ids": [
+        "blinx-the-time-sweeper-mstan",
+        "master-of-magic-remom",
+        "motocross-madness-2-openmcm2",
+        "theme-park-snes-junior-jones"
+      ],
+      "assignment_proposal_sha256": "dbc66740edd6c7f21524e5d0adbb6806d4c7b909b1c8173d975d595f79d6d6d2",
+      "evidence_urls": [
+        "https://github.com/mstan/BlinxRecomp/blob/v0.5.7/README.md",
+        "https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md",
+        "https://github.com/crspytopgn/openmcm2/blob/v0.6.5/README.md",
+        "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt"
+      ],
+      "decision": "Pinned original-game evidence joins the two Blinx implementations and establishes three singleton games. Exact source requirements and all operational facts remain unchanged."
     }
   ]
 }

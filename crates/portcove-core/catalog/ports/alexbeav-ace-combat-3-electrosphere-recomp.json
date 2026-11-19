@@ -20,8 +20,6 @@
     },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Ace-Combat-3-Electrosphere-Japan-Recomp-", "-macos-arm64.zip"]
     },
@@ -65,6 +63,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

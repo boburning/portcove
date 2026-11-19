@@ -1,13 +1,13 @@
 # Maintenance inventory store
 
-This document owns the stable source, identity, coverage and storage contracts
-for the maintainer-facing maintenance application specified in
-[#4129](https://github.com/boburning/portcove/issues/4129). The issue owns the
-executable acceptance and checkpoint evidence; this page is not a backlog.
+This guide explains how the maintenance application identifies its sources,
+records coverage, and stores data. Use
+[#4129](https://github.com/boburning/portcove/issues/4129) for the implementation
+requirements and checkpoint results.
 
-The application is maintainer tooling. Player installation, update, backup and
-launch never depend on it, and it grants no admission, support, qualification,
-publication or credential authority.
+Maintainers use this application. Players can install, update, back up, and
+launch games without it. Use the separate approval paths for admission,
+support, qualification, publication, and credentials.
 
 ## Ownership boundary
 

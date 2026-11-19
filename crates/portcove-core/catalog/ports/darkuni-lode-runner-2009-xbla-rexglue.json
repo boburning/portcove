@@ -44,9 +44,6 @@
       "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
     },
     "release_url": "https://github.com/darkuni/lode-runner-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["lode_runner-", "-win-amd64.zip"]
-    },
     "recommended_download_channel": "stable",
     "original_game": {
       "format_version": 1,
@@ -58,6 +55,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

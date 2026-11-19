@@ -91,6 +91,7 @@ pub(crate) struct FailureContext {
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
     known_cause: Option<KnownFailureCause>,
+    pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
 }
 
@@ -563,10 +564,14 @@ pub(crate) enum PreparationFailureCause {
 
 impl PortcoveError {
     pub fn report(&self) -> FailureReport {
+        let mut details = self.details.clone();
+        if let Some(code) = self.catalog_fallback() {
+            details.insert("catalog_fallback_code".into(), code.as_str().into());
+        }
         FailureReport {
             code: self.code,
             message: self.message.clone(),
-            details: self.details.clone(),
+            details,
             presentation: Box::new(self.presentation()),
         }
     }

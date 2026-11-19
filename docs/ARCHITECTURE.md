@@ -1,9 +1,9 @@
 # Architecture
 
-For a change, start at [Find the owning boundary](#find-the-owning-boundary),
-then read the affected subsystem. Core owns durable policy; adapters and
-presentation consume it. Detailed implementation and dated evidence below retain
-their stated scopes; live acceptance belongs to the owning issue.
+Before you change code, [find the owning boundary](#find-the-owning-boundary).
+Then read the section for that part of the system. Core owns rules that must
+persist. Adapters expose the results to the interface. Check the scope of each
+dated result. The issue records what the work must achieve.
 
 Library collection layout is a profile-local React preference scoped by the
 canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
@@ -2765,7 +2765,7 @@ publication may still leave folders; no directory deletion authority is inferred
 Too little free space (the larger of 1 GiB and 2% kept) carries nothing
 and the switch goes ahead; a modified active version carries nothing and
 records `source_modified`; a locked or changed file, or a partial earlier carry
-the switch can't finish, holds. The step has no cancellation or progress yet,
+the switch cannot finish, holds. The step has no cancellation or progress yet,
 and the recorded outcome is exposed by `PortStatus.carried_files` (T2-3)
 only while its target is active. The bulk status query joins the known-format
 outcome with a byte bound before loading its JSON; malformed and future
@@ -4192,9 +4192,11 @@ route exclusions with action presentation. Managed and external launch use their
 retained definitions and recorded platform; missing, oversized, changed or legacy
 retained context stays unavailable and has no guessed definition digest. Query
 manifest reads use the existing stable no-follow object reader, a 4 MiB bound and
-immutable manifest verification. Construction accepts at most 256 unique known
-routes with identifiers of at most 128 bytes, a cooperative 30-second budget and
-a 4 MiB response. These checks cannot interrupt an individual filesystem call.
+immutable manifest verification. Explicit CLI queries accept at most 256 unique known routes. Desktop browsing
+can cover its full admitted definition catalog for one selection. Core reads
+routes in batches of at most 256 and shares one source inspection, observation
+window and cancellation scope. Each request uses identifiers of at most 128 bytes,
+a cooperative 30-second budget and a 4 MiB response. These checks cannot interrupt an individual filesystem call.
 
 A current, admitted exact identity establishes compatible files only when its
 variant and complete representation satisfy an enforced source contract bound to

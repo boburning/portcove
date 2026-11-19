@@ -3,13 +3,13 @@
   "listing": {
     "id": "mario-kart-8-deluxe-racing-8-dx-recomp",
     "name": "Mario Kart 8 Deluxe (Racing-8-DX-Recomp)",
-    "summary": "Racing-8-DX-Recomp builds a personal Mario Kart 8 Deluxe AppImage on Linux from your own game and 3.0.4 update. The project reports races and four-player play on AMD hardware. Its v0.1.0 tag contains no downloadable player.",
+    "summary": "Racing-8-DX-Recomp uses your own Mario Kart 8 Deluxe game and 3.0.4 update. The project reports races and four-player play on AMD hardware. The BETA-0.2.5 prerelease offered a Linux x86-64 AppImage, and v0.2.4 offered Windows and Linux packages. Portcove has yet to qualify these packages.",
     "original_game_title": "Mario Kart 8 Deluxe",
     "project_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp/releases",
     "artwork": {
       "game_id": 26764,
       "cover_id": 94741,
@@ -42,9 +42,7 @@
     "original_game": {
       "format_version": 1,
       "id": "mario-kart-8-deluxe",
-      "evidence_urls": [
-        "https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp"
-      ],
+      "evidence_urls": ["https://github.com/galarianpikachu2021-hue/Racing-8-DX-Recomp"],
       "source_editions": []
     }
   },

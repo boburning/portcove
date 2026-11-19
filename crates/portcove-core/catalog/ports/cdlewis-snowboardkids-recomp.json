@@ -22,7 +22,6 @@
     "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled-", "Windows.zip"],
       "linux-x86-64": ["SnowboardKidsRecompiled-", "Linux-X64.tar.gz"],
       "macos-aarch64": ["SnowboardKidsRecompiled-", "macOS.zip"],
       "macos-x86-64": ["SnowboardKidsRecompiled-", "macOS.zip"]
@@ -64,6 +63,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

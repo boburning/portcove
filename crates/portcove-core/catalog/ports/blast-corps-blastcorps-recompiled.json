@@ -42,9 +42,6 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["BlastCorpsRecompiled-", "-Windows-RelWithDebInfo.zip"]
-    },
     "recommended_download_channel": "stable",
     "original_game": {
       "format_version": 1,
@@ -68,6 +65,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

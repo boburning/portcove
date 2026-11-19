@@ -20,8 +20,6 @@
     "release_url": "https://github.com/mcsoderh/BodyHarvestRecomp/releases",
     "original_game_title": "Body Harvest",
     "download_asset_hints": {
-      "windows-x86-64": ["BodyHarvestRecompiled-", "-Windows.zip"],
-      "linux-x86-64": ["BodyHarvestRecompiled-", "-Linux-X64.tar.gz"],
       "macos-x86-64": ["BodyHarvestRecompiled-", "-macOS.zip"],
       "macos-aarch64": ["BodyHarvestRecompiled-", "-macOS.zip"]
     },
@@ -59,6 +57,7 @@
       "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

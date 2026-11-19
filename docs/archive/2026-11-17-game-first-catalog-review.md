@@ -247,3 +247,28 @@ two framework, seven unresolved and eleven deliberate separation decisions remai
 explicit. The independent fixture appends the two reviewed records and complete
 Midtown family expectation, rather than deriving membership from runtime output.
 These are source/projection expectations, not native or delivered-app observations.
+
+## November 18 third later catalog reconciliation
+
+Target `3132d15fd6930f35b0513994dd99d5a05a8f009b` adds four records. The new
+[BlinxRecomp route](https://github.com/mstan/BlinxRecomp/blob/v0.5.7/README.md)
+joins the existing `blinx-the-time-sweeper` game. Its NTSC-U requirement and the
+existing implementation's PAL requirement remain separate source checks.
+[ReMoM](https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md) reconstructs
+original DOS Master of Magic and receives `master-of-magic`.
+[OpenMCM2](https://github.com/crspytopgn/openmcm2/blob/v0.6.5/README.md)
+receives `motocross-madness-2`; optional free graphics do not establish another
+original game. [Theme Park's SNES route](https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt)
+receives `theme-park`, with the exact European PAL ROM requirement preserved.
+No current peer or evidence establishes a substantially different Theme Park game;
+future platform comparisons still require review. Optional structured source
+editions remain unspecified, without changing the existing setup requirements.
+
+The current source universe is **1,563 records**, **1,525 identified records /
+1,177 games**, **245 multi-option families / 593 member records**, **38 project
+entries** and **1,215 production groups**. The 29 multi-game, two framework,
+seven unresolved and eleven deliberate-separation decisions remain unchanged.
+The independent fixture includes all four added records and both Blinx members.
+All newer package holds, release selectors, setup guidance and retained lineage
+facts remain intact. These are reviewed source expectations; native and published
+application consumption remain separate acceptance requirements under #8076.

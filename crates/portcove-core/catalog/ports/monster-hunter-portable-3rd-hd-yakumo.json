@@ -21,7 +21,6 @@
     },
     "release_url": "https://github.com/TeamGDB/Yakumo/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"],
       "linux-x86-64": ["yakumo-", "-linux-x86_64.tar.gz"],
       "macos-aarch64": ["yakumo-", "-macos-arm64.dmg"]
     },
@@ -78,6 +77,7 @@
       ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
