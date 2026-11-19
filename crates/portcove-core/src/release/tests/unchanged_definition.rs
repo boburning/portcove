@@ -1472,6 +1472,114 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor() {
+    let port = variant_port();
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::WindowsX86_64;
+    let repository = || ok_json(r#"{"id":7,"archived":false}"#, "");
+    let identified = |name, digest, id: u64| {
+        let mut asset = asset(name, digest);
+        asset["id"] = id.into();
+        asset
+    };
+    let snapshot = |tag, id: u64, candidates| {
+        let mut release = release(tag, candidates);
+        release["id"] = id.into();
+        releases(&[release])
+    };
+    let old = snapshot(
+        "v1.0.0",
+        10,
+        vec![identified("Game-hd-v1.0.0-windows-x64.zip", Some('a'), 101)],
+    );
+    let exact = identified("Game-hd-2.0.0-windows-x64.zip", Some('b'), 201);
+    let different = identified("Game-hd-standard-2.0.0-windows-x64.zip", Some('c'), 202);
+    let next = || snapshot("v2.0.0", 20, vec![different.clone(), exact.clone()]);
+    let (origin, _, server) =
+        serve_http(vec![repository(), old, repository(), next(), repository()]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let accepted = provider
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap();
+    let receipt = ManagedPackageVariant::from_review(&port, platform, &accepted).unwrap();
+    assert!(accepted.saved_variant.is_none());
+    let offered = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    assert_eq!(offered.release.asset.name, exact["name"].as_str().unwrap());
+    assert_eq!(offered.release.asset.sha256, "b".repeat(64));
+    assert_eq!(offered.github_identity.as_ref().unwrap().asset_id, 201);
+    assert_eq!(offered.saved_variant.as_ref(), Some(&receipt));
+    let cached = provider
+        .resolve_saved_variant(&port, channel, platform, None, &receipt)
+        .await
+        .unwrap();
+    assert_eq!(cached.release.asset, offered.release.asset);
+    server.join().unwrap();
+
+    // The same provider inventory keeps the normal ambiguity for a fresh
+    // install without a saved, reviewed choice.
+    let (origin, _, server) = serve_http(vec![repository(), next()]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let fresh = provider
+        .resolve_scoped(&port, channel, platform, None)
+        .await
+        .unwrap_err();
+    assert_eq!(fresh.code, crate::ErrorCode::Conflict);
+    assert!(!fresh.details.contains_key("saved_package_variant"));
+    server.join().unwrap();
+
+    for (candidates, expected_code, expected_detail) in [
+        (
+            vec![different],
+            crate::ErrorCode::Conflict,
+            Some("no-matching-package"),
+        ),
+        (
+            vec![
+                exact.clone(),
+                identified("Game-hd-v2.0.0-windows-x64.zip", Some('d'), 203),
+            ],
+            crate::ErrorCode::Conflict,
+            Some("ambiguous"),
+        ),
+        (
+            vec![identified("Game-hd-2.0.0-windows-x64.zip", None, 204)],
+            crate::ErrorCode::Verification,
+            None,
+        ),
+        (
+            vec![identified(
+                "Game-hd-2.0.0-windows-arm64.zip",
+                Some('d'),
+                205,
+            )],
+            crate::ErrorCode::Conflict,
+            Some("no-matching-package"),
+        ),
+    ] {
+        let (origin, _, server) =
+            serve_http(vec![repository(), snapshot("v2.0.0", 20, candidates)]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let refused = provider
+            .resolve_saved_variant(&port, channel, platform, None, &receipt)
+            .await
+            .unwrap_err();
+        assert_eq!(refused.code, expected_code);
+        assert_eq!(
+            refused
+                .details
+                .get("saved_package_variant")
+                .map(String::as_str),
+            expected_detail
+        );
+        server.join().unwrap();
+    }
+}
+
+#[tokio::test]
 async fn observed_native_archive_layouts_resolve_successors_without_definition_changes() {
     let catalog = crate::Catalog::embedded().unwrap();
     // Observed names/sizes/digests; controlled HTTP replay, no artifact execution.

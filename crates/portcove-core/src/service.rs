@@ -1482,7 +1482,11 @@ impl PortcoveService {
         let release = resolution.release;
         let mut preservation_notices = port.preservation_notices();
         preservation_notices.extend(resolution.fallback_reason);
-        let action = self.install_plan_action(&status, &release)?;
+        let action = self.install_plan_action_with_variant(
+            &status,
+            &release,
+            resolution.saved_variant.as_ref(),
+        )?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
         let auxiliary_downloads: Vec<crate::ReleaseAsset> = Vec::new();
         let primary_and_runtime_bytes = release.asset.size.saturating_add(
@@ -1868,6 +1872,15 @@ impl PortcoveService {
         status: &PortStatus,
         release: &ResolvedRelease,
     ) -> Result<InstallPlanAction> {
+        self.install_plan_action_with_variant(status, release, None)
+    }
+
+    fn install_plan_action_with_variant(
+        &self,
+        status: &PortStatus,
+        release: &ResolvedRelease,
+        variant: Option<&crate::ManagedPackageVariant>,
+    ) -> Result<InstallPlanAction> {
         let runtime =
             crate::runtime::required(self.catalog.port(&status.port_id)?, Platform::current()?);
         if status
@@ -1883,6 +1896,7 @@ impl PortcoveService {
             && self.install_matches_release(staged, release, runtime.as_ref())?
         {
             return Ok(if staged.verified {
+                Self::require_matching_saved_package(staged, variant)?;
                 InstallPlanAction::UseStaged
             } else {
                 InstallPlanAction::BlockedUnverified
@@ -1900,10 +1914,26 @@ impl PortcoveService {
             return Ok(InstallPlanAction::Download);
         }
         Ok(if retained.verified {
+            Self::require_matching_saved_package(&retained, variant)?;
             InstallPlanAction::ReuseRetained
         } else {
             InstallPlanAction::BlockedUnverified
         })
+    }
+
+    fn require_matching_saved_package(
+        install: &InstallRecord,
+        variant: Option<&crate::ManagedPackageVariant>,
+    ) -> Result<()> {
+        if let Some(variant) = variant
+            && crate::install::recorded_package_variant(install)?.as_ref() != Some(variant)
+        {
+            return Err(PortcoveError::conflict(
+                "the retained install has no verified match for the saved package choice",
+            )
+            .detail("saved_package_variant", "retained-choice-unverified"));
+        }
+        Ok(())
     }
 
     fn install_source_requirements(
@@ -2809,6 +2839,54 @@ impl PortcoveService {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<crate::ScopedResolvedRelease> {
+        self.resolve_release_with_variant(port, channel, platform, None)
+            .await
+    }
+
+    fn saved_package_variant(
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        status: &PortStatus,
+    ) -> Result<Option<crate::ManagedPackageVariant>> {
+        if !matches!(
+            port.adapter,
+            crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
+        ) || port.release.provider != ReleaseSource::Github
+            || port.release.curated.contains_key(&platform)
+            || port.release.rolling_tag.is_some()
+        {
+            return Ok(None);
+        }
+        status
+            .active
+            .as_ref()
+            .or(status.staged.as_ref())
+            .filter(|install| install.channel == channel)
+            .map(crate::install::recorded_package_variant)
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    async fn resolve_release_for_status(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        status: &PortStatus,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        let variant = Self::saved_package_variant(port, channel, platform, status)?;
+        self.resolve_release_with_variant(port, channel, platform, variant.as_ref())
+            .await
+    }
+
+    async fn resolve_release_with_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        variant: Option<&crate::ManagedPackageVariant>,
+    ) -> Result<crate::ScopedResolvedRelease> {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
         let scope = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
@@ -2816,10 +2894,18 @@ impl PortcoveService {
             &port.id,
         )?;
         crate::curated_acquisition::require_runtime_scope(port, scope.as_ref())?;
-        let resolved = self
-            .releases
-            .resolve_scoped(port, channel, platform, scope.as_ref())
-            .await?;
+        let resolved = match variant {
+            Some(variant) => {
+                self.releases
+                    .resolve_saved_variant(port, channel, platform, scope.as_ref(), variant)
+                    .await?
+            }
+            None => {
+                self.releases
+                    .resolve_scoped(port, channel, platform, scope.as_ref())
+                    .await?
+            }
+        };
         Installer::new(self.library.clone())?.require_github_artifact_identity(
             &port.id,
             &resolved.release,
@@ -2835,7 +2921,9 @@ impl PortcoveService {
         platform: Platform,
         status: &PortStatus,
     ) -> Result<crate::ScopedResolvedRelease> {
-        let resolution = self.resolve_release(port, channel, platform).await?;
+        let resolution = self
+            .resolve_release_for_status(port, channel, platform, status)
+            .await?;
         if first_managed_install(status)
             && let Some(verdict) =
                 self.current_package_shape_refusal(port, platform, &resolution.release)?
@@ -3049,7 +3137,12 @@ impl PortcoveService {
             };
             self.require_managed_runtime_ownership(&status)?;
             let release = operation
-                .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
+                .interruptible(self.resolve_release_for_status(
+                    port,
+                    status.channel,
+                    Platform::current()?,
+                    &status,
+                ))
                 .await?;
             self.record_update_check(
                 port_id,
@@ -3275,7 +3368,12 @@ impl PortcoveService {
             // A direct request needs a fresh installer refusal before it can
             // select a different version on the player's behalf.
             let release = operation
-                .interruptible(self.resolve_release(port, selected_channel, platform))
+                .interruptible(self.resolve_release_for_status(
+                    port,
+                    selected_channel,
+                    platform,
+                    &status,
+                ))
                 .await?;
             operation.observe_release(&release.release.version, None);
             let mut reporter = OperationReporter {
@@ -3407,7 +3505,12 @@ impl PortcoveService {
                 DefinitionOperationContext::observed(DefinitionOperation::Install, false, true),
             )?;
             let release = operation
-                .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
+                .interruptible(self.resolve_release_for_status(
+                    port,
+                    status.channel,
+                    Platform::current()?,
+                    &status,
+                ))
                 .await?;
             operation.observe_release(&release.release.version, None);
             self.record_update_check(
@@ -3461,8 +3564,12 @@ impl PortcoveService {
         )?;
         let platform = Platform::current()?;
         let first_install = first_managed_install(&status);
-        let resolution = if scope.is_some()
+        let can_record_variant = crate::ManagedPackageVariant::can_record(port, platform, &release)
+            && self.install_plan_action(&status, &release)? == InstallPlanAction::Download;
+        let mut resolution = if scope.is_some()
             || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
+            || can_record_variant
+            || Self::saved_package_variant(port, release.channel, platform, &status)?.is_some()
             || (first_install
                 && !crate::package_shape::reviewed_release_digests(port, platform).is_empty())
         {
@@ -3488,6 +3595,10 @@ impl PortcoveService {
         } else {
             crate::ScopedResolvedRelease::legacy(release)
         };
+        if resolution.saved_variant.is_none() && can_record_variant {
+            resolution.saved_variant =
+                crate::ManagedPackageVariant::from_review(port, platform, &resolution);
+        }
         self.apply_scoped_release_with_shared(port, status, overrides, resolution, intent, reporter)
             .await
     }
@@ -3665,6 +3776,7 @@ impl PortcoveService {
         if let Some(staged) = &status.staged
             && self.install_matches_release(staged, &release, runtime.as_ref())?
         {
+            Self::require_matching_saved_package(staged, resolution.saved_variant.as_ref())?;
             self.require_installed_shared_preferences(staged)?;
             self.managed_install_root(&port.id, &staged.path)?;
             if let Some(active) = &status.active {
@@ -3690,6 +3802,7 @@ impl PortcoveService {
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
             && self.install_matches_release(&existing, &release, runtime.as_ref())?
         {
+            Self::require_matching_saved_package(&existing, resolution.saved_variant.as_ref())?;
             self.require_installed_shared_preferences(&existing)?;
             self.managed_install_root(&port.id, &existing.path)?;
             if let Some(active) = &status.active {
@@ -3813,16 +3926,17 @@ impl PortcoveService {
             let port = self.catalog.port(port_id)?;
             for attempt in 0..2 {
                 let optimistic = self.status(port_id)?;
-                if optimistic.active.is_none() {
+                let Some(expected_install) = optimistic.active.as_ref() else {
                     return Err(PortcoveError::not_found(format!(
                         "{port_id} is not installed"
                     )));
-                }
+                };
                 let release = operation
-                    .interruptible(self.resolve_release(
+                    .interruptible(self.resolve_release_for_status(
                         port,
                         optimistic.channel,
                         Platform::current()?,
+                        &optimistic,
                     ))
                     .await?;
                 let _port_lock = self.library.try_lock_port(port_id, "reconcile")?;
@@ -3838,7 +3952,13 @@ impl PortcoveService {
                     .detail("resolved_channel", optimistic.channel.to_string())
                     .detail("current_channel", status.channel.to_string()));
                 }
-                if status.active.is_none() {
+                if status.active.as_ref().is_none_or(|current| {
+                    current.id != expected_install.id
+                        || current.manifest_sha256 != expected_install.manifest_sha256
+                }) {
+                    if attempt == 0 {
+                        continue;
+                    }
                     return Err(PortcoveError::conflict(
                         "the active install changed while resolving an update",
                     )

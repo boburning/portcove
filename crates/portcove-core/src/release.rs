@@ -27,9 +27,11 @@ mod catalog_download;
 mod catalog_download_observation;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
+mod managed_variant;
 mod observation;
 mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
+pub use managed_variant::ManagedPackageVariant;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
     ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,
@@ -66,6 +68,19 @@ pub trait ReleaseProvider: Send + Sync {
             .and_then(|release| {
                 crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
             })
+    }
+
+    async fn resolve_saved_variant(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _scope: Option<&crate::DefinitionAcquisitionScope>,
+        _variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        Err(PortcoveError::unsupported(
+            "the release provider cannot resolve this saved package choice",
+        ))
     }
 
     /// Resolve a reviewed fallback for an already-withheld fresh-install candidate.
@@ -183,6 +198,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
     acquisition_policy: Option<crate::ManagedAcquisitionHold>,
+    saved_variant: Option<ManagedPackageVariant>,
 }
 
 impl ReleaseSelectionCacheKey {
@@ -218,6 +234,7 @@ impl ReleaseSelectionCacheKey {
                 || crate::native_portable_data::directory_name(port, platform).is_some(),
             scope_binding: None,
             acquisition_policy: port.managed_acquisition_hold.clone(),
+            saved_variant: None,
             repository: port.release.repository.clone(),
             channel,
             platform,
@@ -1327,9 +1344,15 @@ impl ReleaseProvider for GithubReleaseProvider {
         };
         #[cfg(feature = "qualification-fixtures")]
         let scope = self.bind_qualification_scope(scope.as_ref())?;
-        self.resolve_with_scope(port, channel, platform, scope.as_ref(), None)
-            .await
-            .map(|selection| selection.release)
+        self.resolve_with_scope(
+            port,
+            channel,
+            platform,
+            scope.as_ref(),
+            GithubSelection::Ordinary,
+        )
+        .await
+        .map(|selection| selection.release)
     }
 
     async fn resolve_scoped(
@@ -1339,8 +1362,27 @@ impl ReleaseProvider for GithubReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<crate::ScopedResolvedRelease> {
-        self.resolve_scoped_selection(port, channel, platform, scope, None)
+        self.resolve_scoped_selection(port, channel, platform, scope, GithubSelection::Ordinary)
             .await
+    }
+
+    async fn resolve_saved_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        variant.require_contract(port, channel, platform)?;
+        self.resolve_scoped_selection(
+            port,
+            channel,
+            platform,
+            scope,
+            GithubSelection::Saved(variant),
+        )
+        .await
     }
 
     async fn resolve_shape_fallback(
@@ -1356,7 +1398,13 @@ impl ReleaseProvider for GithubReleaseProvider {
             return Ok(None);
         }
         match self
-            .resolve_scoped_selection(port, withheld.channel, platform, scope, Some(withheld))
+            .resolve_scoped_selection(
+                port,
+                withheld.channel,
+                platform,
+                scope,
+                GithubSelection::ReviewedFallback(withheld),
+            )
             .await
         {
             Ok(selection) => Ok(Some(selection)),
@@ -1440,6 +1488,34 @@ impl ReleaseProvider for GithubReleaseProvider {
     }
 }
 
+#[derive(Clone, Copy)]
+enum GithubSelection<'a> {
+    Ordinary,
+    ReviewedFallback(&'a ResolvedRelease),
+    Saved(&'a ManagedPackageVariant),
+}
+
+impl GithubSelection<'_> {
+    fn asset<'a>(
+        self,
+        port: &PortDefinition,
+        platform: Platform,
+        release: &'a GithubRelease,
+    ) -> Result<&'a GithubAsset> {
+        match self {
+            Self::Saved(variant) => choose_asset_for_variant(
+                port,
+                platform,
+                &release.assets,
+                Some((variant, &release.tag_name)),
+            ),
+            Self::Ordinary | Self::ReviewedFallback(_) => {
+                choose_asset(port, platform, &release.assets)
+            }
+        }
+    }
+}
+
 impl GithubReleaseProvider {
     async fn resolve_scoped_selection(
         &self,
@@ -1447,7 +1523,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-        withheld: Option<&ResolvedRelease>,
+        selection: GithubSelection<'_>,
     ) -> Result<crate::ScopedResolvedRelease> {
         let inferred = match (scope, &self.library) {
             (None, Some(library)) => {
@@ -1464,7 +1540,7 @@ impl GithubReleaseProvider {
         #[cfg(feature = "qualification-fixtures")]
         let scope = bound_scope.as_ref();
         let selected = self
-            .resolve_with_scope(port, channel, platform, scope, withheld)
+            .resolve_with_scope(port, channel, platform, scope, selection)
             .await?;
         let mut resolved = match scope {
             Some(scope) => crate::ScopedResolvedRelease::managed(selected.release, scope.clone()),
@@ -1474,6 +1550,9 @@ impl GithubReleaseProvider {
         resolved.github_identity = selected.identity;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
+        if let GithubSelection::Saved(variant) = selection {
+            resolved.saved_variant = Some(variant.clone());
+        }
         Ok(resolved)
     }
 
@@ -1483,7 +1562,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-        withheld: Option<&ResolvedRelease>,
+        selection: GithubSelection<'_>,
     ) -> Result<ResolvedGithub> {
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
@@ -1525,7 +1604,7 @@ impl GithubReleaseProvider {
                 channel,
                 platform,
                 scope,
-                withheld,
+                selection,
                 &mut observed_activity,
             )
             .await
@@ -1583,7 +1662,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-        withheld: Option<&ResolvedRelease>,
+        selection: GithubSelection<'_>,
         observed_activity: &mut Option<crate::UpstreamActivity>,
     ) -> Result<ResolvedGithub> {
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
@@ -1598,12 +1677,26 @@ impl GithubReleaseProvider {
                 "GitHub repository stable identity differs from its publisher grant",
             ));
         }
+        if let GithubSelection::Saved(variant) = selection
+            && repository.id != Some(variant.repository_id())
+        {
+            return Err(PortcoveError::verification(
+                "upstream repository identity differs from the saved package choice",
+            ));
+        }
         // Keep metadata validation before cached selection. Archive state and the
         // latest push are maintenance facts reported to the player; they neither
         // revoke exact release authority nor replace the integrity checks below.
         let activity = Some(repository.activity(&port.release.repository));
         observed_activity.clone_from(&activity);
         let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
+        if let GithubSelection::Saved(variant) = selection {
+            cache_key.saved_variant = Some(variant.clone());
+        }
+        let withheld = match selection {
+            GithubSelection::ReviewedFallback(withheld) => Some(withheld),
+            _ => None,
+        };
         cache_key.scope_binding = scope.map(|scope| {
             format!(
                 "{}:{}:{}",
@@ -1699,7 +1792,7 @@ impl GithubReleaseProvider {
         };
         let hold = port.managed_acquisition_hold.as_ref();
         let reviewed = if let Some(withheld) = withheld {
-            let latest_asset = choose_asset(port, platform, &latest.assets)?;
+            let latest_asset = selection.asset(port, platform, latest)?;
             if latest.tag_name != withheld.version
                 || latest_asset.name != withheld.asset.name
                 || latest_asset.size != withheld.asset.size
@@ -1724,7 +1817,7 @@ impl GithubReleaseProvider {
             && curated.is_none()
             && !hold.excluded_artifacts.is_empty()
         {
-            let latest_asset = choose_asset(port, platform, &latest.assets)?;
+            let latest_asset = selection.asset(port, platform, latest)?;
             let latest_continuity =
                 require_continuing_uploader(latest, latest_asset)?.record(latest_asset);
             let digest = self
@@ -1758,13 +1851,13 @@ impl GithubReleaseProvider {
                         && reviewed
                             .iter()
                             .any(|(version, _)| *version == candidate.tag_name)
-                        && choose_asset(port, platform, &candidate.assets).is_ok()
+                        && selection.asset(port, platform, candidate).is_ok()
                 })
                 .ok_or_else(|| match (withheld, hold) {
                     (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
                     _ => PortcoveError::not_found("no reviewed fallback release is available"),
                 })?;
-                let asset = choose_asset(port, platform, &fallback.assets)?;
+                let asset = selection.asset(port, platform, fallback)?;
                 let fallback_continuity =
                     require_continuing_uploader(fallback, asset)?.record(asset);
                 let digest = self
@@ -1784,7 +1877,7 @@ impl GithubReleaseProvider {
         } else {
             latest
         };
-        let asset = choose_asset(port, platform, &release.assets)?;
+        let asset = selection.asset(port, platform, release)?;
         if let Some(scope) = scope {
             scope.require_current()?;
             scope.require_asset_url(&asset.browser_download_url)?;
@@ -1878,7 +1971,9 @@ impl GithubReleaseProvider {
                 identity.validate()?;
                 Some(identity)
             }
-            _ if port.archive_data_compatibility_v1.is_some() => {
+            _ if port.archive_data_compatibility_v1.is_some()
+                || matches!(selection, GithubSelection::Saved(_)) =>
+            {
                 return Err(PortcoveError::verification(
                     "GitHub release observation is missing exact repository, release or asset identity",
                 ));
@@ -2388,6 +2483,15 @@ fn choose_asset<'a>(
     platform: Platform,
     assets: &'a [GithubAsset],
 ) -> Result<&'a GithubAsset> {
+    choose_asset_for_variant(port, platform, assets, None)
+}
+
+fn choose_asset_for_variant<'a>(
+    port: &PortDefinition,
+    platform: Platform,
+    assets: &'a [GithubAsset],
+    saved: Option<(&ManagedPackageVariant, &str)>,
+) -> Result<&'a GithubAsset> {
     let requires_tar_xz = port.release.requires_tar_xz(platform);
     let standalone = native_appimage(port, platform);
     let hints = port
@@ -2399,6 +2503,9 @@ fn choose_asset<'a>(
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {
+            if saved.is_some_and(|(variant, tag)| !variant.matches(tag, &asset.name)) {
+                return None;
+            }
             let name = asset.name.to_ascii_lowercase();
             if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name)
                 || !crate::native_external_profile::openjk::matches_asset(
@@ -2506,11 +2613,23 @@ fn choose_asset<'a>(
             .then_with(|| left.1.name.cmp(&right.1.name))
     });
     let Some((best_score, best_asset)) = scored.first() else {
+        if saved.is_some() {
+            return Err(PortcoveError::conflict(
+                "the current release has no verified package matching the saved choice",
+            )
+            .detail("saved_package_variant", "no-matching-package"));
+        }
         return Err(PortcoveError::not_found(format!(
             "{} has no supported release asset for {platform:?}",
             port.name
         )));
     };
+    if saved.is_some() && scored.len() > 1 {
+        return Err(PortcoveError::conflict(
+            "the current release has more than one package matching the saved choice",
+        )
+        .detail("saved_package_variant", "ambiguous"));
+    }
     if scored.get(1).is_some_and(|(score, _)| score == best_score) {
         return Err(PortcoveError::conflict(format!(
             "{} publishes multiple equally qualified release assets for {platform:?}; catalog metadata must select exactly one",
@@ -3574,6 +3693,7 @@ mod tests {
             rolling_tag: None,
             asset_hints: Vec::new(),
             acquisition_policy: None,
+            saved_variant: None,
             accepted_uploaders: Vec::new(),
         };
         provider
@@ -3604,6 +3724,7 @@ mod tests {
                         rolling_tag: None,
                         asset_hints: Vec::new(),
                         acquisition_policy: None,
+                        saved_variant: None,
                         accepted_uploaders: Vec::new(),
                     },
                     release.clone(),
