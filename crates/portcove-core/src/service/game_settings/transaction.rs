@@ -7,7 +7,10 @@ use crate::game_settings::{document, windows::HeldFile};
 use crate::operation::game_settings::{FileCustody, SettingsJournal, owned_names};
 use crate::operation::{LifecycleFaultInjector, SettingsFaultPoint};
 
-fn checkpoint(faults: &dyn LifecycleFaultInjector, point: SettingsFaultPoint) -> Result<()> {
+pub(super) fn checkpoint(
+    faults: &dyn LifecycleFaultInjector,
+    point: SettingsFaultPoint,
+) -> Result<()> {
     faults.check(LifecycleFaultPoint::SettingsBoundary(point))
 }
 
@@ -69,7 +72,7 @@ fn open_optional(path: &Path) -> Result<Option<HeldFile>> {
     }
 }
 
-fn checked_bytes(
+pub(super) fn checked_bytes(
     held: &mut HeldFile,
     custody: &FileCustody,
     original: bool,
@@ -155,7 +158,7 @@ impl Leg {
         })
     }
 
-    fn publish(
+    pub(super) fn publish(
         &mut self,
         custody: &FileCustody,
         id: &str,
@@ -207,7 +210,7 @@ impl Leg {
         Ok(())
     }
 
-    fn retire_preimage(&mut self, custody: &FileCustody, maximum: u64) -> Result<()> {
+    pub(super) fn retire_preimage(&mut self, custody: &FileCustody, maximum: u64) -> Result<()> {
         checked_bytes(
             self.live.as_mut().ok_or_else(conflict)?,
             custody,
@@ -236,6 +239,97 @@ pub(super) fn custody(
         previous_sha256: previous_sha256.into(),
         proposed_sha256: proposed_sha256.into(),
     }
+}
+
+pub(super) enum StageBinding {
+    Bind(String),
+    Confirm,
+}
+
+pub(super) fn prepare_file_stage(
+    id: &str,
+    role: &str,
+    bytes: &[u8],
+    original: &HeldFile,
+    custody: &FileCustody,
+    faults: &dyn LifecycleFaultInjector,
+    mut bind: impl FnMut(StageBinding) -> Result<()>,
+) -> Result<()> {
+    use crate::game_settings::windows::StageCheckpoint;
+    if hash(bytes) != custody.proposed_sha256 {
+        return Err(conflict());
+    }
+    let (new, _) = owned_names(&custody.path, id, role)?;
+    let mut stage = if let Some(expected) = &custody.replacement_identity {
+        let stage = HeldFile::open_stage(&new)?;
+        if &stage.identity != expected || stage.parent_identity != custody.parent_identity {
+            return Err(conflict());
+        }
+        stage
+    } else {
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageBeforeCreate
+            } else {
+                SettingsFaultPoint::RuntimeStageBeforeCreate
+            },
+        )?;
+        // Even empty or byte-identical unbound entries are unknown; the
+        // durable intent keeps them discoverable without adopting them.
+        match fs::symlink_metadata(&new) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Ok(_) => return Err(PortcoveError::conflict("unbound configuration staging requires review; original files and staging were preserved").detail("settings_stage_state", "unbound_existing")),
+            Err(error) => return Err(error.into()),
+        }
+        let stage = HeldFile::create_stage(&new)?;
+        if stage.parent_identity != custody.parent_identity {
+            return Err(conflict());
+        }
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageCreated
+            } else {
+                SettingsFaultPoint::RuntimeStageCreated
+            },
+        )?;
+        bind(StageBinding::Bind(stage.identity.clone()))?;
+        checkpoint(
+            faults,
+            if role == "canonical" {
+                SettingsFaultPoint::CanonicalStageBound
+            } else {
+                SettingsFaultPoint::RuntimeStageBound
+            },
+        )?;
+        stage
+    };
+    bind(StageBinding::Confirm)?;
+    stage.preserve_security_from(original)?;
+    stage.fill_stage(bytes, &|point| {
+        checkpoint(
+            faults,
+            match (role, point) {
+                ("canonical", StageCheckpoint::PartialWrite) => {
+                    SettingsFaultPoint::CanonicalStagePartialWrite
+                }
+                ("canonical", StageCheckpoint::BeforeFlush) => {
+                    SettingsFaultPoint::CanonicalStageBeforeFlush
+                }
+                ("canonical", StageCheckpoint::Flushed) => {
+                    SettingsFaultPoint::CanonicalStageFlushed
+                }
+                (_, StageCheckpoint::PartialWrite) => SettingsFaultPoint::RuntimeStagePartialWrite,
+                (_, StageCheckpoint::BeforeFlush) => SettingsFaultPoint::RuntimeStageBeforeFlush,
+                (_, StageCheckpoint::Flushed) => SettingsFaultPoint::RuntimeStageFlushed,
+            },
+        )
+    })?;
+    if hash(&stage.bytes(bytes.len() as u64)?) != custody.proposed_sha256 {
+        return Err(conflict());
+    }
+    Ok(())
 }
 
 impl PortcoveService {
@@ -336,7 +430,6 @@ impl PortcoveService {
         bytes: &[u8],
         original: &HeldFile,
     ) -> Result<()> {
-        use crate::game_settings::windows::StageCheckpoint;
         let payload = operation.game_settings.as_ref().ok_or_else(conflict)?;
         let custody = if role == "canonical" {
             &payload.canonical
@@ -344,88 +437,27 @@ impl PortcoveService {
             payload.runtime.as_ref().ok_or_else(conflict)?
         }
         .clone();
-        let (new, _) = owned_names(&custody.path, &operation.id, role)?;
-        let mut stage = if let Some(expected) = &custody.replacement_identity {
-            let stage = HeldFile::open_stage(&new)?;
-            if &stage.identity != expected || stage.parent_identity != custody.parent_identity {
-                return Err(conflict());
-            }
-            stage
-        } else {
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageBeforeCreate
-                } else {
-                    SettingsFaultPoint::RuntimeStageBeforeCreate
-                },
-            )?;
-            // Even empty or byte-identical unbound entries are unknown; the
-            // durable intent keeps them discoverable without adopting them.
-            match fs::symlink_metadata(&new) {
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
-                Ok(_) => return Err(PortcoveError::conflict("unbound configuration staging requires review; original files and staging were preserved").detail("settings_stage_state", "unbound_existing")),
-                Err(error) => return Err(error.into()),
-            }
-            let stage = HeldFile::create_stage(&new)?;
-            if stage.parent_identity != custody.parent_identity {
-                return Err(conflict());
-            }
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageCreated
-                } else {
-                    SettingsFaultPoint::RuntimeStageCreated
-                },
-            )?;
-            let payload = operation.game_settings.as_mut().ok_or_else(conflict)?;
-            let target = if role == "canonical" {
-                &mut payload.canonical
-            } else {
-                payload.runtime.as_mut().ok_or_else(conflict)?
-            };
-            target.replacement_identity = Some(stage.identity.clone());
-            persist_checked(store, operation)?;
-            checkpoint(
-                self.faults.as_ref(),
-                if role == "canonical" {
-                    SettingsFaultPoint::CanonicalStageBound
-                } else {
-                    SettingsFaultPoint::RuntimeStageBound
-                },
-            )?;
-            stage
-        };
-        confirm_persisted(store, operation)?;
-        stage.preserve_security_from(original)?;
-        stage.fill_stage(bytes, &|point| {
-            checkpoint(
-                self.faults.as_ref(),
-                match (role, point) {
-                    ("canonical", StageCheckpoint::PartialWrite) => {
-                        SettingsFaultPoint::CanonicalStagePartialWrite
-                    }
-                    ("canonical", StageCheckpoint::BeforeFlush) => {
-                        SettingsFaultPoint::CanonicalStageBeforeFlush
-                    }
-                    ("canonical", StageCheckpoint::Flushed) => {
-                        SettingsFaultPoint::CanonicalStageFlushed
-                    }
-                    (_, StageCheckpoint::PartialWrite) => {
-                        SettingsFaultPoint::RuntimeStagePartialWrite
-                    }
-                    (_, StageCheckpoint::BeforeFlush) => {
-                        SettingsFaultPoint::RuntimeStageBeforeFlush
-                    }
-                    (_, StageCheckpoint::Flushed) => SettingsFaultPoint::RuntimeStageFlushed,
-                },
-            )
-        })?;
-        if hash(&stage.bytes(bytes.len() as u64)?) != custody.proposed_sha256 {
-            return Err(conflict());
-        }
-        Ok(())
+        prepare_file_stage(
+            &operation.id.clone(),
+            role,
+            bytes,
+            original,
+            &custody,
+            self.faults.as_ref(),
+            |binding| match binding {
+                StageBinding::Bind(identity) => {
+                    let payload = operation.game_settings.as_mut().ok_or_else(conflict)?;
+                    let target = if role == "canonical" {
+                        &mut payload.canonical
+                    } else {
+                        payload.runtime.as_mut().ok_or_else(conflict)?
+                    };
+                    target.replacement_identity = Some(identity);
+                    persist_checked(store, operation)
+                }
+                StageBinding::Confirm => confirm_persisted(store, operation),
+            },
+        )
     }
 
     pub fn apply_game_setting(

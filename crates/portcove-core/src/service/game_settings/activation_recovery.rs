@@ -1,9 +1,14 @@
 //! Reopen retained settings custody for an already staged activation.
 
-use super::transaction::{Leg, LegState, hash};
+use super::transaction::{
+    Leg, LegState, StageBinding, checked_bytes, checkpoint, hash, prepare_file_stage,
+};
 use super::*;
 use crate::game_settings::{RetainedSettingsDefaults, windows::HeldFile};
-use crate::operation::game_settings::{SettingsActivationPointer, activation_pointer};
+use crate::operation::SettingsFaultPoint;
+use crate::operation::game_settings::{
+    SettingsActivationPointer, SettingsActivationWriter, activation_pointer, owned_names,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::service) enum SettingsActivationResume {
@@ -16,18 +21,200 @@ pub(in crate::service) enum SettingsActivationResume {
 
 pub(in crate::service) struct SettingsActivationRecovery {
     pub(in crate::service) next: SettingsActivationResume,
-    _canonical: Leg,
-    _runtime: Option<Leg>,
+    canonical: Leg,
+    runtime: Option<Leg>,
     _previous_runtime: Option<HeldFile>,
 }
 
+struct RecoveryInputs {
+    pointer: SettingsActivationPointer,
+    old: Vec<u8>,
+    new: Vec<u8>,
+    previous_runtime: Option<HeldFile>,
+}
+
 impl PortcoveService {
+    pub(in crate::service) fn recover_checked_settings_activation(
+        &self,
+        writer: &SettingsActivationWriter<'_>,
+        operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        self.require_completed_backup_restore(&operation.port_id)?;
+        self.require_completed_backup_deletion(&operation.port_id)?;
+        for _ in 0..7 {
+            writer.confirm(operation)?;
+            let target = operation.install.clone().ok_or_else(conflict)?;
+            let payload = operation.settings_activation.clone().ok_or_else(conflict)?;
+            let status = self.library.status(&operation.port_id, target.channel)?;
+            if activation_pointer(operation, &status)? == SettingsActivationPointer::PreviousActive
+            {
+                self.require_activation_gates(&target, None)?;
+            }
+            if operation.phase == LifecyclePhase::Preparing {
+                self.prepare_activation_settings_stages(writer, operation)?;
+                writer.advance(operation, LifecyclePhase::Prepared)?;
+                checkpoint(self.faults.as_ref(), SettingsFaultPoint::Prepared)?;
+                continue;
+            }
+            let maximum = payload.maximum_bytes;
+            let mut held = self.verify_settings_activation_recovery(operation)?;
+            use SettingsActivationResume::*;
+            match held.next {
+                PublishCanonical => {
+                    held.canonical.publish(
+                        &payload.canonical,
+                        &operation.id,
+                        "canonical",
+                        maximum,
+                        self.faults.as_ref(),
+                    )?;
+                    writer.advance(operation, LifecyclePhase::PayloadPublished)?;
+                }
+                PublishRuntime => {
+                    held.runtime.as_mut().ok_or_else(conflict)?.publish(
+                        payload.runtime.as_ref().ok_or_else(conflict)?,
+                        &operation.id,
+                        "runtime",
+                        maximum,
+                        self.faults.as_ref(),
+                    )?;
+                }
+                CommitPointer => {
+                    self.library
+                        .activate_staged_exact(&payload.previous, &target)?;
+                    self.faults
+                        .check(LifecycleFaultPoint::ActivationMetadataCommitted)?;
+                    writer.advance(operation, LifecyclePhase::MetadataCommitted)?;
+                }
+                RecordCommittedPointer => {
+                    writer.advance(operation, LifecyclePhase::MetadataCommitted)?
+                }
+                RetirePreimages => {
+                    if operation.phase == LifecyclePhase::MetadataCommitted {
+                        writer.advance(operation, LifecyclePhase::CleanupPending)?;
+                        checkpoint(self.faults.as_ref(), SettingsFaultPoint::CleanupPending)?;
+                    }
+                    held.canonical
+                        .retire_preimage(&payload.canonical, maximum)?;
+                    checkpoint(self.faults.as_ref(), SettingsFaultPoint::CanonicalRetired)?;
+                    if let Some((leg, custody)) =
+                        held.runtime.as_mut().zip(payload.runtime.as_ref())
+                    {
+                        leg.retire_preimage(custody, maximum)?;
+                        checkpoint(self.faults.as_ref(), SettingsFaultPoint::RuntimeRetired)?;
+                    }
+                    writer.retire(operation)?;
+                    return Ok(());
+                }
+            }
+        }
+        Err(conflict())
+    }
+
+    fn prepare_activation_settings_stages(
+        &self,
+        writer: &SettingsActivationWriter<'_>,
+        operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        let inputs = self.settings_activation_inputs(operation)?;
+        let payload = operation.settings_activation.clone().ok_or_else(conflict)?;
+        let id = operation.id.clone();
+        let open_original = |role: &str,
+                             custody: &crate::operation::game_settings::FileCustody|
+         -> Result<HeldFile> {
+            let (_, old) = owned_names(&custody.path, &id, role)?;
+            match fs::symlink_metadata(old) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                Ok(_) => return Err(conflict()),
+                Err(error) => return Err(error.into()),
+            }
+            let mut held = HeldFile::open(&custody.path)?;
+            held.require_editable_security()?;
+            if checked_bytes(&mut held, custody, true, payload.maximum_bytes)? != inputs.old {
+                return Err(conflict());
+            }
+            Ok(held)
+        };
+        let canonical = open_original("canonical", &payload.canonical)?;
+        let runtime = payload
+            .runtime
+            .as_ref()
+            .map(|custody| open_original("runtime", custody))
+            .transpose()?;
+        for (role, original, custody) in
+            std::iter::once(("canonical", &canonical, &payload.canonical)).chain(
+                runtime
+                    .as_ref()
+                    .zip(payload.runtime.as_ref())
+                    .map(|(original, custody)| ("runtime", original, custody)),
+            )
+        {
+            if role == "runtime" {
+                checkpoint(self.faults.as_ref(), SettingsFaultPoint::BetweenStages)?;
+            }
+            prepare_file_stage(
+                &id,
+                role,
+                &inputs.new,
+                original,
+                custody,
+                self.faults.as_ref(),
+                |binding| match binding {
+                    StageBinding::Bind(identity) => writer.bind_stage(operation, role, identity),
+                    StageBinding::Confirm => writer.confirm(operation),
+                },
+            )?;
+        }
+        Ok(())
+    }
+
     /// Revalidate both retained archives and pin all physical objects under
     /// exact recovery ownership for the checked writer's next transition.
     pub(in crate::service) fn verify_settings_activation_recovery(
         &self,
         operation: &LifecycleOperation,
     ) -> Result<SettingsActivationRecovery> {
+        let inputs = self.settings_activation_inputs(operation)?;
+        let payload = operation
+            .settings_activation
+            .as_ref()
+            .ok_or_else(conflict)?;
+        let canonical = Leg::open(
+            &payload.canonical,
+            &operation.id,
+            "canonical",
+            payload.maximum_bytes,
+        )?;
+        let runtime = payload
+            .runtime
+            .as_ref()
+            .map(|leg| Leg::open(leg, &operation.id, "runtime", payload.maximum_bytes))
+            .transpose()?;
+        for leg in std::iter::once(&canonical).chain(runtime.iter()) {
+            if leg
+                .before
+                .as_deref()
+                .is_some_and(|bytes| bytes != inputs.old.as_slice())
+                || leg.after != inputs.new
+            {
+                return Err(conflict());
+            }
+        }
+        let next = resume_step(
+            operation.phase,
+            inputs.pointer,
+            canonical.state,
+            runtime.as_ref().map(|leg| leg.state),
+        )?;
+        Ok(SettingsActivationRecovery {
+            next,
+            canonical,
+            runtime,
+            _previous_runtime: inputs.previous_runtime,
+        })
+    }
+
+    fn settings_activation_inputs(&self, operation: &LifecycleOperation) -> Result<RecoveryInputs> {
         crate::operation::game_settings::validate_journal(&self.library, operation)?;
         if Platform::current()? != Platform::WindowsX86_64 {
             return Err(PortcoveError::unsupported(
@@ -112,38 +299,11 @@ impl PortcoveService {
             })
             .transpose()?;
 
-        let canonical = Leg::open(
-            &payload.canonical,
-            &operation.id,
-            "canonical",
-            payload.maximum_bytes,
-        )?;
-        let runtime = payload
-            .runtime
-            .as_ref()
-            .map(|leg| Leg::open(leg, &operation.id, "runtime", payload.maximum_bytes))
-            .transpose()?;
-        for leg in std::iter::once(&canonical).chain(runtime.iter()) {
-            if leg
-                .before
-                .as_deref()
-                .is_some_and(|bytes| bytes != old.as_slice())
-                || leg.after != new
-            {
-                return Err(conflict());
-            }
-        }
-        let next = resume_step(
-            operation.phase,
+        Ok(RecoveryInputs {
             pointer,
-            canonical.state,
-            runtime.as_ref().map(|leg| leg.state),
-        )?;
-        Ok(SettingsActivationRecovery {
-            next,
-            _canonical: canonical,
-            _runtime: runtime,
-            _previous_runtime: previous_runtime,
+            old,
+            new,
+            previous_runtime,
         })
     }
 }
@@ -261,3 +421,7 @@ mod tests {
         assert!(resume_step(MetadataCommitted, TargetActive, Published, Some(Cleaned)).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "activation_recovery_custody_tests.rs"]
+mod custody_tests;

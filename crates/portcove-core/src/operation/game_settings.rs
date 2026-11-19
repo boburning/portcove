@@ -10,6 +10,11 @@ use uuid::Uuid;
 use super::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
 use crate::{InstallRecord, Library, PortcoveError, Result};
 
+#[cfg(windows)]
+mod activation_writer;
+#[cfg(windows)]
+pub(crate) use activation_writer::SettingsActivationWriter;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct SettingsJournal {
@@ -387,7 +392,7 @@ fn duplicate_physical_objects(left: &FileCustody, right: &FileCustody) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{ArtifactIdentity, ReleaseChannel, operation::OperationStore};
 
@@ -449,7 +454,7 @@ mod tests {
         operation
     }
 
-    fn activation_record(library: &Library) -> LifecycleOperation {
+    pub(crate) fn activation_record(library: &Library) -> LifecycleOperation {
         let scalar = record(library).game_settings.unwrap();
         let mut previous = scalar.install;
         previous.artifact.sha256 = "a".repeat(64);
