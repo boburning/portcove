@@ -363,6 +363,19 @@ it("keeps complete advisory and recorded scopes readable in narrow detail column
       history.focus();
       await userEvent.keyboard("{Enter}");
       expect(history.parentElement?.hasAttribute("open")).toBe(true);
+      expect(document.activeElement).toBe(history);
+      const introduction = history.parentElement?.querySelector("p");
+      if (!introduction) throw new Error("Expected the historical scope explanation");
+      const focusStyle = getComputedStyle(history);
+      const focusClearance = Math.max(
+        8,
+        Number.parseFloat(focusStyle.outlineWidth) +
+          Number.parseFloat(focusStyle.outlineOffset) +
+          4,
+      );
+      expect(
+        introduction.getBoundingClientRect().top - history.getBoundingClientRect().bottom,
+      ).toBeGreaterThanOrEqual(focusClearance);
       const recorded = [...host.querySelectorAll("p")].find(
         (item) => item.textContent === JSON.stringify(recordedScope),
       )!;
@@ -433,12 +446,37 @@ it.each(["dark", "light"] as const)(
       const behavior = behaviors.at(0);
       if (!behavior?.parentElement) throw new Error("Expected one launch-behavior notice");
       const notice = behavior.parentElement;
-      expect([...behavior.children].map((item) => [item.localName, item.textContent])).toEqual([
+      const phases = [...behavior.children];
+      expect(
+        phases.flatMap((phase) =>
+          [...phase.children].map((item) => [item.localName, item.textContent]),
+        ),
+      ).toEqual([
         ["dt", "First launch"],
         ["dd", "Asks for game files"],
         ["dt", "Repeat Play"],
         ["dd", "Starts the game directly"],
       ]);
+      expect(phases).toHaveLength(2);
+      const [first, repeat] = phases;
+      if (!first || !repeat) throw new Error("Expected both launch phases");
+      const firstPhase = first.getBoundingClientRect();
+      const repeatPhase = repeat.getBoundingClientRect();
+      expect(repeatPhase.left - firstPhase.right).toBeGreaterThanOrEqual(12);
+      for (const phase of phases) {
+        const label = phase.querySelector("dt");
+        const value = phase.querySelector("dd");
+        if (!label || !value) throw new Error("Expected each launch phase label and value");
+        expect(
+          value.getBoundingClientRect().top - label.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(3);
+        expect(Number.parseFloat(getComputedStyle(label).fontSize)).toBeLessThan(
+          Number.parseFloat(getComputedStyle(value).fontSize),
+        );
+        expect(Number.parseFloat(getComputedStyle(value).fontWeight)).toBeGreaterThan(
+          Number.parseFloat(getComputedStyle(label).fontWeight),
+        );
+      }
       expect(notice.textContent).toContain("Launch · upstream-reported · Exact context required");
       expect(notice.textContent).toContain(
         `Scope: windows-x86-64 · Upstream setup and saved downloads · release synthetic-v1 · artifact ${artifact}.`,

@@ -1259,6 +1259,10 @@ detail or comparison column. Long release, edition, artifact and dependency
 identifiers wrap without truncation; complete evidence remains selectable and
 keyboard disclosure controls remain reachable in compact windows.
 
+Launch advisories pair each first-launch or repeat-Play label with its value,
+using quieter labels, stronger values and a clear gap between phases. Historical
+observation bodies leave room below the summary's visible keyboard focus ring.
+
 ## Prototype presentation alignment
 
 The October 29 pass retains the v58-based prototype’s graphite hierarchy: quiet

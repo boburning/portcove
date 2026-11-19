@@ -269,11 +269,23 @@ export function PortCapabilities({
             })}
           </strong>
           {notice.launch_behavior && (
-            <dl>
-              <dt>{t("capabilities.launch.first")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}</dd>
-              <dt>{t("capabilities.launch.repeat")}</dt>
-              <dd>{t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}</dd>
+            <dl className="my-3 grid grid-cols-2 gap-4">
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.first")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.first_launch}`)}
+                </dd>
+              </div>
+              <div className="grid min-w-0 content-start gap-1">
+                <dt className="text-xs text-pc-muted-foreground">
+                  {t("capabilities.launch.repeat")}
+                </dt>
+                <dd className="font-medium">
+                  {t(`capabilities.launch.${notice.launch_behavior.repeat_launch}`)}
+                </dd>
+              </div>
             </dl>
           )}
           <p>{notice.explanation}</p>
@@ -305,16 +317,18 @@ export function PortCapabilities({
       {report && report.observations.length > 0 && (
         <details>
           <summary data-focusable>{t("capabilities.observations.summary")}</summary>
-          <p>{t("capabilities.observations.intro")}</p>
-          {report.observations.map((observation) => (
-            <div key={observation.id} className="mt-2 text-sm">
-              <p>{observation.explanation}</p>
-              <p>{JSON.stringify(observation.scope)}</p>
-              <ExternalLink href={observation.source}>
-                {t("capabilities.observations.source")}
-              </ExternalLink>
-            </div>
-          ))}
+          <div className="pt-3">
+            <p>{t("capabilities.observations.intro")}</p>
+            {report.observations.map((observation) => (
+              <div key={observation.id} className="mt-2 text-sm">
+                <p>{observation.explanation}</p>
+                <p>{JSON.stringify(observation.scope)}</p>
+                <ExternalLink href={observation.source}>
+                  {t("capabilities.observations.source")}
+                </ExternalLink>
+              </div>
+            ))}
+          </div>
         </details>
       )}
     </section>
