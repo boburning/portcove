@@ -1013,6 +1013,7 @@ async function reviewSelectedModPackage({
       path,
       selected.profile.current_revision,
       generation,
+      true,
     );
     if (alive.current) setLocalReview({ path, review });
   } catch (failure) {

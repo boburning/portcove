@@ -520,11 +520,21 @@ pub(crate) async fn plan_local_mod_package(
     profile_id: String,
     path: PathBuf,
     expected_revision: u64,
+    workspace: Option<bool>,
 ) -> DesktopResult<portcove_core::LocalModPackagePlan> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+            if workspace.unwrap_or(false) {
+                service.plan_workspace_local_mod_package(
+                    &port_id,
+                    &profile_id,
+                    &path,
+                    expected_revision,
+                )
+            } else {
+                service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+            }
         })
     })
     .await

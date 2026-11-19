@@ -5212,6 +5212,10 @@ export interface OutputModFilePreservationResult {
 export interface OutputModSetupDraftPreview {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
+  /**
+   * Local packages that require consent after the complete draft passes dependency checks.
+   */
+  local_code_packages?: string[];
   order: string[];
   [k: string]: unknown;
 }

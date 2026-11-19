@@ -109,6 +109,9 @@ pub struct ProviderInstallPlan {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ModSetupDraftPreview {
     pub order: Vec<String>,
+    /// Local packages that require consent after the complete draft passes dependency checks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub local_code_packages: Vec<String>,
     pub conflicts: Vec<AssetConflict>,
     pub conflicts_truncated: bool,
 }
@@ -1426,8 +1429,20 @@ impl PortcoveService {
             truncated = true;
             conflicts.truncate(MAX_REPORTED_CONFLICTS);
         }
+        let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
+        let local_code_packages = prepared
+            .packages
+            .iter()
+            .filter(|package| {
+                package.provider.is_none()
+                    && package.code_consent
+                    && !recorded_code.contains(&package.inspection.sha256)
+            })
+            .map(|package| package.inspection.file_name.clone())
+            .collect();
         Ok(ModSetupDraftPreview {
             order,
+            local_code_packages,
             conflicts,
             conflicts_truncated: truncated,
         })

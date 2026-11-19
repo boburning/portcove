@@ -32111,6 +32111,13 @@
       "conflicts_truncated": {
         "type": "boolean"
       },
+      "local_code_packages": {
+        "description": "Local packages that require consent after the complete draft passes dependency checks.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
       "order": {
         "items": {
           "type": "string"

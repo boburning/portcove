@@ -440,7 +440,7 @@ export function ModProviderBrowser({
     plan.members.filter((item) => item.runs_code?.length).map((item) => item.file_name);
   const needsPermission =
     Boolean(plans?.some((plan) => codeMembers(plan).length > 0)) ||
-    localFiles.some(({ review }) => review.needs_code_permission);
+    Boolean(checkedDraft?.preview.local_code_packages?.length);
   const pendingAction = (item: Project) => (
     <>
       <span>{t("mods.workspace.pendingAddition")}</span>
@@ -745,7 +745,7 @@ export function ModProviderBrowser({
                       {t("mods.workspace.undo")}
                     </Button>
                   </ActionRow>
-                  {review.needs_code_permission && (
+                  {checkedDraft?.preview.local_code_packages?.includes(review.native_id) && (
                     <Notice intent="warning">
                       <div data-slot="notice-body">
                         <p>

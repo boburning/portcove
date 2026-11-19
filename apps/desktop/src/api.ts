@@ -646,10 +646,11 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    workspace = false,
   ) =>
     invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
       "plan_local_mod_package",
-      { portId, profileId, path, expectedRevision, generation },
+      { portId, profileId, path, expectedRevision, generation, workspace },
     ),
   applyLocalModPackage: (
     portId: string,

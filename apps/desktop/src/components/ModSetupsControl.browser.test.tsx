@@ -712,12 +712,18 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
   vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
   const review = vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
+  vi.mocked(desktopApi.previewModSetupDraft).mockResolvedValue({
+    order: [],
+    conflicts: [],
+    conflicts_truncated: false,
+    local_code_packages: [localPlan.native_id],
+  });
   const add = vi
     .spyOn(desktopApi, "applyModSetupDraft")
     .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>);
   const host = await render();
   await act(async () => button(host, "Add mod file…").click());
-  expect(review).toHaveBeenCalledWith("shipwright", "default", "/mods/timer.nrm", 3, 7);
+  expect(review).toHaveBeenCalledWith("shipwright", "default", "/mods/timer.nrm", 3, 7, true);
   expect(add).not.toHaveBeenCalled();
   expect(host.textContent).toContain("This exact mod runs its own code inside the game");
   expect(host.textContent).toContain("speedrun_timer.nrm");

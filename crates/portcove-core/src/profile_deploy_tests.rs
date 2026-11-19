@@ -1638,6 +1638,64 @@ fn recomp_local_review_checks_versions_before_offering_code_consent() {
 }
 
 #[test]
+fn recomp_draft_reports_local_code_after_resolving_queued_dependencies() {
+    let w = recomp_world();
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    let mut upgraded: serde_json::Value =
+        serde_json::from_slice(&manifest("base_pack", &[])).unwrap();
+    upgraded["version"] = "2.0.0".into();
+    let upgraded = serde_json::to_vec(&upgraded).unwrap();
+    let dependency = archive(&w.scratch, "new-base.nrm", &[("mod.json", &upgraded)]);
+    let package = w.nrm(
+        "extra.nrm",
+        "extra",
+        &["base_pack:2.0.0"],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let revision = w.revision();
+    assert!(
+        w.service
+            .plan_local_mod_package(RECOMP, &w.default, &package, revision)
+            .is_err()
+    );
+    let local_files = [dependency, package]
+        .into_iter()
+        .map(|path| {
+            let review = w
+                .service
+                .plan_workspace_local_mod_package(RECOMP, &w.default, &path, revision)
+                .unwrap();
+            LocalModDraftFile {
+                path,
+                expected_plan_sha256: review.plan_sha256,
+            }
+        })
+        .collect();
+    let edits = ModSetupEdits {
+        packages: vec![],
+        order: None,
+        local_files,
+    };
+    let preview = w
+        .service
+        .preview_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits)
+        .unwrap();
+    assert_eq!(preview.local_code_packages, ["extra.nrm"]);
+    let error = w
+        .service
+        .apply_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits, false)
+        .unwrap_err();
+    assert!(error.message.contains("needs permission to run code"));
+    assert_eq!(w.revision(), revision);
+    let applied = w
+        .service
+        .apply_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits, true)
+        .unwrap();
+    assert_eq!(applied.revision, revision + 1);
+    assert_eq!(w.live(), ["base_pack.nrm", "extra.nrm"]);
+}
+
+#[test]
 fn recomp_dependencies_must_be_installed_and_stay_on() {
     let w = recomp_world();
     let missing = w

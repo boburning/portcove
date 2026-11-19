@@ -1360,7 +1360,9 @@ fn plan_local_mod_package(
         replaces_enabled,
         overlapping_mods,
         conflicts_truncated,
-        needs_code_permission: staged.code_consent && !recorded_code.contains(&inspection.sha256),
+        needs_code_permission: missing_required_mods.is_empty()
+            && staged.code_consent
+            && !recorded_code.contains(&inspection.sha256),
         required_mods: staged.requires.clone(),
         missing_required_mods,
         plan_sha256: String::new(),
@@ -1393,6 +1395,28 @@ impl PortcoveService {
         source: &Path,
         expected_revision: u64,
     ) -> Result<LocalModPackagePlan> {
+        self.inspect_local_mod_selection(port_id, profile_id, source, expected_revision, false)
+    }
+
+    /// Checks a file for queueing. The complete draft establishes dependency versions.
+    pub fn plan_workspace_local_mod_package(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        source: &Path,
+        expected_revision: u64,
+    ) -> Result<LocalModPackagePlan> {
+        self.inspect_local_mod_selection(port_id, profile_id, source, expected_revision, true)
+    }
+
+    fn inspect_local_mod_selection(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        source: &Path,
+        expected_revision: u64,
+        workspace: bool,
+    ) -> Result<LocalModPackagePlan> {
         let layout = self.deploy_layout(port_id)?;
         let _guard = self
             .library
@@ -1407,7 +1431,7 @@ impl PortcoveService {
         let staged = inspect_for_port(port_id, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
         let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
-        if let Some(recomp) = &staged.recomp {
+        if !workspace && let Some(recomp) = &staged.recomp {
             self.review_recomp_changes(
                 &layout,
                 &current,
