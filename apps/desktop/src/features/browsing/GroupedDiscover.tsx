@@ -372,7 +372,6 @@ export function GroupedDiscover({
                         explicitOtherPlatform={Boolean(
                           evidence.context.platform && evidence.context.platform !== devicePlatform,
                         )}
-                        edition={evidence.context.edition}
                       />
                       <div className="grid min-w-0 content-start gap-2">
                         <ImplementationFacts port={port} />
@@ -448,14 +447,12 @@ function ComparisonPortFacts({
   single,
   platform,
   explicitOtherPlatform,
-  edition,
 }: {
   port: CatalogEntry;
   status: PortStatus | undefined;
   single: boolean;
   platform: PortDefinition["platforms"][number] | undefined;
   explicitOtherPlatform: boolean;
-  edition: string;
 }) {
   const { t } = useAppTranslation("browsing");
   const { t: tDetail } = useAppTranslation("detail");
@@ -464,13 +461,13 @@ function ComparisonPortFacts({
   const filesListed = Boolean(port.presentation?.source_requirements?.length);
   const ownershipKnown = Boolean(status?.active || status?.external_runtime);
   const report = port.listingStatus?.capabilities;
+  // Launch advisories display their own edition scope. The comparison uses separate edition IDs.
   const launchNotices =
     report?.format_version === 1 && report.port_id === port.id
       ? report.advisories.filter(
           ({ notice, applicability }) =>
             notice.launch_behavior &&
             notice.platform === platform &&
-            (!edition || !notice.edition || notice.edition === edition) &&
             (applicability !== "historical" ||
               (explicitOtherPlatform && notice.route === "upstream-setup")),
         )

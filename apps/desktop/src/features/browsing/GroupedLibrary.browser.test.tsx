@@ -70,7 +70,7 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
     route: "upstream-setup",
     release: "v1",
     artifact_sha256: "a".repeat(64),
-    edition: null,
+    edition: "Retail disc setup",
     explanation: "Import the disc once before using the prepared game.",
     provenance: "https://example.com/fixture",
     observed_at: 1,
@@ -134,6 +134,13 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   expect(document.body.textContent).not.toContain("Different platform");
 
   await page.getByText("Comparison settings", { exact: true }).click();
+  await page.getByRole("combobox", { name: "Game edition", exact: true }).click();
+  await page.getByRole("option", { name: "Fixture original", exact: true }).click();
+  await expect
+    .poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id)
+    .toBe("fixture-edition");
+  await expect.element(project.getByText(notice.explanation)).toBeVisible();
+  await expect.element(project.getByText(/Scope:.*Retail disc setup/)).toBeVisible();
   await page.getByRole("combobox", { name: /Target platform/ }).click();
   await page.getByRole("option", { name: "Linux", exact: true }).click();
   await expect.element(project.getByText("Different platform")).toBeVisible();
