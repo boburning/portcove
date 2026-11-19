@@ -1741,6 +1741,12 @@ for (const [file, tests] of [
     ],
   ],
   [".config/nextest.toml", [...rustWorkflowContractTests, "scripts/nextest-equivalence.test.mts"]],
+  ...["scripts/check-retcomm-upstreams.mts", "scripts/retcomm-index.mts"].map(
+    (file): [string, string[]] => [
+      file,
+      ["scripts/check-retcomm-upstreams.test.mts", "scripts/development-cli-help.test.mts"],
+    ],
+  ),
   [
     "scripts/desktop-test-cli.mts",
     [
