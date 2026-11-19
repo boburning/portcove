@@ -1523,8 +1523,9 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         releases: &mut [GithubRelease],
     ) -> Result<()> {
-        // Only releases selected by the normal platform/channel stream and
-        // explicit reviewed fallback targets need their own complete listing.
+        // Inspect releases in normal channel order until a complete asset
+        // inventory establishes the platform candidate. An inline list naming
+        // another platform can omit a late upload for this one.
         let mut release_ids = std::collections::BTreeSet::new();
         if releases
             .iter()
@@ -1540,7 +1541,11 @@ impl GithubReleaseProvider {
             releases,
             channel,
             port.release.rolling_tag.as_deref(),
-            |release| !release.draft && native_release_applies_to_platform(port, platform, release),
+            |release| {
+                !release.draft
+                    && (release.id.is_none_or(|id| !refreshed.contains(&id))
+                        || native_release_applies_to_platform(port, platform, release))
+            },
             is_beta_release,
             |release| release.tag_name.as_str(),
         ) {
@@ -1801,8 +1806,12 @@ impl GithubReleaseProvider {
             None => self.releases(&repository_url).await?,
         };
         if matches!(selection, GithubSelection::Saved(_)) {
-            self.refresh_saved_release_assets(port, channel, platform, scope, &mut releases)
-                .await?;
+            tokio::time::timeout(
+                self.network_bounds.request,
+                self.refresh_saved_release_assets(port, channel, platform, scope, &mut releases),
+            )
+            .await
+            .map_err(|_| PortcoveError::network("saved package asset inventory did not complete within the provider request budget"))??;
         }
         if let Some(record) = curated.filter(|record| !record.preserved_locations.is_empty()) {
             // Failover-capable records only: classify an accepted release or asset
