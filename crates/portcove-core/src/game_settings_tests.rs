@@ -263,3 +263,80 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
     std::fs::write(&path, vec![b' '; file.maximum_bytes as usize + 1]).unwrap();
     assert!(capture(release.platform, &release.version, &release.archive_sha256).is_empty());
 }
+
+#[test]
+fn shipped_default_reconciliation_preserves_exact_bytes_and_recorded_deletion() {
+    let file = fixture().files.remove(0);
+    let old_bytes = b"ui_scale=1.0\r\n";
+    let incoming_bytes = b"ui_scale=1.5\r\n";
+    let player_bytes = b"ui_scale=1.25\r\n; player note\r\n";
+    let receipt = |bytes: &[u8]| ShippedDefault {
+        sha256: hex::encode(Sha256::digest(bytes)),
+        bytes_hex: hex::encode(bytes),
+    };
+    let old = receipt(old_bytes);
+    let incoming = receipt(incoming_bytes);
+    let plan =
+        |old, player, incoming| reconcile_shipped_default(&file, old, player, incoming).unwrap();
+
+    assert_eq!(
+        plan(
+            Some(&old),
+            PlayerSettings::Present(old_bytes),
+            Some(&incoming)
+        ),
+        SettingsUpdate::InstallDefault(incoming_bytes.to_vec())
+    );
+    assert_eq!(
+        plan(
+            Some(&old),
+            PlayerSettings::Present(player_bytes),
+            Some(&old)
+        ),
+        SettingsUpdate::KeepPlayer
+    );
+    assert_eq!(
+        plan(
+            Some(&old),
+            PlayerSettings::Present(incoming_bytes),
+            Some(&incoming)
+        ),
+        SettingsUpdate::KeepPlayer
+    );
+    for player in [
+        PlayerSettings::Present(player_bytes),
+        PlayerSettings::RecordedDeletion,
+    ] {
+        assert_eq!(
+            plan(Some(&old), player, Some(&incoming)),
+            SettingsUpdate::KeepPlayerAndDefault(incoming_bytes.to_vec())
+        );
+    }
+    assert_eq!(
+        plan(None, PlayerSettings::Present(player_bytes), Some(&incoming)),
+        SettingsUpdate::MissingBaseline {
+            incoming_default: Some(incoming_bytes.to_vec())
+        }
+    );
+    assert_eq!(
+        plan(Some(&old), PlayerSettings::Unobserved, Some(&incoming)),
+        SettingsUpdate::MissingPlayerEvidence(incoming_bytes.to_vec())
+    );
+    assert_eq!(
+        plan(Some(&old), PlayerSettings::RecordedDeletion, Some(&old)),
+        SettingsUpdate::KeepPlayer
+    );
+    let altered = ShippedDefault {
+        bytes_hex: old.bytes_hex.clone(),
+        ..incoming
+    };
+    assert!(
+        reconcile_shipped_default(
+            &file,
+            Some(&old),
+            PlayerSettings::Present(old_bytes),
+            Some(&altered)
+        )
+        .is_err()
+    );
+}

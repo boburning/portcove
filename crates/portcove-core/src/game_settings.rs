@@ -32,6 +32,82 @@ pub(crate) struct ShippedDefault {
     bytes_hex: String,
 }
 
+impl ShippedDefault {
+    fn verified_bytes(&self, file: &GameSettingsFile) -> Result<Vec<u8>> {
+        if (self.bytes_hex.len() as u64) > 2 * file.maximum_bytes.min(MAX_SETTINGS_BYTES) {
+            return Err(PortcoveError::verification(
+                "retained package settings default exceeds the declared file limit",
+            ));
+        }
+        let bytes = hex::decode(&self.bytes_hex).map_err(|_| {
+            PortcoveError::verification("retained package settings default is malformed")
+        })?;
+        if hex::encode(Sha256::digest(&bytes)) != self.sha256 {
+            return Err(PortcoveError::verification(
+                "retained package settings default differs from its recorded digest",
+            ));
+        }
+        document::read(file, &bytes)?;
+        Ok(bytes)
+    }
+}
+
+/// The persistence owner must provide a deletion receipt. Filesystem absence
+/// alone leaves the live state unobserved.
+pub(crate) enum PlayerSettings<'a> {
+    Present(&'a [u8]),
+    RecordedDeletion,
+    Unobserved,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum SettingsUpdate {
+    KeepPlayer,
+    InstallDefault(Vec<u8>),
+    KeepPlayerAndDefault(Vec<u8>),
+    MissingBaseline { incoming_default: Option<Vec<u8>> },
+    MissingPlayerEvidence(Vec<u8>),
+}
+
+/// Plan the raw-file transition before any publication. The lifecycle owner
+/// must recheck the same player preimage and retain both versions on conflict.
+pub(crate) fn reconcile_shipped_default(
+    file: &GameSettingsFile,
+    old: Option<&ShippedDefault>,
+    player: PlayerSettings<'_>,
+    incoming: Option<&ShippedDefault>,
+) -> Result<SettingsUpdate> {
+    let incoming = incoming
+        .map(|value| value.verified_bytes(file))
+        .transpose()?;
+    let Some(old) = old else {
+        return Ok(SettingsUpdate::MissingBaseline {
+            incoming_default: incoming,
+        });
+    };
+    let Some(incoming) = incoming else {
+        return Ok(SettingsUpdate::MissingBaseline {
+            incoming_default: None,
+        });
+    };
+    let old = old.verified_bytes(file)?;
+    if old == incoming {
+        return Ok(SettingsUpdate::KeepPlayer);
+    }
+    Ok(match player {
+        PlayerSettings::Present(player) if player == incoming.as_slice() => {
+            SettingsUpdate::KeepPlayer
+        }
+        PlayerSettings::Present(player) if player == old.as_slice() => {
+            SettingsUpdate::InstallDefault(incoming)
+        }
+        PlayerSettings::Present(_) | PlayerSettings::RecordedDeletion => {
+            SettingsUpdate::KeepPlayerAndDefault(incoming)
+        }
+        PlayerSettings::Unobserved => SettingsUpdate::MissingPlayerEvidence(incoming),
+    })
+}
+
 /// Only the verified package's pristine private extraction may supply these
 /// defaults. Missing or unreadable files provide no baseline.
 pub(crate) fn capture_shipped_defaults(
