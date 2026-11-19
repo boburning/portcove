@@ -1891,8 +1891,9 @@ envelopes cannot appoint a binding. An omitted field keeps the compiled scopes.
 An explicit empty list withdraws the provider choices. The library records
 which ports have adopted explicit scopes. If that selection expires, is
 revoked or is replaced by another port, its compiled provider is held until
-a fresh authenticated definition appoints an exact scope. Shared profiles use
-library writer protocol 68 and recipes carrying an explicit scope use format 4.
+a fresh authenticated definition appoints an exact scope. Shared profile writes
+require library schema 69 or newer. Recipes carrying an explicit scope use
+format 4.
 
 When multiple providers are available, select the provider before requesting
 a project or planning an install. Desktop offers the choices and the CLI
