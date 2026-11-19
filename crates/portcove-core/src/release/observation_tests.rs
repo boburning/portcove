@@ -875,6 +875,68 @@ fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() 
 }
 
 #[test]
+fn reviewed_other_stream_skips_headers_but_an_unrelated_pending_tag_still_holds() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let platform = Platform::WindowsX86_64;
+    port.platforms = vec![platform];
+    port.channels = vec![ReleaseChannel::Stable];
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["baked-pbr-".into()]);
+    port.release.validate_github_streams(&port.platforms)?;
+    assert!(
+        port.release
+            .validate_github_streams(&[Platform::LinuxX86_64])
+            .is_err()
+    );
+
+    let mut other_stream = release(2, "baked-pbr-v1");
+    other_stream["assets"] = json!([]);
+    let mut document = envelope(vec![other_stream, release(1, "1.0.0")])?;
+    document["format"] = json!(2);
+    document["coverage"] = json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [1] });
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let releases: Vec<super::super::GithubRelease> =
+        serde_json::from_value(document["facts"]["releases"].clone())?;
+    assert!(!super::super::native_release_applies_to_platform(
+        &port,
+        platform,
+        &releases[0]
+    ));
+    let selected = inspect(&port, &document)?;
+    assert_eq!(
+        selected.projections[0].latest_observed.as_ref().unwrap().id,
+        2
+    );
+    assert_eq!(
+        selected.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release_id,
+        1
+    );
+
+    document["facts"]["releases"][0]["tag_name"] = json!("2.0.0");
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let pending = inspect(&port, &document)?;
+    assert_eq!(
+        pending.projections[0]
+            .channel_candidate
+            .as_ref()
+            .unwrap()
+            .id,
+        2
+    );
+    assert!(pending.projections[0].latest_eligible.is_none());
+    assert_eq!(
+        pending.projections[0].hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
+    Ok(())
+}
+
+#[test]
 fn scoped_observations_refuse_ambiguous_coverage_and_unassessed_asset_payloads() -> Result<()> {
     let port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     let mut document = envelope(vec![release(1, "1.0.0")])?;

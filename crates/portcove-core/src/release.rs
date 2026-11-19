@@ -180,6 +180,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     platform: Platform,
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
+    other_stream_tag_prefixes: Vec<String>,
     accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
     acquisition_policy: Option<crate::ManagedAcquisitionHold>,
@@ -231,6 +232,12 @@ impl ReleaseSelectionCacheKey {
                 .asset_hints
                 .get(&platform)
                 .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
+                .unwrap_or_default(),
+            other_stream_tag_prefixes: port
+                .release
+                .github_other_stream_tag_prefixes
+                .get(&platform)
+                .cloned()
                 .unwrap_or_default(),
             accepted_uploaders: {
                 let mut ids = port
@@ -1956,11 +1963,22 @@ fn preserved_resolution(
     })
 }
 
+fn github_tag_in_stream(port: &PortDefinition, platform: Platform, tag: &str) -> bool {
+    !port
+        .release
+        .github_other_stream_tag_prefixes
+        .get(&platform)
+        .is_some_and(|prefixes| prefixes.iter().any(|prefix| tag.starts_with(prefix)))
+}
+
 fn native_release_applies_to_platform(
     port: &PortDefinition,
     platform: Platform,
     release: &GithubRelease,
 ) -> bool {
+    if !github_tag_in_stream(port, platform, &release.tag_name) {
+        return false;
+    }
     if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
         || port.release.curated.contains_key(&platform)
     {
