@@ -13,6 +13,10 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  compactPsxManagedWindows,
+  projectPsxManagedWindows,
+} from "./catalog-psx-managed-windows.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 
@@ -1015,6 +1019,24 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     };
     delete release.asset_hints["linux-x86-64"];
     assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
+  }
+});
+
+void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  for (const record of records.filter((entry) => entry.psx_managed_windows_v1 !== undefined)) {
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const compact = compactPsxManagedWindows(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.persistent_paths = ["custom-save"];
+    assert.equal(compactPsxManagedWindows(custom), custom);
   }
 });
 
