@@ -952,9 +952,11 @@ you didn't choose; choosing the mode again accepts the current files and
 channel. A choice made before any files were registered uses the first files
 that arrive.
 
-`games intents` reassesses every notify or set-up-when-ready choice with the
-ordinary first-install planner and changes nothing. New or changed files,
-catalog contracts and tools are reflected without selecting the files again.
+`games intents` uses the ordinary first-install planner to reassess up to 512
+notify or set-up-when-ready choices per call. When more remain, the next call
+continues from its saved position, including after a restart. Standing setup
+keeps its own position. The assessment leaves your saved choice intact and
+reflects changes to files, catalog contracts and tools on a later pass.
 Each game shows `installed`, `ready` with its plan digest, or `waiting` with the
 reason. `games intents-acknowledge --item PORT_ID=PLAN_SHA256` marks a ready
 game as seen. It is reported again only when its ready plan changes.
@@ -2664,8 +2666,10 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
-and says when more pages exist; `provider-project` shows one mod's files or versions
+(20 mods; GameBanana's most downloaded first) of the bound game's mods and says
+when more pages exist. Thunderstore's whole-community index has download and
+package-count bounds; an oversized community response provides the provider's
+browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.

@@ -95,7 +95,16 @@ impl ThunderstoreClient {
         page: u32,
         per_page: u32,
     ) -> Result<Observed<ProviderPage>> {
-        let observed = self.community(community).await?;
+        let observed = self.community(community).await.map_err(|mut error| {
+            if error.details.contains_key("response_byte_limit")
+                || error.details.contains_key("community_package_limit")
+            {
+                let url = format!("{WEB_ROOT}/c/{community}/");
+                error.message = format!("{}. Browse the full community at {url}", error.message);
+                error.details.insert("provider_browse_url".into(), url);
+            }
+            error
+        })?;
         Ok(Observed {
             value: page_of(observed.value, page, per_page),
             observed_at: observed.observed_at,
@@ -350,7 +359,8 @@ pub(crate) fn parse_listing(
     if packages.len() > MAX_PACKAGES {
         return Err(PortcoveError::verification(
             "the Thunderstore listing exceeds the number of packages this client can review",
-        ));
+        )
+        .detail("community_package_limit", MAX_PACKAGES.to_string()));
     }
     Ok(packages
         .iter()
