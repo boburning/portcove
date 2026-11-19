@@ -969,6 +969,9 @@ pub struct PortDefinition {
     /// is the whole session.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_tracked_handoff: bool,
+    /// An immutable library shipped beside the selected Linux executable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_packaged_library: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -2518,7 +2521,9 @@ pub struct UploaderContinuityRecord {
 /// locally from the persisted conditional-request cache without any network call.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
-    /// Requests the provider will count against its primary rate limit.
+    /// Requests budgeted against the provider's primary rate limit. A saved
+    /// GitHub package choice budgets the bounded fresh inventory even when
+    /// cached conditional responses could lower the actual cost.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.

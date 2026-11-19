@@ -248,6 +248,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         external_profile_policy,
         windows_shipwright_persistence,
         windows_tracked_handoff,
+        linux_packaged_library,
         mod_package_policy,
         game_settings,
         managed_shared_preferences,
@@ -359,6 +360,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // A tracked handoff changes how long a session holds the installation.
     if *windows_tracked_handoff {
         compatibility["windows_tracked_handoff"] = serde_json::json!(true);
+    }
+    if let Some(library) = linux_packaged_library {
+        compatibility["linux_packaged_library"] = serde_json::json!(library);
     }
     compatibility
 }

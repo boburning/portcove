@@ -30907,7 +30907,7 @@
           "devilutionx-windows-x86_64.zip"
         ],
         "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
+          "devilutionx-linux-x86_64.tar.xz"
         ]
       },
       "manual_setup": {
@@ -30938,7 +30938,7 @@
         "references": [
           {
             "title": "Choose a DevilutionX route on Linux",
-            "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+            "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
           },
           {
             "title": "Prepare DevilutionX on Mac",
@@ -31006,7 +31006,7 @@
           "devilutionx-windows-x86_64.zip"
         ],
         "linux-x86-64": [
-          "devilutionx-linux-x86_64.appimage"
+          "devilutionx-linux-x86_64.tar.xz"
         ]
       },
       "manual_setup": {
@@ -31037,7 +31037,7 @@
         "references": [
           {
             "title": "Choose a DevilutionX route on Linux",
-            "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+            "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned copy, make the AppImage executable and supply your matching MPQs in its actual data folder, normally ~/.local/share/diasurgical/devilution. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
           },
           {
             "title": "Prepare DevilutionX on Mac",

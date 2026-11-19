@@ -56,6 +56,13 @@ const splitModPaths = [
   "mods/texture-packs",
 ];
 
+const overlayDirectoryLayoutOmissions = new Set([
+  "settings.toml.bad",
+  "overlay_captures.json",
+  "overlay_captures.json.d",
+  "overlay_captures.addendum.jsonl",
+]);
+
 // Retail BIOS profiles a reviewed kit's own `bios_config` can name. Core's
 // kit guard (psx.rs `kit_bios_profile`) maps the same images.
 const retailBiosProfiles = new Set<unknown>([
@@ -105,7 +112,13 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const explicitIntegration = JSON.stringify(integration);
   const facts = { ...integration };
   for (const field of layoutFields) delete facts[field];
-  const layouts = [true, "bundled-openbios", "split-mods", "split-mods-openbios"] as const;
+  const layouts = [
+    true,
+    "bundled-openbios",
+    "split-mods",
+    "split-mods-openbios",
+    "split-mods-overlay-directory",
+  ] as const;
   for (const layout of layouts) {
     const proposed = { ...record, psx_managed_windows_v1: layout, integration: facts };
     try {
@@ -122,7 +135,9 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
-  const splitMods = layout === "split-mods" || layout === "split-mods-openbios";
+  const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
+  const splitMods =
+    layout === "split-mods" || layout === "split-mods-openbios" || overlayDirectoryOnly;
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -222,6 +237,15 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     projectedLayout.persistent_paths = projectedLayout.persistent_paths.flatMap((path) =>
       path === "mods" ? splitModPaths : [path],
     );
+  }
+  if (overlayDirectoryOnly) {
+    projectedLayout.persistent_paths = projectedLayout.persistent_paths.filter(
+      (path) => !overlayDirectoryLayoutOmissions.has(path),
+    );
+    projectedLayout.runtime_mutable_file_patterns =
+      projectedLayout.runtime_mutable_file_patterns.filter(
+        ({ prefix, suffix }) => prefix !== "overlay_captures.json." || suffix !== ".tmp",
+      );
   }
   return {
     ...record,

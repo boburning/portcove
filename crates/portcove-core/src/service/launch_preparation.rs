@@ -346,6 +346,16 @@ impl PortcoveService {
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
+        if Platform::current()? == Platform::LinuxX86_64
+            && let Some(library) = port.linux_packaged_library.as_deref()
+        {
+            Installer::new(self.library.clone())?.bind_linux_packaged_library(
+                active,
+                library,
+                &mut spec,
+                &checkpoint,
+            )?;
+        }
         checkpoint()?;
         if let Some(disc) = disc {
             // Last, after every refusal: the count comes from the retained

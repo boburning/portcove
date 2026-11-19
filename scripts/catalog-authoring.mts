@@ -17,6 +17,7 @@ import type {
 } from "./settings-qualification.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -80,12 +81,19 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  /** Shared official Raze Windows package and portable-profile layout. */
+  raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
-  psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
+  psx_managed_windows_v1?:
+    | true
+    | "bundled-openbios"
+    | "split-mods"
+    | "split-mods-openbios"
+    | "split-mods-overlay-directory";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
@@ -709,6 +717,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
   projectN64RecompPersistence(record);
@@ -750,10 +759,11 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
+  const declared = projectRazeWindowsProfile(input);
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(
-        projectN64RecompPersistence(projectPsxManagedWindows(projectGbaArchive(input))),
+        projectN64RecompPersistence(projectPsxManagedWindows(projectGbaArchive(declared))),
       ),
     ),
   );

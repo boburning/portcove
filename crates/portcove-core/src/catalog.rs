@@ -715,6 +715,7 @@ impl Catalog {
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
+            crate::runtime::validate_linux_packaged_library(port)?;
             validate_portable_marker_file(port)?;
             validate_accepted_uploaders(port)?;
             port.release.validate_github_streams(&port.platforms)?;
