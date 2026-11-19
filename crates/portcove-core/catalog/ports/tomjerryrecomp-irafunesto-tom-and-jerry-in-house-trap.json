@@ -6,7 +6,7 @@
     "original_game_title": "Tom and Jerry in House Trap",
     "summary": "Experimental project. Title widescreen/split-screen/HUD/timing/loading fixes; no full completion proof. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/IraFunesto/TomJerryRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/IraFunesto/TomJerryRecomp",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tom-and-jerry-in-house-trap",
       "evidence_urls": ["https://github.com/IraFunesto/TomJerryRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tom-and-jerry-in-house-trap-playstation",
+          "title": "Tom and Jerry in House Trap (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/IraFunesto/TomJerryRecomp/blob/30f1cc50d6962a0f43d1606ba62d2f4def8c0a0c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

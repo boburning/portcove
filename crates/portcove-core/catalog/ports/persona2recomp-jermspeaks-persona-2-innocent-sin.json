@@ -6,7 +6,7 @@
     "original_game_title": "Persona 2: Innocent Sin (PSP)",
     "summary": "Experimental project. This in-development version 0.1.0 uses static recompilation with game-specific changes. A full playthrough and platform acceptance have not been recorded. Generated-code and framework licences remain separate. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jermspeaks/Persona2Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/jermspeaks/Persona2Recomp",
     "manual_setup": {

@@ -33,6 +33,7 @@
       ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -56,22 +57,6 @@
       "macos-x86-64": ["BMHeroRecompiled"],
       "macos-aarch64": ["BMHeroRecompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "bmhero.z64"
-    ],
     "runtime_source_filename": "bmhero.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

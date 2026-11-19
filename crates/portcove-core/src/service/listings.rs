@@ -209,6 +209,7 @@ impl PortcoveService {
                         listing,
                         pending.iter().find(|p| p.port_id == projected.port_id),
                     );
+                    report.add_advisories(listing, &projected.status);
                 }
                 Ok(projected)
             })

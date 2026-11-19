@@ -58,7 +58,16 @@
         "https://github.com/mr-finster/stunts-hd",
         "https://github.com/vs-sr-dev/pc-4ddriving/blob/fbff75fabe221c731de74e7981e0b17b64f30441/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "stunts-pc",
+          "title": "Stunts (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/mr-finster/stunts-hd/blob/e6995b5fea21b8fa6c3917f7d68357652ca9147a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "wave-race-64",
       "evidence_urls": ["https://github.com/DomazinUS/RaceWave46"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wave-race-64-nintendo-64",
+          "title": "Wave Race 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/src/main.cpp"
+          ]
+        }
+      ]
     }
   },
   "integration": {

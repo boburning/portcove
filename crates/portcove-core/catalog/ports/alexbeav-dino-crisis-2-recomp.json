@@ -55,7 +55,16 @@
         "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dino-crisis-2-playstation",
+          "title": "Dino Crisis 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {

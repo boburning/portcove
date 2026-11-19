@@ -43,7 +43,16 @@
         "https://github.com/matteo-pacini/theme-hospital-decomp/commit/7993814a4f562a1898b20621dbfa60644f9697d7",
         "https://api.github.com/repos/matteo-pacini/theme-hospital-enhanced"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "theme-hospital-dos",
+          "title": "Theme Hospital (DOS)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Theme Hospital"
   },

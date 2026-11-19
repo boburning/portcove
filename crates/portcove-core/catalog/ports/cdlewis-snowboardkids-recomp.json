@@ -60,7 +60,16 @@
         "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
         "https://github.com/cdlewis/snowboardkids-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "snowboard-kids-nintendo-64",
+          "title": "Snowboard Kids (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"],

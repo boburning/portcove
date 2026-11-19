@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
+  compactGbaArchive,
   listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
@@ -28,6 +29,11 @@ import {
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import {
+  compactRazeWindowsProfile,
+  projectRazeWindowsProfile,
+} from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import {
@@ -82,7 +88,8 @@ type PackageFacts = Pick<
   Partial<Pick<Awaited<ReturnType<typeof collectPortFacts>>, "release">>;
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
-export function portablePreparationFeedback(record: AuthoredPort, facts: PackageFacts) {
+export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
+  const record = projectRazeWindowsProfile(input);
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -167,6 +174,20 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
       next: "Check the exact kit and generated executable, owned disc, explicit BIOS choice, and the reviewed shared writer layout. Every retail form takes an explicit SCPH-1001, SCPH-5552 or SCPH-5500 profile; bundled OpenBIOS forms take none. Both split-mods layouts also require both x64 kit selectors. Reuse applicable PSX preparation and preservation evidence. Keep original-file identities, exact release-specific source evidence, external setup, and independent fixture expectations explicit.",
+    });
+  }
+  if (record.n64_recomp_persistence_v1) {
+    projections.push({
+      field: "n64_recomp_persistence_v1",
+      scope: "Managed N64Recomp player data and original-file paths in the installation root.",
+      next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
+    });
+  }
+  if (record.raze_windows_profile_v1) {
+    projections.push({
+      field: "raze_windows_profile_v1",
+      scope: "Shared stable Raze Windows archive, executable and portable data layout.",
+      next: "Keep the original edition, support, qualification and external routes explicit. A different runtime layout needs its own reviewed declaration.",
     });
   }
   return {
@@ -936,7 +957,9 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
-    const compact = compactPsxManagedWindows(record);
+    const compact = compactRazeWindowsProfile(
+      compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+    );
     if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);

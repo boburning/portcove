@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "silent-hill-origins-ps2",
       "evidence_urls": ["https://github.com/SirBraga/silent-hill-origins-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "silent-hill-origins-ps2-playstation-2",
+          "title": "Silent Hill: Origins (PS2) (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/SirBraga/silent-hill-origins-recomp/blob/81f6e906615a746a6467ffc88c262f53e41672aa/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

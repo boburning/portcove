@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "dr-mario-64",
       "evidence_urls": ["https://github.com/theboy181/drmario64_recomp_plus"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dr-mario-64-nintendo-64",
+          "title": "Dr. Mario 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ecee7d02cb30bd8081b3181e09b7aa5c8ed8436f/docs/qualification/dr-mario-64-recompiled-windows-2026-09-15.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

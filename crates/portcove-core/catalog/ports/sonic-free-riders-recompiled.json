@@ -58,6 +58,26 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold."
+    "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-free-riders",
+      "evidence_urls": [
+        "https://github.com/YuutaTsubasa/Free-Riders-Recompiled/releases",
+        "https://github.com/YuutaTsubasa/Free-Riders-Recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-free-riders-recompiled.json"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-free-riders-xbox-360",
+          "title": "Sonic Free Riders (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-free-riders-recompiled.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sonic Free Riders"
   }
 }

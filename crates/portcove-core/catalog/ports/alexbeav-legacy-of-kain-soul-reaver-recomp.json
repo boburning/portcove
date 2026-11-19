@@ -68,7 +68,16 @@
         "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "legacy-of-kain-soul-reaver-playstation",
+          "title": "Legacy of Kain: Soul Reaver (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/legacy-of-kain-soul-reaver-recomp/blob/c6ea4e292a04716e3b57203a646e11bbbaeaebb0/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

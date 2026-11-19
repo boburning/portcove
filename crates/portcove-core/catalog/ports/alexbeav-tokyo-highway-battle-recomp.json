@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tokyo-highway-battle-playstation",
+          "title": "Tokyo Highway Battle (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/3a76094ff17b13d70f4d89508b72875af799b7b1/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

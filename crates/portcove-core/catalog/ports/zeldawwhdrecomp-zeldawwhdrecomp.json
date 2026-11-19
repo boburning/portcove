@@ -7,7 +7,7 @@
     "project_url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp",
     "issue_number": 1913,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp",
     "artwork": {
@@ -53,7 +53,16 @@
         "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/blob/f55548214ac2d029c3c92d6d4be9a4f6e77ba35e/README.md",
         "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-wii-u",
+          "title": "The Legend of Zelda: The Wind Waker (Wii U)",
+          "system": "wii-u",
+          "evidence_urls": [
+            "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/releases/tag/devel-build"
+          ]
+        }
+      ]
     },
     "original_game_title": "The Legend of Zelda: The Wind Waker"
   }

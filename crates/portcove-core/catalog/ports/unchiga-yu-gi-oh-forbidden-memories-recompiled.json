@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "issue_number": 1910,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled",
     "artwork": {
@@ -54,7 +54,16 @@
       "format_version": 1,
       "id": "yu-gi-oh-forbidden-memories",
       "evidence_urls": ["https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Unchiga/Yu-Gi-Oh-Forbidden-Memories-Recompiled/blob/36d499c13522402a83c5b4772714f66046f80357/README.md"
+          ]
+        }
+      ]
     },
     "original_game_title": "Yu-Gi-Oh! Forbidden Memories"
   }

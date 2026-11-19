@@ -212,6 +212,28 @@ pub(crate) fn check(port: &PortDefinition, platform: Platform, path: &Path) -> R
     }
 }
 
+/// Open Surge's Windows player reads its managed profile path through the narrow CRT
+/// environment and can silently change a Unicode path before opening it. Bind this
+/// check to the existing environment contract, including retained definitions.
+pub(crate) fn check_user_data_root(
+    port: &PortDefinition,
+    platform: Platform,
+    path: &Path,
+) -> Result<()> {
+    if platform == Platform::WindowsX86_64
+        && port.adapter == AdapterKind::NativePortable
+        && port.id == "surge-the-rabbit-opensurge"
+        && port.user_data_environment.as_deref() == Some("OPENSURGE_USER_PATH")
+        && !path.to_str().is_some_and(|path| path.is_ascii())
+    {
+        return Err(PortcoveError::unsupported(
+            "the Windows Open Surge runtime can redirect a Unicode managed data path",
+        )
+        .with_known_cause(crate::failure::KnownFailureCause::OpenSurgeUserDataPath));
+    }
+    Ok(())
+}
+
 /// Reject an already impossible destination before resolving or acquiring a release.
 /// Actual selected executable/work-directory paths are checked again for readiness
 /// and launch, including package nesting which is unknown before acquisition.

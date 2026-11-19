@@ -35,7 +35,25 @@
       ],
       "help_url": "https://github.com/ExtremestoneGG/Cosmic-Recompi"
     },
-    "issue_number": 3181
+    "issue_number": 3181,
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-ultimate-alien-cosmic-destruction",
+      "evidence_urls": [
+        "https://github.com/ExtremestoneGG/Cosmic-Recompi",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/cosmic-recomp-extremestonegg-ben-10-ultimate-alien-cosmic-destruction.json"
+      ],
+      "source_editions": [
+        {
+          "id": "ben-10-ultimate-alien-cosmic-destruction-xbox-360",
+          "title": "Ben 10 Ultimate Alien: Cosmic Destruction (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/cosmic-recomp-extremestonegg-ben-10-ultimate-alien-cosmic-destruction.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

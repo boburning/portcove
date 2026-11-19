@@ -31,6 +31,26 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/vs-sr-dev/pc-virtualhydlide#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "virtual-hydlide",
+      "evidence_urls": [
+        "https://github.com/vs-sr-dev/pc-virtualhydlide#readme",
+        "https://github.com/vs-sr-dev/pc-virtualhydlide",
+        "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/74e8e8abfc5a23623dab610cc207e26bbf9d0ec9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "virtual-hydlide-sega-saturn",
+          "title": "Virtual Hydlide (Sega Saturn)",
+          "system": "sega-saturn",
+          "evidence_urls": [
+            "https://github.com/vs-sr-dev/pc-virtualhydlide/blob/74e8e8abfc5a23623dab610cc207e26bbf9d0ec9/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Virtual Hydlide"
   }
 }

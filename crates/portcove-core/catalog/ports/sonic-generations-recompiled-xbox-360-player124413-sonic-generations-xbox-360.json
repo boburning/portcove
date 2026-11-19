@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "sonic-generations-xbox-360",
       "evidence_urls": ["https://github.com/Player124413/Sonic-Generations-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-generations-xbox-360-xbox-360",
+          "title": "Sonic Generations (Xbox 360) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Player124413/Sonic-Generations-Recomp/blob/dc3fa5117b09817426016cb8d35a22974b54b0c1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

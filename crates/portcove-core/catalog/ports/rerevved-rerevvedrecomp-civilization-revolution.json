@@ -6,7 +6,7 @@
     "original_game_title": "Civilization Revolution",
     "summary": "This primarily uses static recompilation. The reviewed README does not claim that the full game works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ReRevvedRecomp/rerevved",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ReRevvedRecomp/rerevved",
     "manual_setup": {

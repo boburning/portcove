@@ -61,6 +61,22 @@ impl ReleaseProvider for CompositeReleaseProvider {
         }
     }
 
+    async fn resolve_saved_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        variant: &crate::ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_saved_variant(port, channel, platform, scope, variant)
+            .await
+    }
+
     async fn resolve_shape_fallback(
         &self,
         port: &PortDefinition,
@@ -230,6 +246,7 @@ mod tests {
             game_settings: None,
             windows_shipwright_persistence: false,
             windows_tracked_handoff: false,
+            linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,

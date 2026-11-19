@@ -29,6 +29,28 @@ pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     })
 }
 
+pub(crate) fn retained_devilutionx_appimage_catalog() -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut document = catalog.authoritative_document();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        let linux = crate::Platform::LinuxX86_64;
+        port.release.linux_tar_xz = false;
+        port.linux_packaged_library = None;
+        port.release
+            .asset_hints
+            .insert(linux, vec!["devilutionx-linux-x86_64.appimage".into()]);
+        port.executable_hints
+            .insert(linux, vec!["devilutionx.AppImage".into()]);
+        port.reviewed_package_layouts.remove(&linux);
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
     let value: serde_json::Value =
         serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();
@@ -195,6 +217,11 @@ pub(crate) fn definition_requirements(
             .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
     {
         default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.linux_packaged_library.is_some() {
+        default_version.max(crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY)
     } else {
         default_version
     };

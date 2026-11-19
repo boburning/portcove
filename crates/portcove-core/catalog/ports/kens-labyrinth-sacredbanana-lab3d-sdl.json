@@ -49,7 +49,16 @@
         "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
         "https://github.com/sacredbanana/lab3d-sdl"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kens-labyrinth-pc",
+          "title": "Ken’s Labyrinth (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sacredbanana/lab3d-sdl/blob/d657e6b6921324763c87ae185982aaf376b6fe07/README.md"
+          ]
+        }
+      ]
     }
   }
 }

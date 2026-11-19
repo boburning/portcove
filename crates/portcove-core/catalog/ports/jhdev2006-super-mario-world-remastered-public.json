@@ -60,7 +60,17 @@
         "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md",
         "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-mario-world-super-nintendo",
+          "title": "Super Mario World (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/jhdev2006-super-mario-world-remastered-public.json"
+          ]
+        }
+      ]
     },
     "original_game_title": "Super Mario World"
   }

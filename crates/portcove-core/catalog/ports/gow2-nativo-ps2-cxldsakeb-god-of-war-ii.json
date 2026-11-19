@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "god-of-war-ii",
       "evidence_urls": ["https://github.com/cxldsakeb/GoW2-nativo-PS2"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-of-war-ii-playstation-2",
+          "title": "God of War II (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/cxldsakeb/GoW2-nativo-PS2/blob/5145dad446d2deb9276238e8d646c915bce988fb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

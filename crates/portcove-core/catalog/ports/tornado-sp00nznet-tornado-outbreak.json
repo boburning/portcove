@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "tornado-outbreak",
       "evidence_urls": ["https://github.com/sp00nznet/tornado"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tornado-outbreak-playstation-3",
+          "title": "Tornado Outbreak (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/tornado/blob/2cc6c0fb660b62aab235e06ac8e0fa64106ec265/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

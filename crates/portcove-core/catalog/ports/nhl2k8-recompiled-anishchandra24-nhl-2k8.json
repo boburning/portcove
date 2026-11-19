@@ -6,7 +6,7 @@
     "original_game_title": "NHL 2K8",
     "summary": "The project reports boot, menus, quick games, franchise, tournaments and save/load tests on two PCs. Crowd stutter, pale-red colouring and brightness defects remain. Online play is unsupported, and dependency installation on a clean machine has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/anishchandra24/NHL2K8-Recompiled",
     "manual_setup": {
@@ -35,6 +35,24 @@
       "image_sha256": "7ebbba5b5ef5ea28ea5ebc8fb7aeb812c03e022d94178646d2bd3611c877f58b",
       "game_slug": "nhl-2k8",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-2k8",
+      "evidence_urls": [
+        "https://github.com/anishchandra24/NHL2K8-Recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/nhl2k8-recompiled-anishchandra24-nhl-2k8.json"
+      ],
+      "source_editions": [
+        {
+          "id": "nhl-2k8-xbox-360",
+          "title": "NHL 2K8 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/nhl2k8-recompiled-anishchandra24-nhl-2k8.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

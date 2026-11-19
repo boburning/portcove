@@ -6,7 +6,7 @@
     "original_game_title": "Armored Core: Last Raven Portable",
     "summary": "Upstream reports startup, movies, the title screen and a runtime. Mission gameplay is not confirmed here; check the project’s status notes before setup. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Sifayne/last-raven-recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sifayne/last-raven-recomp",
     "manual_setup": {

@@ -316,6 +316,18 @@ impl DefinitionContentIndex {
                 "Windows tracked handoff requires native capability version {handoff_capability}"
             )));
         }
+        if port.linux_packaged_library.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "packaged Linux libraries require native capability version {}",
+                crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            )));
+        }
         if port.release.grant_declared_executable {
             let (template, minimum) = match port.adapter {
                 crate::AdapterKind::NativePortable => (

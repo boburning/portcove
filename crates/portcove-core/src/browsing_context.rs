@@ -614,6 +614,7 @@ mod tests {
         status.active = Some(managed(id));
         status.channel = ReleaseChannel::Beta;
         status.external_runtime = Some(ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "external-linux-instance".into(),
             port_id: id.clone(),
@@ -738,6 +739,7 @@ mod tests {
         let mut status = status(&port.id);
         status.channel = ReleaseChannel::Beta;
         status.external_runtime = Some(ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: None,
             id: "accepted-external-instance".into(),
             port_id: port.id.clone(),

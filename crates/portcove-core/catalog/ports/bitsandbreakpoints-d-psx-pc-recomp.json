@@ -58,7 +58,16 @@
         "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp",
         "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "d-playstation",
+          "title": "D (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Bitsandbreakpoints/d-psx-pc-recomp/blob/9e8d7f28bb78a71dcccceb92019037e5cca12955/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -7,7 +7,7 @@
     "project_url": "https://github.com/NJH-1001/SexyParoRecomp",
     "issue_number": 325,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/NJH-1001/SexyParoRecomp",
     "artwork": {
@@ -45,6 +45,27 @@
       "warnings": [
         "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sexy-parodius",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/SexyParoRecomp/releases/tag/v0.2.0",
+        "https://github.com/NJH-1001/SexyParoRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sexy-parodius-sexyparorecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "sexy-parodius-playstation",
+          "title": "Sexy Parodius (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/SexyParoRecomp/releases/tag/v0.2.0",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sexy-parodius-sexyparorecomp.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sexy Parodius"
   }
 }

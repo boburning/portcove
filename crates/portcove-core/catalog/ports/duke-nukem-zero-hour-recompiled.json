@@ -54,7 +54,16 @@
         "https://github.com/sonicdcer/DNZHRecomp#readme",
         "https://gitlab.com/sonicdcer/DNZHRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "duke-nukem-zero-hour-nintendo-64",
+          "title": "Duke Nukem: Zero Hour (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/73702601fa3f24c5b47f7aff43e228c75c4370ba/docs/qualification/duke-nukem-zero-hour-windows-2026-09-16.md"
+          ]
+        }
+      ]
     }
   },
   "managed_setup_platform_warnings": {

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 69;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 70;
 
 struct Migration {
     version: i64,
@@ -437,7 +437,19 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_69,
         verify: verify_migration_69,
     },
+    Migration {
+        version: 70,
+        name: "saved managed package variant writer protocol",
+        apply: migration_70,
+        verify: verify_migration_69,
+    },
 ];
+
+fn migration_70(transaction: &Transaction<'_>) -> Result<()> {
+    // The library lease excludes older writers that can erase a saved choice
+    // or replace a managed runtime without honoring it. No manifests change here.
+    verify_migration_69(transaction)
+}
 
 fn migration_69(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(
@@ -1337,7 +1349,7 @@ fn inspect_migration(root: &Path) -> Result<bool> {
         return Ok(true);
     }
     let versions = recorded_versions(&connection)?;
-    validate_recorded_versions(&versions)?;
+    validate_recorded_versions(&versions, CURRENT_SCHEMA_VERSION)?;
     Ok(versions.last().copied().unwrap_or_default() < CURRENT_SCHEMA_VERSION)
 }
 
@@ -1354,7 +1366,7 @@ fn migrate_to(root: &Path, target_version: i64) -> Result<()> {
     )?;
 
     let applied = recorded_versions(&connection)?;
-    validate_recorded_versions(&applied)?;
+    validate_recorded_versions(&applied, CURRENT_SCHEMA_VERSION)?;
     for migration in MIGRATIONS.iter().take(applied.len()) {
         verify_recorded_migration(&connection, migration)?;
     }
@@ -1648,21 +1660,18 @@ fn recorded_versions(connection: &Connection) -> Result<Vec<i64>> {
     Ok(rows.collect::<std::result::Result<Vec<_>, _>>()?)
 }
 
-fn validate_recorded_versions(versions: &[i64]) -> Result<()> {
+fn validate_recorded_versions(versions: &[i64], supported_version: i64) -> Result<()> {
     if let Some(version) = versions
         .iter()
         .copied()
-        .find(|version| *version > CURRENT_SCHEMA_VERSION)
+        .find(|version| *version > supported_version)
     {
         return Err(PortcoveError::state(
             "this library was created by a newer Portcove database schema",
         )
         .with_known_cause(crate::failure::KnownFailureCause::NewerLibrary)
         .detail("library_schema_version", version.to_string())
-        .detail(
-            "supported_schema_version",
-            CURRENT_SCHEMA_VERSION.to_string(),
-        ));
+        .detail("supported_schema_version", supported_version.to_string()));
     }
     for (index, version) in versions.iter().enumerate() {
         let expected = index as i64 + 1;
@@ -3043,6 +3052,41 @@ mod tests {
     }
 
     #[test]
+    fn saved_variant_upgrade_waits_for_schema_69_writers_and_keeps_installs() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 69).unwrap();
+        let legacy_path = root.join("legacy-install");
+        insert_alpha_one_install(&connect(root).unwrap(), "active", "v1", &legacy_path, false);
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&69)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let connection = current.connection().unwrap();
+        let versions = recorded_versions(&connection).unwrap();
+        assert_eq!(versions.last(), Some(&70));
+        let error = validate_recorded_versions(&versions, 69).unwrap_err();
+        assert_eq!(error.details["library_schema_version"], "70");
+        assert_eq!(error.details["supported_schema_version"], "69");
+        let installed: (String, String) = connection
+            .query_row(
+                "SELECT version, manifest_sha256 FROM installs WHERE id='active'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(installed, ("v1".into(), "b".repeat(64)));
+    }
+
+    #[test]
     fn provider_writer_upgrade_keeps_the_existing_assessment_cursor() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3057,7 +3101,10 @@ mod tests {
             .unwrap();
         let library = crate::Library::open(root).unwrap();
         let connection = library.connection().unwrap();
-        assert_eq!(recorded_versions(&connection).unwrap().last(), Some(&69));
+        assert_eq!(
+            recorded_versions(&connection).unwrap().last(),
+            Some(&CURRENT_SCHEMA_VERSION)
+        );
         let retained = connection.query_row(
             "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose='readiness'",
             [],
@@ -4160,6 +4207,7 @@ mod tests {
         schema_66: 66,
         schema_67: 67,
         schema_68: 68,
+        schema_69: 69,
     }
 
     #[test]

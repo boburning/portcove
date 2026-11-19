@@ -48,7 +48,16 @@
         "https://github.com/AlisterT/openjazz#readme",
         "https://github.com/AlisterT/openjazz"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jazz-jackrabbit-pc",
+          "title": "Jazz Jackrabbit (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/AlisterT/openjazz/blob/a1626f4edd4a7af72c54103021790c56d8ecfced/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -20,7 +20,7 @@
       "https://www.patreon.com/TGP482",
       "https://ko-fi.com/tgp482"
     ],
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/BLACK-XBERecomp",
     "issue_number": 2636,

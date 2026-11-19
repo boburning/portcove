@@ -331,7 +331,9 @@ further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
 An exhausted observation deadline during provider setup or a batch-limited
 Core inspection is a budget stop. The next admitted batch resumes the retained
-state.
+state. For GitHub metadata reads, the reported budget detail distinguishes the
+individual response limit, total response bytes, request count, admission and
+available time. The continuation still uses the same budget rule.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
 The output reserves sixteen MiB separately for a complete inert recovery snapshot.
@@ -346,9 +348,9 @@ it excludes reports, locks, temporary files and executables. Production format 4
 streams source checkpoint JSON records through one Brotli compressor, preserving
 cross-file redundancy that nested source gzip/base64 cannot share. A fixed binary
 magic and closed header of at most 512 bytes bind record count, complete framed
-byte count and SHA-256. The format 4 ZIP is limited to sixteen MiB, with sixteen KiB reserved for ZIP
-framing. Formats 1, 2 and 3 remain readable within their original four-MiB ZIP
-limit. Record, expansion and recovery metadata bounds are unchanged.
+byte count and SHA-256. The format 4 ZIP is limited to sixteen MiB, with sixteen
+KiB reserved for ZIP framing. Formats 1, 2 and 3 remain readable within their
+original four-MiB ZIP and thirty-two-MiB decoded snapshot limits.
 
 Production snapshot collection projects every referenced GitHub source's legacy
 raw pages to the versioned fact representation before encoding. It validates
@@ -370,8 +372,8 @@ incomplete records and trailing compressed/decoded bytes refuse. Decompression
 uses backpressure and 64-KiB chunks, with one at-most-thirty-two-MiB record body.
 Each source passes ordinary complete checkpoint/configuration validation and is
 recompacted before retaining the next source. Exact reconstructed stored bytes,
-including scope metadata and paths, remain bounded to thirty-two MiB. The full
-logical transfer stream is never assembled in one buffer.
+including scope metadata and paths, are bounded to forty-eight MiB in format 4.
+The full logical transfer stream is never assembled in one buffer.
 
 The actual RFC7932 Brotli window header must request at most four MiB; nonstandard
 large-window mode is disabled. The one absolute collection deadline cancels both
@@ -380,8 +382,8 @@ six and a four-MiB window. Streaming codecs require a supported Node release
 containing the October 2026 decoder fix; the repository already pins Node24.22.2.
 No runtime pin, security credential or workflow permission is changed.
 
-The decoded **stored graph** remains bounded to thirty-two MiB. Large source
-checkpoints use lossless, tagged gzip/base64 storage wrappers inside that graph.
+Large source checkpoints use lossless, tagged gzip/base64 storage wrappers
+inside the decoded **stored graph**.
 Each wrapper has a closed schema, canonical encoding, declared decoded size and
 SHA-256; inflation cannot exceed the original thirty-two-MiB per-source reader
 limit. Nested wrappers and decoded non-source documents refuse. Normal complete
@@ -396,14 +398,20 @@ files, whose aggregate stored bytes remain within the graph bound. Runtime loads
 decode before continuation, progress-position and retired-cache ownership checks.
 Accepted provider facts and original page identities, clocks, Core cursors and
 configuration bindings remain unchanged. One absolute collection deadline covers
-codecs and graph validation. These codecs are lossless for the represented
-checkpoints; the explicit fact-page migration above removes unused raw metadata.
-Neither increases an existing physical input/output ceiling.
+codecs and graph validation. These codecs preserve the represented checkpoints losslessly. The explicit
+fact-page migration above removes unused raw metadata. Per-checkpoint and
+archive byte limits apply independently of the aggregate stored graph.
 
 Collection diagnostics distinguish actual input-file bytes, original logical JSON,
-projected fact JSON, stored JSON bytes, largest source and file count. Export logs separately report
-the complete stored graph, framed logical-transfer bytes and actual transferred bytes; controller size and
-compressed Actions-cache size alone cannot establish snapshot fit.
+projected fact JSON, stored value bytes, largest source and file count.
+`stored_graph_bytes` counts the serialized scope metadata, checkpoint names,
+values and JSON delimiters. Export logs also report framed logical-transfer
+bytes and actual transferred bytes.
+
+The hosted export covers collection, validation and encoding in one bounded
+step. It has up to 120 seconds from its start and ends within 120 seconds after
+the 40-minute observation opportunity. The workflow's 45-minute limit covers
+the full job, including retention and cleanup.
 
 If the lossless encoding cannot fit its reserve, export fails visibly and the
 original checkpoints and cache remain retained. The snapshot transfer has its

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "call-of-duty-3",
       "evidence_urls": ["https://github.com/alekszverr-jpg/cod3pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "call-of-duty-3-xbox-360",
+          "title": "Call of Duty 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/alekszverr-jpg/cod3pc/blob/fb932a6d4d63fa8aea257a3708c930961ad9c321/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

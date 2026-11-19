@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "kirby-air-ride",
       "evidence_urls": ["https://github.com/lunchbox-recomp/dragoon"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kirby-air-ride-nintendo-gamecube",
+          "title": "Kirby Air Ride (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/lunchbox-recomp/dragoon/blob/dc9156ce33aa847805b28258ac3ca1d7e5034c85/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

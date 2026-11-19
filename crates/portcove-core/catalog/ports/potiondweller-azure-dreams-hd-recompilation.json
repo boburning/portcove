@@ -54,7 +54,16 @@
         "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md",
         "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "azure-dreams-playstation",
+          "title": "Azure Dreams (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

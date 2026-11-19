@@ -61,7 +61,16 @@
         "https://github.com/swfans/syndwarsfx/tree/a757bb32451ede0d2849b3e2308acb9ac4a8deb4",
         "https://github.com/swfans/syndwarsfx"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "syndicate-wars-pc",
+          "title": "Syndicate Wars (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/swfans/syndwarsfx/blob/5c4b0d562bd3ab465ce3016a25c2932d290ea634/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

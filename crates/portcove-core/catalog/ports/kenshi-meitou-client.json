@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kenshi-meitou-client",
+    "name": "Kenshi / Meitou",
+    "original_game_title": "Kenshi",
+    "summary": "Use the Meitou Launcher with your own installed copy of Kenshi. The launcher installs game builds, keeps them up to date and manages mods.",
+    "project_url": "https://github.com/VlcekM/MeitouClient",
+    "issue_number": 6062,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/VlcekM/MeitouClient/releases/tag/launcher-v1.15.0",
+    "setup_url": "https://github.com/VlcekM/MeitouClient/blob/v0.22.2-nightly.20261118/README.md#download-and-requirements",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the package for your desktop",
+          "instruction": "Open the linked stable Meitou Launcher release. Extract the full Windows or Mac Launcher Portable ZIP, or make the MeitouLauncher Linux AppImage executable. Standard Mac builds require macOS 14 or later and the project documents the first-run Gatekeeper prompt. The release also links separate legacy packages for macOS 13."
+        },
+        {
+          "title": "Choose your Kenshi installation",
+          "instruction": "Open the launcher and let it find your existing Steam or GOG copy, or select its folder when prompted. Return to the launcher on later starts. The launcher updates itself and the game. In the game, Tab opens settings and F5 quicksaves and F9 loads the quicksave."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep the original saves and Meitou data",
+          "instruction": "Back up your original Kenshi saves and your Meitou profiles separately before changing versions or mods. Meitou's Windows quicksave is in %LOCALAPPDATA%/Meitou/save/quicksave. Keep the separate recorded Kenshi folder setting. The launcher packages are separate from the .nupkg updater payloads."
+        }
+      ],
+      "warnings": [
+        "The published launcher and game builds have separate version numbers. Portcove does not install game updates or back up either game's saved data."
+      ],
+      "help_url": "https://github.com/VlcekM/MeitouClient/releases/tag/launcher-v1.15.0"
+    },
+    "download_block_reason": "Use the linked Meitou Launcher release for the Windows, Linux or Mac launcher. The publisher also ships separate game builds and updater data."
+  }
+}

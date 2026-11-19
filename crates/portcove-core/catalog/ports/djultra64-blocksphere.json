@@ -40,7 +40,16 @@
         "https://github.com/djultra64/Blocksphere#readme",
         "https://github.com/djultra64/Blocksphere"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "tetrisphere-nintendo-64",
+          "title": "Tetrisphere (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/Blocksphere/blob/a9c44cc2a530a5ae3bb3efe9cab9eb2aafe6628f/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

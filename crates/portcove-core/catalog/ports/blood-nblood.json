@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "blood-nblood",
+    "name": "Blood (NBlood)",
+    "original_game_title": "Blood",
+    "summary": "Play Blood through NBlood using your own matching game files.",
+    "project_url": "https://github.com/NBlood/NBlood",
+    "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
+    "setup_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
+    "issue_number": 5731,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "platforms": ["windows-x86-64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["nblood_win64_", ".7z"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Extract the matching Windows player",
+          "instruction": "Choose the nblood_win64 archive. Extract the complete archive to a folder for this game and keep nblood.exe with its packaged files."
+        },
+        {
+          "title": "Add your game files to this copy",
+          "instruction": "Use your Blood 1.21 data, including BLOOD.INI, BLOOD.RFF, GUI.RFF, SOUNDS.RFF, SURFACE.DAT, the TILES000.ART through TILES017.ART files, and VOXEL.DAT. See the guide for optional Cryptic Passage and movie files. Keep the original copy separately."
+        },
+        {
+          "title": "Run setup and play again",
+          "instruction": "Use the extracted folder as the working directory and start nblood.exe with -usecwd. Complete the startup window if it opens. After saving a working configuration, try -nosetup for direct Play. Use -setup to reopen the startup settings."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
+      "references": [
+        {
+          "title": "Keep the game folder and its saves",
+          "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
+        },
+        {
+          "title": "Keep older Blood settings",
+          "instruction": "This release uses nblood_cvars.cfg. The upstream guide describes renaming an older settings.cfg to keep its settings."
+        },
+        {
+          "title": "Reuse an existing Steam or GOG copy",
+          "instruction": "The upstream player can find a supported Steam or GOG installation. To try this, start the player without -usecwd before copying originals. Keep the existing installation, and check where the player writes settings and saves on that route."
+        }
+      ]
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "blood-nblood",
+    "origin": {
+      "project_url": "https://github.com/NBlood/NBlood",
+      "repository": {
+        "host": "github.com",
+        "id": "170327194"
+      }
+    },
+    "decisions": []
+  }
+}

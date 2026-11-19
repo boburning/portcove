@@ -42,7 +42,16 @@
       "evidence_urls": [
         "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2-playstation",
+          "title": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp/blob/8435a83b3c4d8932d7d29704ddba885da93e9e9d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

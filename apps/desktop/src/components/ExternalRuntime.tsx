@@ -1510,6 +1510,17 @@ function ExistingRuntimeActions({
             {registered.path}
           </dd>
         </div>
+        {registered.setup_download && (
+          <div className="min-w-0">
+            <dt>Last recorded setup download</dt>
+            <dd dir="auto" className="path-value font-mono whitespace-normal">
+              {registered.setup_download.filename}
+            </dd>
+            <dd>
+              Release <bdi>{registered.setup_download.release_tag}</bdi>
+            </dd>
+          </div>
+        )}
       </dl>
       <p>
         It does not manage its files, settings or saves.

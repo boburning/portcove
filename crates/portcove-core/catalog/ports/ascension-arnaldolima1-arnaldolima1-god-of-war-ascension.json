@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "god-of-war-ascension",
       "evidence_urls": ["https://github.com/arnaldolima1/gow-ascension-pc"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-of-war-ascension-playstation-3",
+          "title": "God of War: Ascension (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/arnaldolima1/gow-ascension-pc/blob/9a4bffefb00124603d45e23cef91859847d94833/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

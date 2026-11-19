@@ -6,7 +6,7 @@
     "original_game_title": "KoroKoro Post nin",
     "summary": "Upstream compares startup, menus, audio and stage 1 with DuckStation. Stages 2–10, memory-card saving and the ending remain unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
     "manual_setup": {

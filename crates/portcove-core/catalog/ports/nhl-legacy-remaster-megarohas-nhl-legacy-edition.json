@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "nhl-legacy-edition",
       "evidence_urls": ["https://github.com/megarohas/nhl-legacy-remaster"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "nhl-legacy-edition-xbox-360",
+          "title": "NHL Legacy Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/nhl-legacy-remaster-megarohas-nhl-legacy-edition.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

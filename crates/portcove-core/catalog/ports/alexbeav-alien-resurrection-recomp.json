@@ -60,7 +60,16 @@
         "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "alien-resurrection-playstation",
+          "title": "Alien Resurrection (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/38ac885663ca130ae39e05eb5fe2d6ad3ba4e68c/game.toml"
+          ]
+        }
+      ]
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

@@ -68,7 +68,16 @@
         "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases",
         "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "vib-ribbon-playstation",
+          "title": "Vib-Ribbon (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

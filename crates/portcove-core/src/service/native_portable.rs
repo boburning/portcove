@@ -183,6 +183,8 @@ impl PortcoveService {
             || retained.executable_hints.get(&platform) != to.executable_hints.get(&platform)
             || retained.launch_arguments != to.launch_arguments
             || retained.launch_environment != to.launch_environment
+            || (platform == Platform::LinuxX86_64
+                && retained.linux_packaged_library != to.linux_packaged_library)
             || retained.user_data_environment != to.user_data_environment
             || retained.source_profile != to.source_profile
             || retained.runtime_source_set != to.runtime_source_set
@@ -2519,6 +2521,7 @@ mod tests {
         fs::write(root.join("game.exe"), b"untouched external executable").unwrap();
         fs::write(root.join("save.dat"), b"external player progress").unwrap();
         let record = ExternalRuntimeRecord {
+            setup_download: None,
             user_selected: Some(crate::UserSelectedLaunch {
                 arguments: Vec::new(),
             }),
