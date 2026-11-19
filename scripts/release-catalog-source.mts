@@ -19,6 +19,37 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 export const catalogPublicationSourcePrefix = "release/catalog-publication/";
 const repository = "repos/boburning/portcove";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+export function parseCatalogPublicationRequest(requestBytes: Buffer) {
+  if (requestBytes.length > 16384) throw new Error("catalog authoring request exceeds bound");
+  const requestText = requestBytes.toString("utf8");
+  if (!Buffer.from(requestText, "utf8").equals(requestBytes))
+    throw new Error("catalog authoring request is not lossless UTF-8");
+  const request: unknown = JSON.parse(requestText);
+  if (
+    !isRecord(request) ||
+    Object.keys(request).sort().join(",") !== "compatibility,kind,schema_version" ||
+    request.schema_version !== 1 ||
+    request.kind !== "catalog-publication" ||
+    !isRecord(request.compatibility) ||
+    Object.keys(request.compatibility).sort().join(",") !== "contract,notes" ||
+    !["official-definition-policy-launch-v1", "official-catalog-listings-v2"].includes(
+      String(request.compatibility.contract),
+    ) ||
+    typeof request.compatibility.notes !== "string" ||
+    !request.compatibility.notes.trim() ||
+    Buffer.byteLength(request.compatibility.notes) > 8192
+  )
+    throw new Error("catalog authoring request schema differs");
+  return {
+    compatibility: {
+      contract: request.compatibility.contract as
+        | "official-definition-policy-launch-v1"
+        | "official-catalog-listings-v2",
+      notes: request.compatibility.notes,
+    },
+  };
+}
+
 function check(deadline: number) {
   if (!Number.isFinite(deadline) || performance.now() >= deadline)
     throw new Error("catalog source original deadline exhausted");
@@ -135,26 +166,7 @@ function* catalogPublicationSourceReads(sourceCommit: string, deadline: number) 
     return bytes;
   };
   const requestBytes = yield* read(requestEntry);
-  if (requestBytes.length > 16384) throw new Error("catalog authoring request exceeds bound");
-  const requestText = requestBytes.toString("utf8");
-  if (!Buffer.from(requestText, "utf8").equals(requestBytes))
-    throw new Error("catalog authoring request is not lossless UTF-8");
-  const request: unknown = JSON.parse(requestText);
-  if (
-    !isRecord(request) ||
-    Object.keys(request).sort().join(",") !== "compatibility,kind,schema_version" ||
-    request.schema_version !== 1 ||
-    request.kind !== "catalog-publication" ||
-    !isRecord(request.compatibility) ||
-    Object.keys(request.compatibility).sort().join(",") !== "contract,notes" ||
-    !["official-definition-policy-launch-v1", "official-catalog-listings-v2"].includes(
-      String(request.compatibility.contract),
-    ) ||
-    typeof request.compatibility.notes !== "string" ||
-    !request.compatibility.notes.trim() ||
-    Buffer.byteLength(request.compatibility.notes) > 8192
-  )
-    throw new Error("catalog authoring request schema differs");
+  const request = parseCatalogPublicationRequest(requestBytes);
   const files = new Map<string, Buffer>();
   const bundlePrefix = `${catalogPublicationSourcePrefix}bundle/`;
   const directories = new Set([
@@ -182,14 +194,7 @@ function* catalogPublicationSourceReads(sourceCommit: string, deadline: number) 
   check(deadline);
   return {
     source: { commit: sourceCommit, tree: commit.tree },
-    request: {
-      compatibility: {
-        contract: request.compatibility.contract as
-          | "official-definition-policy-launch-v1"
-          | "official-catalog-listings-v2",
-        notes: request.compatibility.notes,
-      },
-    },
+    request,
     request_sha256: hash(requestBytes),
     bundle_sha256: digest(catalogPublicationInventory(files)),
     files,
