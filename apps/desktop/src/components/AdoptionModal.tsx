@@ -278,7 +278,8 @@ function AdoptionActions({
   adopt: () => void;
 }) {
   const { t } = useAppTranslation("installation");
-  const pendingLabel = refreshing ? t("workspace:refreshing") : t("adoption.copying");
+  const { t: tWorkspace } = useAppTranslation("workspace");
+  const pendingLabel = refreshing ? tWorkspace("refreshing") : t("adoption.copying");
   return (
     <>
       <p role="status" className="sr-only">
