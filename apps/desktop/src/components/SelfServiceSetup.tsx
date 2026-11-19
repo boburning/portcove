@@ -1,7 +1,7 @@
 import { readablePendingRecord } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
-import { useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
@@ -47,6 +47,14 @@ export function SelfServiceSetup({
     entry.listing &&
     upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
   const pending = entry.pendingSetup;
+  const pendingId = pending?.id;
+  const openGuide = useCallback(
+    (url: string) =>
+      pendingId
+        ? desktopApi.openPendingSetupResource(entry.id, pendingId, url, generation)
+        : desktopApi.openExternalUrl(url),
+    [entry.id, generation, pendingId],
+  );
   const setupListing = pending
     ? readablePendingRecord(pending)
       ? pending.listing
@@ -120,6 +128,7 @@ export function SelfServiceSetup({
           <AuthoredPreparationGuidance
             port={entry}
             setup={{ manual_setup: setupListing.manual_setup }}
+            openGuide={openGuide}
           />
         </div>
       )}
@@ -169,7 +178,9 @@ export function SelfServiceSetup({
           </Button>
         ) : null}
         {!registered && setupListing?.setup_url && (
-          <ExternalLink href={setupListing.setup_url}>{t("selfService.setupGuide")}</ExternalLink>
+          <ExternalLink href={setupListing.setup_url} openUrl={openGuide}>
+            {t("selfService.setupGuide")}
+          </ExternalLink>
         )}
       </ActionRow>
       {pending && (

@@ -64,6 +64,17 @@ impl CatalogDownloadRepository {
             Self::Github(name) | Self::Gitlab(name) => name,
         }
     }
+
+    pub(super) fn release_notes_url(&self, tag: &str) -> Option<String> {
+        if tag.is_empty() || tag.len() > 512 || tag.chars().any(char::is_control) {
+            return None;
+        }
+        let url = match self {
+            Self::Github(repository) => format!("https://github.com/{repository}/releases/tag"),
+            Self::Gitlab(repository) => format!("https://gitlab.com/{repository}/-/releases"),
+        };
+        crate::release_notes::web_url(&url, &[tag])
+    }
 }
 
 #[derive(Clone)]

@@ -3381,6 +3381,11 @@ index derived from an accepted project or release repository identity, including
 retained and pending listing projections. Comparison is exact: extra queries,
 fragments, download paths and foreign repositories need their own reviewed URL.
 This navigation rule grants no package acquisition, registration or launch action.
+Desktop hands off selected download notes after Core resolves the same release
+and asset IDs and confirms the displayed release URL. Resuming a saved setup
+uses the matching download record for its release notes and retained setup
+links, even when the current directory describes a different package. Those
+retained links require the saved setup identity.
 
 Optional authoring-only `route_facts_v1` supplies a bounded Windows prepared
 player basename, executable-parent working folder, literal argument vector and

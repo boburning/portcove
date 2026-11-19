@@ -842,6 +842,22 @@ export const desktopApi = {
     invoke<void>("forget_pending_setup", { portId, pendingId, generation }),
   openPendingSetupFolder: (portId: string, pendingId: string, generation: number) =>
     invoke<void>("open_pending_setup_folder", { portId, pendingId, generation }),
+  openPendingSetupResource: (portId: string, pendingId: string, url: string, generation: number) =>
+    invoke<void>("open_pending_setup_resource", { portId, pendingId, url, generation }),
+  openCatalogDownloadReleaseNotes: (
+    portId: string,
+    releaseId: CatalogDownloadRequest["release_id"],
+    assetId: CatalogDownloadRequest["asset_id"],
+    url: string,
+    generation: number,
+  ) =>
+    invoke<void>("open_catalog_download_release_notes", {
+      portId,
+      releaseId,
+      assetId,
+      url,
+      generation,
+    }),
   discoverOrphanedOperations: (generation: number) =>
     invoke<void>("discover_orphaned_operations", { generation }),
   planPreparation: (portId: string, generation: number) =>

@@ -809,6 +809,74 @@ impl PortcoveService {
         self.catalog_download_preview_inner(request, None).await
     }
 
+    /// Recheck the exact offered package before handing its notes to the browser.
+    pub async fn catalog_download_release_notes(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+    ) -> Result<String> {
+        self.catalog_download_release_notes_inner(
+            port_id,
+            release_id,
+            asset_id,
+            displayed_url,
+            None,
+        )
+        .await
+    }
+
+    async fn catalog_download_release_notes_inner(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<String> {
+        let listing = self.catalog.listing(port_id)?;
+        listing.validate()?;
+        self.require_download_available(port_id)?;
+        let artifact = self
+            .catalog_download_asset(listing, release_id, asset_id, provider)
+            .await?;
+        if artifact.release_url != displayed_url {
+            return Err(PortcoveError::conflict(
+                "The selected release page changed. Check downloads again.",
+            ));
+        }
+        Ok(artifact.release_url)
+    }
+
+    async fn catalog_download_asset(
+        &self,
+        listing: &PortListing,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<CatalogDownloadCandidate> {
+        let repository = CatalogDownloadRepository::parse(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )?;
+        let default_provider;
+        let provider = match provider {
+            Some(provider) => provider,
+            None => {
+                default_provider =
+                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
+                &default_provider
+            }
+        };
+        provider.require_repository(&repository)?;
+        provider
+            .candidate(repository.name(), release_id, asset_id)
+            .await
+    }
+
     #[cfg(test)]
     async fn catalog_download_preview_with_provider(
         &self,
@@ -831,24 +899,8 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let repository = CatalogDownloadRepository::parse(
-            listing
-                .release_url
-                .as_deref()
-                .unwrap_or(&listing.project_url),
-        )?;
-        let default_provider;
-        let provider = match provider {
-            Some(provider) => provider,
-            None => {
-                default_provider =
-                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
-                &default_provider
-            }
-        };
-        provider.require_repository(&repository)?;
-        let artifact = provider
-            .candidate(repository.name(), &request.release_id, &request.asset_id)
+        let artifact = self
+            .catalog_download_asset(listing, &request.release_id, &request.asset_id, provider)
             .await?;
         if request.extract_archive && !artifact.can_extract {
             return Err(PortcoveError::unsupported(
@@ -1484,5 +1536,53 @@ impl PortcoveService {
             ));
         }
         Ok(stored.record.path)
+    }
+
+    /// Read-only browser handoff from the exact saved setup and its retained guide.
+    pub fn pending_setup_resource(
+        &self,
+        port_id: &str,
+        pending_id: &str,
+        url: &str,
+    ) -> Result<String> {
+        let (record, _) = self
+            .pending_setup_registration(port_id)?
+            .filter(|(record, _)| record.id == pending_id)
+            .ok_or_else(|| PortcoveError::conflict("pending setup changed or no longer exists"))?;
+        let listing = &record.listing;
+        let retains_guide = [
+            listing.setup_url.as_deref(),
+            listing
+                .manual_setup
+                .as_ref()
+                .and_then(|guide| guide.help_url.as_deref()),
+        ]
+        .contains(&Some(url));
+        let retains_release = url == record.artifact.release_url
+            && CatalogDownloadRepository::parse(
+                listing
+                    .release_url
+                    .as_deref()
+                    .unwrap_or(&listing.project_url),
+            )
+            .ok()
+            .and_then(|repository| repository.release_notes_url(&record.artifact.release_tag))
+            .is_some_and(|expected| expected == url);
+        if url.len() <= 4096
+            && url.trim() == url
+            && !url.chars().any(char::is_control)
+            && (retains_guide || retains_release)
+            && reqwest::Url::parse(url).is_ok_and(|parsed| {
+                parsed.scheme() == "https"
+                    && parsed.host_str().is_some()
+                    && parsed.username().is_empty()
+                    && parsed.password().is_none()
+            })
+        {
+            return Ok(url.to_owned());
+        }
+        Err(PortcoveError::usage(
+            "This link does not belong to the saved setup.",
+        ))
     }
 }

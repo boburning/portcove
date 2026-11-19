@@ -171,6 +171,8 @@ beforeEach(async () => {
   );
   vi.spyOn(desktopApi, "registerUserSelectedRuntime").mockResolvedValue(null);
   vi.spyOn(desktopApi, "openPendingSetupFolder").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openPendingSetupResource").mockResolvedValue(undefined);
+  vi.spyOn(desktopApi, "openCatalogDownloadReleaseNotes").mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "forgetPendingSetup").mockResolvedValue(undefined);
   root = await render(
     <CatalogDownloadControl entry={entry} generation={9} busy={false} perform={perform} />,
@@ -350,6 +352,14 @@ it("retains a deliberate older release and package across refresh", async () => 
   await expect
     .element(page.getByRole("link", { name: "Release notes for v1.1" }))
     .toHaveAttribute("href", older.release_url);
+  await page.getByRole("link", { name: "Release notes for v1.1" }).click();
+  expect(desktopApi.openCatalogDownloadReleaseNotes).toHaveBeenCalledExactlyOnceWith(
+    listing.id,
+    older.release_id,
+    older.asset_id,
+    older.release_url,
+    9,
+  );
   expect(document.querySelector(`a[href="${artifact.release_url}"]`)).toBeNull();
   await click("Review download");
   expect(desktopApi.previewCatalogDownload).toHaveBeenCalledExactlyOnceWith(
@@ -1012,6 +1022,7 @@ it("uses the downloaded package’s release and retained setup guide when the di
     manual_setup: {
       steps: [{ title: "Prepare the archive", instruction: "Use the companion data folder." }],
       warnings: [],
+      help_url: `${listing.project_url}/blob/v1.2/guide.md`,
     },
   };
   const current = {
@@ -1046,6 +1057,30 @@ it("uses the downloaded package’s release and retained setup guide when the di
   expect(document.body.textContent).not.toContain("Follow the new setup wizard.");
   expect(document.querySelector(`a[href="${retained.setup_url}"]`)).toBeTruthy();
   expect(document.querySelector(`a[href="${current.setup_url}"]`)).toBeNull();
+  await page.getByRole("link", { name: "Release notes for v1.2" }).click();
+  await page.getByRole("link", { name: "Detailed preparation guide" }).click();
+  await page.getByRole("link", { name: "Setup guide on the project’s website" }).click();
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    1,
+    listing.id,
+    saved.id,
+    artifact.release_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    2,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    3,
+    listing.id,
+    saved.id,
+    retained.setup_url,
+    9,
+  );
   expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
 });
 

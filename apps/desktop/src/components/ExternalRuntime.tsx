@@ -84,6 +84,7 @@ export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
   setup,
+  openGuide,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
@@ -91,6 +92,7 @@ export function AuthoredPreparationGuidance({
     | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
     | null
     | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 }) {
   const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
   const note =
@@ -128,7 +130,9 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
           {guide.help_url && (
-            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+            <ExternalLink href={guide.help_url} {...(openGuide ? { openUrl: openGuide } : {})}>
+              Detailed preparation guide
+            </ExternalLink>
           )}
           {note && !externalManaged && (
             <details className="text-xs">
