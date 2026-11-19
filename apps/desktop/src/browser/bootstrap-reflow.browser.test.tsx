@@ -1,10 +1,12 @@
 import { afterEach, expect, it } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
-import App from "../App";
+import { captureParityState } from "../../test/parity-capture";
+import App, { BootstrapRecovery } from "../App";
 import { desktopApi } from "../api";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { initializeLocalization, LocalizationProvider } from "../localization";
+import { failureReport } from "../test-fixtures";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -63,3 +65,40 @@ it.each([
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
   },
 );
+
+it("announces the generic startup uncertainty once and keeps recovery actions available", async () => {
+  await page.viewport(1028, 750);
+  initializeLocalization(["en"]);
+  const error = failureReport();
+  error.code = "state";
+  error.presentation.presentation_key = "state_unavailable";
+  error.presentation.mutation_state = "unknown";
+  error.presentation.summary = "The current operation state could not be confirmed.";
+  error.presentation.technical_message =
+    "Cannot create a file when that file already exists. (os error 183)";
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  await render(
+    <BootstrapRecovery
+      error={error}
+      switchLibrary={async () => {}}
+      resetLibrary={async () => {}}
+    />,
+    { container: root },
+  );
+
+  const warning = "Portcove couldn't confirm whether anything changed.";
+  await expect.element(page.getByRole("alert")).toHaveTextContent(warning);
+  await expect.element(page.getByText(warning)).toBeVisible();
+  await expect.element(page.getByText(error.presentation.summary)).not.toBeInTheDocument();
+  for (const name of ["Retry startup", "Choose library", "Use platform default"]) {
+    await expect.element(page.getByRole("button", { name, exact: true })).toBeEnabled();
+  }
+  await captureParityState("startup-recovery-unknown-outcome");
+
+  const details = page.getByText("View technical details", { exact: true });
+  await details.click();
+  await expect.element(page.getByText(error.presentation.technical_message)).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Copy technical details" })).toBeEnabled();
+});
