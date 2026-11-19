@@ -282,7 +282,46 @@ function checkPlayerGuideCopy(
     checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
 }
 
-function projectGbaArchive(record: AuthoredPort): AuthoredPort {
+class GbaLayoutMismatch extends Error {}
+
+/** Prefer the family recipe only when its expansion preserves the exact integration. */
+export function compactGbaArchive(record: AuthoredPort): AuthoredPort {
+  const { integration } = record;
+  if (
+    record.gba_staged_archive_v1 !== undefined ||
+    integration?.adapter !== "staged-source-portable"
+  )
+    return record;
+  const paths = integration.runtime_mutable_paths;
+  if (!Array.isArray(paths)) return record;
+  const codes = paths.flatMap((path) => {
+    const match =
+      typeof path === "string" ? /^recomp_coverage_([A-Z0-9]{4})\.json$/u.exec(path) : null;
+    return match?.[1] ? [match[1]] : [];
+  });
+  if (codes.length !== 1 || !codes[0]) return record;
+
+  const facts = { ...integration };
+  for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
+    delete facts[field];
+  const candidate = {
+    ...record,
+    integration: facts,
+    gba_staged_archive_v1: {
+      game_code: codes[0],
+      versioned_mods: integration.mod_package_policy === "versioned-packages-v1",
+    },
+  };
+  try {
+    if (JSON.stringify(projectGbaArchive(candidate).integration) === JSON.stringify(integration))
+      return candidate;
+  } catch (error) {
+    if (!(error instanceof GbaLayoutMismatch)) throw error;
+  }
+  return record;
+}
+
+export function projectGbaArchive(record: AuthoredPort): AuthoredPort {
   const facts = record.gba_staged_archive_v1;
   if (facts === undefined) return record;
   const integration = record.integration;
@@ -303,12 +342,12 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    throw new Error(
+    throw new GbaLayoutMismatch(
       "GBA archive facts require a reviewed Windows staged GitHub archive with an upstream picker.",
     );
   for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
     if (Object.hasOwn(integration, field))
-      throw new Error(
+      throw new GbaLayoutMismatch(
         `GBA archive facts already own ${field}; use an explicit integration for a different layout.`,
       );
 

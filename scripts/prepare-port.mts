@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import {
   assembleCatalogRecords,
+  compactGbaArchive,
   listingDownloadAssetHints,
   checkedAuthoredPort,
   readCatalogSource,
@@ -936,7 +937,7 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
-    const compact = compactPsxManagedWindows(record);
+    const compact = compactGbaArchive(compactPsxManagedWindows(record));
     if (compact !== record) record = checkedAuthoredPort(compact);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
