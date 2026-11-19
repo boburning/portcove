@@ -181,6 +181,8 @@ authority and effects.
 | **Start setup**                        | Launch is permitted and the game opens into its own first-run setup.                                                                                                              |
 | **Check again** / **Refresh** + object | A failed, unknown or stale read can be refreshed; it reads state and repeats no mutation. Name the object when it is not obvious (“Refresh backup history”, “Check setup again”). |
 | **Repair / Import / Open installer**   | That is the actual operation.                                                                                                                                                     |
+| **Favorite**                           | The player marks a game to return to. Use the same label in Discover, Library and details, and show whether the choice is on.                                                     |
+| **Update notices**                     | The player chooses whether to see new download notices for one port. Show “Update notices on” or “Update notices off” and explain that the choice only shows a notice.            |
 
 Player-facing setup states use these names; internal distinctions stay in
 details. **Setup needed** pairs with **Finish setup**. **Can't check right now**
