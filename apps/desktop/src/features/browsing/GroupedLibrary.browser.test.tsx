@@ -63,6 +63,8 @@ const empty: LibraryOrganization = {
 };
 
 it("shows scoped launch stages beside the matching port in Discover", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.dataset.theme = "dark";
   const notice: PortCapabilityReport["advisories"][number]["notice"] = {
     id: "upstream-setup-fixture",
     feature: "launch",
@@ -126,12 +128,33 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   );
   await page.getByRole("button", { name: "Compare ports", exact: true }).click();
   const project = page.getByRole("article", { name: /First project/ });
-  await expect.element(project.getByText("Asks for game files")).toBeVisible();
+  const firstLaunch = project.getByText("Asks for game files", { exact: true });
+  const captureLaunchNotice = async (state: string) => {
+    const noticeBlock = fixtureValue(
+      firstLaunch.element().closest("dl")?.parentElement,
+      "comparison launch notice",
+    );
+    noticeBlock.scrollIntoView({ block: "center", behavior: "instant" });
+    await expect
+      .poll(() => {
+        const bounds = noticeBlock.getBoundingClientRect();
+        return (
+          bounds.top >= 0 &&
+          bounds.bottom <= innerHeight &&
+          bounds.left >= 0 &&
+          bounds.right <= innerWidth
+        );
+      })
+      .toBe(true);
+    await captureParityState(`comparison-launch-notice-${state}`);
+  };
+  await expect.element(firstLaunch).toBeVisible();
   await expect.element(project.getByText("Starts the game directly")).toBeVisible();
   await expect.element(project.getByText("Reported by the project")).toBeVisible();
   await expect.element(project.getByText("Exact context required")).toBeVisible();
   await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
   expect(document.body.textContent).not.toContain("Different platform");
+  await captureLaunchNotice("current-platform");
 
   await page.getByText("Comparison settings", { exact: true }).click();
   await page.getByRole("combobox", { name: /Game edition/ }).click();
@@ -148,6 +171,9 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await expect.element(project.getByText(/Scope: linux-x86-64/)).toBeVisible();
   expect(document.body.textContent).not.toContain(notice.explanation);
   expect(read).not.toHaveBeenCalled();
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
+  await captureLaunchNotice("explicit-platform");
 });
 
 it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {
