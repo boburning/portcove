@@ -1058,8 +1058,16 @@ it("uses the downloaded package’s release and retained setup guide when the di
   expect(document.querySelector(`a[href="${retained.setup_url}"]`)).toBeTruthy();
   expect(document.querySelector(`a[href="${current.setup_url}"]`)).toBeNull();
   await page.getByRole("link", { name: "Release notes for v1.2" }).click();
-  await page.getByRole("link", { name: "Detailed preparation guide" }).click();
+  await page
+    .getByRole("region", { name: "Upstream setup instructions" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
+  await page
+    .getByRole("region", { name: "Your existing installation" })
+    .getByRole("link", { name: "Detailed preparation guide" })
+    .click();
   await page.getByRole("link", { name: "Setup guide on the project’s website" }).click();
+  expect(desktopApi.openPendingSetupResource).toHaveBeenCalledTimes(4);
   expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
     1,
     listing.id,
@@ -1076,6 +1084,13 @@ it("uses the downloaded package’s release and retained setup guide when the di
   );
   expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
     3,
+    listing.id,
+    saved.id,
+    retained.manual_setup.help_url,
+    9,
+  );
+  expect(desktopApi.openPendingSetupResource).toHaveBeenNthCalledWith(
+    4,
     listing.id,
     saved.id,
     retained.setup_url,

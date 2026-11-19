@@ -122,7 +122,7 @@ export function SelfServiceSetup({
       aria-label={t("selfService.label")}
     >
       {!registered && setupListing?.manual_setup && (
-        <div className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
+        <section className="grid gap-3" aria-label={t("selfService.upstreamLabel")}>
           <h3>{t("selfService.upstreamHeading")}</h3>
           {/* External ownership is the guidance default for this non-owning route. */}
           <AuthoredPreparationGuidance
@@ -130,7 +130,7 @@ export function SelfServiceSetup({
             setup={{ manual_setup: setupListing.manual_setup }}
             openGuide={openGuide}
           />
-        </div>
+        </section>
       )}
       {pending && (
         <Notice intent={needsRecovery ? "warning" : "info"}>
@@ -242,6 +242,7 @@ export function SelfServiceSetup({
             initialDirectory={pending?.state === "downloaded" ? pending.path : undefined}
             busy={busy}
             onChanged={onChanged}
+            openGuide={openGuide}
           />
         </div>
       )}
