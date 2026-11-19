@@ -179,7 +179,14 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each game's original editions, package selection, lifecycle qualification and launch facts explicit. Keep a different writer layout explicit.",
     });
   }
-  if (record.psx_managed_windows_v1) {
+  if (record.psx_managed_windows_v1 === "technically-computers") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
+      next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
+    });
+  } else if (record.psx_managed_windows_v1) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",

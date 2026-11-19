@@ -100,6 +100,103 @@ function isAssetSelector(value: unknown): value is string[] {
   );
 }
 
+const technicallyComputersPaths = [
+  "saves",
+  "config",
+  "mods",
+  "settings.toml",
+  "game_options.json",
+  "graphics.json",
+  "input.json",
+  "sound.json",
+];
+const technicallyComputersAssets = {
+  "windows-x86-64": "windows-x64",
+  "macos-x86-64": "macos-x64",
+  "macos-aarch64": "macos-arm64",
+} as const;
+const technicallyComputersPlatforms = Object.entries(technicallyComputersAssets);
+
+function technicallyComputersRoute(record: AuthoredPort) {
+  const { integration } = record;
+  const release = integration?.release;
+  const platforms = integration?.platforms;
+  if (
+    integration?.adapter !== "psx-recomp-managed" ||
+    !Array.isArray(platforms) ||
+    platforms.length !== technicallyComputersPlatforms.length ||
+    !isRecord(release) ||
+    (release.provider !== undefined && release.provider !== "github") ||
+    Object.keys(release).some(
+      (field) => !["provider", "repository", "asset_hints"].includes(field),
+    ) ||
+    typeof release.repository !== "string" ||
+    !/^TechnicallyComputers\/[A-Za-z0-9_.-]+$/u.test(release.repository) ||
+    record.listing.project_url !== `https://github.com/${release.repository}` ||
+    typeof integration.source_profile !== "string" ||
+    !integration.source_profile ||
+    !isRecord(integration.presentation) ||
+    record.route_facts_v1 !== undefined ||
+    record.settings_qualification_v1 !== undefined ||
+    record.settings_observation_v1 !== undefined
+  )
+    return undefined;
+  const assetHints = release.asset_hints;
+  const executableHints = integration.executable_hints;
+  if (
+    !isRecord(assetHints) ||
+    !isRecord(executableHints) ||
+    technicallyComputersPlatforms.some(([platform, hint], i) => {
+      const selectors = assetHints[platform];
+      return (
+        platforms[i] !== platform ||
+        !isAssetSelector(selectors) ||
+        selectors.length !== 1 ||
+        selectors[0] !== hint ||
+        !isAssetSelector(executableHints[platform])
+      );
+    })
+  )
+    return undefined;
+  if (
+    ["bios_source_profile", ...multidiscFields].some((field) =>
+      Object.hasOwn(integration, field),
+    ) ||
+    Object.keys(integration).some(
+      (field) =>
+        field !== "persistent_paths" &&
+        field !== "runtime_subdirectory" &&
+        !explicitFields.has(field),
+    )
+  )
+    return undefined;
+  return integration;
+}
+
+function projectTechnicallyComputers(record: AuthoredPort): AuthoredPort {
+  const explicit = technicallyComputersRoute(record);
+  if (!explicit)
+    throw new PsxLayoutMismatch(
+      "TechnicallyComputers PSX persistence requires its reviewed Windows and macOS kit route.",
+    );
+  if (
+    Object.hasOwn(explicit, "persistent_paths") ||
+    Object.hasOwn(explicit, "runtime_subdirectory")
+  )
+    throw new PsxLayoutMismatch(
+      "TechnicallyComputers PSX persistence already owns the runtime root and persistent paths.",
+    );
+  const integration: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(explicit)) {
+    if (field === "presentation") {
+      integration.persistent_paths = [...technicallyComputersPaths];
+      integration.runtime_subdirectory = runtimeLayout.runtime_subdirectory;
+    }
+    integration[field] = value;
+  }
+  return { ...record, integration };
+}
+
 class PsxLayoutMismatch extends Error {}
 
 /** Prefer a shared layout only when it reproduces the exact authored integration. */
@@ -107,6 +204,19 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const { integration } = record;
   if (record.psx_managed_windows_v1 !== undefined || integration?.adapter !== "psx-recomp-managed")
     return record;
+  if (technicallyComputersRoute(record)) {
+    const { persistent_paths: _paths, runtime_subdirectory: _root, ...explicit } = integration;
+    const proposal: AuthoredPort = {
+      ...record,
+      psx_managed_windows_v1: "technically-computers",
+      integration: explicit,
+    };
+    if (
+      JSON.stringify(projectTechnicallyComputers(proposal).integration) ===
+      JSON.stringify(integration)
+    )
+      return proposal;
+  }
   const layoutFields = Object.keys(runtimeLayout);
   if (layoutFields.some((field) => !Object.hasOwn(integration, field))) return record;
   const explicitIntegration = JSON.stringify(integration);
@@ -134,6 +244,7 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
+  if (layout === "technically-computers") return projectTechnicallyComputers(record);
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
   const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
   const splitMods =
