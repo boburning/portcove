@@ -3240,3 +3240,6 @@ async fn windows_archive_selection_advances_from_shared_release_inventories() {
         "unmatched other ZIPs: {other_zips:?}"
     );
 }
+
+#[path = "historical_selector_replay.rs"]
+mod historical_selector_replay;
