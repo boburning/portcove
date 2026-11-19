@@ -756,6 +756,13 @@ pub struct AcceptedUploader {
 }
 
 impl ReleaseSpec {
+    pub(crate) fn github_stream_exclusions(&self, platform: Platform) -> &[String] {
+        self.github_other_stream_tag_prefixes
+            .get(&platform)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
     pub(crate) fn validate_github_streams(&self, platforms: &[Platform]) -> crate::Result<()> {
         for (platform, prefixes) in &self.github_other_stream_tag_prefixes {
             let mut seen = std::collections::BTreeSet::new();

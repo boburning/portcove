@@ -1178,7 +1178,7 @@ async fn observed_openciv3_preview_uses_shared_classification_despite_the_provid
         let (candidates, coverage, summaries, selected) =
             GithubReleaseProvider::with_api_root(root)
                 .unwrap()
-                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None)
+                .catalog_download_options("C7-Game/OpenCiv3", None, channel, None, &[])
                 .await
                 .unwrap();
         assert_eq!(selected, expected["id"].as_u64());

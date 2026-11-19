@@ -233,12 +233,7 @@ impl ReleaseSelectionCacheKey {
                 .get(&platform)
                 .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
                 .unwrap_or_default(),
-            other_stream_tag_prefixes: port
-                .release
-                .github_other_stream_tag_prefixes
-                .get(&platform)
-                .cloned()
-                .unwrap_or_default(),
+            other_stream_tag_prefixes: port.release.github_stream_exclusions(platform).to_vec(),
             accepted_uploaders: {
                 let mut ids = port
                     .release
@@ -1963,12 +1958,14 @@ fn preserved_resolution(
     })
 }
 
+fn tag_in_stream(tag: &str, other_stream_prefixes: &[String]) -> bool {
+    !other_stream_prefixes
+        .iter()
+        .any(|prefix| tag.starts_with(prefix))
+}
+
 fn github_tag_in_stream(port: &PortDefinition, platform: Platform, tag: &str) -> bool {
-    !port
-        .release
-        .github_other_stream_tag_prefixes
-        .get(&platform)
-        .is_some_and(|prefixes| prefixes.iter().any(|prefix| tag.starts_with(prefix)))
+    tag_in_stream(tag, port.release.github_stream_exclusions(platform))
 }
 
 fn native_release_applies_to_platform(

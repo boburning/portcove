@@ -875,6 +875,73 @@ fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() 
 }
 
 #[test]
+fn managed_desktop_streams_skip_real_add_on_and_foreign_release_headers() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    let dude = [
+        "doom-3-classic-dude-doom-3-unified-development-engine",
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+    ];
+    let wario = ["mstan-wariowaretwistedrecomp"];
+    let cases = [
+        (
+            &dude[..],
+            Platform::WindowsX86_64,
+            ReleaseChannel::Stable,
+            &[
+                (446416764, "baked-pbr-v1"),
+                (435773723, "baked-ao-v1"),
+                (443250877, "v0.9.9"),
+            ][..],
+            443250877,
+        ),
+        (
+            &dude[..],
+            Platform::LinuxX86_64,
+            ReleaseChannel::Stable,
+            &[
+                (446416764, "baked-pbr-v1"),
+                (435773723, "baked-ao-v1"),
+                (443250877, "v0.9.9"),
+            ][..],
+            443250877,
+        ),
+        (
+            &wario[..],
+            Platform::WindowsX86_64,
+            ReleaseChannel::Beta,
+            &[
+                (445709228, "android-v0.0.6-rc.1"),
+                (445873873, "linux-v0.0.6-rc.1"),
+                (416692479, "v0.0.2"),
+            ][..],
+            416692479,
+        ),
+    ];
+    for (ids, platform, channel, headers, expected) in cases {
+        let releases: Vec<super::super::GithubRelease> = serde_json::from_value(Value::Array(headers.iter().map(|(id, tag)| json!({
+            "id": id, "tag_name":tag, "draft":false, "prerelease":channel == ReleaseChannel::Beta, "assets":[]
+        })).collect::<Vec<_>>()))?;
+        for id in ids {
+            let port = catalog.port(id)?;
+            let selected = select_channel_candidate(
+                &releases,
+                channel,
+                None,
+                |release| super::super::native_release_applies_to_platform(port, platform, release),
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            );
+            assert_eq!(
+                selected.and_then(|release| release.id),
+                Some(expected),
+                "{id}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn reviewed_other_stream_skips_headers_but_an_unrelated_pending_tag_still_holds() -> Result<()> {
     let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     let platform = Platform::WindowsX86_64;

@@ -90,8 +90,8 @@
       "provider": "github",
       "repository": "Inkub0/dude",
       "github_other_stream_tag_prefixes": {
-        "windows-x86-64": ["baked-pbr-"],
-        "linux-x86-64": ["baked-pbr-"]
+        "windows-x86-64": ["baked-ao-", "baked-pbr-"],
+        "linux-x86-64": ["baked-ao-", "baked-pbr-"]
       },
       "asset_hints": {
         "windows-x86-64": ["dude-0.9.", "-win64.zip"],

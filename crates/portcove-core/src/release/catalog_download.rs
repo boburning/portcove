@@ -71,6 +71,7 @@ impl GithubReleaseProvider {
         selected_id: Option<u64>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
+        other_stream_prefixes: &[String],
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
         CatalogDownloadCoverage,
@@ -95,7 +96,7 @@ impl GithubReleaseProvider {
                 &releases,
                 channel,
                 rolling_tag,
-                |release| !release.draft,
+                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
                 is_beta_release,
                 |release| release.tag_name.as_str(),
             );
@@ -150,7 +151,7 @@ impl GithubReleaseProvider {
                 &releases,
                 channel,
                 rolling_tag,
-                |release| !release.draft,
+                |release| !release.draft && tag_in_stream(&release.tag_name, other_stream_prefixes),
                 is_beta_release,
                 |release| release.tag_name.as_str(),
             )
@@ -472,7 +473,7 @@ mod tests {
             let (root, requests, server) = serve_http(responses);
             let provider = GithubReleaseProvider::with_api_root(root).unwrap();
             let error = provider
-                .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+                .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None, &[])
                 .await
                 .unwrap_err();
             if failure == "bound" {
@@ -496,6 +497,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn default_download_follows_the_reviewed_desktop_stream() {
+        let headers = serde_json::json!([
+            {"id":446416764,"tag_name":"baked-pbr-v1","draft":false,"prerelease":false},
+            {"id":443250877,"tag_name":"v0.9.9","draft":false,"prerelease":false},
+            {"id":435773723,"tag_name":"baked-ao-v1","draft":false,"prerelease":false}
+        ]);
+        let exclusions = ["baked-ao-".into(), "baked-pbr-".into()];
+        for (requested, expected) in [(None, 443250877), (Some(446416764), 446416764)] {
+            let (root, requests, server) =
+                serve_http(vec![response(&headers.to_string()), response("[]")]);
+            let provider = GithubReleaseProvider::with_api_root(root).unwrap();
+            let (_, _, summaries, selected) = provider
+                .catalog_download_options(
+                    "Inkub0/dude",
+                    requested,
+                    ReleaseChannel::Stable,
+                    None,
+                    &exclusions,
+                )
+                .await
+                .unwrap();
+            assert_eq!(selected, Some(expected));
+            assert_eq!(summaries.len(), 3);
+            server.join().unwrap();
+            let paths = requests.try_iter().collect::<Vec<_>>();
+            assert_eq!(paths.len(), 2);
+            assert!(paths[1].contains(&format!("/releases/{expected}/assets?")));
+        }
+    }
+
+    #[tokio::test]
     async fn explicit_historical_selection_never_becomes_channel_latest() {
         let exact = serde_json::json!({"id":500,"tag_name":"chosen-old-build","draft":false,"prerelease":false,"published_at":null,"assets":[]});
         let (root, requests, server) = serve_http(vec![
@@ -505,7 +537,7 @@ mod tests {
         ]);
         let provider = GithubReleaseProvider::with_api_root(root).unwrap();
         let (_, coverage, summaries, selected) = provider
-            .catalog_download_options("owner/game", Some(500), ReleaseChannel::Beta, None)
+            .catalog_download_options("owner/game", Some(500), ReleaseChannel::Beta, None, &[])
             .await
             .unwrap();
         assert_eq!(selected, Some(500));
