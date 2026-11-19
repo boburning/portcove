@@ -72782,7 +72782,7 @@
       "name": "R4: Ridge Racer Type 4 — RidgeRacerType4Recomp (tetrisgm)",
       "original_game_title": "R4: Ridge Racer Type 4",
       "summary": "Information only. The project reports an early R4 preview reaching startup and races, with VSLink claims for two to four players. Committed game-derived C and applicable package rights remain unresolved, so new downloads are unavailable. The own-disc preview does not establish a full playthrough, VSLink compatibility or permission for automated distribution. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/tetrisgm/RidgeRacerType4Recomp",
+      "project_url": "https://github.com/tetrisgm/RidgeRacerType4Remaster",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -73418,10 +73418,10 @@
       "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
       "original_game_title": "Rule of Rose",
       "summary": "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+      "project_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/RaikoDenpa/RoR-Port",
+      "setup_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
       "manual_setup": {
         "steps": [
           {
@@ -73437,7 +73437,7 @@
           "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/RaikoDenpa/RoR-Port"
+        "help_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp"
       },
       "issue_number": 3043,
       "listed_at": "2026-10-25",
@@ -89423,12 +89423,12 @@
       "name": "The Order: 1886 — The Order1886 native port (mateussmeneses) (mateussmeneses)",
       "original_game_title": "The Order: 1886",
       "summary": "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/mateussmeneses/theorder1886-port",
+      "project_url": "https://github.com/saxons-kicks/theorder1886-port",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/mateussmeneses/theorder1886-port",
+      "setup_url": "https://github.com/saxons-kicks/theorder1886-port",
       "manual_setup": {
         "steps": [
           {
@@ -89444,7 +89444,7 @@
           "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/mateussmeneses/theorder1886-port"
+        "help_url": "https://github.com/saxons-kicks/theorder1886-port"
       },
       "issue_number": 3335,
       "listed_at": "2026-10-25",
