@@ -245,8 +245,10 @@ function clickDiagnosticFixture(program: string) {
     new URL("./desktop-review-controls.mts", import.meta.url),
     `
     const {clickVisible} = await import(entry);
-    function fixture(failureStage, original, contextFailure) {
+    const {runInNewContext} = await import("node:vm");
+    function fixture(failureStage, original, contextFailure, obscured = false) {
       const calls = [];
+      const hitPoints = [];
       const visit = (stage) => {
         calls.push(stage);
         if (stage === failureStage) throw original;
@@ -256,13 +258,24 @@ function clickDiagnosticFixture(program: string) {
         async isEnabled() { visit("enabled"); return true; },
         async click() { visit("webdriver-click"); },
       };
+      const actions = {
+        move(options) {
+          assert.deepEqual(options, { x: 150, y: 80, duration: 0 });
+          visit("pointer-move");
+          return this;
+        },
+        press() { visit("pointer-down"); return this; },
+        release() { visit("pointer-up"); return this; },
+        async perform() { visit("viewport-pointer-click"); },
+      };
       const browser = {
+        actions: () => actions,
         async wait(condition) {
           const result = await (typeof condition === "function" ? condition() : condition.fn());
-          assert.equal(result, true, "Every interaction gate must pass");
+          assert.ok(result, "Every interaction gate must pass");
           return result;
         },
-        async executeScript(script) {
+        async executeScript(script, ...args) {
           const source = String(script);
           if (source.includes("scrollContainers")) {
             calls.push("context");
@@ -274,10 +287,22 @@ function clickDiagnosticFixture(program: string) {
             : source.includes("elementFromPoint") ? "pointer-target"
             : source.includes(".click()") ? "dom-click" : "scroll";
           visit(stage);
-          return true;
+          if (stage !== "pointer-target") return true;
+          const target = {
+            scrollIntoView() {},
+            getBoundingClientRect() { return { x: 76.5, y: 61.75, width: 148.5, height: 37 }; },
+            contains() { return false; },
+          };
+          return runInNewContext("(" + source + ")(...scriptArguments)", {
+            scriptArguments: [target, ...args.slice(1)],
+            document: { elementFromPoint(x, y) {
+              hitPoints.push({ x, y });
+              return obscured ? {} : target;
+            }},
+          });
         },
       };
-      return { calls, element, browser };
+      return { calls, hitPoints, element, browser };
     }
     function diagnostic(error) {
       assert(error instanceof Error);
@@ -297,7 +322,33 @@ void test("native review clicks retain every gate and the requested dispatch wit
       const f = fixture();
       await clickVisible(f.browser, f.element, { dispatch });
       assert.deepEqual(f.calls, [...gates, dispatch + "-click"]);
+      assert.deepEqual(f.hitPoints, [{ x: 150.75, y: 80.25 }]);
     }
+    const f = fixture();
+    await clickVisible(f.browser, f.element, { dispatch: "viewport-pointer" });
+    assert.deepEqual(f.calls, [
+      ...gates, "pointer-move", "pointer-down", "pointer-up", "viewport-pointer-click",
+    ]);
+    assert.deepEqual(f.hitPoints, [{ x: 150, y: 80 }]);
+    const original = new Error("Pointer command rejected");
+    const rejected = fixture("viewport-pointer-click", original);
+    await assert.rejects(
+      clickVisible(rejected.browser, rejected.element, { dispatch: "viewport-pointer" }),
+      error => {
+        assert.equal(error.cause, original);
+        const failure = diagnostic(error);
+        assert.equal(failure.stage, "viewport-pointer-click");
+        assert.deepEqual(failure.viewportPoint, { x: 150, y: 80 });
+        return true;
+      },
+    );
+    assert.deepEqual(rejected.calls, [...f.calls, "context"]);
+    const covered = fixture(undefined, undefined, undefined, true);
+    await assert.rejects(
+      clickVisible(covered.browser, covered.element, { dispatch: "viewport-pointer" }),
+      error => diagnostic(error).stage === "pointer-target",
+    );
+    assert.deepEqual(covered.calls, [...gates, "context"]);
   `);
 });
 

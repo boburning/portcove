@@ -214,9 +214,10 @@ async function waitForEntrance(browser: WebDriver, element: WebElement) {
 export async function clickVisible(
   browser: WebDriver,
   element: WebElement,
-  { dispatch = "webdriver" }: { dispatch?: "webdriver" | "dom" } = {},
+  { dispatch = "webdriver" }: { dispatch?: "webdriver" | "viewport-pointer" | "dom" } = {},
 ) {
   let stage = "entrance";
+  let viewportPoint: { x: number; y: number } | undefined;
   try {
     await waitForEntrance(browser, element);
     stage = "focus";
@@ -236,20 +237,22 @@ export async function clickVisible(
     stage = "enabled";
     await browser.wait(until.elementIsEnabled(element), 5_000);
     stage = "pointer-target";
-    await browser.wait(
+    const point = await browser.wait(
       () =>
         executeBrowserScript(
           browser,
-          (element) => {
+          (element, integerCoordinates) => {
             element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
             const bounds = element.getBoundingClientRect();
-            const hit = document.elementFromPoint(
-              bounds.x + bounds.width / 2,
-              bounds.y + bounds.height / 2,
-            );
-            return hit === element || element.contains(hit);
+            const centerX = bounds.x + bounds.width / 2;
+            const centerY = bounds.y + bounds.height / 2;
+            const x = integerCoordinates ? Math.floor(centerX) : centerX;
+            const y = integerCoordinates ? Math.floor(centerY) : centerY;
+            const hit = document.elementFromPoint(x, y);
+            return hit === element || element.contains(hit) ? { x, y } : false;
           },
           element,
+          dispatch === "viewport-pointer",
         ),
       5_000,
       "The reviewed control must receive the pointer before clicking",
@@ -257,6 +260,18 @@ export async function clickVisible(
     if (dispatch === "dom") {
       stage = "dom-click";
       await executeBrowserScript(browser, "arguments[0].click();", element);
+    } else if (dispatch === "viewport-pointer") {
+      stage = "viewport-pointer-click";
+      assert.ok(point);
+      viewportPoint = point;
+      // WebDriver Actions defaults to viewport origin and uses CSS pixels.
+      // Send one pointer sequence at the same point that passed the hit test.
+      await browser
+        .actions()
+        .move({ ...point, duration: 0 })
+        .press()
+        .release()
+        .perform();
     } else {
       stage = "webdriver-click";
       assert.equal(dispatch, "webdriver", `Unsupported click dispatch: ${dispatch}`);
@@ -303,7 +318,7 @@ export async function clickVisible(
         message_truncated: boundedMessage !== message,
       };
     };
-    const primary = { stage, error: describe(error) };
+    const primary = { stage, error: describe(error), viewportPoint };
     let details: string;
     try {
       const context = await executeBrowserScript(
