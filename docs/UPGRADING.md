@@ -59,10 +59,10 @@ affected Desktop and CLI channel. A release must include writer protocol 60
 and the reader for the published representation. The Nightly
 0.1.0-preview.3 release includes the writer-protocol-60 signed-envelope reader
 and publishes Desktop packages and a Windows CLI archive. Preview
-0.1.0-preview.2 predates that change. The Desktop Preview feed currently offers
-0.1.0-preview.6, which also includes the 16 MiB signed-envelope reader. The
-installed Windows Desktop upgrade from Preview 2 to Nightly Preview 3 was
-verified in the [hosted installed update run](https://github.com/boburning/portcove/actions/runs/43704306226). An
+0.1.0-preview.2 predates that change. Desktop Preview 0.1.0-preview.6 also includes
+the 16 MiB signed-envelope reader. The installed Windows Desktop upgrade from
+Preview 2 to Nightly Preview 3 was verified in the
+[hosted installed update run](https://github.com/boburning/portcove/actions/runs/43704306226). An
 indexed definition projection above 4 MiB still requires compatible Desktop
 and CLI releases with the wider indexed content reader, and verification of
 their upgrade paths.
