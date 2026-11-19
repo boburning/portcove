@@ -537,9 +537,12 @@ async function inspectCoreJson(
     );
   const input = path.join(directory, `core-inspection-${randomUUID()}.json`);
   await mkdir(path.dirname(input), { recursive: true });
+  let batchTimeout = false;
   try {
     await writeFile(input, bytes, { flag: "wx" });
-    const timeout = bounds ? Math.min(30000, Math.floor(bounds.deadline - bounds.now())) : 30000;
+    const remaining = bounds ? Math.floor(bounds.deadline - bounds.now()) : Infinity;
+    batchTimeout = remaining < 30000;
+    const timeout = Math.min(30000, remaining);
     if (!Number.isFinite(timeout) || timeout < 1)
       throw new ObservationFailure("budget", "Core inspection admission exhausted");
     const output = execFileSync(cli, argumentsFor(input), {
@@ -556,6 +559,13 @@ async function inspectCoreJson(
         "Core did not return the expected successful inspection",
       );
     return envelope.data;
+  } catch (error) {
+    if (batchTimeout && errorCode(error) === "ETIMEDOUT")
+      throw new ObservationFailure(
+        "budget",
+        "Observation opportunity exhausted during Core inspection",
+      );
+    throw error;
   } finally {
     await rm(input, { force: true });
   }

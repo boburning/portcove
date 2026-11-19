@@ -329,6 +329,9 @@ Each source operation admits response bytes, including identity lookups, while
 reading. Its finite byte envelope does not cap cumulative catalog-session work:
 further bounded operations continue while actual quota and runtime remain.
 Failed reads without accepted page/Core progress are not immediately requeued.
+An exhausted observation deadline during provider setup or a batch-limited
+Core inspection is a budget stop. The next admitted batch resumes the retained
+state.
 The new handoff has the existing sixteen-MiB response envelope as its aggregate
 byte budget, with four MiB reserved for the summary and one-day artifact retention.
 The output reserves sixteen MiB separately for a complete inert recovery snapshot.

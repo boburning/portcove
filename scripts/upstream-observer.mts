@@ -1370,6 +1370,20 @@ export async function observeUpstream(
         },
       };
     },
+  }).catch((error: unknown) => {
+    if (error instanceof GitHubApiError) {
+      if (error.code === "deadline_exceeded")
+        throw new ObservationFailure(
+          "budget",
+          "Observation opportunity exhausted before provider setup",
+        );
+      if (error.code === "cancelled")
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+    }
+    throw error;
   });
 
   async function requestChecksum(
