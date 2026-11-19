@@ -208,6 +208,7 @@ pub(crate) enum KnownFailureCause {
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
+    OpenSurgeUserDataPath,
     /// The package is not a LIVE or PIRS package in the read-only STFS layout.
     UnsupportedStfs,
     /// The STFS package is a different game or content type than the port requires.
@@ -446,6 +447,10 @@ impl KnownFailureCause {
             Self::UnicodePath => (
                 "path_not_representable",
                 "Portcove can’t read this file or folder name correctly. Choose a location with a valid Unicode name so Portcove can identify the exact files.",
+            ),
+            Self::OpenSurgeUserDataPath => (
+                "opensurge_user_data_path_unsupported",
+                "Open Surge can save to the wrong folder when this Windows library path contains characters outside basic Latin. Use a library path with only basic Latin characters for this game.",
             ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",
