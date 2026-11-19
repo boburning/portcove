@@ -431,7 +431,8 @@ provide no durability guarantee.
 The configured observer’s existing schedule supplies the exact current GitHub
 release and asset selected by Core. A downstream inspection reads only those
 complete source handoffs from the same run and attempt. It compares eligible
-packages for routes with reviewed shape baselines and an owning listing issue.
+packages for catalog listings with reviewed shape baselines. A listing's stable
+port ID identifies its inspections even when no issue is linked.
 An older reviewed fallback stays distinct from the latest candidate. Other
 providers, incomplete scopes and unavailable archives have no current shape
 assessment from this job.
@@ -445,8 +446,10 @@ and can be retried in a later observation. Installed-state eligibility stays
 with Core.
 
 A separate main-branch job has only the issue write permission for the notice.
-It records one bot-owned marker comment per affected canonical issue, with the
+When a listing links a canonical issue, it records one bot-owned marker comment
+per affected issue, with the
 platform, channel, artifact identity, changed components and inspection run.
+Issue-free observations remain in the inspection report.
 Compatible or unknown evidence leaves existing observations in issue history.
 The notice job keeps an unchanged marker and refuses duplicate or concurrently
 changed markers. It does not publish or edit the catalog.
