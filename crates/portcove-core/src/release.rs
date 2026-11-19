@@ -2630,6 +2630,7 @@ fn is_auxiliary_package(name: &str) -> bool {
     name.contains("symbols")
         || name.contains("-pdb-")
         || name.ends_with("-pdb.zip")
+        || crate::service::package_selection::is_server_package(&name)
         || crate::service::package_selection::is_license_compliance_archive(&name)
 }
 

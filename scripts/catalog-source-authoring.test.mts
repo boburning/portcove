@@ -9,8 +9,10 @@ import {
   assembleCatalogRecords,
   checkedAuthoredPort,
   checkedCurrentCatalog,
+  compactGbaArchive,
   parseCatalogSource,
   projectAuthoredPort,
+  projectGbaArchive,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
@@ -1037,6 +1039,26 @@ void test("PSX preparation compacts exact layouts and retains explicit writer di
     const custom = structuredClone(explicit);
     custom.integration!.persistent_paths = ["custom-save"];
     assert.equal(compactPsxManagedWindows(custom), custom);
+  }
+});
+
+void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const supported = records.filter((entry) => entry.gba_staged_archive_v1 !== undefined);
+  assert.ok(supported.length > 0);
+  for (const record of supported) {
+    const explicit = projectGbaArchive(record);
+    delete explicit.gba_staged_archive_v1;
+    const compact = compactGbaArchive(explicit);
+    assert.deepEqual(compact, record, record.listing.id);
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(compact)),
+      JSON.stringify(projectAuthoredPort(explicit)),
+    );
+
+    const custom = structuredClone(explicit);
+    custom.integration!.runtime_mutable_paths = ["recomp_coverage_XXXX.json"];
+    assert.equal(compactGbaArchive(custom), custom);
   }
 });
 

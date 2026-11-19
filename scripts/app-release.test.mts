@@ -1008,6 +1008,7 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
 });
 
 type WorkflowStep = {
+  "timeout-minutes"?: number;
   name?: string;
   if?: string;
   uses?: string;
@@ -1179,6 +1180,11 @@ void test("the Linux AppImage build checks its WebKitGTK floor before bundling",
   const bundle = steps.findIndex((step) => step.run?.includes("pnpm tauri build"));
   assert.ok(prerequisites >= 0 && prerequisites < bundle);
   assert.equal(steps[prerequisites]?.if, "runner.os == 'Linux'");
+  assert.equal(steps[prerequisites]?.["timeout-minutes"], 28);
+  assert.match(
+    steps[prerequisites]?.run ?? "",
+    /install-linux-desktop-prerequisites\.sh --prefer-archive-mirror --install-timeout-seconds=600/u,
+  );
   assert.match(
     steps[prerequisites]?.run ?? "",
     /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u,

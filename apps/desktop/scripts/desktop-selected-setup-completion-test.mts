@@ -307,6 +307,7 @@ export async function selectedSetupCompletionScenario({
         (item) =>
           item.operation === operation && item.target_id === port.id && item.status === terminal,
       );
+    const connectFolderAction = '[aria-label="Connect your game files"] > button';
     const screenshot = async (name: string) => {
       const targets: Readonly<Record<string, string>> = {
         "initial-folder-connection": '[aria-label="Connect your game files"]',
@@ -318,19 +319,19 @@ export async function selectedSetupCompletionScenario({
       };
       const target = targets[name] ?? '[aria-labelledby="install-review-title"]';
       const enlargedTargets: Readonly<Record<string, string>> = {
-        "initial-folder-connection": '[aria-label="Connect your game files"] h2',
+        "initial-folder-connection": connectFolderAction,
         "connected-folder-management": "#game-file-libraries-heading",
         "selected-setup-prepared": '[data-task-owner] > [data-slot="current-state-summary"] h3',
         "selected-setup-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"] > h3',
       };
-      // Full panels deliberately scroll at 400%. Capture an identified bounded
-      // heading; retain the full-panel readiness and complete-target validator.
+      // Full panels deliberately scroll at 400%. Capture a bounded heading or
+      // primary action, keeping full-panel readiness and complete-target validation.
       const captureTarget = enlargedTargets[name] ?? "#install-review-title";
       const preparedTarget = await prepareCaptureTarget({
         target: captureTarget,
-        label: `400% ${name} heading`,
+        label: `400% ${name} target`,
         scroll: () =>
           executeBrowserScript(
             browser,
@@ -404,7 +405,7 @@ export async function selectedSetupCompletionScenario({
           ? "Folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
           : "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
-        "400% viewport captures target identified headings; scrollable full panels are exercised through their controls, not claimed wholly visible",
+        "400% viewport captures use identified headings or actions; scrollable full panels are exercised through their controls, not claimed wholly visible",
       ],
       port_id: port.id,
       observations: { sources: undefined },
@@ -475,7 +476,7 @@ export async function selectedSetupCompletionScenario({
       async function connectSetupFolderWithNativePicker() {
         assert.ok(typeof chooseGameFileFolder === "function");
         assert.deepEqual(await read("get_game_file_roots"), []);
-        const connection = By.css('[aria-label="Connect your game files"] button');
+        const connection = By.css(connectFolderAction);
         await browser.wait(until.elementLocated(connection), 5_000);
         await screenshot("initial-folder-connection");
         await click(connection);

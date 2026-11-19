@@ -1939,7 +1939,7 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-14. They are starting assignments by
+Recommendations as of 2026-11-19. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
 points, each to be evaluated on its own evidence. The implementation owner is
@@ -1948,24 +1948,27 @@ these instructions do not change it.
 
 | Responsibility                                 | Codex                   | Claude                      |
 | ---------------------------------------------- | ----------------------- | --------------------------- |
-| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Delegated implementation (only when asked)     | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
 | Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
 | Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
 
-Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.2-sol` at high
 effort only when a first review leaves a substantive unresolved question that a
 stronger pass is likely to settle. The critical reviewer and specialist rows are
 for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
-Documented availability, checked 2026-11-13: all eight models appear on
-the official [OpenAI models](https://developers.openai.com/api/docs/models) and
-[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
-pages, none is on a listed retirement, and every listed model documents both
-`medium` and `high` effort. Observed access is narrower: the local Codex CLI
-0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+The [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+lists GPT-6.2 Sol and GPT-6.2 Astra with both `medium` and `high` reasoning.
+The local Codex model cache included both model IDs when checked on 2026-11-19.
+The other model recommendations were checked against the official OpenAI and
+[Claude model catalogs](https://platform.claude.com/docs/en/about-claude/models/overview)
+on 2026-11-13.
+
+The local Codex CLI
+0.164.0 model list cached on 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
 separately reporting the served model. When the client does not

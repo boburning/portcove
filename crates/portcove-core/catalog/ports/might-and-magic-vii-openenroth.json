@@ -51,6 +51,10 @@
         {
           "title": "Version and platform notes",
           "instruction": "Nightly downloads include Windows x86 and x86-64 ZIPs, a Linux x86-64 Flatpak, Mac Intel and Apple silicon disk images, and an Android universal APK. Nightly builds can have bugs. The exact accepted language and retail patch are unconfirmed."
+        },
+        {
+          "title": "Use the experimental Android nightly",
+          "instruction": "The upstream OpenEnroth nightly APK includes ARM64, ARMv7, x86 and x86-64 libraries. Copy ANIMS, DATA, MUSIC and SOUNDS from your own supported game to Android/data/io.github.openenroth.openenroth/files. The project describes this package as experimental. Retain the app’s data when replacing a nightly."
         }
       ]
     },

@@ -41,11 +41,14 @@ platforms, package identities or setup routes. Desktop shows them under **How th
 project works** in details and comparison; **Implementation technique** is a
 separate filter from installation method. No provider request is needed to read it.
 
-ScummVM illustrates the runtime distinction: an individual game keeps its own
-reviewed original-game ID and source editions, while a `runtime` relationship may
-explain **Engine reimplementation · ScummVM**. There are no ScummVM game records
-in the inspected baseline, so this change exercises that shape in a fixture rather
-than inventing an integration or grouping all ScummVM games together.
+ScummVM listings keep each game's own original-game ID and reviewed game data
+edition. Each uses a `runtime` relationship to identify the shared ScummVM player.
+The compatibility chart describes upstream support by engine and game ID.
+The setup steps name the verified data archive and explain how to launch a saved
+ScummVM target. ScummVM owns its profile and save locations, and the selected
+package route determines who updates the runtime.
+See [ScummVM's default save locations](https://docs.scummvm.org/en/latest/use_scummvm/save_load_games.html#location-of-saved-game-files)
+and [direct launch with a saved target](https://docs.scummvm.org/en/latest/advanced_topics/command_line.html#starting-a-game).
 
 Descriptions require listing format 12. Formats 5 through 11 exported for older
 strict readers omit only this inert field; ordinary requirements and restrictions
@@ -2668,6 +2671,11 @@ routes, changed accepted bytes, failed integrity and unsafe operations still
 hold at their actual scope. Exact direct manifests retain their existing
 per-platform HTTPS URL, nonzero size, version and SHA-256 requirements.
 
+Hosted managed selection and listing download recommendations exclude packages
+whose names label them as dedicated servers. GitLab checks both the release-link
+label and the resolved registry filename. The server label supplies no evidence
+about a separate game client's platform, architecture, or integrity.
+
 GitLab generic-package links can use the same reusable project, channel and
 native-archive selectors. Core joins the selected versioned URL to independently
 published package names, versions, filenames, sizes and SHA-256 values. It reads
@@ -3488,6 +3496,9 @@ as a player that writes variant-specific configuration or stores credentials.
 Settings qualification also requires the explicit integration form.
 The projection refuses duplicate path and mod policy fields. Core receives
 and validates the same concrete contract as before.
+
+`prepare-port.mts` proposes this family form when the reviewed diagnostic code
+is unique and the expanded integration matches the explicit bytes.
 
 Reuse the shared staging, declared-data preservation and rollback evidence
 when the official Windows archive uses the reviewed picker, stays within its
