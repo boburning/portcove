@@ -55,11 +55,7 @@ impl PortcoveService {
             )
         })?;
         descriptor.validate(&port.persistent_paths)?;
-        if !descriptor.releases.iter().any(|release| {
-            release.platform == platform
-                && release.version == install.version
-                && release.archive_sha256 == install.artifact.sha256
-        }) {
+        if !descriptor.covers_archive(platform, &install.version, &install.artifact.sha256) {
             return Err(PortcoveError::unsupported(
                 "this installed release/artifact has no verified settings contract",
             ));

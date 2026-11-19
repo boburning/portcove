@@ -4571,6 +4571,7 @@ fn verified_manifest_with_budget(
         || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
+        || (manifest.retained_contract.is_none() && !manifest.shipped_settings_defaults.is_empty())
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
         || (manifest.schema_version < 5
             && (manifest.platform.is_some() || manifest.files.iter().any(|file| file.executable)))
@@ -4598,18 +4599,25 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        let port = catalog.port(&install.port_id)?;
+        let platform = manifest
+            .platform
+            .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?;
+        crate::game_settings::verify_shipped_defaults(
+            port,
+            platform,
+            &manifest.version,
+            &manifest.artifact.sha256,
+            &manifest.shipped_settings_defaults,
+        )?;
         crate::managed_runtime_policy::require_native_appimage_artifact(
-            catalog.port(&install.port_id)?,
-            manifest
-                .platform
-                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            port,
+            platform,
             &manifest.artifact.asset_name,
         )?;
         crate::native_external_profile::vcmi::require_archive(
-            catalog.port(&install.port_id)?,
-            manifest
-                .platform
-                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            port,
+            platform,
             &manifest.artifact.asset_name,
         )?;
         if let Some(admission) = &manifest.archive_data_admission {

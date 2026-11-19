@@ -240,16 +240,63 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
     std::fs::create_dir(path.parent().unwrap()).unwrap();
     let default = b"ui_scale=1.0\r\nunknown=retained\r\n";
     std::fs::write(&path, default).unwrap();
+    let retained = capture(release.platform, &release.version, &release.archive_sha256);
     assert_eq!(
-        capture(release.platform, &release.version, &release.archive_sha256),
+        retained,
         BTreeMap::from([(
-            file.path,
+            file.path.clone(),
             ShippedDefault {
                 sha256: hex::encode(Sha256::digest(default)),
                 bytes_hex: hex::encode(default),
             },
         )])
     );
+    let reopen = |port: &crate::PortDefinition,
+                  version: &str,
+                  archive: &str,
+                  defaults: &BTreeMap<String, ShippedDefault>| {
+        verify_shipped_defaults(port, release.platform, version, archive, defaults)
+    };
+    reopen(&port, &release.version, &release.archive_sha256, &retained).unwrap();
+    assert!(reopen(&port, "v1.8.1", &release.archive_sha256, &retained).is_err());
+    assert!(reopen(&port, &release.version, &"b".repeat(64), &retained).is_err());
+    let mut unqualified = port.clone();
+    unqualified.game_settings = None;
+    assert!(
+        reopen(
+            &unqualified,
+            &release.version,
+            &release.archive_sha256,
+            &retained
+        )
+        .is_err()
+    );
+    reopen(
+        &unqualified,
+        &release.version,
+        &release.archive_sha256,
+        &BTreeMap::new(),
+    )
+    .unwrap();
+    let valid = retained[&file.path].clone();
+    let wrong_path = BTreeMap::from([("foreign.ini".into(), valid.clone())]);
+    assert!(
+        reopen(
+            &port,
+            &release.version,
+            &release.archive_sha256,
+            &wrong_path
+        )
+        .is_err()
+    );
+    let corrupt = BTreeMap::from([(
+        file.path.clone(),
+        ShippedDefault {
+            sha256: "0".repeat(64),
+            ..valid
+        },
+    )]);
+    assert!(reopen(&port, &release.version, &release.archive_sha256, &corrupt).is_err());
     assert!(
         capture(
             Platform::LinuxX86_64,

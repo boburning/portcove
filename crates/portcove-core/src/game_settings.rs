@@ -123,11 +123,7 @@ pub(crate) fn capture_shipped_defaults(
     if contract.validate(&port.persistent_paths).is_err() {
         return BTreeMap::new();
     }
-    if !contract.releases.iter().any(|release| {
-        release.platform == platform
-            && release.version == version
-            && release.archive_sha256 == archive_sha256
-    }) {
+    if !contract.covers_archive(platform, version, archive_sha256) {
         return BTreeMap::new();
     }
     contract
@@ -146,6 +142,48 @@ pub(crate) fn capture_shipped_defaults(
             Some((file.path.clone(), shipped))
         })
         .collect()
+}
+
+/// Reopened installs must still bind the preserved defaults to the exact
+/// artifact and file declarations retained at acquisition.
+pub(crate) fn verify_shipped_defaults(
+    port: &crate::PortDefinition,
+    platform: Platform,
+    version: &str,
+    archive_sha256: &str,
+    defaults: &BTreeMap<String, ShippedDefault>,
+) -> Result<()> {
+    if defaults.is_empty() {
+        return Ok(());
+    }
+    let contract = port
+        .game_settings
+        .as_ref()
+        .filter(|contract| contract.covers_archive(platform, version, archive_sha256))
+        .ok_or_else(|| {
+            PortcoveError::verification(
+                "shipped settings defaults have no retained archive authority",
+            )
+        })?;
+    contract.validate(&port.persistent_paths)?;
+    if defaults.len() > contract.files.len() {
+        return Err(PortcoveError::verification(
+            "shipped settings defaults exceed their retained file declarations",
+        ));
+    }
+    for (path, default) in defaults {
+        let file = contract
+            .files
+            .iter()
+            .find(|file| &file.path == path)
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "shipped settings default has no retained file declaration",
+                )
+            })?;
+        default.verified_bytes(file)?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -389,6 +427,19 @@ impl GameSettingType {
 }
 
 impl GameSettingsContract {
+    pub(crate) fn covers_archive(
+        &self,
+        platform: Platform,
+        version: &str,
+        archive_sha256: &str,
+    ) -> bool {
+        self.releases.iter().any(|release| {
+            release.platform == platform
+                && release.version == version
+                && release.archive_sha256 == archive_sha256
+        })
+    }
+
     /// Validate declaration shape only. The service must separately establish
     /// accepted retained authority, exact installation and safe current storage.
     pub fn validate(&self, persistent_paths: &[String]) -> Result<()> {
