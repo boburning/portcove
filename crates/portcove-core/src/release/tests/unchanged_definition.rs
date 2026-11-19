@@ -1615,6 +1615,9 @@ async fn saved_linux_variant_checks_newer_release_before_skipping_other_platform
     let mut port = variant_port();
     let channel = ReleaseChannel::Stable;
     let platform = Platform::LinuxX86_64;
+    // This controlled route uses the Windows-only catalog port as a template.
+    port.platforms.push(platform);
+    port.executable_hints.insert(platform, vec!["game".into()]);
     port.release
         .asset_hints
         .insert(platform, vec!["Game-hd-".into(), "-linux-x64.zip".into()]);
