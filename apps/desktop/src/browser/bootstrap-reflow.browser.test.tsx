@@ -67,7 +67,7 @@ it.each([
 );
 
 it("announces the generic startup uncertainty once and keeps recovery actions available", async () => {
-  await page.viewport(1028, 750);
+  await page.viewport(1028, 749);
   initializeLocalization(["en"]);
   const error = failureReport();
   error.code = "state";
@@ -88,9 +88,10 @@ it("announces the generic startup uncertainty once and keeps recovery actions av
     { container: root },
   );
 
-  const warning = "Portcove couldn't confirm whether anything changed.";
+  const warning =
+    "Portcove couldn't confirm whether anything changed. Check the result before trying again.";
   await expect.element(page.getByRole("alert")).toHaveTextContent(warning);
-  await expect.element(page.getByText(warning)).toBeVisible();
+  await expect.element(page.getByText(warning, { exact: true })).toBeVisible();
   await expect.element(page.getByText(error.presentation.summary)).not.toBeInTheDocument();
   for (const name of ["Retry startup", "Choose library", "Use platform default"]) {
     await expect.element(page.getByRole("button", { name, exact: true })).toBeEnabled();
