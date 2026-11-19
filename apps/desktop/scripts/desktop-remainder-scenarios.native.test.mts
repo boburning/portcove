@@ -12,6 +12,22 @@ function callable(value: unknown) {
     Reflect.apply(value as (...args: unknown[]) => unknown, undefined, args);
 }
 
+void test("library switch recovery retries only an exact outgoing lease refusal", () => {
+  runDesktopModuleFixture(
+    new URL("./desktop-library-switch-recovery-test.mts", import.meta.url),
+    `
+    const {outgoingLibraryBusyDetails}=await import(entry);
+    const technical = {
+      message:'the library is in use by another Portcove operation or process',
+      context:{library_root:'owned-current'},
+    };
+    assert.deepEqual(outgoingLibraryBusyDetails(JSON.stringify(technical),'owned-current'),technical);
+    assert.throws(() => outgoingLibraryBusyDetails(JSON.stringify(technical),'owned-other'),/original library/);
+    assert.throws(() => outgoingLibraryBusyDetails(JSON.stringify({...technical,message:'another refusal'}),'owned-current'),/exclusive lease refusal/);
+  `,
+  );
+});
+
 void test("Windows reload readiness requires Library content beyond the shell", () => {
   runDesktopModuleFixture(
     new URL("./desktop-preparation-recovery-test.mts", import.meta.url),
