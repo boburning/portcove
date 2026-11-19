@@ -291,7 +291,7 @@ it.each([
     prefix.setEnd(paths[0]!.firstChild!, 7);
     expect(prefix.toString()).toBe("\\\\?\\C:\\");
     expect(prefix.getClientRects()).toHaveLength(1);
-    const serverPrefix = [...directory.slice(0, 3)].map((_, index) => {
+    const serverPrefix = [0, 1, 2].map((index) => {
       const glyph = document.createRange();
       glyph.setStart(paths[1]!.firstChild!, index);
       glyph.setEnd(paths[1]!.firstChild!, index + 1);
