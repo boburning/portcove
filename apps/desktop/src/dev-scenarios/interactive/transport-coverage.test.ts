@@ -19,6 +19,9 @@ const unsupportedByReason: Record<string, string[]> = {
   "interactive fixtures publish no saved scan": ["get_game_file_scan_registered_matches"],
   "interactive fixture catalogs have no paired cover mappings": ["get_companion_cover_thumbnail"],
   "interactive fixture catalogs have no cover collections": ["get_collection_cover_thumbnail"],
+  "user-started Steam discovery inspects native installations the fixtures do not model": [
+    "discover_steam_client_roots",
+  ],
   "mutation or native action the fixtures do not model; they never change the host": `
     apply_profile_recovery apply_provider_install discard_provider_install
     retire_mod_setup_recovery_build

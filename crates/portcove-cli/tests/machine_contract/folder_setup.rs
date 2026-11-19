@@ -101,15 +101,10 @@ fn standing_setup_machine_result_distinguishes_an_unreadable_game_queue() {
     let library = temporary.path().join("library");
     drop(portcove_core::Library::open(&library).unwrap());
     let database = rusqlite::Connection::open(library.join("portcove.sqlite3")).unwrap();
-    // The assessment query selects the mode, then reads the record as a BLOB.
-    // Store valid JSON as TEXT so the selected row fails that queue read.
-    database
-        .execute(
-            "INSERT INTO port_intents(port_id, updated_at, record_json)
-             VALUES ('zelda64-recomp', 1, ?1)",
-            [r#"{"mode":"set_up_when_ready"}"#],
-        )
-        .unwrap();
+    database.execute(
+        "INSERT INTO port_intents(port_id, updated_at, record_json) VALUES ('zelda64-recomp', 1, X'00')",
+        [],
+    ).unwrap();
     drop(database);
 
     let capabilities = portcove(&library, &["--json", "capabilities"]);
