@@ -792,7 +792,8 @@ void test("format four collects and restores a named stored graph above the lega
   const graphBytes = Buffer.byteLength(JSON.stringify(snapshot));
   assert.ok(graphBytes > observerCheckpointByteLimit && graphBytes <= observerStreamingGraphLimit);
   assert.equal(metrics.stored_graph_bytes, graphBytes);
-  assert.ok(metrics.stored_graph_bytes! > metrics.stored_json_bytes!);
+  const storedJsonBytes = metrics.stored_json_bytes;
+  assert.ok(typeof storedJsonBytes === "number" && graphBytes > storedJsonBytes);
   assert.throws(
     () => encodeCompactObserverSnapshot(snapshot, Date.now() + 60000),
     /decoded snapshot exceeds checkpoint read envelope/,
