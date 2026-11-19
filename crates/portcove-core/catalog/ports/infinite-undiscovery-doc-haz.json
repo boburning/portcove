@@ -21,9 +21,6 @@
     "original_game_title": "Infinite Undiscovery",
     "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
     "recommended_download_channel": "beta",
-    "download_asset_hints": {
-      "windows-x86-64": ["InfiniteUndiscoveryRecomp-", ".zip"]
-    },
     "manual_setup": {
       "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
       "warnings": [
@@ -50,6 +47,7 @@
       ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],

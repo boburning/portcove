@@ -3,7 +3,7 @@
   "listing": {
     "id": "tomodachi-life-living-the-dream-tomodachi-native",
     "name": "Tomodachi Life: Living the Dream (tomodachi-native)",
-    "summary": "An experimental Tomodachi Life-specific nxnative-derived Apple ARM64/Horizon/Metal 4 adaptation. The project reports a Mac island tour, naming, Mii creation and sound, with later-scene input limits and busy scenes at 55 FPS; a full playthrough is unconfirmed. iPad Air M2/iPadOS 27 has limited startup/run evidence, while iPhone builds are unrun and Mac controllers are unavailable. macOS 26 is the target, but development/testing used macOS 27 and 26 is untried. Build locally with build_mac_app.py; optional embedding copies/clones your own data into Application Support, and keep-data rebuilds preserve RomFS. iOS needs local building/signing with separate game content. There is no release package. Use your own version 1.0.0 NSP, title 010051F0207B2000, prod.keys and locally rewritten v0 modules/RomFS/shaders. Other regions/updates are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build Tomodachi Life: Living the Dream for Apple silicon from your own version 1.0.0 Switch game. The project reports touring an island and creating Miis on macOS 27. The macOS 26 target is untested, and Mac controller support is unavailable.",
     "original_game_title": "Tomodachi Life: Living the Dream",
     "project_url": "https://github.com/kuosuko/tomodachi-native",
     "platforms": [],
@@ -18,6 +18,26 @@
       "image_sha256": "eaa5ab3451530ae4851571c6c1750d73f03ef95bc74ec881f4c99b9cb7824632",
       "game_slug": "tomodachi-life-living-the-dream",
       "match_kind": "underlying-game"
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/kuosuko/tomodachi-native",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use your own 1.0.0 NSP for title 010051F0207B2000 and prod.keys. Keep the locally prepared v0 modules, RomFS and shaders. Other versions and regions are unconfirmed."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Build the Mac app with build_mac_app.py. Optional embedding places your game data in Application Support. The keep-data rebuild preserves RomFS. The iOS build requires local signing and separate game content."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project reports sound and Mii creation on Mac, with input problems in later scenes. An iPad Air M2 running iPadOS 27 has limited startup evidence. The iPhone build has no play report. There is no release package."
+        }
+      ]
     }
   },
   "upstream_lineage": {

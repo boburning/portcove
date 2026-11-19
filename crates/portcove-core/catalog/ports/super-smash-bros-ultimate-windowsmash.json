@@ -3,7 +3,7 @@
   "listing": {
     "id": "super-smash-bros-ultimate-windowsmash",
     "name": "Super Smash Bros. Ultimate (WindowSmash)",
-    "summary": "An experimental Super Smash Bros. Ultimate port translating AArch64/NEON code to C/x64 with Direct3D 11/HLSL, experimental Linux DXVK/Vulkan and a separate Apple Silicon Metal renderer. The project reports menus, matches and Local Wireless, but physical controllers, complete two-PC matches and the online roster have limited testing. Mac observations reach menus only. The source installer downloads tools/compiler and builds locally; two alpha tags contain no release files. Windows 10/11 x64 needs AVX2/Direct3D 11; Linux CPU support is unconfirmed, and Apple Silicon source targets macOS 14.5+. Use your own 13.0.5 base plus matching update or merged dump, prod.keys/title.keys and firmware NCAs for fonts. XCI/NSP/NCA are accepted; expand NSZ/XCZ first. Original source data may remain required during play. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "WindowSmash builds Super Smash Bros. Ultimate 13.0.5 from your own Switch game. The project reports matches on Windows and menus on Apple silicon Mac. Linux support is experimental. The alpha tags contain no downloadable player.",
     "original_game_title": "Super Smash Bros. Ultimate",
     "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
     "listed_at": "2026-10-25",
@@ -18,7 +18,29 @@
       "game_slug": "super-smash-bros-ultimate",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2937
+    "issue_number": 2937,
+    "manual_setup": {
+      "help_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Prepare your own base and matching update or a merged 13.0.5 dump, prod.keys, title.keys and firmware NCAs for fonts. XCI, NSP and NCA are accepted. Expand NSZ or XCZ first."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use the project’s source installer to download the tools and compile locally. The primary Windows 10 or 11 x64 route needs AVX2 and Direct3D 11. Mac source targets Apple silicon on macOS 14.5 or later."
+        }
+      ],
+      "warnings": [
+        "Keep the original game data after compiling. The player may still need it during play."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The Linux route uses DXVK and Vulkan, with CPU support unconfirmed. Two-PC matches, physical controllers and the online roster have limited testing."
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -40,7 +40,9 @@ for (const textSize of [100, 200]) {
       </LocalizationProvider>,
       { container: root },
     );
-    await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+    await expect
+      .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+      .toBe("12");
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     const categories = page.getByRole("navigation", { name: "Settings categories", exact: true });
     const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;

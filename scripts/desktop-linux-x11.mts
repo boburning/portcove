@@ -19,7 +19,10 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchLinuxNativeSession } from "../apps/desktop/scripts/desktop-linux-native-session.mts";
+import {
+  launchLinuxNativeSession,
+  nativeNamespaceInputCaptureMs,
+} from "../apps/desktop/scripts/desktop-linux-native-session.mts";
 import { acquireNativeSessionLock } from "./native-session-lock.mts";
 import { toolCachePaths } from "./tool-cache.mts";
 import { fileIdentity } from "./development-evidence.mts";
@@ -130,7 +133,11 @@ export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" 
           resolveDesktopHarnessSelection(parseDesktopHarnessOptions(config.harness_args).values),
         ) + 60_000
       : 240_000;
-  const outer = harness + 30_000;
+  // Server, GTK, harness and optional media namespaces each capture their
+  // fixed inputs before launch. The outer namespace has one capture as well.
+  const namespaceCapture = nativeNamespaceInputCaptureMs;
+  const innerNamespaceCaptures = config.stage === "harness" ? 4 : 2;
+  const outer = harness + namespaceCapture * innerNamespaceCaptures + 30_000;
   const inputCapture = 300_000;
   const inputVerification = 120_000;
   return {
@@ -138,7 +145,8 @@ export function linuxX11ExecutionBudgets(config: Pick<X11Configuration, "stage" 
     outer,
     inputCapture,
     inputVerification,
-    command: inputCapture + outer + inputVerification + 60_000,
+    namespaceCapture,
+    command: inputCapture + namespaceCapture + outer + inputVerification + 60_000,
   };
 }
 export async function readLinuxX11Configuration(file: string) {

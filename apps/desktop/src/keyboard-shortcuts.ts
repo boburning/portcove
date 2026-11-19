@@ -1,3 +1,9 @@
+import {
+  mountCollectionDestination,
+  captureCollectionDestination,
+  hasCollectionNavigation,
+  type CollectionDestination,
+} from "./collection-navigation";
 import { useCallback, useEffect, useRef } from "react";
 import type { View } from "./view-model";
 import { focusAndReveal, focusRegion, navigationScope } from "./focus";
@@ -91,9 +97,17 @@ export function useGlobalShortcuts({
 }
 
 type WorkspaceFocus = { kind: "id" | "detail-origin"; value: string };
-type WorkspaceSnapshot = { focus: WorkspaceFocus | undefined; scrollTop: number };
+type WorkspaceSnapshot = {
+  focus: WorkspaceFocus | undefined;
+  scrollTop: number;
+  collection?: CollectionDestination | undefined;
+};
 export type WorkspaceBrowsingPositions = Partial<Record<View, WorkspaceSnapshot>>;
-type DetailReturn = { focusOrigin: string | undefined; scrollTop: number };
+type DetailReturn = {
+  focusOrigin: string | undefined;
+  scrollTop: number;
+  collection?: CollectionDestination | undefined;
+};
 
 function workspaceFocus(element: HTMLElement, workspace: HTMLElement): WorkspaceFocus | undefined {
   if (!workspace.contains(element)) return undefined;
@@ -112,8 +126,43 @@ function resolveWorkspaceFocus(workspace: HTMLElement, focus: WorkspaceFocus) {
   );
 }
 
-function restoreWorkspaceSnapshot(workspace: HTMLElement, snapshot: WorkspaceSnapshot) {
-  scrollWorkspaceTo(workspace, snapshot.scrollTop);
+async function restoreWorkspaceSnapshot(
+  workspace: HTMLElement,
+  snapshot: WorkspaceSnapshot,
+  current: () => boolean,
+) {
+  const active = document.activeElement;
+  const valid = () =>
+    current() && document.activeElement === active && navigationScope() === document;
+  if (!valid()) return;
+  if (
+    !(await mountCollectionDestination(
+      workspace,
+      {
+        ...snapshot.collection,
+        originKey: snapshot.collection
+          ? snapshot.collection.originKey
+          : snapshot.focus?.kind === "detail-origin"
+            ? snapshot.focus.value
+            : undefined,
+        scrollTop: snapshot.scrollTop,
+      },
+      valid,
+    )) ||
+    !valid()
+  )
+    return;
+  if (
+    snapshot.focus?.kind === "detail-origin" &&
+    !resolveWorkspaceFocus(workspace, snapshot.focus)
+  ) {
+    if (
+      !(await mountCollectionDestination(workspace, { originKey: snapshot.focus.value }, valid)) ||
+      !valid()
+    )
+      return;
+  }
+  if (!hasCollectionNavigation(workspace)) scrollWorkspaceTo(workspace, snapshot.scrollTop);
   if (!snapshot.focus) return;
   const target = resolveWorkspaceFocus(workspace, snapshot.focus);
   if (target && !target.matches(":disabled, [aria-disabled=true]")) focusAndReveal(target);
@@ -127,6 +176,19 @@ export function useWorkspaceContinuity(
   ready = true,
 ) {
   const workspace = useRef<HTMLElement>(null);
+  const sequence = useRef(0);
+  useEffect(() => {
+    const cancel = () => {
+      ++sequence.current;
+    };
+    for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
+      document.addEventListener(name, cancel, true);
+    return () => {
+      cancel();
+      for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
+        document.removeEventListener(name, cancel, true);
+    };
+  }, []);
   useWorkspaceReflow(workspace);
   const snapshots = useRef<WorkspaceBrowsingPositions>({ ...initial });
   const initialRestore = useRef(restoreInitial ? initial?.[view] : undefined);
@@ -147,17 +209,25 @@ export function useWorkspaceContinuity(
       };
       return;
     }
+    const transition = ++sequence.current;
     const frame = window.requestAnimationFrame(() => {
+      if (sequence.current !== transition) return;
       const targetWorkspace = workspace.current;
       if (!targetWorkspace) return;
-      restoreWorkspaceSnapshot(targetWorkspace, snapshot);
+      void restoreWorkspaceSnapshot(
+        targetWorkspace,
+        snapshot,
+        () => sequence.current === transition,
+      );
     });
     return () => window.cancelAnimationFrame(frame);
   }, [ready, view]);
   useEffect(() => {
     const restore = pending.current;
     if (!ready || !restore || restore.view !== view) return;
+    const transition = ++sequence.current;
     const frame = window.requestAnimationFrame(() => {
+      if (sequence.current !== transition) return;
       if (pending.current !== restore) return;
       pending.current = undefined;
       const targetWorkspace = workspace.current;
@@ -165,7 +235,11 @@ export function useWorkspaceContinuity(
       if (restore.anchor) {
         if (document.activeElement !== restore.anchor) return;
       } else if (targetWorkspace.contains(document.activeElement)) return;
-      restoreWorkspaceSnapshot(targetWorkspace, restore.snapshot);
+      void restoreWorkspaceSnapshot(
+        targetWorkspace,
+        restore.snapshot,
+        () => sequence.current === transition,
+      );
     });
     return () => window.cancelAnimationFrame(frame);
   }, [ready, view]);
@@ -190,6 +264,7 @@ export function useWorkspaceContinuity(
       ...snapshots.current,
       [view]: {
         scrollTop: workspaceScrollTop(currentWorkspace),
+        collection: captureCollectionDestination(currentWorkspace),
         focus:
           currentWorkspace && active instanceof HTMLElement
             ? workspaceFocus(active, currentWorkspace)
@@ -204,12 +279,14 @@ export function useWorkspaceContinuity(
       const snapshot: WorkspaceSnapshot = detailReturn
         ? {
             scrollTop: detailReturn.scrollTop,
+            collection: detailReturn.collection,
             focus: detailReturn.focusOrigin
               ? { kind: "detail-origin", value: detailReturn.focusOrigin }
               : undefined,
           }
         : {
             scrollTop: workspaceScrollTop(currentWorkspace),
+            collection: captureCollectionDestination(currentWorkspace),
             focus:
               currentWorkspace && active instanceof HTMLElement
                 ? workspaceFocus(active, currentWorkspace)
@@ -230,15 +307,22 @@ export function useWorkspaceContinuity(
           scrollTop: 0,
         };
       }
+      const transition = ++sequence.current;
       commit();
       window.requestAnimationFrame(() => {
+        if (sequence.current !== transition) return;
         const nextWorkspace = workspace.current;
         if (!nextWorkspace) return;
         if (!ready) {
           scrollWorkspaceTo(nextWorkspace, 0);
           return;
         }
-        if (nextSnapshot) restoreWorkspaceSnapshot(nextWorkspace, nextSnapshot);
+        if (nextSnapshot)
+          void restoreWorkspaceSnapshot(
+            nextWorkspace,
+            nextSnapshot,
+            () => sequence.current === transition,
+          );
         else scrollWorkspaceTo(nextWorkspace, 0);
       });
     },

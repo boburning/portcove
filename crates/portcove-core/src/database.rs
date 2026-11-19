@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 67;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 68;
 
 struct Migration {
     version: i64,
@@ -425,7 +425,32 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_67,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 68,
+        name: "remembered game assessment cursors",
+        apply: migration_68,
+        verify: verify_migration_68,
+    },
 ];
+
+fn migration_68(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE port_intent_assessment_cursor (
+            purpose TEXT PRIMARY KEY CHECK(purpose IN ('readiness', 'standing_setup')),
+            port_id TEXT NOT NULL,
+            revision INTEGER NOT NULL
+        ) STRICT;",
+    )?;
+    verify_migration_68(transaction)
+}
+
+fn verify_migration_68(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "port_intent_assessment_cursor",
+        &["purpose", "port_id", "revision"],
+    )
+}
 
 fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
     // Older restore code can publish an unchecked projection or clean up
@@ -2993,7 +3018,44 @@ mod tests {
         drop(old_client);
         let current = crate::Library::open(root).unwrap();
         let versions = recorded_versions(&current.connection().unwrap()).unwrap();
-        assert_eq!(versions.last(), Some(&67));
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&67));
+    }
+
+    #[test]
+    fn assessment_cursor_upgrade_keeps_existing_choices() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 67).unwrap();
+        let existing = serde_json::json!({
+            "format_version": 1,
+            "port_id": "remembered-game",
+            "mode": "notify",
+            "updated_at": 123
+        })
+        .to_string();
+        connect(root)
+            .unwrap()
+            .execute(
+                "INSERT INTO port_intents VALUES (?1, ?2, ?3)",
+                rusqlite::params!["remembered-game", 123, existing],
+            )
+            .unwrap();
+        let library = crate::Library::open(root).unwrap();
+        let choices = library.port_intents().unwrap();
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].mode, crate::PortIntentMode::Notify);
+        assert_eq!(choices[0].updated_at, 123);
+        let connection = library.connection().unwrap();
+        let cursors: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM port_intent_assessment_cursor",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(cursors, 0);
     }
 
     #[test]
@@ -4051,6 +4113,7 @@ mod tests {
         schema_64: 64,
         schema_65: 65,
         schema_66: 66,
+        schema_67: 67,
     }
 
     #[test]

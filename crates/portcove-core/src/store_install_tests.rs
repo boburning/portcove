@@ -475,6 +475,71 @@ fn linked_steam_install_is_protected_without_an_original_folder_hint() {
 }
 
 #[test]
+fn a_new_store_product_can_get_an_original_hint_from_data_alone() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(
+        &steam,
+        440001,
+        "Existing title from the manifest",
+        "ExtraGame",
+        true,
+    );
+    let game = steam.join("steamapps/common/ExtraGame");
+    let source = game.join("data/demo");
+    fs::create_dir_all(source.join("levels")).unwrap();
+    let host = FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    };
+    let profile = "dark-forces-pc-complete-installed-data";
+    let row = serde_json::json!({
+        "store": "steam",
+        "product_id": "440001",
+        "profile_id": profile,
+        "relative_directory": "data/demo",
+        "required_directories": ["levels"],
+    });
+    let layouts = parse_store_original_layouts(&serde_json::json!([row]).to_string()).unwrap();
+    assert!(detect(&host).report.installs[0].original_folder.is_none());
+    let with_layout = detect_with_layouts(&host, Some(profile), &layouts);
+    assert_eq!(
+        with_layout.report.installs[0]
+            .original_folder
+            .as_ref()
+            .unwrap()
+            .path,
+        canonical(&source)
+    );
+    assert!(
+        detect_with_layouts(&host, Some("different-edition"), &layouts)
+            .report
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+    fs::remove_dir(source.join("levels")).unwrap();
+    assert!(
+        detect_with_layouts(&host, Some(profile), &layouts)
+            .report
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+
+    let mut invalid = row.clone();
+    invalid["relative_directory"] = serde_json::json!("../outside");
+    assert!(parse_store_original_layouts(&serde_json::json!([invalid]).to_string()).is_err());
+    assert!(parse_store_original_layouts(&serde_json::json!([row, row]).to_string()).is_err());
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    assert!(!embedded_store_original_layouts().is_empty());
+    for layout in embedded_store_original_layouts() {
+        catalog.source_profile(&layout.profile_id).unwrap();
+    }
+}
+
+#[test]
 fn bstone_store_products_offer_only_the_reviewed_original_folders() {
     let temporary = tempfile::tempdir().unwrap();
     let steam = temporary.path().join("Steam");

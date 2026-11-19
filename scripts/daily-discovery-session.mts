@@ -59,6 +59,7 @@ import {
   collectDiscoverySources,
   consumeConfiguredObserver,
   investigateDiscoveryUpstream,
+  resolveDiscoveryDefaultRevision,
   repoName,
 } from "./daily-discovery-sources.mts";
 import type { SourceContext, CollectedSource } from "./daily-discovery-sources.mts";
@@ -832,7 +833,7 @@ export class DiscoverySession {
       const left = this.budget.remaining();
       // One list read may follow up to four redirects; keep the research reserve after them.
       if (
-        left.requests < 22 + ("revision_repository" in list ? 2 : 0) ||
+        left.requests < 22 + ("revision_repository" in list ? 3 : 0) ||
         left.bytes < list.cap + 1024 * 1024
       ) {
         this.journal.notes.push({
@@ -845,21 +846,17 @@ export class DiscoverySession {
       }
       const name = `external-list-${list.id}`;
       try {
-        let sourceUrl: string = list.url;
+        let sourceUrl: string;
         let revision: string | undefined;
         if ("revision_repository" in list) {
-          const resolved = await this.source.sdk.request({
-            method: "GET",
-            url: `https://api.github.com/repos/${list.revision_repository}/commits/main`,
-          });
-          if (
-            !isRecord(resolved.data) ||
-            typeof resolved.data.sha !== "string" ||
-            !/^[a-f0-9]{40}$/u.test(resolved.data.sha)
-          )
-            throw new Error("External source revision unavailable");
-          revision = resolved.data.sha;
+          revision = await resolveDiscoveryDefaultRevision(
+            this.source,
+            list.revision_repository,
+            list.repository_id,
+          );
           sourceUrl = `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`;
+        } else {
+          sourceUrl = list.url;
         }
         const response = await this.source.http.request(
           "GET",
@@ -954,7 +951,10 @@ export class DiscoverySession {
           phase: "external-list",
           source: list.id,
           status: "partial",
-          evidence: list.url,
+          evidence:
+            "revision_repository" in list
+              ? `https://github.com/${list.revision_repository}`
+              : list.url,
           error: errorMessage(error),
           resume: "Retained hints and the last successful list clock are unchanged",
         });
