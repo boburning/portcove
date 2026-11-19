@@ -1051,6 +1051,10 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // On Windows, 26a0748b reached the repaired workspace and began its final
+  // restart before the 180 s watchdog stopped the driver. Allow time to check
+  // the saved preferences after restart and join the owned processes.
+  if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
   // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
   if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.

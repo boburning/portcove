@@ -40,6 +40,8 @@ function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
       return t("section.saves");
     case "versions":
       return t("section.versions");
+    case "configuration":
+      return t("section.configuration");
     case "manage":
       return t("section.manage");
   }

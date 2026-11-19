@@ -1003,7 +1003,9 @@ it("counts a pending listing under Needs attention beside a ready registration w
   await expect.element(readiness).toHaveAccessibleName("Readiness All (2)");
   await expect.element(page.getByRole("button", { name: /^Play: / })).toBeVisible();
   await readiness.click();
-  await expect.element(page.getByRole("option", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("option", { name: "Ready to play (1)", exact: true }))
+    .toBeVisible();
   await page.getByRole("option", { name: "Needs attention (1)", exact: true }).click();
   await expect.element(readiness).toHaveAccessibleName("Readiness Needs attention (1)");
   expect(document.body.textContent).toContain("Downloaded · setup needed");
@@ -1423,7 +1425,12 @@ it("retains a manually selected setup target and literal arguments across remoun
     10,
   );
   expect(pickHostToolExecutable).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain(executable);
+  const launchReview = page.getByText("Game program", { exact: true }).element().closest("dl")!;
+  for (const value of [executable, "C:/Upstream data", "--data", "C:/Original files"]) {
+    await expect
+      .element(page.elementLocator(launchReview).getByText(value, { exact: true }))
+      .toBeVisible();
+  }
 });
 
 it("shows save warnings without promoting an unscoped guide step to a download instruction", async () => {

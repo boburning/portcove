@@ -1512,7 +1512,7 @@ function PortCardStatus({
 
 function filterLabel(filter: Filter) {
   if (filter === "all") return "All";
-  if (filter === "ready") return "Ready";
+  if (filter === "ready") return "Ready to play";
   if (filter === "setup") return "Needs attention";
   return releaseChannelPresentation(filter).label;
 }

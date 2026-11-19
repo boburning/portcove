@@ -970,6 +970,10 @@ credential provenance and request accounting in Connection details. Token entry
 has a persistent visible label, while environment-controlled credentials keep
 their outside-Portcove recovery instructions. An unavailable connection-status
 read must not appear as an anonymous sign-in result.
+Returning from GitHub settings keeps the pending installed-port check bound to
+its installation selection. After sign-in, it shows the current account and
+allowance and focuses the explicit check action. Returning without signing in
+resumes the anonymous decision. Navigation and dismissal leave the check idle.
 Disc-tool recovery leads with the tool name, missing or invalid state, and a
 working Locate or retry action. Keep executable paths, configuration variables,
 and discovery provenance in Tool details; an environment override cannot be

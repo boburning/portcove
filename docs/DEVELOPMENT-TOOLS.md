@@ -2538,7 +2538,9 @@ routine profiles. It retains malformed preferences and player-data before copies
 checks the actual startup diagnostics and absence of the normal workspace, and
 proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
-library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
+library identity and player data. A six-minute harness watchdog covers the
+initial refusal, both restarts, and owned-process cleanup. The failed-startup
+screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
 Technical labels retain their exact spelling while wrapping within their column;
 the scenario checks actual label/value separation and requires no unresolved

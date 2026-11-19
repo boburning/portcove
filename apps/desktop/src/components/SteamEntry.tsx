@@ -147,21 +147,23 @@ export function SteamEntryDialog({
   generation,
   installed,
   close,
+  initialProfile,
 }: {
   port: PortDefinition;
   generation: number;
   installed: boolean;
   close: () => void;
+  initialProfile?: Pick<SteamBatchSelection, "steamRoot" | "steamUserId" | "includeArtwork">;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const [steamRoot, setSteamRoot] = useState("");
-  const [steamUserId, setSteamUserId] = useState("");
+  const [steamRoot, setSteamRoot] = useState(initialProfile?.steamRoot ?? "");
+  const [steamUserId, setSteamUserId] = useState(initialProfile?.steamUserId ?? "");
   const [review, setReview] = useState<SteamEntryReview>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
   const [artworkReview, setArtworkReview] = useState<SteamArtworkReview>();
   const [artworkResult, setArtworkResult] = useState<SteamArtworkApplyResult>();
   const [replaceArtwork, setReplaceArtwork] = useState(false);
-  const [includeArtwork, setIncludeArtwork] = useState(true);
+  const [includeArtwork, setIncludeArtwork] = useState(initialProfile?.includeArtwork ?? true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => {
@@ -529,16 +531,19 @@ export function SteamBatchEntryDialog({
   ports,
   generation,
   close,
+  allowSingle = false,
 }: {
   ports: PortDefinition[];
   generation: number;
   close: () => void;
+  allowSingle?: boolean;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const applyButton = useRef<HTMLButtonElement>(null);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const restoreReviewFocus = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [singlePort, setSinglePort] = useState<PortDefinition>();
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamBatchReview>();
@@ -618,6 +623,20 @@ export function SteamBatchEntryDialog({
       setPending(undefined);
     }
   };
+  const selectedPort =
+    allowSingle && selectedIds.length === 1
+      ? ports.find((port) => port.id === selectedIds[0])
+      : undefined;
+  if (singlePort)
+    return (
+      <SteamEntryDialog
+        port={singlePort}
+        generation={generation}
+        installed
+        initialProfile={{ steamRoot, steamUserId, includeArtwork }}
+        close={() => setSinglePort(undefined)}
+      />
+    );
   return (
     <Dialog
       open
@@ -635,8 +654,9 @@ export function SteamBatchEntryDialog({
           Add selected games to Steam
         </DialogTitle>
         <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
-          Select at least two installed games to add or repair their shortcuts in one selected local
-          Steam profile.
+          {allowSingle
+            ? "Choose one or more installed games to add or repair shortcuts in a local Steam profile."
+            : "Select at least two installed games to add or repair their shortcuts in one selected local Steam profile."}
         </DialogDescription>
         {!result && (
           <>
@@ -696,14 +716,18 @@ export function SteamBatchEntryDialog({
               ref={reviewButton}
               data-focusable
               disabled={
-                selectedIds.length < 2 ||
-                !steamRoot.trim() ||
-                !steamUserId.trim() ||
-                Boolean(pending)
+                !selectedPort &&
+                (selectedIds.length < 2 ||
+                  !steamRoot.trim() ||
+                  !steamUserId.trim() ||
+                  Boolean(pending))
               }
-              onClick={() => void loadReview()}
+              onClick={() => {
+                if (selectedPort) setSinglePort(selectedPort);
+                else void loadReview();
+              }}
             >
-              Review selected shortcuts
+              {selectedPort ? "Review selected game" : "Review selected shortcuts"}
             </Button>
           )}
           {review && (

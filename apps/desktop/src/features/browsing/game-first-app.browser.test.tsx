@@ -209,3 +209,85 @@ it("removes a filtered sibling Favorite through listing details and rereads it o
     .element(page.getByRole("button", { name: "Favorites 0 games", exact: true }))
     .toBeVisible();
 });
+
+it.each([true, false])(
+  "opens the existing-installation editor once from managed detail with promotion %s",
+  async (promoted) => {
+    await page.viewport(1366, 900);
+    const snapshot = workspace("details");
+    const listing = snapshot.listing_catalog!.listings.find(
+      ({ id }) => id === "details-downloaded",
+    )!;
+    const title = listing.original_game_title ?? listing.name;
+    const definition = {
+      ...snapshot.catalog.ports[0]!,
+      id: listing.id,
+      name: listing.name,
+      presentation: {
+        ...snapshot.catalog.ports[0]!.presentation!,
+        original_game_title: title,
+      },
+    };
+    const status = snapshot.statuses.find(({ port_id }) => port_id === listing.id)!;
+    status.port_actions = [
+      promoted
+        ? {
+            action: "install",
+            availability: "held",
+            reason: "definition_ineligible",
+            definition: { outcome: "hold", reason: "authenticated_integrity_required" },
+          }
+        : { action: "install", availability: "waiting", reason: "missing_source" },
+    ];
+    const assessment = snapshot.listing_statuses!.find(({ port_id }) => port_id === listing.id)!;
+    snapshot.catalog.ports = [definition];
+    snapshot.listing_catalog!.listings = [listing];
+    snapshot.statuses = [status];
+    snapshot.listing_statuses = [{ ...assessment, status }];
+    snapshot.pending_setups = [];
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    vi.spyOn(desktopApi, "catalogDownloadCandidates").mockRejectedValue(
+      new Error("No packages in this controlled fixture"),
+    );
+    transport = installInteractiveTransport("details", (message) => {
+      throw Error(message);
+    });
+    const root = document.createElement("div");
+    root.id = "root";
+    document.body.append(root);
+    initializeLocalization(["en"]);
+    await render(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+      { container: root },
+    );
+    await page.getByRole("button", { name: "Discover", exact: true }).click();
+    await page.getByRole("textbox", { name: "Search Discover" }).fill(title);
+    const card = () => document.querySelector(`button[data-detail-game-id="${listing.id}"]`);
+    await expect.poll(() => card()?.checkVisibility()).toBe(true);
+    await page.elementLocator(card()!).click();
+    const overview = page.getByRole("tab", { name: "Overview", exact: true });
+    const editor = page.getByRole("heading", { name: "Launch details", exact: true });
+    const editorInAnyPanel = page.getByText("Launch details", { exact: true });
+    await expect.element(overview).toBeVisible();
+    await expect.element(editorInAnyPanel).not.toBeInTheDocument();
+    await overview.click();
+    const entry = page.getByRole("button", { name: "Use an existing installation", exact: true });
+    await expect.poll(() => entry.query()?.checkVisibility() ?? false).toBe(promoted);
+    if (!promoted) await page.getByRole("tab", { name: "Game files", exact: true }).click();
+    await expect.element(editorInAnyPanel).not.toBeInTheDocument();
+    await entry.click();
+    await expect
+      .element(page.getByRole("tab", { name: "Game files", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    await expect.element(editor).toHaveFocus();
+    await expect
+      .element(page.getByRole("heading", { name: "Use your existing installation", exact: true }))
+      .toBeVisible();
+    await expect.element(entry).toHaveAttribute("aria-expanded", "true");
+    await expect
+      .element(page.getByText("Download another version", { exact: true }))
+      .not.toBeInTheDocument();
+  },
+);

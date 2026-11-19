@@ -514,6 +514,44 @@ function UserSelectedRuntimeEditorView(model: ReturnType<typeof useUserSelectedR
   );
 }
 
+export function RuntimeLaunchFacts({
+  executable,
+  workingDirectory,
+  launchArguments,
+}: {
+  executable: string;
+  workingDirectory: string;
+  launchArguments?: readonly string[] | undefined;
+}) {
+  return (
+    <dl className="grid gap-2 [overflow-wrap:anywhere]">
+      <dt>Game program</dt>
+      <dd>{executable}</dd>
+      <dt>Start in folder</dt>
+      <dd>{workingDirectory}</dd>
+      {launchArguments && (
+        <>
+          <dt>Launch options (advanced)</dt>
+          <dd>
+            {launchArguments.length
+              ? launchArguments.map((argument, index) => (
+                  <div key={index}>
+                    <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
+                    {argument ? (
+                      <code className="block whitespace-pre-wrap">{argument}</code>
+                    ) : (
+                      <span className="block">Empty argument</span>
+                    )}
+                  </div>
+                ))
+              : "None"}
+          </dd>
+        </>
+      )}
+    </dl>
+  );
+}
+
 function SelectedRuntimeDialog({
   port,
   generation,
@@ -578,6 +616,7 @@ function SelectedRuntimeDialog({
     failureMessage:
       "Portcove couldn't register these launch details. Review the selected executable and working directory.",
   });
+  const launchArguments = preview?.user_selected?.arguments ?? selected.arguments;
   const content = (
     <>
       {inline ? (
@@ -602,30 +641,11 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl
-        hidden={inline && (!preview || preview.executable === selected.executable)}
-        className="grid gap-2 [overflow-wrap:anywhere]"
-      >
-        <dt>Game program</dt>
-        <dd>{preview?.executable ?? selected.executable}</dd>
-        <dt>Start in folder</dt>
-        <dd>{preview?.path ?? selected.workingDirectory}</dd>
-        <dt>Launch options (advanced)</dt>
-        <dd>
-          {selected.arguments.length
-            ? selected.arguments.map((argument, index) => (
-                <div key={index}>
-                  <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
-                  {argument ? (
-                    <code className="block whitespace-pre-wrap">{argument}</code>
-                  ) : (
-                    <span className="block">Empty argument</span>
-                  )}
-                </div>
-              ))
-            : "None"}
-        </dd>
-      </dl>
+      <RuntimeLaunchFacts
+        executable={preview?.executable ?? selected.executable}
+        workingDirectory={preview?.path ?? selected.workingDirectory}
+        launchArguments={launchArguments}
+      />
       {pending === "review" && <p role="status">Checking executable and paths…</p>}
       <ActionReviewFailure error={error} />
       <DialogFooter>

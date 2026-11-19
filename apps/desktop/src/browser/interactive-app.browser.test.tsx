@@ -238,15 +238,15 @@ it("keeps one named readiness choice across narrow, desktop and enlarged widths"
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
-  await page.getByRole("option", { name: "Ready (2)", exact: true }).click();
-  await expect.poll(() => readiness.element().textContent).toContain("Ready (2)");
+  await page.getByRole("option", { name: "Ready to play (2)", exact: true }).click();
+  await expect.poll(() => readiness.element().textContent).toContain("Ready to play (2)");
   await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
-  await expect.poll(() => readiness.element().textContent).toContain("Ready (1)");
+  await expect.poll(() => readiness.element().textContent).toContain("Ready to play (1)");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
   expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
   await page.viewport(1280, 800);
   await expect.element(readiness).toBeVisible();
-  await expect.element(readiness).toHaveAccessibleName("Readiness Ready (1)");
+  await expect.element(readiness).toHaveAccessibleName("Readiness Ready to play (1)");
   await page.viewport(1366, 768);
   document.documentElement.style.fontSize = "200%";
   await expect.element(readiness).toBeVisible();
@@ -288,10 +288,10 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
     .not.toBeInTheDocument();
   await openAdvancedFilters();
   await page.getByRole("combobox", { name: /^Readiness / }).click();
-  await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
+  await page.getByRole("option", { name: "Ready to play (1)", exact: true }).click();
   await expect
     .element(page.getByRole("combobox", { name: /^Readiness / }))
-    .toHaveAccessibleName("Readiness Ready (1)");
+    .toHaveAccessibleName("Readiness Ready to play (1)");
   await expect
     .element(
       page.getByRole("button", {
@@ -431,7 +431,8 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();
   await captureParityState("startup-location-recovery-fixture");
-  await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
+  await page.getByRole("button", { name: "Use platform default", exact: true }).click();
+  await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await page.getByText("Demo library · simulated files — review controls", { exact: true }).click();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));

@@ -54,7 +54,7 @@ function catalogFallbackSummary(t: TFunction<"catalogUpdates">, code: string | n
     case "selected_definition_unavailable":
       return t("custom.fallbackNotLoaded");
     case "listing_directory_unavailable":
-      return t("listings.builtIn");
+      return t("listings.savedDirectoryUnavailable");
     case "replay_floor":
       return t("custom.fallbackReplay");
     case "untrusted_key":

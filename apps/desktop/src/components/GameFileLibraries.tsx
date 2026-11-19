@@ -808,7 +808,11 @@ function LiveScanResults({
   );
 }
 
-function useSavedFolderView(generation: number, setError: (error: string) => void) {
+function useSavedFolderView(
+  generation: number,
+  setError: (error: string) => void,
+  active: boolean,
+) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
   const [readConfirmed, setReadConfirmed] = useState(false);
@@ -852,6 +856,7 @@ function useSavedFolderView(generation: number, setError: (error: string) => voi
     [generation, refreshRoots, setError],
   );
   useEffect(() => {
+    if (!active) return;
     const reads = requests.current;
     let observing = true;
     void Promise.resolve()
@@ -864,12 +869,12 @@ function useSavedFolderView(generation: number, setError: (error: string) => voi
       observing = false;
       reads.begin();
     };
-  }, [refresh, setError]);
+  }, [active, refresh, setError]);
   return {
     roots,
     snapshot,
     setSnapshot,
-    readConfirmed,
+    readConfirmed: active && readConfirmed,
     refresh,
     refreshRoots,
     acceptRootPreflight: (savedRoots: GameFileRoot[]) => {
@@ -997,6 +1002,7 @@ function useSavedFolderFocus({
 
 export function GameFileLibraries({
   instanceId = "game-file-libraries",
+  active = true,
   generation,
   ports,
   profiles,
@@ -1008,8 +1014,10 @@ export function GameFileLibraries({
   setupSource,
   setSetupSource,
   scanAfterAdd = false,
+  onOpenScan,
 }: {
   instanceId?: string;
+  active?: boolean;
   generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -1024,6 +1032,7 @@ export function GameFileLibraries({
   setSetupSource?: ((source?: SourceRecord) => void) | undefined;
   /** One intention: choosing a folder also scans the saved folders. */
   scanAfterAdd?: boolean;
+  onOpenScan?: (() => void) | undefined;
 }) {
   const headingId = `${instanceId}-heading`;
   const returnOrigin = `${instanceId}-setup`;
@@ -1033,7 +1042,7 @@ export function GameFileLibraries({
   const scanState = useGameFileScanObserver(generation);
   const { scanning, operationId, completedBatches, candidates: liveCandidates } = scanState;
   const [error, setError] = useState<string>();
-  const view = useSavedFolderView(generation, setError);
+  const view = useSavedFolderView(generation, setError, active);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
   // Browsing shows the preview plus any pages the player has loaded.
   const more = useMoreMatches(snapshot, generation, () => void refresh(true).catch(() => {}));
@@ -1042,6 +1051,7 @@ export function GameFileLibraries({
     ? [...(snapshot.report.preliminary_selections ?? []), ...more.preliminary]
     : undefined;
   const retainedScope =
+    !onOpenScan &&
     !scanning &&
     readConfirmed &&
     snapshot?.freshness === "inputs_match" &&
@@ -1154,12 +1164,9 @@ export function GameFileLibraries({
     pendingBatchReturn.current = undefined;
     if (!pending || batchReview || pending.review.generation !== generation) return;
     const { review, departing } = pending;
-    if (
-      !review.owner.isConnected ||
-      (document.activeElement !== document.body && !departing?.contains(document.activeElement))
-    )
+    if (document.activeElement !== document.body && !departing?.contains(document.activeElement))
       return;
-    const controls = focusableControls(review.owner);
+    const controls = review.owner.isConnected ? focusableControls(review.owner) : [];
     const target = controls.includes(review.origin)
       ? review.origin
       : (controls[0] ?? heading.current);
@@ -1355,20 +1362,23 @@ export function GameFileLibraries({
     savedScanAction(snapshot, readConfirmed) === "Continue scan"
       ? snapshot?.matches?.scan_id
       : undefined;
+  const renderRefreshFolders = () => (
+    <Button
+      data-focusable
+      variant="ghost"
+      disabled={Boolean(busy) || scanning}
+      onClick={() =>
+        void run("Refreshing folders…", async () => {
+          await refresh();
+        })
+      }
+    >
+      Refresh folders
+    </Button>
+  );
   const renderScanActions = () => (
     <div className="actions flex flex-wrap gap-2">
-      <Button
-        data-focusable
-        variant="ghost"
-        disabled={Boolean(busy) || scanning}
-        onClick={() =>
-          void run("Refreshing folders…", async () => {
-            await refresh();
-          })
-        }
-      >
-        Refresh folders
-      </Button>
+      {renderRefreshFolders()}
       <Button
         data-focusable
         variant={scanAfterAdd && roots?.length && !finishScanId ? "primary" : "outline"}
@@ -1470,8 +1480,16 @@ export function GameFileLibraries({
         setBatchReview(undefined);
       }}
       onChanged={onAdded}
-      onDone={() => {
+      onDone={(departing) => {
         if (!accepts()) return;
+        const target = heading.current;
+        if (
+          target?.getClientRects().length &&
+          navigationScope().contains(target) &&
+          !target.closest("[inert], [hidden], [aria-hidden=true]") &&
+          departing?.contains(document.activeElement)
+        )
+          focusAndReveal(target);
         setBatchReview(undefined);
       }}
     />
@@ -1539,22 +1557,33 @@ export function GameFileLibraries({
           />
         )}
       />
-      {renderScanActions()}
-      {busy && <p role="status">{busy}</p>}
-      {scanning && (
-        <p role="status">
-          Scanning selected folders…
-          {completedBatches &&
-            ` ${completedBatches} ${completedBatches === 1 ? "batch" : "batches"} saved.`}
-        </p>
+      {onOpenScan ? (
+        <div className="flex flex-wrap gap-2">
+          {renderRefreshFolders()}
+          <Button data-focusable data-open-game-file-scan variant="outline" onClick={onOpenScan}>
+            {scanning ? "View active scan" : snapshot ? "View scan results" : "Scan in Add games"}
+          </Button>
+        </div>
+      ) : (
+        <>
+          {renderScanActions()}
+          {scanning && (
+            <p role="status">
+              Scanning selected folders…
+              {completedBatches &&
+                ` ${completedBatches} ${completedBatches === 1 ? "batch" : "batches"} saved.`}
+            </p>
+          )}
+          {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
+          {renderLiveResults()}
+          {scanState.error && <p role="alert">{scanState.error}</p>}
+          {scanState.notice && <p role="status">{scanState.notice}</p>}
+          {renderCompletedScan()}
+        </>
       )}
-      {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
-      {renderLiveResults()}
-      {scanState.error && <p role="alert">{scanState.error}</p>}
-      {scanState.notice && <p role="status">{scanState.notice}</p>}
+      {busy && <p role="status">{busy}</p>}
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
-      {renderCompletedScan()}
       <div ref={readyNoticeSettings} className="border-t border-pc-border pt-4">
         <ReadyNoticesSetting generation={generation} />
       </div>
@@ -1567,10 +1596,14 @@ export function GameFileLibraries({
           return (setting && focusableControls(setting)[0]) || heading.current;
         }}
       />
-      {renderSetupReviews()}
-      {renderInstallBatch()}
-      {renderSourceReview()}
-      {renderContinue()}
+      {!onOpenScan && (
+        <>
+          {renderSetupReviews()}
+          {renderInstallBatch()}
+          {renderSourceReview()}
+          {renderContinue()}
+        </>
+      )}
     </SettingsRow>
   );
 }
