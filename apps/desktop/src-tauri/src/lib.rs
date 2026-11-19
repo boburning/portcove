@@ -2972,7 +2972,14 @@ pub fn run() -> std::process::ExitCode {
     };
     let context = tauri::generate_context!();
     #[cfg(any(windows, target_os = "linux"))]
-    if let Err(message) = runtime_support::check() {
+    if let Err(message) = runtime_support::check(
+        context
+            .config()
+            .bundle
+            .windows
+            .minimum_webview2_version
+            .as_deref(),
+    ) {
         tracing::error!(
             component = "startup",
             phase = "runtime_support",
