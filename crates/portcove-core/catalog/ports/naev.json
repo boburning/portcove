@@ -21,7 +21,7 @@
         },
         {
           "title": "Set up Naev on your computer",
-          "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher\u2019s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows."
+          "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher\u2019s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows. Leave arguments empty only for a fresh default setup. For an existing installation, keep its established launch arguments, including any custom profile or data-folder options."
         },
         {
           "title": "Preserve current and older profiles before changes",

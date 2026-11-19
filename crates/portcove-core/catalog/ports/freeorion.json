@@ -28,7 +28,7 @@
       "steps": [
         {
           "title": "Install the stable client",
-          "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon. For Intel or Apple Silicon Mac registration, keep its name FreeOrion.app and select /Applications/FreeOrion.app/Contents/MacOS/FreeOrion with its containing folder. Keep the whole bundle and leave ordinary launch arguments empty. Review the details, add the client and choose Play. The later FreeOrion.exe selection step applies to Windows."
+          "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon. For Intel or Apple Silicon Mac registration, keep its name FreeOrion.app and select /Applications/FreeOrion.app/Contents/MacOS/FreeOrion with its containing folder. Keep the whole bundle and leave ordinary launch arguments empty. Review the details, add the client and choose Play. The later FreeOrion.exe selection and executable-containing folder instructions apply only to Windows. On Mac or Ubuntu, use the program and working folder specified for that platform."
         },
         {
           "title": "Use your Linux package manager",
