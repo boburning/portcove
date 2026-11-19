@@ -22,6 +22,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isRecord } from "./runtime-values.mts";
 import {
   MaintenanceStoreError,
   batchedStatements,
@@ -2267,7 +2268,7 @@ const reportQuery = (from: string, through: string) => `WITH latest_issue AS (
       WHERE r.source = 'release-content' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
-    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload, o.content_sha256
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
@@ -2385,6 +2386,15 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'managed_route_inputs', (SELECT coalesce(json_agg(json_build_object(
+        'port_key', c.subject_key, 'targets', t.payload, 'upstream', u.payload)
+        ORDER BY c.subject_key), '[]')
+      FROM latest_catalog c
+      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
+      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key
+      WHERE c.payload -> 'operational_definition' = 'true'::jsonb),
+  'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
+      FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
   'managed_release_observations', (
     SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at)
                              ORDER BY o.observed_at, o.observation_id), '[]')
@@ -2515,6 +2525,7 @@ export interface InventoryReport {
   runs: unknown[];
   progress?: ReturnType<typeof visibleProgress>;
   managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
+  managed_route_observation_coverage?: ReturnType<typeof managedRouteObservationCoverage>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2768,6 +2779,137 @@ export interface HostedIntakeEntry {
   issues: { number: number; state: string | null; status: string | null }[];
 }
 
+interface ManagedRouteCoverageRun {
+  source: string;
+  source_revision: string | null;
+  acquisition: number;
+  completed_at: string;
+  coverage: string;
+  expected_count: number | null;
+  observed_count: number;
+  member_count: number | null;
+  member_digest: string | null;
+  gaps: { subject_key: string; code: string }[];
+}
+
+interface ManagedRouteCoverageInput {
+  port_key: string;
+  targets: TargetRoutesFact | null;
+  upstream: unknown;
+}
+
+/** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
+export function managedRouteObservationCoverage(
+  ports: readonly ManagedRouteCoverageInput[],
+  runs: readonly ManagedRouteCoverageRun[],
+  upstreamPresentMembers: Readonly<Record<string, string>>,
+) {
+  const catalog = runs.find(({ source }) => source === "catalog-records");
+  const targets = runs.find(({ source }) => source === "core-target-routes");
+  const upstream = runs.find(({ source }) => source === "upstream-observations");
+  const targetScopeKnown =
+    catalog?.coverage === "complete" &&
+    catalog.member_digest !== null &&
+    targets?.coverage === "complete" &&
+    targets.member_digest !== null &&
+    targets.acquisition === catalog.acquisition &&
+    targets.observed_count === catalog.observed_count;
+
+  const gaps = new Map(upstream?.gaps.map(({ subject_key, code }) => [subject_key, code]));
+  // Partial collections retain older rows. Remove precisely the reported gaps
+  // and verify the original collection digest before counting any inherited row.
+  const members = new Map(
+    Object.entries(upstreamPresentMembers).filter(([port]) => !gaps.has(port)),
+  );
+  const membershipVerified =
+    upstream !== undefined &&
+    ["complete", "partial"].includes(upstream.coverage) &&
+    upstream.member_count === members.size &&
+    upstream.member_digest === membershipDigest(members);
+  const observerFailure = !upstream
+    ? "no-observer-collection"
+    : upstream.coverage === "failed"
+      ? "observer-collection-failed"
+      : membershipVerified
+        ? null
+        : "observer-membership-unverified";
+
+  let missingTargets = 0;
+  const platforms = new Map<string, { offered: number; candidate_observed: number }>();
+  const reasons = new Map<string, number>();
+  for (const port of ports) {
+    if (!targetScopeKnown || !port.targets?.targets) {
+      missingTargets++;
+      continue;
+    }
+    const offered = new Set(
+      port.targets.targets
+        .filter(({ routes }) =>
+          routes.some(({ action, offered }) => action === "install" && offered),
+        )
+        .map(({ platform }) => platform),
+    );
+    const observed = new Set<string>();
+    if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
+      const sources = port.upstream.sources;
+      if (Array.isArray(sources))
+        for (const source of sources)
+          if (isRecord(source) && Array.isArray(source.managed_release_candidates))
+            for (const candidate of source.managed_release_candidates)
+              if (
+                isRecord(candidate) &&
+                typeof candidate.platform === "string" &&
+                typeof candidate.candidate_key === "string" &&
+                /^[a-f0-9]{64}$/u.test(candidate.candidate_key) &&
+                (candidate.state === "eligible" || candidate.state === "pending")
+              )
+                observed.add(candidate.platform);
+    }
+    for (const platform of offered) {
+      const counts = platforms.get(platform) ?? { offered: 0, candidate_observed: 0 };
+      counts.offered++;
+      if (observed.has(platform)) counts.candidate_observed++;
+      else {
+        const reason =
+          observerFailure ??
+          gaps.get(port.port_key) ??
+          (members.has(port.port_key) ? "no-managed-candidate" : "outside-observer-scope");
+        reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+      }
+      platforms.set(platform, counts);
+    }
+  }
+
+  const completeOffering = targetScopeKnown && missingTargets === 0;
+  const byPlatform = [...platforms.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([platform, { offered, candidate_observed }]) => ({
+      platform,
+      offered,
+      candidate_observed: membershipVerified ? candidate_observed : null,
+    }));
+  return {
+    catalog_collection_complete: catalog?.coverage === "complete" && catalog.member_digest !== null,
+    target_scope_known: completeOffering,
+    operational_definitions: ports.length,
+    operational_definitions_without_target_projection: missingTargets,
+    offered_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered }) => total + offered, 0)
+      : null,
+    platforms_with_candidate_observed:
+      membershipVerified && completeOffering
+        ? byPlatform.reduce((total, { candidate_observed }) => total + (candidate_observed ?? 0), 0)
+        : null,
+    by_platform: byPlatform,
+    gaps: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, offered_platforms]) => ({ reason, offered_platforms })),
+    observer_revision: upstream?.source_revision ?? null,
+    observer_collection_completed_at: upstream?.completed_at ?? null,
+    observer_membership_verified: membershipVerified,
+  };
+}
+
 export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
   const { from, through } = managedReleaseEligibilityWindow([], now);
   const data = JSON.parse(runSql(environment, reportQuery(from, through)).trim()) as {
@@ -2777,9 +2919,11 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       issues: Record<string, unknown>;
       intake: Record<string, unknown>;
     };
-    runs: unknown[];
+    runs: ManagedRouteCoverageRun[];
     progress?: StoredProgress[];
     managed_release_observations: unknown[];
+    managed_route_inputs: ManagedRouteCoverageInput[];
+    upstream_present_members: Record<string, string>;
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2922,6 +3066,11 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
     managed_release_eligibility: managedReleaseEligibilityWindow(
       data.managed_release_observations,
       now,
+    ),
+    managed_route_observation_coverage: managedRouteObservationCoverage(
+      data.managed_route_inputs,
+      data.runs,
+      data.upstream_present_members,
     ),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
@@ -3446,6 +3595,12 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
+${
+  report.managed_route_observation_coverage
+    ? `<h2>Managed installation observation coverage</h2>
+<p>The latest checkpoint recorded candidates for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_managed_platforms ?? "unknown")} offered port and platform pairs. Collection completed at ${escapeHtml(report.managed_route_observation_coverage.observer_collection_completed_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
+    : ""
+}
 ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}

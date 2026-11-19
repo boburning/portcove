@@ -26,6 +26,8 @@ import {
   reassessmentTriggers,
   subjectReassessment,
   sourceFreshness,
+  managedRouteObservationCoverage,
+  membershipDigest,
   subjectFilterSource,
   qualificationSummary,
   publicationEntries,
@@ -1760,6 +1762,7 @@ void test(
         cli,
         all: true,
         ports: [port],
+        targets: true,
         upstream: () =>
           Promise.resolve({
             revision: `upstream-observer-run:${++run}`,
@@ -1794,7 +1797,16 @@ void test(
       });
     };
     await observe(false);
-    const pending = buildReport(store.owner).managed_release_eligibility;
+    const inventory = buildReport(store.owner);
+    const routeCoverage = inventory.managed_route_observation_coverage;
+    assert.equal(routeCoverage?.offered_managed_platforms, 1);
+    assert.equal(routeCoverage.platforms_with_candidate_observed, 1);
+    assert.equal(routeCoverage.observer_membership_verified, true);
+    assert.match(
+      renderHtml(inventory),
+      /recorded candidates for 1 of 1 offered port and platform pairs/u,
+    );
+    const pending = inventory.managed_release_eligibility;
     assert.equal(pending?.distinct_candidates, 1);
     assert.equal(pending.pending_candidates, 1);
     assert.equal(pending.observed_pending_candidates, 1);
@@ -3507,6 +3519,121 @@ void test("the report page filters subjects by text, platform, state, attention 
     ).length,
     0,
   );
+});
+
+void test("managed observation coverage keeps stale or unverified membership out of current counts", () => {
+  type CoverageInput = Parameters<typeof managedRouteObservationCoverage>[0][number];
+  type CoverageRun = Parameters<typeof managedRouteObservationCoverage>[1][number];
+  const goodHash = "a".repeat(64);
+  const oldHash = "b".repeat(64);
+  const target = (platform: string, action = "install") => ({
+    platform,
+    routes: [{ action, offered: true, reason: null }],
+    qualification: {
+      state: "unknown",
+      qualified_refs: [],
+      evidence_route: "unrecorded",
+      known_failure: false,
+      offered_artifact: { state: "provider_resolved" },
+      scopes: [],
+      legacy_coverage: [],
+    },
+    provider_resolution_required: true,
+    definition_eligibility: "unknown",
+    readiness: "unknown",
+  });
+  const port = (
+    id: string,
+    offered: [string, string?][],
+    candidates: { platform: string; state: string }[],
+  ): CoverageInput => ({
+    port_key: `port:${id}`,
+    targets: {
+      presence: "operational",
+      declared_platforms: offered.map(([platform]) => platform),
+      acquisition_hold: null,
+      download_restriction: null,
+      targets: offered.map(([platform, action]) => target(platform, action)),
+    },
+    upstream: {
+      sources: [
+        {
+          managed_release_candidates: candidates.map((candidate) => ({
+            ...candidate,
+            candidate_key: goodHash,
+          })),
+        },
+      ],
+    },
+  });
+  const ports = [
+    port(
+      "covered",
+      [["linux-x86-64"], ["windows-x86-64"]],
+      [
+        { platform: "linux-x86-64", state: "eligible" },
+        { platform: "linux-x86-64", state: "pending" },
+      ],
+    ),
+    port("old", [["windows-x86-64"]], [{ platform: "windows-x86-64", state: "eligible" }]),
+    port("external", [["linux-x86-64", "register_external"]], []),
+  ];
+  const run = (source: string, detail: Partial<CoverageRun> = {}): CoverageRun => ({
+    source,
+    source_revision: "fixture",
+    acquisition: 2,
+    completed_at: "2026-11-19T20:00:00Z",
+    coverage: "complete",
+    expected_count: 3,
+    observed_count: 3,
+    member_count: 3,
+    member_digest: goodHash,
+    gaps: [],
+    ...detail,
+  });
+  const catalog = run("catalog-records");
+  const targets = run("core-target-routes");
+  const upstream = run("upstream-observations", {
+    coverage: "partial",
+    observed_count: 1,
+    member_count: 1,
+    member_digest: membershipDigest(new Map([["port:covered", goodHash]])),
+    gaps: [{ subject_key: "port:old", code: "scope-changed" }],
+  });
+  const members = { "port:covered": goodHash, "port:old": oldHash };
+  const coverage = managedRouteObservationCoverage(ports, [catalog, targets, upstream], members);
+  assert.equal(coverage.offered_managed_platforms, 3);
+  assert.equal(coverage.platforms_with_candidate_observed, 1);
+  assert.deepEqual(coverage.by_platform, [
+    { platform: "linux-x86-64", offered: 1, candidate_observed: 1 },
+    { platform: "windows-x86-64", offered: 2, candidate_observed: 0 },
+  ]);
+  assert.deepEqual(coverage.gaps, [
+    { reason: "no-managed-candidate", offered_platforms: 1 },
+    { reason: "scope-changed", offered_platforms: 1 },
+  ]);
+  const mismatched = managedRouteObservationCoverage(ports, [catalog, targets, upstream], {
+    ...members,
+    "port:covered": oldHash,
+  });
+  assert.equal(mismatched.platforms_with_candidate_observed, null);
+  assert.deepEqual(mismatched.gaps, [
+    { reason: "observer-membership-unverified", offered_platforms: 3 },
+  ]);
+  const failed = managedRouteObservationCoverage(
+    ports,
+    [catalog, targets, { ...upstream, coverage: "failed" }],
+    members,
+  );
+  assert.deepEqual(failed.gaps, [{ reason: "observer-collection-failed", offered_platforms: 3 }]);
+  assert.equal(failed.platforms_with_candidate_observed, null);
+  const oldProjection = managedRouteObservationCoverage(
+    ports,
+    [catalog, { ...targets, acquisition: 1 }, upstream],
+    members,
+  );
+  assert.equal(oldProjection.offered_managed_platforms, null);
+  assert.equal(oldProjection.operational_definitions_without_target_projection, 3);
 });
 
 void test("source freshness ages the last good read against the report and flags stale sources", () => {
