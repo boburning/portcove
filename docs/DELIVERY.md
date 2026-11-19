@@ -19,48 +19,34 @@ publication authority.
 
 ## First public beta host boundary
 
-The owner-approved first public beta application host is **Windows x86-64** at
-its existing supported Windows/WebView2 baseline. This changes the application
-host release commitment, not the original platforms of games Portcove manages,
-historical port inventory membership, or truthful per-port support metadata.
-The November 3 port-commitment decision below separately removes the full-cohort
-first-beta deadline while preserving tracked work and safeguards.
+The first public beta targets **Windows x86-64** and **Linux x86-64** under the
+[recorded release decision](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340).
+Each platform needs evidence for its own release candidate before it can be
+called Beta-supported. macOS remains experimental under the release runbook.
+The November 3 port-commitment decision below governs
+the separate port rollout.
 
-| Obligation                             | First Windows beta boundary                                                                                                                                                                                                                                            |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows application/product acceptance | Required: supported baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates at their actual scope. Windows Steam remains Required.                                                     |
-| Shared infrastructure/correctness      | Required regardless of execution OS: authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery and useful shared tests/build/publishing infrastructure. Linux/WSL or macOS execution does not make a shared check optional.               |
-| Linux application/release acceptance   | Planned for a subsequent beta with existing owners. Preserve implementation, metadata, completed receipts and unfinished native/package/updater/Steam acceptance. An unshipped Linux application artifact or Linux-only observation does not gate this Windows launch. |
-| Other non-Windows qualification        | Retain existing owners and before-1.0 commitments. Platform-only observations do not gate Windows; shared or Windows-affecting defects still do.                                                                                                                       |
+| Obligation                            | First public beta evidence                                                                                                                                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Windows application                   | Qualify the supported Windows/WebView2 baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates. Windows Steam remains Required. |
+| Linux application                     | Qualify the x86-64 AppImage, installation, installed update and save preservation for the supported Linux baseline. Existing owners retain native, package and updater evidence and remaining work.             |
+| Shared infrastructure and correctness | Verify authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery, and the required shared tests and publishing infrastructure on their appropriate hosts.                          |
+| Other platforms                       | Keep existing owners and before-1.0 commitments. Platform evidence applies to the tested host and artifact.                                                                                                     |
 
-Mixed owners have independently finishable Windows/shared initial-beta minima.
-Existing #45/#46 retain later native/platform and final-package qualification;
-#290 retains its deferred Linux graphical Steam acceptance. #49/#706 retain the
-Linux GLib defect, actual remediation and exact scope/expiry/effect limits of
-existing Linux-only risk decisions. This Windows decision neither fixes the
-advisory nor exercises, renews or expands those decisions. A later Linux release
-must satisfy its applicable security and package requirements afresh. Use
-[the active release runbook](RELEASING.md#current-release-process) for packaging
-and publication and the [hosted installed-update procedure](NATIVE-HOSTED-ACCEPTANCE.md#hosted-installed-application-update)
-for platform-specific updater continuity. Additional distribution such as winget
-can be prioritized independently of the existing release commitments.
+Existing #45/#46 retain their platform and final-package work. #290 retains
+the separate Linux graphical Steam acceptance. #49/#706 govern Linux GLib
+remediation and the scope and expiry of any Linux-specific risk decision.
+Use [the active release runbook](RELEASING.md#current-release-process) for
+packaging and publication and the
+[hosted installed-update procedure](NATIVE-HOSTED-ACCEPTANCE.md#hosted-installed-application-update)
+for platform-specific updater continuity.
 
-The selected additive profile is `initial-beta-windows-x86_64-v1` through the
-existing qualification, release admission, package and feed machinery. It must
-require actual Windows/shared evidence, reject missing/mismatched/invalid inputs,
-and refuse unqualified non-Windows packages or advertising. The existing `full`
-and historical `initial-beta-win-linux` profiles and their evidence retain their
-broader scope. A failed full-platform run never becomes a Windows-profile pass.
-Profile engineering, exact-candidate qualification and protected production
-acceptance must actually be delivered before this path is eligible; the owner
-scope decision alone is not implementation or publication authority.
-
-Current branch protections, five exact-head contexts, spending limits and
-publication/credential/signing authority remain unchanged. No nightly schedule
-change or Audit 01 completion follows. Continue unrelated Windows/shared work;
-serialize only actual overlapping inputs, protected changes and constrained
-native resources. Reuse valid evidence at its source/artifact/profile scope and
-repeat only invalidated observations.
+The existing `initial-beta-windows-x86_64-v1` profile covers Windows and shared
+qualification. The `full` and historical `initial-beta-win-linux` profiles
+retain their recorded scopes. Apply the active release procedure to each
+candidate and use evidence at its actual source, artifact and profile scope.
+Production admission, signing and publication follow the existing protected
+procedure.
 
 ## Versions, channels and readiness
 
@@ -116,7 +102,7 @@ was satisfied before broad migration; its [historical inputs and measurements](D
 remain evidence at their original scope. These completed owners are not new
 migration prerequisites. New Windows candidates still require applicable
 exact-candidate release qualification. Retained Linux evidence remains separate
-from later Linux application qualification, and #45 retains broader 1.0 work.
+from qualification of a Linux beta candidate, and #45 retains broader 1.0 work.
 Neither an ordinary merge nor these historical completions authorizes publication
 or certifies new package bytes or an unqualified platform.
 
@@ -217,10 +203,10 @@ Failed/expired checks never disable offline application use.
 
 ## Platform contracts
 
-Windows x86-64 is the first Public beta application qualification commitment.
-The Linux row is retained for a planned subsequent beta; its completed components
-and unfinished acceptance remain with #45/#46 and their existing component owners.
-It is not a Windows launch prerequisite. The macOS row is the later qualified-support contract under #45/#226,
+The Windows and Linux x86-64 rows define platform-specific contracts for the
+first public beta targets. #45/#46 and existing component owners retain
+completed Linux evidence and unfinished work. The macOS row is the later
+qualified-support contract under #45/#226,
 delivered during beta and Required before 1.0. The Steam Deck row is a separate
 later contract: #51/#213–#217/#535 deliver it during the Public beta follow-up (Beta 2), Required
 before 1.0. Until it passes, the Linux build may run on SteamOS but Deck is

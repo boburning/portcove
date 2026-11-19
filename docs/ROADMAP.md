@@ -37,10 +37,10 @@ of accepted scope or release readiness.
 
 ```sh
 node scripts/roadmap.mts next
-# Initial public beta: Windows x86-64 planning assessment
-node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
-# Broader full-scope investigation
+# Public beta readiness across target platforms
 node scripts/roadmap.mts readiness --release "Public beta"
+# Windows x86-64 planning assessment
+node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
 node scripts/roadmap.mts readiness --release "1.0"
 ```
 
@@ -107,8 +107,8 @@ below. Priority, Horizon, status and queue order remain solely in the Project.
 
 Start with the [integrated acceptance and next actions in #921](https://github.com/boburning/portcove/issues/921)
 and the [protected release decision and delivery in #534](https://github.com/boburning/portcove/issues/534).
-Use the Windows profile above to check current prerequisites, including those
-outside the direct Required for Beta view.
+Check the platform-specific and shared prerequisites, including those outside
+the direct Required for Beta view.
 
 Use [Product Triage](https://github.com/users/boburning/projects/1/views/8) for
 product reports and requests. For port intake, open the
@@ -116,12 +116,11 @@ product reports and requests. For port intake, open the
 `status:Inbox,Triage` for the current pass. Clearing the filter returns the
 complete inventory.
 
-The first Public beta application host commitment is **Windows x86-64**, qualified
-at the existing supported Windows/WebView2 baseline. Linux remains planned for a
-subsequent beta with its existing owners, implementation, support metadata and
-evidence retained. Existing before-1.0 commitments remain unchanged; no Linux
-release date is assigned. Shared trust, correctness and Windows-delivery checks
-remain required on their appropriate Linux/WSL/macOS or Windows hosts. See the
+The first public beta targets **Windows x86-64** and **Linux x86-64**. Each
+platform needs its own install, installed-update and save-preservation
+qualification at its supported baseline. Existing owners retain their
+platform work and accepted evidence. Shared trust, correctness and delivery
+checks run on their appropriate hosts. See the
 [scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).
 
 Beta readiness depends on the required product, platform, reliability, usability,
