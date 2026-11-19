@@ -290,7 +290,9 @@ def reconcile(state, pr):
             save(db, watch)
         if turn:
             db.execute("UPDATE events SET turn=? WHERE id=?", (turn, event["id"]))
-        if completed or watch["invalidated"] or watch["status"] in ("closed", "cancelled"):
+        if watch["status"] == "replacing":
+            save(db, watch["replacement"])
+        elif completed or watch["invalidated"] or watch["status"] in ("closed", "cancelled"):
             if watch["status"] in ("closed", "cancelled"):
                 db.execute("DELETE FROM watches WHERE pr=?", (pr,))
             else:
@@ -311,7 +313,7 @@ def step(state, pr, now=time.time, observe_now=observe, dispatch=reconcile, read
         watch = load(db, pr)
     if not watch:
         return POLL
-    if watch["status"] in ("paused", "cancelled", "closed"):
+    if watch["status"] in ("paused", "cancelled", "closed", "replacing"):
         if watch["pending"]:
             dispatch(state, pr)
         if watch["status"] == "paused" and read_pull(pr)["state"] == "closed":
@@ -442,6 +444,10 @@ async def watch_pr(state, pr, streams, wake):
                 watch = load(db, pr)
             if watch is None:
                 return
+            if listener and watch["status"] in ("closed", "cancelled"):
+                listener.cancel()
+                await asyncio.gather(listener, return_exceptions=True)
+                listener = None
             if delay < 3:
                 delay = POLL if fast_poll_used else delay
                 fast_poll_used = True
@@ -537,6 +543,36 @@ def service_online(state):
         return True
 
 
+def register_watch(state, watch):
+    pr = watch["pr"]
+    binding = ("head", "run", "attempt")
+    with lock(state, pr), store(state) as db:
+        previous = load(db, pr)
+        if not previous:
+            save(db, watch)
+            return watch
+        if previous["owner"] != watch["owner"] or previous["worktree"] != watch["worktree"]:
+            raise RuntimeError("PR already has another watch owner or worktree")
+        requested = previous.get("replacement", previous)
+        if all(requested[k] == watch[k] for k in binding):
+            if requested["deadline"] != watch["deadline"]:
+                raise RuntimeError("retain the original deadline for this binding")
+            if previous["status"] not in ("watching", "replacing"):
+                raise RuntimeError("watch is paused or being cleaned up")
+            requested.pop("accept_error", None)
+            save(db, previous)
+            return requested
+        if previous["status"] != "watching":
+            raise RuntimeError("resume the paused watch or wait for its cleanup before rebinding")
+        if previous["pending"]:
+            previous["status"] = "replacing"
+            previous["replacement"] = watch
+            save(db, previous)
+        else:
+            save(db, watch)
+        return watch
+
+
 def handoff(state, args):
     owner = owning_thread()
     if not re.fullmatch("[0-9a-f]{40}", args.head):
@@ -566,23 +602,7 @@ def handoff(state, args):
         "invalidated": False,
         "delivered": None,
     }
-    with lock(state, args.pr), store(state) as db:
-        previous = load(db, args.pr)
-        if previous:
-            if previous["owner"] != owner or previous["worktree"] != str(worktree):
-                raise RuntimeError("PR already has another watch owner or worktree")
-            binding = ("head", "run", "attempt")
-            if all(previous[k] == watch[k] for k in binding):
-                if previous["deadline"] != args.deadline:
-                    raise RuntimeError("retain the original deadline for this binding")
-                if previous["status"] != "watching":
-                    raise RuntimeError("watch is paused or being cleaned up")
-                watch = previous
-                watch.pop("accept_error", None)
-            elif previous["pending"] or previous["status"] != "watching":
-                raise RuntimeError("resolve the existing pending event or pause before rebinding")
-        save(db, watch)
-        db.commit()
+    watch = register_watch(state, watch)
     for _ in range(75):
         with store(state) as db:
             persisted = load(db, args.pr)
@@ -604,7 +624,7 @@ def control(state, args):
         if args.action == "status":
             print(json.dumps(watch))
             return
-        if watch["status"] in ("closed", "cancelled"):
+        if watch["status"] in ("closed", "cancelled") or (watch["status"] == "replacing" and args.action != "cancel"):
             raise RuntimeError("PR is being cleaned up")
         watch["status"] = {"pause": "paused", "resume": "watching", "cancel": "cancelled"}[args.action]
         watch["revision"] = watch.get("revision", 0) + 1

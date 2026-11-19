@@ -92,6 +92,7 @@ class WatchTests(unittest.TestCase):
                 {
                     "id": str(pr),
                     "repo": wake.REPO,
+                    "worktree": "/portcove",
                     "pr": pr,
                     "head": HEAD,
                     "owner": owner,
@@ -298,6 +299,31 @@ class WatchTests(unittest.TestCase):
         self.tick()
         self.assertEqual(len(self.daemon.turns), 2)
         self.assertIsNone(self.row()["pending"])
+
+    def test_same_owner_can_rebind_during_claimed_repair_turn(self):
+        self.conditions[1] = "checks-failed"
+        self.tick()
+        self.tick()
+        prior_event = self.events()[0]["id"]
+        with patch.dict(os.environ, {"CODEX_THREAD_ID": OWNERS[0]}):
+            wake.event_command(self.state, argparse.Namespace(action="claim", event=prior_event))
+        replacement = {
+            **self.row(),
+            "id": "new-binding",
+            "head": OTHER_HEAD,
+            "attempt": 2,
+            "pending": None,
+            "pending_key": None,
+            "accepted": None,
+        }
+        wake.register_watch(self.state, replacement)
+        self.assertEqual(self.row()["status"], "replacing")
+        self.tick()
+        wake.accept(self.state, 1, lambda _: None)
+        self.assertEqual(self.row()["head"], OTHER_HEAD)
+        self.assertIsNotNone(self.row()["accepted"])
+        self.assertEqual(self.events()[0]["turn"], "turn-1")
+        self.assertEqual(len(self.daemon.turns), 1)
 
     def test_interrupted_after_claim_retries_only_after_turn_stops(self):
         self.conditions[1] = "green"

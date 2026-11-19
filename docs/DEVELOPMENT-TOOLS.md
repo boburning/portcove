@@ -292,8 +292,10 @@ The command reads the thread UUID injected by Codex and checks the local
 worktree HEAD. The service reads that exact thread and its queue and turn history,
 verifies its worktree, and commits the acceptance timestamp to the journal.
 Wait for the receipt with `accepted` before ending the model turn. An
-unacknowledged handoff can be retried with the same binding. A new attempt or
-head must pass existing review and delivery checks before rebinding.
+unacknowledged handoff can be retried with the same binding. After the required
+review of a new head, the same owner can hand off its new binding while the
+repair turn is active. The worker reconciles the previous event before
+accepting the replacement.
 
 The worker runs `just pr-watch --sample --json` locally. Ordinary polling
 starts no Codex turns. The worker also listens
