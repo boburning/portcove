@@ -79,6 +79,73 @@ pub fn report_failure(message: &str) {
 mod tests {
     use super::{check_windows_version, version_at_least, windows_floor};
 
+    #[cfg(windows)]
+    #[test]
+    fn shipping_context_preserves_the_configured_runtime_floor() {
+        let context = crate::startup_context::new();
+        let minimum = windows_floor(
+            context
+                .config()
+                .bundle
+                .windows
+                .minimum_webview2_version
+                .as_deref(),
+        )
+        .expect("shipping startup must retain the effective configured minimum");
+        assert!(check_windows_version(minimum, minimum).is_ok());
+        assert!(check_windows_version("0.0.0.0", minimum).is_err());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn changed_minimum_reaches_the_decision_through_the_generated_context() {
+        let config: tauri::utils::config::Config = serde_json::from_str(include_str!(
+            "../../../../scripts/fixtures/changed-webview2-tauri.conf.json"
+        ))
+        .unwrap();
+        let context = crate::startup_context::with_windows_minimum(
+            tauri::generate_context!(),
+            config.bundle.windows.minimum_webview2_version.as_deref(),
+        );
+        let minimum = windows_floor(
+            context
+                .config()
+                .bundle
+                .windows
+                .minimum_webview2_version
+                .as_deref(),
+        )
+        .unwrap();
+        assert!(check_windows_version("156.2.3.3", minimum).is_err());
+        assert!(check_windows_version("156.2.3.4", minimum).is_ok());
+        assert!(check_windows_version("156.2.3.5", minimum).is_ok());
+        let missing = crate::startup_context::with_windows_minimum(context, None);
+        assert!(
+            windows_floor(
+                missing
+                    .config()
+                    .bundle
+                    .windows
+                    .minimum_webview2_version
+                    .as_deref()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn missing_or_malformed_minimum_remains_a_refusal() {
+        for minimum in [
+            None,
+            Some(""),
+            Some("not-a-version"),
+            Some("155.0.1"),
+            Some("4294967296.0.0.0"),
+        ] {
+            assert!(windows_floor(minimum).is_err());
+        }
+    }
+
     #[test]
     fn engine_floor_accepts_exact_and_newer_serviced_versions() {
         for version in ["2.52.6", "2.52.7", "2.54.0", "3.0.0"] {

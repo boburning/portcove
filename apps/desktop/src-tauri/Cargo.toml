@@ -18,6 +18,7 @@ qualification-fixtures = ["portcove-core/qualification-fixtures"]
 [build-dependencies]
 sha2.workspace = true
 tauri-build = { version = "=2.7.4", features = [] }
+tauri-codegen = "=2.7.4"
 
 [dependencies]
 async-trait.workspace = true
@@ -48,6 +49,7 @@ url.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
+tauri-codegen = "=2.7.4"
 portcove-diagnostics = { path = "../../../crates/portcove-diagnostics", features = [
   "qualification-fixtures",
 ] }
