@@ -343,10 +343,18 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       assert.deepEqual(fixtureSuccess(await invoke("get_dat_references")), []);
 
       // A real preference change asks the mounted notice component to assess again.
-      const noticeSwitch = await browser.findElement(
-        By.xpath(
-          '//*[@role="checkbox" and @id=//label[contains(.,"Tell me when games I chose to hear about are ready")]/@for]',
+      const noticeSwitch = await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//label[contains(., "Tell me when games I chose to hear about are ready")]//*[@role="checkbox"]',
+          ),
         ),
+        15_000,
+      );
+      await browser.wait(
+        async () => (await noticeSwitch.getAttribute("data-disabled")) === null,
+        15_000,
+        "Ready notice settings did not finish loading",
       );
       for (let change = 0; change < 2; change++) {
         const before = await noticeSwitch.getAttribute("aria-checked");
@@ -354,7 +362,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await browser.wait(
           async () =>
             (await noticeSwitch.getAttribute("aria-checked")) !== before &&
-            (await noticeSwitch.isEnabled()),
+            (await noticeSwitch.getAttribute("data-disabled")) === null,
           15_000,
         );
       }
