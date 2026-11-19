@@ -133,6 +133,7 @@ impl DefinitionCatalogProjection {
             self.catalog.clone()
         };
         catalog.retain_embedded_file_patterns(baseline, selected)?;
+        catalog.retain_unrelated_upstream_reviews(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)
     }
@@ -210,7 +211,9 @@ impl DefinitionContentIndex {
         let value: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_slice(contract_bytes)?;
         let document: ProjectionDocument = serde_json::from_value(value.0)?;
-        if document.contract_schema != 1 || document.representation != "catalog_projection" {
+        if document.contract_schema != entry.schema_version()
+            || document.representation != "catalog_projection"
+        {
             return Err(PortcoveError::unsupported(
                 "unsupported definition catalog projection contract",
             ));
@@ -223,6 +226,11 @@ impl DefinitionContentIndex {
         }
         let mut catalog = Catalog::from_json(&catalog_json)?;
         for port in catalog.ports() {
+            if port.upstream_active_reviewed && document.contract_schema != 2 {
+                return Err(PortcoveError::unsupported(
+                    "a reviewed active project requires indexed catalog projection schema 2",
+                ));
+            }
             crate::definition_entry::require_indexed_persistence(port)?;
         }
         // Track counts live in the source profile, so only the projection can

@@ -30,7 +30,7 @@ on:
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1
-      - apps/desktop/src-tauri/src/runtime_support.rs
+      - apps/desktop/src-tauri/tauri.conf.json
       - scripts/release-windows-webview-driver.mts
       - scripts/release-windows-webview-driver.test.mts
       - scripts/windows-webview-driver-policy.psm1
@@ -95,7 +95,7 @@ on:
       - scripts/qualify-controller-tool-build.mts
       - scripts/qualify-controller-tools-windows.mts
       - scripts/prepare-hosted-windows-runtime.ps1
-      - apps/desktop/src-tauri/src/runtime_support.rs
+      - apps/desktop/src-tauri/tauri.conf.json
       - scripts/release-windows-webview-driver.mts
       - scripts/release-windows-webview-driver.test.mts
       - scripts/windows-webview-driver-policy.psm1

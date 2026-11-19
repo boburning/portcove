@@ -1,0 +1,8 @@
+{
+  "identifier": "org.portcove.fixture",
+  "bundle": {
+    "windows": {
+      "minimumWebview2Version": "156.2.3.4"
+    }
+  }
+}

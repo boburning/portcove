@@ -638,6 +638,115 @@ void test("complete selected-release observations reuse exact assets and do not 
   }
 });
 
+void test("starts issue-free preparation from an official project and reviewed game identity", async () => {
+  const f = fixture();
+  try {
+    const originalGame = {
+      format_version: 1,
+      id: "example-original",
+      evidence_urls: ["https://example.com/game"],
+      source_editions: [
+        {
+          id: "example-original-na",
+          title: "Example Original (North America)",
+          evidence_urls: ["https://example.com/game/na"],
+        },
+      ],
+    };
+    const options = {
+      catalogRoot,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: project,
+      originalGame,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([{ tag_name: "v1" }])
+            : json({ ...metadata, description: ` ${metadata.description}\n` }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    };
+    const { report } = await preparePort(options);
+    const record = checkedAuthoredPort(
+      JSON.parse(readFileSync(report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(record.listing.id, "fixture");
+    assert.equal(record.listing.summary, metadata.description);
+    assert.deepEqual(record.listing.original_game, originalGame);
+    assert.equal(record.listing.issue_number, undefined);
+    assert.equal(record.listing.release_url, undefined);
+    assert.equal(record.integration, undefined);
+    assert.deepEqual(record.upstream_lineage?.origin.repository, {
+      host: "github.com",
+      id: "123",
+    });
+    assert.deepEqual(f.requests, [
+      "https://api.github.com/repos/example/fixture",
+      "https://api.github.com/repos/example/fixture/releases?per_page=20&page=1",
+    ]);
+    await preparePort(options);
+    assert.equal(f.requests.length, 2);
+    const withExisting = copiedCatalog(join(f.root, "existing-catalog"));
+    writeFileSync(join(withExisting, "ports", "fixture.json"), JSON.stringify(record));
+    const alias = await preparePort({
+      ...options,
+      catalogRoot: withExisting,
+      outputDirectory: join(f.root, "alias"),
+      projectUrl: "https://github.com/EXAMPLE/FIXTURE.git/",
+    });
+    assert.equal(alias.report.port_id, record.listing.id);
+    const aliasRecord = alias.report.files.records[0];
+    if (aliasRecord) {
+      const proposed = checkedAuthoredPort(JSON.parse(readFileSync(aliasRecord.path, "utf8")));
+      assert.equal(proposed.listing.project_url, project);
+    }
+    const forkUrl = "https://github.com/other/fixture";
+    const fork = await preparePort({
+      ...options,
+      catalogRoot: withExisting,
+      outputDirectory: join(f.root, "fork"),
+      projectUrl: forkUrl,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 456, full_name: "other/fixture" }),
+        ),
+      },
+    });
+    assert.match(fork.report.port_id, /^fixture-[a-f0-9]{12}$/u);
+    assert.equal(fork.report.files.records.length, 1);
+    await assert.rejects(
+      preparePort({
+        ...options,
+        catalogRoot: withExisting,
+        outputDirectory: join(f.root, "moved"),
+        projectUrl: "https://github.com/example/fixture-moved",
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, full_name: "example/fixture-moved" }),
+          ),
+        },
+      }),
+      /already has a retained origin/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...options,
+        catalogRoot: withExisting,
+        outputDirectory: join(f.root, "redirect"),
+        projectUrl: "https://github.com/example/old-project-name",
+      }),
+      /returned a different project name/u,
+    );
+  } finally {
+    f.clean();
+  }
+});
+
 void test("provider backoff survives resume and malformed cache bytes are not overwritten", async () => {
   const f = fixture();
   try {
