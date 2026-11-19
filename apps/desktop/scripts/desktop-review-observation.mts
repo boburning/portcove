@@ -2,6 +2,87 @@ import type { WebDriver } from "selenium-webdriver";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { executeBrowserScript } from "./browser-script.mts";
+import assert from "node:assert/strict";
+import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
+import type { OutputDesktopBootstrapStatus } from "../src/transport-types.generated.d.ts";
+
+/** Follow Core's explicit stale-read signal without replaying actions or changing scope. */
+export async function readWorkspaceSnapshotObservation(
+  invoke: ScenarioInvoke,
+  binding: Pick<OutputDesktopBootstrapStatus, "generation" | "library_root">,
+  readbacks: unknown[],
+) {
+  const initial = { generation: binding.generation, library_root: binding.library_root };
+  const started = Date.now();
+  // Keep ordinary settlement observation imports independent of Desktop packages.
+  const { transportValue } = await import("./transport-values.mts");
+  const { fixtureSuccess, fixtureObject } = await import("./desktop-scenario-state.mts");
+  assert.ok(initial.library_root !== null);
+  const withinBudget = () => {
+    assert.ok(Date.now() - started < 60_000, "Workspace observation exceeded its 60-second budget");
+  };
+  const confirmScope = async () => {
+    withinBudget();
+    const current = transportValue(
+      "desktop_bootstrap_status",
+      fixtureSuccess(await invoke("get_bootstrap_status")),
+    );
+    withinBudget();
+    assert.equal(current.ready, true);
+    assert.equal(current.error, null);
+    assert.equal(
+      current.generation,
+      initial.generation,
+      "Workspace observation generation changed",
+    );
+    assert.equal(current.library_root, initial.library_root, "Workspace observation root changed");
+  };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await confirmScope();
+    // Await the owned read even if it crosses the acceptance budget. Never
+    // detach it and race cleanup or another IPC call against its settlement.
+    let response: unknown;
+    try {
+      response = await invoke("get_workspace_snapshot", { generation: initial.generation });
+    } catch (error) {
+      const refusal = {
+        attempt,
+        generation: initial.generation,
+        elapsed_ms: Date.now() - started,
+        outcome: "transport-rejected",
+        error: String(error),
+      };
+      readbacks.push(refusal);
+      console.info("Workspace observation:", JSON.stringify(refusal));
+      throw error;
+    }
+    const reply = fixtureObject(response);
+    const observation = {
+      attempt,
+      generation: initial.generation,
+      elapsed_ms: Date.now() - started,
+      outcome: reply.ok === false ? "refused" : "returned",
+      ...(reply.ok === false ? { error: reply.error } : {}),
+    };
+    readbacks.push(observation);
+    console.info("Workspace observation:", JSON.stringify(observation));
+    withinBudget();
+    const failure =
+      reply.ok === false ? transportValue("desktop_desktop_error", reply.error) : undefined;
+    if (
+      failure?.code === "conflict" &&
+      failure.details.workspace_snapshot_stale === "true" &&
+      failure.details.retryable === "true"
+    ) {
+      await confirmScope();
+      continue;
+    }
+    const workspace = transportValue("desktop_workspace_snapshot", fixtureSuccess(reply));
+    await confirmScope();
+    return workspace;
+  }
+  throw new Error("Workspace snapshot remained explicitly stale after 3 read attempts");
+}
 
 /** Observe one real interaction without changing its dispatch, assertions or deadline. */
 export async function observeReviewSettlement(

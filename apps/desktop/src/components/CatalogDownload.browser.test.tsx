@@ -188,6 +188,145 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+it.each([
+  { theme: "dark", savedArguments: ["--fullscreen"] },
+  { theme: "light", savedArguments: ["--profile", "", "first\nsecond"] },
+])(
+  "preserves listing Manage launch facts and their edit identity in compact RTL $theme",
+  async ({ theme, savedArguments }) => {
+    await page.viewport(430, 896);
+    document.documentElement.dataset.theme = theme;
+    const executable = String.raw`\\?\C:\Player\External runtime installations\نسخة محفوظة\Original game folder\game.exe`;
+    const directory = String.raw`\\مخدم\ألعاب\External runtime installations\Original game folder`;
+    const registeredStatus: PortStatus = {
+      ...status,
+      external_runtime: {
+        id: "listing-manage-selected-runtime",
+        port_id: listing.id,
+        path: directory,
+        executable,
+        version: "user-managed",
+        platform: "windows-x86-64",
+        archive_sha256: "",
+        immutable_tree_sha256: "",
+        registered_at: 1,
+        user_selected: { arguments: savedArguments },
+      },
+    };
+    const [registeredEntry] = catalogEntries(
+      undefined,
+      { format_version: 1, listings: [listing] },
+      [
+        {
+          port_id: listing.id,
+          status: registeredStatus,
+          actions: [{ action: "relink-existing", allowed: true }],
+        },
+      ],
+      [],
+    );
+    const previewLaunch = vi
+      .spyOn(desktopApi, "previewUserSelectedRuntimeRelink")
+      .mockRejectedValue(new Error("Read-only consumer fixture: review reached"));
+    const mutations = [
+      vi
+        .spyOn(desktopApi, "relinkUserSelectedRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi
+        .spyOn(desktopApi, "removeExternalRuntime")
+        .mockRejectedValue(new Error("Unexpected mutation")),
+      vi.spyOn(desktopApi, "launch").mockRejectedValue(new Error("Unexpected launch")),
+    ];
+    await root.rerender(
+      <div dir="rtl" style={{ padding: 16 }}>
+        <ListingDetailPanel
+          entry={registeredEntry!}
+          status={registeredStatus}
+          generation={19}
+          perform={perform}
+          onChanged={changed}
+          close={vi.fn()}
+        />
+      </div>,
+    );
+    await page.getByRole("tab", { name: "Manage", exact: true }).click();
+    const heading = page.getByRole("heading", { name: "Installation", exact: true });
+    await expect.element(heading).toBeVisible();
+    const facts = heading.element().closest("section")!.querySelector("dl")!;
+    expect(getComputedStyle(facts).direction).toBe("rtl");
+    expect([...facts.querySelectorAll("dt")].map((label) => label.textContent)).toEqual([
+      "Game program",
+      "Start in folder",
+      "Launch options (advanced)",
+    ]);
+    const paths = [...facts.querySelectorAll<HTMLElement>("dd.path-value")];
+    expect(paths.map((value) => value.textContent)).toEqual([executable, directory]);
+    expect([...facts.querySelectorAll("code")].map((value) => value.textContent)).toEqual(
+      savedArguments.filter(Boolean),
+    );
+    expect(facts.textContent?.includes("Empty argument")).toBe(savedArguments.includes(""));
+    for (const argument of facts.querySelectorAll("code")) {
+      expect(getComputedStyle(argument).whiteSpace).toBe("pre-wrap");
+    }
+    facts.scrollIntoView({ block: "center" });
+    await document.fonts.ready;
+    for (const value of [...paths, ...facts.querySelectorAll("code")]) {
+      expect(value.getAttribute("dir")).toBe("ltr");
+      expect(getComputedStyle(value).direction).toBe("ltr");
+      expect(getComputedStyle(value).unicodeBidi).not.toContain("override");
+      const bounds = value.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(value);
+      for (const rect of [...range.getClientRects()].filter((rect) => rect.width > 0)) {
+        expect(rect.left).toBeGreaterThanOrEqual(0);
+        expect(rect.right).toBeLessThanOrEqual(innerWidth);
+        expect(rect.top).toBeGreaterThanOrEqual(0);
+        expect(rect.bottom).toBeLessThanOrEqual(innerHeight);
+        expect(rect.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+    }
+    const prefix = document.createRange();
+    prefix.setStart(paths[0]!.firstChild!, 0);
+    prefix.setEnd(paths[0]!.firstChild!, 7);
+    expect(prefix.toString()).toBe("\\\\?\\C:\\");
+    expect(prefix.getClientRects()).toHaveLength(1);
+    const serverPrefix = [0, 1, 2].map((index) => {
+      const glyph = document.createRange();
+      glyph.setStart(paths[1]!.firstChild!, index);
+      glyph.setEnd(paths[1]!.firstChild!, index + 1);
+      return glyph.getBoundingClientRect().top;
+    });
+    expect(directory.slice(0, 3)).toBe("\\\\م");
+    expect(Math.max(...serverPrefix) - Math.min(...serverPrefix)).toBeLessThanOrEqual(1);
+    expect(previewLaunch).not.toHaveBeenCalled();
+    await captureRenderedState("listing-manage-selected-launch-facts");
+    await page.getByRole("button", { name: "Edit launch details", exact: true }).click();
+    await expect
+      .element(page.getByRole("tab", { name: "Game files", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(
+      document.querySelector("[data-detail-workspace]")?.getAttribute("data-detail-port-id"),
+    ).toBe(listing.id);
+    await page.getByRole("button", { name: "Edit launch details…", exact: true }).click();
+    await expect
+      .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
+      .toHaveValue(directory);
+    await page
+      .getByRole("region", { name: "Set up and launch", exact: true })
+      .getByRole("button", { name: "Review launch details", exact: true })
+      .click();
+    await expect
+      .poll(() => previewLaunch.mock.calls)
+      .toEqual([[listing.id, executable, directory, savedArguments, 19]]);
+    for (const mutation of mutations) expect(mutation).not.toHaveBeenCalled();
+    expect(desktopApi.registerUserSelectedRuntime).not.toHaveBeenCalled();
+    expect(desktopApi.catalogDownloadCandidates).not.toHaveBeenCalled();
+    expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
+    expect(changed).not.toHaveBeenCalled();
+  },
+);
+
 it("shows Core's acquisition restriction without offering a download mutation", async () => {
   const reason =
     "Download is unavailable until upstream establishes permission for the linked frontend.";
@@ -529,6 +668,19 @@ it("suggests Core's native target and preserves a manual installation outside th
   ).toBe("C:/Games/Harbor");
   await click("Refresh launch suggestions");
   expect(document.body.textContent).toContain("Game program: C:/Games/Harbor/Harbor.exe");
+  const launchTarget = page.getByRole("combobox", {
+    name: "Launch target Selected game program",
+    exact: true,
+  });
+  await expect.element(launchTarget).toBeVisible();
+  await launchTarget.click();
+  await expect
+    .element(page.getByRole("option", { name: "Selected game program", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await expect.element(page.getByRole("option", { name: executable, exact: true })).toBeVisible();
+  await captureRenderedState("external-selected-manual-launch-target");
+  await userEvent.keyboard("{Escape}");
+  await expect.element(launchTarget).toHaveFocus();
   expect(desktopApi.downloadCatalogPackage).not.toHaveBeenCalled();
 });
 

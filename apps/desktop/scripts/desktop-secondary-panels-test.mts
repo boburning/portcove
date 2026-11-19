@@ -378,6 +378,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         "File name:",
         "secondary-metadata-save",
         files.metadata,
+        undefined,
+        false,
+        output,
       );
       await text("Library information was last exported to");
       assert.ok(isRecord(JSON.parse(await readFile(files.metadata, "utf8"))));
@@ -390,6 +393,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         "File name:",
         "secondary-metadata-refused",
         files.refusedMetadata,
+        undefined,
+        false,
+        output,
       );
       await text("Owned presentation metadata export refusal.");
       await focused(exportMetadata);
@@ -499,6 +505,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
           "File name:",
           `secondary-${theme}-saves-export`,
           files.portableOutput,
+          undefined,
+          false,
+          output,
         );
         await text("The saves could not be exported.");
         await focused(exportSaves);

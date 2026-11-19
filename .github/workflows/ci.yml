@@ -1710,14 +1710,16 @@ jobs:
     name: frontend-no-global (macos-arm64)
     needs: classify
     # Exercise the no-global route for toolchain, Unix custody and native text-navigation changes.
-    if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.test.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.test.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx')))
+    if: (needs.classify.outputs.mode == 'qualification' && contains(fromJSON(needs.classify.outputs.platforms_json), 'macos-aarch64')) || (needs.classify.outputs.mode != 'qualification' && (contains(needs.classify.outputs.files_json, 'apps/desktop/scripts/browser-runtime.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.mts') || contains(needs.classify.outputs.files_json, 'scripts/run-rust-tests.test.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.mts') || contains(needs.classify.outputs.files_json, 'scripts/rust-test-tree-supervisor.test.mts') || contains(needs.classify.outputs.files_json, 'pnpm-workspace.yaml') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/display-recovery.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/compact-navigation.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/AdoptionModal.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/components/Artwork.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx') || contains(needs.classify.outputs.files_json, 'apps/desktop/src/browser/adaptive-shell.browser.test.tsx')))
     # Two macos-26 attempts acquired no ARM64 runner. Keep the same standard
     # ARM64 portability contract on the supported macOS 15 pool.
     runs-on: macos-15
-    # 40718922826/a1 exhausted 15m after 5m38s of cold setup and while
-    # browser cases were still passing. Keep the complete contributor route,
-    # assertions and cleanup; this finite outer budget is not a latency claim.
-    timeout-minutes: 25
+    # 40718922826/a1 exhausted 15m after 5m38s of cold setup. Then
+    # 44490420055/a2 reached 25m before the full contributor route finished;
+    # its two separate bounds failures remain recorded. Allow 35m for the
+    # unchanged full command, with setup and diagnostics inside this 45m job.
+    # Assertions, per-case deadlines, cleanup and zero retries are unchanged.
+    timeout-minutes: 45
     env:
       VP_GIT_HOOKS: "0"
       PORTCOVE_CI_METRICS_DIR: ${{ github.workspace }}/work/ci-metrics
@@ -1751,7 +1753,9 @@ jobs:
           # node-suite: macos-platform-contracts
           node --test --test-timeout=30000 --test-reporter=./scripts/required-node-test-reporter.mts scripts/precommit-check.test.mts scripts/production-aggregate-steps.test.mts scripts/quality-tools.test.mts scripts/release-role-key-channel.test.mts scripts/release-run-evidence.test.mts scripts/release-workflow.test.mts scripts/rust-test-tree-supervisor.test.mts scripts/test-duration-reporter.test.mts scripts/trusted-release-assembly.test.mts scripts/ui-test-selection.test.mts
       - run: pnpm --dir apps/desktop browser:bootstrap
-      - run: pnpm verify:frontend
+      - name: Verify the complete contributor frontend route
+        timeout-minutes: 35
+        run: pnpm verify:frontend
       - name: Retain browser bootstrap timings
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -1761,7 +1765,7 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
       - name: Retain failed contributor browser diagnostics
-        if: failure()
+        if: failure() || cancelled()
         uses: ./.github/actions/retain-browser-diagnostics
         with:
           name: browser-traces-contributor-${{ github.run_id }}-${{ github.run_attempt }}

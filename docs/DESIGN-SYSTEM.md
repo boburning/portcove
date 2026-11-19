@@ -257,7 +257,7 @@ the remaining measured displacement, not a saved launch scroll offset. New user
 input, navigation, library/detail changes and modal interaction take precedence;
 feedback changes never take focus or reveal a control the player left behind.
 
-Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record.
+Primary destinations display Library, Discover, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks. Explicit game-update links select Game updates; terminal records remain in History. Application-update preferences remain in Settings. Section controls retain a non-color selected cue and keep their content mounted, hidden from interaction when inactive. The same exact-ID record tree serves Tasks and History, preserving disclosures and a focused settling record. Preparation diagnostics appear before Task details. Leave space between the log summary’s keyboard focus outline and the preceding failure information.
 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement. Invocation-backed polite messages use a status owner that exists empty before work begins, with an atomic action/target message for each invocation. Pending, execution completion, readback and terminal changes update that invocation’s message; simultaneous results do not replace one another. Real failures retain their attributed assertive notices, and visual progress does not duplicate the owned announcement. Browser lifecycle checks do not establish actual screen-reader speech.
 
@@ -556,6 +556,14 @@ report does not identify the affected file.
 In Game files settings, distinguish a library with no installed ports from
 installed ports with no missing game-file requirements; neither state proves a
 fresh file verification or launch readiness.
+Exact scan candidates use their actual Settings-row width: below 38rem, actions
+follow the full-width identity and exact path; at wider widths, keep the bounded
+18rem action column. This applies to both streaming and completed matches,
+including a medium window with both navigation sidebars visible.
+Saved-folder scan issues retain each reported requirement’s catalog profile label,
+falling back to its exact profile ID when the label is unavailable or blank.
+Path-only issues keep their full path without inventing a requirement identity;
+each original message and any bounded direct-check action remain beside it.
 Use the saved update-policy choice verbatim in summaries. Separate an unchecked
 port, a successful last check with no update, an available update, an update
 saved for later whose activation still needs core checks, and a failed or
@@ -1125,6 +1133,20 @@ explicit confirmation. Initial focus belongs to the review heading so compact
 and enlarged windows begin with identity and inputs; keyboard navigation reaches
 the confirmation and cancellation controls in document order. Cancellation and
 completion keep the existing context-bound return-focus owner.
+
+External-folder registration and relink reviews keep Folder, Game program and
+Previous folder values as exact left-to-right paths using the shared path-value
+wrapping rule; labels remain ordinary UI text, and extended Windows prefixes
+continue on the same first line as their path.
+Version and Checked files share a compact first row. Folder and Game program each
+use the full metadata width below it, in that document order, so long exact paths
+do not force short facts into tall empty cells. Preserve the same structure at
+compact and normal dialog widths.
+
+Keep literal launch arguments left to right in editors, reviews, and Manage,
+including in RTL layouts. Preserve spaces, empty arguments, and line breaks.
+A selected program outside scanned suggestions stays visible as the current
+choice. Core still determines launch readiness.
 
 Preparation completion reports that game data is prepared. It does not grant
 launch availability: the refreshed Core readiness and existing current-action

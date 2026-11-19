@@ -4981,6 +4981,7 @@ try {
       artifacts,
       library,
       setTheme: selectSettingsTheme,
+      runtimeRoot,
     });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
