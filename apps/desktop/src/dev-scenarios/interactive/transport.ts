@@ -712,6 +712,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: "anonymous",
       } satisfies Awaited<ReturnType<typeof desktopApi.githubAuthStatus>>;
     },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      // This synthetic workspace declares no Steam installations; no host read occurs.
+      return [];
+    },
     get_steamgriddb_key_status: (args) => {
       requireArgs("get_steamgriddb_key_status", args, {});
       // Fixtures never hold a player key, so SteamGridDB stays unconfigured.
