@@ -2664,8 +2664,10 @@ shown before anything changes) and install it only after an explicit Install;
 Cancel discards the review. Stale data offers no review.
 
 `provider-browse` and `provider-project` only read. `provider-browse` lists one page
-(20 mods, pages 1–50; GameBanana's most downloaded first) of the bound game's mods
-and says when more pages exist; `provider-project` shows one mod's files or versions
+(20 mods; GameBanana's most downloaded first) of the bound game's mods and says
+when more pages exist. Thunderstore's whole-community index has download and
+package-count bounds; an oversized community response provides the provider's
+browse URL. `provider-project` shows one mod's files or versions
 with the IDs `provider-plan` takes, refusing a mod from another game. Provider text is
 sanitized presentation data: names, popularity and version labels never establish
 compatibility, and a `stale` result is earlier data from an outage.

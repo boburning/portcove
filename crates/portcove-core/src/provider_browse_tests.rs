@@ -65,13 +65,11 @@ async fn browsing_refuses_unbound_games_bad_pages_and_other_games_projects() {
         .await
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::NotFound);
-    for page in [0, 51] {
-        let error = service
-            .browse_provider_mods_with(&client, "starship", page)
-            .await
-            .unwrap_err();
-        assert_eq!(error.code, ErrorCode::Usage);
-    }
+    let error = service
+        .browse_provider_mods_with(&client, "starship", 0)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Usage);
     let other = serde_json::json!({
         "_sName": "Elsewhere", "_bIsObsolete": false, "_tsDateUpdated": 5,
         "_aGame": {"_idRow": 1}, "_aFiles": []
@@ -150,5 +148,65 @@ async fn mods_the_provider_labels_as_another_game_are_not_listed() {
     assert_eq!(
         page.game_name,
         service.catalog().port("starship").unwrap().name
+    );
+}
+
+#[tokio::test]
+async fn browsing_follows_provider_continuation_past_fifty_and_handles_an_empty_final_page() {
+    let (_temporary, service, _) = fixture();
+    let index = serde_json::json!({
+        "_aMetadata": {"_nRecordCount": 1020, "_bIsComplete": false},
+        "_aRecords": [{"_idRow": 981, "_sName": "Deep listing"}]
+    })
+    .to_string();
+    let final_page = serde_json::json!({
+        "_aMetadata": {"_nRecordCount": 1000, "_bIsComplete": true},
+        "_aRecords": []
+    })
+    .to_string();
+    let (root, requests, server) =
+        serve_http_bytes(vec![json_response(&index), json_response(&final_page)]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let page = service
+        .browse_provider_mods_with(&client, "starship", 50)
+        .await
+        .unwrap();
+    assert_eq!(page.last_page, 51);
+    assert!(!page.page.complete);
+    let final_page = service
+        .browse_provider_mods_with(&client, "starship", 51)
+        .await
+        .unwrap();
+    assert_eq!(final_page.last_page, 51);
+    assert!(final_page.page.complete);
+    assert!(final_page.page.projects.is_empty());
+    server.join().unwrap();
+    assert!(requests.recv().unwrap().contains("_nPage=50"));
+    assert!(requests.recv().unwrap().contains("_nPage=51"));
+}
+
+#[tokio::test]
+async fn oversized_thunderstore_community_has_a_direct_browse_handoff() {
+    let (_temporary, service, _) = fixture();
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        crate::release::PROVIDER_JSON_MAX_BYTES + 1,
+    ).into_bytes();
+    let (root, _, server) = serve_http_bytes(vec![response]);
+    let client = ProviderClient::Thunderstore {
+        client: crate::ThunderstoreClient::with_root(&root, None).unwrap(),
+        community: "starship-test",
+    };
+    let error = service
+        .browse_provider_mods_via(&client, "starship", 1)
+        .await
+        .unwrap_err();
+    server.join().unwrap();
+    assert_eq!(error.code, ErrorCode::Verification);
+    let url = "https://thunderstore.io/c/starship-test/";
+    assert!(error.message.contains(url));
+    assert_eq!(
+        error.details.get("provider_browse_url").map(String::as_str),
+        Some(url)
     );
 }
