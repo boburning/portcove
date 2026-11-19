@@ -307,6 +307,7 @@ it("offers a second same-port source and labels cached results and failed refres
 });
 
 it("shows a file with unconfirmed eligibility without offering Add", async () => {
+  vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(catalog());
   const details = project();
   details.project.files[0]!.status_unknown = "omitted";
   vi.spyOn(desktopApi, "providerProject").mockResolvedValue(details);
