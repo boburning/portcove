@@ -1071,7 +1071,7 @@ for work the application did not perform.
 The genuine first-use Library omits collection layout, sorting and filter tools
 until there is content or a browsing constraint to operate on. Keep its mascot
 compact (4rem) and keep Browse games visible at the supported minimum window,
-including with the initial application-update choice notice.
+including with the initial application-update choice notice. Filtered no-results retains its
 reset and filtering controls; hiding first-use tools must not clear preferences.
 
 In an empty Library, **Browse games** takes the player directly to Discover.
