@@ -146,7 +146,12 @@ void test("GemRB shares one repository identity across separate listings and jou
   const directory = new URL("../crates/portcove-core/catalog/ports/", import.meta.url);
   const records = readdirSync(directory)
     .filter((file) => file.endsWith("-gemrb.json"))
-    .map((file) => JSON.parse(readFileSync(new URL(file, directory), "utf8")));
+    .map(
+      (file) =>
+        JSON.parse(readFileSync(new URL(file, directory), "utf8")) as Parameters<
+          typeof buildUniverse
+        >[0]["records"][number],
+    );
   const legacyUrl = "https://github.com/gemrb/gemrb";
   const unrelated = {
     listing: { id: "reused-repository-name", project_url: legacyUrl, issue_number: 42 },
