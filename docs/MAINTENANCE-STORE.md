@@ -677,9 +677,11 @@ publication has been verified.
   the last 24 hours, that still retains its unexpired
   `upstream-observer-checkpoint-<config_sha256>-<run>-<attempt>` artifact. Gated
   push runs and runs whose export did not retain a snapshot are passed over.
-  - It is read through the maintained GitHub client (GET-only, at most 24
-    candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's sixteen-MiB streaming snapshot limit.
+  - The maintained GitHub client reads up to 24 completed runs per producer
+    event and checks candidates newest-first, with at most 56 metadata GETs.
+    Push runs that handled admission only cannot displace the scheduled window.
+    The in-memory artifact transfer uses the observer's sixteen-MiB streaming
+    snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match

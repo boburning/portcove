@@ -467,9 +467,10 @@ function observerRuns() {
         assert.equal(query.get("status"), "completed");
         // The provider filters by trigger; a foreign row is the provider's own error.
         return Promise.resolve({
-          workflow_runs: runs.filter(
-            (row) => row.event === query.get("event") || row.event === "workflow_dispatch",
-          ),
+          workflow_runs: runs
+            .filter((row) => row.event === query.get("event") || row.event === "workflow_dispatch")
+            .toSorted((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+            .slice(0, Number(query.get("per_page"))),
         });
       }
       const listed = /^actions\/runs\/(\d+)\/artifacts\?per_page=100&page=1$/u.exec(endpoint);
@@ -530,6 +531,17 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.equal(input.config_sha256, observerConfigDigest);
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
+  assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("a full window of admission-only pushes cannot hide a scheduled snapshot", async () => {
+  const fixture = observerRuns();
+  const schedule = fixture.run(500, "schedule", 90);
+  const { id } = fixture.retain(schedule);
+  for (let minute = 1; minute <= 24; minute++) fixture.run(500 + minute, "push", minute);
+
+  const input = await fixture.read();
+  assert.match(input.revision, /^upstream-observer-run:500-1@/u);
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
 });
 

@@ -25,7 +25,7 @@ const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
-const candidateLimit = 24;
+const candidateLimitPerEvent = 24;
 // Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
 // contended host. This finite CPU/harness budget does not extend provider reads.
 import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
@@ -456,7 +456,7 @@ export interface UpstreamTransport {
 }
 
 /** The maintained GitHub client and artifact transfer under the local developer credential. */
-async function githubTransport(): Promise<UpstreamTransport> {
+async function githubTransport(producerEventCount: number): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
@@ -477,7 +477,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
       url.pathname.startsWith(`${prefix}/actions/`) &&
       !url.pathname.endsWith("/zip"),
     reserve() {
-      if (++requests > 2 + candidateLimit + 6)
+      if (++requests > producerEventCount * (1 + candidateLimitPerEvent) + 6)
         throw new MaintenanceStoreError("Upstream-observation lookup exceeded its request budget");
       return { consumeBytes() {}, settle() {} };
     },
@@ -510,16 +510,19 @@ export async function readUpstreamObservations(
     await import("./release-run-artifact-inventory.mts");
   const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
     await import("./observer-checkpoint-artifact.mts");
-  const transport = options.transport ?? (await githubTransport());
+  const transport = options.transport ?? (await githubTransport(producerEvents.length));
   const get = transport.read;
-  // One server-filtered window per producer trigger, merged newest-first.
+  // Keep each producer window. A burst of admission-only pushes must not
+  // displace a scheduled snapshot when the windows are merged newest-first.
   const runs: WorkflowRun[] = [];
   for (const event of producerEvents) {
     const window = (
       await get(
-        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimit}`,
+        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimitPerEvent}`,
       )
     ).workflow_runs as WorkflowRun[];
+    if (!Array.isArray(window) || window.length > candidateLimitPerEvent)
+      throw new MaintenanceStoreError("The observer run inventory exceeds its producer window");
     for (const run of window) {
       if (
         run.event !== event ||
@@ -534,9 +537,9 @@ export async function readUpstreamObservations(
   }
   runs.sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
   // Snapshots are retained for one day and admitted for twenty-four hours.
-  const candidates = runs
-    .filter(({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000)
-    .slice(0, candidateLimit);
+  const candidates = runs.filter(
+    ({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000,
+  );
   for (const run of candidates) {
     // A failed run can still carry a complete snapshot; other conclusions never do.
     if (!["success", "failure"].includes(String(run.conclusion))) continue;
