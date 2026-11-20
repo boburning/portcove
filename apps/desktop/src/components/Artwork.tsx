@@ -20,7 +20,7 @@ import {
   useCoverCollection,
   usesAutomaticArtwork,
 } from "../artwork";
-import type { ArtworkPriority } from "../artwork-cache";
+import type { ArtworkCache, ArtworkPriority } from "../artwork-cache";
 import { pickArtworkPath } from "../file-picker";
 import { desktopApi } from "../api";
 import type {
@@ -375,7 +375,7 @@ function ArtworkSheetContents({
 
 type ArtworkReviewTarget = {
   portId: string;
-  generation: number;
+  owner: ArtworkCache;
   revision: number;
 };
 
@@ -498,7 +498,7 @@ function ArtworkSlotControl({
   };
   const draftIsCurrent = (review: ArtworkReviewTarget) =>
     review.portId === port.id &&
-    review.generation === cache?.generation &&
+    review.owner === cache &&
     review.revision === display.state?.choice.revision &&
     !display.stale;
 
@@ -511,7 +511,7 @@ function ArtworkSlotControl({
     const choice = display.state?.choice;
     setDraft({
       portId: port.id,
-      generation: cache.generation,
+      owner: cache,
       revision,
       originalSha256: preview.original_sha256,
       image: `data:image/png;base64,${preview.png_base64}`,
@@ -562,7 +562,7 @@ function ArtworkSlotControl({
     setVisibilityReview({
       action,
       portId: port.id,
-      generation: cache.generation,
+      owner: cache,
       revision: display.state.choice.revision,
     });
   };
@@ -580,7 +580,15 @@ function ArtworkSlotControl({
         review.action === "hide"
           ? await cache.suppress(port.id, slot, review.revision, stillCurrent)
           : await cache.change(port.id, slot, review.revision, null, stillCurrent);
-      if (!result || !stillInView()) return;
+      if (!stillInView()) return;
+      if (!result) {
+        if (currentIdentity.current.cache !== cache) {
+          focusOwner = currentIdentity.current.cache ?? cache;
+          focusTarget = visibilityTrigger(review.action);
+          setVisibilityReview(undefined);
+        }
+        return;
+      }
       if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
       focusOwner = currentIdentity.current.cache ?? cache;
@@ -637,7 +645,7 @@ function ArtworkSlotControl({
     setMessage(undefined);
     setDraft({
       portId: port.id,
-      generation: cache.generation,
+      owner: cache,
       revision: choice.revision,
       originalSha256: choice.asset_sha256,
       image: display.image,
@@ -676,7 +684,14 @@ function ArtworkSlotControl({
                 edit,
               )
             : await cache.setBackgroundFraming(port.id, review.revision, framing, stillCurrent);
-      if (!result || !stillInView()) return;
+      if (!stillInView()) return;
+      if (!result) {
+        if (currentIdentity.current.cache !== cache) {
+          focusDraftTrigger(review, true, currentIdentity.current.cache);
+          setDraft(undefined);
+        }
+        return;
+      }
       if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
       focusDraftTrigger(review, false, currentIdentity.current.cache);

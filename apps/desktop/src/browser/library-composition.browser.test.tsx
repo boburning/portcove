@@ -1403,7 +1403,7 @@ it("opens the Cover editor from the game card and returns focus to the same More
   await userEvent.keyboard("{Tab}");
   await expect.element(coverTab).toHaveFocus();
   await userEvent.keyboard("{Escape}");
-  await expect.element(sheet).not.toBeVisible();
+  await expect.element(sheet).not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Change artwork", exact: true }))
     .toHaveFocus();

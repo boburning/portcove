@@ -82,7 +82,7 @@ async function open() {
 async function closeArtwork() {
   const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
   await sheet.getByRole("button", { name: "Close", exact: true }).click();
-  await expect.element(sheet).not.toBeVisible();
+  await expect.element(sheet).not.toBeInTheDocument();
   await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
 }
 
@@ -289,7 +289,7 @@ describe("local artwork controls", () => {
     await act(async () => {
       expect(dismissActiveDialog()).toBe(true);
     });
-    await expect.element(sheet).not.toBeVisible();
+    await expect.element(sheet).not.toBeInTheDocument();
     await expect
       .element(page.getByRole("button", { name: "Change artwork", exact: true }))
       .toHaveFocus();
@@ -723,6 +723,28 @@ describe("local artwork controls", () => {
     expect(button("cover", "Choose local image").disabled).toBe(false);
   });
 
+  it("requires a new review when the catalog changes before Apply", async () => {
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    const change = vi.spyOn(desktopApi, "importArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await click("cover", "Choose local image");
+    const review = page.getByRole("form", { name: "Review Cover image", exact: true });
+    const apply = review.getByRole("button", { name: "Apply", exact: true });
+    await expect.element(apply).toBeEnabled();
+
+    await render("sample", 7, "corrected-cover");
+    await expect.element(apply).toBeDisabled();
+    await expect
+      .element(
+        review.getByText("This artwork choice changed. Cancel and review the current choice."),
+      )
+      .toBeVisible();
+    await review.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(page.elementLocator(button("cover", "Choose local image"))).toHaveFocus();
+    expect(change).not.toHaveBeenCalled();
+  });
+
   it.each(["import", "reset"] as const)(
     "retains a rejected %s error and refreshes the current cache for retry",
     async (kind) => {
@@ -1004,9 +1026,14 @@ describe("local artwork controls", () => {
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
       expect(button("detail", "Use automatic").disabled).toBe(false);
-      container.querySelector<HTMLElement>(".artwork-sheet")!.scrollIntoView({ block: "start" });
-      expect(button("cover", "Use automatic").disabled).toBe(true);
-      const resetControls = button("cover", "Use automatic").getBoundingClientRect();
+      const resetControl = button("cover", "Use automatic");
+      expect(resetControl.disabled).toBe(true);
+      resetControl.scrollIntoView({ block: "nearest" });
+      const resetControls = resetControl.getBoundingClientRect();
+      const sheetBody = resetControl.closest(".artwork-slots")!.parentElement!;
+      const scrollBounds = sheetBody.getBoundingClientRect();
+      expect(resetControls.top).toBeGreaterThanOrEqual(scrollBounds.top);
+      expect(resetControls.bottom).toBeLessThanOrEqual(scrollBounds.bottom);
       expect(resetControls.top).toBeGreaterThanOrEqual(0);
       expect(resetControls.bottom).toBeLessThanOrEqual(innerHeight);
       await captureParityState("artwork-cover-reset-detail-retained-fixture");
@@ -1839,10 +1866,8 @@ it("uses the Logo provider role and restores focus to the saved logo control", a
   await page.getByRole("tab", { name: "Logo", exact: true }).click();
   await vi.waitFor(() => expect(button("logo", "Find on SteamGridDB").disabled).toBe(false));
   await click("logo", "Find on SteamGridDB");
-  await vi.waitFor(() => expect(button("logo", "Search")).toBeDefined());
-  await click("logo", "Search");
-  await vi.waitFor(() => expect(button("logo", "Logo game")).toBeDefined());
-  await click("logo", "Logo game");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await page.getByRole("button", { name: "Logo game (verified)", exact: true }).click();
   expect(candidates).toHaveBeenCalledExactlyOnceWith(55, "logo");
   await page.getByRole("button", { name: /^Use image by Logo artist/ }).click();
   expect(choose).not.toHaveBeenCalled();

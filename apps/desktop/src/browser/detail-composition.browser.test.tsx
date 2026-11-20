@@ -387,7 +387,7 @@ it("opens and focuses the real artwork sheet from the hero menu after Manage row
   await expect.element(sheet).toBeVisible();
   await expect.element(sheet.getByRole("button", { name: "Close", exact: true })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
-  await expect.element(sheet).not.toBeVisible();
+  await expect.element(sheet).not.toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Change artwork", exact: true }))
     .toHaveFocus();

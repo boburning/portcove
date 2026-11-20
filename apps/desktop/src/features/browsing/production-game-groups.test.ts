@@ -35,7 +35,7 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
     const game = selectedExtra?.game_id ?? canonical?.presentation?.original_game?.id;
     const title = selectedExtra?.game_title ?? canonical?.presentation?.original_game_title;
     const reviewedFamily = Object.entries(reviewed).find(([key]) => key === game)?.[1];
-    expect(game).toBeDefined();
+    expect(game !== undefined || Object.hasOwn(expected.intentionally_separate, id)).toBe(true);
     expect(title).toBeDefined();
     const projected = catalogEntries(
       {
@@ -47,7 +47,8 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
       [],
     );
     const selectedGroups = groupCatalog(projected);
-    const group = selectedGroups.find((entry) => entry.id === `game:${game}`)!;
+    const groupId = game === undefined ? `port:${id}` : `game:${game}`;
+    const group = selectedGroups.find((entry) => entry.id === groupId)!;
     expect(gameGroupTitle(group)).toBe(title);
     expect(group.ports.map((entry) => entry.id).sort()).toEqual(
       [...(selectedExtra?.family_port_ids ?? reviewedFamily ?? [id])].sort(),
