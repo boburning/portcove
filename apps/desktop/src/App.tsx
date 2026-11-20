@@ -959,6 +959,7 @@ function useWorkspace(props: WorkspaceProps) {
           backups={backups}
           activities={data.activities}
           libraryGeneration={bootstrap.generation}
+          libraryRoot={bootstrap.library_root ?? undefined}
           refreshAfterMutation={() => {
             void data.refreshAfterMutation();
           }}
@@ -1986,6 +1987,7 @@ function SelectedPortPanel({
   backups,
   activities,
   libraryGeneration,
+  libraryRoot,
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
@@ -2011,6 +2013,7 @@ function SelectedPortPanel({
   backups: BackupState;
   activities: ActivityRecord[];
   libraryGeneration: number;
+  libraryRoot?: string | undefined;
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
@@ -2211,6 +2214,7 @@ function SelectedPortPanel({
         )?.id
       }
       libraryGeneration={libraryGeneration}
+      libraryRoot={libraryRoot}
       gameFileQueryContext={model.gameFileQueryContext}
       gameFileFilterContext={model.gameFileQuery?.context}
       gameFileObservation={model.gameFileQuery?.observation}

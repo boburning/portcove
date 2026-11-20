@@ -85,8 +85,32 @@ pub struct ProviderFileCandidate {
     pub thunderstore_dependencies: Option<Vec<ThunderstoreDependency>>,
 }
 
+/// Optional provider claims for catalog presentation. Missing metrics stay unknown.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderListing {
+    pub categories: Vec<String>,
+    pub artwork: Option<String>,
+    pub created_at: Option<i64>,
+    pub downloads: Option<u64>,
+    pub likes: Option<u64>,
+    pub ratings: Option<u64>,
+}
+
+pub(crate) fn artwork_url(value: &str, host: &str) -> Option<String> {
+    let url = reqwest::Url::parse(value).ok()?;
+    (url.scheme() == "https"
+        && url.host_str() == Some(host)
+        && url.port_or_known_default() == Some(443)
+        && url.username().is_empty()
+        && url.password().is_none()
+        && value.len() <= 1024)
+        .then(|| url.into())
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderProject {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listing: Option<ProviderListing>,
     pub provider: String,
     pub project_id: String,
     pub name: String,

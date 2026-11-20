@@ -520,11 +520,21 @@ pub(crate) async fn plan_local_mod_package(
     profile_id: String,
     path: PathBuf,
     expected_revision: u64,
+    workspace: Option<bool>,
 ) -> DesktopResult<portcove_core::LocalModPackagePlan> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+            if workspace.unwrap_or(false) {
+                service.plan_workspace_local_mod_package(
+                    &port_id,
+                    &profile_id,
+                    &path,
+                    expected_revision,
+                )
+            } else {
+                service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+            }
         })
     })
     .await
@@ -594,21 +604,20 @@ pub(crate) async fn open_provider_mod_project(
     .await
 }
 
-/// One page of a bound game's GameBanana mods. Reads only.
+/// Bounded read-only catalog for one of the port's reviewed sources.
 #[tauri::command]
-pub(crate) async fn browse_provider_mods(
+pub(crate) async fn get_mod_provider_catalog(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
-    page: u32,
-    provider: Option<String>,
-) -> DesktopResult<portcove_core::ProviderBrowsePage> {
+    source: String,
+) -> DesktopResult<portcove_core::ProviderCatalog> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
+                .mod_provider_catalog(&port_id, &source)
                 .await
                 .map_err(Into::into)
         },
@@ -649,11 +658,30 @@ pub(crate) async fn plan_provider_install(
     project_id: String,
     file_id: String,
     provider: Option<String>,
+    expected_game_id: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
+            if let Some(expected_game_id) = expected_game_id {
+                let source = provider.as_deref().ok_or_else(|| {
+                    portcove_core::PortcoveError::usage(
+                        "Choose a mod source before reviewing the file",
+                    )
+                })?;
+                return service
+                    .plan_workspace_provider_install(
+                        &port_id,
+                        &profile_id,
+                        source,
+                        &project_id,
+                        &file_id,
+                        &expected_game_id,
+                    )
+                    .await
+                    .map_err(Into::into);
+            }
             service
                 .plan_provider_install_for_provider(
                     &port_id,
@@ -714,6 +742,50 @@ pub(crate) async fn apply_provider_install(
         };
         service
             .apply_provider_install(&plan, &authorization.token)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_mod_setup_draft(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    expected_revision: u64,
+    plans: Vec<portcove_core::ProviderInstallPlan>,
+    edits: portcove_core::ModSetupEdits,
+) -> DesktopResult<portcove_core::ModSetupDraftPreview> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .preview_mod_setup_draft(&port_id, &profile_id, expected_revision, &plans, &edits)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_mod_setup_draft(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    expected_revision: u64,
+    plans: Vec<portcove_core::ProviderInstallPlan>,
+    edits: portcove_core::ModSetupEdits,
+    allow_code: bool,
+) -> DesktopResult<ProfileRevision> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .apply_mod_setup_draft(
+                &port_id,
+                &profile_id,
+                expected_revision,
+                &plans,
+                &edits,
+                allow_code,
+            )
             .map_err(Into::into)
     })
     .await

@@ -125,9 +125,17 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await browser.wait(
         async () => {
           for (const candidate of await browser.findElements(By.css("button"))) {
-            if ((await candidate.isDisplayed()) && (await candidate.getAccessibleName()) === name) {
-              result = candidate;
-              return true;
+            try {
+              if (
+                (await candidate.isDisplayed()) &&
+                (await candidate.getAccessibleName()) === name
+              ) {
+                result = candidate;
+                return true;
+              }
+            } catch (error) {
+              if (!(error instanceof Error && error.name === "StaleElementReferenceError"))
+                throw error;
             }
           }
           return false;
@@ -234,14 +242,23 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         5_000,
       );
     };
-    const openSaves = async () => {
+    const openDetails = async () => {
       await selectPrimaryNavigation(browser, "Discover");
       const search = await browser.findElement(By.id("port-search"));
       await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, portId);
       await clearCatalogFilters(browser);
       await selectCatalogPort(browser, portId);
-      await revealDetailSection(browser, "Game settings & mods");
+    };
+    const openMods = async () => {
+      await openDetails();
+      await revealDetailSection(browser, "Mods");
       await text("Setups and mods");
+      const installed = await browser.findElement(By.css(".mod-workspace-views button:last-child"));
+      await clickVisible(browser, installed);
+    };
+    const openSaves = async () => {
+      await openDetails();
+      await revealDetailSection(browser, "Saves & backups");
     };
     const observedAction = async (command: string, action: () => Promise<unknown>) => {
       const previous = (await probe.capture()).trace.filter(
@@ -334,21 +351,33 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       assert.deepEqual(fixtureSuccess(await invoke("get_dat_references")), []);
 
       // A real preference change asks the mounted notice component to assess again.
-      const noticeControls = await browser.findElements(
-        By.xpath(
-          '//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]',
-        ),
+      const noticeSwitch = await browser.wait(
+        async () => {
+          const controls = await browser.findElements(
+            By.xpath(
+              '//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]',
+            ),
+          );
+          assert.ok(controls.length <= 1, "Expected one visible ready-notice checkbox");
+          const [control] = controls;
+          return control &&
+            (await control.isEnabled()) &&
+            (await control.getAttribute("data-disabled")) === null
+            ? control
+            : false;
+        },
+        15_000,
+        "Ready notice settings did not finish loading",
       );
-      assert.equal(noticeControls.length, 1, "Expected the visible ready-notice checkbox");
-      const [noticeSwitch] = noticeControls;
-      assert.ok(noticeSwitch);
+      assert.ok(noticeSwitch, "Expected the settled ready-notice checkbox");
       for (let change = 0; change < 2; change++) {
         const before = await noticeSwitch.getAttribute("aria-checked");
         await clickVisible(browser, noticeSwitch);
         await browser.wait(
           async () =>
             (await noticeSwitch.getAttribute("aria-checked")) !== before &&
-            (await noticeSwitch.isEnabled()),
+            (await noticeSwitch.isEnabled()) &&
+            (await noticeSwitch.getAttribute("data-disabled")) === null,
           15_000,
         );
       }
@@ -419,7 +448,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
           ),
         );
         await probe.phase("mods");
-        await openSaves();
+        await openMods();
         const original = await findButton("Review original game files");
         await clickVisible(browser, original);
         await text("Other registered originals");
@@ -437,12 +466,24 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         });
         assert.ok(choice);
         await clickVisible(browser, choice);
-        await browser.actions().sendKeys(Key.ARROW_DOWN, Key.ENTER).perform();
+        const [alternativeOriginal] = fixtures.original.instances;
+        assert.ok(alternativeOriginal);
+        const alternativeName = path.basename(alternativeOriginal.path);
+        const alternative = await browser.wait(
+          until.elementLocated(
+            By.xpath(
+              `//*[@role="option"][contains(normalize-space(.),${JSON.stringify(alternativeName)})]`,
+            ),
+          ),
+          5_000,
+          "The reviewed alternative original must be available in the open list",
+        );
+        await clickVisible(browser, alternative);
         await observedAction("select_mod_setup_original", () => click(button("Use this original")));
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-original-refused`, original);
 
-        await openSaves();
+        await openMods();
         const recipe = await findButton("Open setup recipe…");
         await clickVisible(browser, recipe);
         await confirmNative(
@@ -462,17 +503,23 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await click(button("Close review"));
         await focused(recipe);
 
-        await openSaves();
-        await click(button("Find mods on GameBanana…"));
-        await click(button(`Show files of ${fixtures.providerProject.project.name}`));
-        await click(button(`Review ${fixtures.providerPlan.file.file_name}`));
-        const install = await findButton("Install");
+        await openMods();
+        await click(button("Browse mods"));
+        await click(button(fixtures.providerProject.project.name));
+        if (theme === "light") {
+          await text("Pending addition");
+          await clickVisible(browser, await findButton("Undo"));
+        }
+        await click(button(`Add ${fixtures.providerPlan.file.file_name}`));
+        await click(button("Review changes"));
+        await click(button("Check files"));
+        const install = await findButton("Apply changes");
         await capture(`${theme}-provider-review`, install);
-        await observedAction("apply_provider_install", () => clickVisible(browser, install));
+        await observedAction("apply_mod_setup_draft", () => clickVisible(browser, install));
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-provider-refused`);
 
-        await openSaves();
+        await openMods();
         await click(button("Retained game versions"));
         const retirement = await findButton(
           `Review retiring ${fixtures.retirement.revision.build.artifact.asset_name} (offer 1)`,
@@ -482,13 +529,14 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         const retire = await findButton("Retire recovery offer");
         await capture(`${theme}-retirement-review`, retire);
         await observedAction("retire_mod_setup_recovery_build", () => retire.sendKeys(Key.ENTER));
-        await text("Portcove could not confirm retirement.");
+        await text("Owned presentation fixture refused this action.");
+        await findButton("Check offer again");
         await capture(`${theme}-retirement-refused`);
         await browser.actions().sendKeys(Key.ESCAPE).perform();
         await focused(retirement);
 
         await probe.phase("preservation");
-        await openSaves();
+        await openMods();
         const reviewFile = await findButton(`Review ${fixtures.modName}`);
         await clickVisible(browser, reviewFile);
         const preserve = await findButton("Preserve file");

@@ -25,6 +25,7 @@ import {
   groupCountLabel,
   type GameGroup,
 } from "../features/browsing/original-game";
+import { CollectionLayoutToggle } from "./CollectionLayoutToggle";
 import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
@@ -47,8 +48,6 @@ import { useLatestCallback } from "../shared/use-latest-callback";
 import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
   ArrowRight,
-  LayoutGrid,
-  List,
   Play,
   Save,
   Boxes,
@@ -2019,36 +2018,6 @@ function collectionViewLabel(
 
 function libraryResultCount(visible: number, total: number) {
   return `${visible} of ${total} in your library`;
-}
-
-function CollectionLayoutToggle({
-  layout,
-  onChange,
-}: {
-  layout: "covers" | "rows";
-  onChange: (layout: "covers" | "rows") => void;
-}) {
-  return (
-    <div role="group" aria-label="Collection view" className="ms-auto flex flex-wrap gap-1">
-      <span className="self-center text-xs text-pc-muted-foreground">View</span>
-      {(["covers", "rows"] as const).map((nextLayout) => (
-        <Button
-          key={nextLayout}
-          variant={layout === nextLayout ? "selected" : "ghost"}
-          size="sm"
-          aria-pressed={layout === nextLayout}
-          aria-label={nextLayout === "rows" ? "Compact rows" : "Covers"}
-          data-focusable
-          onClick={() => onChange(nextLayout)}
-        >
-          <Icon glyph={nextLayout === "covers" ? LayoutGrid : List} size="sm" />
-          <span className="collection-layout-label">
-            {nextLayout === "covers" ? "Covers" : "Rows"}
-          </span>
-        </Button>
-      ))}
-    </div>
-  );
 }
 
 function BrowserCollectionTools({

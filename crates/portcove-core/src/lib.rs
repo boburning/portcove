@@ -371,8 +371,8 @@ pub use profile::{
     ProviderRequirement, RequestedPackage, ResolvedPackage, TypedOrdering,
 };
 pub use profile_deploy::{
-    LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
-    ProfileRecoveryPlan, ProfileRecoveryProgress,
+    LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupEdits, ModSetupsView,
+    NativeModListStatus, ProfileRecoveryPlan, ProfileRecoveryProgress,
 };
 pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
@@ -381,8 +381,10 @@ pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
 };
-pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
-pub use provider_install::{PlanMember, ProviderInstallPlan, ProviderWrapper};
+pub use provider_browse::{ProviderBrowsePage, ProviderCatalog, ProviderProjectView};
+pub use provider_install::{
+    ModSetupDraftPreview, PlanMember, ProviderInstallPlan, ProviderWrapper,
+};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;

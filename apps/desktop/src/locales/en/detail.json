@@ -134,10 +134,11 @@
     "website": "Project website"
   },
   "section": {
-    "configuration": "Game settings & mods",
+    "configuration": "Game settings",
     "files": "Game files",
     "label": "Game detail sections",
     "manage": "Manage",
+    "mods": "Mods",
     "overview": "Overview",
     "saves": "Saves & backups",
     "versions": "Versions & updates"

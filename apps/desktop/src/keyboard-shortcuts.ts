@@ -27,7 +27,7 @@ export function keyboardShortcutAction(input: {
   metaKey?: boolean;
   altKey?: boolean;
   targetIsField?: boolean;
-  searchAvailable?: boolean;
+  searchAvailable?: boolean | (() => boolean);
   paletteOpen?: boolean;
   modalOpen?: boolean;
 }): KeyboardShortcutAction | undefined {
@@ -41,10 +41,12 @@ export function keyboardShortcutAction(input: {
   if (commandKey && !input.altKey && input.key.toLowerCase() === "k") return "toggle-palette";
   if (
     !input.targetIsField &&
-    input.searchAvailable !== false &&
     commandKey &&
     !input.altKey &&
-    input.key.toLowerCase() === "f"
+    input.key.toLowerCase() === "f" &&
+    (typeof input.searchAvailable === "function"
+      ? input.searchAvailable()
+      : input.searchAvailable !== false)
   )
     return "focus-search";
   if (!commandKey || input.altKey) return undefined;
@@ -64,7 +66,7 @@ export function useGlobalShortcuts({
   setPaletteOpen: (value: boolean | ((current: boolean) => boolean)) => void;
   setView: (view: View) => void;
   focusSearch: () => void;
-  searchAvailable?: boolean;
+  searchAvailable?: boolean | (() => boolean);
 }) {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {

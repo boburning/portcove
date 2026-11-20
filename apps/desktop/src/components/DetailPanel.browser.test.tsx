@@ -1027,6 +1027,16 @@ it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
   async (state) => {
     await page.viewport(960, 800);
     const port = { ...portDefinition(), source_profile: null };
+    const mods = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+      held_updates: [],
+      inventory: null,
+      later_mods_take_priority: false,
+      live: null,
+      package_types: [],
+      port_id: port.id,
+      provider: null,
+      supported: false,
+    });
     const active = installRecord({ port_id: port.id });
     const activate = vi.fn();
     const launch = vi.fn();
@@ -1072,6 +1082,7 @@ it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
     expect((apply.element() as HTMLButtonElement).disabled).toBe(busy);
     expect(activate).not.toHaveBeenCalled();
     expect(launch).not.toHaveBeenCalled();
+    mods.mockRestore();
   },
 );
 

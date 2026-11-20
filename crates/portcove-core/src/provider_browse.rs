@@ -44,11 +44,104 @@ pub struct ProviderProjectView {
     /// The project's files; a file ID with this project ID is what `provider-plan`
     /// reviews.
     pub project: ProviderProject,
+    /// Current files that Core can review for this port's loader. The bytes
+    /// still have to pass the ordinary install review.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eligible_file_ids: Option<Vec<String>>,
+    pub observed_at: i64,
+    pub freshness: ProviderFreshness,
+}
+
+/// A bounded snapshot for searching, filtering and sorting before paginating.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderCatalog {
+    pub projects: Vec<ProviderProject>,
+    /// Scope of older unscoped package references, when they belong to this catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_game_id: Option<String>,
+    /// False when additional or unreadable records may exist.
+    pub complete: bool,
     pub observed_at: i64,
     pub freshness: ProviderFreshness,
 }
 
 impl PortcoveService {
+    pub async fn mod_provider_catalog(
+        &self,
+        port_id: &str,
+        source: &str,
+    ) -> Result<ProviderCatalog> {
+        let client = ProviderClient::for_definition(
+            &self.library,
+            self.catalog().port(port_id)?,
+            Some(source),
+        )?;
+        let legacy_game_id = crate::provider_binding::legacy_binding(port_id, source)
+            .filter(|legacy| *legacy == client.binding())
+            .map(|_| client.game_id());
+        match client {
+            ProviderClient::GameBanana { client, game } => {
+                let first = client.search(game, 1, 50).await?;
+                let expected = first.value.total;
+                let mut freshness = first.freshness;
+                let mut observed_at = first.observed_at;
+                let mut terminal = first.value.complete;
+                let mut projects = first.value.projects;
+                let mut consistent = true;
+                // A full Ship catalog currently fits within this bound. A larger
+                // catalog is offered as a partial snapshot, with explicit coverage.
+                for page in 2..=expected.div_ceil(50).min(12) as u32 {
+                    let Ok(next) = client.search(game, page, 50).await else {
+                        consistent = false;
+                        break;
+                    };
+                    if next.value.total != expected
+                        || (next.freshness == ProviderFreshness::Stale)
+                            != (first.freshness == ProviderFreshness::Stale)
+                        || terminal
+                    {
+                        consistent = false;
+                    }
+                    terminal = next.value.complete;
+                    observed_at = observed_at.min(next.observed_at);
+                    if next.freshness == ProviderFreshness::Stale {
+                        freshness = ProviderFreshness::Stale;
+                    }
+                    projects.extend(next.value.projects);
+                }
+                let game = game.to_string();
+                projects.retain(|project| project.game_id.as_deref() == Some(&game));
+                let mut seen = std::collections::HashSet::new();
+                projects.retain(|project| seen.insert(project.project_id.clone()));
+                // GameBanana does not return download counts on every listing.
+                // Preserve its Most Downloaded order even when counts are absent.
+                Ok(ProviderCatalog {
+                    legacy_game_id,
+                    complete: consistent && terminal && projects.len() as u64 == expected,
+                    projects,
+                    observed_at,
+                    freshness,
+                })
+            }
+            ProviderClient::Thunderstore { client, community } => {
+                let observed = client.community_catalog(&community).await?;
+                let (mut projects, expected) = observed.value;
+                let mut seen = std::collections::HashSet::new();
+                projects.retain(|project| seen.insert(project.project_id.clone()));
+                for project in &mut projects {
+                    project.files.clear();
+                }
+                Ok(ProviderCatalog {
+                    legacy_game_id,
+                    complete: projects.len() == expected,
+                    projects,
+                    observed_at: observed.observed_at,
+                    freshness: observed.freshness,
+                })
+            }
+        }
+    }
+
     /// One page of GameBanana mods for a game with a reviewed binding.
     pub async fn browse_provider_mods(
         &self,
@@ -170,10 +263,26 @@ impl PortcoveService {
                 "this project does not belong to the game this port is bound to",
             ));
         }
+        let eligible_file_ids = if observed.freshness == ProviderFreshness::Stale {
+            Vec::new()
+        } else {
+            observed
+                .value
+                .files
+                .iter()
+                .filter(|file| {
+                    crate::provider_install::accepts_provider_file(port_id, file)
+                        && crate::provider_install::validate_offer(client, &observed.value, file)
+                            .is_ok()
+                })
+                .map(|file| file.file_id.clone())
+                .collect()
+        };
         Ok(ProviderProjectView {
             port_id: port_id.into(),
             game_name,
             project: observed.value,
+            eligible_file_ids: Some(eligible_file_ids),
             observed_at: observed.observed_at,
             freshness: observed.freshness,
         })

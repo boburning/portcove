@@ -3,6 +3,7 @@ import type { DetailDestination } from "../../view-model";
 export const detailSections = [
   "overview",
   "files",
+  "mods",
   "saves",
   "versions",
   "configuration",

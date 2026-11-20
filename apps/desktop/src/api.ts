@@ -160,6 +160,12 @@ export interface PortableSaveChoices {
   replaceDivergedProgress: boolean;
 }
 
+type ModSetupDraftEdits = {
+  packages: { native_id: string; enabled: boolean | null }[];
+  order: string[] | null;
+  local_files: { path: string; expected_plan_sha256: string }[];
+};
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -532,12 +538,11 @@ export const desktopApi = {
     generation: number,
     provider?: string,
   ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
-  browseProviderMods: (portId: string, page: number, generation: number, provider?: string) =>
-    invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
+  modProviderCatalog: (portId: string, source: string, generation: number) =>
+    invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
-      page,
+      source,
       generation,
-      provider,
     }),
   providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
@@ -553,6 +558,7 @@ export const desktopApi = {
     fileId: string,
     generation: number,
     provider?: string,
+    expectedGameId?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -561,6 +567,41 @@ export const desktopApi = {
       fileId,
       generation,
       provider,
+      expectedGameId,
+    }),
+  previewModSetupDraft: (
+    portId: string,
+    profileId: string,
+    expectedRevision: number,
+    plans: readonly import("./types").ProviderInstallPlan[],
+    edits: ModSetupDraftEdits,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupDraftPreview>("preview_mod_setup_draft", {
+      portId,
+      profileId,
+      expectedRevision,
+      plans,
+      edits,
+      generation,
+    }),
+  applyModSetupDraft: (
+    portId: string,
+    profileId: string,
+    expectedRevision: number,
+    plans: readonly import("./types").ProviderInstallPlan[],
+    edits: ModSetupDraftEdits,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_mod_setup_draft", {
+      portId,
+      profileId,
+      expectedRevision,
+      plans,
+      edits,
+      generation,
+      allowCode,
     }),
   applyProviderInstall: (
     portId: string,
@@ -605,10 +646,11 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    workspace = false,
   ) =>
     invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
       "plan_local_mod_package",
-      { portId, profileId, path, expectedRevision, generation },
+      { portId, profileId, path, expectedRevision, generation, workspace },
     ),
   applyLocalModPackage: (
     portId: string,

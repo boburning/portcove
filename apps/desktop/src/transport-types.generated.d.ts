@@ -1339,6 +1339,7 @@ export interface TransportOutputs {
   mod_code_review: OutputModCodeReview;
   mod_file_preservation_plan: ModFilePreservationPlan;
   mod_file_preservation_result: OutputModFilePreservationResult;
+  mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
@@ -1368,6 +1369,7 @@ export interface TransportOutputs {
   profile_recovery_plan: OutputProfileRecoveryPlan;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
+  provider_catalog: OutputProviderCatalog;
   provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
@@ -5238,11 +5240,36 @@ export interface OutputModFilePreservationResult {
   preserved_path: string;
   [k: string]: unknown;
 }
+export interface OutputModSetupDraftPreview {
+  conflicts: AssetConflict[];
+  conflicts_truncated: boolean;
+  /**
+   * Local packages that require consent after the complete draft passes dependency checks.
+   */
+  local_code_packages?: string[];
+  order: string[];
+  [k: string]: unknown;
+}
 /**
- * Everything a game-level mods view needs in one read: whether the game has a
- * reviewed mod contract, its setups and what is live now. Read-only.
+ * Several packages claim the same asset path.
  */
+export interface AssetConflict {
+  path: string;
+  /**
+   * Packages providing the path, in the supplied precedence order.
+   */
+  providers: string[];
+  /**
+   * The provider that takes effect under that order.
+   */
+  winner: string;
+  [k: string]: unknown;
+}
 export interface OutputModSetupsView {
+  /**
+   * Count from the materialized revision, including disabled mods.
+   */
+  applied_package_count?: number | null;
   /**
    * The game's current installation. A setup whose build differs stays on
    * its own build; an upgraded copy can use this one.
@@ -5999,6 +6026,7 @@ export interface ProviderProject {
    * binding, never matched by name or popularity.
    */
   game_id: string | null;
+  listing?: ProviderListing | null;
   name: string;
   obsolete: boolean;
   profile_url: string;
@@ -6065,6 +6093,35 @@ export interface ThunderstoreDependency {
   version: string;
   [k: string]: unknown;
 }
+/**
+ * Optional provider claims for catalog presentation. Missing metrics stay unknown.
+ */
+export interface ProviderListing {
+  artwork: string | null;
+  categories: string[];
+  created_at: number | null;
+  downloads: number | null;
+  likes: number | null;
+  ratings: number | null;
+  [k: string]: unknown;
+}
+/**
+ * A bounded snapshot for searching, filtering and sorting before paginating.
+ */
+export interface OutputProviderCatalog {
+  /**
+   * False when additional or unreadable records may exist.
+   */
+  complete: boolean;
+  freshness: ProviderFreshness;
+  /**
+   * Scope of older unscoped package references, when they belong to this catalog.
+   */
+  legacy_game_id?: string | null;
+  observed_at: number;
+  projects: ProviderProject[];
+  [k: string]: unknown;
+}
 export interface ProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
@@ -6094,6 +6151,10 @@ export interface ProviderInstallPlan {
    */
   replaces: string[];
   /**
+   * Private workspace reviews use distinct staging even for the same file.
+   */
+  review_nonce?: string | null;
+  /**
    * What this plan relies on without verifying.
    */
   unverified_claims: string[];
@@ -6101,21 +6162,6 @@ export interface ProviderInstallPlan {
    * Exact Thunderstore wrapper closure in dependency-first order.
    */
   wrappers?: ProviderWrapper[];
-  [k: string]: unknown;
-}
-/**
- * Several packages claim the same asset path.
- */
-export interface AssetConflict {
-  path: string;
-  /**
-   * Packages providing the path, in the supplied precedence order.
-   */
-  providers: string[];
-  /**
-   * The provider that takes effect under that order.
-   */
-  winner: string;
   [k: string]: unknown;
 }
 export interface PlanMember {
@@ -6140,6 +6186,11 @@ export interface ProviderWrapper {
   [k: string]: unknown;
 }
 export interface OutputProviderProjectView {
+  /**
+   * Current files that Core can review for this port's loader. The bytes
+   * still have to pass the ordinary install review.
+   */
+  eligible_file_ids?: string[] | null;
   freshness: ProviderFreshness;
   /**
    * The game's catalog name, for presentation.
@@ -6161,6 +6212,7 @@ export interface ProviderProject1 {
    * binding, never matched by name or popularity.
    */
   game_id: string | null;
+  listing?: ProviderListing | null;
   name: string;
   obsolete: boolean;
   profile_url: string;

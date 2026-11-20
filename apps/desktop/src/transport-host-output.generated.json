@@ -11562,6 +11562,13 @@
             },
             "type": "array"
           },
+          "review_nonce": {
+            "description": "Private workspace reviews use distinct staging even for the same file.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "unverified_claims": {
             "description": "What this plan relies on without verifying.",
             "items": {

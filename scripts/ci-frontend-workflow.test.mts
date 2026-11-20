@@ -90,7 +90,12 @@ void test("shared browser uploader preserves artifact contracts and portability 
       row.job === "frontend_portability"
         ? { ...row.step, if: "failure() || cancelled()" }
         : row.step;
-    assert.deepEqual(resolveBrowserUpload(config, action, row.job), expected);
+    const upload = resolveBrowserUpload(config, action, row.job);
+    assert.ok(typeof upload.with.path === "string");
+    const modsScreenshots = "outputs/mod-workspace-fixture/**/*.png\n";
+    assert.ok(upload.with.path.includes(modsScreenshots), row.job);
+    upload.with.path = upload.with.path.replace(modsScreenshots, "");
+    assert.deepEqual(upload, expected);
   }
   // Equivalent YAML layout is accepted; semantic changes must fail the oracle.
   const roundTrip: unknown = JSON.parse(JSON.stringify(config));
