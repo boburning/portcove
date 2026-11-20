@@ -58,6 +58,38 @@ async fn browsing_lists_a_bound_games_mods_and_names_files_to_plan() {
 }
 
 #[tokio::test]
+async fn project_files_remain_visible_when_the_definition_lacks_native_mod_state() {
+    let (_temporary, mut service, _) = fixture();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap();
+    port.persistent_paths
+        .retain(|path| path != "shipofharkinian.json");
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+
+    let project = serde_json::json!({
+        "_sName": "HD Link", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 16121},
+        "_aFiles": [{"_idRow": 10, "_sFile": "pack.zip", "_nFilesize": 9,
+            "_tsDateAdded": 4, "_sAvResult": "clean", "_bIsArchived": false}]
+    })
+    .to_string();
+    let (root, _requests, server) = serve_http_bytes(vec![json_response(&project)]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let view = service
+        .provider_project_with(&client, "shipwright", 42)
+        .await
+        .unwrap();
+    server.join().unwrap();
+
+    assert_eq!(view.project.files[0].file_id, "10");
+    assert_eq!(view.eligible_file_ids, Some(Vec::new()));
+}
+
+#[tokio::test]
 async fn browsing_refuses_unbound_games_bad_pages_and_other_games_projects() {
     let (_temporary, service, _first) = fixture();
     let client = GameBananaClient::with_roots("http://127.0.0.1:9", None).unwrap();
