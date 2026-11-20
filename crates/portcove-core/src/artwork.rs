@@ -1493,10 +1493,12 @@ impl PortcoveService {
         };
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, value)?;
         transaction.commit()?;
-        let _ = crate::artwork_eviction::complete_pending_evictions(
-            self.library(),
-            Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
-        );
+        if !suppressed {
+            let _ = crate::artwork_eviction::complete_pending_evictions(
+                self.library(),
+                Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
+            );
+        }
         self.artwork_for_listing(&port, slot)
     }
 

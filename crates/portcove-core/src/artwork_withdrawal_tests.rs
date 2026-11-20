@@ -845,6 +845,16 @@ fn removals_are_bounded_per_call_and_the_rest_are_deferred() {
         )
         .unwrap();
     }
+    let hidden = service
+        .suppress_artwork(&port.id, ArtworkSlot::Logo, 0)
+        .unwrap();
+    assert!(hidden.choice.suppressed);
+    for sha in [&cover_sha, &detail_sha] {
+        assert_eq!(
+            fs::read(crate::artwork::original_path(service.library(), sha).unwrap()).unwrap(),
+            b"stale",
+        );
+    }
     let _guard = service.library().try_lock_artwork().unwrap();
     let counts =
         crate::artwork_eviction::complete_pending_evictions(service.library(), Some(1)).unwrap();
