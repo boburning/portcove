@@ -2246,7 +2246,7 @@ async fn per_subject_selection_retains_independent_authority_and_interrupts_atom
     for (previous, expected_subjects) in [(&first_bytes, 2), (&sibling_bytes, 1)] {
         let mut legacy = rusqlite::Connection::open_in_memory().unwrap();
         let migration = legacy.transaction().unwrap();
-        super::selection::migrate(&migration).unwrap();
+        crate::definition_candidate::selection::migrate(&migration).unwrap();
         migration
             .execute(
                 "UPDATE definition_selection_state
@@ -2254,7 +2254,7 @@ async fn per_subject_selection_retains_independent_authority_and_interrupts_atom
                 [&global_floor, &sibling_bytes, previous],
             )
             .unwrap();
-        super::selection::migrate_subject_selection(&migration).unwrap();
+        crate::definition_candidate::selection::migrate_subject_selection(&migration).unwrap();
         migration.commit().unwrap();
         let subjects: u64 = legacy
             .query_row(
