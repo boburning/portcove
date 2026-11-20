@@ -1,3 +1,4 @@
+import { focusAndReveal } from "../focus";
 import { countMessage, useAppTranslation } from "../localization";
 import {
   SidebarCollections,
@@ -506,6 +507,8 @@ export function StatusLayer({
   openActivity,
   preparationRecovery,
   readyToPlay,
+  openInstalledGame,
+  completedActivityAvailable,
   onActivity = false,
 }: {
   /** Activity is open: a link may reveal a known task there but never re-open Activity. */
@@ -520,10 +523,12 @@ export function StatusLayer({
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
-  openActivity?: ((id?: string) => void) | undefined;
+  openActivity?: ((id?: string, section?: "history") => void) | undefined;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
+  openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
+  completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
   const acknowledgedSuccess = useRef(new Set<number>());
@@ -534,6 +539,7 @@ export function StatusLayer({
       if (
         record.phase !== "settled" ||
         record.outcome !== "succeeded" ||
+        record.installed ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -565,6 +571,7 @@ export function StatusLayer({
               className={
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
+                !record.installed &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -596,6 +603,8 @@ export function StatusLayer({
                   record={record}
                   latestSuccess={latestSuccess}
                   readyToPlay={readyToPlay}
+                  openInstalledGame={openInstalledGame}
+                  completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
                   onActivity={onActivity}
@@ -2781,6 +2790,8 @@ function SettledInvocation({
   record,
   latestSuccess,
   readyToPlay,
+  openInstalledGame,
+  completedActivityAvailable,
   dismissInvocation,
   openActivity,
   onActivity,
@@ -2788,10 +2799,62 @@ function SettledInvocation({
   record: InvocationRecord;
   latestSuccess: number | undefined;
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
-  openActivity: ((id?: string) => void) | undefined;
+  openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
+  if (record.outcome === "succeeded" && record.installed) {
+    const openGame = openInstalledGame?.(record);
+    const activityId = record.context.activityId;
+    return (
+      <Notice intent="success" className="mb-0 items-center">
+        <p data-slot="notice-body">
+          Installed {record.context.target.label} · {record.installed.version}
+        </p>
+        <div data-slot="notice-actions">
+          {openGame && (
+            <Button
+              data-focusable
+              data-detail-origin={`install-result:${record.id}`}
+              variant="primary"
+              size="sm"
+              onClick={openGame}
+            >
+              Open game
+            </Button>
+          )}
+          {activityId && openActivity && (completedActivityAvailable?.(activityId) ?? true) && (
+            <Button
+              data-focusable
+              variant="ghost"
+              size="sm"
+              onClick={() => openActivity(activityId, "history")}
+            >
+              View in Activity
+            </Button>
+          )}
+          {dismissInvocation && (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={`Dismiss completion for ${record.context.action}`}
+              onClick={(event) => {
+                const trigger = event.currentTarget;
+                const workspace = trigger.closest<HTMLElement>("main");
+                const fallback = workspace?.querySelector<HTMLElement>("h1[tabindex]") ?? workspace;
+                if (document.activeElement === trigger && fallback) focusAndReveal(fallback);
+                dismissInvocation(record.id);
+              }}
+            >
+              Dismiss
+            </Button>
+          )}
+        </div>
+      </Notice>
+    );
+  }
   return (
     invocationFailure(record) === undefined &&
     (record.id === latestSuccess && readyToPlay?.(record) ? (

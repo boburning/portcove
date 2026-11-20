@@ -281,6 +281,29 @@ it("offers an exact Activity link only for an explicitly supplied identity", asy
   expect(openActivity).toHaveBeenLastCalledWith("owned-activity-record");
 });
 
+it("retains a confirmed install result and its History link through another operation", async () => {
+  const installed = { id: "install-A", port_id: "A", version: "1.5" };
+  await act(async () => {
+    await state.perform("install", async () => installed, {
+      context: { ...context("A", "Install"), activityId: "owned-install" },
+      installedResult: (result) => result,
+    });
+    await state.perform("check", async () => undefined, { context: context("B", "Check") });
+  });
+  const records = [...state.invocations.values()];
+  expect(records[0]?.installed).toEqual(installed);
+  const result = host.querySelector<HTMLElement>(`[data-invocation-id="${records[0]!.id}"]`)!;
+  expect(result.classList.contains("sr-only")).toBe(false);
+  expect(result.textContent).toContain("Installed Game A · 1.5");
+  const history = [...result.querySelectorAll("button")].find(
+    (button) => button.textContent === "View in Activity",
+  )!;
+  await act(async () => history.click());
+  expect(openActivity).toHaveBeenLastCalledWith("owned-install", "history");
+  await act(async () => state.dismissInvocation(records[0]!.id));
+  expect(result.isConnected).toBe(false);
+});
+
 it("reveals a known task instead of re-opening Activity while Activity is open", async () => {
   await act(async () => root.render(<Fixture onActivity />));
   const listed = deferred<void>();

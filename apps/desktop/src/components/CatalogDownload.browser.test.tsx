@@ -110,7 +110,7 @@ const candidates: CatalogDownloadCandidates = {
 };
 let root: RenderResult;
 const reportEvent = vi.fn();
-const performCalls = vi.fn<(name: string, options?: PerformOptions) => void>();
+const performCalls = vi.fn<(name: string, options?: Pick<PerformOptions, "context">) => void>();
 const perform: Perform = async (name, task, options) => {
   performCalls(name, options);
   return task(reportEvent);
