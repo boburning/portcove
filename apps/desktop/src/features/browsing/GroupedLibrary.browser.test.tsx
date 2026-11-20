@@ -1056,6 +1056,7 @@ it.each(["close", "library generation"] as const)(
   "does not navigate on a late choice acknowledgement after dropped-file review changes by %s",
   async (change) => {
     const onSelect = vi.fn();
+    const onGameDropDismiss = vi.fn();
     let finishChoice!: (accepted: boolean) => void;
     const replies: ((report: GameComparison) => void)[] = [];
     vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(
@@ -1086,7 +1087,10 @@ it.each(["close", "library generation"] as const)(
             statuses={new Map()}
             organization={organization}
             pendingGameDrop={pendingGameDrop}
-            onGameDropDismiss={() => setDrop(undefined)}
+            onGameDropDismiss={() => {
+              onGameDropDismiss();
+              setDrop(undefined);
+            }}
             onSelect={onSelect}
           />
         </OperationPresentationProvider>
@@ -1096,14 +1100,14 @@ it.each(["close", "library generation"] as const)(
     await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
     if (change === "close") await userEvent.keyboard("{Escape}");
     else await screen.rerender(<Fixture generation={2} />);
-    await expect
-      .poll(() => Boolean(document.querySelector('[role="dialog"]')))
-      .toBe(change === "library generation");
+    await expect.poll(() => Boolean(document.querySelector('[role="dialog"]'))).toBe(false);
+    expect(onGameDropDismiss).toHaveBeenCalledOnce();
     await act(async () => {
       finishChoice(true);
       replies.forEach((reply) => reply(comparisonFixture(first.id)));
     });
     expect(onSelect).not.toHaveBeenCalled();
+    expect(onGameDropDismiss).toHaveBeenCalledOnce();
     expect(organization.commit).toHaveBeenCalledExactlyOnceWith({
       kind: "set_preferred_implementation",
       game_id: "original-game",
