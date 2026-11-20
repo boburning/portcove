@@ -769,7 +769,13 @@ publication has been verified.
     lag uses the first retained eligible observation. The first and last retained
     recording times show the observed span within the reporting window. The
     report's `managed_route_observation_coverage` counts each Core-offered
-    managed port and installation platform once. It joins those offers to
+    managed port and installation platform once. Its
+    `catalog_operation_offers_by_platform` also counts managed installation and
+    external registration separately for operational definitions. A pair offering
+    both appears once in the distinct total. Declared platforms with neither
+    operation have their own count. An incomplete or unbound projection leaves
+    the counts unknown. Listing-only registrations and released-client delivery
+    require their own evidence. It joins those offers to
     candidate facts in the latest observer collection and reports its revision,
     import time, gaps, and per-platform counts. It uses the existing Core
     definition inspection to compare the current definition digest with the

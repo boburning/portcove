@@ -1,0 +1,28 @@
+{
+  "policy_schema": 4,
+  "namespace": "official",
+  "stable_id": "zdoom-gzdoom",
+  "policy_revision": 1,
+  "grant_id": "managed-github-v1-zdoom-gzdoom",
+  "decision": {
+    "status": "managed_github",
+    "template": "native-portable",
+    "repository_id": 10879376,
+    "artifact_hosts": [
+      "github.com",
+      "release-assets.githubusercontent.com"
+    ],
+    "max_redirects": 1,
+    "operations": [
+      "install",
+      "update",
+      "prepare",
+      "launch"
+    ],
+    "scoped_launch_checks": 1,
+    "curated_acquisition_checks": 1,
+    "definition_revision": 1,
+    "index_sha256": "5e5ed7e3638ac76559c032c667bd15b6cabc1b3eeadf6693f87d9e1946367212",
+    "definition_sha256": "8693dcf5aec4bd374362e40b863a70f1162863070d8ef44b101e2ca7a40565a7"
+  }
+}

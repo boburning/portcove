@@ -1827,7 +1827,7 @@ async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof()
     assert_eq!(successor.version, "v1.1.0");
     assert_eq!(
         crate::install::recorded_package_variant(&successor).unwrap(),
-        Some(retained)
+        Some(retained.clone())
     );
     assert_eq!(
         service.status(PORT).unwrap().previous.unwrap().id,
@@ -1840,6 +1840,90 @@ async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof()
             .filter(|request| request.contains("/releases/download/"))
             .count(),
         3
+    );
+
+    let check_retained = |copy: &PortcoveService| {
+        let status = copy.status(PORT).unwrap();
+        for (actual, expected) in [
+            (status.active.unwrap(), &successor),
+            (status.previous.unwrap(), &installed),
+        ] {
+            assert_eq!(actual.id, expected.id);
+            assert_eq!(actual.manifest_sha256, expected.manifest_sha256);
+            assert_eq!(
+                crate::install::recorded_package_variant(&actual).unwrap(),
+                Some(retained.clone()),
+            );
+        }
+    };
+    let source = service.library().root().to_path_buf();
+    let settings_bytes = b"owned fixture settings";
+    std::fs::write(successor.path.join("sopwith.cfg"), settings_bytes).unwrap();
+    let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(backup.file_count, 1);
+    assert_eq!(
+        std::fs::read(backup.path.join("data/sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
+    check_retained(&service);
+
+    let metadata_path = temporary.path().join("package-choice-export.json");
+    let import_root = temporary.path().join("package-choice-import");
+    service.write_library_metadata(&metadata_path).unwrap();
+    let metadata = service.export_library_metadata().unwrap();
+    assert!(metadata.portability_authority.is_some());
+    let unsigned_path = temporary.path().join("package-choice-unsigned.json");
+    let mut unsealed = metadata.clone();
+    unsealed.portability_authority = None;
+    unsealed.schema_version = 3;
+    std::fs::write(&unsigned_path, serde_json::to_vec(&unsealed).unwrap()).unwrap();
+    let missing =
+        PortcoveService::plan_library_import(&unsigned_path, &source, &import_root).unwrap_err();
+    assert_eq!(missing.code, ErrorCode::Verification);
+    assert!(
+        missing
+            .message
+            .contains("no matching portability authority")
+    );
+    assert!(!import_root.exists());
+
+    let invalid_path = temporary
+        .path()
+        .join("package-choice-invalid-authority.json");
+    let mut invalid = serde_json::to_value(&metadata).unwrap();
+    invalid["portability_authority"]["mac_sha256"] = "0".repeat(64).into();
+    std::fs::write(&invalid_path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    let altered =
+        PortcoveService::plan_library_import(&invalid_path, &source, &import_root).unwrap_err();
+    assert_eq!(altered.code, ErrorCode::Verification);
+    assert!(altered.message.contains("not valid on this host"));
+    assert!(!import_root.exists());
+
+    let plan = PortcoveService::plan_library_import(&metadata_path, &source, &import_root).unwrap();
+    let imported =
+        PortcoveService::import_library(&metadata_path, &source, &import_root, &plan.plan_sha256)
+            .unwrap();
+    assert!(imported.completed && imported.input_retained);
+    let imported_service = PortcoveService::new(Library::open(&import_root).unwrap()).unwrap();
+    check_retained(&imported_service);
+
+    let move_root = temporary.path().join("package-choice-move");
+    let plan = imported_service.plan_library_move(&move_root).unwrap();
+    drop(imported_service);
+    let moved = PortcoveService::move_library(&import_root, &move_root, &plan.plan_sha256).unwrap();
+    assert!(moved.completed && moved.source_retained);
+    let moved_service = PortcoveService::new(Library::open(&move_root).unwrap()).unwrap();
+    check_retained(&moved_service);
+    let moved_backups = moved_service.list_backups(PORT).unwrap();
+    assert!(
+        moved_backups
+            .backups
+            .iter()
+            .any(|saved| saved.id == backup.id && saved.sha256 == backup.sha256)
+    );
+    assert_eq!(
+        std::fs::read(moved_service.library().user_dir(PORT).join("sopwith.cfg")).unwrap(),
+        settings_bytes
     );
 }
 
