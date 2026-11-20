@@ -12,7 +12,13 @@ export interface HostedAmendment {
   port_key: string;
   previous_body_sha256: string;
   previous_evidence_sha256: string | null;
-  replacement: { upstream: string; evidence: string; resume: string };
+  replacement: {
+    upstream: string;
+    evidence: string;
+    resume: string;
+    game?: string;
+    canonical_owner?: { issue: number; port_key: string };
+  };
   reason: string;
   hold?: true;
 }
@@ -73,7 +79,23 @@ export function parseHostedAmendment(body: unknown): HostedAmendment {
     typeof value.port_key !== "string" ||
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value.port_key) ||
     !isRecord(value.replacement) ||
-    Object.keys(value.replacement).sort().join("|") !== "evidence|resume|upstream" ||
+    Object.keys(value.replacement)
+      .filter((key) => key !== "game" && key !== "canonical_owner")
+      .sort()
+      .join("|") !== "evidence|resume|upstream" ||
+    (value.replacement.game !== undefined &&
+      (typeof value.replacement.game !== "string" ||
+        !value.replacement.game.trim() ||
+        Buffer.byteLength(value.replacement.game) > 256 ||
+        /[\r\n<>]/u.test(value.replacement.game))) ||
+    (value.replacement.canonical_owner !== undefined &&
+      (!isRecord(value.replacement.canonical_owner) ||
+        Object.keys(value.replacement.canonical_owner).sort().join("|") !== "issue|port_key" ||
+        !Number.isSafeInteger(value.replacement.canonical_owner.issue) ||
+        Number(value.replacement.canonical_owner.issue) < 1 ||
+        typeof value.replacement.canonical_owner.port_key !== "string" ||
+        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value.replacement.canonical_owner.port_key) ||
+        value.replacement.game === undefined)) ||
     typeof value.replacement.upstream !== "string" ||
     !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(
       value.replacement.upstream,
