@@ -183,6 +183,7 @@ impl PortcoveService {
             };
             let intent = ReleaseIntent {
                 acquired: None,
+                explicit_package_proof_sha256: None,
                 activate: true,
                 shared_preferences: reviewed
                     .plan

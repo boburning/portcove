@@ -1664,9 +1664,29 @@ impl GithubReleaseProvider {
             if !refresh.needs(release) {
                 break;
             }
-            release.assets = self
+            let refreshed_assets = self
                 .saved_release_assets(&port.release.repository, release, scope, refresh)
                 .await?;
+            if let Some(variant) = selection
+                .variant()
+                .filter(|variant| variant.explicit_id().is_some())
+                && release.assets.iter().any(|inline| {
+                    variant.names_explicit_family(&inline.name)
+                        && !refreshed_assets.iter().any(|asset| {
+                            inline.id == asset.id
+                                && inline.name == asset.name
+                                && inline.size == asset.size
+                                && inline.browser_download_url == asset.browser_download_url
+                                && (inline.digest.is_none() || inline.digest == asset.digest)
+                        })
+                })
+            {
+                return Err(PortcoveError::verification(
+                    "the selected family changed between the release header and its complete asset inventory",
+                )
+                .detail("saved_package_variant", "inconsistent-inventory"));
+            }
+            release.assets = refreshed_assets;
         }
         Ok(())
     }
@@ -2807,9 +2827,8 @@ fn choose_asset_for_variant<'a>(
     assets: &'a [GithubAsset],
     saved: Option<(&ManagedPackageVariant, &str)>,
 ) -> Result<&'a GithubAsset> {
-    if let Some((variant, tag)) = saved
-        && variant.explicit_id().is_some()
-    {
+    let explicit = saved.filter(|(variant, _)| variant.explicit_id().is_some());
+    if let Some((variant, tag)) = explicit {
         let mut matches = assets
             .iter()
             .filter(|asset| variant.names_explicit_family(&asset.name));
@@ -2830,16 +2849,20 @@ fn choose_asset_for_variant<'a>(
                 "the selected package filename differs from its exact release tag",
             ));
         }
-        return Ok(first);
     }
     let requires_tar_xz = port.release.requires_tar_xz(platform);
     let standalone = native_appimage(port, platform);
-    let hints = port
-        .release
-        .asset_hints
-        .get(&platform)
-        .cloned()
-        .unwrap_or_default();
+    let hints = if explicit.is_some() {
+        // The named, checked family replaces the default package preference;
+        // portable suitability, package format and profile restrictions still apply.
+        Vec::new()
+    } else {
+        port.release
+            .asset_hints
+            .get(&platform)
+            .cloned()
+            .unwrap_or_default()
+    };
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {

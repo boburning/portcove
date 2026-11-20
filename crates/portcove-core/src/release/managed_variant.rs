@@ -135,14 +135,11 @@ impl ManagedPackageVariant {
             })
             || !(2..=4).contains(&choices.choices.len())
             || choices.choices.iter().any(|(id, suffix)| {
-                id.is_empty()
-                    || id.len() > 32
-                    || !id.split('-').all(|part| {
-                        !part.is_empty()
-                            && part
-                                .bytes()
-                                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-                    })
+                !(id == "mingw64-cross"
+                    || id.strip_prefix("msvc64-").is_some_and(|toolset| {
+                        (1..=4).contains(&toolset.len())
+                            && toolset.bytes().all(|byte| byte.is_ascii_digit())
+                    }))
                     || suffix != &format!("_win-{id}.zip")
                     || !suffixes.insert(suffix)
             })

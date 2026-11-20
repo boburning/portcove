@@ -365,6 +365,31 @@ impl ScopedResolvedRelease {
         }
         Ok(())
     }
+
+    pub(crate) fn explicit_package_proof_sha256(&self) -> Result<Option<String>> {
+        if !self
+            .saved_variant
+            .as_ref()
+            .is_some_and(crate::ManagedPackageVariant::requires_explicit_proof)
+        {
+            return Ok(None);
+        }
+        let commit = self.explicit_tag_commit.as_ref().ok_or_else(|| {
+            PortcoveError::verification("explicit package proof has no exact tag commit")
+        })?;
+        let identity = self.github_identity.as_ref().ok_or_else(|| {
+            PortcoveError::verification("explicit package proof has no provider artifact identity")
+        })?;
+        Ok(Some(crate::signed_catalog::digest(&serde_json::to_vec(
+            &(
+                "Portcove explicit package acquisition v2",
+                &self.saved_variant,
+                identity,
+                commit,
+                &self.release,
+            ),
+        )?)))
+    }
 }
 
 #[cfg(test)]

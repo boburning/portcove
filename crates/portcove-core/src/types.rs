@@ -2262,6 +2262,9 @@ pub struct GameUpdateAcquisition {
 /// A reviewed game update, independent of the saved automatic-update policy.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) explicit_package_proof_sha256: Option<String>,
     /// Exact retained archive selected by this review; never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,

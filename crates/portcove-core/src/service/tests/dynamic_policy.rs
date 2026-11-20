@@ -72,6 +72,7 @@ async fn unscoped_dynamic_policy_review_rechecks_provider_before_installation() 
             },
             forged,
             ReleaseIntent {
+                explicit_package_proof_sha256: None,
                 acquired: None,
                 activate: true,
                 shared_preferences: None,

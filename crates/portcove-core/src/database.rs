@@ -4364,6 +4364,7 @@ mod tests {
         schema_69: 69,
         schema_70: 70,
         schema_71: 71,
+        schema_72: 72,
     }
 
     #[test]

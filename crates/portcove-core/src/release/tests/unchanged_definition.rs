@@ -1518,9 +1518,9 @@ async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_fa
             "",
         )
     };
-    let rows = || {
+    let rows = |new_assets: Vec<serde_json::Value>| {
         releases(&[
-            serde_json::json!({"id": 22, "tag_name":"v0.22.1", "draft":false, "prerelease":false, "assets":[]}),
+            serde_json::json!({"id": 22, "tag_name":"v0.22.1", "draft":false, "prerelease":false, "assets":new_assets}),
             serde_json::json!({"id": 21, "tag_name":"v0.22.0", "draft":false, "prerelease":false, "assets":[]}),
         ])
     };
@@ -1539,7 +1539,7 @@ async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_fa
     };
     let (origin, requests, server) = serve_http(vec![
         repository(),
-        rows(),
+        rows(vec![]),
         inventory(vec![asset_at(
             reviewed_asset(new_default, 32, Some('d')),
             "v0.22.1",
@@ -1547,18 +1547,24 @@ async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_fa
         inventory(vec![asset_at(good_old(), "v0.22.0")]),
         tag("v0.22.0", old_commit),
         repository(),
-        rows(),
+        rows(vec![]),
         inventory(vec![asset_at(
             reviewed_asset(new_name, 31, None),
             "v0.22.1",
         )]),
         tag("v0.22.1", new_commit),
         repository(),
-        rows(),
+        rows(vec![]),
         inventory(vec![
             asset_at(good_new(), "v0.22.1"),
             asset_at(reviewed_asset(new_name, 39, None), "v0.22.1"),
         ]),
+        repository(),
+        rows(vec![asset_at(good_new(), "v0.22.1")]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
     ]);
     let mut provider = GithubReleaseProvider::with_api_root(origin).unwrap();
     provider.web_root = "https://github.com".into();
@@ -1569,6 +1575,13 @@ async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_fa
     assert_eq!(first.release.version, "v0.22.0");
     assert_eq!(first.saved_variant.as_ref(), Some(&variant));
     assert_eq!(first.explicit_tag_commit.as_deref(), Some(old_commit));
+    let mut retargeted = first.clone();
+    retargeted.explicit_tag_commit = Some("b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb4".into());
+    assert_eq!(first.release, retargeted.release);
+    assert_ne!(
+        first.explicit_package_proof_sha256().unwrap(),
+        retargeted.explicit_package_proof_sha256().unwrap(),
+    );
     let missing_digest = provider
         .resolve_explicit_first_variant(&port, channel, platform, &variant)
         .await
@@ -1585,8 +1598,19 @@ async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_fa
             .map(String::as_str),
         Some("ambiguous")
     );
+    let conflicting_inventory = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        conflicting_inventory
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("inconsistent-inventory"),
+    );
     server.join().unwrap();
-    assert_eq!(requests.try_iter().count(), 12);
+    assert_eq!(requests.try_iter().count(), 15);
 }
 
 #[tokio::test]

@@ -3448,6 +3448,29 @@ impl Installer {
         release: &ResolvedRelease,
         identity: Option<&crate::definition_acquisition::GithubArtifactIdentity>,
     ) -> Result<()> {
+        self.require_github_identity_with_commit(port_id, release, identity, None)
+    }
+
+    pub(crate) fn require_github_resolution_identity(
+        &self,
+        port_id: &str,
+        resolution: &crate::ScopedResolvedRelease,
+    ) -> Result<()> {
+        self.require_github_identity_with_commit(
+            port_id,
+            &resolution.release,
+            resolution.github_identity.as_ref(),
+            resolution.explicit_tag_commit.as_deref(),
+        )
+    }
+
+    fn require_github_identity_with_commit(
+        &self,
+        port_id: &str,
+        release: &ResolvedRelease,
+        identity: Option<&crate::definition_acquisition::GithubArtifactIdentity>,
+        tag_commit: Option<&str>,
+    ) -> Result<()> {
         let Some(identity) = identity else {
             return Ok(());
         };
@@ -3467,6 +3490,12 @@ impl Installer {
             let Some(previous) = manifest.github_artifact_identity else {
                 continue;
             };
+            require_unchanged_explicit_tag(
+                &previous,
+                manifest.explicit_package_tag_commit.as_deref(),
+                identity,
+                tag_commit,
+            )?;
             if (previous.repository == identity.repository
                 && previous.repository_id != identity.repository_id)
                 || (previous.repository_id == identity.repository_id
@@ -4733,6 +4762,25 @@ fn require_explicit_package_proof(
     let commit = commit
         .ok_or_else(|| PortcoveError::verification("explicit package tag proof is missing"))?;
     variant.require_tag_commit(version, name, commit)
+}
+
+fn require_unchanged_explicit_tag(
+    previous: &crate::definition_acquisition::GithubArtifactIdentity,
+    accepted: Option<&str>,
+    identity: &crate::definition_acquisition::GithubArtifactIdentity,
+    observed: Option<&str>,
+) -> Result<()> {
+    if let (Some(accepted), Some(observed)) = (accepted, observed)
+        && previous.repository_id == identity.repository_id
+        && previous.tag == identity.tag
+        && accepted != observed
+    {
+        return Err(PortcoveError::verification(
+            "a previously accepted package tag moved to a different commit",
+        )
+        .detail("reason", "provider_tag_commit_changed"));
+    }
+    Ok(())
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {

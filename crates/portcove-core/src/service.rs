@@ -354,6 +354,7 @@ struct ReleaseIntent {
     activate: bool,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     acquired: Option<game_update_acquisition::AcquiredInputs>,
+    explicit_package_proof_sha256: Option<String>,
 }
 
 fn enum_value(value: impl Serialize) -> Result<String> {
@@ -1574,11 +1575,8 @@ impl PortcoveService {
                     "the provider did not prove the explicit package choice",
                 ));
             }
-            Installer::new(self.library.clone())?.require_github_artifact_identity(
-                &port.id,
-                &resolution.release,
-                resolution.github_identity.as_ref(),
-            )?;
+            Installer::new(self.library.clone())?
+                .require_github_resolution_identity(&port.id, &resolution)?;
             if let Some(verdict) =
                 self.current_package_shape_refusal(port, platform, &resolution.release)?
             {
@@ -2966,16 +2964,13 @@ impl PortcoveService {
         platform: Platform,
         status: &PortStatus,
     ) -> Result<Option<crate::ManagedPackageVariant>> {
-        if !matches!(
+        let permits_saved = matches!(
             port.adapter,
             crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
-        ) || port.release.provider != ReleaseSource::Github
-            || port.release.curated.contains_key(&platform)
-            || port.release.rolling_tag.is_some()
-        {
-            return Ok(None);
-        }
-        status
+        ) && port.release.provider == ReleaseSource::Github
+            && !port.release.curated.contains_key(&platform)
+            && port.release.rolling_tag.is_none();
+        let retained = status
             .active
             .as_ref()
             .filter(|install| install.channel == channel)
@@ -2986,8 +2981,15 @@ impl PortcoveService {
                     .filter(|install| install.channel == channel)
             })
             .map(crate::install::recorded_package_variant)
-            .transpose()
-            .map(Option::flatten)
+            .transpose()?
+            .flatten();
+        if let Some(variant) = retained
+            .as_ref()
+            .filter(|variant| variant.requires_explicit_proof())
+        {
+            variant.require_contract(port, channel, platform)?;
+        }
+        Ok(if permits_saved { retained } else { None })
     }
 
     async fn resolve_release_for_status(
@@ -3028,11 +3030,8 @@ impl PortcoveService {
                     .await?
             }
         };
-        Installer::new(self.library.clone())?.require_github_artifact_identity(
-            &port.id,
-            &resolved.release,
-            resolved.github_identity.as_ref(),
-        )?;
+        Installer::new(self.library.clone())?
+            .require_github_resolution_identity(&port.id, &resolved)?;
         Ok(resolved)
     }
 
@@ -3768,6 +3767,7 @@ impl PortcoveService {
                 activate,
                 shared_preferences: None,
                 acquired: None,
+                explicit_package_proof_sha256: None,
             },
             reporter,
         )
@@ -3787,10 +3787,18 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+        if let Some(expected) = intent.explicit_package_proof_sha256.as_deref()
+            && resolution.explicit_package_proof_sha256()?.as_deref() != Some(expected)
+        {
+            return Err(PortcoveError::conflict(
+                "reviewed package proof changed; obtain a new review before acquisition",
+            ));
+        }
         let ReleaseIntent {
             activate,
             shared_preferences,
             acquired,
+            explicit_package_proof_sha256: _,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         let platform = Platform::current()?;
