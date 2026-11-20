@@ -83,6 +83,18 @@ pub trait ReleaseProvider: Send + Sync {
         ))
     }
 
+    async fn resolve_explicit_first_variant(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        Err(PortcoveError::unsupported(
+            "the release provider cannot resolve an explicit first-install package choice",
+        ))
+    }
+
     /// Resolve a reviewed fallback for an already-withheld fresh-install candidate.
     /// Providers without exact reviewed-release selection keep the refusal.
     async fn resolve_shape_fallback(
@@ -108,6 +120,10 @@ pub trait ReleaseProvider: Send + Sync {
 
     /// Provider request budget for a check that must enforce a reviewed package choice.
     fn forecast_saved_variant_request_cost(&self, _scoped: bool) -> crate::RequestCostForecast {
+        crate::RequestCostForecast::default()
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
         crate::RequestCostForecast::default()
     }
 
@@ -280,6 +296,7 @@ struct CachedRelease {
 struct ResolvedGithub {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
 }
@@ -360,6 +377,15 @@ impl GithubReleaseProvider {
         record: &crate::CuratedAcquisitionRecord,
         scope: &crate::DefinitionAcquisitionScope,
     ) -> Result<String> {
+        self.github_tag_commit(port, &record.tag, Some(scope)).await
+    }
+
+    async fn github_tag_commit(
+        &self,
+        port: &PortDefinition,
+        release_tag: &str,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<String> {
         let mut url = reqwest::Url::parse(&format!(
             "{}/repos/{}",
             self.api_root, port.release.repository
@@ -367,9 +393,12 @@ impl GithubReleaseProvider {
         .map_err(|_| PortcoveError::verification("invalid curated repository URL"))?;
         url.path_segments_mut()
             .map_err(|_| PortcoveError::verification("invalid curated tag URL"))?
-            .extend(["git", "ref", "tags", record.tag.as_str()]);
-        let reference: GithubTagReference = self.scoped_json(url.as_str(), scope).await?;
-        if reference.reference != format!("refs/tags/{}", record.tag) {
+            .extend(["git", "ref", "tags", release_tag]);
+        let reference: GithubTagReference = match scope {
+            Some(scope) => self.scoped_json(url.as_str(), scope).await?,
+            None => self.get_json(url.as_str()).await?,
+        };
+        if reference.reference != format!("refs/tags/{release_tag}") {
             return Err(PortcoveError::verification("curated tag reference differs"));
         }
         let mut object = reference.object;
@@ -394,15 +423,14 @@ impl GithubReleaseProvider {
                     "curated tag does not identify a commit",
                 ));
             }
-            let tag: GithubAnnotatedTag = self
-                .scoped_json(
-                    &format!(
-                        "{}/repos/{}/git/tags/{}",
-                        self.api_root, port.release.repository, object.sha
-                    ),
-                    scope,
-                )
-                .await?;
+            let tag_url = format!(
+                "{}/repos/{}/git/tags/{}",
+                self.api_root, port.release.repository, object.sha
+            );
+            let tag: GithubAnnotatedTag = match scope {
+                Some(scope) => self.scoped_json(&tag_url, scope).await?,
+                None => self.get_json(&tag_url).await?,
+            };
             if tag.sha != object.sha {
                 return Err(PortcoveError::verification(
                     "curated annotated tag identity differs",
@@ -852,6 +880,7 @@ impl GithubReleaseProvider {
         cache.get(key).map(|entry| ResolvedGithub {
             release: entry.release.clone(),
             identity: entry.identity.clone(),
+            explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
         })
@@ -1392,6 +1421,29 @@ impl ReleaseProvider for GithubReleaseProvider {
         .await
     }
 
+    async fn resolve_explicit_first_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        variant.require_contract(port, channel, platform)?;
+        if variant.explicit_id().is_none() {
+            return Err(PortcoveError::verification(
+                "explicit package choice identity is missing",
+            ));
+        }
+        self.resolve_scoped_selection(
+            port,
+            channel,
+            platform,
+            None,
+            GithubSelection::ExplicitFirst(variant),
+        )
+        .await
+    }
+
     async fn resolve_shape_fallback(
         &self,
         port: &PortDefinition,
@@ -1449,6 +1501,16 @@ impl ReleaseProvider for GithubReleaseProvider {
         crate::RequestCostForecast {
             counted_requests,
             sign_in_relief_requests: if scoped { 0 } else { counted_requests },
+        }
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
+        let inventory = self.forecast_saved_variant_request_cost(false);
+        // The exact tag reference plus at most five annotated tag objects.
+        let counted_requests = inventory.counted_requests.saturating_add(6);
+        crate::RequestCostForecast {
+            counted_requests,
+            sign_in_relief_requests: counted_requests,
         }
     }
 
@@ -1513,6 +1575,7 @@ enum GithubSelection<'a> {
     Ordinary,
     ReviewedFallback(&'a ResolvedRelease),
     Saved(&'a ManagedPackageVariant),
+    ExplicitFirst(&'a ManagedPackageVariant),
 }
 
 struct SavedReleaseAssetRefresh {
@@ -1526,7 +1589,27 @@ impl SavedReleaseAssetRefresh {
     }
 }
 
-impl GithubSelection<'_> {
+impl<'a> GithubSelection<'a> {
+    fn variant(self) -> Option<&'a ManagedPackageVariant> {
+        match self {
+            Self::Saved(variant) | Self::ExplicitFirst(variant) => Some(variant),
+            _ => None,
+        }
+    }
+
+    fn applies(self, port: &PortDefinition, platform: Platform, release: &GithubRelease) -> bool {
+        match self {
+            Self::ExplicitFirst(variant) => {
+                github_tag_in_stream(port, platform, &release.tag_name)
+                    && release
+                        .assets
+                        .iter()
+                        .any(|asset| variant.names_explicit_family(&asset.name))
+            }
+            _ => native_release_applies_to_platform(port, platform, release),
+        }
+    }
+
     fn asset<'a>(
         self,
         port: &PortDefinition,
@@ -1534,7 +1617,7 @@ impl GithubSelection<'_> {
         release: &'a GithubRelease,
     ) -> Result<&'a GithubAsset> {
         match self {
-            Self::Saved(variant) => choose_asset_for_variant(
+            Self::Saved(variant) | Self::ExplicitFirst(variant) => choose_asset_for_variant(
                 port,
                 platform,
                 &release.assets,
@@ -1556,6 +1639,7 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         releases: &mut [GithubRelease],
         refresh: &mut SavedReleaseAssetRefresh,
+        selection: GithubSelection<'_>,
     ) -> Result<()> {
         // Inspect releases in normal channel order until a complete asset
         // inventory establishes the platform candidate. An inline list naming
@@ -1573,8 +1657,7 @@ impl GithubReleaseProvider {
         while let Some(index) =
             select_github_release_index(releases, port, channel, platform, |release| {
                 !release.draft
-                    && (refresh.needs(release)
-                        || native_release_applies_to_platform(port, platform, release))
+                    && (refresh.needs(release) || selection.applies(port, platform, release))
             })
         {
             let release = &mut releases[index];
@@ -1656,9 +1739,10 @@ impl GithubReleaseProvider {
         }?
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
+        resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
-        if let GithubSelection::Saved(variant) = selection {
+        if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
         }
         Ok(resolved)
@@ -1672,6 +1756,15 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         selection: GithubSelection<'_>,
     ) -> Result<ResolvedGithub> {
+        if selection
+            .variant()
+            .is_some_and(|variant| variant.explicit_id().is_some())
+            && (scope.is_some() || port.managed_acquisition_hold.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "the active acquisition policy does not authorize explicit package selection",
+            ));
+        }
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -1785,7 +1878,7 @@ impl GithubReleaseProvider {
                 "GitHub repository stable identity differs from its publisher grant",
             ));
         }
-        if let GithubSelection::Saved(variant) = selection
+        if let Some(variant) = selection.variant()
             && repository.id != Some(variant.repository_id())
         {
             return Err(PortcoveError::verification(
@@ -1833,8 +1926,10 @@ impl GithubReleaseProvider {
             Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
             None => self.releases(&repository_url).await?,
         };
-        let mut saved_refresh =
-            matches!(selection, GithubSelection::Saved(_)).then(|| SavedReleaseAssetRefresh {
+        let mut saved_refresh = selection
+            .variant()
+            .is_some()
+            .then(|| SavedReleaseAssetRefresh {
                 refreshed: std::collections::BTreeSet::new(),
                 deadline: tokio::time::Instant::now() + self.network_bounds.request,
             });
@@ -1846,6 +1941,7 @@ impl GithubReleaseProvider {
                 scope,
                 &mut releases,
                 refresh,
+                selection,
             )
             .await?;
         }
@@ -1877,9 +1973,8 @@ impl GithubReleaseProvider {
                 .with_upstream(Some(crate::failure::UpstreamObservation::Status(404))));
             }
         }
-        let applies = |release: &GithubRelease| {
-            !release.draft && native_release_applies_to_platform(port, platform, release)
-        };
+        let applies =
+            |release: &GithubRelease| !release.draft && selection.applies(port, platform, release);
         let latest_index = select_github_release_index(&releases, port, channel, platform, applies)
             .ok_or_else(|| {
                 PortcoveError::not_found(format!(
@@ -2024,7 +2119,48 @@ impl GithubReleaseProvider {
             continuity =
                 Some(require_continuing_uploader(&releases, release, asset)?.record(asset));
         }
-        let sha256 = if let Some(record) = curated {
+        let explicit_tag_commit = match selection.variant() {
+            Some(variant) if variant.explicit_id().is_some() => {
+                let refresh = saved_refresh
+                    .as_ref()
+                    .expect("saved selection has a deadline");
+                let commit = tokio::time::timeout_at(
+                    refresh.deadline,
+                    self.github_tag_commit(port, &release.tag_name, None),
+                )
+                .await
+                .map_err(|_| {
+                    PortcoveError::network(
+                        "the package tag proof exceeded the provider request budget",
+                    )
+                })??;
+                variant.require_tag_commit(&release.tag_name, &asset.name, &commit)?;
+                let expected_url = format!(
+                    "{}/{}/releases/download/{}/{}",
+                    self.web_root, port.release.repository, release.tag_name, asset.name,
+                );
+                if asset.browser_download_url != expected_url
+                    && asset.browser_download_url != expected_url.replace('+', "%2B")
+                {
+                    return Err(PortcoveError::verification(
+                        "the selected package URL differs from its exact provider path",
+                    ));
+                }
+                Some(commit)
+            }
+            _ => None,
+        };
+        let sha256 = if explicit_tag_commit.is_some() {
+            asset
+                .digest
+                .as_deref()
+                .and_then(parse_digest)
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "the selected package requires its published SHA-256 digest",
+                    )
+                })?
+        } else if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
             if release.id != Some(record.release_id)
                 || release.tag_name != record.tag
@@ -2107,9 +2243,7 @@ impl GithubReleaseProvider {
                 identity.validate()?;
                 Some(identity)
             }
-            _ if port.archive_data_compatibility_v1.is_some()
-                || matches!(selection, GithubSelection::Saved(_)) =>
-            {
+            _ if port.archive_data_compatibility_v1.is_some() || selection.variant().is_some() => {
                 return Err(PortcoveError::verification(
                     "GitHub release observation is missing exact repository, release or asset identity",
                 ));
@@ -2128,6 +2262,7 @@ impl GithubReleaseProvider {
         Ok(ResolvedGithub {
             release: resolved,
             identity,
+            explicit_tag_commit,
             activity,
             fallback_reason,
         })
@@ -2182,6 +2317,7 @@ fn preserved_resolution(
             uploader_continuity: None,
         },
         identity: Some(identity),
+        explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
     })
@@ -2671,6 +2807,31 @@ fn choose_asset_for_variant<'a>(
     assets: &'a [GithubAsset],
     saved: Option<(&ManagedPackageVariant, &str)>,
 ) -> Result<&'a GithubAsset> {
+    if let Some((variant, tag)) = saved
+        && variant.explicit_id().is_some()
+    {
+        let mut matches = assets
+            .iter()
+            .filter(|asset| variant.names_explicit_family(&asset.name));
+        let first = matches.next().ok_or_else(|| {
+            PortcoveError::conflict(
+                "the current release has no verified package matching the saved choice",
+            )
+            .detail("saved_package_variant", "no-matching-package")
+        })?;
+        if matches.next().is_some() {
+            return Err(PortcoveError::conflict(
+                "the current release has more than one package matching the saved choice",
+            )
+            .detail("saved_package_variant", "ambiguous"));
+        }
+        if !variant.matches(tag, &first.name) {
+            return Err(PortcoveError::verification(
+                "the selected package filename differs from its exact release tag",
+            ));
+        }
+        return Ok(first);
+    }
     let requires_tar_xz = port.release.requires_tar_xz(platform);
     let standalone = native_appimage(port, platform);
     let hints = port

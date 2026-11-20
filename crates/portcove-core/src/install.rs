@@ -112,6 +112,7 @@ pub struct InstallQualification {
     shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
     shipped_settings_capture_gaps: BTreeMap<String, crate::game_settings::ShippedDefaultGap>,
     retained_package_variant: Option<crate::ManagedPackageVariant>,
+    retained_explicit_tag_commit: Option<String>,
     retained_github_artifact_identity:
         Option<crate::definition_acquisition::GithubArtifactIdentity>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
@@ -204,11 +205,36 @@ impl InstallQualification {
             }
             scope.require_port(catalog.port(&scope.stable_id)?)?;
         }
+        let explicit = resolution
+            .saved_variant
+            .as_ref()
+            .is_some_and(crate::ManagedPackageVariant::requires_explicit_proof);
+        if explicit != resolution.explicit_tag_commit.is_some()
+            || (explicit && self.retained_contract.is_none())
+        {
+            return Err(PortcoveError::verification(
+                "explicit package acquisition requires the retained port contract",
+            ));
+        }
         if let Some(contract) = &self.retained_contract {
             let catalog = contract.catalog(contract.port_id())?;
             let port = catalog.port(contract.port_id())?;
             if crate::managed_runtime_policy::requires_provider_resolution_on(port, self.platform) {
                 resolution.require_selection(port, self.platform, resolution.release.channel)?;
+            }
+            if let Some(variant) = resolution.saved_variant.as_ref()
+                && explicit
+            {
+                resolution.require_selection(port, self.platform, resolution.release.channel)?;
+                variant.require_contract(port, resolution.release.channel, self.platform)?;
+                require_explicit_package_proof(
+                    port,
+                    variant,
+                    &resolution.release.version,
+                    &resolution.release.asset.name,
+                    resolution.github_identity.as_ref(),
+                    resolution.explicit_tag_commit.as_deref(),
+                )?;
             }
         }
         self.acquisition = Some(resolution);
@@ -280,6 +306,7 @@ impl InstallQualification {
             shipped_settings_defaults: BTreeMap::new(),
             shipped_settings_capture_gaps: BTreeMap::new(),
             retained_package_variant: None,
+            retained_explicit_tag_commit: None,
             retained_github_artifact_identity: None,
             retained_contract: None,
             platform,
@@ -645,6 +672,8 @@ struct InstallManifest {
     github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     saved_package_variant: Option<crate::ManagedPackageVariant>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    explicit_package_tag_commit: Option<String>,
     /// The uploader-continuity decision of the GitHub resolution this build came
     /// from, applied again before it becomes active (#6209).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3222,6 +3251,7 @@ impl Installer {
         adopted.shipped_settings_defaults.clear();
         adopted.shipped_settings_capture_gaps.clear();
         adopted.retained_package_variant = None;
+        adopted.retained_explicit_tag_commit = None;
         adopted.retained_github_artifact_identity = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
@@ -3543,6 +3573,7 @@ impl Installer {
             acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
         qualification.retained_package_variant = manifest.saved_package_variant;
+        qualification.retained_explicit_tag_commit = manifest.explicit_package_tag_commit;
         qualification.retained_github_artifact_identity = manifest.github_artifact_identity;
         Ok(qualification)
     }
@@ -3821,6 +3852,7 @@ mod legacy_dkr_tests {
             artifact: artifact_identity.clone(),
             github_artifact_identity: None,
             saved_package_variant: None,
+            explicit_package_tag_commit: None,
             uploader_continuity: None,
             acquisition_facts_recorded: false,
             acquired_at: None,
@@ -4361,6 +4393,11 @@ fn write_manifest_with_shape(
             .and_then(|proof| proof.saved_variant.clone())
             .or_else(|| qualification.retained_package_variant.clone())
             .filter(|_| crate::ManagedPackageVariant::supports_manifest_receipt(version)),
+        explicit_package_tag_commit: qualification
+            .acquisition
+            .as_ref()
+            .and_then(|proof| proof.explicit_tag_commit.clone())
+            .or_else(|| qualification.retained_explicit_tag_commit.clone()),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification
@@ -4675,6 +4712,29 @@ pub(crate) fn recorded_package_variant(
     ))
 }
 
+fn require_explicit_package_proof(
+    port: &crate::PortDefinition,
+    variant: &crate::ManagedPackageVariant,
+    version: &str,
+    name: &str,
+    identity: Option<&crate::definition_acquisition::GithubArtifactIdentity>,
+    commit: Option<&str>,
+) -> Result<()> {
+    let identity = identity
+        .filter(|identity| {
+            identity
+                .repository
+                .eq_ignore_ascii_case(&port.release.repository)
+                && identity.repository_id == variant.repository_id()
+                && identity.tag == version
+        })
+        .ok_or_else(|| PortcoveError::verification("explicit package provider identity differs"))?;
+    identity.validate()?;
+    let commit = commit
+        .ok_or_else(|| PortcoveError::verification("explicit package tag proof is missing"))?;
+    variant.require_tag_commit(version, name, commit)
+}
+
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
     verified_manifest_with_limit(install, None)
 }
@@ -4741,6 +4801,34 @@ fn verified_manifest_with_budget(
     let manifest: InstallManifest = serde_json::from_slice(&bytes)?;
     if let Some(identity) = &manifest.github_artifact_identity {
         identity.validate()?;
+    }
+    if let Some(variant) = manifest
+        .saved_package_variant
+        .as_ref()
+        .filter(|variant| variant.requires_explicit_proof())
+    {
+        variant.require_installed(install, manifest.platform)?;
+        let contract = manifest.retained_contract.as_ref().ok_or_else(|| {
+            PortcoveError::verification("explicit package choice has no retained port contract")
+        })?;
+        let catalog = contract.catalog(&install.port_id)?;
+        let port = catalog.port(&install.port_id)?;
+        let platform = manifest.platform.ok_or_else(|| {
+            PortcoveError::verification("explicit package choice has no retained platform")
+        })?;
+        variant.require_contract(port, install.channel, platform)?;
+        require_explicit_package_proof(
+            port,
+            variant,
+            &install.version,
+            &install.artifact.asset_name,
+            manifest.github_artifact_identity.as_ref(),
+            manifest.explicit_package_tag_commit.as_deref(),
+        )?;
+    } else if manifest.explicit_package_tag_commit.is_some() {
+        return Err(PortcoveError::verification(
+            "unexpected retained explicit package tag proof",
+        ));
     }
     let selected = manifest_relative(
         &install.path,

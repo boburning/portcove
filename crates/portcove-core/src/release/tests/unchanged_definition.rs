@@ -1472,6 +1472,124 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_family() {
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::WindowsX86_64;
+    let repository = || {
+        ok_json(
+            r#"{"id":51711866,"archived":false,"owner":{"id":7,"login":"owner"}}"#,
+            "",
+        )
+    };
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("jagged-alliance-2-ja2-stracciatella")
+        .unwrap()
+        .clone();
+    port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+        repository_id: 51_711_866,
+        prefix: "ja2-stracciatella_".into(),
+        choices: [
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+            ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+        ]
+        .into(),
+    });
+    let variant =
+        ManagedPackageVariant::explicit(&port, platform, channel, "mingw64-cross").unwrap();
+    let old_name = "ja2-stracciatella_0.22.0-git+b195e15_win-mingw64-cross.zip";
+    let new_name = "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross.zip";
+    let new_default = "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142.zip";
+    let old_commit = "b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb3";
+    let new_commit = "11e9430b67d788b73f7a57d22166e8b500c23dab";
+    let reviewed_asset = |name: &str, id: u64, digest: Option<char>| {
+        let mut value = asset(name, digest);
+        value["id"] = id.into();
+        value["uploader"] = serde_json::json!({"id":7,"login":"owner"});
+        value
+    };
+    let inventory = |assets: Vec<serde_json::Value>| releases(&assets);
+    let tag = |tag: &str, sha: &str| {
+        ok_json(
+            &serde_json::json!({
+                "ref": format!("refs/tags/{tag}"), "object": {"type":"commit","sha":sha}
+            })
+            .to_string(),
+            "",
+        )
+    };
+    let rows = || {
+        releases(&[
+            serde_json::json!({"id": 22, "tag_name":"v0.22.1", "draft":false, "prerelease":false, "assets":[]}),
+            serde_json::json!({"id": 21, "tag_name":"v0.22.0", "draft":false, "prerelease":false, "assets":[]}),
+        ])
+    };
+    let good_old = || reviewed_asset(old_name, 30, Some('b'));
+    let good_new = || reviewed_asset(new_name, 31, Some('c'));
+    // The fixture transport uses its own API origin. The asset host remains the
+    // provider's ordinary GitHub web origin and no package bytes are requested.
+    let asset_at = |mut value: serde_json::Value, version| {
+        let name = value["name"].as_str().unwrap().replace('+', "%2B");
+        value["browser_download_url"] = format!(
+            "https://github.com/{}/releases/download/{version}/{name}",
+            port.release.repository,
+        )
+        .into();
+        value
+    };
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        rows(),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
+        inventory(vec![asset_at(good_old(), "v0.22.0")]),
+        tag("v0.22.0", old_commit),
+        repository(),
+        rows(),
+        inventory(vec![asset_at(
+            reviewed_asset(new_name, 31, None),
+            "v0.22.1",
+        )]),
+        tag("v0.22.1", new_commit),
+        repository(),
+        rows(),
+        inventory(vec![
+            asset_at(good_new(), "v0.22.1"),
+            asset_at(reviewed_asset(new_name, 39, None), "v0.22.1"),
+        ]),
+    ]);
+    let mut provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    provider.web_root = "https://github.com".into();
+    let first = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap();
+    assert_eq!(first.release.version, "v0.22.0");
+    assert_eq!(first.saved_variant.as_ref(), Some(&variant));
+    assert_eq!(first.explicit_tag_commit.as_deref(), Some(old_commit));
+    let missing_digest = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(missing_digest.code, crate::ErrorCode::Verification);
+    let duplicate = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        duplicate
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("ambiguous")
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 12);
+}
+
+#[tokio::test]
 async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("snowboard-kids").unwrap();

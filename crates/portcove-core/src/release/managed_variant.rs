@@ -26,6 +26,8 @@ pub struct ManagedPackageVariant {
     source_profile: Option<String>,
     prefix: String,
     suffix: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    explicit_id: Option<String>,
 }
 
 fn numeric_version(tag: &str) -> Option<&str> {
@@ -112,6 +114,117 @@ fn reviewed_name(
 }
 
 impl ManagedPackageVariant {
+    pub(crate) fn validate_explicit_choices(port: &PortDefinition) -> Result<()> {
+        let Some(choices) = &port.release.reviewed_package_choices_v2 else {
+            return Ok(());
+        };
+        let target = Platform::WindowsX86_64;
+        let mut suffixes = std::collections::BTreeSet::new();
+        if port.adapter != AdapterKind::NativePortable
+            || port.release.provider != crate::ReleaseSource::Github
+            || !port.platforms.contains(&target)
+            || !port.channels.contains(&ReleaseChannel::Stable)
+            || port.release.rolling_tag.is_some()
+            || port.release.curated.contains_key(&target)
+            || port.bundled_runtime.contains_key(&target)
+            || !(1..=9_007_199_254_740_991).contains(&choices.repository_id)
+            || choices.prefix.is_empty()
+            || choices.prefix.len() > 70
+            || !choices.prefix.bytes().all(|byte| {
+                byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'-' | b'_')
+            })
+            || !(2..=4).contains(&choices.choices.len())
+            || choices.choices.iter().any(|(id, suffix)| {
+                id.is_empty()
+                    || id.len() > 32
+                    || !id.split('-').all(|part| {
+                        !part.is_empty()
+                            && part
+                                .bytes()
+                                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+                    })
+                    || suffix != &format!("_win-{id}.zip")
+                    || !suffixes.insert(suffix)
+            })
+        {
+            return Err(PortcoveError::verification(
+                "reviewed package choices must name distinct native Windows Stable archive families",
+            )
+            .detail("port_id", &port.id));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn explicit(
+        port: &PortDefinition,
+        platform: Platform,
+        channel: ReleaseChannel,
+        id: &str,
+    ) -> Result<Self> {
+        Self::validate_explicit_choices(port)?;
+        let choices = port.release.reviewed_package_choices_v2.as_ref();
+        let Some((choices, suffix)) =
+            choices.and_then(|choices| choices.choices.get(id).map(|suffix| (choices, suffix)))
+        else {
+            return Err(PortcoveError::unsupported(
+                "no reviewed package choice matches that ID",
+            ));
+        };
+        if platform != Platform::WindowsX86_64 || channel != ReleaseChannel::Stable {
+            return Err(PortcoveError::unsupported(
+                "reviewed package choices require the native Windows Stable route",
+            ));
+        }
+        Ok(Self {
+            format_version: 2,
+            channel,
+            platform,
+            execution_mode: ExecutionMode::Native,
+            repository_id: choices.repository_id,
+            source_profile: port.source_profile.clone(),
+            prefix: choices.prefix.clone(),
+            suffix: suffix.clone(),
+            explicit_id: Some(id.to_owned()),
+        })
+    }
+
+    pub(crate) fn explicit_id(&self) -> Option<&str> {
+        self.explicit_id.as_deref()
+    }
+
+    pub(crate) fn requires_explicit_proof(&self) -> bool {
+        self.format_version == 2 || self.explicit_id.is_some()
+    }
+
+    pub(crate) fn names_explicit_family(&self, name: &str) -> bool {
+        let name = name.to_ascii_lowercase();
+        self.explicit_id.is_some() && name.starts_with(&self.prefix) && name.ends_with(&self.suffix)
+    }
+
+    pub(crate) fn require_tag_commit(&self, tag: &str, name: &str, commit: &str) -> Result<()> {
+        if self.format_version != 2
+            || !self.matches(tag, name)
+            || !lower_hex(commit, 40)
+            || !self
+                .tag_prefix(tag, name)
+                .is_some_and(|prefix| commit.starts_with(prefix))
+        {
+            return Err(PortcoveError::verification(
+                "saved package name does not match the exact upstream tag commit",
+            ));
+        }
+        Ok(())
+    }
+
+    fn tag_prefix<'a>(&self, tag: &str, name: &'a str) -> Option<&'a str> {
+        let version = numeric_version(tag)?;
+        let (slot, commit) = name
+            .strip_prefix(&self.prefix)?
+            .strip_suffix(&self.suffix)?
+            .split_once("-git+")?;
+        (slot == version && lower_hex(commit, 7)).then_some(commit)
+    }
+
     pub(crate) fn can_record(
         port: &PortDefinition,
         platform: Platform,
@@ -194,6 +307,7 @@ impl ManagedPackageVariant {
             source_profile: port.source_profile.clone(),
             prefix,
             suffix,
+            explicit_id: None,
         })
     }
 
@@ -208,6 +322,9 @@ impl ManagedPackageVariant {
     }
 
     pub(crate) fn matches(&self, tag: &str, filename: &str) -> bool {
+        if self.format_version == 2 {
+            return self.explicit_id.is_some() && self.tag_prefix(tag, filename).is_some();
+        }
         let Some(version) = reviewed_version(tag, self.channel) else {
             return false;
         };
@@ -227,7 +344,14 @@ impl ManagedPackageVariant {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<()> {
+        if self.format_version == 2
+            && let Some(id) = self.explicit_id()
+            && Self::explicit(port, platform, channel, id).is_ok_and(|reviewed| reviewed == *self)
+        {
+            return Ok(());
+        }
         if self.format_version != 1
+            || self.explicit_id.is_some()
             || self.channel != channel
             || self.platform != platform
             || self.repository_id == 0
@@ -248,8 +372,10 @@ impl ManagedPackageVariant {
         install: &crate::InstallRecord,
         platform: Option<Platform>,
     ) -> Result<()> {
-        if self.format_version != 1
-            || self.channel != install.channel
+        if !matches!(
+            (self.format_version, self.explicit_id.is_some()),
+            (1, false) | (2, true)
+        ) || self.channel != install.channel
             || Some(self.platform) != platform
             || !self.matches(&install.version, &install.artifact.asset_name)
         {
@@ -258,5 +384,103 @@ impl ManagedPackageVariant {
             ));
         }
         Ok(())
+    }
+}
+
+fn lower_hex(value: &str, length: usize) -> bool {
+    value.len() == length
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reviewed_fixture() -> PortDefinition {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("jagged-alliance-2-ja2-stracciatella")
+            .unwrap()
+            .clone();
+        port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+            repository_id: 51_711_866,
+            prefix: "ja2-stracciatella_".into(),
+            choices: [
+                ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+                ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+            ]
+            .into(),
+        });
+        port
+    }
+
+    #[test]
+    fn explicit_package_choice_binds_real_tag_commit_without_making_it_the_stable_choice() {
+        let platform = Platform::WindowsX86_64;
+        let channel = ReleaseChannel::Stable;
+        let port = reviewed_fixture();
+        let variant =
+            ManagedPackageVariant::explicit(&port, platform, channel, "mingw64-cross").unwrap();
+        assert!(variant.require_contract(&port, channel, platform).is_ok());
+        let first = "ja2-stracciatella_0.22.0-git+b195e15_win-mingw64-cross.zip";
+        let next = "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross.zip";
+        let first_commit = "b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb3";
+        let next_commit = "11e9430b67d788b73f7a57d22166e8b500c23dab";
+        variant
+            .require_tag_commit("v0.22.0", first, first_commit)
+            .unwrap();
+        variant
+            .require_tag_commit("v0.22.1", next, next_commit)
+            .unwrap();
+        assert!(
+            variant
+                .require_tag_commit("v0.22.1", next, first_commit)
+                .is_err()
+        );
+        assert!(!variant.matches("v0.22.1", &next.replace("mingw64-cross", "msvc64-142")));
+        assert!(!variant.matches("v0.22.1", &next.replace(".zip", ".exe")));
+        assert!(!variant.matches("v0.22.1", &next.replace("11e9430", "11e943011223")));
+        let restored: ManagedPackageVariant =
+            serde_json::from_slice(&serde_json::to_vec(&variant).unwrap()).unwrap();
+        assert_eq!(restored, variant);
+        assert!(!variant.matches("v0.22.1", first));
+    }
+
+    #[test]
+    fn explicit_package_choices_refuse_unreviewed_targets_and_changed_boundaries() {
+        let mut port = reviewed_fixture();
+        let approved = ManagedPackageVariant::explicit(
+            &port,
+            Platform::WindowsX86_64,
+            ReleaseChannel::Stable,
+            "msvc64-142",
+        )
+        .unwrap();
+        for (platform, channel, id) in [
+            (Platform::LinuxX86_64, ReleaseChannel::Stable, "msvc64-142"),
+            (Platform::WindowsX86_64, ReleaseChannel::Beta, "msvc64-142"),
+            (Platform::WindowsX86_64, ReleaseChannel::Stable, "msvc32"),
+        ] {
+            assert!(ManagedPackageVariant::explicit(&port, platform, channel, id).is_err());
+        }
+        port.release
+            .reviewed_package_choices_v2
+            .as_mut()
+            .unwrap()
+            .repository_id += 1;
+        assert!(
+            approved
+                .require_contract(&port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .is_err()
+        );
+        port.release
+            .reviewed_package_choices_v2
+            .as_mut()
+            .unwrap()
+            .choices
+            .insert("unsafe".into(), "../setup.exe".into());
+        assert!(ManagedPackageVariant::validate_explicit_choices(&port).is_err());
     }
 }

@@ -698,6 +698,16 @@ pub struct UserPreparedRuntimeSpec {
     pub shared_preferences: Option<PreparedSharedPreferencesContract>,
 }
 
+/// Reviewed same-target Windows ZIP families. The GitHub tag commit fills the
+/// seven-hex filename slot between the numeric release and the chosen suffix.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPackageChoicesV2 {
+    pub repository_id: u64,
+    pub prefix: String,
+    pub choices: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
     /// Core-owned fixed original-driven recipes, distinct from downloaded executables.
@@ -717,6 +727,8 @@ pub struct ReleaseSpec {
     pub github_other_stream_tag_prefixes: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_package_choices_v2: Option<ReviewedPackageChoicesV2>,
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
@@ -2219,6 +2231,8 @@ pub struct InstallSpaceRequirement {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameInstallPlan {
     pub plan: InstallPlan,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_choice: Option<String>,
     /// The exact existing copy that execution will activate, if any.
     pub selected_install: Option<InstallRecord>,
     pub plan_sha256: String,

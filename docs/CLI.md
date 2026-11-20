@@ -3187,6 +3187,14 @@ through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
 
+When a Windows x64 Stable definition offers a reviewed package choice, pass
+the same `--package ID` to `installation plan` and `installation run`. The
+preview records the choice and exact asset. A changed choice or package proof
+requires a new preview. A successful installation keeps the choice for later
+updates. A newer package with a missing or ambiguous saved choice leaves the
+installed copy available for Play. Omitting `--package` uses the ordinary
+selection rules.
+
 ### Shared-directory external runtimes (API 73)
 
 API 73 adds the closed `smb1r-1.1-stable-windows` shared-data contract.

@@ -1494,6 +1494,18 @@ impl PortcoveService {
         channel: Option<ReleaseChannel>,
         output_directory: Option<&Path>,
     ) -> Result<InstallPlan> {
+        self.plan_install_resolution(port_id, channel, output_directory, None)
+            .await
+            .map(|(plan, _)| plan)
+    }
+
+    async fn plan_install_resolution(
+        &self,
+        port_id: &str,
+        channel: Option<ReleaseChannel>,
+        output_directory: Option<&Path>,
+        package_id: Option<&str>,
+    ) -> Result<(InstallPlan, crate::ScopedResolvedRelease)> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
         self.require_definition_operation(
@@ -1529,12 +1541,61 @@ impl PortcoveService {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
-        let resolution = self
-            .resolve_install_selection(port, selected_channel, platform, &status)
-            .await?;
-        let release = resolution.release;
+        let resolution = if let Some(id) = package_id {
+            if !first_managed_install(&status) {
+                return Err(PortcoveError::conflict(
+                    "an explicit package choice requires a first managed installation",
+                ));
+            }
+            let choice =
+                crate::ManagedPackageVariant::explicit(port, platform, selected_channel, id)?;
+            crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+            if crate::definition_repository::publisher_policy::acquisition_scope(
+                &self.library,
+                &self.catalog,
+                &port.id,
+            )?
+            .is_some()
+            {
+                return Err(PortcoveError::unsupported(
+                    "the active publisher scope does not authorize explicit package selection",
+                ));
+            }
+            let resolution = self
+                .releases
+                .resolve_explicit_first_variant(port, selected_channel, platform, &choice)
+                .await?;
+            resolution.require_selection(port, platform, selected_channel)?;
+            if resolution.saved_variant.as_ref() != Some(&choice)
+                || resolution.explicit_tag_commit.is_none()
+                || resolution.github_identity.is_none()
+            {
+                return Err(PortcoveError::verification(
+                    "the provider did not prove the explicit package choice",
+                ));
+            }
+            Installer::new(self.library.clone())?.require_github_artifact_identity(
+                &port.id,
+                &resolution.release,
+                resolution.github_identity.as_ref(),
+            )?;
+            if let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, &resolution.release)?
+            {
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &resolution.release,
+                    &verdict,
+                ));
+            }
+            resolution
+        } else {
+            self.resolve_install_selection(port, selected_channel, platform, &status)
+                .await?
+        };
+        let release = resolution.release.clone();
         let mut preservation_notices = port.preservation_notices();
-        preservation_notices.extend(resolution.fallback_reason);
+        preservation_notices.extend(resolution.fallback_reason.clone());
         let action = self.install_plan_action_with_variant(
             &status,
             &release,
@@ -1583,22 +1644,25 @@ impl PortcoveService {
         } else {
             None
         };
-        Ok(InstallPlan {
-            port_id: port_id.into(),
-            channel: selected_channel,
-            platform,
-            release,
-            action,
-            source_requirements,
-            bundled_runtime,
-            download_bytes,
-            auxiliary_downloads,
-            temporary_space,
-            storage: self.library.storage_summary()?,
-            output_location,
-            preservation_notices,
-            shared_preferences,
-        })
+        Ok((
+            InstallPlan {
+                port_id: port_id.into(),
+                channel: selected_channel,
+                platform,
+                release,
+                action,
+                source_requirements,
+                bundled_runtime,
+                download_bytes,
+                auxiliary_downloads,
+                temporary_space,
+                storage: self.library.storage_summary()?,
+                output_location,
+                preservation_notices,
+                shared_preferences,
+            },
+            resolution,
+        ))
     }
 
     fn shared_preferences_install_root(
@@ -3270,14 +3334,16 @@ impl PortcoveService {
             .is_some();
             // The individual check reports an invalid retained manifest. That
             // failure should not prevent estimating other games in the batch.
-            let cost = if Self::saved_package_variant(port, status.channel, platform, &status)
-                .is_ok_and(|variant| variant.is_some())
-            {
-                self.releases.forecast_saved_variant_request_cost(scoped)
-            } else {
-                self.releases
-                    .forecast_request_cost(port, platform, scoped)
-                    .await?
+            let cost = match Self::saved_package_variant(port, status.channel, platform, &status) {
+                Ok(Some(variant)) if variant.explicit_id().is_some() && !scoped => {
+                    self.releases.forecast_explicit_variant_request_cost()
+                }
+                Ok(Some(_)) => self.releases.forecast_saved_variant_request_cost(scoped),
+                _ => {
+                    self.releases
+                        .forecast_request_cost(port, platform, scoped)
+                        .await?
+                }
             };
             forecast.games = forecast.games.saturating_add(1);
             forecast.counted_requests = forecast
