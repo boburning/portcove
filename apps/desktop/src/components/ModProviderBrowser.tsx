@@ -162,7 +162,7 @@ export function ModProviderBrowser(props: Props) {
   const showPage = (number: number) =>
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.browseProviderMods(portId, number, generation),
+      () => desktopApi.browseProviderMods(portId, number, generation, providerId),
       (next) => {
         setPage(next);
         setProject(undefined);
@@ -173,7 +173,7 @@ export function ModProviderBrowser(props: Props) {
     if (project && project.project.project_id !== projectId) setProject(undefined);
     void run(
       t("mods.browse.checking", { provider }),
-      () => desktopApi.providerProject(portId, projectId, generation),
+      () => desktopApi.providerProject(portId, projectId, generation, providerId),
       (next) => {
         setProject(next);
         if (next.freshness !== "stale") requestStandingSetup();
@@ -348,7 +348,12 @@ export function ModProviderBrowser(props: Props) {
         <ProviderProjectFiles
           project={project}
           openProject={() =>
-            desktopApi.openProviderModProject(portId, project.project.project_id, generation)
+            desktopApi.openProviderModProject(
+              portId,
+              project.project.project_id,
+              generation,
+              providerId,
+            )
           }
           projectStale={projectStale}
           provider={provider}
@@ -370,6 +375,7 @@ export function ModProviderBrowser(props: Props) {
                   project.project.project_id,
                   file.file_id,
                   generation,
+                  providerId,
                 ),
               showPlan,
             ).then((reviewed) => {

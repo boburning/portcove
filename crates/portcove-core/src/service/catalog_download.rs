@@ -201,6 +201,18 @@ pub struct PendingSetupRecord {
     pub reason: Option<String>,
 }
 
+impl PendingSetupRecord {
+    pub(crate) fn into_setup_download(self) -> crate::SetupDownloadSelection {
+        crate::SetupDownloadSelection {
+            release_id: self.artifact.release_id,
+            asset_id: self.artifact.asset_id,
+            release_tag: self.artifact.release_tag,
+            filename: self.artifact.name,
+            download_sha256: self.archive_sha256,
+        }
+    }
+}
+
 fn legacy_record_format() -> u8 {
     1
 }
@@ -707,6 +719,11 @@ impl PortcoveService {
                 .eq_ignore_ascii_case(repository.name())
         });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
+        let platform = Platform::current()?;
+        let github_other_stream_prefixes = definition
+            .filter(|port| port.release.provider == crate::ReleaseSource::Github)
+            .map(|port| port.release.github_stream_exclusions(platform))
+            .unwrap_or_default();
         // Shared observations only serve the non-managed browse window. They never
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
@@ -735,13 +752,13 @@ impl PortcoveService {
                         selected_release_id.as_ref(),
                         channel,
                         rolling_tag,
+                        github_other_stream_prefixes,
                     )
                     .await?
             }
         };
         result.releases = releases;
         result.selected_release_id = selected.clone();
-        let platform = Platform::current()?;
         let hints = definition
             .and_then(|port| port.release.asset_hints.get(&platform))
             .or_else(|| listing.download_asset_hints.get(&platform))

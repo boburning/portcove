@@ -7,10 +7,10 @@
     "project_url": "https://github.com/Voicedrew11/verdite3",
     "issue_number": 1901,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Voicedrew11/verdite3",
-    "original_game_title": "King's Field II",
+    "original_game_title": "King's Field II (US) / King's Field III (Japan)",
     "manual_setup": {
       "help_url": "https://github.com/Voicedrew11/verdite3/blob/ebc307bc42669519af736c6d29cd5d1cba06881a/README.md",
       "steps": [
@@ -53,6 +53,15 @@
       "image_sha256": "0bf15cd83756c72b26259f68184c8e7179ea79f2a18f1684a204d82ede080ec3",
       "game_slug": "kings-field-ii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kings-field-iii",
+      "evidence_urls": [
+        "https://github.com/Voicedrew11/verdite3/blob/ebc307bc42669519af736c6d29cd5d1cba06881a/README.md",
+        "https://github.com/Voicedrew11/verdite3"
+      ],
+      "source_editions": []
     }
   }
 }

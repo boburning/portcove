@@ -89,6 +89,20 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
+export type CatalogForeignAssetId = {
+  file_id: number;
+  link_id: number;
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
+export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
+export type CatalogForeignReleaseId = {
+  project_id: number;
+  provider: "gitlab";
+  tag: string;
+};
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
@@ -417,6 +431,18 @@ export type ManagedInitialization =
  * This grants neither executable trust nor mod/save compatibility.
  */
 export type ModPackagePolicy = "versioned-packages-v1";
+/**
+ * Exact provider-side scope from a reviewed definition.
+ */
+export type ModProviderBinding =
+  | {
+      game_id: number;
+      provider: "gamebanana";
+    }
+  | {
+      community: string;
+      provider: "thunderstore";
+    };
 export type IgdbGameImageKind = "logo" | "artwork";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
@@ -576,20 +602,6 @@ export type CompoundSourceFormat = "stfs-live";
  * The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
  */
 export type StfsPackageType = "live" | "pirs";
-export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
-export type CatalogForeignAssetId = {
-  file_id: number;
-  link_id: number;
-  project_id: number;
-  provider: "gitlab";
-  tag: string;
-};
-export type CatalogDownloadReleaseId = number | CatalogForeignReleaseId;
-export type CatalogForeignReleaseId = {
-  project_id: number;
-  provider: "gitlab";
-  tag: string;
-};
 /**
  * Why the upstream listing download is not this host's route. Each one leaves
  * existing-installation registration and every installed copy unchanged.
@@ -1818,6 +1830,10 @@ export interface ExternalRuntimeRecord {
   port_id: string;
   registered_at: number;
   retained_definition?: DefinitionSelectionIdentity | null;
+  /**
+   * Last setup download bound to this registration's reviewed local choice.
+   */
+  setup_download?: SetupDownloadSelection | null;
   shared_preferences?: AcceptedSharedPreferencesBinding | null;
   user_selected?: UserSelectedLaunch | null;
   version: string;
@@ -1848,6 +1864,20 @@ export interface AuthenticatedDefinitionProvenance {
   targets_version: number;
   timestamp_sha256: string;
   timestamp_version: number;
+}
+/**
+ * The exact download reviewed during a user-selected setup or replacement.
+ */
+export interface SetupDownloadSelection {
+  asset_id: CatalogDownloadAssetId;
+  /**
+   * SHA-256 of the observed download, without any claim about the launched program.
+   */
+  download_sha256: string;
+  filename: string;
+  release_id: CatalogDownloadReleaseId;
+  release_tag: string;
+  [k: string]: unknown;
 }
 /**
  * Explicitly accepted account and location; mutable contents are not authority.
@@ -2401,6 +2431,10 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   /**
+   * An immutable library shipped beside the selected Linux executable.
+   */
+  linux_packaged_library?: string | null;
+  /**
    * Native25: keep the Linux player's portable profile in this declared
    * directory beside the executable, creating it when absent before Play.
    */
@@ -2418,6 +2452,10 @@ export interface PortDefinition {
   managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
   mod_package_policy?: ModPackagePolicy | null;
+  /**
+   * Provider coordinates reviewed alongside the existing mod loader contract.
+   */
+  mod_provider_bindings?: ModProviderBinding[] | null;
   /**
    * Keep a reviewed N64 package's runtime and data beside its selected player,
    * including when upstream changes the outer archive wrapper name.
@@ -2761,6 +2799,15 @@ export interface ReleaseSpec {
     "macos-aarch64"?: DirectReleaseSpec;
     "macos-x86-64"?: DirectReleaseSpec;
     "windows-x86-64"?: DirectReleaseSpec;
+  };
+  /**
+   * Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.
+   */
+  github_other_stream_tag_prefixes?: {
+    "linux-x86-64"?: string[];
+    "macos-aarch64"?: string[];
+    "macos-x86-64"?: string[];
+    "windows-x86-64"?: string[];
   };
   /**
    * Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant
@@ -4777,6 +4824,10 @@ export interface RequestedPackage {
  * A provider's own coordinates. Provider IDs never double as native loader IDs.
  */
 export interface ProviderPackageRef {
+  /**
+   * Required for coordinates that differ from the historical compiled binding.
+   */
+  binding?: ModProviderBinding | null;
   file?: string | null;
   project: string;
   provider: string;
@@ -5232,6 +5283,10 @@ export interface OutputModSetupsView {
    * `thunderstore`), if any.
    */
   provider: string | null;
+  /**
+   * Reviewed provider choices when the game offers more than one.
+   */
+  providers?: string[];
   /**
    * False when the game has no reviewed mod package contract; nothing else is
    * offered then.

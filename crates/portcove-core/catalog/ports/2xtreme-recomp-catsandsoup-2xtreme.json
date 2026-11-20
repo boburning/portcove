@@ -46,7 +46,16 @@
       "format_version": 1,
       "id": "2xtreme",
       "evidence_urls": ["https://github.com/catsandsoup/2Xtreme-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "2xtreme-playstation",
+          "title": "2Xtreme (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/catsandsoup/2Xtreme-recomp/blob/b14565f968ed053ed09554cc4a8cb4e8c0025d6a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

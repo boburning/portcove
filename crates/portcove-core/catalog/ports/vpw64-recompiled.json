@@ -21,9 +21,19 @@
       "format_version": 1,
       "id": "virtual-pro-wrestling-64",
       "evidence_urls": ["https://github.com/jessetbh/VPW64Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "virtual-pro-wrestling-64-nintendo-64",
+          "title": "Virtual Pro Wrestling 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -41,22 +51,6 @@
     "executable_hints": {
       "windows-x86-64": ["Vpw64Recompiled.exe"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "vpw.vpw64.jp.z64"
-    ],
     "runtime_source_filename": "vpw.vpw64.jp.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

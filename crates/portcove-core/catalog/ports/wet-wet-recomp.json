@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/Supermedo/wet-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Supermedo/wet-recomp",
     "issue_number": 2720,
@@ -54,7 +54,16 @@
         "https://github.com/Supermedo/wet-recomp/blob/d324f40eedef7fdd79241e6b7c4197380c4768e7/README.md",
         "https://github.com/Supermedo/wet-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "wet-xbox-360",
+          "title": "WET (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

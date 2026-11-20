@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted, prepared RECVX Enhanced Port Windows x86 player with your own NTSC-U SLUS-20184 ISO. Preserve the actual save/card and mod roots; optional co-op services, HD packs and upstream update successors remain separate.",
     "original_game_title": "Resident Evil Code: Veronica X",
     "project_url": "https://github.com/aikatore/recvx-enhanced-port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/aikatore/recvx-enhanced-port",
     "artwork": {

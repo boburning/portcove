@@ -50,7 +50,16 @@
         "https://github.com/gameflorist/dunedynasty/blob/v1.6.4/README.md#installation",
         "https://github.com/gameflorist/dunedynasty"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dune-ii-pc",
+          "title": "Dune II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/gameflorist/dunedynasty/blob/755876a710c0b188075ebe89cb40c068490e08e2/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

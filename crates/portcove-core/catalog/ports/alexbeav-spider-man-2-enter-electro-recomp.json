@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "spider-man-2-enter-electro-playstation",
+          "title": "Spider-Man 2: Enter Electro (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/34b4c3a1082053ffb5ac0eb72f8da63946f06e93/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

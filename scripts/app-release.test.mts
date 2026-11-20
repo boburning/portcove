@@ -20,6 +20,8 @@ import {
   findRelease,
   listReleases,
   readReleaseById,
+  readMainCiConclusions,
+  mainCiConclusion,
   compareVersions,
   isWithdrawn,
   nextPreviewVersion,
@@ -623,29 +625,130 @@ void test("a busy main tags the newest CI-green commit and stops querying CI the
   assert.equal((picked as { commit: string }).commit, failed.history[1]);
 });
 
-void test("each main commit takes the conclusion of its newest CI run and attempt", () => {
-  const run = (id: number, sha: string, conclusion: string | null, attempt = 1, name = "CI") => ({
-    id,
-    head_sha: sha,
-    conclusion,
-    run_attempt: attempt,
-    name,
-  });
+const ciRun = (id: number, sha: string, conclusion: string | null, attempt = 1) => ({
+  id,
+  head_sha: sha,
+  head_branch: "main",
+  head_repository: { full_name: "boburning/portcove" },
+  path: ".github/workflows/ci.yml",
+  event: "push",
+  status: "completed",
+  conclusion,
+  run_attempt: attempt,
+  name: "CI",
+});
+
+void test("each main commit takes the conclusion of its newest scoped CI run and attempt", () => {
+  const [cancelled, failed, retried, foreign, unfinished] = ["a", "b", "c", "d", "e"].map((value) =>
+    value.repeat(40),
+  );
   const result = newestConclusions([
-    run(3, "a", "cancelled"),
-    run(1, "b", "success"),
-    run(2, "b", "failure"),
-    run(4, "c", "failure", 1),
-    run(4, "c", "success", 2),
-    run(5, "d", "success", 1, "Upstream health"),
-    run(6, "e", null),
+    ciRun(3, cancelled!, "cancelled"),
+    ciRun(2, failed!, "failure"),
+    ciRun(1, failed!, "success"),
+    ciRun(4, retried!, "success", 2),
+    ciRun(4, retried!, "failure", 1),
+    ciRun(4, retried!, "success", 2),
+    { ...ciRun(5, foreign!, "success"), name: "Upstream health" },
+    { ...ciRun(6, foreign!, "success"), path: ".github/workflows/other.yml" },
+    { ...ciRun(7, foreign!, "success"), event: "pull_request" },
+    { ...ciRun(8, foreign!, "success"), head_branch: "feature/topic" },
+    { ...ciRun(9, foreign!, "success"), head_repository: { full_name: "somebody/portcove" } },
+    { ...ciRun(10, unfinished!, "success"), status: "in_progress" },
   ]);
   assert.deepEqual(Object.fromEntries(result), {
-    a: "cancelled",
-    b: "failure",
-    c: "success",
-    e: "",
+    [cancelled!]: "cancelled",
+    [failed!]: "failure",
+    [retried!]: "success",
+    [unfinished!]: "",
   });
+});
+
+void test("two bounded main CI views recover a green run omitted by a stale completion filter", async () => {
+  const omitted = ciRun(44541874760, "d0917f53ec42ab9a4c692f33570f25373b7dc6ef", "success");
+  const older = ciRun(44540826069, "f4256f25615d75acc081afb984ab4195288db881", "success");
+  const shared = ciRun(44542766363, "b".repeat(40), "failure");
+  const pending = Array.from({ length: nightlyLookback - 2 }, (_, i) => ({
+    ...ciRun(44543000000 + i, i.toString(16).padStart(40, "0"), null),
+    status: "queued",
+  }));
+  const views: string[] = [];
+  const api = await fixtureGitHub(({ method, endpoint }) => {
+    assert.equal(method, "GET");
+    const [route, query] = endpoint.split("?");
+    assert.equal(route, "repos/boburning/portcove/actions/workflows/ci.yml/runs");
+    const filters = new URLSearchParams(query);
+    const status = filters.get("status");
+    filters.delete("status");
+    assert.deepEqual(Object.fromEntries(filters), {
+      branch: "main",
+      event: "push",
+      per_page: "100",
+    });
+    views.push(status ?? "all");
+    assert.ok(status === "completed" || status === null);
+    return { workflow_runs: status ? [shared, older] : [...pending, shared, omitted] };
+  });
+  const result = await readMainCiConclusions(api);
+  assert.deepEqual(views.sort(), ["all", "completed"]);
+  assert.equal(result.get(omitted.head_sha), "success");
+  assert.equal(result.get(older.head_sha), "success");
+  assert.equal(result.get(shared.head_sha), "failure");
+  assert.ok(pending.every((row) => result.get(row.head_sha) === ""));
+});
+
+void test("unresolved run and retry conflicts cannot revive a stale successful CI result", () => {
+  const green = ciRun(5, "a".repeat(40), "success");
+  const other = "b".repeat(40);
+  const dispute = (row: typeof green & { conclusion: string | null }) =>
+    newestConclusions([green, row]);
+  for (const [run, reason] of [
+    [{ ...green, conclusion: "failure" }, /main CI inventory disagrees about run attempt 5\/1/],
+    [
+      { ...green, status: "queued", conclusion: null },
+      /main CI inventory disagrees about run attempt 5\/1/,
+    ],
+    [
+      { ...green, run_attempt: 2, status: "queued", conclusion: null },
+      /main CI success is superseded by an unfinished attempt/,
+    ],
+    [
+      { ...green, run_attempt: 2, head_sha: other },
+      /main CI inventory disagrees about the commit for run 5/,
+    ],
+  ] as const)
+    assert.throws(() => mainCiConclusion(dispute(run), green.head_sha), reason);
+  assert.throws(
+    () => mainCiConclusion(dispute({ ...green, run_attempt: 2, head_sha: other }), other),
+    /main CI inventory disagrees about the commit for run 5/,
+  );
+  assert.equal(
+    mainCiConclusion(dispute({ ...green, run_attempt: 2, conclusion: "failure" }), green.head_sha),
+    "failure",
+  );
+});
+
+void test("a stale older retry does not stop an independently verified newer nightly candidate", async () => {
+  const run = nightlyRunner({});
+  const older = ciRun(17, run.history[1]!, "success");
+  const unfinished = { ...older, run_attempt: 2, status: "queued", conclusion: null };
+  const recent = ciRun(18, run.head, "success");
+  const view = newestConclusions([older, unfinished, recent]);
+  const tagged = await nightlyPreview(async (sha) => mainCiConclusion(view, sha), run.run);
+  assert.ok("commit" in tagged);
+  assert.equal(tagged.commit, run.head);
+
+  const earlier = nightlyRunner({});
+  const belowDispute = newestConclusions([
+    older,
+    unfinished,
+    ciRun(16, earlier.history[2]!, "success"),
+  ]);
+  await assert.rejects(
+    nightlyPreview(async (sha) => mainCiConclusion(belowDispute, sha), earlier.run),
+    /main CI success is superseded by an unfinished attempt/,
+  );
+  assert.ok(earlier.calls.every((command) => command[1] !== "push" && command[2] !== "-a"));
 });
 
 void test("the withdrawn list is a sorted unique version array that the feed publisher honours", () => {
@@ -1008,6 +1111,7 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
 });
 
 type WorkflowStep = {
+  "timeout-minutes"?: number;
   name?: string;
   if?: string;
   uses?: string;
@@ -1052,7 +1156,7 @@ void test("the release requires every desktop bundle, signature and standalone C
     "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
     "SHA256SUMS",
   ];
-  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names);
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names, 100);
   assert.match(section, /Channel: Nightly Preview/u);
   assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
   assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
@@ -1060,11 +1164,16 @@ void test("the release requires every desktop bundle, signature and standalone C
   assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
   assert.match(section, /\.\/portcove --json capabilities/u);
   assert.match(section, /schema_version/u);
+  assert.equal([...section.matchAll(/Standalone CLI \(extract and run, API 100\)/gu)].length, 4);
+  await assert.rejects(
+    renderAppReleaseDownloadSection(`v${version}`, version, names, 0),
+    /invalid CLI API version/u,
+  );
   for (const name of names.filter((name) => !name.endsWith(".sig"))) {
     assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
   }
   await assert.rejects(
-    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names),
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names, 100),
     /tag and version disagree/u,
   );
   await assert.rejects(
@@ -1072,6 +1181,7 @@ void test("the release requires every desktop bundle, signature and standalone C
       `v${version}`,
       version,
       names.filter((name) => !name.includes("cli-")),
+      100,
     ),
     /missing:.*portcove-cli/u,
   );
@@ -1145,8 +1255,8 @@ void test("collects the universal bundle and preserves a one-platform CLI invent
     `Portcove_${version}_amd64.AppImage`,
     `Portcove_${version}_amd64.AppImage.sig`,
   ];
-  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, profile);
-  assert.equal(notes.match(/Standalone CLI \(extract and run\)/gu)?.length, 1);
+  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, 100, profile);
+  assert.equal(notes.match(/Standalone CLI \(extract and run, API 100\)/gu)?.length, 1);
   assert.match(notes, /Standalone CLI.*windows-x86_64\.zip/u);
   assert.match(notes, /Apple Silicon and Intel.*Desktop disk image/u);
   await assert.rejects(
@@ -1179,6 +1289,11 @@ void test("the Linux AppImage build checks its WebKitGTK floor before bundling",
   const bundle = steps.findIndex((step) => step.run?.includes("pnpm tauri build"));
   assert.ok(prerequisites >= 0 && prerequisites < bundle);
   assert.equal(steps[prerequisites]?.if, "runner.os == 'Linux'");
+  assert.equal(steps[prerequisites]?.["timeout-minutes"], 28);
+  assert.match(
+    steps[prerequisites]?.run ?? "",
+    /install-linux-desktop-prerequisites\.sh --prefer-archive-mirror --install-timeout-seconds=600/u,
+  );
   assert.match(
     steps[prerequisites]?.run ?? "",
     /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u,

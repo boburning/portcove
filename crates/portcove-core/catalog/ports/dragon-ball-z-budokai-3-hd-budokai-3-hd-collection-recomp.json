@@ -8,7 +8,7 @@
     "issue_number": 366,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://ko-fi.com/novapowers"],
-    "platforms": [],
+    "platforms": ["linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
     "artwork": {
@@ -51,6 +51,16 @@
           "instruction": "Preserve the whole runtime/original/ISO/extracted-data copy, dbz3_user.toml and backups, dbz3.toml, user_data/dbz3 saves/content/xex_cache/iso caches, mods/player edits, logs, res/custom data and all unknown files. The application uses executable-side user_data/dbz3 when writable, otherwise its actual platform user-folder/dbz3 fallback; an existing executable-side dbz3_user.toml can retain legacy settings. Preserve the actual resolved fallback/custom roots separately; do not move data to force portability. Keep old state/mods with the creating runtime. Upstream normal close uses a hard process exit after its own session/log cleanup; no graceful save/load or cross-build compatibility guarantee follows."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-3",
+      "evidence_urls": [
+        "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
+        "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection/blob/70e53af12a79e93a9fc2273cce875308b0ad7a99/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dragon Ball Z: Budokai 3"
   }
 }

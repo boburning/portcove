@@ -15,7 +15,7 @@
     "summary": "Early Kameo port using your USA Xbox 360 ISO. Upstream reports playing Thorn’s Castle and the first Enchanted Kingdom areas; later levels are untested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ElGuslml/KameoRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ElGuslml/KameoRecomp",
     "manual_setup": {

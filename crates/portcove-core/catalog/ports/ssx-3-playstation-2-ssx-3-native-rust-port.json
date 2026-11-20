@@ -54,7 +54,17 @@
         "https://github.com/andersfischernielsen/ssx3-decomp/blob/5082230d8370dcf7ad62d35e2d8beef487530191/README.md",
         "https://github.com/andersfischernielsen/ssx3-decomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "ssx-3-playstation-2",
+          "title": "SSX 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/andersfischernielsen/ssx3-decomp/blob/5082230d8370dcf7ad62d35e2d8beef487530191/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ssx-3-playstation-2-ssx-3-native-rust-port.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

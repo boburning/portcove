@@ -6,7 +6,7 @@
     "original_game_title": "Tsumu Light",
     "summary": "The project claims the game boots and plays in English. The tested duration and levels are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mstan/TsumuLightRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/TsumuLightRecomp",
     "manual_setup": {
@@ -35,6 +35,12 @@
       "image_sha256": "7dde0c758b6b26eb38cb74dc769dea77889f535cd79e535df24f7a5014459419",
       "game_slug": "tsumu-light",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tsumu-light",
+      "evidence_urls": ["https://github.com/mstan/TsumuLightRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

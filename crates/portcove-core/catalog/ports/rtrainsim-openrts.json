@@ -33,6 +33,15 @@
         }
       ],
       "warnings": ["Portcove does not back up this project’s profile."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rtrainsim",
+      "evidence_urls": [
+        "https://github.com/SmileDoge/openRTS/blob/v0.22.0/README_EN.md",
+        "https://github.com/SmileDoge/openRTS/blob/v0.22.0/INSTALL_EN.md"
+      ],
+      "source_editions": []
     }
   }
 }

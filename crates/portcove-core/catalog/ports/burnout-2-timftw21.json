@@ -54,7 +54,16 @@
         "https://github.com/timftw21/burnout2-recompilation/blob/2259fea7d99e16436456ce49467833dd918b1b7c/README.md",
         "https://github.com/timftw21/burnout2-recompilation"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "burnout-2-point-of-impact-xbox",
+          "title": "Burnout 2: Point of Impact (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/timftw21/burnout2-recompilation/blob/5abe8245e0547821b38b54cc72bf42f7066384b9/README.md"
+          ]
+        }
+      ]
     }
   }
 }

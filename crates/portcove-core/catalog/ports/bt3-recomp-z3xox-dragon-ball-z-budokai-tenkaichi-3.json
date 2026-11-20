@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "dragon-ball-z-budokai-tenkaichi-3",
       "evidence_urls": ["https://github.com/z3xox/BT3-Recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-budokai-tenkaichi-3-playstation-2",
+          "title": "Dragon Ball Z: Budokai Tenkaichi 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/z3xox/BT3-Recomp/blob/e22a34beb564e2d0f32bd60b02f0a95d9645ddcc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

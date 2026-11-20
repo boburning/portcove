@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "duke-nukem-time-to-kill",
       "evidence_urls": ["https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "duke-nukem-time-to-kill-playstation",
+          "title": "Duke Nukem: Time to Kill (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/6e887c5d0de51c3a843df7408ecccb5f6ef9858b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

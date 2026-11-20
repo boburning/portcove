@@ -29,6 +29,13 @@ pub(crate) fn is_package_filename(name: &str) -> bool {
         .any(|extension| name.ends_with(extension))
 }
 
+pub(crate) fn is_server_package(name: &str) -> bool {
+    name.split(|c: char| !c.is_ascii_alphanumeric())
+        .any(|token| {
+            token.eq_ignore_ascii_case("server") || token.eq_ignore_ascii_case("dedicated")
+        })
+}
+
 pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackagePlatformMatch {
     let name = name.to_ascii_lowercase();
     let tokens = name
@@ -128,6 +135,13 @@ pub(crate) fn assess_package_name(
     // recommended release. A reviewed debug player needs its whole filename.
     let finish = |suitability, reason, score| (suitability, reason, score);
     let archive = ARCHIVE_FORMS.iter().any(|ext| name.ends_with(ext));
+    if is_server_package(&name) {
+        return finish(
+            "auxiliary",
+            "This package is labeled as a dedicated server. Choose a game client to play.",
+            None,
+        );
+    }
     if has(&[
         "checksums",
         "checksum",
@@ -165,6 +179,13 @@ pub(crate) fn assess_package_name(
         return finish(
             "auxiliary",
             "Checksums, signatures, source code or supporting metadata; not an installable game package.",
+            None,
+        );
+    }
+    if !hints.is_empty() && !hinted && has(&["server"]) {
+        return finish(
+            "auxiliary",
+            "Server download; the catalog's player package hints refer to a different asset.",
             None,
         );
     }
@@ -227,10 +248,14 @@ pub(crate) fn assess_package_name(
             None,
         );
     }
-    // A reviewed bare Linux binary can be downloaded as a file. A broad hint
-    // or the platform name by itself doesn't establish an extensionless form.
+    // Periods in a versioned filename do not imply a file extension. Accept
+    // the Linux platform suffix when the final period belongs to its version.
+    let bare_name = name.rsplit_once('.').is_none_or(|(_, suffix)| {
+        suffix.as_bytes().first().is_some_and(u8::is_ascii_digit)
+            && (suffix.ends_with("-linux-x64") || suffix.ends_with("-linux-x86_64"))
+    });
     let reviewed_bare_linux_player =
-        exact_hint && platform_match && platform == Platform::LinuxX86_64 && !name.contains('.');
+        exact_hint && platform_match && platform == Platform::LinuxX86_64 && bare_name;
     let supported_form = can_extract
         || reviewed_bare_linux_player
         || OTHER_PACKAGE_FORMS.iter().any(|ext| name.ends_with(ext));
@@ -614,7 +639,7 @@ mod tests {
         for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
             let listing = catalog.listing(id).unwrap();
             for (platform, expected) in [
-                (Platform::LinuxX86_64, 1u64),
+                (Platform::LinuxX86_64, 5u64),
                 (Platform::MacosX86_64, 2),
                 (Platform::MacosAarch64, 2),
             ] {
@@ -988,6 +1013,46 @@ mod tests {
             .1,
             None
         );
+    }
+
+    #[test]
+    fn openigi_recommends_versioned_linux_player_over_the_server() {
+        let player = "openigi-game-0.6.9-beta.4-linux-x64";
+        let assets = [
+            asset(1, player),
+            CatalogDownloadCandidate {
+                can_extract: true,
+                ..asset(2, "openigi-server-0.6.9-beta.4-linux-x64.tar.gz")
+            },
+            asset(3, "openigi-game-0.6.9-beta.4-linux-x64-dotnet"),
+            asset(4, "openigi-game-0.6.9-beta.4-win-x64.exe"),
+        ];
+        let catalog = crate::Catalog::embedded().unwrap();
+        let listing = catalog
+            .listing("project-i-g-i-i-m-going-in-openigi")
+            .unwrap();
+        let platform = Platform::LinuxX86_64;
+        let hints = &listing.download_asset_hints[&platform];
+        let (assessments, recommended) = recommend_packages(&assets, platform, hints, true);
+        assert_eq!(recommended, Some(1_u64.into()));
+        assert_eq!(assessments[1].suitability, "auxiliary");
+        assert_eq!(
+            recommend_packages(&assets[1..], platform, hints, true).1,
+            None
+        );
+        assert_eq!(
+            recommend_packages(&assets[1..2], platform, &[], true).1,
+            None
+        );
+        let windows = Platform::WindowsX86_64;
+        let (assessments, recommended) = recommend_packages(
+            &assets,
+            windows,
+            &listing.download_asset_hints[&windows],
+            true,
+        );
+        assert_eq!(assessments[0].suitability, "incompatible");
+        assert_eq!(recommended, Some(4_u64.into()));
     }
 
     #[test]

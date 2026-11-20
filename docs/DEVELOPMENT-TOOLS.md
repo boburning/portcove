@@ -1808,6 +1808,28 @@ controls. Ordinary opening helpers stay neutral so initial-destination behavior
 remains testable. Native scripts, browser renders, injected text enlargement and
 native-host observations are distinct evidence scopes.
 
+Native review click failures record the interaction stage and bounded original
+error type, name and message before control geometry. Field limits include JSON
+escapes and UTF-8 bytes so the original failure fits the existing log record.
+An empty WebDriver message still has an error class. If collecting the control
+context also fails, the diagnostic records that failure separately and preserves
+the original cause.
+These observations do not change visibility, enabled-state or pointer checks,
+click dispatch, or the existing evidence limits.
+
+The Linux selected setup journey explicitly converts CSS target coordinates into
+WebKitGTK window coordinates at its measured 400% page zoom. The retained native
+run rejected Element Click, and an unscaled viewport action opened Navigation
+instead of Game files. DOM visibility, enabled-state and hit tests remain in CSS
+pixels. Only this journey multiplies the final native point by page zoom, moves
+the actual pointer, checks the target's native hover and CSS hit before pressing,
+and sends one press/release without a fallback. Its report keeps both coordinate
+spaces, scale and delivered-target result. Navigation, filters, review actions
+and the restarted session use the same explicit policy. Default consumers and
+Windows retain their previous dispatch. Settings heading, focus, dialog and native
+picker checks still establish each transition; neither a successful command nor
+these fixture checks establish Native acceptance by themselves.
+
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and
@@ -1939,7 +1961,7 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-14. They are starting assignments by
+Recommendations as of 2026-11-19. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
 points, each to be evaluated on its own evidence. The implementation owner is
@@ -1948,24 +1970,27 @@ these instructions do not change it.
 
 | Responsibility                                 | Codex                   | Claude                      |
 | ---------------------------------------------- | ----------------------- | --------------------------- |
-| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Delegated implementation (only when asked)     | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
 | Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
 | Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
 
-Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.2-sol` at high
 effort only when a first review leaves a substantive unresolved question that a
 stronger pass is likely to settle. The critical reviewer and specialist rows are
 for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
-Documented availability, checked 2026-11-13: all eight models appear on
-the official [OpenAI models](https://developers.openai.com/api/docs/models) and
-[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
-pages, none is on a listed retirement, and every listed model documents both
-`medium` and `high` effort. Observed access is narrower: the local Codex CLI
-0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+The [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+lists GPT-6.2 Sol and GPT-6.2 Astra with both `medium` and `high` reasoning.
+The local Codex model cache included both model IDs when checked on 2026-11-19.
+The other model recommendations were checked against the official OpenAI and
+[Claude model catalogs](https://platform.claude.com/docs/en/about-claude/models/overview)
+on 2026-11-13.
+
+The local Codex CLI
+0.164.0 model list cached on 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
 separately reporting the served model. When the client does not
@@ -2403,6 +2428,18 @@ Public failures retain concrete member failures and any partial/fallback evidenc
 and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
 separate evidence; this listing-only native case does not qualify those installed
 surfaces, gameplay or publication. It is absent from routine profiles.
+
+The collection case collects bounded diagnostic observations before checking its
+unchanged-catalog invariant and retains them in a sidecar during finalization.
+It records document and indexed entry hashes, the
+existing catalog and listing delivery status, and early command/request IDs from
+the private host logs. Object-key-normalized hashes are diagnostic transport
+identities, not Core definition or trust identities; array order remains meaningful.
+The sidecar is limited to 2 MiB within the unchanged 12 MiB evidence codec. Host
+logging is best effort: missing, changing, malformed or excessive logs are recorded
+as incomplete, never as proof that a command did not run. These observations do not
+reset the initial catalog digest or weaken source, status, artwork-choice or cleanup
+assertions.
 
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone

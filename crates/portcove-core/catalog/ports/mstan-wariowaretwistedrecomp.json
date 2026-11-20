@@ -57,7 +57,16 @@
         "https://github.com/mstan/WarioWareTwistedRecomp#readme",
         "https://github.com/mstan/WarioWareTwistedRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "warioware-twisted-game-boy-advance",
+          "title": "WarioWare: Twisted! (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/WarioWareTwistedRecomp/blob/3897e4a3b0bacd3ed230efe30b2fe8742519ad50/README.md"
+          ]
+        }
+      ]
     }
   },
   "gba_staged_archive_v1": {
@@ -72,6 +81,9 @@
     "release": {
       "provider": "github",
       "repository": "mstan/WarioWareTwistedRecomp",
+      "github_other_stream_tag_prefixes": {
+        "windows-x86-64": ["android-", "linux-"]
+      },
       "asset_hints": {
         "windows-x86-64": ["WarioWareTwistedRecomp-windows-x64-", ".zip"]
       }

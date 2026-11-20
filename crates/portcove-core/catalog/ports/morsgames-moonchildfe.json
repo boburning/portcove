@@ -46,6 +46,15 @@
       "warnings": [
         "Bundled assets have noncommercial CC BY-NC4.0 terms; preserve the active per-user or existing portable progress folder before upstream replacement."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "moon-child",
+      "evidence_urls": [
+        "https://github.com/MorsGames/MoonChildFE",
+        "https://github.com/MorsGames/MoonChildFE/blob/b98445a93a8d9214fe1dedcae3870dd86731128f/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

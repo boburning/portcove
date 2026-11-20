@@ -137,6 +137,9 @@ import {
   liveInterruptedPreparationScenario,
   closedPreparationScenario,
   minimizedPreparationScenario,
+  observeLibraryReloadReadiness,
+  joinOwnedPreparationAfterFailure,
+  type OwnedPreparationSettlement,
 } from "./desktop-preparation-recovery-test.mts";
 import {
   revealDetailSection,
@@ -1417,6 +1420,13 @@ export async function preparationScenarios({
       ),
     );
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
+    // Run 44628065087 retained the loading panel through the former card lookup;
+    // successful snapshot reads took 15–26 seconds. Shell readiness is not Library readiness.
+    await browser.wait(
+      () => executeBrowserScript(browser, observeLibraryReloadReadiness),
+      reloadBootstrapBudgetMs,
+      "The reloaded Library must finish its initial snapshot and render game cards",
+    );
     await browser.wait(until.elementLocated(card), 15_000);
     await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation) {
@@ -3651,6 +3661,7 @@ export async function preparationScenarios({
       artifacts.push(report);
     }
   });
+  const preparationSession: { unjoined?: { error: unknown } } = {};
   const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
     // "hold" keeps setup running past the reload and listener probes that precede
     // the cancellation; with "wait" (30 s) hosted setup finished first.
@@ -3676,6 +3687,12 @@ export async function preparationScenarios({
         after_sha256?: string;
       }[];
       failure?: { message: string; observed_at: string };
+      failure_cleanup?: {
+        attempted_start: boolean;
+        owned?: OwnedPreparationSettlement;
+        ownership_issue?: string;
+        error?: string;
+      };
       listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
       overlap?: { cli_refusal: unknown; unrelated_verification?: ActivityRecord };
     } = { port_id: port.id, phases: [], inputs: [] };
@@ -3696,7 +3713,9 @@ export async function preparationScenarios({
       const checkedBootstrap = transportValue("desktop_bootstrap_status", bootstrap.value);
       assert.equal(checkedBootstrap.ready, true);
       observation.bootstrap = checkedBootstrap;
-      const activityRecords = await activities();
+      const activityFeed = await read("activity", "get_activities");
+      assert.equal(activityFeed.active_and_actionable_complete, true);
+      const activityRecords = activityFeed.records;
       observation.activities = activityRecords;
       const currentStatus = await status(port.id);
       observation.status = currentStatus;
@@ -3707,12 +3726,17 @@ export async function preparationScenarios({
         status: currentStatus,
       };
     };
-    let originalFailure;
-    let evidenceFailure;
+    let originalFailure: { error: unknown } | undefined;
+    let evidenceFailure: { error: unknown } | undefined;
+    let activity: ActivityRecord | undefined;
+    let ownershipIssue: string | undefined;
+    let startRequested = false;
+    let originalInstallPath: string | undefined;
     try {
       const before = await observe("before-start");
       const baselineIds = preparationIds(before.activities);
       const activePath = required(before.status.active).path;
+      originalInstallPath = activePath;
       for (const [index, input] of [
         path.join(output, `${port.id}.chd`),
         path.join(activePath, required(required(port.executable_hints[host])[0])),
@@ -3734,16 +3758,32 @@ export async function preparationScenarios({
       }
       await browser.findElement(setupReviewButton()).click();
       await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
-      await browser.findElement(setupConfirmButton()).click();
-      let activity: ActivityRecord | undefined;
+      const confirmation = await browser.findElement(setupConfirmButton());
+      startRequested = true;
+      await confirmation.click();
       await browser.wait(
         async () => {
-          activity = (await activities()).find(
+          const feed = await read("activity", "get_activities");
+          if (!feed.active_and_actionable_complete) {
+            ownershipIssue =
+              "A complete activity feed is required to identify the owned preparation";
+            throw new Error(ownershipIssue);
+          }
+          const candidates = feed.records.filter(
             (item) =>
               item.operation === "prepare" &&
+              item.target_kind === "port" &&
               item.target_id === port.id &&
+              !baselineIds.includes(item.id) &&
               item.status === "running",
           );
+          const candidate = candidates[0];
+          if (candidates.length > 1 || (activity && candidate && activity.id !== candidate.id)) {
+            ownershipIssue =
+              "One explicit setup action must retain one unambiguous owned preparation";
+            throw new Error(ownershipIssue);
+          }
+          activity ??= candidate;
           return (
             activity &&
             (await stat(
@@ -4029,13 +4069,57 @@ export async function preparationScenarios({
       });
       artifacts.push(screenshot);
     } catch (error) {
-      originalFailure = error;
+      originalFailure = { error };
       observations.failure = {
         message: errorMessage(error),
         observed_at: new Date().toISOString(),
       };
       throw error;
     } finally {
+      if (originalFailure !== undefined && startRequested) {
+        const cleanup: NonNullable<typeof observations.failure_cleanup> = {
+          attempted_start: true,
+          ...(ownershipIssue === undefined ? {} : { ownership_issue: ownershipIssue }),
+        };
+        observations.failure_cleanup = cleanup;
+        try {
+          if (ownershipIssue !== undefined) assert.fail(ownershipIssue);
+          assert.ok(
+            activity,
+            "The attempted preparation has no captured owned operation ID; stop the run",
+          );
+          const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
+          assert.equal(bootstrap.ready, true);
+          assert.ok(typeof bootstrap.library_root === "string");
+          assert.equal(path.resolve(bootstrap.library_root), path.resolve(library));
+          const operationId = activity.id;
+          const owned: OwnedPreparationSettlement = { operation_id: operationId, port_id: port.id };
+          cleanup.owned = owned;
+          await joinOwnedPreparationAfterFailure(owned, required(originalInstallPath), {
+            read: async () => {
+              const feed = await read("activity", "get_activities");
+              assert.equal(feed.active_and_actionable_complete, true);
+              return feed.records.find((item) => item.id === operationId);
+            },
+            cancel: () => read("cancellation_state", "cancel_operation", { operationId }),
+            previewQuiescence: () =>
+              read("desktop_preparation_cleanup_preview", "preview_preparation_cleanup", {
+                operationId,
+                generation: bootstrap.generation,
+              }),
+            wait: (probe, timeout, message) => browser.wait(probe, timeout, message),
+          });
+        } catch (error) {
+          cleanup.error = errorMessage(error);
+          preparationSession.unjoined = {
+            error: new AggregateError(
+              [originalFailure.error, error],
+              "The failed preparation could not be joined safely; remaining scenarios must not run",
+              { cause: originalFailure.error },
+            ),
+          };
+        }
+      }
       const capture = path.join(output, "live-preparation-reload-observations.json");
       try {
         await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
@@ -4043,16 +4127,31 @@ export async function preparationScenarios({
       } catch (error) {
         console.error("Live preparation evidence write failed:", error);
         console.error(JSON.stringify(observations));
-        if (!originalFailure) evidenceFailure = error;
+        if (originalFailure === undefined) evidenceFailure = { error };
+        if (preparationSession.unjoined)
+          preparationSession.unjoined = {
+            error: new AggregateError(
+              [preparationSession.unjoined.error, error],
+              "Unjoined preparation evidence could not be written",
+              { cause: originalFailure?.error },
+            ),
+          };
       }
     }
-    if (evidenceFailure) rethrowFailure(evidenceFailure);
+    if (evidenceFailure) rethrowFailure(evidenceFailure.error);
+  };
+  const requirePreparationJoined = () => {
+    const unjoined = preparationSession.unjoined;
+    if (unjoined) rethrowFailure(unjoined.error);
   };
   await scenario("native-preparation-cancellation", () => livePreparationCancellation());
+  requirePreparationJoined();
   await scenario("native-late-listener-disposal", () => livePreparationCancellation("late"));
+  requirePreparationJoined();
   await scenario("native-rejected-listener-registration", () =>
     livePreparationCancellation("reject"),
   );
+  requirePreparationJoined();
   browser = await interruptedPreparationScenario({
     browser,
     invoke,

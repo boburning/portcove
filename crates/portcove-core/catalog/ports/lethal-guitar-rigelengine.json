@@ -68,7 +68,16 @@
         "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
         "https://github.com/lethal-guitar/RigelEngine"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "duke-nukem-ii-pc",
+          "title": "Duke Nukem II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

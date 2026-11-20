@@ -33,9 +33,21 @@
         "The project advertises Vulkan, multiplayer and mods. Complete-game coverage is unknown.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/tokeneffortports/ReCompiledSteel"
+      "help_url": "https://github.com/tokeneffortports/ReCompiledSteel",
+      "references": [
+        {
+          "title": "Prepare the Real Steel Android package",
+          "instruction": "ReCompiledSteel v0.2.0 publishes ReCompiledSteel-android-arm64-0.2.0.apk. Select the folder containing your own Xbox 360 game and its title update in Install game files. The project puts the imported data in its RealSteel folder. After setup, use Start in the app."
+        }
+      ]
     },
-    "issue_number": 3253
+    "issue_number": 3253,
+    "original_game": {
+      "format_version": 1,
+      "id": "real-steel",
+      "evidence_urls": ["https://github.com/tokeneffortports/ReCompiledSteel"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

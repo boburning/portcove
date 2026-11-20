@@ -6,7 +6,7 @@
     "original_game_title": "Lufia II: Rise of the Sinistrals",
     "summary": "Upstream reports the intro, title, gameplay, battles, audio, saves and launcher. A full playthrough is not claimed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
     "manual_setup": {
@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "lufia-ii-rise-of-the-sinistrals",
       "evidence_urls": ["https://github.com/Cellenseres/Lufia2SNESRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "lufia-ii-rise-of-the-sinistrals-super-nintendo",
+          "title": "Lufia II: Rise of the Sinistrals (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/Cellenseres/Lufia2SNESRecomp/blob/d31533e8a88880e24ec463a18cad68084fe87405/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

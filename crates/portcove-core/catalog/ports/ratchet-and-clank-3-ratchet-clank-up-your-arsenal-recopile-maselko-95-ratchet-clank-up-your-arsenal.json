@@ -46,7 +46,15 @@
       ],
       "help_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"
     },
-    "issue_number": 3078
+    "issue_number": 3078,
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-up-your-arsenal",
+      "evidence_urls": [
+        "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

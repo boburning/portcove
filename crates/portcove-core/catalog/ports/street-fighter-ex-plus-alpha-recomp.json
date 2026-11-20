@@ -47,6 +47,13 @@
           "instruction": "Keep the complete creating project, prepared player, original CUE/BIN, BIOS and generated-online outputs together with all effective external paths. Default settings.toml, input.ini and memory cards card1.mcd/card2.mcd are executable-relative; configuration can select other card/data paths. Preserve states, controller mappings, mods, assets, caches, backups and every custom root. The framework fork retains PolyForm Noncommercial 1.0.0 and separate third-party notices; comply with those terms and any separately applicable component rights."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-ex-plus-alpha",
+      "evidence_urls": ["https://github.com/guimaraf/plusalpha-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Street Fighter EX Plus Alpha"
   }
 }

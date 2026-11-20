@@ -6,7 +6,7 @@
     "summary": "A Mario Strikers Charged player using your own compatible Wii disc image. The reviewed stable v1.1.1 Windows route uses recharged.exe with its complete modules and assets; test-pr prereleases are separate. Upstream owns preparation and in-place updates. Portcove registers an independently permitted existing copy with explicit launch settings, without certifying setup, gameplay or save compatibility. Nintendo WFC is unavailable.",
     "original_game_title": "Mario Strikers Charged",
     "project_url": "https://github.com/previouslevelgames/recharged",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/previouslevelgames/recharged",
     "artwork": {
@@ -53,7 +53,16 @@
         "https://github.com/previouslevelgames/recharged/blob/f3664f7789553b0d4ba497a75d7963916704c670/docs/INSTALL.md",
         "https://github.com/previouslevelgames/recharged"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mario-strikers-charged-wii",
+          "title": "Mario Strikers Charged (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/previouslevelgames/recharged/blob/053746ffc142728ee8d4231eb4e9adbfc11bb30d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

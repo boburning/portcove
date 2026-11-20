@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mchughalex/skate3recomp",
     "issue_number": 150,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mchughalex/skate3recomp",
     "artwork": {
@@ -62,6 +62,16 @@
         }
       ]
     },
-    "download_block_reason": "The selected Skate 3 package/component use and redistribution basis and complete notices remain unresolved under canonical issue #150. Fresh acquisition stays held until attributable operation-specific rights/notices or a reviewed permitted asset-clean or non-distributive owned-input route establishes the selected package/source contract. Upstream own-copy play instructions do not certify unacquired package contents or grant all third-party rights. This condition does not prohibit an already-permitted private prepared copy or make new Xbox-family infrastructure a prerequisite."
+    "download_block_reason": "The selected Skate 3 package/component use and redistribution basis and complete notices remain unresolved under canonical issue #150. Fresh acquisition stays held until attributable operation-specific rights/notices or a reviewed permitted asset-clean or non-distributive owned-input route establishes the selected package/source contract. Upstream own-copy play instructions do not certify unacquired package contents or grant all third-party rights. This condition does not prohibit an already-permitted private prepared copy or make new Xbox-family infrastructure a prerequisite.",
+    "original_game": {
+      "format_version": 1,
+      "id": "skate-3",
+      "evidence_urls": [
+        "https://github.com/mchughalex/skate3recomp#readme",
+        "https://github.com/mchughalex/skate3recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Skate 3"
   }
 }

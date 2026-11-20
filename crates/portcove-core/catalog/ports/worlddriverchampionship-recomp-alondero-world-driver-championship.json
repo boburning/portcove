@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "world-driver-championship",
       "evidence_urls": ["https://github.com/alondero/worlddriverchampionship-recomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "world-driver-championship-nintendo-64",
+          "title": "World Driver Championship (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/worlddriverchampionship-recomp/blob/76d6ae0596de7464e0f7264cf46a278f8d60af59/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["linux-x86-64", "windows-x86-64"],
   "listing": {
     "id": "dethrace-labs-dethrace",
     "name": "Carmageddon / Dethrace (dethrace-labs)",
@@ -52,7 +53,16 @@
         "https://github.com/dethrace-labs/dethrace#readme",
         "https://github.com/dethrace-labs/dethrace"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "carmageddon-pc",
+          "title": "Carmageddon (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -77,16 +87,6 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Use a short installation folder on Linux x64. The v0.10.1 player can close during startup from a deeply nested folder. Keep the originals separately and follow upstream’s native dependencies. Back up data from any custom DETHRACE_ROOT_DIR or external preferences folder separately."
-    },
-    "reviewed_package_layouts": {
-      "linux-x86-64": {
-        "directories": [],
-        "executables": ["dethrace"]
-      },
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["dethrace.exe"]
-      }
     }
   }
 }

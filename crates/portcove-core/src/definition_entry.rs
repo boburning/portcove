@@ -178,6 +178,19 @@ impl DefinitionContentIndex {
                 "a reviewed active project requires indexed definition schema 2",
             ));
         }
+        crate::provider_binding::validate(&port)?;
+        port.release.validate_github_streams(&port.platforms)?;
+        if port.mod_provider_bindings.is_some() {
+            let (template, minimum) = crate::provider_binding::capability(&port)
+                .expect("binding validation requires a supported adapter");
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "mod provider bindings require {template} capability version {minimum}"
+                )));
+            }
+        }
         require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
@@ -302,6 +315,18 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(format!(
                 "Windows tracked handoff requires native capability version {handoff_capability}"
+            )));
+        }
+        if port.linux_packaged_library.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "packaged Linux libraries require native capability version {}",
+                crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
             )));
         }
         if port.release.grant_declared_executable {

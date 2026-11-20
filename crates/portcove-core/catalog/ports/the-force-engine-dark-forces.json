@@ -42,7 +42,16 @@
         "https://github.com/TheForceEngine/TheForceEngine#linux",
         "https://github.com/TheForceEngine/TheForceEngine"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "star-wars-dark-forces-pc",
+          "title": "Star Wars: Dark Forces (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/TheForceEngine/TheForceEngine/blob/cc25205cc94c36a396f6f50295772f6ec83069a2/TheForceEngine/TFE_DarkForces/darkForcesMain.cpp"
+          ]
+        }
+      ]
     }
   },
   "integration": {

@@ -756,6 +756,8 @@ export default interface Resources {
       "label": "What works and known issues",
       "launch": {
         "asks-for-game-files": "Asks for game files",
+        "evidenceObserved": "Observed launch behavior",
+        "evidenceUpstream": "Reported by the project",
         "first": "First launch",
         "opens-project-launcher": "Opens the project launcher",
         "repeat": "Repeat Play",

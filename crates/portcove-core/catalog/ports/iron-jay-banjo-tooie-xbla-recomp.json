@@ -50,7 +50,16 @@
         "https://github.com/iron-jay/banjo_tooie_xbla_recomp#building-from-source",
         "https://github.com/iron-jay/banjo_tooie_xbla_recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "banjo-tooie-xbox-360",
+          "title": "Banjo-Tooie (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -59,7 +59,16 @@
         "https://github.com/FelipePrado0/SpartanPort",
         "https://github.com/FelipePrado0/SpartanPort/blob/a2299cd59bc363fb9d0dbfe11cac26c2a49e5aaa/README.md"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "god-of-war-iii-remastered-playstation-4",
+          "title": "God of War III Remastered (PlayStation 4)",
+          "system": "playstation-4",
+          "evidence_urls": [
+            "https://github.com/FelipePrado0/SpartanPort/blob/6f73077a3eaed10d6bbca034321a4c29e051d12a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

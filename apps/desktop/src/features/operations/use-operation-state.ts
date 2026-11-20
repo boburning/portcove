@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listenDesktopEvent } from "../../desktop-events";
-import type { ActivityRecord, OperationEvent } from "../../types";
+import type { ActivityRecord, InstallRecord, OperationEvent } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
@@ -19,6 +19,7 @@ import {
 } from "./operation-state";
 
 const noActivities: readonly ActivityRecord[] = [];
+const noUnreadInstallPorts: ReadonlySet<string> = new Set();
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions = {
@@ -47,6 +48,10 @@ export function useOperationState(configuration: {
   activities?: readonly ActivityRecord[];
   libraryGeneration?: number;
   libraryLabel?: string;
+  /** The latest accepted full snapshot, unchanged by activity-only reads. */
+  workspaceReadRevision?: number | undefined;
+  /** Read only at a mutation's async boundary; includes in-flight/failed full reads. */
+  startedWorkspaceReadRevision?: () => number;
 }) {
   const refresh = configuration.refresh;
   const refreshActivities = configuration.refreshActivities ?? configuration.refresh;
@@ -54,13 +59,43 @@ export function useOperationState(configuration: {
   const { invocations, currentInvocations, nextId, active, updateInvocations } =
     useInvocationOwner();
   const generation = configuration.libraryGeneration ?? 0;
+  const startedWorkspaceReadRevision = configuration.startedWorkspaceReadRevision;
+  const [committedInstalls, setCommittedInstalls] = useState<
+    ReadonlyMap<string, { generation: number; afterRead: number }>
+  >(new Map());
   const activeOwner = useRef<number | undefined>(generation);
   useLayoutEffect(() => {
     activeOwner.current = generation;
     return () => {
       activeOwner.current = undefined;
+      setCommittedInstalls(new Map());
     };
   }, [generation]);
+  const noteInstallCommitted = useCallback(
+    (install: InstallRecord) => {
+      if (!active.current || activeOwner.current !== generation || !startedWorkspaceReadRevision)
+        return;
+      const afterRead = startedWorkspaceReadRevision();
+      setCommittedInstalls((previous) => {
+        const next = new Map([...previous].filter(([, value]) => value.generation === generation));
+        next.set(install.port_id, { generation, afterRead });
+        return next;
+      });
+    },
+    [active, startedWorkspaceReadRevision, generation],
+  );
+  // A full read started before the commit cannot confirm it. Activity-only
+  // readback and dismissing task feedback do not advance this receipt.
+  const unreadInstallPorts = useMemo(() => {
+    const ports = [...committedInstalls]
+      .filter(
+        ([, value]) =>
+          value.generation === generation &&
+          (configuration.workspaceReadRevision ?? 0) <= value.afterRead,
+      )
+      .map(([portId]) => portId);
+    return ports.length ? new Set(ports) : noUnreadInstallPorts;
+  }, [committedInstalls, configuration.workspaceReadRevision, generation]);
   const pendingOperations = useMemo(
     () => new Map([...invocations].filter(([, record]) => record.phase === "pending")),
     [invocations],
@@ -296,6 +331,8 @@ export function useOperationState(configuration: {
     operation,
     operationEvents,
     pendingOperations,
+    unreadInstallPorts,
+    noteInstallCommitted,
     invocations,
     dismissInvocation,
     perform,

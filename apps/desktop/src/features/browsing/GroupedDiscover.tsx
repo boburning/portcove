@@ -23,6 +23,8 @@ import { ArrowRight, GitCompareArrows } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
+import { CapabilityNoticeScope } from "../../components/PortCapabilities";
+import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
@@ -360,7 +362,17 @@ export function GroupedDiscover({
                           </p>
                         )}
                       </header>
-                      <ComparisonPortFacts port={port} status={status} single={single} />
+                      <ComparisonPortFacts
+                        port={port}
+                        status={status}
+                        single={single}
+                        platform={
+                          evidence.context.platform || devicePlatform || evidence.report?.platform
+                        }
+                        explicitOtherPlatform={Boolean(
+                          evidence.context.platform && evidence.context.platform !== devicePlatform,
+                        )}
+                      />
                       <div className="grid min-w-0 content-start gap-2">
                         <ImplementationFacts port={port} />
                         <GameComparisonEvidence
@@ -433,22 +445,57 @@ function ComparisonPortFacts({
   port,
   status,
   single,
+  platform,
+  explicitOtherPlatform,
 }: {
   port: CatalogEntry;
   status: PortStatus | undefined;
   single: boolean;
+  platform: PortDefinition["platforms"][number] | undefined;
+  explicitOtherPlatform: boolean;
 }) {
   const { t } = useAppTranslation("browsing");
+  const { t: tDetail } = useAppTranslation("detail");
   const setupLabel = installationMethodLabel(port);
   const setupKnown = setupLabel !== "Unavailable in this catalog";
   const filesListed = Boolean(port.presentation?.source_requirements?.length);
   const ownershipKnown = Boolean(status?.active || status?.external_runtime);
+  const report = port.listingStatus?.capabilities;
+  // Launch advisories display their own edition scope. The comparison uses separate edition IDs.
+  const launchNotices =
+    report?.format_version === 1 && report.port_id === port.id
+      ? report.advisories.filter(
+          ({ notice, applicability }) =>
+            notice.launch_behavior &&
+            notice.platform === platform &&
+            (applicability !== "historical" ||
+              (explicitOtherPlatform && notice.route === "upstream-setup")),
+        )
+      : [];
   return (
     <>
-      {(!single || setupKnown) && (
+      {(!single || setupKnown || launchNotices.length > 0) && (
         <div>
           <h4>{t("discover.compare.setup")}</h4>
-          <p>{setupLabel}</p>
+          {(setupKnown || launchNotices.length === 0) && <p>{setupLabel}</p>}
+          {launchNotices.map(({ notice, applicability }) =>
+            notice.launch_behavior ? (
+              <div className="mt-3 grid gap-1 text-sm" key={notice.id}>
+                <LaunchBehaviorStages behavior={notice.launch_behavior} />
+                <p>{notice.explanation}</p>
+                <p>
+                  {notice.evidence === "observed"
+                    ? tDetail("capabilities.launch.evidenceObserved")
+                    : tDetail("capabilities.launch.evidenceUpstream")}
+                </p>
+                <CapabilityNoticeScope notice={notice} discloseArtifact />
+                {applicability !== "current-route" && <p>{tDetail("capabilities.notice.exact")}</p>}
+                <ExternalLink href={notice.provenance}>
+                  {tDetail("capabilities.notice.source")}
+                </ExternalLink>
+              </div>
+            ) : null,
+          )}
         </div>
       )}
       {(!single || filesListed) && (

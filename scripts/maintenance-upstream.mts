@@ -14,6 +14,7 @@
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -24,7 +25,7 @@ const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
-const candidateLimit = 24;
+const candidateLimitPerEvent = 24;
 // Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
 // contended host. This finite CPU/harness budget does not extend provider reads.
 import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
@@ -58,11 +59,239 @@ export interface UpstreamObservation {
 
 const failedSubject = "source:upstream-observer-checkpoint";
 
+export interface ManagedReleaseCandidate {
+  candidate_key: string;
+  platform: string;
+  channel: string;
+  release_id: number | null;
+  tag: string;
+  published_at: string | null;
+  state: "eligible" | "pending";
+  hold_reasons: string[];
+}
+
+/** One retained Core result per offered target. A reviewed fallback is a
+ * different artifact and cannot make the current candidate eligible. */
+function managedReleaseCandidates(
+  policy: Record<string, unknown>,
+  source: {
+    provider: string;
+    repositoryId: number;
+    portId: string;
+    channels: readonly string[];
+    release: unknown;
+  },
+): ManagedReleaseCandidate[] | undefined {
+  const { provider, repositoryId, portId, channels, release } = source;
+  if (
+    !["github", "gitlab"].includes(provider) ||
+    !channels.length ||
+    !Array.isArray(policy.projections) ||
+    policy.projections.length > 12
+  )
+    return undefined;
+  const curated = isRecord(release) && isRecord(release.curated) ? release.curated : {};
+  const candidates: ManagedReleaseCandidate[] = [];
+  const targets = new Set<string>();
+  for (const row of policy.projections) {
+    if (
+      !isRecord(row) ||
+      typeof row.platform !== "string" ||
+      !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(row.platform) ||
+      Object.hasOwn(curated, row.platform) ||
+      typeof row.channel !== "string" ||
+      !channels.includes(row.channel) ||
+      !isRecord(row.channel_candidate)
+    )
+      continue;
+    const candidate = row.channel_candidate;
+    const { tag, published_at } = candidate;
+    const releaseId =
+      typeof candidate.id === "number" && Number.isSafeInteger(candidate.id) && candidate.id > 0
+        ? candidate.id
+        : null;
+    if (
+      typeof tag !== "string" ||
+      !tag.length ||
+      tag.length > 512 ||
+      /\p{Cc}/u.test(tag) ||
+      (provider === "github" && releaseId === null)
+    )
+      continue;
+    const target = `${row.platform}/${row.channel}`;
+    if (targets.has(target)) return undefined;
+    targets.add(target);
+    const selected = isRecord(row.latest_eligible) ? row.latest_eligible : null;
+    const exact =
+      selected !== null &&
+      isRecord(selected.release) &&
+      selected.release.version === tag &&
+      (provider === "github"
+        ? selected.release_id === releaseId
+        : isRecord(selected.identity) && selected.identity.tag === tag);
+    const holdReasons: unknown[] = Array.isArray(row.hold_reasons) ? row.hold_reasons : [];
+    candidates.push({
+      candidate_key: createHash("sha256")
+        .update(
+          JSON.stringify([
+            portId,
+            provider,
+            repositoryId,
+            releaseId ?? tag,
+            row.platform,
+            row.channel,
+          ]),
+        )
+        .digest("hex"),
+      platform: row.platform,
+      channel: row.channel,
+      release_id: releaseId,
+      tag,
+      published_at:
+        typeof published_at === "string" && Number.isFinite(Date.parse(published_at))
+          ? new Date(published_at).toISOString()
+          : null,
+      state: exact ? "eligible" : "pending",
+      hold_reasons: holdReasons
+        .filter((reason): reason is string => typeof reason === "string" && reason.length <= 512)
+        .slice(0, 16)
+        .sort(),
+    });
+  }
+  return candidates.sort(
+    (left, right) =>
+      left.platform.localeCompare(right.platform) || left.channel.localeCompare(right.channel),
+  );
+}
+
+const eligibilityWindowMs = 30 * 24 * 60 * 60 * 1000;
+
+type RetainedCandidateObservation = Pick<
+  ManagedReleaseCandidate,
+  "state" | "published_at" | "hold_reasons"
+>;
+
+/** Measures retained observer eligibility. The store clock bounds when eligibility
+ * was recorded; it cannot locate the instant of availability to a released client. */
+export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: Date) {
+  const end = now.getTime();
+  const start = end - eligibilityWindowMs;
+  let firstRecorded = Infinity;
+  let lastRecorded = -Infinity;
+  const series = new Map<
+    string,
+    {
+      latest: RetainedCandidateObservation;
+      recorded: number;
+      eligibleAt: number | null;
+      firstPendingAt: number;
+      lastEligibleAt: number;
+    }
+  >();
+  for (const row of rows) {
+    if (
+      !isRecord(row) ||
+      typeof row.candidate_key !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(row.candidate_key) ||
+      (row.state !== "pending" && row.state !== "eligible") ||
+      typeof row.recorded_at !== "string" ||
+      !Array.isArray(row.hold_reasons) ||
+      !row.hold_reasons.every((reason) => typeof reason === "string")
+    )
+      continue;
+    const recorded = Date.parse(row.recorded_at);
+    if (!(recorded >= start && recorded <= end)) continue;
+    firstRecorded = Math.min(firstRecorded, recorded);
+    lastRecorded = Math.max(lastRecorded, recorded);
+    const candidate: RetainedCandidateObservation = {
+      state: row.state,
+      published_at: typeof row.published_at === "string" ? row.published_at : null,
+      hold_reasons: row.hold_reasons,
+    };
+    const previous = series.get(row.candidate_key);
+    const eligibleTimes = [
+      previous?.eligibleAt ?? null,
+      row.state === "eligible" ? recorded : null,
+    ].filter((value): value is number => value !== null);
+    series.set(row.candidate_key, {
+      latest: previous && previous.recorded > recorded ? previous.latest : candidate,
+      recorded: Math.max(previous?.recorded ?? recorded, recorded),
+      eligibleAt: eligibleTimes.length ? Math.min(...eligibleTimes) : null,
+      firstPendingAt: Math.min(
+        previous?.firstPendingAt ?? Infinity,
+        row.state === "pending" ? recorded : Infinity,
+      ),
+      lastEligibleAt: Math.max(
+        previous?.lastEligibleAt ?? -Infinity,
+        row.state === "eligible" ? recorded : -Infinity,
+      ),
+    });
+  }
+  const recent = [...series.values()].filter(({ latest }) => {
+    const published = latest.published_at ? Date.parse(latest.published_at) : NaN;
+    return published >= start && published <= end;
+  });
+  const eligible = recent.filter(({ latest }) => latest.state === "eligible");
+  const held = recent.filter(({ latest }) => latest.state === "pending");
+  const pendingAges = held.map(({ latest }) => end - Date.parse(latest.published_at!));
+  const lags = eligible
+    .map(({ latest, eligibleAt }) => eligibleAt! - Date.parse(latest.published_at!))
+    .filter((lag) => lag >= 0)
+    .sort((left, right) => left - right);
+  const reasons = new Map<string, number>();
+  let pendingWithoutReason = 0;
+  for (const { latest } of held) {
+    const recordedReasons = new Set(latest.hold_reasons.filter((reason) => reason.trim().length));
+    if (!recordedReasons.size) pendingWithoutReason++;
+    for (const reason of recordedReasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+  return {
+    from: new Date(start).toISOString(),
+    through: now.toISOString(),
+    first_recorded_evidence_at: Number.isFinite(firstRecorded)
+      ? new Date(firstRecorded).toISOString()
+      : null,
+    last_recorded_evidence_at: Number.isFinite(lastRecorded)
+      ? new Date(lastRecorded).toISOString()
+      : null,
+    distinct_candidates: recent.length,
+    eligible_candidates: eligible.length,
+    pending_candidates: held.length,
+    pending_without_recorded_hold_reason: pendingWithoutReason,
+    observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
+      Number.isFinite(firstPendingAt),
+    ).length,
+    observed_pending_to_eligible_candidates: recent.filter(
+      ({ firstPendingAt, lastEligibleAt }) => firstPendingAt < lastEligibleAt,
+    ).length,
+    unknown_publication_times: [...series.values()].filter(
+      ({ latest }) => !latest.published_at || !Number.isFinite(Date.parse(latest.published_at)),
+    ).length,
+    oldest_pending_age_ms: pendingAges.length ? Math.max(...pendingAges) : null,
+    hold_reasons: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, distinct_candidates]) => ({ reason, distinct_candidates })),
+    publication_to_recorded_eligibility_ms: lags.length
+      ? {
+          samples: lags.length,
+          median:
+            (lags[Math.floor((lags.length - 1) / 2)]! + lags[Math.ceil((lags.length - 1) / 2)]!) /
+            2,
+          max: lags.at(-1)!,
+        }
+      : null,
+    released_client_unattended_availability: null,
+    human_interventions: null,
+    signed_automatic_repairs: null,
+    operating_cost: null,
+  };
+}
+
 /**
  * Per-port observer facts and coverage from one catalog checkpoint and the
  * catalog it observed. Each port's payload lists its observation sources with
- * stable facts only; per-observation clocks, sequences, cursors, retry state
- * and Core policy outputs (which embed observation clocks) are never stored.
+ * stable facts only. Retain exact managed candidate identities and their
+ * policy-projected result without copying the full policy or its observation clock.
  * A port is a fact only when every source serving it has a completed policy
  * for it; otherwise it is a coverage gap. The observer also lists a port as
  * held when one of its declarations is not observable while another source
@@ -125,6 +354,16 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         typeof progress.exception_rule === "string" &&
         partialProgressRules.includes(progress.exception_rule);
       const exceptionKey = routine ? null : progress.exception_key;
+      const candidates =
+        port.kind !== "listing" && progress.repository_id !== null
+          ? managedReleaseCandidates(policy, {
+              provider: source.provider ?? "github",
+              repositoryId: progress.repository_id,
+              portId: port.id,
+              channels: port.channels,
+              release: port.release,
+            })
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -141,6 +380,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
             typeof policy.catalog_definition_sha256 === "string"
               ? policy.catalog_definition_sha256
               : null,
+          ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
         },
       ]);
     }
@@ -225,11 +465,14 @@ export interface UpstreamTransport {
 }
 
 /** The maintained GitHub client and artifact transfer under the local developer credential. */
-async function githubTransport(): Promise<UpstreamTransport> {
+async function githubTransport(
+  producerEventCount: number,
+  timeBudgetMs = 120_000,
+): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
-  const deadline = performance.now() + 120_000;
+  const deadline = performance.now() + timeBudgetMs;
   const credential = localDeveloperCredential({
     deadline,
     command: process.env.PORTCOVE_ROADMAP_GH,
@@ -246,7 +489,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
       url.pathname.startsWith(`${prefix}/actions/`) &&
       !url.pathname.endsWith("/zip"),
     reserve() {
-      if (++requests > 2 + candidateLimit + 6)
+      if (++requests > producerEventCount * (1 + candidateLimitPerEvent) + 6)
         throw new MaintenanceStoreError("Upstream-observation lookup exceeded its request budget");
       return { consumeBytes() {}, settle() {} };
     },
@@ -260,6 +503,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
         credential,
         deadline: Math.min(deadline, performance.now() + 110_000),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
       }),
   };
 }
@@ -278,16 +522,19 @@ export async function readUpstreamObservations(
     await import("./release-run-artifact-inventory.mts");
   const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
     await import("./observer-checkpoint-artifact.mts");
-  const transport = options.transport ?? (await githubTransport());
+  const transport = options.transport ?? (await githubTransport(producerEvents.length));
   const get = transport.read;
-  // One server-filtered window per producer trigger, merged newest-first.
+  // Keep each producer window. A burst of admission-only pushes must not
+  // displace a scheduled snapshot when the windows are merged newest-first.
   const runs: WorkflowRun[] = [];
   for (const event of producerEvents) {
     const window = (
       await get(
-        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimit}`,
+        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimitPerEvent}`,
       )
     ).workflow_runs as WorkflowRun[];
+    if (!Array.isArray(window) || window.length > candidateLimitPerEvent)
+      throw new MaintenanceStoreError("The observer run inventory exceeds its producer window");
     for (const run of window) {
       if (
         run.event !== event ||
@@ -302,9 +549,9 @@ export async function readUpstreamObservations(
   }
   runs.sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
   // Snapshots are retained for one day and admitted for twenty-four hours.
-  const candidates = runs
-    .filter(({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000)
-    .slice(0, candidateLimit);
+  const candidates = runs.filter(
+    ({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000,
+  );
   for (const run of candidates) {
     // A failed run can still carry a complete snapshot; other conclusions never do.
     if (!["success", "failure"].includes(String(run.conclusion))) continue;
@@ -417,6 +664,7 @@ export interface UpstreamSourceFact {
   exception_key: string | null;
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
+  managed_release_candidates?: ManagedReleaseCandidate[];
 }
 
 const storedSources = (payload: unknown) =>
@@ -472,4 +720,148 @@ export function upstreamSummary(payload: unknown, gap: unknown, attempt?: string
       .filter(Boolean)
       .join("; ") || null
   );
+}
+
+function githubJobTime(value: unknown) {
+  if (typeof value !== "string") return null;
+  const parts = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/u.exec(value);
+  if (!parts) return null;
+  const canonical = `${parts[1]}.${(parts[2] ?? "").padEnd(3, "0")}Z`;
+  const parsed = Date.parse(canonical);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === canonical ? parsed : null;
+}
+
+/** Resource use of the exact observer attempt cited by an inventory report. */
+export async function readObserverOperatingUsage(
+  report: unknown,
+  transport?: Pick<UpstreamTransport, "read">,
+) {
+  if (
+    !isRecord(report) ||
+    report.format !== "portcove-maintenance-inventory" ||
+    !Array.isArray(report.runs)
+  )
+    throw new MaintenanceStoreError("A maintenance inventory report is required");
+  const rows = (report.runs as unknown[]).filter(
+    (run) => isRecord(run) && run.source === "upstream-observations",
+  );
+  const run = rows[0];
+  const binding =
+    rows.length === 1 && isRecord(run) && typeof run.source_revision === "string"
+      ? /^upstream-observer-run:([1-9][0-9]{0,15})-([1-9][0-9]{0,8})@([a-f0-9]{40})#(sha256:[a-f0-9]{64})$/u.exec(
+          run.source_revision,
+        )
+      : null;
+  if (!binding || !isRecord(run) || !["complete", "partial"].includes(String(run.coverage)))
+    throw new MaintenanceStoreError("No digest-bound imported observer attempt is recorded");
+  const [, runId, attempt, source, artifactDigest] = binding;
+  const id = Number(runId);
+  const attemptNumber = Number(attempt);
+  if (!Number.isSafeInteger(id)) throw new MaintenanceStoreError("Invalid observer run identity");
+  const { read } = transport ?? (await githubTransport(0, 45_000));
+  const prefix = `actions/runs/${runId}`;
+  const attemptPath = `${prefix}/attempts/${attempt}`;
+  const [attemptFacts, inventory, artifacts] = await Promise.all([
+    read(attemptPath),
+    read(`${attemptPath}/jobs?per_page=100`),
+    read(`${prefix}/artifacts?per_page=100`),
+  ]);
+  if (
+    attemptFacts.id !== id ||
+    attemptFacts.run_attempt !== attemptNumber ||
+    attemptFacts.head_sha !== source ||
+    attemptFacts.path !== workflowPath ||
+    attemptFacts.head_branch !== "main" ||
+    !isRecord(attemptFacts.head_repository) ||
+    attemptFacts.head_repository.full_name !== repository ||
+    (attemptFacts.event !== "push" && attemptFacts.event !== "schedule") ||
+    attemptFacts.status !== "completed" ||
+    (attemptFacts.conclusion !== "success" && attemptFacts.conclusion !== "failure")
+  )
+    throw new MaintenanceStoreError("Observer usage attempt differs from the imported evidence");
+  if (
+    !Array.isArray(inventory.jobs) ||
+    inventory.total_count !== inventory.jobs.length ||
+    inventory.jobs.length > 100 ||
+    !Array.isArray(artifacts.artifacts) ||
+    artifacts.total_count !== artifacts.artifacts.length ||
+    artifacts.artifacts.length > 100
+  )
+    throw new MaintenanceStoreError("Observer usage inventory is incomplete");
+
+  const checkpointName = new RegExp(
+    `^upstream-observer-checkpoint-[a-f0-9]{64}-${runId}-${attempt}$`,
+    "u",
+  );
+  const matching = (artifacts.artifacts as unknown[]).filter(
+    (item) => isRecord(item) && typeof item.name === "string" && checkpointName.test(item.name),
+  );
+  const checkpoint = matching[0];
+  if (
+    matching.length !== 1 ||
+    !isRecord(checkpoint) ||
+    !Number.isSafeInteger(checkpoint.id) ||
+    Number(checkpoint.id) < 1 ||
+    checkpoint.digest !== artifactDigest ||
+    !Number.isSafeInteger(checkpoint.size_in_bytes) ||
+    Number(checkpoint.size_in_bytes) < 22 ||
+    !isRecord(checkpoint.workflow_run) ||
+    checkpoint.workflow_run.id !== id ||
+    checkpoint.workflow_run.head_sha !== source
+  )
+    throw new MaintenanceStoreError("Observer usage checkpoint differs from the report digest");
+
+  const seen = new Set<number>();
+  const executed: { id: number; name: string; conclusion: string; seconds: number | null }[] = [];
+  for (const job of inventory.jobs as unknown[]) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      seen.has(job.id) ||
+      job.run_id !== id ||
+      job.run_attempt !== attemptNumber ||
+      job.head_sha !== source ||
+      job.status !== "completed" ||
+      typeof job.conclusion !== "string" ||
+      typeof job.name !== "string" ||
+      !job.name.length ||
+      job.name.length > 200
+    )
+      throw new MaintenanceStoreError("Observer job identity differs from the imported attempt");
+    seen.add(job.id);
+    if (job.conclusion === "skipped") continue;
+    const start = githubJobTime(job.started_at);
+    const end = githubJobTime(job.completed_at);
+    executed.push({
+      id: job.id,
+      name: job.name,
+      conclusion: job.conclusion,
+      seconds: start !== null && end !== null && end >= start ? (end - start) / 1000 : null,
+    });
+  }
+  if (!executed.some(({ name }) => name === "observe"))
+    throw new MaintenanceStoreError("Imported observer attempt did not execute observation");
+  const measured = executed.filter(({ seconds }) => seconds !== null);
+  return {
+    format_version: 1,
+    kind: "maintenance-observer-operating-usage",
+    scope: "one-imported-observer-attempt",
+    source_revision: run.source_revision,
+    producer: {
+      id,
+      attempt: attemptNumber,
+      source,
+      event: attemptFacts.event,
+      conclusion: attemptFacts.conclusion,
+    },
+    checkpoint: { id: checkpoint.id, digest: artifactDigest, bytes: checkpoint.size_in_bytes },
+    executed_jobs: executed,
+    unmeasured_jobs: executed.length - measured.length,
+    observed_runner_seconds: measured.length
+      ? measured.reduce((total, job) => total + (job.seconds ?? 0), 0)
+      : null,
+    billed_cost_usd: null,
+  };
 }

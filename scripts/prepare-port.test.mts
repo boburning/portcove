@@ -16,6 +16,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   collectPortFacts,
   githubRepository,
@@ -34,6 +38,8 @@ import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts"
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
+import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -215,6 +221,49 @@ void test("portable preparation separates complete hint observations from lifecy
       { assets_complete: true, assets: [] },
     ),
     undefined,
+  );
+});
+
+void test("Raze preparation retains the explicit archive and persistence observations", () => {
+  const record: AuthoredPort = {
+    format_version: 1,
+    listing: {
+      id: "blood-raze",
+      name: "Blood (Raze)",
+      summary: "Fixture",
+      project_url: "https://github.com/ZDoom/Raze",
+    },
+    raze_windows_profile_v1: true,
+    integration: {
+      adapter: "native-portable",
+      platforms: ["windows-x86-64"],
+      channels: ["stable"],
+      release: { repository: "ZDoom/Raze" },
+    },
+  };
+  const explicit = structuredClone(record);
+  delete explicit.raze_windows_profile_v1;
+  explicit.integration!.release = {
+    repository: "ZDoom/Raze",
+    asset_hints: { "windows-x86-64": ["Raze-", "-windows.zip"] },
+  };
+  explicit.integration!.persistent_paths = [
+    "raze_portable.ini",
+    "Save",
+    "Screenshots",
+    "Demos",
+    "autoexec.cfg",
+  ];
+  const facts = {
+    assets_complete: true,
+    assets: [{ name: "Raze-1.9.0-windows.zip" }, { name: "Raze-1.9.0-linux.tar.gz" }],
+  };
+  const feedback = portablePreparationFeedback(record, facts)!;
+  assert.deepEqual(feedback, portablePreparationFeedback(explicit, facts));
+  assert.equal(feedback.platforms[0]?.hint_matches.length, 1);
+  assert.equal(
+    declarativePreparationFeedback(record).projections[0]?.field,
+    "raze_windows_profile_v1",
   );
 });
 
@@ -2243,14 +2292,25 @@ void test("preparation reports all declared route projections across the current
   );
   assert.ok(routeRecords.some((record) => record.integration === undefined));
   assert.ok(gbaRecords.length > 0);
+  assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
+  assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
+  assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
+  assert.ok(records.some((record) => record.raze_windows_profile_v1));
+  assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
+    if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
+    if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
+    if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
+    if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
+    if (record.crispy_doom_windows_persistence_v1)
+      expected.push("crispy_doom_windows_persistence_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2258,6 +2318,267 @@ void test("preparation reports all declared route projections across the current
     );
     assert.equal(feedback.status, expected.length > 0 ? "declared" : "undeclared", id);
     assert.match(feedback.original_files, /does not establish/, id);
+  }
+});
+
+void test("official URL preparation retains ReflectionHLE portability observations in its compact proposal", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "catacomb-3-d-the-descent-reflectionhle";
+    const selected = accepted.records.find((record) => record.listing.id === id)!;
+    const explicit = projectReflectionHlePortablePaths(selected);
+    delete explicit.reflectionhle_portable_paths_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 24228275,
+                full_name: "ReflectionHLE/ReflectionHLE",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(
+      prepared.report.portable_preparation?.persistence,
+      explicit.integration?.persistent_paths,
+    );
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(candidate.reflectionhle_portable_paths_v1, true);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "bomberman-fantasy-race-recompiled";
+    const record = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const result = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: record.listing.project_url,
+      originalGame: record.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                full_name: "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(result.report.changed_records, [id]);
+    assert.equal(result.report.operational_changed, false);
+    assert.equal(candidate.psx_managed_windows_v1, "technically-computers");
+    assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation proposes the exact reviewed N64 persistence layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "quest-64-recompiled";
+    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectN64RecompPersistence(selected);
+    delete explicit.n64_recomp_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const result = await preparePort({
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, full_name: "Rainchus/Quest64-Recomp", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    assert.equal(result.report.port_id, id);
+    assert.deepEqual(result.report.changed_records, [id]);
+    assert.equal(result.report.operational_changed, false);
+    const proposed = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(proposed.n64_recomp_persistence_v1, true);
+    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(
+      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("Raze preparation compacts the reviewed Windows profile and preserves explicit writers", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "blood-raze";
+    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectRazeWindowsProfile(selected);
+    delete explicit.raze_windows_profile_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const common = {
+      catalogRoot: root,
+      id,
+      projectUrl: selected.listing.project_url,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 230432175, full_name: "ZDoom/Raze", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    };
+    const reviewed = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "reviewed"),
+      originalGame: selected.listing.original_game,
+    });
+    const proposed = checkedAuthoredPort(
+      JSON.parse(readFileSync(reviewed.report.files.records[0]!.path, "utf8")),
+    );
+    assert.equal(reviewed.report.port_id, id);
+    assert.deepEqual(reviewed.report.changed_records, [id]);
+    assert.equal(reviewed.report.operational_changed, false);
+    assert.equal(proposed.raze_windows_profile_v1, true);
+    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(
+      JSON.parse(readFileSync(reviewed.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
+    assert.equal(readFileSync(source, "utf8"), bytes);
+
+    const alternate = structuredClone(explicit);
+    const persistent = [...(alternate.integration!.persistent_paths as string[]), "custom.cfg"];
+    alternate.integration!.persistent_paths = persistent;
+    const alternateBytes = JSON.stringify(alternate);
+    writeFileSync(source, alternateBytes);
+    const custom = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "custom"),
+      record: alternate,
+    });
+    assert.deepEqual(custom.report.changed_records, []);
+    assert.equal(custom.report.operational_changed, false);
+    assert.deepEqual(custom.report.declarative_authoring.projections, []);
+    assert.deepEqual(custom.report.portable_preparation?.persistence, persistent);
+
+    const otherGame = accepted.records.find((entry) => entry.listing.id === "nam-raze")!;
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "wrong-game"),
+        originalGame: otherGame.listing.original_game,
+      }),
+      /change to an existing game or edition identity/u,
+    );
+    assert.equal(readFileSync(source, "utf8"), alternateBytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts only the exact Crispy Doom persistence coordinates", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "doom-ii-crispy-doom-family";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectCrispyDoomWindowsPersistence(selected);
+    delete explicit.crispy_doom_windows_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 17395051,
+                full_name: "fabiangreffrath/crispy-doom",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(
+      prepared.report.portable_preparation?.persistence,
+      explicit.integration?.persistent_paths,
+    );
+    assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
   }
 });
 
@@ -2270,6 +2591,45 @@ void test("unsupported managed subshapes and contradictory GBA paths fail author
   const gba = structuredClone(records.find((record) => record.gba_staged_archive_v1)!);
   gba.integration!.persistent_paths = ["contradictory"];
   assert.throws(() => checkedAuthoredPort(gba), /already own persistent_paths/);
+});
+
+void test("official URL preparation compacts an already reviewed exact flat package layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "gunstar-heroes-gunstars";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectReviewedFlatPackageLayout(selected);
+    delete explicit.reviewed_flat_package_layout_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 1424763220, full_name: "1nputs/gunstars", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(candidate.reviewed_flat_package_layout_v1, ["windows-x86-64", "linux-x86-64"]);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
 });
 
 void test("settings qualification requests complete exact package facts and limits missing evidence to settings", async () => {

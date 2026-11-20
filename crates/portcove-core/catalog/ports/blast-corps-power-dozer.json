@@ -49,7 +49,16 @@
         "https://github.com/djultra64/Power-Dozer#readme",
         "https://github.com/djultra64/Power-Dozer"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

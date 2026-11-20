@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "viva-pinata",
       "evidence_urls": ["https://github.com/crabinacrabic/VivaPinataRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "viva-pinata-xbox-360",
+          "title": "Viva Pinata (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/crabinacrabic/VivaPinataRecomp/blob/a0ecaa1c155480c0c25667467dbb95327684b204/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

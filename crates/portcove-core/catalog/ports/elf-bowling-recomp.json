@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "elf-bowling-recomp",
     "artwork": {
@@ -79,12 +80,6 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "On first Play, the player asks you to choose your own 1,130,496-byte Elf Bowling.exe from the 1999 release. It checks the file's SHA-256, copies it into its NStorm\\Elf Bowling profile under %APPDATA% and uses that copy from then on; keep your original separately and do not put it in Portcove's install folder, where an extra program holds launch and updates. Cancelling the picker shows a message and closes the game. The package is the player with SDL2 libraries; the original game is never included. The project has not published a license for its engine source. The player works from its profile folder, so the copied original and everything the game writes stay in %APPDATA%\\NStorm\\Elf Bowling, outside the managed copy. Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the original and the profile."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["elfbowl.exe"]
-      }
     }
   }
 }

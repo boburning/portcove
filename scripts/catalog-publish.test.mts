@@ -5,6 +5,7 @@ import {
 } from "./fixtures/catalog-generator-fixtures.mts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -26,6 +27,10 @@ import {
   signConfig,
   treeDigest,
 } from "./catalog-publish.mts";
+import {
+  describeCatalogPublication,
+  verifyCatalogPublicationLive,
+} from "./catalog-publication-receipt.mts";
 
 void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
   const root = temp(t),
@@ -81,6 +86,136 @@ function site(dir: string, targets: Record<string, string>) {
   put(dir, "metadata/5.official-definitions.json", { signed: { targets: entries(false) } });
   put(dir, "metadata/4.official-policy.json", { signed: { targets: entries(true) } });
 }
+
+function receiptSite(
+  dir: string,
+  rows: { id: string; revision: number }[],
+  policyRevision: number,
+  listing: string,
+) {
+  const targets: Record<string, string> = {};
+  const digest = (text: string) => createHash("sha256").update(text).digest("hex");
+  const payload = (target: string, value: unknown) => {
+    const body = JSON.stringify(value);
+    const sha = digest(body);
+    if (!target) target = `sha256/${sha}.json`;
+    targets[target] = sha;
+    put(dir, `targets/${sha}.${target}`, body);
+    return { target, sha };
+  };
+  const contents = payload("", { catalog: "unchanged projection" });
+  const entries = rows.map(({ id, revision }) => ({
+    id,
+    revision,
+    ...payload("", {
+      namespace: "official",
+      stable_id: id,
+      revision,
+      source_contracts: [contents.target],
+      execution_contract: contents.target,
+      persistence_contract: contents.target,
+      artifact_bindings: [],
+      evidence_references: [],
+    }),
+  }));
+  const index = payload("definitions/index.json", {
+    index_schema: 1,
+    definitions: entries.map(({ id, revision, target }) => ({
+      namespace: "official",
+      stable_id: id,
+      revision,
+      target,
+    })),
+  });
+  for (const { id, revision, sha } of entries) {
+    const policy = payload(`policy/official/${id}.json`, {
+      policy_revision: policyRevision,
+      grant_id: `reviewed-${id}`,
+      decision: { definition_revision: revision, definition_sha256: sha, index_sha256: index.sha },
+    });
+    payload(`policy/official/${id}.launch.json`, {
+      revision: policyRevision,
+      policy_sha256: policy.sha,
+      assessments: [],
+    });
+  }
+  payload("policy/official/catalog.listings.json", { listing });
+  site(dir, targets);
+}
+
+void test("catalog publication readback distinguishes initial, revised, retained rebind and descriptive change", async (t) => {
+  const dir = temp(t);
+  const prior = path.join(dir, "prior");
+  const next = path.join(dir, "next");
+  const descriptive = path.join(dir, "descriptive");
+  receiptSite(
+    prior,
+    [
+      { id: "chameleon", revision: 1 },
+      { id: "revised", revision: 1 },
+    ],
+    1,
+    "old",
+  );
+  const nextRows = [
+    { id: "chameleon", revision: 1 },
+    { id: "new-entry", revision: 1 },
+    { id: "revised", revision: 2 },
+  ];
+  receiptSite(next, nextRows, 2, "new");
+  receiptSite(descriptive, nextRows, 2, "descriptive refresh");
+  const change = await describeCatalogPublication(prior, next);
+  assert.deepEqual(
+    change.changes.map(({ id, kind }) => [id, kind]),
+    [
+      ["chameleon", "retained-index-rebind"],
+      ["new-entry", "initial"],
+      ["revised", "revised"],
+    ],
+  );
+  assert.equal(change.listingChanged, true);
+  assert.deepEqual(change.changes[0]?.prior?.entry, change.changes[0]?.published?.entry);
+  assert.notDeepEqual(change.changes[0]?.prior?.policy, change.changes[0]?.published?.policy);
+  const refresh = await describeCatalogPublication(next, descriptive);
+  assert.deepEqual(refresh.changes, []);
+  assert.deepEqual(
+    refresh.targets.map(({ target }) => target),
+    ["definitions/index.json", "policy/official/catalog.listings.json"],
+  );
+});
+
+void test("catalog success readback requires every affected immutable target and a final timestamp match", async (t) => {
+  const dir = temp(t);
+  receiptSite(dir, [{ id: "chameleon", revision: 1 }], 1, "descriptive");
+  const description = await describeCatalogPublication(null, dir);
+  const requests: string[] = [];
+  const localFetch =
+    (fail?: string): typeof fetch =>
+    (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const suffix = url.pathname.split("/portcove/catalog/")[1]!;
+      requests.push(`${suffix}${url.search}`);
+      return Promise.resolve(
+        new Response(
+          fail && (suffix.includes(fail) || url.search.endsWith(fail))
+            ? "different"
+            : readFileSync(path.join(dir, suffix)),
+        ),
+      );
+    };
+  assert.ok((await verifyCatalogPublicationLive(description, "fixture", localFetch())) > 0);
+  assert.equal(requests.length, description.targets.length + 2);
+  assert.match(requests[0]!, /^metadata\/timestamp\.json\?/u);
+  assert.match(requests.at(-1)!, /receipt=fixture-end$/u);
+  await assert.rejects(
+    verifyCatalogPublicationLive(description, "fixture", localFetch(".launch.json")),
+    /readback bytes differ/u,
+  );
+  await assert.rejects(
+    verifyCatalogPublicationLive(description, "fixture", localFetch("-end")),
+    /readback bytes differ/u,
+  );
+});
 
 void test("a first publication starts every role at one; later runs advance every role", (t) => {
   const now = new Date("2026-11-15T12:00:00.000Z");
@@ -228,27 +363,16 @@ void test("inspection keeps only a successful Core report", () => {
 
 void test("renewals pick the newest CI-green first-parent main commit", () => {
   const history = ["c", "b", "a"];
-  assert.equal(
-    newestGreen(
-      history,
-      new Map([
-        ["b", "success"],
-        ["a", "success"],
-      ]),
-    ),
-    "b",
-  );
-  assert.equal(
-    newestGreen(
-      history,
-      new Map([
-        ["c", "failure"],
-        ["a", "success"],
-      ]),
-    ),
-    "a",
-  );
-  assert.equal(newestGreen(history, new Map([["c", "cancelled"]])), null);
+  const lookup = (known: Record<string, string>) => (sha: string) => known[sha] ?? "";
+  assert.equal(newestGreen(history, lookup({ b: "success", a: "success" })), "b");
+  assert.equal(newestGreen(history, lookup({ c: "failure", a: "success" })), "a");
+  assert.equal(newestGreen(history, lookup({ c: "cancelled" })), null);
+  function disputed(sha: string) {
+    if (sha === "b") throw new Error("unresolved main CI attempt");
+    return "success";
+  }
+  assert.equal(newestGreen(history, disputed), "c");
+  assert.throws(() => newestGreen(history.slice(1), disputed), /unresolved main CI attempt/);
 });
 
 void test("tree digests change with any catalog file and match for absent trees", (t) => {
@@ -263,6 +387,7 @@ void test("tree digests change with any catalog file and match for absent trees"
 });
 
 type Step = {
+  id?: string;
   uses?: string;
   run?: string;
   if?: string;
@@ -287,6 +412,24 @@ type Workflow = {
 };
 const read = (name: string) => parse(readFileSync(path.join(workflows, name), "utf8")) as Workflow;
 
+void test("the existing Pages readback emits the receipt only after matching live evidence", () => {
+  const steps = read("catalog-publish.yml").jobs.publish!.steps!;
+  const index = steps.findIndex(({ id }) => id === "readback");
+  const readback = steps[index]!.run!;
+  assert.match(
+    readback,
+    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
+  );
+  assert.equal(readback.match(/receipt=true/gu)?.length, 1);
+  assert.match(
+    readback,
+    /receipt=true[^\n]+\n\s+else\s+echo "::warning::Catalog publication succeeded/u,
+  );
+  const upload = steps[index + 1]!;
+  assert.equal(upload.if, "steps.readback.outputs.receipt == 'true'");
+  assert.equal(upload.with?.["retention-days"], 7);
+});
+
 void test("catalog keys reach only one signing step per role, from main", async () => {
   const publish = read("catalog-publish.yml");
   const sign = read("catalog-sign-role.yml");
@@ -305,6 +448,14 @@ void test("catalog keys reach only one signing step per role, from main", async 
   assert.match(publish.jobs.prepare!.if!, /^github\.ref == 'refs\/heads\/main' && /u);
   assert.match(publish.jobs.prepare!.if!, /workflow_run\.conclusion == 'success'/u);
   assert.match(publish.jobs.prepare!.if!, /workflow_run\.event == 'push'/u);
+  const prepareSteps = publish.jobs.prepare!.steps!;
+  const preflight = prepareSteps.findIndex((step) =>
+    step.run?.includes("check-definition-publication-context"),
+  );
+  assert.ok(preflight >= 0);
+  assert.match(prepareSteps[preflight]!.run!, /catalog-work\/context\.json/u);
+  assert.equal(prepareSteps[preflight]!.env, undefined);
+  assert.ok(preflight < prepareSteps.findIndex((step) => step.with?.name === "catalog-work"));
 
   const roles = {
     "sign-definitions": "official-definitions",
@@ -319,6 +470,8 @@ void test("catalog keys reach only one signing step per role, from main", async 
     assert.equal(job.secrets, "inherit");
     assert.deepEqual(job.with, { role, commit: "${{ needs.prepare.outputs.commit }}" });
   }
+  assert.equal(publish.jobs["sign-definitions"]!.needs, "prepare");
+  assert.equal(publish.jobs["sign-policy"]!.needs, "prepare");
   assert.deepEqual(publish.jobs["sign-snapshot"]!.needs, [
     "prepare",
     "sign-definitions",

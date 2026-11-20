@@ -44,6 +44,27 @@
           "instruction": "Preserve the whole prepared folder, extracted assets, settings and any mods or diagnostic outputs. The reviewed Windows save implementation uses Saves beside Sly1-Release.exe, with slotN.sav files and adjacent .tmp files during replacement. Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sly-cooper-and-the-thievius-raccoonus",
+      "evidence_urls": [
+        "https://github.com/theclub654/ProjectCane/blob/39566d8eda907dbf71dc12f8c6fc0c85cb182413/README.md",
+        "https://github.com/theclub654/ProjectCane",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/theclub654-projectcane.json"
+      ],
+      "source_editions": [
+        {
+          "id": "sly-cooper-and-the-thievius-raccoonus-playstation-2",
+          "title": "Sly Cooper and the Thievius Raccoonus (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/theclub654/ProjectCane/blob/39566d8eda907dbf71dc12f8c6fc0c85cb182413/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/theclub654-projectcane.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sly Cooper and the Thievius Raccoonus"
   }
 }

@@ -334,11 +334,14 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       assert.deepEqual(fixtureSuccess(await invoke("get_dat_references")), []);
 
       // A real preference change asks the mounted notice component to assess again.
-      const noticeSwitch = await browser.findElement(
+      const noticeControls = await browser.findElements(
         By.xpath(
-          '//*[@role="checkbox" and @id=//label[contains(.,"Tell me when games I chose to hear about are ready")]/@for]',
+          '//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]',
         ),
       );
+      assert.equal(noticeControls.length, 1, "Expected the visible ready-notice checkbox");
+      const [noticeSwitch] = noticeControls;
+      assert.ok(noticeSwitch);
       for (let change = 0; change < 2; change++) {
         const before = await noticeSwitch.getAttribute("aria-checked");
         await clickVisible(browser, noticeSwitch);
@@ -378,6 +381,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         "File name:",
         "secondary-metadata-save",
         files.metadata,
+        undefined,
+        false,
+        output,
       );
       await text("Library information was last exported to");
       assert.ok(isRecord(JSON.parse(await readFile(files.metadata, "utf8"))));
@@ -390,6 +396,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         "File name:",
         "secondary-metadata-refused",
         files.refusedMetadata,
+        undefined,
+        false,
+        output,
       );
       await text("Owned presentation metadata export refusal.");
       await focused(exportMetadata);
@@ -499,6 +508,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
           "File name:",
           `secondary-${theme}-saves-export`,
           files.portableOutput,
+          undefined,
+          false,
+          output,
         );
         await text("The saves could not be exported.");
         await focused(exportSaves);

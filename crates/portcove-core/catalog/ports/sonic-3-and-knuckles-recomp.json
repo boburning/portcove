@@ -51,7 +51,16 @@
         "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/ddafabc4790512488f0751ac162ef6b7b7740599/README.md",
         "https://github.com/mstan/Sonic3AndKnucklesRecomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-3-and-knuckles-mega-drive-genesis",
+          "title": "Sonic 3 & Knuckles (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/mstan/Sonic3AndKnucklesRecomp/blob/74e8aeadb5b8b8da7e776beb0d28f915e3efeb85/game/sonic3k/sonic3k_spec.c"
+          ]
+        }
+      ]
     }
   },
   "integration": {

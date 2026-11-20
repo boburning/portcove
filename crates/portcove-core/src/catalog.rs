@@ -381,6 +381,12 @@ impl Catalog {
         }
     }
 
+    pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
+        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+        }
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
@@ -705,11 +711,14 @@ impl Catalog {
                     port.id
                 )));
             }
+            crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
+            crate::runtime::validate_linux_packaged_library(port)?;
             validate_portable_marker_file(port)?;
             validate_accepted_uploaders(port)?;
+            port.release.validate_github_streams(&port.platforms)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,

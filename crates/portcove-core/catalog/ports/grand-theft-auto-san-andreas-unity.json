@@ -45,6 +45,15 @@
           "instruction": "The Android v4.0 APK is an ARMv7 debug build and requires a device that can run 32-bit apps. It needs your installed PC game data and keeps its settings in the app’s user data. For Intel Mac and Apple Silicon, refer to the upstream Unity source build instructions. Compatibility for each Mac architecture still needs to be verified."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-san-andreas",
+      "evidence_urls": [
+        "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+        "https://github.com/in0finite/SanAndreasUnity"
+      ],
+      "source_editions": []
     }
   }
 }

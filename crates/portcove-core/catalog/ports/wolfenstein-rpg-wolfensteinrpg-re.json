@@ -54,7 +54,16 @@
         }
       ]
     },
-    "original_game_title": "Wolfenstein RPG"
+    "original_game_title": "Wolfenstein RPG",
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-rpg",
+      "evidence_urls": [
+        "https://github.com/Erick194/WolfensteinRPG-RE/blob/a17066018269ff973968002ba7dd4130fcba99db/README.md",
+        "https://github.com/Erick194/WolfensteinRPG-RE"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "saints-row-2006",
       "evidence_urls": ["https://github.com/sp00nznet/saintsrow"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "saints-row-2006-xbox-360",
+          "title": "Saints Row (2006) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/saintsrow/blob/a60804391afc50081f847160a78d4f727caaf183/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

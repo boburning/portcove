@@ -6,7 +6,7 @@
     "summary": "Prepared Windows Deception player for your own North American SLUS-00340 disc. Upstream owns first-run compilation, runtime updates and external profiles; full playthrough remains unverified.",
     "original_game_title": "Tecmo's Deception: Invitation to Darkness",
     "project_url": "https://github.com/dannyowelch/deception-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/dannyowelch/deception-recomp",
     "artwork": {
@@ -49,6 +49,15 @@
           "instruction": "The packaged launcher changes its own working directory to %LOCALAPPDATA%/Deception, or an already established DECEPTION_DATA override. Preserve settings.json, interface.ini, carda.sav/cardb.sav and their backups/metadata, builds/, mods/ with .cache, crashes, logs and every effective custom root. Upstream startup can copy missing player files from earlier Verdite2/KingsField2/KingsField2Recomp or installation locations and copy legacy named folders/cached assemblies; existing destination files are kept and the source is not deleted by these copy routines. Keep separate backups of old and new roots before first startup and do not infer save compatibility from those historical names. Portcove does not create an environment override or perform that migration."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tecmo-s-deception-invitation-to-darkness",
+      "evidence_urls": [
+        "https://github.com/dannyowelch/deception-recomp",
+        "https://github.com/dannyowelch/deception-recomp/blob/fd60be7758bb20ef6622c6055f00ada1b6b7ded4/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

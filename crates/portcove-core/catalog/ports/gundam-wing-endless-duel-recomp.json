@@ -44,6 +44,26 @@
       "image_sha256": "7b6ea9c333fc645047d5b911f20847a67c404150f57391886259dd91a1dbda1c",
       "game_slug": "shin-kidou-senki-gundam-wing-endless-duel",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-kidou-senki-gundam-w-endless-duel",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md",
+        "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/gundam-wing-endless-duel-recomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "shin-kidou-senki-gundam-w-endless-duel-super-nintendo",
+          "title": "Shin Kidou Senki Gundam W: Endless Duel (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/f2d774e05fbf6fc04642992f8d57a1305f077334/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/gundam-wing-endless-duel-recomp.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

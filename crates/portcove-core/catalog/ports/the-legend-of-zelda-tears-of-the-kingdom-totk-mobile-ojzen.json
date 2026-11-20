@@ -43,7 +43,16 @@
       "format_version": 1,
       "id": "the-legend-of-zelda-tears-of-the-kingdom",
       "evidence_urls": ["https://github.com/OJZen/totk-mobile"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+          "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/OJZen/totk-mobile/blob/6d4c1d36c67c71fa303404c475c4c7ba4a7f2823/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -67,7 +67,7 @@ for (const theme of ["dark", "light"]) {
         <Sidebar
           view="settings"
           setView={() => {}}
-          installedCount={0}
+          libraryCount={0}
           updateCount={0}
           activities={[]}
         />

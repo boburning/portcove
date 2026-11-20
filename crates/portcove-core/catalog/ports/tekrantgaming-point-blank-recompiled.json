@@ -54,7 +54,16 @@
         "https://github.com/TekRantGaming/point-blank-recompiled/blob/cf3b5fc9eb988bd2572964a5774c3828a6dcd635/README.md",
         "https://github.com/TekRantGaming/point-blank-recompiled"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "point-blank-playstation",
+          "title": "Point Blank (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TekRantGaming/point-blank-recompiled/blob/15c48788c5d02b0075343f007e282193426cd27b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -21,7 +21,16 @@
       "format_version": 1,
       "id": "super-bomberman",
       "evidence_urls": ["https://github.com/elliotttate/BombermanRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "super-bomberman-super-nintendo",
+          "title": "Super Bomberman (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c"
+          ]
+        }
+      ]
     }
   },
   "integration": {

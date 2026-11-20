@@ -195,7 +195,7 @@ async fn oversized_thunderstore_community_has_a_direct_browse_handoff() {
     let (root, _, server) = serve_http_bytes(vec![response]);
     let client = ProviderClient::Thunderstore {
         client: crate::ThunderstoreClient::with_root(&root, None).unwrap(),
-        community: "starship-test",
+        community: "starship-test".into(),
     };
     let error = service
         .browse_provider_mods_via(&client, "starship", 1)

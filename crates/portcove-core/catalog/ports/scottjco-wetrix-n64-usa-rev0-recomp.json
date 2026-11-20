@@ -17,7 +17,7 @@
     "listed_at": "2026-11-05",
     "original_game_title": "Wetrix",
     "availability": "unknown",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "setup_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",
     "manual_setup": {
       "help_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",

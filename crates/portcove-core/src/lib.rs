@@ -110,8 +110,10 @@ mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
 mod provider_auto_update;
+mod provider_binding;
 mod provider_browse;
 mod provider_client;
+pub use provider_binding::ModProviderBinding;
 mod provider_http;
 mod provider_install;
 mod provider_update;
@@ -229,7 +231,7 @@ pub use definition_eligibility::{
 };
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
-pub use definition_projection::DefinitionCatalogProjection;
+pub use definition_projection::{DefinitionCatalogProjection, canonical_definition_projection};
 pub use definition_publication::{
     DefinitionPublicationFile, DefinitionPublicationIdentity, DefinitionPublicationInspection,
     inspect_definition_publication, inspect_definition_publication_bytes,
@@ -394,8 +396,8 @@ pub use recomp_mod::{
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
-    GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
-    ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
+    GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
+    ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
 };
 pub use retained_build::{

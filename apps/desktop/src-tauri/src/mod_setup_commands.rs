@@ -579,12 +579,15 @@ pub(crate) async fn open_provider_mod_project(
     generation: u64,
     port_id: String,
     project_id: String,
+    provider: Option<String>,
 ) -> DesktopResult<()> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
-            let reviewed = service.provider_project(&port_id, &project_id).await?;
+            let reviewed = service
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
+                .await?;
             crate::open_host_target(std::ffi::OsStr::new(&reviewed.project.profile_url))
         },
     )
@@ -598,13 +601,14 @@ pub(crate) async fn browse_provider_mods(
     generation: u64,
     port_id: String,
     page: u32,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderBrowsePage> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .browse_provider_mods(&port_id, page)
+                .browse_provider_mods_for_provider(&port_id, page, provider.as_deref())
                 .await
                 .map_err(Into::into)
         },
@@ -619,13 +623,14 @@ pub(crate) async fn get_provider_project(
     generation: u64,
     port_id: String,
     project_id: String,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderProjectView> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .provider_project(&port_id, &project_id)
+                .provider_project_for_provider(&port_id, &project_id, provider.as_deref())
                 .await
                 .map_err(Into::into)
         },
@@ -643,13 +648,20 @@ pub(crate) async fn plan_provider_install(
     profile_id: String,
     project_id: String,
     file_id: String,
+    provider: Option<String>,
 ) -> DesktopResult<portcove_core::ProviderInstallPlan> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .plan_provider_install(&port_id, &profile_id, &project_id, &file_id)
+                .plan_provider_install_for_provider(
+                    &port_id,
+                    &profile_id,
+                    &project_id,
+                    &file_id,
+                    provider.as_deref(),
+                )
                 .await
                 .map_err(Into::into)
         },

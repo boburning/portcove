@@ -7,7 +7,7 @@
     "project_url": "https://github.com/kilnan/ki-recomp",
     "issue_number": 2246,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/kilnan/ki-recomp",
     "artwork": {
@@ -17,6 +17,16 @@
       "image_sha256": "1bdd5b9f331881dd465e4e02fbb59054b0e20706ca8bfc8e2d06d2dfac5f9be2",
       "game_slug": "killer-instinct",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killer-instinct-arcade",
+      "evidence_urls": [
+        "https://github.com/kilnan/ki-recomp/blob/5800e733fd00a0e8892301723e1d924444dca9fa/README.md",
+        "https://github.com/kilnan/ki-recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Killer Instinct (arcade)"
   }
 }

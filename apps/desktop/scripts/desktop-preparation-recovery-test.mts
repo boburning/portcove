@@ -1,5 +1,6 @@
 import { observeReviewSettlement } from "./desktop-review-observation.mts";
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type {
@@ -8,7 +9,103 @@ import type {
   PortStatus,
   InstallRecord,
   TransportOutputs,
+  CancellationState,
+  OutputPreparationCleanupPreview,
 } from "../src/transport-types.generated.d.ts";
+
+/** The shell and search can render while the initial Library snapshot is pending. */
+export function observeLibraryReloadReadiness() {
+  return (
+    !document.querySelector(".loading-state") &&
+    document.querySelector("[data-library-game-id]") !== null
+  );
+}
+
+export interface OwnedPreparationSettlement {
+  operation_id: string;
+  port_id: string;
+  cancellation?: CancellationState;
+  cancellation_error?: string;
+  terminal?: ActivityRecord;
+  quiescence?: OutputPreparationCleanupPreview;
+  joined?: boolean;
+}
+
+/** Failure teardown only: acknowledge cancellation, then join the exact worker's Core facts. */
+export async function joinOwnedPreparationAfterFailure(
+  report: OwnedPreparationSettlement,
+  originalInstallPath: string,
+  services: {
+    read: () => Promise<ActivityRecord | undefined>;
+    cancel: () => Promise<CancellationState>;
+    previewQuiescence: () => Promise<OutputPreparationCleanupPreview>;
+    wait: (probe: () => Promise<boolean>, timeout: number, message: string) => Promise<unknown>;
+  },
+) {
+  const deadline = performance.now() + 60_000;
+  const readExact = async () => {
+    const activity = await services.read();
+    assert.ok(activity, "The owned preparation activity must remain authoritative");
+    assert.equal(activity.id, report.operation_id);
+    assert.equal(activity.operation, "prepare");
+    assert.equal(activity.target_kind, "port");
+    assert.equal(activity.target_id, report.port_id);
+    return activity;
+  };
+  const current = await readExact();
+  let cancellationFailure: { error: unknown } | undefined;
+  if (current.status === "running") {
+    assert.ok(current.cancellation, "The owned running preparation must expose cancellation");
+    if (current.cancellation.requested) report.cancellation = current.cancellation;
+    else {
+      try {
+        report.cancellation = await services.cancel();
+        assert.equal(report.cancellation.requested, true);
+      } catch (error) {
+        // A natural terminal result can race a cancellation request; never retry it.
+        cancellationFailure = { error };
+        report.cancellation_error = errorMessage(error);
+      }
+    }
+  }
+  try {
+    await services.wait(
+      async () => {
+        const activity = await readExact();
+        if (activity.status === "running") return false;
+        assert.ok(
+          typeof activity.finished_at === "number" && Number.isFinite(activity.finished_at),
+        );
+        report.terminal = activity;
+        return true;
+      },
+      Math.max(1, deadline - performance.now()),
+      `Owned preparation ${report.operation_id} did not reach its authoritative terminal result`,
+    );
+    assert.ok(report.terminal, "The authoritative terminal observation must be retained");
+    assert.ok(performance.now() <= deadline, "Owned settlement exceeded its 60s envelope");
+    if (report.terminal.status !== "succeeded") {
+      // This preview validates Core's durable process-quiesced fact. It discards nothing.
+      report.quiescence = await services.previewQuiescence();
+      assert.equal(report.quiescence.operation_id, report.operation_id);
+      assert.equal(report.quiescence.port_id, report.port_id);
+      assert.equal(
+        path.resolve(report.quiescence.original_install_path),
+        path.resolve(originalInstallPath),
+      );
+    }
+    assert.ok(performance.now() <= deadline, "Owned quiescence proof exceeded its 60s envelope");
+    report.joined = true;
+  } catch (error) {
+    if (cancellationFailure !== undefined)
+      throw new AggregateError(
+        [cancellationFailure.error, error],
+        "Owned cancellation and settlement failed",
+        { cause: error },
+      );
+    throw error;
+  }
+}
 import type { SQLInputValue, SQLOutputValue } from "node:sqlite";
 import { transportValue } from "./transport-values.mts";
 type RecoveryBase = Pick<
@@ -36,6 +133,30 @@ type LiveRecoveryContext = RecoveryBase &
     ordinaryClose?: boolean;
   };
 type SQLRow = Record<string, SQLOutputValue>;
+
+/** Retain the asserted recovery scope, not unrelated catalog payloads. */
+export function preparationWorkspaceEvidence(
+  bootstrap: TransportOutputs["desktop_bootstrap_status"],
+  workspace: TransportOutputs["desktop_workspace_snapshot"],
+  status: PortStatus,
+  activity: ActivityRecord,
+) {
+  const serialized = JSON.stringify(workspace);
+  return {
+    report_kind: "asserted-preparation-workspace-projection",
+    bootstrap,
+    port_id: status.port_id,
+    operation_id: activity.id,
+    status,
+    activity,
+    full_snapshot: {
+      representation: "UTF-8 JSON.stringify of the full validated workspace, not raw wire bytes",
+      sha256: createHash("sha256").update(serialized).digest("hex"),
+      json_bytes: Buffer.byteLength(serialized),
+    },
+  };
+}
+
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== undefined && value !== null);
   return value;
@@ -1168,14 +1289,18 @@ export async function minimizedPreparationScenario({
       5_000,
       "Restore the actual native window without simulated visibility",
     );
-    await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Play"]')),
-      15_000,
+    // Compatibility-unconfirmed owned inputs truthfully use Try launch; both
+    // captions represent this already launchable installation, not another setup.
+    assert.equal(required(prepared.readiness).pending_setup, false);
+    const launchControl = By.xpath(
+      '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Play" or normalize-space(.)="Try launch"]',
     );
+    const launch = await browser.wait(until.elementLocated(launchControl), 15_000);
     await browser.wait(
-      until.elementIsEnabled(
-        await browser.findElement(By.xpath('//button[normalize-space(.)="Play"]')),
-      ),
+      async () =>
+        (await launch.isDisplayed()) &&
+        (await launch.isEnabled()) &&
+        (await launch.getAttribute("aria-disabled")) !== "true",
       15_000,
     );
     assert.equal(
@@ -1344,7 +1469,7 @@ async function observeRecoveredPreparation({
       before.save_sha256,
     );
   }
-  let recoveredWorkspace;
+  let recoveredWorkspace: ReturnType<typeof preparationWorkspaceEvidence> | undefined;
   if (ordinaryClose || process.platform === "linux") {
     const nativeStatus = await status(port.id);
     assert.deepEqual(nativeStatus.active, recoveredStatus.active);
@@ -1358,14 +1483,20 @@ async function observeRecoveredPreparation({
       generation: bootstrapValue.generation,
     });
     assert.equal(workspace.ok, true);
-    recoveredWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
-    const workspaceStatus = recoveredWorkspace.statuses.find((item) => item.port_id === port.id);
+    const fullWorkspace = transportValue("desktop_workspace_snapshot", workspace.value);
+    const workspaceStatus = fullWorkspace.statuses.find((item) => item.port_id === port.id);
     assert.ok(workspaceStatus);
     assert.deepEqual(workspaceStatus.active, recoveredStatus.active);
     assert.deepEqual(workspaceStatus.readiness, recoveredStatus.readiness);
-    assert.deepEqual(
-      recoveredWorkspace.activities.records.find((item) => item.id === activity.id),
-      recovered,
+    const workspaceActivity = fullWorkspace.activities.records.find(
+      (item) => item.id === activity.id,
+    );
+    assert.deepEqual(workspaceActivity, recovered);
+    recoveredWorkspace = preparationWorkspaceEvidence(
+      bootstrapValue,
+      fullWorkspace,
+      workspaceStatus,
+      required(workspaceActivity),
     );
   }
   return { recovered, repair, recoveredStatus, recoveredWorkspace };

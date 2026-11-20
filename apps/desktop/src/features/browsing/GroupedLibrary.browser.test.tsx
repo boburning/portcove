@@ -8,7 +8,7 @@ import {
   portDefinition,
   portStatus,
 } from "../../test-fixtures";
-import type { LibraryOrganization, OrganizationChange } from "../../types";
+import type { LibraryOrganization, OrganizationChange, PortCapabilityReport } from "../../types";
 import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
 import { GroupedDiscover } from "./GroupedDiscover";
@@ -20,6 +20,7 @@ import { browserFixture } from "../../../test/browser-fixture";
 import { captureParityState } from "../../../test/parity-capture";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import { comparisonFixture } from "../recommendations/comparison-test-fixture";
+import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
 import "../../styles/index.css";
 
 let fixture: ReturnType<typeof browserFixture>;
@@ -61,6 +62,149 @@ const empty: LibraryOrganization = {
   update_notices: {},
   setup_confirmations: [],
 };
+
+it("shows scoped launch stages beside the matching port in Discover", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.dataset.theme = "dark";
+  const artifactSha = "a".repeat(64);
+  const notice: PortCapabilityReport["advisories"][number]["notice"] = {
+    id: "upstream-setup-fixture",
+    feature: "launch",
+    platform: "windows-x86-64",
+    route: "upstream-setup",
+    release: "v1",
+    artifact_sha256: artifactSha,
+    edition: "Retail disc setup",
+    explanation: "Import the disc once before using the prepared game.",
+    provenance: "https://example.com/fixture",
+    observed_at: 1,
+    evidence: "upstream-reported",
+    workaround: null,
+    launch_behavior: { first_launch: "asks-for-game-files", repeat_launch: "starts-game-directly" },
+  };
+  const known = {
+    ...first,
+    listingStatus: {
+      port_id: first.id,
+      status: { ...portStatus(), port_id: first.id },
+      actions: [],
+      capabilities: {
+        format_version: 1,
+        port_id: first.id,
+        advisory_state: "available",
+        advisories: [
+          { notice, applicability: "context-required" },
+          {
+            notice: {
+              ...notice,
+              id: "wrong-host",
+              explanation: "Different platform",
+              platform: "linux-x86-64",
+            },
+            applicability: "historical",
+          },
+        ],
+        routes: [],
+        observations: [],
+        protection: null,
+        settings: null,
+        detail_problems: [],
+        source_readiness: null,
+        setup_guide: null,
+        pending_setup: null,
+      } satisfies PortCapabilityReport,
+    },
+  };
+  const read = vi.spyOn(desktopApi, "portCapabilities");
+  vi.spyOn(desktopApi, "compareGamePorts").mockResolvedValue(comparisonFixture(first.id));
+  await render(
+    <OperationPresentationProvider generation={1} pending={new Map()}>
+      <GroupedDiscover
+        all={[known, second]}
+        matching={[known, second]}
+        statuses={new Map()}
+        devicePlatform="windows-x86-64"
+        onSelect={vi.fn()}
+      />
+    </OperationPresentationProvider>,
+  );
+  await page.getByRole("button", { name: "Compare ports", exact: true }).click();
+  const project = page.getByRole("article", { name: /First project/ });
+  const firstLaunch = project.getByText("Asks for game files", { exact: true });
+  const captureLaunchNotice = async (state: string) => {
+    const noticeBlock = fixtureValue(
+      firstLaunch.element().closest("dl")?.parentElement,
+      "comparison launch notice",
+    );
+    noticeBlock.scrollIntoView({ block: "center", behavior: "instant" });
+    const target = "data-launch-notice-capture";
+    noticeBlock.setAttribute(target, "");
+    try {
+      await expect
+        .poll(() => {
+          const { visible, rect } = observeVisibleTarget(`[${target}]`, "visual");
+          return Boolean(
+            visible &&
+            rect &&
+            rect.y >= 0 &&
+            rect.y + rect.height <= innerHeight &&
+            rect.x >= 0 &&
+            rect.x + rect.width <= innerWidth,
+          );
+        })
+        .toBe(true);
+      await captureParityState(`comparison-launch-notice-${state}`);
+    } finally {
+      noticeBlock.removeAttribute(target);
+    }
+  };
+  await expect.element(firstLaunch).toBeVisible();
+  await expect.element(project.getByText("Starts the game directly")).toBeVisible();
+  await expect.element(project.getByText("Reported by the project")).toBeVisible();
+  await expect.element(project.getByText("Exact context required")).toBeVisible();
+  await expect.element(project.getByText(/Scope:.*release v1/)).toBeVisible();
+  expect(document.body.textContent).not.toContain("Different platform");
+  await captureLaunchNotice("current-platform");
+
+  await page.getByText("Comparison settings", { exact: true }).click();
+  await page.getByRole("combobox", { name: /Game edition/ }).click();
+  await page.getByRole("option", { name: "Fixture original", exact: true }).click();
+  await expect
+    .poll(() => vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].edition_id)
+    .toBe("fixture-edition");
+  await expect.element(project.getByText(notice.explanation)).toBeVisible();
+  await expect.element(project.getByText(/Scope:.*Retail disc setup/)).toBeVisible();
+  await page.getByRole("combobox", { name: /Target platform/ }).click();
+  await page.getByRole("option", { name: "Linux", exact: true }).click();
+  await expect.element(project.getByText("Different platform")).toBeVisible();
+  await expect.element(project.getByText("Exact context required")).toBeVisible();
+  await expect.element(project.getByText(/Scope: linux-x86-64/)).toBeVisible();
+  expect(document.body.textContent).not.toContain(notice.explanation);
+  expect(read).not.toHaveBeenCalled();
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
+  await captureLaunchNotice("explicit-platform");
+  const artifact = project.getByText(artifactSha, { exact: true });
+  const details = project.getByText("View technical details", { exact: true });
+  await expect.element(artifact).not.toBeVisible();
+  details.element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).toBeVisible();
+  await expect.element(details).toHaveFocus();
+  const summary = details.element();
+  const hashBody = fixtureValue(artifact.element().closest("p"), "expanded checksum");
+  const outline = getComputedStyle(summary);
+  expect(outline.outlineStyle).not.toBe("none");
+  const outlineBottom =
+    summary.getBoundingClientRect().bottom +
+    Number.parseFloat(outline.outlineWidth) +
+    Number.parseFloat(outline.outlineOffset);
+  expect(hashBody.getBoundingClientRect().top).toBeGreaterThanOrEqual(outlineBottom);
+  await captureLaunchNotice("artifact-details");
+  await userEvent.keyboard("{Enter}");
+  await expect.element(artifact).not.toBeVisible();
+  await expect.element(details).toHaveFocus();
+});
 
 it("requires an acknowledged choice, retains alternatives and targets the chosen stable port", async () => {
   const launch = vi.fn();
@@ -417,6 +561,7 @@ it.each([
         catalogUniverse={[first, second]}
         ports={[first, second]}
         statuses={statuses}
+        libraryCount={2}
         overview={{ installed: 2, ready: 2, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={vi.fn()}

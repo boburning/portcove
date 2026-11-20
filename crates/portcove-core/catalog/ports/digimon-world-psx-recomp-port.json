@@ -42,6 +42,16 @@
           "instruction": "You or upstream update and regenerate this external project. Close the game and preserve the complete prepared folder, including saves/, mods/, game.toml and build-release/, as well as any originals or BIOS stored elsewhere. Ordinary memory-card saves are the long-term progress route; upstream warns that save states and rewind depend on matching mods. Retain the old working copy until progress works after an update. Removing registration preserves every external file; this route does not provide managed Update, Backup or Rollback."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world",
+      "evidence_urls": [
+        "https://gitlab.com/ethan4love/psx-recomp-port/-/blob/978ea38eb594354724772ba611a22372e1809476/README.md",
+        "https://gitlab.com/ethan4love/psx-recomp-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Digimon World"
   }
 }

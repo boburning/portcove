@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "luigi-s-mansion",
       "evidence_urls": ["https://github.com/sp00nznet/luigismansion"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "luigi-s-mansion-nintendo-gamecube",
+          "title": "Luigi's Mansion (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/luigismansion/blob/99a4188d3ce7902ef7efbf9c3ab497b8984ad8b8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

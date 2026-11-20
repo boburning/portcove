@@ -2337,6 +2337,96 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DefinitionSelectionIdentity": {
         "additionalProperties": false,
         "properties": {
@@ -2403,6 +2493,35 @@
           }
         ]
       },
+      "SetupDownloadSelection": {
+        "description": "The exact download reviewed during a user-selected setup or replacement.",
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
+          },
+          "download_sha256": {
+            "description": "SHA-256 of the observed download, without any claim about the launched program.",
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "release_id": {
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
+          },
+          "release_tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "filename",
+          "download_sha256"
+        ],
+        "type": "object"
+      },
       "UserSelectedLaunch": {
         "additionalProperties": false,
         "properties": {
@@ -2456,6 +2575,17 @@
             "type": "null"
           }
         ]
+      },
+      "setup_download": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/SetupDownloadSelection"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Last setup download bound to this registration's reviewed local choice."
       },
       "shared_preferences": {
         "anyOf": [
@@ -8034,6 +8164,96 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DefinitionSelectionIdentity": {
         "additionalProperties": false,
         "properties": {
@@ -8110,6 +8330,17 @@
                 "type": "null"
               }
             ]
+          },
+          "setup_download": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupDownloadSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last setup download bound to this registration's reviewed local choice."
           },
           "shared_preferences": {
             "anyOf": [
@@ -8485,6 +8716,35 @@
         ],
         "type": "object"
       },
+      "SetupDownloadSelection": {
+        "description": "The exact download reviewed during a user-selected setup or replacement.",
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
+          },
+          "download_sha256": {
+            "description": "SHA-256 of the observed download, without any claim about the launched program.",
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "release_id": {
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
+          },
+          "release_tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "filename",
+          "download_sha256"
+        ],
+        "type": "object"
+      },
       "SourceRequirementRole": {
         "enum": [
           "game_source",
@@ -8734,6 +8994,96 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadAssetId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignAssetId"
+          }
+        ]
+      },
+      "CatalogDownloadReleaseId": {
+        "anyOf": [
+          {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "$ref": "#/$defs/CatalogForeignReleaseId"
+          }
+        ]
+      },
+      "CatalogForeignAssetId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "file_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "link_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag",
+              "link_id",
+              "file_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "CatalogForeignReleaseId": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "project_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gitlab",
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "project_id",
+              "tag"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "DefinitionSelectionIdentity": {
         "additionalProperties": false,
         "properties": {
@@ -8810,6 +9160,17 @@
                 "type": "null"
               }
             ]
+          },
+          "setup_download": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupDownloadSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last setup download bound to this registration's reviewed local choice."
           },
           "shared_preferences": {
             "anyOf": [
@@ -8986,6 +9347,35 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "SetupDownloadSelection": {
+        "description": "The exact download reviewed during a user-selected setup or replacement.",
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
+          },
+          "download_sha256": {
+            "description": "SHA-256 of the observed download, without any claim about the launched program.",
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "release_id": {
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
+          },
+          "release_tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "filename",
+          "download_sha256"
+        ],
+        "type": "object"
       },
       "UserSelectedLaunch": {
         "additionalProperties": false,
@@ -10838,6 +11228,47 @@
         ],
         "type": "object"
       },
+      "ModProviderBinding": {
+        "description": "Exact provider-side scope from a reviewed definition.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gamebanana",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "game_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "community": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "thunderstore",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "OriginalBinding": {
         "additionalProperties": false,
         "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
@@ -11169,6 +11600,17 @@
         "additionalProperties": false,
         "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
         "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModProviderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required for coordinates that differ from the historical compiled binding."
+          },
           "file": {
             "type": [
               "string",
@@ -21362,6 +21804,17 @@
               }
             ]
           },
+          "setup_download": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SetupDownloadSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last setup download bound to this registration's reviewed local choice."
+          },
           "shared_preferences": {
             "anyOf": [
               {
@@ -22807,6 +23260,47 @@
         ],
         "type": "string"
       },
+      "ModProviderBinding": {
+        "description": "Exact provider-side scope from a reviewed definition.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "game_id": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "provider": {
+                "const": "gamebanana",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "game_id"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "community": {
+                "type": "string"
+              },
+              "provider": {
+                "const": "thunderstore",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "community"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "MutationState": {
         "enum": [
           "not_started",
@@ -23560,6 +24054,13 @@
             "default": false,
             "type": "boolean"
           },
+          "linux_packaged_library": {
+            "description": "An immutable library shipped beside the selected Linux executable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "linux_portable_data_directory": {
             "description": "Native25: keep the Linux player's portable profile in this declared\ndirectory beside the executable, creating it when absent before Play.",
             "type": [
@@ -23620,6 +24121,16 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "mod_provider_bindings": {
+            "description": "Provider coordinates reviewed alongside the existing mod loader contract.",
+            "items": {
+              "$ref": "#/$defs/ModProviderBinding"
+            },
+            "type": [
+              "array",
+              "null"
             ]
           },
           "n64_runtime_at_executable_parent": {
@@ -25057,6 +25568,37 @@
             },
             "type": "object"
           },
+          "github_other_stream_tag_prefixes": {
+            "additionalProperties": false,
+            "description": "Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "grant_declared_executable": {
             "description": "Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
             "type": "boolean"
@@ -25380,6 +25922,35 @@
           "external-user-owned"
         ],
         "type": "string"
+      },
+      "SetupDownloadSelection": {
+        "description": "The exact download reviewed during a user-selected setup or replacement.",
+        "properties": {
+          "asset_id": {
+            "$ref": "#/$defs/CatalogDownloadAssetId"
+          },
+          "download_sha256": {
+            "description": "SHA-256 of the observed download, without any claim about the launched program.",
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "release_id": {
+            "$ref": "#/$defs/CatalogDownloadReleaseId"
+          },
+          "release_tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "asset_id",
+          "release_tag",
+          "filename",
+          "download_sha256"
+        ],
+        "type": "object"
       },
       "SetupExplanation": {
         "properties": {

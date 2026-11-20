@@ -421,6 +421,7 @@ mod tests {
         let port_id = "zelda64-recomp";
         let root = library.root().join("external");
         let record = crate::ExternalRuntimeRecord {
+            setup_download: None,
             id: uuid::Uuid::new_v4().to_string(),
             port_id: port_id.into(),
             path: root.clone(),

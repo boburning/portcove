@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Wuteva/RogueTripRecomp",
     "issue_number": 1575,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Wuteva/RogueTripRecomp",
     "artwork": {
@@ -17,6 +17,16 @@
       "image_sha256": "ba9a589c83c3e7fa8d4c92ef66d4872f3e22f23e5ee2a5dbb4831e22fac5301e",
       "game_slug": "rogue-trip-vacation-2012",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rogue-trip-vacation-2012",
+      "evidence_urls": [
+        "https://github.com/Wuteva/RogueTripRecomp/blob/35653ff012e70e28d41124cc89bd1885182dbea9/README.md",
+        "https://github.com/Wuteva/RogueTripRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Rogue Trip: Vacation 2012"
   }
 }

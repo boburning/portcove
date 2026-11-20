@@ -55,8 +55,18 @@ impl PortcoveService {
         port_id: &str,
         page: u32,
     ) -> Result<ProviderBrowsePage> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.browse_provider_mods_for_provider(port_id, page, None)
+            .await
+    }
+
+    pub async fn browse_provider_mods_for_provider(
+        &self,
+        port_id: &str,
+        page: u32,
+        provider: Option<&str>,
+    ) -> Result<ProviderBrowsePage> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.browse_provider_mods_via(&client, port_id, page).await
     }
 
@@ -118,8 +128,18 @@ impl PortcoveService {
         port_id: &str,
         project_id: &str,
     ) -> Result<ProviderProjectView> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.provider_project_for_provider(port_id, project_id, None)
+            .await
+    }
+
+    pub async fn provider_project_for_provider(
+        &self,
+        port_id: &str,
+        project_id: &str,
+        provider: Option<&str>,
+    ) -> Result<ProviderProjectView> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.provider_project_via(&client, port_id, project_id)
             .await
     }

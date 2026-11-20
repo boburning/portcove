@@ -39,7 +39,16 @@
       "format_version": 1,
       "id": "mario-golf-nintendo-64",
       "evidence_urls": ["https://github.com/n64hub/mario-golf-recomp/blob/v0.1.28/README.md"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "mario-golf-nintendo-64-nintendo-64",
+          "title": "Mario Golf (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/n64hub-mario-golf-n64-usa-n64recomp.json"
+          ]
+        }
+      ]
     }
   }
 }

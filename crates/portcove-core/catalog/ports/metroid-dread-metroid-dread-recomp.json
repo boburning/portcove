@@ -6,7 +6,7 @@
     "summary": "The Windows preview launcher builds Metroid Dread from your own extracted game files for version 2.1.0. It handles later updates and undo. The project reports setup failures and crashes in the previews. Linux and Steam Deck scripts have limited verification.",
     "original_game_title": "Metroid Dread",
     "project_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
     "issue_number": 2934,

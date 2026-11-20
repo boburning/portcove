@@ -69,6 +69,21 @@
       "managed_native": true
     },
     {
+      "port_id": "freeorion",
+      "prepared_player": {
+        "executable": "FreeOrion.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%/FreeOrion saves, settings and mods",
+          "Linux XDG configuration and data/freeorion folders, or ~/.config/freeorion and ~/.local/share/freeorion",
+          "Mac ~/Library/Application Support/FreeOrion settings, saves and mods",
+          "every custom save or user-data location; separately running upstream servers and AI retain their own writes"
+        ]
+      },
+      "managed_native": false
+    },
+    {
       "port_id": "gamebreaker20xx-fullrumble-ps1-slus01068",
       "prepared_player": {
         "executable": "FullRumble.exe",
@@ -196,6 +211,20 @@
         ]
       },
       "managed_native": true
+    },
+    {
+      "port_id": "naev",
+      "prepared_player": {
+        "executable": "naev.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%/naev or portable naev-data beside the player, including datapath.lua overrides",
+          "Mac ~/Library/Application Support/naev and predecessor ~/Library/Application Support/org.naev.Naev and ~/Library/Preferences/naev profiles",
+          "all custom profile, save, settings and plugin folders, including predecessor locations before upstream migration"
+        ]
+      },
+      "managed_native": false
     },
     {
       "port_id": "nhl-94-genesis-ninety-four",
@@ -349,6 +378,20 @@
         "executable": "z2rs.exe"
       },
       "managed_native": true
+    },
+    {
+      "port_id": "warioland4",
+      "prepared_player": {
+        "executable": "wl4-launcher.exe",
+        "working_directory": "executable-parent",
+        "arguments": [],
+        "data_locations": [
+          "Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg",
+          "the Windows user registry entry for the original ROM path",
+          "Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides)"
+        ]
+      },
+      "managed_native": false
     }
   ]
 }

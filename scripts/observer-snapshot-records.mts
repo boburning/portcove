@@ -179,7 +179,7 @@ export async function decodeObserverRecords(
     payload: Buffer | null = null,
     offset = 0;
   try {
-    // Input is capped at four MiB, and split to keep both stream queues bounded.
+    // The member cap applies before decoding. Splitting keeps both stream queues bounded.
     const input = Readable.from(
       (function* () {
         for (let at = 0; at < compressed.length; at += chunkSize)

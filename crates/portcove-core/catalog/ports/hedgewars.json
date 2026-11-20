@@ -44,6 +44,16 @@
         }
       ],
       "help_url": "https://www.hedgewars.org/faq.html"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hedgewars",
+      "evidence_urls": [
+        "https://www.hedgewars.org/download.html",
+        "https://www.hedgewars.org/faq.html",
+        "https://github.com/hedgewars/hw"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

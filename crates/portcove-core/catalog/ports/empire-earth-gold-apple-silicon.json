@@ -50,7 +50,16 @@
         "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
         "https://github.com/maxgraf96/ee-macos"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "empire-earth-gold-pc",
+          "title": "Empire Earth Gold (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+          ]
+        }
+      ]
     }
   }
 }

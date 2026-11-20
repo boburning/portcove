@@ -15,6 +15,46 @@ fn projection() -> Value {
 }
 
 #[test]
+fn canonical_projection_materializes_typed_defaults_and_is_idempotent() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("projection.json");
+    let mut sparse = generic_projection();
+    sparse["catalog"]["ports"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    sparse["catalog"]["source_catalog"]["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    let port = sparse["catalog"]["ports"][0].as_object_mut().unwrap();
+    port.remove("launch_arguments");
+    port.remove("launch_environment");
+    port["release"].as_object_mut().unwrap().remove("provider");
+    std::fs::write(&path, serde_json::to_vec(&sparse).unwrap()).unwrap();
+
+    let canonical = canonical_definition_projection(&path).unwrap();
+    let document: Value = serde_json::from_str(&canonical).unwrap();
+    assert_eq!(
+        document["catalog"]["ports"][0]["launch_arguments"],
+        json!([])
+    );
+    assert_eq!(
+        document["catalog"]["ports"][0]["release"]["provider"],
+        "github"
+    );
+    let contract = canonical.as_bytes();
+    assert!(inspect(&entry(&document, contract, 0), contract).is_ok());
+
+    std::fs::write(&path, contract).unwrap();
+    assert_eq!(canonical_definition_projection(&path).unwrap(), canonical);
+
+    sparse["catalog"]["ports"][0]["unsupported_authored_field"] = json!(true);
+    std::fs::write(&path, serde_json::to_vec(&sparse).unwrap()).unwrap();
+    assert!(canonical_definition_projection(&path).is_err());
+}
+
+#[test]
 fn legacy_chameleon_projection_adds_only_its_reviewed_contract_to_schema_three() {
     // The retained qualification bundle contains the exact published index,
     // entry and terminal contract, before it was applied to a schema-3 client.

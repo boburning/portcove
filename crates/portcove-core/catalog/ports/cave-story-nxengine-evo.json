@@ -14,7 +14,7 @@
       "match_kind": "underlying-game"
     },
     "project_url": "https://github.com/nxengine/nxengine-evo",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/nxengine/nxengine-evo",
     "issue_number": 2647,
@@ -60,7 +60,16 @@
         }
       ]
     },
-    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification."
+    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+    "original_game": {
+      "format_version": 1,
+      "id": "cave-story",
+      "evidence_urls": [
+        "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
+        "https://github.com/nxengine/nxengine-evo"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -65,6 +65,7 @@
       ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -86,22 +87,6 @@
       "macos-x86-64": ["HarvestMoon64Recompiled"],
       "macos-aarch64": ["HarvestMoon64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "harvest_moon_64.z64"
-    ],
     "runtime_source_filename": "harvest_moon_64.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

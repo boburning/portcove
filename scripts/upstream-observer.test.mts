@@ -811,14 +811,30 @@ void test("budgets, malformed metadata, cache corruption and repository drift fa
       { ...config, budget: { ...config.budget, requests: 2 } },
       { fetch: fixture().fetch },
     ),
-    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "observation request count exhausted",
   );
   await assert.rejects(
     observeUpstream(
       { ...config, budget: { ...config.budget, response_bytes: 1 } },
       { fetch: fixture().fetch },
     ),
-    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "provider response exceeds the per-response byte limit",
+  );
+  await assert.rejects(
+    observeUpstream(
+      { ...config, budget: { ...config.budget, total_bytes: 1 } },
+      { fetch: fixture().fetch },
+    ),
+    (error: unknown) =>
+      error instanceof ObservationFailure &&
+      error.rule === "budget" &&
+      error.message === "provider response byte budget exhausted",
   );
   const malformed = fixture();
   incrementFixtureId(malformed.replies.get(root).body);
@@ -1805,6 +1821,27 @@ void test("fair observer admission deferrals preserve the provider read allowanc
   assert.equal(calls, 0);
   await observeUpstream(config, options);
   assert.ok(calls > 0);
+});
+
+void test("exhausting the shared GitHub deadline before SDK setup is budget continuation", async () => {
+  await assert.rejects(
+    observeUpstream(config, {
+      githubScope: {
+        deadline: performance.now() - 1,
+        failedReads: new Map(),
+        deferral: { primary: new Map(), secondary: 0 },
+      },
+      fetch: async () => assert.fail("expired setup must not read the provider"),
+    }),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "budget",
+  );
+  await assert.rejects(
+    observeUpstream(config, {
+      token: "",
+      fetch: async () => assert.fail("invalid credentials must not read the provider"),
+    }),
+    /Required GitHub credential is unavailable/u,
+  );
 });
 
 void test("continued command cannot renew an exhausted SDK read allowance", async () => {

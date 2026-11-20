@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "quake-ii-playstation",
+          "title": "Quake II (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/348015cc55f945d71dd13edba2f975bbab34bcdb/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -61,6 +61,7 @@ it("keeps a matching project name from repeating the game title", () => {
       view="catalog"
       ports={[selfNamed]}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}
@@ -118,6 +119,7 @@ it("keeps variants and raw catalog search after removing a repeated project pref
       view="catalog"
       ports={[port]}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}
@@ -147,6 +149,7 @@ it("renders distinct game-led cards with full project and variant identity", () 
       view="catalog"
       ports={[first, second]}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}

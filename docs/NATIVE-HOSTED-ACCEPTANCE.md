@@ -306,6 +306,31 @@ finish for the exact application and controller before either intentional
 request. Old controller/run evidence remains historical; a prepared request is
 not a dispatch or runtime result.
 
+The owned Windows preparation harness waits for initial Library content within
+its existing 60-second reload envelope before locating the exact game action.
+Discover setup uses a player-visible search before selecting the exact port ID,
+so an offscreen virtualized card is not mistaken for missing content. Copy consent
+and workspace readback have named 60-second settlement waits; these are harness
+budgets, not product deadlines or proof that a copy succeeded.
+
+The install readback probe allows the independent scheduled catalog refresh while
+still requiring one install command and one fixture download. Steam batch review
+checks the singular one-game label before root/profile selection and the plural
+zero/two-game flow. Preliminary setup checks its scoped live selection count and
+exact fixture checkbox, independently of the changing catalog size. Artwork
+reload keeps its request observers, verifies the real workspace still contains
+the exact owned definition and discovery listing, then
+searches by name before selecting its exact ID. It does not disable catalog
+updates or replace catalog authority.
+
+If the held preparation case fails, it requests cancellation only for its captured
+new operation in the owned library. Request acknowledgment is followed by the exact
+authoritative terminal and, for retained failed or cancelled work, Core's read-only
+preparation cleanup preview, which requires proven process quiescence. The harness
+discards no private state. Unknown operation identity or an unjoined worker stops
+the remaining run through the existing driver teardown. A joined failure remains
+failed; cleanup and preservation observations do not replace its original assertion.
+
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime

@@ -23,7 +23,8 @@ plan_desktop_prerequisites() {
     case "$option" in
       --include-rpm) packages+=(rpm) ;;
       --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
-      --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
+      # The native GTK picker is observed through the session's AT-SPI bus.
+      --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11 at-spi2-core) ;;
       --include-dialog-tests) packages+=(xvfb xauth) ;;
       --prefer-archive-mirror) prefer_archive_mirror=true ;;
       --install-timeout-seconds=*)
@@ -73,7 +74,7 @@ use_archive_mirror() {
     if [[ -f "$source" ]]; then
       "${privilege[@]}" sed -i '
 :rewrite
-s#\(^\|[[:space:]]\)https\?://azure\.archive\.ubuntu\.com/ubuntu\([/[:space:]]\|$\)#\1https://archive.ubuntu.com/ubuntu\2#g
+s#\(^\|[[:space:]]\)https\?://\(azure\|us-east-2\.ec2\)\.archive\.ubuntu\.com/ubuntu\([/[:space:]]\|$\)#\1https://archive.ubuntu.com/ubuntu\3#g
 t rewrite
 ' "$source"
     fi
@@ -123,7 +124,7 @@ execute_desktop_prerequisites() {
     fi
   fi
 
-  # GitHub's Azure-backed Ubuntu mirror has repeatedly throttled concurrent jobs.
+  # The Azure and EC2 Ubuntu mirrors have both delayed hosted builds.
   # Fall back to the archive mirror in both supported runner image formats. If a
   # runner already uses another mirror, the second attempt still gets the longer
   # bounded retry window without rewriting that source.

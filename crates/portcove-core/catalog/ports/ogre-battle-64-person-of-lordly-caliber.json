@@ -57,6 +57,27 @@
       "windows-x86-64": ["ogre-battle-64-recomp", "windows-x86_64.zip"],
       "linux-x86-64": ["ogre-battle-64-recomp", "linux-x86_64.tar.gz"],
       "macos-aarch64": ["ogre-battle-64-recomp", "macos-arm64.tar.gz"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ogre-battle-64-person-of-lordly-caliber",
+      "evidence_urls": [
+        "https://github.com/lfarroco/ogre-battle-64-recomp/blob/e338e4cad45fd43c0d9c2b8048d01f84b056404f/README.md",
+        "https://github.com/lfarroco/ogre-battle-64-recomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ogre-battle-64-person-of-lordly-caliber.json"
+      ],
+      "source_editions": [
+        {
+          "id": "ogre-battle-64-person-of-lordly-caliber-nintendo-64",
+          "title": "Ogre Battle 64: Person of Lordly Caliber (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/lfarroco/ogre-battle-64-recomp/blob/e338e4cad45fd43c0d9c2b8048d01f84b056404f/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ogre-battle-64-person-of-lordly-caliber.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Ogre Battle 64: Person of Lordly Caliber"
   }
 }

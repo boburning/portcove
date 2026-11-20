@@ -7,7 +7,7 @@
     "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "issue_number": 319,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "original_game_title": "Castlevania: Symphony of the Night",

@@ -12,20 +12,20 @@
     },
     "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
     "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
-    "original_game_title": "Vampire Savior2: The Lord of Vampire",
+    "original_game_title": "Vampire Savior 2",
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",
-    "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
+    "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md",
     "issue_number": 2767,
     "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://github.com/tmcleroy/cps2recomp/releases",
+    "release_url": "https://github.com/tmcleroy/cps2recomp/releases/tag/v1.6.0-beta.2",
     "recommended_download_channel": "beta",
     "download_asset_hints": {
       "windows-x86-64": ["CPS2Recomp-windows-x64.zip"],
       "linux-x86-64": ["CPS2Recomp-linux-x86_64.tar.gz"],
-      "macos-aarch64": ["CPS2Recomp-macos.zip"],
-      "macos-x86-64": ["CPS2Recomp-macos.zip"]
+      "macos-x86-64": ["CPS2Recomp-macOS.zip"],
+      "macos-aarch64": ["CPS2Recomp-macOS.zip"]
     },
     "manual_setup": {
       "steps": [
@@ -35,7 +35,7 @@
         },
         {
           "title": "Prepare the shared launcher and this game",
-          "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macos.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
+          "instruction": "Extract the complete official Preview package for your system: CPS2Recomp-windows-x64.zip, CPS2Recomp-linux-x86_64.tar.gz, or the universal CPS2Recomp-macOS.zip with CPS-2 Recomp.app. Keep cps2recomp-launcher (cps2recomp-launcher.exe on Windows), every game program and all packaged companions together. Run the upstream launcher deliberately, choose your ROM folder or this game’s exact set, then finish its settings before registering the player. Register the launcher for your system with the CPS2Recomp folder as working directory: cps2recomp-launcher.exe on Windows or cps2recomp-launcher on Linux. On macOS, register CPS-2 Recomp.app/Contents/MacOS/cps2recomp-launcher with Contents/MacOS as working directory. Enter two literal argument lines: --play then vsav2. The launcher owns this game’s configuration and child programs; do not register a source archive, update manifest or arbitrary other game executable."
         },
         {
           "title": "Add the game and manage updates",
@@ -47,13 +47,26 @@
         "Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs.",
         "The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
       ],
-      "help_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
+      "help_url": "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/vsav2/README.md",
       "references": [
         {
           "title": "Preserve the actual game and launcher data",
           "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
+        },
+        {
+          "title": "Linux ARM64 and Android",
+          "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vampire-savior-2",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav2/README.md",
+        "https://github.com/tmcleroy/cps2recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -54,7 +54,16 @@
         "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
         "https://github.com/Inkub0/dude"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "doom-3-resurrection-of-evil-classic-pc",
+          "title": "Doom 3: Resurrection of Evil (classic) (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -80,6 +89,10 @@
     "release": {
       "provider": "github",
       "repository": "Inkub0/dude",
+      "github_other_stream_tag_prefixes": {
+        "windows-x86-64": ["baked-ao-", "baked-pbr-"],
+        "linux-x86-64": ["baked-ao-", "baked-pbr-"]
+      },
       "asset_hints": {
         "windows-x86-64": ["dude-0.9.", "-win64.zip"],
         "linux-x86-64": ["dude-0.9.", "-linux-x86_64.tar.gz"]

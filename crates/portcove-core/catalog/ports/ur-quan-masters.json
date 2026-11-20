@@ -48,6 +48,12 @@
           "instruction": "The 0.8.0 Mac download contains an Intel executable. The publisher offers no native Apple Silicon app or Android APK in this release. The project links separately maintained ports."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-control-ii",
+      "evidence_urls": ["https://sourceforge.net/projects/sc2/"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

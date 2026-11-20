@@ -56,6 +56,16 @@
       "warnings": [
         "Before changing versions, keep a copy of the working game and all original files, profiles, mods, generated caches and custom data locations. Another executable may use the same saved data."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-unleashed",
+      "evidence_urls": [
+        "https://github.com/hedge-dev/UnleashedRecomp/tree/325e4d34a0adaa34808b7212594c0f25b88bfb96",
+        "https://github.com/hedge-dev/UnleashedRecomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Sonic Unleashed"
   }
 }

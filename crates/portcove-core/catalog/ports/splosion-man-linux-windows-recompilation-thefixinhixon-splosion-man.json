@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "splosion-man",
       "evidence_urls": ["https://github.com/thefixinhixon/SplosionManRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "splosion-man-xbox-360",
+          "title": "'Splosion Man (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/SplosionManRecomp/blob/5c605ca2bc221e833e8735f1bfd89b52cb35e3c8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

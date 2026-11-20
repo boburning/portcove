@@ -35,6 +35,12 @@
       "image_sha256": "e1ed879b55387c798aa1b87c867d465dddbfba83bad4712b2836d92752815385",
       "game_slug": "jojos-bizarre-adventure--2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jojo-s-bizarre-adventure-heritage-for-the-future",
+      "evidence_urls": ["https://github.com/MenuuTUX/jojo-hftf-native"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

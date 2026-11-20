@@ -1337,11 +1337,10 @@ export async function observeUpstream(
       await sleep(milliseconds);
     },
     reserve: () => {
-      if (now() >= deadline || consumed.requests >= config.budget.requests)
-        throw new GitHubApiError(
-          "budget_exhausted",
-          "observation request or time budget exhausted",
-        );
+      if (now() >= deadline)
+        throw new GitHubApiError("deadline_exceeded", "observation deadline exhausted");
+      if (consumed.requests >= config.budget.requests)
+        throw new GitHubApiError("budget_exhausted", "observation request count exhausted");
       try {
         options.admitRequest?.();
       } catch {
@@ -1370,6 +1369,20 @@ export async function observeUpstream(
         },
       };
     },
+  }).catch((error: unknown) => {
+    if (error instanceof GitHubApiError) {
+      if (error.code === "deadline_exceeded")
+        throw new ObservationFailure(
+          "budget",
+          "Observation opportunity exhausted before provider setup",
+        );
+      if (error.code === "cancelled")
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+    }
+    throw error;
   });
 
   async function requestChecksum(
@@ -1698,8 +1711,17 @@ export async function observeUpstream(
             new Date(resume).toISOString(),
           );
         }
-        if (["response_limit", "budget_exhausted", "deadline_exceeded"].includes(error.code))
-          throw new ObservationFailure("budget", "provider response byte or time budget exhausted");
+        if (error.code === "response_limit")
+          throw new ObservationFailure(
+            "budget",
+            "provider response exceeds the per-response byte limit",
+          );
+        if (error.code === "deadline_exceeded")
+          throw new ObservationFailure("budget", "provider request exceeded its available time");
+        // Only the local reservation above emits this code. Preserve its reason
+        // so a declined request and a failed byte charge remain distinguishable.
+        if (error.code === "budget_exhausted")
+          throw new ObservationFailure("budget", error.message);
         if (error.code === "invalid_response")
           throw new ObservationFailure(
             "invalid-metadata",

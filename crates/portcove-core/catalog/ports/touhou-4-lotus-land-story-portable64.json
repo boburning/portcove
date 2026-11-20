@@ -49,6 +49,15 @@
           "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-gensokyo-lotus-land-story",
+      "evidence_urls": [
+        "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+        "https://github.com/N0zoM1z0/th04"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

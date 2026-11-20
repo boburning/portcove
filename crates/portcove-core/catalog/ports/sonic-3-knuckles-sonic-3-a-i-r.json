@@ -77,7 +77,17 @@
         "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
         "https://github.com/Eukaryot/sonic3air"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "sonic-3-and-knuckles-mega-drive-genesis",
+          "title": "Sonic 3 & Knuckles (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/Eukaryot/sonic3air/releases/tag/v26.03.28.0-stable",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/sonic-3-knuckles-sonic-3-a-i-r.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {

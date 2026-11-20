@@ -526,19 +526,25 @@ export const desktopApi = {
       profileId,
       generation,
     }),
-  openProviderModProject: (portId: string, projectId: string, generation: number) =>
-    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
-  browseProviderMods: (portId: string, page: number, generation: number) =>
+  openProviderModProject: (
+    portId: string,
+    projectId: string,
+    generation: number,
+    provider?: string,
+  ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+  browseProviderMods: (portId: string, page: number, generation: number, provider?: string) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
       page,
       generation,
+      provider,
     }),
-  providerProject: (portId: string, projectId: string, generation: number) =>
+  providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {
       portId,
       projectId,
       generation,
+      provider,
     }),
   planProviderInstall: (
     portId: string,
@@ -546,6 +552,7 @@ export const desktopApi = {
     projectId: string,
     fileId: string,
     generation: number,
+    provider?: string,
   ) =>
     invoke<import("./types").ProviderInstallPlan>("plan_provider_install", {
       portId,
@@ -553,6 +560,7 @@ export const desktopApi = {
       projectId,
       fileId,
       generation,
+      provider,
     }),
   applyProviderInstall: (
     portId: string,

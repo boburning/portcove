@@ -249,6 +249,18 @@ repository, issue comments or logs.
 node scripts/maintenance-store.mts status
 ```
 
+For local Neon credentials, pass the file and the variable explicitly. The
+file supplies only the selected variable and takes precedence over a
+process variable of the same name. Use the direct URL for maintenance store
+commands, including migrations, backup and restore. Once the maintenance
+schema is initialized, inventory commands can use the pooled URL for routine
+queries with the same options.
+
+```bash
+node scripts/maintenance-store.mts status --database-env-file .env.local --database-env DATABASE_URL_UNPOOLED
+node scripts/maintenance-inventory.mts handoffs --database-env-file .env.local --database-env DATABASE_URL
+```
+
 ```bash
 node scripts/maintenance-store.mts migrate
 ```
@@ -677,9 +689,11 @@ publication has been verified.
   the last 24 hours, that still retains its unexpired
   `upstream-observer-checkpoint-<config_sha256>-<run>-<attempt>` artifact. Gated
   push runs and runs whose export did not retain a snapshot are passed over.
-  - It is read through the maintained GitHub client (GET-only, at most 24
-    candidate runs and 32 requests) and the in-memory artifact transfer, bounded
-    by the observer's eight-MiB streaming snapshot limit.
+  - The maintained GitHub client reads up to 24 completed runs per producer
+    event and checks candidates newest-first, with at most 56 metadata GETs.
+    Push runs that handled admission only cannot displace the scheduled window.
+    The in-memory artifact transfer uses the observer's sixteen-MiB streaming
+    snapshot limit.
   - The configuration digest in the artifact name must equal the SHA-256 of
     `release/upstream-observer.json` at the run's head commit, which is how the
     workflow names its snapshot. The archive length and SHA-256 must match
@@ -707,8 +721,46 @@ publication has been verified.
     completed scope and are stored as no exception, so they cause no churn.
   - Per-observation clocks and progress (freshness, completion and due times,
     attempted sequence, retry state, provider progress and cursors), result
-    digests and policy bodies are never stored: Core and listing policies embed
-    observation clocks, so a routine re-observation stays quiet.
+    digests and full policy bodies are omitted so routine re-observation stays
+    quiet. For a hosted managed route, retain the offered platform and channel,
+    exact release identity, publication time, and Core's retained pending or
+    eligible result. A reviewed fallback leaves the current release pending.
+    Curated pins and descriptive listing observations are outside this measure.
+    The identity stays the same when integrity or an asset arrives under the
+    same release. This records upstream candidate evidence for history. Actual
+    client availability, repair publication and human interventions require
+    separate receipts. The JSON report's `managed_release_eligibility` uses
+    the last 30 days of retained complete and partial collection observations.
+    It counts each candidate published in that window once, using its latest
+    recorded state. The same window also counts candidates observed pending and
+    how many later had an eligible observation at a strictly later recording time.
+    Repeated observations and multiple transitions count once for each target.
+    A missing publication time is reported separately. Pending
+    age uses publication time. The report counts pending candidates whose latest
+    observation has no recorded hold reason. Publication-to-recorded-eligibility
+    lag uses the first retained eligible observation. The first and last retained
+    recording times show the observed span within the reporting window. The
+    report's `managed_route_observation_coverage` counts each Core-offered
+    managed port and installation platform once. It joins those offers to
+    candidate facts in the latest observer collection and reports its revision,
+    import time, gaps, and per-platform counts. It uses the existing Core
+    definition inspection to compare the current definition digest with the
+    observed definition digest. The target projection reports whether the
+    CLI embeds the exact committed catalog bytes. Older recorded candidates remain visible as
+    retained coverage when the current definition has changed or is unbound. Core's fixed package offers
+    are counted separately from release-following offers. It verifies the retained
+    checkpoint membership after removing explicitly reported gaps. Older facts
+    remain visible in subject history. If the current catalog's Core target
+    projection or the latest observer membership is unavailable, its count is
+    unknown. When the target scope is complete, `routes` lists each offered port
+    and platform with a fixed offer, exact checkpoint evidence, or the same gap
+    reason as the aggregate. Exact evidence lists each verified candidate key
+    once, with its channel and observed eligible or pending state when available.
+    Conflicting facts for the same candidate key are marked ambiguous. Use the
+    candidate key to find the recorded tag or hold reasons in the subject's
+    upstream facts. The HTML report lists route gaps and links to the JSON
+    evidence. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
@@ -731,6 +783,12 @@ publication has been verified.
   budget, cancellation and quota stops) are routine continuation and stay quiet;
   an exception without a recorded rule stays visible. No freshness threshold or
   policy is applied beyond the observer's own.
+- Hosted inventory retains `observer-operating-usage.json` when it can verify
+  the exact imported observer attempt and checkpoint digest. The evidence binds
+  the inventory by its SHA-256. It records the event type, checkpoint bytes, executed job durations and the number of jobs
+  with missing times. Skipped jobs contribute no duration. Each report covers
+  one imported attempt. Billed cost remains unknown without billing evidence.
+
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.
 

@@ -63,7 +63,16 @@
         "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "future-cop-l-a-p-d-playstation",
+          "title": "Future Cop: L.A.P.D. (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/future-cop-lapd-recomp/blob/96f1fd0e9cc45a58d0d84535bd3a8199af976c23/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

@@ -7,7 +7,7 @@
     "original_game_title": "Bloodborne",
     "project_url": "https://github.com/Awakenchan/LanternEngine",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Awakenchan/LanternEngine",
     "artwork": {
@@ -38,6 +38,12 @@
           "instruction": "The fork documents direct PS4 CPU execution. It is maintained by one author, and the launcher’s name alone does not establish a separate implementation from its parent."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": ["https://github.com/Awakenchan/LanternEngine"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

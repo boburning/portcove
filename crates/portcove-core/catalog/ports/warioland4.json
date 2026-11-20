@@ -1,0 +1,108 @@
+{
+  "format_version": 1,
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "warioland4",
+    "origin": {
+      "project_url": "https://github.com/BioRhythmicStudios/warioland4",
+      "repository": {
+        "host": "github.com",
+        "id": "1422452935"
+      }
+    },
+    "decisions": []
+  },
+  "listing": {
+    "id": "warioland4",
+    "project_url": "https://github.com/BioRhythmicStudios/warioland4",
+    "name": "Wario Land 4 (BioRhythmic Studios)",
+    "original_game": {
+      "format_version": 1,
+      "id": "wario-land-4",
+      "evidence_urls": [
+        "https://www.nintendo.com/en-gb/Games/Game-Boy-Advance/Wario-Land-4-267596.html"
+      ],
+      "source_editions": [
+        {
+          "id": "wario-land-4-gba-us",
+          "title": "Wario Land 4 (US Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta"
+          ]
+        }
+      ]
+    },
+    "summary": "An unofficial native PC port of Wario Land 4. The upstream launcher needs your own unmodified US Game Boy Advance ROM.",
+    "listed_at": "2026-11-19",
+    "release_url": "https://github.com/BioRhythmicStudios/warioland4/releases",
+    "original_game_title": "Wario Land 4",
+    "setup_url": "https://github.com/BioRhythmicStudios/warioland4/releases/tag/v0.3.2-beta",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["WarioLand4-Native-PC-Port-", "Windows-x64.zip"],
+      "linux-x86-64": ["Wario_Land_4-", "x86_64.AppImage"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
+      "steps": [
+        {
+          "title": "Open the upstream launcher",
+          "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+        },
+        {
+          "title": "Choose your original game",
+          "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
+        }
+      ],
+      "warnings": [
+        "The packages contain recompiled game program code. Upstream's MIT notice covers its identified sources, and upstream documents inherited code with no recorded license. The launcher reads game data from your own original ROM.",
+        "The Windows v0.3.2-beta runtime could not start on the Windows 11 build 26300 host tested by Portcove. This release could not reserve the memory range it needs for the game. See upstream for newer beta releases.",
+        "The Windows launcher saves the selected ROM path in your user registry. Windows v0.3.2-beta can read earlier settings, but beta 1 and beta 2 cannot read the newer settings it saves. Back up settings before downgrading."
+      ]
+    }
+  },
+  "route_facts_v1": {
+    "format_version": 1,
+    "prepared_player": {
+      "executable": "wl4-launcher.exe",
+      "working_directory": "executable-parent",
+      "arguments": [],
+      "data_locations": [
+        "Windows %APPDATA%\\wl4\\wl4.sav and settings.cfg",
+        "the Windows user registry entry for the original ROM path",
+        "Linux ~/.local/share/biorhythmicstudios/warioland4/ and ~/.config/biorhythmicstudios/warioland4/ (or your XDG overrides)"
+      ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["linux-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "user_prepared": {
+        "linux-x86-64": {
+          "trust": "user-selected",
+          "version": "user-managed",
+          "archive_name": "",
+          "archive_size": 0,
+          "archive_sha256": "",
+          "immutable_tree_sha256": "",
+          "executable": "",
+          "mutable_paths": []
+        }
+      }
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Download the official Linux x64 AppImage and mark it executable. Add the AppImage to Portcove with its containing folder. Use --appimage-extract-and-run as an argument if FUSE is unavailable. In the upstream launcher, choose your own unmodified US Game Boy Advance ROM. Portcove leaves the AppImage, the ROM and your XDG save and settings folders in place. Use upstream’s releases to replace the AppImage yourself."
+    }
+  }
+}

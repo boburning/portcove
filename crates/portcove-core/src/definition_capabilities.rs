@@ -340,6 +340,10 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::NativePortable,
+            contract_version: crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
             contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
         });
         supported.push(Self {
@@ -352,6 +356,14 @@ impl EngineTemplateCapability {
                 contract_version,
             })
         }));
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+        });
         supported
     }
 }
@@ -964,6 +976,41 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_provider_bindings_require_a_version_newer_than_package_shape() {
+        for (template, adapter, binding_version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+            ),
+            (
+                "n64-recomp-portable",
+                AdapterKind::N64RecompPortable,
+                crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+            ),
+        ] {
+            let shape_version = crate::package_shape::enforcement_capability(adapter).unwrap();
+            assert!(binding_version > shape_version);
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != adapter || entry.contract_version <= shape_version
+                })
+                .collect();
+            let shape = request(template, shape_version, shape_version);
+            let binding = request(template, binding_version, binding_version);
+            assert!(check_with_inventory(&shape, &previous).unwrap().compatible);
+            assert!(
+                !check_with_inventory(&binding, &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(check_definition_capabilities(&shape).unwrap().compatible);
+            assert!(check_definition_capabilities(&binding).unwrap().compatible);
+        }
+    }
+
+    #[test]
     fn psx_preservation_v2_is_advertised_without_retiring_historical_v1() {
         for (minimum, maximum, compatible, selected) in [
             (1, 1, true, 1),
@@ -1128,7 +1175,10 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(7));
+        assert_eq!(
+            n64.checks[0].installed_version,
+            Some(crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY)
+        );
         let future =
             check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
         assert!(!future.compatible);
@@ -1403,18 +1453,21 @@ mod tests {
     fn shared_preferences_require_v8_and_refuse_v7_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
-            .filter(|entry| entry.contract_version <= 7)
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 7
+            })
             .collect();
+        // N64's provider binding at version 8 cannot satisfy a staged-source requirement.
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
         let required = request("staged-source-portable", 8, 8);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
         assert_eq!(old.checks[0].installed_version, Some(5));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
-                .unwrap()
-                .compatible
-        );
         assert!(
             check_retained_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()

@@ -53,6 +53,63 @@ fn archive() -> Vec<u8> {
 }
 
 #[test]
+fn bulk_listing_status_includes_scoped_launch_behavior_without_granting_play() {
+    let (_temporary, mut service, request) = fixture();
+    let mut listing = service.catalog.listing(&request.port_id).unwrap().clone();
+    listing.compatibility = Some(json!({
+        "format_version": 2,
+        "records": [{
+            "id": "prepare-once",
+            "feature": "launch",
+            "platform": Platform::current().unwrap(),
+            "route": "upstream-setup",
+            "release": "v1",
+            "artifact_sha256": "a".repeat(64),
+            "explanation": "Import the original once to prepare the game.",
+            "provenance": "https://example.com/v1/setup",
+            "observed_at": 1,
+            "evidence": "upstream-reported",
+            "launch_behavior": {
+                "first_launch": "asks-for-game-files",
+                "repeat_launch": "starts-game-directly"
+            }
+        }]
+    }));
+    service.catalog = service
+        .catalog
+        .with_listing_document(crate::CatalogListingDocument {
+            format_version: 7,
+            listings: vec![listing],
+        })
+        .unwrap();
+
+    let [status]: [crate::PortListingStatus; 1] =
+        service.listing_statuses().unwrap().try_into().unwrap();
+    let report = status.capabilities.unwrap();
+    assert_eq!(report.advisories.len(), 1);
+    let notice = &report.advisories[0];
+    assert!(matches!(
+        notice.applicability,
+        crate::AdvisoryApplicability::ContextRequired
+    ));
+    assert_eq!(
+        notice
+            .notice
+            .launch_behavior
+            .as_ref()
+            .unwrap()
+            .repeat_launch,
+        crate::LaunchEntryBehavior::StartsGameDirectly
+    );
+    assert!(
+        status
+            .actions
+            .iter()
+            .any(|action| action.action == crate::ListingAction::Launch && !action.allowed)
+    );
+}
+
+#[test]
 fn legacy_catalog_artifact_json_keeps_pre_gitlab_numeric_wire_representation() {
     // Candidate field order and numeric IDs at baseline5821d359, independent of
     // the new provider-qualified model and its constructors.
@@ -1076,7 +1133,7 @@ async fn channel_selection_reaches_beyond_recent_history_without_browsing_every_
             .collect();
         let (candidates, coverage, summaries, selected) = github
             .provider
-            .catalog_download_options("owner/game", None, channel, Some("nightly"))
+            .catalog_download_options("owner/game", None, channel, Some("nightly"), &[])
             .await
             .unwrap();
         assert_eq!(selected, Some(115), "{channel:?}");
@@ -1101,7 +1158,7 @@ async fn preview_falls_back_only_after_bounded_complete_channel_observation() {
         .collect();
     let (_, coverage, summaries, selected) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None, &[])
         .await
         .unwrap();
     assert_eq!(selected, Some(1));
@@ -1126,7 +1183,7 @@ async fn bounded_discovery_does_not_claim_no_assets_when_older_releases_are_unch
 
     let (candidates, coverage, _, _) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
         .await
         .unwrap();
     assert!(candidates.is_empty());
@@ -1159,7 +1216,7 @@ async fn selection_inspects_one_release_instead_of_combining_packages_across_his
 
     let (candidates, coverage, _, _) = github
         .provider
-        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+        .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
         .await
         .unwrap();
     assert_eq!(candidates.len(), 75);
@@ -1186,7 +1243,7 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
             .collect();
         let result = github
             .provider
-            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None)
+            .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
             .await;
         if count > 200 {
             assert!(
@@ -1933,6 +1990,23 @@ fn continuation_registration_uses_retained_listing_and_consumes_only_matching_pe
             )
             .unwrap();
         assert_eq!(selected.port_id, record.port_id);
+        let retained = selected.setup_download.as_ref().unwrap();
+        assert_eq!(retained.release_id, replacement.artifact.release_id);
+        assert_eq!(retained.asset_id, replacement.artifact.asset_id);
+        assert_eq!(retained.release_tag, replacement.artifact.release_tag);
+        assert_eq!(retained.filename, replacement.artifact.name);
+        assert_eq!(retained.download_sha256, replacement.archive_sha256);
+        assert_eq!(
+            service
+                .library
+                .status(&record.port_id, ReleaseChannel::Stable)
+                .unwrap()
+                .external_runtime
+                .unwrap()
+                .setup_download
+                .as_ref(),
+            Some(retained),
+        );
         assert!(service.pending_setups().unwrap().is_empty());
         assert!(service.library.all_installs().unwrap().is_empty());
         assert_eq!(fs::read(working.join("save.dat")).unwrap(), b"mine");
@@ -1961,6 +2035,7 @@ fn workspace_retains_legacy_registered_description_without_new_listing_revalidat
         }]
     }).to_string()).unwrap();
     let record = ExternalRuntimeRecord {
+        setup_download: None,
         id: Uuid::new_v4().to_string(),
         port_id: "retained-legacy-listing".into(),
         path: request.destination_parent,
@@ -2028,6 +2103,14 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
             &authorization.token,
         )
         .unwrap();
+    let legacy_json = serde_json::to_value(&original).unwrap();
+    assert!(legacy_json.get("setup_download").is_none());
+    assert!(
+        serde_json::from_value::<ExternalRuntimeRecord>(legacy_json)
+            .unwrap()
+            .setup_download
+            .is_none()
+    );
     eprintln!("replacement fixture: registered at {:?}", started.elapsed());
     let before_download = service
         .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
@@ -2130,6 +2213,20 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
     assert_eq!(changed.id, original.id);
     assert_eq!(changed.registered_at, original.registered_at);
     assert_eq!(changed.executable, new_executable);
+    assert_eq!(
+        changed.setup_download,
+        Some(pending.clone().into_setup_download()),
+    );
+    assert_eq!(
+        service
+            .library
+            .status(&request.port_id, ReleaseChannel::Stable)
+            .unwrap()
+            .external_runtime
+            .unwrap()
+            .setup_download,
+        changed.setup_download,
+    );
     assert!(service.pending_setups().unwrap().is_empty());
     assert_eq!(
         fs::read(old_root.join("player-save.dat")).unwrap(),
@@ -2141,6 +2238,31 @@ async fn replacement_download_keeps_current_registration_until_reviewed_relink()
         changed.archive_sha256.is_empty(),
         "external replacement is not authenticated ownership"
     );
+
+    let manual_review = service
+        .preview_user_selected_runtime_relink(&request.port_id, &old_executable, &old_root, &[])
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime_relink(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &manual_review.preview_sha256,
+        )
+        .unwrap();
+    let manual_relink = service
+        .relink_user_selected_runtime(
+            &request.port_id,
+            &old_executable,
+            &old_root,
+            &[],
+            &authorization.token,
+        )
+        .unwrap();
+    assert_eq!(manual_relink.id, changed.id);
+    assert_eq!(manual_relink.executable, original.executable);
+    assert_eq!(manual_relink.setup_download, changed.setup_download);
 }
 
 #[tokio::test]

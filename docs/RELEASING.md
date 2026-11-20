@@ -99,11 +99,15 @@ job continues only when the release's asset set is identical.
 **Nightly previews.** [`nightly-preview.yml`](../.github/workflows/nightly-preview.yml)
 runs daily at 05:37 UTC on `main` and can be started by hand on `main`. It walks
 back up to 100 first-parent `main` commits and picks the newest one whose newest
-`CI` push run succeeded, using one read of the latest 100 completed `CI` runs on
-`main`. On a busy `main` the newest commit often has no finished `CI` run
-yet, because pending runs are replaced. It does nothing when the newest `main`
-commit already carries a `v*` or `nightly-*` tag, when it reaches a tagged
-commit before a CI-green one, or when none of those commits is CI-green.
+`CI` push attempt succeeded. One API page covers up to 100 completed `main`
+push runs. A second page covers up to 100 recent runs from the same workflow,
+branch and event so a completed run can qualify before GitHub's status filter
+returns it. The selector reconciles exact run and attempt identities. A conflict
+or an unfinished attempt that supersedes an observed success stops selection
+if the first-parent walk reaches that commit before finding an eligible one.
+It does nothing when the newest `main` commit already carries a `v*` or
+`nightly-*` tag, when it reaches a tagged commit before a CI-green one, or when
+none of those commits is CI-green.
 Otherwise it pushes one annotated `nightly-X.Y.Z-preview.N` tag at the chosen
 commit with `GITHUB_TOKEN`. Then it builds,
 signs and publishes exactly that commit through the shared jobs, in the
@@ -190,8 +194,16 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   - The schedule (05:13 and 17:13 UTC) and a manual run always re-sign. This
     renews the timestamp, which lasts 1 day, and the snapshot, definitions and
     policy roles, which last 7 days.
-  - Every trigger publishes the newest CI-green first-parent `main` commit, so
-    re-running an older CI run cannot publish an older bundle.
+  - Every trigger uses the same bounded CI run reads as nightly previews and
+    selects the newest CI-green first-parent `main` commit. A rerun of an older
+    CI run follows the current selection.
+- **Readback receipt:** after the public timestamp and browse pages match, the
+  same publisher can retain a seven-day receipt. It verifies the exact live
+  index and the affected immutable targets, records previous and published
+  hashes and revisions, and distinguishes definition changes and retained index
+  rebinds from descriptive refresh and metadata renewal. A trigger identifies
+  the producing workflow event. Human intervention and automatic repair need
+  separate evidence. Missing or out-of-bound readback leaves no success receipt.
 - **Recovery:** if renewals stop and the published timestamp expires, clients
   keep their last verified catalog. The next successful run publishes again,
   because the expired catalog is still read as authenticated history: its

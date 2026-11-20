@@ -4,9 +4,10 @@ import { captureParityState } from "../../test/parity-capture";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../test-fixtures";
+import { currentSourceCatalog } from "../catalog-test-fixtures";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import {
   GameFileScanProvider,
@@ -30,6 +31,9 @@ import type {
   SourceRecord,
 } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
+import { SettingsView, Sidebar } from "./Chrome";
+import { installRecord } from "./rendered-test-fixtures";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 
 const saved: GameFileRoot = {
   id: "root-1",
@@ -133,6 +137,444 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
+
+function expectSettingsFixtureNavigation() {
+  expect(window.scrollY).toBe(0);
+  expect(document.scrollingElement?.scrollTop).toBe(0);
+  for (const name of ["Primary navigation", "Settings categories"]) {
+    const navigation = page.getByRole("navigation", { name, exact: true }).element();
+    expect(navigation.checkVisibility()).toBe(true);
+    const bounds = navigation.getBoundingClientRect();
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  }
+}
+
+function expectCandidateComposition(
+  selector: string,
+  stacked: boolean,
+  path: string,
+  label: string,
+) {
+  const row = fixtureValue(document.querySelector<HTMLElement>(selector), "candidate row");
+  const identity = fixtureValue(
+    row.querySelector<HTMLElement>(":scope > div"),
+    "candidate identity",
+  );
+  const actions = fixtureValue(
+    row.querySelector<HTMLElement>(".source-candidate-actions"),
+    "candidate actions",
+  );
+  const workspace = fixtureValue(
+    row.closest<HTMLElement>("[data-saved-folders-workspace]"),
+    "saved-folder workspace",
+  );
+  const workspaceStyle = getComputedStyle(workspace);
+  const available =
+    workspace.clientWidth -
+    parseFloat(workspaceStyle.paddingLeft) -
+    parseFloat(workspaceStyle.paddingRight);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+  expect(available < 38 * rem).toBe(stacked);
+  const rowBounds = row.getBoundingClientRect();
+  const identityBounds = identity.getBoundingClientRect();
+  const actionBounds = actions.getBoundingClientRect();
+  expect(actionBounds.top >= identityBounds.bottom - 1).toBe(stacked);
+  expect(actionBounds.left >= identityBounds.right - 1).toBe(!stacked);
+  expect(identityBounds.width).toBeGreaterThanOrEqual(stacked ? rowBounds.width - 1 : 18 * rem);
+  expect(row.textContent).toContain(label);
+  expect(row.textContent).toContain("Already added. Review game requirements in details.");
+  expect(row.textContent).toContain("Already in your library");
+  const code = fixtureValue(identity.querySelector("code"), "complete candidate path");
+  expect(code.textContent).toBe(path);
+  expect(getComputedStyle(code).direction).toBe("ltr");
+  const range = document.createRange();
+  range.selectNodeContents(identity);
+  for (const line of range.getClientRects()) {
+    expect(line.left).toBeGreaterThanOrEqual(identityBounds.left - 1);
+    expect(line.right).toBeLessThanOrEqual(identityBounds.right + 1);
+  }
+  expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+  row.scrollIntoView({ block: "center", behavior: "instant" });
+  const controls = [...actions.querySelectorAll("button")];
+  expect(controls).toHaveLength(2);
+  for (const target of [row, ...controls]) {
+    const bounds = target.getBoundingClientRect();
+    const label = "candidate composition " + target.tagName;
+    requireCompleteCaptureTarget(
+      {
+        target: label,
+        target_count: 1,
+        visible: target.checkVisibility(),
+        rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+        viewport: { width: innerWidth, height: innerHeight },
+      },
+      label,
+    );
+  }
+  return row;
+}
+
+it.each(
+  (["dark", "light"] as const).flatMap((theme) => [
+    { theme, layout: "dual-sidebar", viewport: 960, inlineSize: undefined, stacked: true },
+    {
+      theme,
+      layout: "below-container-boundary",
+      viewport: 1280,
+      inlineSize: "calc(51rem + var(--space-6) - 1px)",
+      stacked: true,
+    },
+    {
+      theme,
+      layout: "at-container-boundary",
+      viewport: 1280,
+      inlineSize: "calc(51rem + var(--space-6))",
+      stacked: false,
+    },
+  ]),
+)(
+  "keeps streamed and completed candidates readable in $theme $layout",
+  async ({ theme, layout, viewport, inlineSize, stacked }) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const source: SourceRecord = {
+      ...savedCandidate,
+      path: String.raw`D:\a\portcove\portcove\work\native-product-workflows-review-continuation\desktop-verify\2026-11-18T21-00-52-826Z-ps3xzZ\native\opengoal-jak1.iso`,
+      size: 41,
+      storage_size: 41,
+    };
+    const profile = {
+      ...sourceProfile(),
+      id: source.profile_id,
+      label: "Jak and Daxter retail disc validated by the pinned OpenGOAL extractor",
+    };
+    const port = {
+      ...portDefinition(),
+      id: "sample",
+      name: "OpenGOAL: Jak and Daxter",
+      source_profile: source.profile_id,
+    };
+    const status = {
+      ...portStatus(),
+      port_id: port.id,
+      active: installRecord({ port_id: port.id }),
+    };
+    const candidateRoot = { ...saved, path: source.path.slice(0, source.path.lastIndexOf("\\")) };
+    const completed = {
+      ...snapshot,
+      roots: [candidateRoot],
+      report: {
+        ...snapshot.report,
+        searched_roots: [candidateRoot.path],
+        candidates: [source],
+        limits_reached: [],
+      },
+    };
+    vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([candidateRoot]);
+    const open = vi.fn();
+    let emit: ((event: OperationEvent) => void) | undefined;
+    let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(null);
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
+      emit = callback;
+      return new Promise<GameFileScanSnapshot>((resolve) => {
+        finish = resolve;
+      });
+    });
+    try {
+      await page.viewport(viewport, 780);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <GameFileScanProvider generation={1}>
+          <div className="interface-root flex h-full min-h-0 flex-col">
+            <div className="interface-workspace min-h-0 flex-1">
+              <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+                <Sidebar
+                  view="settings"
+                  setView={vi.fn()}
+                  libraryCount={1}
+                  updateCount={0}
+                  activities={[]}
+                />
+                <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                  <div style={{ inlineSize }}>
+                    <SettingsView
+                      category="game-files"
+                      generation={1}
+                      ports={[port]}
+                      statuses={new Map([[port.id, status]])}
+                      sourceProfiles={[profile]}
+                      sources={[source]}
+                      installedCount={1}
+                      sourceRequirementsState="available"
+                      onOpenPort={open}
+                    />
+                  </div>
+                </main>
+              </div>
+            </div>
+          </div>
+        </GameFileScanProvider>,
+      );
+      fixtureValue(
+        document.querySelector(".interface-root")?.parentElement,
+        "viewport fixture host",
+      ).classList.add("h-dvh");
+      await expect
+        .element(page.getByRole("navigation", { name: "Primary navigation", exact: true }))
+        .toBeVisible();
+      await expect
+        .element(page.getByRole("navigation", { name: "Settings categories", exact: true }))
+        .toBeVisible();
+      await click("Scan saved folders");
+      const publish = fixtureValue(emit, "owned scan event callback");
+      await act(async () => {
+        publish({
+          schema_version: 3,
+          operation_id: "owned-layout-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 1,
+          timestamp_ms: 1,
+          operation: "discover_sources",
+          type: "started",
+        });
+        publish({
+          schema_version: 3,
+          operation_id: "owned-layout-scan",
+          parent_operation_id: null,
+          target: null,
+          sequence: 2,
+          timestamp_ms: 2,
+          operation: "discover_sources",
+          type: "source_candidate",
+          ...source,
+        });
+      });
+      await document.fonts.ready;
+      const live = expectCandidateComposition(
+        "[data-live-candidate]",
+        stacked,
+        source.path,
+        profile.label,
+      );
+      const view = fixtureValue(
+        live.querySelector<HTMLButtonElement>("button:not([data-candidate-review])"),
+        "view game details",
+      );
+      view.focus();
+      await userEvent.keyboard("{Enter}");
+      expect(open).toHaveBeenCalledExactlyOnceWith(port.id, "game-file-libraries-setup");
+      expect(document.activeElement).toBe(view);
+      expectSettingsFixtureNavigation();
+      await captureParityState(`game-file-candidates-${layout}`);
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(completed);
+      await act(async () => fixtureValue(finish, "owned scan settlement")(completed));
+      expect(document.querySelector("[data-live-candidate]")).toBeNull();
+      expectCandidateComposition("[data-completed-candidate]", stacked, source.path, profile.label);
+      expectSettingsFixtureNavigation();
+      expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+      expect(desktopApi.importSource).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => finish?.(completed));
+      await root.rerender(null);
+      transport.dispose();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
+
+function expectWholeFolderIssueList(
+  expected: { identity: string | null; message: string; path: string | null }[],
+) {
+  const list = page.getByRole("list", { name: "Folder search issues", exact: true }).element();
+  list.scrollIntoView({ block: "center" });
+  const rows = [...list.querySelectorAll(":scope > li")];
+  expect(rows).toHaveLength(expected.length);
+  for (const [index, issue] of expected.entries()) {
+    const row = fixtureValue(rows[index], "reported folder issue");
+    expect(row.querySelector("strong")?.textContent ?? null).toBe(
+      issue.identity === null ? null : `${issue.identity}: `,
+    );
+    expect(row.textContent).toContain(issue.message);
+    expect(row.querySelector("code")?.textContent ?? null).toBe(issue.path);
+    const range = document.createRange();
+    range.selectNodeContents(fixtureValue(row.querySelector("p"), "issue message and path"));
+    const bounds = row.getBoundingClientRect();
+    for (const line of range.getClientRects()) {
+      expect(line.left).toBeGreaterThanOrEqual(bounds.left - 1);
+      expect(line.right).toBeLessThanOrEqual(bounds.right + 1);
+    }
+  }
+  expectSettingsFixtureNavigation();
+  const bounds = list.getBoundingClientRect();
+  requireCompleteCaptureTarget(
+    {
+      target: "whole folder search issue list",
+      target_count: 1,
+      visible: true,
+      rect: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+      viewport: { width: innerWidth, height: innerHeight },
+    },
+    "whole folder search issue list",
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
+  return list;
+}
+
+it.each(["dark", "light"] as const)(
+  "identifies every saved-folder issue in the actual Settings consumer in %s",
+  async (theme) => {
+    const oldTheme = document.documentElement.dataset.theme;
+    const oldViewport = { width: innerWidth, height: innerHeight };
+    const transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const ids = [
+      "blue-dragon",
+      "dark-forces-pc-complete-installed-data",
+      "doom-3-classic-pc-131-pk4",
+      "doom-3-roe-classic-pc-131-pk4",
+      "twilight-princess",
+    ];
+    const catalog = currentSourceCatalog();
+    const profiles = ids.map((id) => {
+      const identity = fixtureValue(
+        catalog.identities.find((entry) => entry.id === id),
+        id,
+      );
+      return { ...sourceProfile(), id, label: identity.label };
+    });
+    const message = "Folder search can't find files for this requirement. Choose them directly.";
+    const issues = ids.map((profile_id) => ({ profile_id, path: null, message }));
+    const report = { ...snapshot.report, candidates: [], limits_reached: [], issues };
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({ ...snapshot, report });
+    const port = {
+      ...portDefinition(),
+      id: "sample",
+      name: "Disc game",
+      source_profile: "blank-profile",
+    };
+    const review = vi
+      .spyOn(desktopApi, "planSourceImport")
+      .mockRejectedValue(new Error("Fixture direct check finished"));
+    try {
+      await page.viewport(1028, 750);
+      document.documentElement.dataset.theme = theme;
+      await root.rerender(
+        <GameFileScanProvider generation={1}>
+          <div className="interface-root flex h-full min-h-0 flex-col">
+            <div className="interface-workspace min-h-0 flex-1">
+              <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+                <Sidebar
+                  view="settings"
+                  setView={vi.fn()}
+                  libraryCount={0}
+                  updateCount={0}
+                  activities={[]}
+                />
+                <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                  <SettingsView
+                    category="game-files"
+                    generation={1}
+                    ports={[port]}
+                    statuses={new Map()}
+                    sourceProfiles={[
+                      ...profiles,
+                      { ...sourceProfile(), id: "blank-profile", label: "  " },
+                    ]}
+                    sources={[]}
+                    installedCount={0}
+                    sourceRequirementsState="available"
+                  />
+                </main>
+              </div>
+            </div>
+          </div>
+        </GameFileScanProvider>,
+      );
+      fixtureValue(
+        document.querySelector(".interface-root")?.parentElement,
+        "viewport fixture host",
+      ).classList.add("h-dvh");
+      await expect
+        .element(page.getByRole("list", { name: "Folder search issues", exact: true }))
+        .toBeVisible();
+      await document.fonts.ready;
+      expectWholeFolderIssueList(
+        profiles.map((profile) => ({ identity: profile.label, message, path: null })),
+      );
+      await captureParityState("game-files-requirement-issues");
+
+      const path = "D:/Games/original disc whose exact path remains available.iso";
+      const unknownProfile = "u".repeat(128);
+      const variants = [
+        { profile_id: unknownProfile, path: null, message },
+        {
+          profile_id: "blank-profile",
+          path: null,
+          message: "The selected requirement could not be checked.",
+        },
+        {
+          profile_id: null,
+          path,
+          message: "File exceeds the scan size limit.",
+          direct_check_profiles: [port.source_profile],
+        },
+      ];
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+        ...snapshot,
+        report: { ...report, issues: variants },
+      });
+      await click("Refresh folders");
+      await expect.element(page.getByText(unknownProfile, { exact: false })).toBeVisible();
+      const list = expectWholeFolderIssueList(
+        variants.map((issue) => ({
+          identity: issue.profile_id,
+          message: issue.message,
+          path: issue.path,
+        })),
+      );
+      const direct = page.getByText("Check this file", { exact: true });
+      await direct.click();
+      await expect
+        .element(page.getByRole("button", { name: "Check for Disc game", exact: true }))
+        .toBeEnabled();
+      expect(list.querySelector("code")?.getAttribute("dir")).toBe("ltr");
+      expectWholeFolderIssueList(
+        variants.map((issue) => ({
+          identity: issue.profile_id,
+          message: issue.message,
+          path: issue.path,
+        })),
+      );
+      await captureParityState("game-files-requirement-issue-fallbacks");
+      await click("Check for Disc game");
+      expect(review).toHaveBeenCalledExactlyOnceWith(
+        port.source_profile,
+        path,
+        "use_current_location",
+      );
+      expect(desktopApi.importSource).not.toHaveBeenCalled();
+      expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
+      expect(picker.pickGameFileFolder).not.toHaveBeenCalled();
+    } finally {
+      await root.rerender(null);
+      transport.dispose();
+      if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = oldTheme;
+      await page.viewport(oldViewport.width, oldViewport.height);
+    }
+  },
+);
 
 it("scans only after a player asks and keeps exact results as reviewed candidates", async () => {
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
@@ -2380,6 +2822,16 @@ it("uses Core's registered path spelling even when the complete scan fits its pr
   );
   expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  const notices = page.getByRole("checkbox", {
+    name: "Tell me when games I chose to hear about are ready",
+  });
+  const setupHeading = page.getByRole("heading", { name: "Select games for setup review" });
+  expect(
+    setupHeading.element().getBoundingClientRect().top -
+      notices.element().getBoundingClientRect().bottom,
+  ).toBeGreaterThanOrEqual(16);
+  button("Review installing 1 selected").scrollIntoView({ block: "center", behavior: "instant" });
+  await captureParityState("game-files-library-selected-setup-actions");
   await click("Review installing 1 selected");
   expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
   expect(start).not.toHaveBeenCalled();

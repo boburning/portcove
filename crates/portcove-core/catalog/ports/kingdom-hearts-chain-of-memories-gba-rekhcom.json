@@ -60,7 +60,16 @@
       "format_version": 1,
       "id": "kingdom-hearts-chain-of-memories-gba",
       "evidence_urls": ["https://github.com/MatyMeatBoy/ReKHCoM"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "kingdom-hearts-chain-of-memories-gba-game-boy-advance",
+          "title": "Kingdom Hearts: Chain of Memories (GBA) (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/MatyMeatBoy/ReKHCoM/blob/51edf7efa2c49c97a1c389ae2e4cd7e3b749448c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

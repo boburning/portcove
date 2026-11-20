@@ -46,6 +46,16 @@
       "warnings": [
         "Add the prepared pt.exe with the complete Windows port, your own supported US game archives and data/ intact. An already external game folder keeps its explicit --game argument; setup/updater/extractor programs are separate from Play."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "p-t",
+      "evidence_urls": [
+        "https://github.com/LoreanXavier/pt-pc/blob/3b1392abe5215773d4c353f5bc1ecb85233be68a/README.md",
+        "https://github.com/LoreanXavier/pt-pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "P.T."
   }
 }

@@ -168,6 +168,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("libultraship-portable", 3),
         ("libultraship-portable", 4),
         ("libultraship-portable", 5),
+        ("libultraship-portable", 6),
         ("generated-cache", 2),
         ("generated-cache", 3),
         ("generated-cache", 4),
@@ -177,6 +178,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("n64-recomp-portable", 5),
         ("n64-recomp-portable", 6),
         ("n64-recomp-portable", 7),
+        ("n64-recomp-portable", 8),
         ("psx-recomp-managed", 2),
         ("psx-recomp-managed", 3),
         ("psx-recomp-managed", 4),
@@ -228,6 +230,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(expected.insert(("native-portable", 37)));
     assert!(expected.insert(("native-portable", 38)));
     assert!(expected.insert(("native-portable", 39)));
+    assert!(expected.insert(("native-portable", 40)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }

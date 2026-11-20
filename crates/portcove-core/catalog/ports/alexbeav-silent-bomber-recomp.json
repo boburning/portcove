@@ -56,7 +56,16 @@
         "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp#readme",
         "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "silent-bomber-playstation",
+          "title": "Silent Bomber (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/bc491c6ca40caa2058bf63d7199191dac9659897/game.toml"
+          ]
+        }
+      ]
     }
   },
   "psx_managed_windows_v1": "split-mods",

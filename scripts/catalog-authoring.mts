@@ -11,13 +11,18 @@ import {
 } from "./package-player-observation.mts";
 import type { PackagePlayerObservationV1 } from "./package-player-observation.mts";
 import { checkSettingsPolicy, projectSettingsQualification } from "./settings-qualification.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import type {
   SettingsQualificationPolicy,
   SettingsQualificationObservation,
 } from "./settings-qualification.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
+import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
+import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
+import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -79,12 +84,28 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  /** Shared official Raze Windows package and portable-profile layout. */
+  raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Ordered platforms with an independently reviewed flat, single-program archive. */
+  reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
-  psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
+  psx_managed_windows_v1?:
+    | true
+    | "bundled-openbios"
+    | "split-mods"
+    | "split-mods-openbios"
+    | "split-mods-overlay-directory"
+    | "technically-computers";
+  /** Shared root-level persistence for reviewed N64Recomp packages. */
+  n64_recomp_persistence_v1?: true;
+  /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
+  reflectionhle_portable_paths_v1?: true;
+  /** Shared persistent files for the reviewed Crispy Doom Windows player. */
+  crispy_doom_windows_persistence_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -282,7 +303,46 @@ function checkPlayerGuideCopy(
     checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
 }
 
-function projectGbaArchive(record: AuthoredPort): AuthoredPort {
+class GbaLayoutMismatch extends Error {}
+
+/** Prefer the family recipe only when its expansion preserves the exact integration. */
+export function compactGbaArchive(record: AuthoredPort): AuthoredPort {
+  const { integration } = record;
+  if (
+    record.gba_staged_archive_v1 !== undefined ||
+    integration?.adapter !== "staged-source-portable"
+  )
+    return record;
+  const paths = integration.runtime_mutable_paths;
+  if (!Array.isArray(paths)) return record;
+  const codes = paths.flatMap((path) => {
+    const match =
+      typeof path === "string" ? /^recomp_coverage_([A-Z0-9]{4})\.json$/u.exec(path) : null;
+    return match?.[1] ? [match[1]] : [];
+  });
+  if (codes.length !== 1 || !codes[0]) return record;
+
+  const facts = { ...integration };
+  for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
+    delete facts[field];
+  const candidate = {
+    ...record,
+    integration: facts,
+    gba_staged_archive_v1: {
+      game_code: codes[0],
+      versioned_mods: integration.mod_package_policy === "versioned-packages-v1",
+    },
+  };
+  try {
+    if (JSON.stringify(projectGbaArchive(candidate).integration) === JSON.stringify(integration))
+      return candidate;
+  } catch (error) {
+    if (!(error instanceof GbaLayoutMismatch)) throw error;
+  }
+  return record;
+}
+
+export function projectGbaArchive(record: AuthoredPort): AuthoredPort {
   const facts = record.gba_staged_archive_v1;
   if (facts === undefined) return record;
   const integration = record.integration;
@@ -303,12 +363,12 @@ function projectGbaArchive(record: AuthoredPort): AuthoredPort {
     record.settings_qualification_v1 !== undefined ||
     record.settings_observation_v1 !== undefined
   )
-    throw new Error(
+    throw new GbaLayoutMismatch(
       "GBA archive facts require a reviewed Windows staged GitHub archive with an upstream picker.",
     );
   for (const field of ["persistent_paths", "runtime_mutable_paths", "mod_package_policy"])
     if (Object.hasOwn(integration, field))
-      throw new Error(
+      throw new GbaLayoutMismatch(
         `GBA archive facts already own ${field}; use an explicit integration for a different layout.`,
       );
 
@@ -667,8 +727,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectReviewedFlatPackageLayout(record);
+  projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
+  projectN64RecompPersistence(record);
+  projectReflectionHlePortablePaths(record);
+  projectCrispyDoomWindowsPersistence(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -707,13 +772,19 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
+  const declared = projectReviewedFlatPackageLayout(projectRazeWindowsProfile(input));
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
-      projectRouteFacts(projectPsxManagedWindows(projectGbaArchive(input))),
+      projectRouteFacts(
+        projectN64RecompPersistence(projectPsxManagedWindows(projectGbaArchive(declared))),
+      ),
     ),
   );
-  if (!record.integration) return undefined;
-  const integration = structuredClone(record.integration);
+  const operational = projectCrispyDoomWindowsPersistence(
+    projectReflectionHlePortablePaths(record),
+  ).integration;
+  if (!operational) return undefined;
+  const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
   const managedGuide = presentation.manual_setup;
   delete presentation.manual_setup;

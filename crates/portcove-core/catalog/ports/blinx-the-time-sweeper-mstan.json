@@ -36,6 +36,24 @@
       "warnings": [
         "Back up your existing console identity and saves before changing the game's profile. Portcove does not update this beta or back up its profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blinx-the-time-sweeper",
+      "evidence_urls": [
+        "https://github.com/mstan/BlinxRecomp/blob/v0.5.7/README.md",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blinx-the-time-sweeper-mstan.json"
+      ],
+      "source_editions": [
+        {
+          "id": "blinx-the-time-sweeper-xbox",
+          "title": "Blinx: The Time Sweeper (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blinx-the-time-sweeper-mstan.json"
+          ]
+        }
+      ]
     }
   }
 }

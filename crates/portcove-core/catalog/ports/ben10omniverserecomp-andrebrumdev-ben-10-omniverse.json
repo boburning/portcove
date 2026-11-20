@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp"
     },
-    "issue_number": 3385
+    "issue_number": 3385,
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-omniverse",
+      "evidence_urls": ["https://github.com/andrebrumdev/ben10-omniverse-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

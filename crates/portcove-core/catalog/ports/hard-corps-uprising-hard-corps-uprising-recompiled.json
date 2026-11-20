@@ -50,7 +50,26 @@
       "windows-x86-64": ["HardCorpsUprising-", "-windows-x64.zip"],
       "linux-x86-64": ["HardCorpsUprisingRecompiled-", "-x86_64.AppImage"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "hard-corps-uprising",
+      "evidence_urls": [
+        "https://github.com/saulob/hard-corps-uprising-recompiled",
+        "https://github.com/saulob/hard-corps-uprising-recompiled#readme",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/hard-corps-uprising-hard-corps-uprising-recompiled.json"
+      ],
+      "source_editions": [
+        {
+          "id": "hard-corps-uprising-xbox-360",
+          "title": "Hard Corps: Uprising (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/hard-corps-uprising-hard-corps-uprising-recompiled.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -178,6 +178,7 @@ it.for(["paired", "unavailable", "local"] as const)(
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -266,6 +267,7 @@ it.for([
               view={view}
               ports={ports}
               statuses={statuses}
+              libraryCount={5}
               overview={{ installed: 5, ready: 3, needsSetup: 2, staged: 0 }}
               filter="all"
               setFilter={() => {}}
@@ -286,17 +288,24 @@ it.for([
           </ArtworkProvider>
         </main>,
       );
-      for (const frame of document.querySelectorAll<HTMLElement>(".collection-art")) {
-        frame.scrollIntoView();
-        const imageExpected = frame !== document.querySelectorAll(".collection-art")[4];
+      const mountedFrames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
+      for (const [index, frame] of mountedFrames.entries()) {
+        frame.scrollIntoView({ block: "center", behavior: "instant" });
         await expect
-          .poll(() =>
-            imageExpected
-              ? frame.querySelector("img")?.complete === true &&
-                frame.querySelector("img")!.naturalWidth > 0
-              : frame.dataset.artworkSource === "generated_fallback",
+          .poll(
+            () => {
+              const image = frame.querySelector("img");
+              return {
+                frame: index + 1,
+                source: frame.dataset.artworkSource,
+                complete: image?.complete,
+                width: image?.naturalWidth,
+                decoded: image?.complete === true && image.naturalWidth > 0,
+              };
+            },
+            { timeout: 5_000 },
           )
-          .toBe(true);
+          .toMatchObject(index === 4 ? { source: "generated_fallback" } : { decoded: true });
       }
       // Exercise neutral layout measurement after a card was hovered.
       if (view === "library") {
@@ -358,6 +367,7 @@ it.for(["library", "catalog"] as const)(
           view={view}
           ports={many}
           statuses={new Map()}
+          libraryCount={100}
           overview={{ installed: 100, ready: 0, needsSetup: 100, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -486,6 +496,7 @@ function NavigableCards({ view, onSelect }: { view: "library" | "catalog"; onSel
         view={view}
         ports={navigationPorts}
         statuses={ready}
+        libraryCount={4}
         overview={{ installed: 4, ready: 4, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}
@@ -826,6 +837,7 @@ it.for([2, 4] as const)(
               view={view}
               ports={[port]}
               statuses={view === "library" ? installed : new Map<string, PortStatus>()}
+              libraryCount={view === "library" ? 1 : 0}
               overview={{
                 installed: view === "library" ? 1 : 0,
                 ready: view === "library" ? 1 : 0,
@@ -1052,6 +1064,29 @@ it("contains both staggered originals in an actual narrow App hero and Library",
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     document.documentElement.dataset.theme = "dark";
     await captureParityState("paired-originals-narrow-app-hero");
+    const credits = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-credits")!;
+    const summary = credits.querySelector("summary")!;
+    await userEvent.keyboard("{Tab}");
+    summary.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => summary.matches(":focus-visible")).toBe(true);
+    const firstCredit = credits.querySelector("dt")!;
+    expect(firstCredit.textContent).toBe("Source");
+    for (const [width, height] of [
+      [430, 780],
+      [960, 640],
+    ] as const) {
+      await page.viewport(width, height);
+      credits.scrollIntoView({ block: "center" });
+      const focus = getComputedStyle(summary);
+      const outlineEnd =
+        summary.getBoundingClientRect().bottom +
+        Number.parseFloat(focus.outlineOffset) +
+        Number.parseFloat(focus.outlineWidth);
+      expect(focus.outlineStyle).toBe("solid");
+      expect(firstCredit.getBoundingClientRect().top - outlineEnd).toBeGreaterThanOrEqual(2);
+      await captureParityState("paired-originals-focused-image-credits");
+    }
   } finally {
     await page.viewport(previousViewport.width, previousViewport.height);
   }
@@ -1112,6 +1147,7 @@ it.for(["local", "unavailable-local", "partial"] as const)(
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}
@@ -1189,6 +1225,7 @@ it("invalidates in-flight collection previews when only a member mapping changes
           view="catalog"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={() => {}}

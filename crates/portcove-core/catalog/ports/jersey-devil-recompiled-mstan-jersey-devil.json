@@ -40,7 +40,16 @@
       "format_version": 1,
       "id": "jersey-devil",
       "evidence_urls": ["https://github.com/mstan/JerseyDevilRecomp"],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "jersey-devil-playstation",
+          "title": "Jersey Devil (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/JerseyDevilRecomp/blob/946d0c7c1b945dae4c577d2daccb8ad74f4e029a/README.md"
+          ]
+        }
+      ]
     },
     "release_url": "https://github.com/mstan/JerseyDevilRecomp/releases",
     "download_asset_hints": {

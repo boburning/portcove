@@ -35,6 +35,12 @@
       "image_sha256": "ad6d813832f5c734885e572091bfd44e67df8edc1a89ef7e795cc800a88b298d",
       "game_slug": "ms-pac-man-maze-madness",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ms-pac-man-maze-madness",
+      "evidence_urls": ["https://github.com/adumah/MsPacManMazeMadnessRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

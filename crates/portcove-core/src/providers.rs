@@ -61,6 +61,22 @@ impl ReleaseProvider for CompositeReleaseProvider {
         }
     }
 
+    async fn resolve_saved_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        variant: &crate::ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.managed_build.contains_key(&platform) {
+            return Err(crate::cartridge_build::retired_creation());
+        }
+        self.github
+            .resolve_saved_variant(port, channel, platform, scope, variant)
+            .await
+    }
+
     async fn resolve_shape_fallback(
         &self,
         port: &PortDefinition,
@@ -197,6 +213,7 @@ mod tests {
                 provider: ReleaseSource::DirectManifest,
                 repository: String::new(),
                 rolling_tag: None,
+                github_other_stream_tag_prefixes: BTreeMap::new(),
                 asset_hints: BTreeMap::new(),
                 linux_tar_xz: false,
                 tar_xz_platforms: Vec::new(),
@@ -230,6 +247,7 @@ mod tests {
             game_settings: None,
             windows_shipwright_persistence: false,
             windows_tracked_handoff: false,
+            linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
             source_environment: None,
@@ -254,6 +272,8 @@ mod tests {
             setup_output_paths: vec![],
             upstream_status: UpstreamStatus::Retired,
             upstream_active_reviewed: false,
+            mod_provider_bindings: None,
+            legacy_mod_provider_held: false,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
             presentation: None,

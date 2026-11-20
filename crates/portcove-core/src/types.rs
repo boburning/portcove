@@ -712,6 +712,9 @@ pub struct ReleaseSpec {
     pub repository: String,
     #[serde(default)]
     pub rolling_tag: Option<String>,
+    /// Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub github_other_stream_tag_prefixes: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
@@ -753,6 +756,47 @@ pub struct AcceptedUploader {
 }
 
 impl ReleaseSpec {
+    pub(crate) fn github_stream_exclusions(&self, platform: Platform) -> &[String] {
+        self.github_other_stream_tag_prefixes
+            .get(&platform)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn validate_github_streams(&self, platforms: &[Platform]) -> crate::Result<()> {
+        for (platform, prefixes) in &self.github_other_stream_tag_prefixes {
+            let mut seen = std::collections::BTreeSet::new();
+            if self.provider != ReleaseSource::Github
+                || !platforms.contains(platform)
+                || self.curated.contains_key(platform)
+                || prefixes.is_empty()
+                || prefixes.len() > 8
+                || prefixes.iter().any(|prefix| {
+                    prefix.len() < 3
+                        || prefix.len() > 64
+                        || !prefix.ends_with('-')
+                        || !prefix
+                            .bytes()
+                            .next()
+                            .is_some_and(|byte| byte.is_ascii_lowercase())
+                        || !prefix.bytes().all(|byte| {
+                            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
+                        })
+                        || !seen.insert(prefix)
+                        || self
+                            .rolling_tag
+                            .as_ref()
+                            .is_some_and(|tag| tag.starts_with(prefix))
+                })
+            {
+                return Err(crate::PortcoveError::verification(
+                    "invalid managed GitHub release stream exclusions",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn requires_tar_xz(&self, platform: Platform) -> bool {
         (self.linux_tar_xz && platform == Platform::LinuxX86_64)
             || self.tar_xz_platforms.contains(&platform)
@@ -925,6 +969,9 @@ pub struct PortDefinition {
     /// is the whole session.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub windows_tracked_handoff: bool,
+    /// An immutable library shipped beside the selected Linux executable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linux_packaged_library: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mod_package_policy: Option<ModPackagePolicy>,
     /// Optional, release-bound editable configuration. Retained installations
@@ -997,6 +1044,13 @@ pub struct PortDefinition {
     /// defaulted to Active, so that value alone cannot prove a declaration.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub upstream_active_reviewed: bool,
+    /// Provider coordinates reviewed alongside the existing mod loader contract.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_provider_bindings: Option<Vec<crate::ModProviderBinding>>,
+    /// A local selection once replaced the compiled provider mapping.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) legacy_mod_provider_held: bool,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1419,10 +1473,24 @@ pub struct InstallRecord {
     pub selected_executable: PathBuf,
 }
 
+/// The exact download reviewed during a user-selected setup or replacement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SetupDownloadSelection {
+    pub release_id: crate::CatalogDownloadReleaseId,
+    pub asset_id: crate::CatalogDownloadAssetId,
+    pub release_tag: String,
+    pub filename: String,
+    /// SHA-256 of the observed download, without any claim about the launched program.
+    pub download_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExternalRuntimeRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_selected: Option<UserSelectedLaunch>,
+    /// Last setup download bound to this registration's reviewed local choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub setup_download: Option<SetupDownloadSelection>,
     pub id: String,
     pub port_id: String,
     pub path: PathBuf,
@@ -2453,7 +2521,9 @@ pub struct UploaderContinuityRecord {
 /// locally from the persisted conditional-request cache without any network call.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
-    /// Requests the provider will count against its primary rate limit.
+    /// Requests budgeted against the provider's primary rate limit. A saved
+    /// GitHub package choice budgets the bounded fresh inventory even when
+    /// cached conditional responses could lower the actual cost.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.

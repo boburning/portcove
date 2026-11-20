@@ -7,7 +7,7 @@
     "project_url": "https://github.com/alexbatalov/arcanum-ce",
     "issue_number": 828,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "source-only",
     "setup_url": "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
     "artwork": {
@@ -49,7 +49,16 @@
         "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md",
         "https://github.com/alexbatalov/arcanum-ce"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "arcanum-of-steamworks-and-magick-obscura-pc",
+          "title": "Arcanum: Of Steamworks and Magick Obscura (Windows)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
+          ]
+        }
+      ]
     }
   }
 }

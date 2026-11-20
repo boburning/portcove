@@ -97,11 +97,13 @@ jobs:
           targets: ${{ matrix.rust_targets }}
       - name: Install Linux desktop prerequisites
         if: runner.os == 'Linux'
-        timeout-minutes: 15
+        # The initial and fallback APT operations can each spend 10 minutes
+        # installing, after 2 and 4 minutes of index updates respectively.
+        timeout-minutes: 28
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/install-linux-desktop-prerequisites.sh
+          ./scripts/install-linux-desktop-prerequisites.sh --prefer-archive-mirror --install-timeout-seconds=600
           webkit_version="$(pkg-config --modversion webkit2gtk-4.1)"
           if ! pkg-config --atleast-version=2.52.6 webkit2gtk-4.1; then
             printf 'The Linux AppImage needs WebKitGTK 2.52.6 or later. Found %s.\n' "$webkit_version" >&2
@@ -117,6 +119,8 @@ jobs:
         env:
           CLI_TARGETS: ${{ matrix.cli_targets }}
         run: |
+          $cliApi = node scripts/app-release.mts cli-api
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $targets = ConvertFrom-Json -InputObject $env:CLI_TARGETS -AsHashtable
           New-Item -ItemType Directory -Force dist | Out-Null
           foreach ($platform in $targets.Keys) {
@@ -124,7 +128,7 @@ jobs:
             cargo build --release -p portcove-cli --target $target
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             $archive = ./scripts/package-cli.ps1 -PlatformLabel $platform -TargetRoot "target/$target"
-            ./scripts/smoke-test-cli-archive.ps1 -ArchivePath $archive -PlatformLabel $platform -Version $env:VERSION
+            ./scripts/smoke-test-cli-archive.ps1 -ArchivePath $archive -PlatformLabel $platform -Version $env:VERSION -ExpectedCliApi $cliApi
             Copy-Item -LiteralPath $archive -Destination dist/
           }
       - name: Build and sign desktop bundles
