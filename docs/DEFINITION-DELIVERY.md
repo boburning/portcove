@@ -801,6 +801,14 @@ redistribution each require their applicable authority. A new release identity
 may enter normal protected acceptance. Different bytes under the same accepted
 identity require investigation and must stay held.
 
+When a reusable local archive fails its independently accepted digest or size,
+Core refuses the operation and rechecks the cache object under its existing
+lock. It quarantines confirmed bad bytes under an inactive cache name. The
+refusal records the evidence path and expected digest. Quarantined bytes retain
+their storage accounting. A later normal request can fetch the same approved
+identity through its still-current policy and verify the result. This recovery
+preserves the older installed runtime and existing player data.
+
 The Core verifier, GitHub provider integration, accepted record and scoped
 transition handling are implemented. The #315 production canary, verified cache
 reuse, scoped refusals and recovery, and repeated eligible progression still

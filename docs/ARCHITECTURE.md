@@ -1066,8 +1066,14 @@ deriving its own per-card fallback.
 
 The catalog may provide an additive, reviewed IGDB cover mapping with distinct
 game, cover and CDN image IDs plus the expected image digest. Core resolves a
-valid local choice first, then the mapped cover for that port's cover slot, then
-the generated fallback. The Desktop host remains a thin adapter. Core
+valid local choice first. For automatic covers, the port's direct mapping takes
+precedence. A listing without a direct mapping can inherit a reviewed
+underlying-game cover from the current catalog when the original-game identity
+and single declared edition match across listings. Conflicting mappings,
+unknown editions and multiple offered editions leave the generated fallback.
+An explicit cover collection keeps its members. Artwork readback also checks
+the current inherited mapping so a donor change cannot return stale art.
+The Desktop host remains a thin adapter. Core
 fetches only the fixed IGDB cover CDN path, without Twitch credentials or a
 client-side catalog search; a bounded JPEG is checked against the catalog digest
 before decoding, and its original bytes are retained in the disposable shared

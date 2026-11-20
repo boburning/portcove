@@ -1,6 +1,31 @@
 use super::*;
 
 #[test]
+fn diablo_windows_kit_checks_its_bundled_manifest_at_the_proposed_destination() {
+    let port = "alexbeav-diablo-recomp";
+    let artifact = "ea3aa940848e0f5c450d54ab11fea5961ac82f2afbc3c5e5de873e91b7fe063d";
+    let windows = Some(Platform::WindowsX86_64);
+    // The two managed runtime directory lengths in the native #435 receipt
+    // include the separator and build-portcove. Longest member adds 69 units.
+    let runtime_component = "build-portcove".len() + 1;
+    let short = "x".repeat(131 - runtime_component);
+    let long = "x".repeat(226 - runtime_component);
+    check_artifact_destination(port, artifact, windows, Path::new(&short)).unwrap();
+    assert!(check_artifact_destination(port, artifact, windows, Path::new(&long)).is_err());
+    check_artifact_destination(
+        port,
+        artifact,
+        Some(Platform::LinuxX86_64),
+        Path::new(&long),
+    )
+    .unwrap();
+    check_artifact_destination(port, &"a".repeat(64), windows, Path::new(&long)).unwrap();
+    check_artifact_destination("sibling", artifact, windows, Path::new(&long)).unwrap();
+    let unicode = "🎮".repeat(100);
+    assert!(check_artifact_destination(port, artifact, windows, Path::new(&unicode)).is_err());
+}
+
+#[test]
 fn windows_native_originals_preserve_the_narrow_path_guard() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut ports = catalog
