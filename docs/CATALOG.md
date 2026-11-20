@@ -191,9 +191,9 @@ placeholder, research record or deferral is not a delivered integration.
 An integration can finish when a released client offers an actionable operation
 on an applicable platform and its required checks pass. An upstream-managed
 registration can be the finished title scope. Record which operations Portcove
-offers and who owns each one. Successful handoff to an upstream picker or
-launcher establishes that the player reached it. An operation that depends on
-completed import or setup needs evidence of that completion.
+offers and who owns each one. Record the Portcove handoff at the boundary
+actually observed. Showing a picker, importing an original and completing
+setup each need evidence when the offered operation depends on that event.
 
 Reuse a shared capability result when the title fits its tested contract.
 Verify the title's package, platform, source and ownership facts and exercise
