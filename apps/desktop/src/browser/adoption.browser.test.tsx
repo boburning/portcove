@@ -406,6 +406,10 @@ it.each([
       await expect.poll(() => refresh.mock.calls.length).toBe(1);
       const pending = page.getByRole("button", { name: "Refreshing library…", exact: true });
       await expect.element(pending).toBeDisabled();
+      expect(getComputedStyle(pending.element()).opacity).toBe("1");
+      expect(
+        pending.element().querySelector("svg")?.classList.contains("motion-safe:animate-spin"),
+      ).toBe(true);
       expect(document.querySelectorAll('[role="dialog"] [role="status"]')).toHaveLength(1);
       expect(document.querySelector('[role="dialog"] [role="status"]')).toBe(status);
       expect(status?.textContent?.trim()).toBe("Refreshing library…");

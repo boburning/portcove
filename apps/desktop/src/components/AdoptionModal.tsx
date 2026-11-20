@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef } from "react";
-import { FolderInput, FolderOpen, X } from "lucide-react";
+import { FolderInput, FolderOpen, LoaderCircle, X } from "lucide-react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { formatBytes } from "../view-model";
@@ -90,7 +90,7 @@ export function AdoptionModal({
           ref={titleRef}
           tabIndex={-1}
           id="adopt-title"
-          className="me-8 mb-2 pe-0 text-xl"
+          className="me-12 mb-2 pe-0 text-xl"
         >
           {t("adoption.title")}
         </DialogTitle>
@@ -280,6 +280,12 @@ function AdoptionActions({
   const { t } = useAppTranslation("installation");
   const { t: tWorkspace } = useAppTranslation("workspace");
   const pendingLabel = refreshing ? tWorkspace("refreshing") : t("adoption.copying");
+  const canContinue = preview ? preview.selected_port_id && preview.destination : path.trim();
+  const actionLabel = preview
+    ? t("adoption.continue")
+    : busy === "preview adoption"
+      ? t("adoption.reviewing")
+      : t("adoption.review");
   return (
     <>
       <p role="status" className="sr-only">
@@ -289,38 +295,23 @@ function AdoptionActions({
         <Button data-focusable variant="outline" onClick={dismiss} disabled={applying}>
           {t("adoption.cancel")}
         </Button>
-        {preview ? (
-          <Button
-            data-focusable
-            variant="primary"
-            aria-describedby={
-              preview.destination?.imported_user_data_paths.length
-                ? "adopt-save-warning"
-                : undefined
-            }
-            disabled={
-              Boolean(busy) || applying || !preview.selected_port_id || !preview.destination
-            }
-            onClick={adopt}
-          >
+        <Button
+          data-focusable
+          variant="primary"
+          className={applying ? "disabled:text-pc-foreground disabled:opacity-100" : undefined}
+          aria-describedby={
+            preview?.destination?.imported_user_data_paths.length ? "adopt-save-warning" : undefined
+          }
+          disabled={!canContinue || Boolean(busy) || applying}
+          onClick={preview ? adopt : () => review()}
+        >
+          {applying ? (
+            <Icon glyph={LoaderCircle} className="motion-safe:animate-spin" />
+          ) : (
             <Icon glyph={FolderInput} />
-            {applying ? pendingLabel : t("adoption.continue")}
-          </Button>
-        ) : (
-          <Button
-            data-focusable
-            variant="primary"
-            disabled={!path.trim() || Boolean(busy) || applying}
-            onClick={() => review()}
-          >
-            <Icon glyph={FolderInput} />
-            {applying
-              ? pendingLabel
-              : busy === "preview adoption"
-                ? t("adoption.reviewing")
-                : t("adoption.review")}
-          </Button>
-        )}
+          )}
+          {applying ? pendingLabel : actionLabel}
+        </Button>
       </DialogFooter>
     </>
   );
