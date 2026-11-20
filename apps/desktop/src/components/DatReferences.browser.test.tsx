@@ -157,9 +157,7 @@ describe("DAT files", () => {
       root.rerender(
         <DatReferenceSettings
           load={async () => []}
-          add={async () => {
-            throw failure;
-          }}
+          add={vi.fn<() => Promise<DatReferenceStatus>>().mockRejectedValue(failure)}
           pick={async () => ready.path}
         />,
       ),
