@@ -113,6 +113,7 @@
   },
   "protection": {
     "backupCheckDetails": "تفاصيل فحص النسخ الاحتياطي",
+    "backupDateUnavailable": "التاريخ المسجّل غير متاح",
     "backupIdentifier": "معرّف النسخة الاحتياطية",
     "candidate": "<code/> · {{state}}",
     "checking": "جارٍ التحقق من معلومات النسخ الاحتياطية. قد تكون المعلومات المحمّلة سابقًا قديمة.",

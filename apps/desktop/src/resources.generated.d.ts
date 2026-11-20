@@ -163,6 +163,7 @@ export default interface Resources {
     },
     "protection": {
       "backupCheckDetails": "Backup check details",
+      "backupDateUnavailable": "Recorded date unavailable",
       "backupIdentifier": "Backup identifier",
       "candidate": "<code/> · {{state}}",
       "checking": "Checking backup information. Previously loaded information may be out of date.",

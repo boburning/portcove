@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import type { BackupInventory } from "../types";
+import { initializeLocalization } from "../localization";
 import { portStatus } from "../test-fixtures";
 import { ProtectionSummary } from "./ProtectionSummary";
 
@@ -20,6 +21,20 @@ function snapshot(): Protection {
     latest_completed_backup: null,
     exclusions: ["Custom save locations are not automatically adopted."],
     problem: null,
+  };
+}
+function withCompletedBackup(createdAt = 42): Protection {
+  return {
+    ...snapshot(),
+    latest_completed_backup: {
+      id: "completed-backup-1",
+      port_id: "sample",
+      path: "C:/library/backups/1",
+      created_at: createdAt,
+      file_count: 2,
+      size: 30,
+      sha256: "b".repeat(64),
+    },
   };
 }
 function render(protection = snapshot(), status: "current" | "pending" | "failed" = "current") {
@@ -56,21 +71,51 @@ describe("player-data protection summary", () => {
   );
 
   it("keeps the latest completed backup distinct from current eligibility and game compatibility", () => {
-    const protection = snapshot();
-    protection.latest_completed_backup = {
-      id: "completed-backup-1",
-      port_id: "sample",
-      path: "C:/library/backups/1",
-      created_at: 42,
-      file_count: 2,
-      size: 30,
-      sha256: "b".repeat(64),
-    };
+    const protection = withCompletedBackup();
     const html = render(protection);
     expect(html).toContain("Latest completed backup");
     expect(html).toContain("completed-backup-1");
     expect(html).toContain("review the files");
     expect(html).toContain("Another version may not be able to use these saves");
+  });
+
+  it.each([
+    { now: 7_242, state: "current", age: true, label: "Latest completed backup" },
+    { now: 7_242, state: "failed", age: true, label: "Last known completed backup" },
+    { now: 41, state: "current", age: false, label: "Latest completed backup" },
+  ] as const)("shows elapsed time only for a recorded past backup ($state, $now)", (entry) => {
+    const protection = withCompletedBackup();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(entry.now * 1000);
+    try {
+      const html = render(protection, entry.state);
+      const formattedAge = new Intl.RelativeTimeFormat("en").format(-2, "hour");
+      const date = new Date(42_000).toLocaleString();
+      expect(html).toContain(entry.label);
+      expect(html).toContain(entry.age ? `${date} (${formattedAge})` : `${date} · 2 files`);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it("shows a localized unavailable date for a completed backup outside the Date range", () => {
+    const html = render(withCompletedBackup(9_000_000_000_000));
+    expect(html).toContain("Latest completed backup");
+    expect(html).toContain("Recorded date unavailable");
+    expect(html).not.toContain("Invalid Date");
+  });
+
+  it("uses the display language for elapsed time alongside the system date", async () => {
+    const app = initializeLocalization(["en"]);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(7_242_000);
+    try {
+      await app.changeLanguage("ar-XB");
+      const age = new Intl.RelativeTimeFormat("ar-XB").format(-2, "hour");
+      const date = new Date(42_000).toLocaleString();
+      expect(render(withCompletedBackup())).toContain(`${date} (${age})`);
+    } finally {
+      clock.mockRestore();
+      await app.changeLanguage("en");
+    }
   });
 
   it("does not show another implementation’s coverage or backup identity", () => {

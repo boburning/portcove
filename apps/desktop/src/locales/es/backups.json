@@ -104,6 +104,7 @@
   },
   "protection": {
     "backupCheckDetails": "Detalles de la comprobación de la copia de seguridad",
+    "backupDateUnavailable": "Fecha registrada no disponible",
     "backupIdentifier": "Identificador de la copia de seguridad",
     "candidate": "<code/> · {{state}}",
     "checking": "Comprobando la información de las copias de seguridad. La información cargada anteriormente puede estar desactualizada.",
