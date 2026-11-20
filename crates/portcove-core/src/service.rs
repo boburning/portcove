@@ -3975,6 +3975,11 @@ impl PortcoveService {
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&existing, &qualification)?;
+            if activate {
+                self.require_retained_n64_release_input(&existing, &|| {
+                    reporter.operation.checkpoint()
+                })?;
+            }
             if settings_activation {
                 reporter.operation.begin_publication()?;
                 self.library.register_install(&existing, false)?;
@@ -4029,6 +4034,15 @@ impl PortcoveService {
             reporter.operation,
         )?;
         reporter.operation.checkpoint()?;
+        if source.is_none() {
+            crate::source_inspection::verify_n64_release_input(
+                &self.catalog,
+                &port.id,
+                None,
+                (&release.version, &release.asset.sha256),
+                &|| reporter.operation.checkpoint(),
+            )?;
+        }
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
@@ -4565,6 +4579,7 @@ impl PortcoveService {
             let (port, qualification) = self
                 .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
+            self.require_retained_n64_release_input(&previous, &|| Ok(()))?;
             self.collect_active_user_data_if_launched(port_id)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
@@ -4753,6 +4768,7 @@ impl PortcoveService {
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
         self.require_activation_gates(&staged, fresh_continuity)?;
+        self.require_retained_n64_release_input(&staged, &|| Ok(()))?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status

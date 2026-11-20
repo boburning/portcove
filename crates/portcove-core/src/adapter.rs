@@ -328,19 +328,13 @@ impl Adapter for StandardAdapter {
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
             && !crate::preparation::managed(port)
-            && let (Some(_), Some(filename)) = (source, &port.runtime_source_filename)
+            && source.is_some()
+            && let Some(path) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
             if let Some(variable) = &port.source_environment {
                 environment.insert(
                     variable.clone(),
-                    crate::path::unicode(&source_root.join(filename), "materialized source")?,
+                    crate::path::unicode(&path, "materialized source")?,
                 );
             }
         }
@@ -553,16 +547,9 @@ impl Adapter for StandardAdapter {
             && !sealed_source
             && !retained_setup_is_current
             && !crate::preparation::managed(port)
-            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+            && let Some(source) = source
+            && let Some(stored_source) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
-            let stored_source = source_root.join(filename);
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -676,6 +663,22 @@ impl Adapter for StandardAdapter {
         }
         self.launch_spec_with_executable(request, checkpoint)
     }
+}
+
+pub(crate) fn runtime_source_path(
+    port: &PortDefinition,
+    working_directory: &Path,
+    user_data: &Path,
+) -> Option<PathBuf> {
+    let root =
+        if port.adapter == AdapterKind::N64RecompPortable && port.user_data_environment.is_some() {
+            user_data
+        } else {
+            working_directory
+        };
+    port.runtime_source_filename
+        .as_ref()
+        .map(|filename| root.join(filename))
 }
 
 fn managed_psx_bios(

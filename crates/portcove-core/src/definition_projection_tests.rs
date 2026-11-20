@@ -625,6 +625,7 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
     let port = &mut document["catalog"]["ports"][0];
     port["adapter"] = json!("n64-recomp-portable");
     port["runtime_source_filename"] = json!("fixture.us.z64");
+    port["persistent_paths"] = json!(["saves", "config.json", "fixture.us.z64"]);
     let sources = &mut document["catalog"]["source_catalog"];
     sources["evidence"].as_array_mut().unwrap().push(json!({
         "id": "fixture-upstream-input",

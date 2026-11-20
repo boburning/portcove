@@ -2252,8 +2252,47 @@ pub(crate) fn registered_launch_assessment(
     assessment
 }
 
-/// A required hash applies only when both the release and the byte-exact
-/// artifact select it. Upstream source facts never replace source registration.
+pub(crate) fn n64_release_input<'a>(
+    catalog: &'a Catalog,
+    port_id: &str,
+    release: (&str, &str),
+) -> Option<(&'a str, &'a crate::N64RecompOriginalInput)> {
+    let contract = catalog
+        .source_catalog()?
+        .contracts
+        .iter()
+        .find(|contract| {
+            contract.port_id == port_id && contract.role == crate::PortSourceRole::Game
+        })?;
+    let input = contract.n64_recomp_inputs_v1.iter().find(|input| {
+        input.upstream_ref == release.0 && input.artifact_sha256.eq_ignore_ascii_case(release.1)
+    })?;
+    Some((&contract.profile_id, input))
+}
+
+#[derive(Debug)]
+pub(crate) struct N64ReleaseInputProof {
+    canonical_sha256: String,
+    canonical_size: u64,
+}
+
+impl N64ReleaseInputProof {
+    pub(crate) fn require_materialized(
+        &self,
+        path: &Path,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(path)?;
+        let (sha256, size) = crate::adapter::hash_file_with_checkpoint(path, checkpoint)?;
+        if sha256 != self.canonical_sha256 || size != self.canonical_size {
+            return Err(PortcoveError::verification(
+                "The installed N64 game file differs from the checked original. Repair the game files before playing.",
+            ));
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn require_n64_release_input(
     catalog: &Catalog,
     port_id: &str,
@@ -2261,24 +2300,28 @@ pub(crate) fn require_n64_release_input(
     release: (&str, &str),
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let Some(input) = catalog
-        .source_catalog()
-        .into_iter()
-        .flat_map(|sources| &sources.contracts)
-        .find(|contract| {
-            contract.port_id == port_id
-                && contract.profile_id == source.profile_id
-                && contract.role == crate::PortSourceRole::Game
-        })
-        .and_then(|contract| {
-            contract.n64_recomp_inputs_v1.iter().find(|input| {
-                input.upstream_ref == release.0
-                    && input.artifact_sha256.eq_ignore_ascii_case(release.1)
-            })
-        })
-    else {
-        return Ok(());
+    verify_n64_release_input(catalog, port_id, Some(source), release, checkpoint).map(|_| ())
+}
+
+/// Select the required original only for an exact release and artifact.
+pub(crate) fn verify_n64_release_input(
+    catalog: &Catalog,
+    port_id: &str,
+    source: Option<&SourceRecord>,
+    release: (&str, &str),
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Option<N64ReleaseInputProof>> {
+    let Some((profile_id, input)) = n64_release_input(catalog, port_id, release) else {
+        return Ok(None);
     };
+    let source = source
+        .filter(|source| source.profile_id == profile_id)
+        .ok_or_else(|| {
+            PortcoveError::source(
+                "Choose the original game file required by this N64 Recomp release.",
+            )
+            .detail("profile_id", profile_id)
+        })?;
     // The same bounded reader verifies the exact stored bytes and the selected
     // archive member, then computes the upstream check on normalized content.
     const MAXIMUM_INPUT_BYTES: u64 = 512 * 1024 * 1024;
@@ -2319,7 +2362,18 @@ pub(crate) fn require_n64_release_input(
         .detail("upstream_ref", release.0)
         .detail("native_game_id", &input.game_id));
     }
-    checkpoint()
+    let (Some(canonical_sha256), Some(canonical_size)) =
+        (identity.canonical_n64_sha256, identity.canonical_n64_size)
+    else {
+        return Err(PortcoveError::state(
+            "N64 input check omitted its normalized identity",
+        ));
+    };
+    checkpoint()?;
+    Ok(Some(N64ReleaseInputProof {
+        canonical_sha256,
+        canonical_size,
+    }))
 }
 
 pub(crate) fn require_launch_source_compatibility(
@@ -2658,6 +2712,25 @@ mod tests {
                 .unwrap_err();
         assert_eq!(reject.code, crate::ErrorCode::SourceInvalid);
         assert_eq!(reject.details["native_game_id"], "mm.n64.us.1.0");
+        let missing = verify_n64_release_input(&catalog, PORT, None, (TAG, &artifact), &|| Ok(()))
+            .unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::SourceInvalid);
+
+        let proof =
+            verify_n64_release_input(&catalog, PORT, Some(&fixed), (TAG, &artifact), &|| Ok(()))
+                .unwrap()
+                .unwrap();
+        let derived = temporary.path().join("installed.z64");
+        fs::write(&derived, [0x80, 0x37, 0x12, 0x40, 0xa1, 0xb2, 0xc3, 0]).unwrap();
+        proof.require_materialized(&derived, &|| Ok(())).unwrap();
+        fs::write(&derived, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 0]).unwrap();
+        assert_eq!(
+            proof
+                .require_materialized(&derived, &|| Ok(()))
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
         let other_asset = "b".repeat(64);
         for release in [
             (TAG, other_asset.as_str()),

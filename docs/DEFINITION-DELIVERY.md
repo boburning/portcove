@@ -1983,12 +1983,13 @@ contract cites upstream support evidence. Indexed projections carrying these
 bindings require N64 recomp portable version 10 for the selected definition.
 
 The matching release and artifact select the requirement during managed
-installation and launch. Core checks the original's saved storage and content
-identities and compares the upstream digest after N64 padding and byte-order
-normalization. The XXH3-64 check leaves the saved identity and its SHA-256
-unchanged. A binding for a different release or artifact supplies no
-compatibility verdict. A literal value in upstream source needs evidence of
-the applicable runtime check before it can become a required binding.
+installation, activation, rollback and launch. Core checks the selected
+registration's storage and content identities and compares the upstream digest
+after N64 padding and byte-order normalization. Before launch, Core also checks
+that the runtime file matches the normalized original's SHA-256 and size. A
+bound release needs a checked original. A binding for a different release or
+artifact supplies no compatibility verdict. A literal value in upstream source
+needs evidence of the applicable runtime check before it can become a binding.
 
 ### Reviewed mod provider bindings
 
