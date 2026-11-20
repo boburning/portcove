@@ -33,17 +33,19 @@ import {
   type ModProviderRegistryProgress,
 } from "./upstream-mod-provider-registry.mts";
 import {
-  observeOriginalRecognition,
-  readOriginalRecognitionProgress,
-  revalidateOriginalRecognition,
-  selectOriginalRecognitionTarget,
+  inputEvidenceKey,
+  observeOriginalSource,
+  type OriginalSourceFamily,
+  readOriginalSourceProgress,
+  revalidateOriginalSource,
+  selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
   kind?: "listing";
   listing?: Record<string, unknown>;
-  observes_original_recognition?: true;
+  original_source_family?: OriginalSourceFamily;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -210,10 +212,16 @@ export function catalogObservationSources(input: unknown) {
       ports: [],
       scope_sha256: "",
     };
+    const originalSourceFamily =
+      provider === "github" && typeof port.source_profile === "string"
+        ? port.adapter === "libultraship-portable"
+          ? "libultraship"
+          : port.adapter === "n64-recomp-portable"
+            ? "n64-recomp"
+            : undefined
+        : undefined;
     source.ports.push({
-      ...(port.adapter === "libultraship-portable" && typeof port.source_profile === "string"
-        ? { observes_original_recognition: true as const }
-        : {}),
+      ...(originalSourceFamily ? { original_source_family: originalSourceFamily } : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -1442,7 +1450,7 @@ export async function advanceCatalogObservations(
           };
           const freshByRelease = new Map<
             string,
-            Awaited<ReturnType<typeof observeOriginalRecognition>>
+            Awaited<ReturnType<typeof observeOriginalSource>>
           >();
           const tagMatches = new Map<string, boolean>();
           const read = (endpoint: string) =>
@@ -1450,15 +1458,18 @@ export async function advanceCatalogObservations(
           for (const policy of policies) {
             if (!isRecord(policy)) continue;
             const port = source.ports.find((port) => port.id === policy.port_id);
-            if (!port?.observes_original_recognition) continue;
-            const target = selectOriginalRecognitionTarget(
+            const family = port?.original_source_family;
+            if (!family) continue;
+            const evidenceKey = inputEvidenceKey(family);
+            const target = selectOriginalSourceTarget(
               policy,
               source.repository,
               config.repository_id,
             );
-            const previous = readOriginalRecognitionProgress(
-              fallback.find((prior) => prior.port_id === port.id)?.original_recognition,
+            const previous = readOriginalSourceProgress(
+              fallback.find((prior) => prior.port_id === policy.port_id)?.[evidenceKey],
               { repository: source.repository, repository_id: config.repository_id },
+              family,
             );
             const retained = previous?.last_complete ?? null;
             let recognitionState: string;
@@ -1476,12 +1487,13 @@ export async function advanceCatalogObservations(
                   ]);
                   let matches = tagMatches.get(key);
                   if (matches === undefined) {
-                    matches = await revalidateOriginalRecognition(retained.fact, read);
+                    matches = await revalidateOriginalSource(retained.fact, read);
                     tagMatches.set(key, matches);
                   }
                   recognitionState = matches ? "observed" : "source-tag-changed";
                 } else {
                   const release = JSON.stringify([
+                    family,
                     target.repository_id,
                     target.release_id,
                     target.release_tag,
@@ -1489,7 +1501,7 @@ export async function advanceCatalogObservations(
                   const fresh = freshByRelease.get(release);
                   const fact = fresh
                     ? { ...fresh, ...target }
-                    : await observeOriginalRecognition(target, read);
+                    : await observeOriginalSource(target, read, family);
                   if (!fresh) freshByRelease.set(release, fact);
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
                   recognitionState = "observed";
@@ -1503,7 +1515,7 @@ export async function advanceCatalogObservations(
                 }
               }
             }
-            policy.original_recognition = { state: recognitionState, last_complete: complete };
+            policy[evidenceKey] = { state: recognitionState, last_complete: complete };
           }
         }
         await options.export(source, config, result, result.report.exception ? fallback : policies);

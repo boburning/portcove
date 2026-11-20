@@ -1,6 +1,7 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
-import { readOriginalRecognitionProgress } from "./upstream-original-recognition.mts";
+import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -1046,129 +1047,207 @@ void test("reviewed declarations share provider collection while keeping port-sp
   );
 });
 
-void test("scheduled original recognition retains the exact table across refresh and optional failure", async () => {
-  const h = harness();
-  Object.assign(h.input.ports[0]!, { adapter: "libultraship-portable", source_profile: "example" });
-  h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
-  const baseProject = h.options.project;
-  let unavailable: "budget" | "rate-limit" | null = null;
-  h.options.project = async (portId, repositoryId, observation) => {
-    const policy = await baseProject(portId, repositoryId, observation);
-    if (
-      portId !== "stable-port" &&
-      !(portId === "stable-port-second" && unavailable === "rate-limit")
-    )
-      return policy;
-    const release = observation.facts.releases.find((release) => release.id === 1);
-    assert.ok(release);
-    return {
-      ...(policy as Record<string, unknown>),
-      projections: [
-        {
-          channel: "stable",
-          platform: "linux-x86-64",
-          channel_candidate: { id: 1, tag: release.tag_name },
-          latest_eligible: {
-            release_id: 1,
-            release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
-          },
-        },
-      ],
-    };
-  };
-  const raw = Buffer.from(JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]));
-  const requests: string[] = [];
-  let tagSha = "c".repeat(40);
-  let retryAt: string | null = null;
-  h.options.readOriginalRecognition = async (repository, endpoint, account) => {
-    account.admitRequest();
-    requests.push(endpoint);
-    if (unavailable)
-      throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
-    const ref = endpoint.split("/git/ref/tags/")[1];
-    if (ref !== undefined)
-      return {
-        ref: `refs/tags/${ref}`,
-        object: { type: "commit", sha: tagSha },
-      };
-    if (endpoint.includes("/contents/"))
-      return {
-        type: "file",
-        path: "docs/supportedHashes.json",
-        encoding: "base64",
-        size: raw.length,
-        content: raw.toString("base64"),
-        sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
-      };
-    return { id: 7, full_name: repository };
-  };
-  const retained = (checkpoint: CatalogObserverCheckpoint) => {
-    const source = Object.values(checkpoint.sources).find(
-      (source) => source.repository === "owner/shared",
-    );
-    const policy = source?.last_complete_policies.find(
-      (policy) => policy.port_id === "stable-port",
-    );
-    return readOriginalRecognitionProgress(policy?.original_recognition, {
-      repository: "owner/shared",
-      repository_id: 7,
-    });
-  };
-  const initial = await advanceCatalogObservations(h.input, null, h.options);
-  const observation = retained(initial.checkpoint);
-  assert.equal(observation?.state, "observed");
-  assert.equal(observation?.last_complete?.fact.release_tag, "v1.0.0");
-  assert.equal(requests.length, 4);
+const gameEntryFixture = `std::vector<recomp::GameEntry> supported_games = {
+  { .rom_hash = 0x0123456789ABCDEFULL, .game_id = u8"fixture.us", .mod_game_id = "fixture",
+    .ignored = callback(1, 2) },
+  { .rom_hash = 0x1234ULL, .game_id = u8"fixture.eu" },
+};`;
 
-  h.advanceClock(48 * 3600_000);
-  const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
-  assert.deepEqual(retained(refreshed.checkpoint), observation);
-  assert.equal(requests.length, 5);
-
-  h.advanceClock(48 * 3600_000);
-  tagSha = "d".repeat(40);
-  const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
-  assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
-  assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
-  assert.equal(requests.length, 6);
-
-  h.advanceClock(48 * 3600_000);
-  h.bumpRelease();
-  unavailable = "budget";
-  const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
-  assert.equal(retained(deferred.checkpoint)?.state, "budget");
-  assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
-  assert.equal(deferred.report.completed_source_keys.length, 2);
-  assert.equal(requests.length, 7);
-
-  h.advanceClock(48 * 3600_000);
-  unavailable = "rate-limit";
-  h.setQuota(100);
-  retryAt = new Date(h.options.now!() + 100_000).toISOString();
-  const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
-  assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
-  assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
-  assert.equal(limited.checkpoint.provider_retry_at, retryAt);
-  const secondPolicy = Object.values(limited.checkpoint.sources)
-    .find((source) => source.repository === "owner/shared")
-    ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
-  assert.equal(
-    readOriginalRecognitionProgress(secondPolicy?.original_recognition, {
-      repository: "owner/shared",
-      repository_id: 7,
-    })?.state,
-    "budget",
-  );
-  const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
-    "port:stable-port",
-  );
-  assert.ok(isRecord(projected) && Array.isArray(projected.sources));
-  const source: unknown = projected.sources.find(
-    (value: unknown) => isRecord(value) && value.repository === "owner/shared",
-  );
-  assert.ok(isRecord(source));
-  assert.deepEqual(source.original_recognition, retained(limited.checkpoint));
+void test("N64 game entries require a single unconditional table and literal identities", () => {
+  assert.deepEqual(parseN64GameTable("/* unused declaration */\n" + gameEntryFixture), [
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
+    { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
+  ]);
+  for (const invalid of [
+    `#if ENABLED
+${gameEntryFixture}
+#endif`,
+    `/* marker */ #if 0
+${gameEntryFixture}
+/* marker */ #endif`,
+    `#/**/if 0
+${gameEntryFixture}
+#/**/endif`,
+    `%:if 0
+${gameEntryFixture}
+%:endif`,
+    ["// hidden " + String.fromCharCode(92) + "   ", gameEntryFixture.replace(/\n/gu, " ")].join(
+      "\n",
+    ),
+    ["// hidden " + String.fromCharCode(92), gameEntryFixture.replace(/\n/gu, " ")].join("\r"),
+    `/* ${gameEntryFixture} */`,
+    `/* missing terminator
+${gameEntryFixture}`,
+    `auto s = R"(
+${gameEntryFixture}
+)";`,
+    `${gameEntryFixture}
+${gameEntryFixture}`,
+    gameEntryFixture.replace("0x1234ULL", "PLATFORM_HASH"),
+    gameEntryFixture.replace("fixture.eu", "fixture.us"),
+    gameEntryFixture.replace('.mod_game_id = "fixture",', '.mod_game_id = "fi" "xture",'),
+    gameEntryFixture.replace(
+      ".ignored = callback(1, 2)",
+      `
+#if ENABLED
+.ignored = callback(1, 2)
+#endif
+`,
+    ),
+  ])
+    assert.throws(() => parseN64GameTable(invalid), /unsupported or ambiguous/u);
 });
+
+for (const family of ["libultraship", "n64-recomp"] as const) {
+  void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
+    const h = harness();
+    Object.assign(h.input.ports[0]!, { adapter: `${family}-portable`, source_profile: "example" });
+    h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
+    const baseProject = h.options.project;
+    let unavailable: "budget" | "rate-limit" | null = null;
+    h.options.project = async (portId, repositoryId, observation) => {
+      const policy = await baseProject(portId, repositoryId, observation);
+      if (
+        portId !== "stable-port" &&
+        !(portId === "stable-port-second" && unavailable === "rate-limit")
+      )
+        return policy;
+      const release = observation.facts.releases.find((release) => release.id === 1);
+      assert.ok(release);
+      return {
+        ...(policy as Record<string, unknown>),
+        projections: [
+          {
+            channel: "stable",
+            platform: "linux-x86-64",
+            channel_candidate: { id: 1, tag: release.tag_name },
+            latest_eligible: {
+              release_id: 1,
+              release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
+            },
+          },
+        ],
+      };
+    };
+    const raw = Buffer.from(
+      family === "n64-recomp"
+        ? gameEntryFixture
+        : JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]),
+    );
+    const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
+    const requests: string[] = [];
+    let tagSha = "c".repeat(40);
+    let retryAt: string | null = null;
+    h.options.readOriginalRecognition = async (repository, endpoint, account) => {
+      account.admitRequest();
+      requests.push(endpoint);
+      if (unavailable)
+        throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
+      const ref = endpoint.split("/git/ref/tags/")[1];
+      if (ref !== undefined)
+        return {
+          ref: `refs/tags/${ref}`,
+          object: { type: "commit", sha: tagSha },
+        };
+      if (endpoint.includes("/contents/"))
+        return {
+          type: "file",
+          path: sourcePath,
+          encoding: "base64",
+          size: raw.length,
+          content: raw.toString("base64"),
+          sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+        };
+      return { id: 7, full_name: repository };
+    };
+    const retained = (checkpoint: CatalogObserverCheckpoint) => {
+      const source = Object.values(checkpoint.sources).find(
+        (source) => source.repository === "owner/shared",
+      );
+      const policy = source?.last_complete_policies.find(
+        (policy) => policy.port_id === "stable-port",
+      );
+      return readOriginalSourceProgress(
+        policy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      );
+    };
+    const initial = await advanceCatalogObservations(h.input, null, h.options);
+    const observation = retained(initial.checkpoint);
+    assert.equal(observation?.state, "observed");
+    const fact = observation?.last_complete?.fact;
+    assert.equal(fact?.release_tag, "v1.0.0");
+    assert.equal(
+      fact?.coverage,
+      family === "n64-recomp" ? "source-declaration" : "recognition-only",
+    );
+    assert.ok(
+      requests.some((endpoint) => endpoint.endsWith(`/contents/${sourcePath}?ref=${tagSha}`)),
+    );
+    const stored = upstreamFacts(initial.checkpoint, h.input, h.options.now!()).facts;
+    const port = stored.get("port:stable-port");
+    assert.ok(isRecord(port) && Array.isArray(port.sources) && isRecord(port.sources[0]));
+    assert.deepEqual(port.sources[0][inputEvidenceKey(family)], observation);
+    assert.equal(requests.length, 4);
+
+    h.advanceClock(48 * 3600_000);
+    const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    assert.deepEqual(retained(refreshed.checkpoint), observation);
+    assert.equal(requests.length, 5);
+
+    h.advanceClock(48 * 3600_000);
+    tagSha = "d".repeat(40);
+    const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+    assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
+    assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(requests.length, 6);
+
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    unavailable = "budget";
+    const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
+    assert.equal(retained(deferred.checkpoint)?.state, "budget");
+    assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(deferred.report.completed_source_keys.length, 2);
+    assert.equal(requests.length, 7);
+
+    h.advanceClock(48 * 3600_000);
+    unavailable = "rate-limit";
+    h.setQuota(100);
+    retryAt = new Date(h.options.now!() + 100_000).toISOString();
+    const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
+    assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
+    assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+    const secondPolicy = Object.values(limited.checkpoint.sources)
+      .find((source) => source.repository === "owner/shared")
+      ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
+    assert.equal(
+      readOriginalSourceProgress(
+        secondPolicy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      )?.state,
+      "budget",
+    );
+    const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
+      "port:stable-port",
+    );
+    assert.ok(isRecord(projected) && Array.isArray(projected.sources));
+    const source: unknown = projected.sources.find(
+      (value: unknown) => isRecord(value) && value.repository === "owner/shared",
+    );
+    assert.ok(isRecord(source));
+    assert.deepEqual(source[inputEvidenceKey(family)], retained(limited.checkpoint));
+  });
+}
 
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {
   const h = harness(2);

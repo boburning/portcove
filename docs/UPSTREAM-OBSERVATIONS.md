@@ -212,7 +212,7 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
-## Original-file recognition observations
+## Original-file source observations
 
 For an operational Libultraship definition with a source profile, the catalog
 observer can read an upstream `docs/supportedHashes.json` table at the exact
@@ -220,6 +220,14 @@ commit resolved for Core's current Stable release. It binds the observation to
 the provider repository and release identities and the platform artifact
 digests returned by Core. The parser records its version, the source file's Git
 object and SHA-256, and the SHA-1 values the upstream table declares.
+
+For a GitHub N64 Recomp definition with a source profile, the observer reads
+`src/main/main.cpp` at the same release boundary. It recognizes the family's
+literal `supported_games` table and records the game ID, optional native mod game
+ID, and declared 64-bit ROM hash per row. Unrecognized declarations and
+conditional tables leave current evidence unknown. An observed table describes
+the release source. Runtime hash normalization, compiled platform coverage and
+actual acceptance require separate evidence before Core can use it for setup.
 
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records

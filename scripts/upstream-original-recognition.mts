@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  checkN64GameEntries,
+  n64GameTablePath,
+  parseN64GameTable,
+} from "./upstream-n64-game-entry.mts";
 
+export type OriginalSourceFamily = "libultraship" | "n64-recomp";
 const tablePath = "docs/supportedHashes.json";
 const maximumTableBytes = 64 * 1024;
 const maximumVariants = 256;
@@ -11,7 +17,7 @@ const artifactSha = /^[a-f0-9]{64}$/u;
 type ReadGitHub = (endpoint: string) => Promise<unknown>;
 
 /** Observed metadata for one exact published release, with artifact coverage from Core. */
-export interface OriginalRecognitionTarget {
+export interface OriginalSourceTarget {
   repository: string;
   repository_id: number;
   release_id: number;
@@ -19,12 +25,11 @@ export interface OriginalRecognitionTarget {
   artifacts: { platform: string; sha256: string }[];
 }
 
-/** SHA-1 here is the upstream ROM identifier, never a replacement artifact integrity digest. */
-export function parseSupportedOriginalHashes(contents: unknown) {
+function readReleaseSourceFile(contents: unknown, path: string) {
   if (
     !isRecord(contents) ||
     contents.type !== "file" ||
-    contents.path !== tablePath ||
+    contents.path !== path ||
     contents.encoding !== "base64" ||
     typeof contents.sha !== "string" ||
     !gitSha.test(contents.sha) ||
@@ -45,7 +50,18 @@ export function parseSupportedOriginalHashes(contents: unknown) {
   const blob = createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex");
   if (blob !== contents.sha)
     throw new Error("Upstream original recognition bytes differ from their declared Git object");
-  const values: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+  return {
+    source_path: path,
+    source_blob_sha1: blob,
+    source_sha256: createHash("sha256").update(raw).digest("hex"),
+    text: new TextDecoder("utf-8", { fatal: true }).decode(raw),
+  };
+}
+
+/** SHA-1 here is the upstream ROM identifier, never a replacement artifact integrity digest. */
+export function parseSupportedOriginalHashes(contents: unknown) {
+  const { text, ...source } = readReleaseSourceFile(contents, tablePath);
+  const values: unknown = JSON.parse(text);
   if (!Array.isArray(values) || values.length === 0 || values.length > maximumVariants)
     throw new Error("Upstream original recognition table has an unsupported shape or count");
   const hashes = new Set<string>();
@@ -65,15 +81,19 @@ export function parseSupportedOriginalHashes(contents: unknown) {
     hashes.add(row.sha1);
     return { name: row.name, sha1: row.sha1 };
   });
-  return {
-    source_path: tablePath,
-    source_blob_sha1: blob,
-    source_sha256: createHash("sha256").update(raw).digest("hex"),
-    variants,
-  };
+  return { ...source, variants };
 }
 
-async function readRecognitionTag(target: OriginalRecognitionTarget, read: ReadGitHub) {
+function parseN64ReleaseSource(contents: unknown) {
+  const { text, ...source } = readReleaseSourceFile(contents, n64GameTablePath);
+  return { ...source, games: parseN64GameTable(text) };
+}
+
+export function inputEvidenceKey(family: OriginalSourceFamily) {
+  return family === "libultraship" ? "original_recognition" : "n64_game_entries";
+}
+
+async function readRecognitionTag(target: OriginalSourceTarget, read: ReadGitHub) {
   const path = `/repos/${target.repository}/git/ref/tags/${encodeURIComponent(target.release_tag)}`;
   const value = await read(path);
   if (
@@ -85,14 +105,45 @@ async function readRecognitionTag(target: OriginalRecognitionTarget, read: ReadG
     !gitSha.test(value.object.sha)
   )
     throw new Error("Provider returned a different original recognition release tag");
-  return { type: value.object.type, sha: value.object.sha };
+  return { type: value.object.type, sha: value.object.sha } as const;
 }
 
-/** Observe a family table at the selected tag's exact Git commit. No admission is derived here. */
-export async function observeOriginalRecognition(
-  target: OriginalRecognitionTarget,
+type SourceIdentity = OriginalSourceTarget & {
+  format_version: 1;
+  source_tag_sha1: string;
+  source_tag_type: "commit" | "tag";
+  source_commit: string;
+};
+
+type LibultrashipEvidence = SourceIdentity &
+  ReturnType<typeof parseSupportedOriginalHashes> & {
+    parser: "libultraship-supported-hashes-v1";
+    coverage: "recognition-only";
+  };
+
+type N64Evidence = SourceIdentity &
+  ReturnType<typeof parseN64ReleaseSource> & {
+    parser: "n64-recomp-game-entry-v1";
+    coverage: "source-declaration";
+  };
+
+type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
+
+/** Observe a family table at the selected tag's exact Git commit. */
+export function observeOriginalSource(
+  target: OriginalSourceTarget,
   read: ReadGitHub,
-) {
+): Promise<LibultrashipEvidence>;
+export function observeOriginalSource(
+  target: OriginalSourceTarget,
+  read: ReadGitHub,
+  family: OriginalSourceFamily,
+): Promise<ObservedOriginalSource>;
+export async function observeOriginalSource(
+  target: OriginalSourceTarget,
+  read: ReadGitHub,
+  family: OriginalSourceFamily = "libultraship",
+): Promise<ObservedOriginalSource> {
   if (
     !/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(target.repository) ||
     !Number.isSafeInteger(target.repository_id) ||
@@ -122,9 +173,20 @@ export async function observeOriginalRecognition(
   }
   if (commit.type !== "commit" || typeof commit.sha !== "string" || !gitSha.test(commit.sha))
     throw new Error("Original recognition release does not resolve to a bounded exact commit");
-  const document = parseSupportedOriginalHashes(
-    await read(`${repository}/contents/${tablePath}?ref=${commit.sha}`),
-  );
+  const path = family === "libultraship" ? tablePath : n64GameTablePath;
+  const contents = await read(`${repository}/contents/${path}?ref=${commit.sha}`);
+  const declaration =
+    family === "libultraship"
+      ? ({
+          parser: "libultraship-supported-hashes-v1",
+          coverage: "recognition-only",
+          ...parseSupportedOriginalHashes(contents),
+        } as const)
+      : ({
+          parser: "n64-recomp-game-entry-v1",
+          coverage: "source-declaration",
+          ...parseN64ReleaseSource(contents),
+        } as const);
   const confirmed = await readRecognitionTag(target, read);
   if (confirmed.sha !== tag.sha || confirmed.type !== tag.type)
     throw new Error("Original recognition release tag changed during observation");
@@ -137,24 +199,22 @@ export async function observeOriginalRecognition(
     throw new Error("Original recognition repository identity changed during observation");
   return {
     format_version: 1,
-    parser: "libultraship-supported-hashes-v1",
-    coverage: "recognition-only",
     ...target,
     source_tag_sha1: tag.sha,
     source_tag_type: tag.type,
     source_commit: commit.sha,
-    ...document,
+    ...declaration,
   } as const;
 }
 
 /** Reuse Core's current artifact selection. A fallback release supplies no new recognition target. */
-export function selectOriginalRecognitionTarget(
+export function selectOriginalSourceTarget(
   policy: Record<string, unknown>,
   repository: string,
   repositoryId: number,
-): OriginalRecognitionTarget | undefined {
+): OriginalSourceTarget | undefined {
   if (!Array.isArray(policy.projections) || policy.projections.length > 12) return;
-  const artifacts: OriginalRecognitionTarget["artifacts"] = [];
+  const artifacts: OriginalSourceTarget["artifacts"] = [];
   let releaseId: number | undefined;
   let releaseTag: string | undefined;
   for (const row of policy.projections as unknown[]) {
@@ -199,30 +259,29 @@ export function selectOriginalRecognitionTarget(
   };
 }
 
-type ObservedOriginalRecognition = Awaited<ReturnType<typeof observeOriginalRecognition>>;
-
 /** On a due refresh, verify the ref before reusing the immutable table. */
-export async function revalidateOriginalRecognition(
-  fact: ObservedOriginalRecognition,
+export async function revalidateOriginalSource(
+  fact: ObservedOriginalSource,
   read: ReadGitHub,
 ): Promise<boolean> {
   const current = await readRecognitionTag(fact, read);
   return current.sha === fact.source_tag_sha1 && current.type === fact.source_tag_type;
 }
 
-export interface OriginalRecognitionProgress {
+export interface OriginalSourceProgress {
   state: string;
   last_complete: {
     binding: string;
     observed_at: string;
-    fact: ObservedOriginalRecognition;
+    fact: ObservedOriginalSource;
   } | null;
 }
 
-export function readOriginalRecognitionProgress(
+export function readOriginalSourceProgress(
   value: unknown,
   identity: { repository: string; repository_id: number },
-): OriginalRecognitionProgress | undefined {
+  family: OriginalSourceFamily = "libultraship",
+): OriginalSourceProgress | undefined {
   if (
     !isRecord(value) ||
     typeof value.state !== "string" ||
@@ -243,8 +302,6 @@ export function readOriginalRecognitionProgress(
   const fact = complete.fact;
   if (
     fact.format_version !== 1 ||
-    fact.parser !== "libultraship-supported-hashes-v1" ||
-    fact.coverage !== "recognition-only" ||
     fact.repository !== identity.repository ||
     fact.repository_id !== identity.repository_id ||
     !Number.isSafeInteger(fact.release_id) ||
@@ -258,7 +315,6 @@ export function readOriginalRecognitionProgress(
     (fact.source_tag_type !== "commit" && fact.source_tag_type !== "tag") ||
     typeof fact.source_commit !== "string" ||
     !gitSha.test(fact.source_commit) ||
-    fact.source_path !== tablePath ||
     typeof fact.source_blob_sha1 !== "string" ||
     !gitSha.test(fact.source_blob_sha1) ||
     typeof fact.source_sha256 !== "string" ||
@@ -273,27 +329,11 @@ export function readOriginalRecognitionProgress(
         /^(?:windows-x86-64|linux-x86-64|macos-x86-64|macos-aarch64)$/u.test(artifact.platform) &&
         typeof artifact.sha256 === "string" &&
         artifactSha.test(artifact.sha256),
-    ) ||
-    !Array.isArray(fact.variants) ||
-    fact.variants.length < 1 ||
-    fact.variants.length > maximumVariants ||
-    !fact.variants.every(
-      (variant: unknown) =>
-        isRecord(variant) &&
-        typeof variant.name === "string" &&
-        !!variant.name.trim() &&
-        variant.name.length <= 256 &&
-        !/\p{Cc}/u.test(variant.name) &&
-        typeof variant.sha1 === "string" &&
-        gitSha.test(variant.sha1),
     )
   )
     return;
-  const artifacts = (fact.artifacts as OriginalRecognitionTarget["artifacts"]).map(
+  const artifacts = (fact.artifacts as OriginalSourceTarget["artifacts"]).map(
     ({ platform, sha256 }) => ({ platform, sha256 }),
-  );
-  const variants = (fact.variants as ObservedOriginalRecognition["variants"]).map(
-    ({ name, sha1 }) => ({ name, sha1 }),
   );
   const target = {
     repository: identity.repository,
@@ -304,29 +344,74 @@ export function readOriginalRecognitionProgress(
   };
   if (
     complete.binding !== orderedJsonSha256(target) ||
-    new Set(artifacts.map(({ platform }) => platform)).size !== artifacts.length ||
-    new Set(variants.map(({ sha1 }) => sha1)).size !== variants.length
+    new Set(artifacts.map(({ platform }) => platform)).size !== artifacts.length
   )
     return;
-  // Project only the bounded checked evidence fields. Old saved data can carry more keys.
+  const source = {
+    format_version: 1,
+    ...target,
+    source_tag_sha1: fact.source_tag_sha1,
+    source_tag_type: fact.source_tag_type,
+    source_commit: fact.source_commit,
+    source_blob_sha1: fact.source_blob_sha1,
+    source_sha256: fact.source_sha256,
+  } as const;
+  let evidence: ObservedOriginalSource;
+  if (family === "n64-recomp") {
+    const games = checkN64GameEntries(fact.games);
+    if (
+      fact.parser !== "n64-recomp-game-entry-v1" ||
+      fact.coverage !== "source-declaration" ||
+      fact.source_path !== n64GameTablePath ||
+      !games
+    )
+      return;
+    evidence = {
+      ...source,
+      parser: fact.parser,
+      coverage: fact.coverage,
+      source_path: n64GameTablePath,
+      games,
+    };
+  } else {
+    if (
+      fact.parser !== "libultraship-supported-hashes-v1" ||
+      fact.coverage !== "recognition-only" ||
+      fact.source_path !== tablePath ||
+      !Array.isArray(fact.variants) ||
+      fact.variants.length < 1 ||
+      fact.variants.length > maximumVariants ||
+      !fact.variants.every(
+        (variant: unknown) =>
+          isRecord(variant) &&
+          typeof variant.name === "string" &&
+          !!variant.name.trim() &&
+          variant.name.length <= 256 &&
+          !/\p{Cc}/u.test(variant.name) &&
+          typeof variant.sha1 === "string" &&
+          gitSha.test(variant.sha1),
+      )
+    )
+      return;
+    const variants = (fact.variants as LibultrashipEvidence["variants"]).map(({ name, sha1 }) => ({
+      name,
+      sha1,
+    }));
+    if (new Set(variants.map(({ sha1 }) => sha1)).size !== variants.length) return;
+    evidence = {
+      ...source,
+      parser: fact.parser,
+      coverage: fact.coverage,
+      source_path: tablePath,
+      variants,
+    };
+  }
   return {
     state: value.state,
     last_complete: {
       binding: complete.binding,
       observed_at: complete.observed_at,
-      fact: {
-        format_version: 1,
-        parser: "libultraship-supported-hashes-v1",
-        coverage: "recognition-only",
-        ...target,
-        source_tag_sha1: fact.source_tag_sha1,
-        source_tag_type: fact.source_tag_type,
-        source_commit: fact.source_commit,
-        source_path: tablePath,
-        source_blob_sha1: fact.source_blob_sha1,
-        source_sha256: fact.source_sha256,
-        variants,
-      },
+      fact: evidence,
     },
   };
 }

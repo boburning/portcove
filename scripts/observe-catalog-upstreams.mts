@@ -74,7 +74,9 @@ function repositoryMetadataReader(
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
-            (/^\/repos\/[^/]+\/[^/]+\/contents\/docs\/supportedHashes\.json$/u.test(url.pathname) &&
+            (/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main\/main\.cpp)$/u.test(
+              url.pathname,
+            ) &&
               /^\?ref=[a-f0-9]{40}$/u.test(url.search))),
       });
     }
