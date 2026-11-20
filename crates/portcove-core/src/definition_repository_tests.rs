@@ -1640,7 +1640,7 @@ async fn an_ordinary_successor_cannot_weaken_the_latest_retained_subject() {
     let fixture = RepositoryFixture::new();
     let directory = TempDir::new().unwrap();
     let library = Library::open(directory.path()).unwrap();
-    let port_id = "open-nectar-pikmin";
+    let port_id = "djultra64-blocksphere";
     let baseline = Catalog::embedded().unwrap();
     let mut reviewed = baseline.authoritative_document();
     let port = reviewed
@@ -1716,7 +1716,7 @@ async fn a_post_client_successor_preserves_its_predecessors_immutable_source_ide
         .iter_mut()
         .find(|row| row.id == profile)
         .unwrap()
-        .label = "Changed previously admitted source".into();
+        .evidence_gap = Some("Changed previously admitted source".into());
     let changed = Catalog::from_document(changed).unwrap();
     let rejected = prepare_selection_revision(&fixture, &library, &changed, &port_id, 2, 8).await;
     // The newer policy is already current, so the active catalog no longer
@@ -1901,8 +1901,6 @@ async fn historical_full_projection_can_import_without_replacing_current_unrelat
 
 #[tokio::test]
 async fn historical_projection_can_import_after_unrelated_source_graph_only_growth() {
-    use ed25519_dalek::{Signer, SigningKey};
-
     let fixture = RepositoryFixture::new();
     let source_root = TempDir::new().unwrap();
     let target_root = TempDir::new().unwrap();
@@ -1910,53 +1908,15 @@ async fn historical_projection_can_import_after_unrelated_source_graph_only_grow
     let target = Library::open(target_root.path()).unwrap();
     let (old, port_id) = post_client_catalog();
     let baseline = Catalog::embedded().unwrap();
-    let mut newer = baseline.authoritative_document();
-    let source_graph = newer.source_catalog.as_mut().unwrap();
-    let unrelated_contract = source_graph
-        .contracts
-        .iter()
-        .position(|contract| !contract.evidence_ids.is_empty())
-        .unwrap();
-    let id = &source_graph.contracts[unrelated_contract].evidence_ids[0];
-    let mut new_evidence = source_graph
-        .evidence
-        .iter()
-        .find(|row| &row.id == id)
-        .unwrap()
-        .clone();
-    new_evidence.id = "later-unrelated-catalog-evidence".into();
-    source_graph.contracts[unrelated_contract]
-        .evidence_ids
-        .push(new_evidence.id.clone());
-    source_graph.evidence.push(new_evidence);
-
-    let now = Library::now();
-    let signed = crate::SignedCatalogPayload {
-        sequence: 1,
-        issued_at: now - 60,
-        expires_at: now + 3600,
-        catalog: newer,
-    };
-    let payload = serde_json::to_string(&signed).unwrap();
-    let key = SigningKey::from_bytes(&[19; 32]);
-    let key_id = crate::signed_catalog::digest(key.verifying_key().as_bytes());
-    let signature = key.sign(&crate::signed_catalog::signing_message(&key_id, &payload));
-    let signed_bytes = serde_json::to_vec(&crate::SignedCatalogEnvelope {
-        format_version: 1,
-        key_id,
-        payload,
-        signature: hex::encode(signature.to_bytes()),
-    })
-    .unwrap();
-    target
-        .trust_catalog_key(&hex::encode(key.verifying_key().as_bytes()))
-        .unwrap();
-    target.connection().unwrap().execute(
-        "UPDATE catalog_state SET revision=revision+1,highest_sequence=1,enabled=1,active=?1 WHERE singleton=1",
-        [signed_bytes],
-    ).unwrap();
+    let qualification =
+        crate::catalog_update::tests::publish_source_qualification(&target, target_root.path())
+            .await;
     let (newer, provenance) = target.load_catalog().unwrap();
-    assert_eq!(provenance.origin, CatalogOrigin::SignedActive);
+    assert_eq!(
+        provenance.origin,
+        CatalogOrigin::SignedActive,
+        "{provenance:?}"
+    );
     assert_eq!(
         serde_json::to_value(baseline.ports()).unwrap(),
         serde_json::to_value(newer.ports()).unwrap()
@@ -1965,9 +1925,8 @@ async fn historical_projection_can_import_after_unrelated_source_graph_only_grow
         newer
             .source_catalog()
             .unwrap()
-            .evidence
-            .iter()
-            .any(|row| row.id == "later-unrelated-catalog-evidence")
+            .qualification
+            .contains(&qualification)
     );
 
     let eligible = prepare_selection_revision(&fixture, &source, &old, &port_id, 1, 7).await;
@@ -2010,7 +1969,11 @@ async fn historical_projection_can_import_after_unrelated_source_graph_only_grow
             .is_none()
     );
     let (reopened, provenance) = target.load_catalog().unwrap();
-    assert_eq!(provenance.origin, CatalogOrigin::SignedActive);
+    assert_eq!(
+        provenance.origin,
+        CatalogOrigin::SignedActive,
+        "{provenance:?}"
+    );
     assert!(reopened.port(&port_id).is_err());
     assert_eq!(reopened.source_catalog(), newer.source_catalog());
 }
@@ -2042,7 +2005,7 @@ async fn portable_active_restore_refuses_source_collision_in_both_subject_orders
         .iter_mut()
         .find(|row| row.id == profile)
         .unwrap()
-        .label = "Conflicting independent source".into();
+        .evidence_gap = Some("Conflicting independent source".into());
     let second = Catalog::from_document(second).unwrap();
     let targets = paired_definition_targets(&first, &first_id, &second, second_id);
     let root = fixture
