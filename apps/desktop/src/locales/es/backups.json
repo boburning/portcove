@@ -178,6 +178,7 @@
     "failure": "La operación no se completó. Revisa la copia de seguridad y los datos actuales antes de volver a intentarlo.",
     "inventoryUnavailable": "Portcove no pudo confirmar que se pueda restaurar esta copia. Actualiza el historial de copias de seguridad para comprobarlo.",
     "reconcileRestore": "Comprueba el resultado en Actividad antes de iniciar otra restauración.",
+    "reopenRestore": "Portcove no pudo verificar el destino de la restauración. Cierra esta revisión y vuelve a elegir la copia.",
     "restoring": "Restaurando la copia de seguridad…",
     "reviewAgain": "Revisar de nuevo",
     "selectionChanged": "Portcove no pudo confirmar que esta revisión coincida con la copia de seguridad seleccionada.",

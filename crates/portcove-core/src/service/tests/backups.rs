@@ -2217,6 +2217,14 @@ fn restore_review_binds_materialized_setup_without_requiring_a_saved_data_change
     register_zelda_install(&library, "v1", true);
     let service = service_with_release(library.clone(), "v1");
     let profile = service.ensure_default_profile(port_id).unwrap();
+    let other = service
+        .create_clean_profile(
+            port_id,
+            &profile.id,
+            "Other setup",
+            profile.current_revision,
+        )
+        .unwrap();
     let user_root = library.user_dir(port_id);
     fs::create_dir_all(&user_root).unwrap();
     fs::write(user_root.join("save.dat"), b"same saved bytes").unwrap();
@@ -2228,7 +2236,13 @@ fn restore_review_binds_materialized_setup_without_requiring_a_saved_data_change
     };
     let before = review();
     // Model the materialized pointer changing without changing any files.
-    crate::profile::set_selection(&library.connection().unwrap(), port_id, &profile.id, 2).unwrap();
+    crate::profile::set_selection(
+        &library.connection().unwrap(),
+        port_id,
+        &other.id,
+        other.current_revision,
+    )
+    .unwrap();
     let after = review();
     assert!(before.restore_target_sha256.is_some());
     assert_ne!(before.restore_target_sha256, after.restore_target_sha256);

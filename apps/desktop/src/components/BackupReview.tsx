@@ -1,5 +1,5 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
@@ -48,11 +48,19 @@ export function BackupReviewDialog({
   const { t } = useAppTranslation("backups");
   const reviewTitle = useRef<HTMLHeadingElement>(null);
   const refreshBeforeReview = useRef(false);
-  const originalRestoreTarget = useRef<{ identity: string; scope: string | null | undefined }>(
-    undefined,
-  );
+  const [originalRestoreTarget, setOriginalRestoreTarget] = useState<{
+    identity: string;
+    scope: string;
+  }>();
   const restore = action === "restore";
   const identity = `${backup.port_id}:${backup.id}:${backup.sha256}:${action}:${generation}`;
+  const activeIdentity = useRef<string>(undefined);
+  useLayoutEffect(() => {
+    activeIdentity.current = identity;
+    return () => {
+      activeIdentity.current = undefined;
+    };
+  }, [identity]);
   const {
     preview: review,
     pending,
@@ -84,12 +92,13 @@ export function BackupReviewDialog({
       ) {
         throw backupSelectionChanged;
       }
-      const original = originalRestoreTarget.current;
-      if (restore && original?.identity === identity) {
-        if (!original.scope || !result.preview.restore_target_sha256)
-          throw restoreReviewHolds.inventoryUnavailable;
-        if (original.scope !== result.preview.restore_target_sha256)
+      if (restore) {
+        const scope = result.preview.restore_target_sha256;
+        if (!scope || !/^[a-f0-9]{64}$/u.test(scope)) throw restoreReviewHolds.inventoryUnavailable;
+        if (originalRestoreTarget?.identity === identity && originalRestoreTarget.scope !== scope)
           throw restoreReviewHolds.targetChanged;
+        if (activeIdentity.current === identity && originalRestoreTarget?.identity !== identity)
+          setOriginalRestoreTarget({ identity, scope });
       }
       return result;
     },
@@ -97,10 +106,6 @@ export function BackupReviewDialog({
     close,
     failureMessage: t("review.failure"),
   });
-  useLayoutEffect(() => {
-    if (restore && review && originalRestoreTarget.current?.identity !== identity)
-      originalRestoreTarget.current = { identity, scope: review.preview.restore_target_sha256 };
-  }, [restore, review, identity]);
   const selectionChanged = error === backupSelectionChanged;
   const hold =
     (Object.keys(restoreReviewHolds) as (keyof typeof restoreReviewHolds)[]).find(
@@ -111,6 +116,7 @@ export function BackupReviewDialog({
     restore && failurePhase === "apply" && mutation !== "no_changes" && mutation !== "not_started";
   const canRefresh =
     refreshRestoreReview &&
+    originalRestoreTarget?.identity === identity &&
     !requiresReconciliation &&
     hold !== "targetChanged" &&
     hold !== "backupUnavailable";
@@ -122,11 +128,13 @@ export function BackupReviewDialog({
   };
   const explanation = requiresReconciliation
     ? t("review.reconcileRestore")
-    : hold && !pending && !refreshingHistory
-      ? holdMessage[hold]
-      : selectionChanged
-        ? t("review.selectionChanged")
-        : undefined;
+    : selectionChanged
+      ? t("review.selectionChanged")
+      : restore && error !== undefined && originalRestoreTarget?.identity !== identity
+        ? t("review.reopenRestore")
+        : hold && !pending && !refreshingHistory
+          ? holdMessage[hold]
+          : undefined;
   return (
     <Dialog
       open

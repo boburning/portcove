@@ -235,6 +235,7 @@ export default interface Resources {
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
       "inventoryUnavailable": "Portcove couldn’t confirm that this backup can be restored. Refresh backup history to check again.",
       "reconcileRestore": "Check the restore result in Activity before starting another restore.",
+      "reopenRestore": "Portcove couldn’t verify the restore target. Close this review and choose the backup again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
       "selectionChanged": "Portcove couldn’t confirm that this review matches the selected backup.",
