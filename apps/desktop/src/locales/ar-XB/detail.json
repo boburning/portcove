@@ -125,6 +125,14 @@
     "toVersion": "الإصدار النشط",
     "unreadable": "تعذرت قراءتها"
   },
+  "changeReview": {
+    "mods_one": "التعديلات · {{count}} تغيير",
+    "mods_other": "التعديلات · {{count}} تغييرات",
+    "open_one": "مراجعة {{count}} تغيير",
+    "open_other": "مراجعة {{count}} تغييرات",
+    "settings_one": "إعدادات اللعبة · {{count}} تغيير",
+    "settings_other": "إعدادات اللعبة · {{count}} تغييرات"
+  },
   "identity": {
     "label": "هوية اللعبة والمنفذ",
     "offeredChannel": "قناة التحديث المتاحة",

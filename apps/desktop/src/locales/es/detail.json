@@ -125,6 +125,14 @@
     "toVersion": "Versión activa",
     "unreadable": "No se pudieron leer"
   },
+  "changeReview": {
+    "mods_one": "Mods · {{count}} cambio",
+    "mods_other": "Mods · {{count}} cambios",
+    "open_one": "Revisar {{count}} cambio",
+    "open_other": "Revisar {{count}} cambios",
+    "settings_one": "Configuración del juego · {{count}} cambio",
+    "settings_other": "Configuración del juego · {{count}} cambios"
+  },
   "identity": {
     "label": "Identidad del juego y de la adaptación",
     "offeredChannel": "Canal de actualización ofrecido",
