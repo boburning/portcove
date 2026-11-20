@@ -427,8 +427,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // Embedded implementation descriptions require format 12 in the combined directory.
-    assert_eq!(catalog.listing_document().format_version, 12);
+    // Embedded typed IGDB scenes require format 13 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 13);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -508,7 +508,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 12);
+    assert_eq!(catalog.listing_document().format_version, 13);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
