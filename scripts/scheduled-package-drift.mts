@@ -332,6 +332,46 @@ const totalArchiveLimit = 2 * 1024 * 1024 * 1024;
 const subprocessLimit = 4 * 1024 * 1024;
 const layoutComponents = new Set<string>(["programs", "top_directories"]);
 const otherComponents = SHAPE_COMPONENTS.filter((part) => !layoutComponents.has(part));
+const driftTiers = ["generated", "reviewed_layout"] as const;
+type DriftTier = (typeof driftTiers)[number];
+type DriftContinuation = Partial<Record<DriftTier, string>>;
+
+function driftRouteKey(target: DriftTarget): string {
+  return `${target.portId}/${target.platform}/${target.channel}`;
+}
+
+function driftTier(target: DriftTarget): DriftTier {
+  return target.baselineSource ?? "generated";
+}
+
+export function readDriftContinuation(value: unknown): DriftContinuation {
+  if (!isRecord(value) || value.format !== 1 || !isRecord(value.continuation)) return {};
+  const continuation: DriftContinuation = {};
+  for (const tier of driftTiers) {
+    const key = value.continuation[tier];
+    if (typeof key !== "string" || key.length > 160) continue;
+    const [port, platform, channel, ...extra] = key.split("/");
+    if (
+      port !== undefined &&
+      catalogId.test(port) &&
+      platform !== undefined &&
+      platforms.has(platform) &&
+      (channel === "stable" || channel === "beta") &&
+      extra.length === 0
+    )
+      continuation[tier] = key;
+  }
+  return continuation;
+}
+
+function orderedDriftTargets(targets: readonly DriftTarget[], resumeAt: string | undefined) {
+  const byRoute = targets
+    .map((target) => ({ key: driftRouteKey(target), target }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const start = resumeAt === undefined ? 0 : byRoute.findIndex(({ key }) => key >= resumeAt);
+  if (start <= 0) return byRoute;
+  return [...byRoute.slice(start), ...byRoute.slice(0, start)];
+}
 
 export function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection {
   const data =
@@ -417,12 +457,21 @@ export async function scanDriftTargets(
     inspect: (archive: string, target: DriftTarget, stopAt: number) => Promise<Inspection>;
     now?: () => number;
   },
+  priorContinuation: DriftContinuation = {},
 ) {
   const observations: DriftObservation[] = [];
   const unassessed: { target: DriftTarget; reason: string }[] = [];
   let bytes = 0;
   const now = dependencies.now ?? Date.now;
-  for (const target of targets) {
+  const queues = driftTiers.map((tier) => ({
+    tier,
+    routes: orderedDriftTargets(
+      targets.filter((target) => driftTier(target) === tier),
+      priorContinuation[tier],
+    ),
+  }));
+  const deferred: DriftContinuation = {};
+  for (const { key: route, target } of queues.flatMap(({ routes }) => routes)) {
     const key = driftTargetKey(target);
     const prior = completed.get(key);
     if (
@@ -439,6 +488,7 @@ export async function scanDriftTargets(
       target.asset.size + bytes > totalArchiveLimit ||
       now() >= stopAt
     ) {
+      if (target.asset.size <= archiveLimit) deferred[driftTier(target)] ??= route;
       unassessed.push({ target, reason: "inspection-budget" });
       continue;
     }
@@ -457,7 +507,18 @@ export async function scanDriftTargets(
       await rm(directory, { recursive: true, force: true });
     }
   }
-  return { observations, unassessed, attempted_bytes: bytes };
+  const continuation: DriftContinuation = {};
+  for (const { tier, routes } of queues) {
+    const resume = deferred[tier];
+    if (resume !== undefined) {
+      // A route that could not fit even in the first slot must not pin the queue.
+      const next = routes.find(
+        ({ key, target }) => key !== resume && target.asset.size <= archiveLimit,
+      );
+      continuation[tier] = resume === routes[0]?.key ? (next?.key ?? resume) : resume;
+    }
+  }
+  return { observations, unassessed, attempted_bytes: bytes, continuation };
 }
 
 async function readBoundedJson(file: string, maxBytes: number): Promise<unknown> {
@@ -553,16 +614,22 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   }
   const downloader = hostedDependencies();
   const cache = completedInspections(previous, inspector_sha256);
-  const result = await scanDriftTargets(targets, cache, Date.now() + 20 * 60_000, {
-    download: (asset, archive, deadline) =>
-      downloader.download(
-        { ...asset, digest: `sha256:${asset.sha256}` },
-        archive,
-        asset.size,
-        deadline,
-      ),
-    inspect: (archive, candidate, deadline) => inspect(archive, candidate, inspector, deadline),
-  });
+  const { continuation, ...result } = await scanDriftTargets(
+    targets,
+    cache,
+    Date.now() + 20 * 60_000,
+    {
+      download: (asset, archive, deadline) =>
+        downloader.download(
+          { ...asset, digest: `sha256:${asset.sha256}` },
+          archive,
+          asset.size,
+          deadline,
+        ),
+      inspect: (archive, candidate, deadline) => inspect(archive, candidate, inspector, deadline),
+    },
+    readDriftContinuation(previous),
+  );
   // Only current evidence goes to the notice job. Preserve earlier comparisons
   // for unobserved routes only while the same inspector bytes are in use.
   for (const item of result.observations) {
@@ -571,7 +638,7 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
     cache.set(item.key, item.inspection);
   }
   const observations = [...cache].slice(-512).map(([key, inspection]) => ({ key, inspection }));
-  await writeJson(checkpoint, { format: 1, inspector_sha256, observations });
+  await writeJson(checkpoint, { format: 1, inspector_sha256, observations, continuation });
   await writeJson(output, { format: 1, run, inspector_sha256, ...result });
   console.log(
     `Compared ${result.observations.length} packages for ${targets.length} current routes. ${result.unassessed.length} were unassessed.`,

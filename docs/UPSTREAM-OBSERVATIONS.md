@@ -467,6 +467,14 @@ comparison can be reused when Core confirms both reviewed components matched.
 Its verdict stays incomplete. Failed archive checks remain visible and can be
 retried in a later observation. Installed-state eligibility stays with Core.
 
+The inspection checkpoint also tracks where each baseline group ran out of
+time or download budget. The next run continues from that route in stable
+port, platform and channel order, even when new inspector bytes invalidate
+previous results. Generated baselines keep priority over reviewed layouts.
+Oversized archives stay unassessed and do not set the next route. A failed
+download or inspection remains eligible on a later pass. The continuation
+changes only the order of work within existing limits.
+
 A separate main-branch job has only the issue write permission for the notice.
 When a listing links a canonical issue, it records one bot-owned marker comment
 per affected issue, with the
