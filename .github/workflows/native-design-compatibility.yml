@@ -672,7 +672,7 @@ jobs:
       matrix:
         include:
           - selection: review-continuation
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-interrupted-preparation-recovery
               - native-source-intake-and-discovery-dialogs
@@ -704,7 +704,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: install-steam-artwork
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - install-progress-cancellation
               - install-commit-refresh-recovery
@@ -731,7 +731,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-selected-setup
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-saved-folder-selected-setup
             expected_plan:
@@ -745,7 +745,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: preliminary-selected-setup
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-preliminary-selected-setup
             expected_plan:
@@ -759,7 +759,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: library-switch-recovery
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-library-switch-recovery
             expected_plan:
@@ -773,7 +773,7 @@ jobs:
                 "probe_required": false,
               }
           - selection: secondary-panels
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-secondary-panel-presentation
             expected_plan:
@@ -787,7 +787,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: public-collection
-            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
+            source: 11f25d6e3d3a37915a0358d19869ebeabfada536
             scenarios:
               - native-collection-artwork-presentation
             expected_plan:
@@ -802,7 +802,7 @@ jobs:
               }
     env:
       SOURCE_HEAD: ${{ matrix.source }}
-      SOURCE_TREE: 8ec07f77f99987f0f8b62e2f83dc6c521cdcb5a7
+      SOURCE_TREE: e3798f24ef443f8758d3151f4237c450ee9d989e
       CONTROLLER_HEAD: ${{ github.sha }}
       EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
