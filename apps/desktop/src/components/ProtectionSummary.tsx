@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
@@ -126,28 +126,11 @@ export function ProtectionSummary({
             )}
             {!complete && <p role="status">{t("protection.unconfirmedLatest")}</p>}
             {protection.latest_completed_backup ? (
-              <div>
-                <p>
-                  {/* Dates follow the system's regional format, separate from message language. */}
-                  {current && complete
-                    ? t("protection.latestBackup", {
-                        time: new Date(
-                          protection.latest_completed_backup.created_at * 1000,
-                        ).toLocaleString(),
-                        count: protection.latest_completed_backup.file_count,
-                      })
-                    : t("protection.lastKnownBackup", {
-                        time: new Date(
-                          protection.latest_completed_backup.created_at * 1000,
-                        ).toLocaleString(),
-                        count: protection.latest_completed_backup.file_count,
-                      })}
-                </p>
-                <details>
-                  <summary data-focusable>{t("protection.backupIdentifier")}</summary>
-                  <code>{protection.latest_completed_backup.id}</code>
-                </details>
-              </div>
+              <CompletedBackupSummary
+                key={protection.latest_completed_backup.id}
+                backup={protection.latest_completed_backup}
+                current={current && complete}
+              />
             ) : (
               <p>
                 {!complete
@@ -232,6 +215,53 @@ export function ProtectionSummary({
         </details>
       )}
     </>
+  );
+}
+
+const minuteMs = 60_000;
+const minutesPerDay = 24 * 60;
+
+function CompletedBackupSummary({
+  backup,
+  current,
+}: {
+  backup: NonNullable<Protection["latest_completed_backup"]>;
+  current: boolean;
+}) {
+  const { t, i18n } = useAppTranslation("backups");
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), minuteMs);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const timestamp = new Date(backup.created_at * 1000);
+  // Show the elapsed time from Core's epoch timestamp, independent of time-zone changes.
+  const elapsedFormatter = new Intl.RelativeTimeFormat(i18n.resolvedLanguage);
+  const minutes = Math.floor((now - timestamp.getTime()) / minuteMs);
+  let age: string | undefined;
+  if (minutes >= minutesPerDay)
+    age = elapsedFormatter.format(-Math.floor(minutes / minutesPerDay), "day");
+  else if (minutes >= 60) age = elapsedFormatter.format(-Math.floor(minutes / 60), "hour");
+  else if (minutes >= 0) age = elapsedFormatter.format(-minutes, "minute");
+  // Keep the system's regional date format and the app's language for relative wording.
+  const date = Number.isFinite(timestamp.getTime())
+    ? timestamp.toLocaleString()
+    : t("protection.backupDateUnavailable");
+  const time = age ? `${date} (${age})` : date;
+  return (
+    <div>
+      <p>
+        {t(current ? "protection.latestBackup" : "protection.lastKnownBackup", {
+          time,
+          count: backup.file_count,
+        })}
+      </p>
+      <details>
+        <summary data-focusable>{t("protection.backupIdentifier")}</summary>
+        <code>{backup.id}</code>
+      </details>
+    </div>
   );
 }
 
