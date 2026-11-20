@@ -44,6 +44,7 @@ import {
   observerStreamingSnapshotLimit,
 } from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -71,6 +72,7 @@ function repositoryMetadataReader(
         allowRequest: (method, url) =>
           method === "GET" &&
           (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+            isUpstreamBuildMetadataUrl(url) ||
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
