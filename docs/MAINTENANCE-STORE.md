@@ -1220,90 +1220,153 @@ runs the generic commands above unchanged on a GitHub-hosted runner. It follows
 owner decisions recorded on 2026-11-13. Unattended evidence belongs to #4129
 checkpoint 5 and is recorded there.
 
-- **Schedule.** Once daily at 04:47 UTC, plus `workflow_dispatch` without inputs.
-  Both jobs run only on `main` of this repository. One concurrency group
-  serializes store writers, and a queued run never cancels a running one.
-- **Database.** A standard PostgreSQL 16 or newer database; the owner chose
-  Neon (database `portcove`). Its URL is the repository secret
-  `PORTCOVE_DATABASE_URL`, passed to the store commands as
-  `PORTCOVE_MAINTENANCE_DATABASE_URL`.
-  - Use the direct (unpooled) connection string. Backup holds an exported
-    snapshot across two sessions, and migration and collection use advisory
-    locks. Transaction-mode poolers preserve neither.
-  - The URL reaches only the step environments of the store commands, which
-    translate it to libpq variables.
-  - The hosted store runs as the URL's own role, which owns the schema. The
-    limited roles stay available to operators who grant separate logins.
-- **Configuration errors.** The first step checks that
-  `PORTCOVE_DATABASE_URL` and `PORTCOVE_ROADMAP_TOKEN` are set.
-  - When either is empty, the job fails before checkout and nothing is read or
-    written.
-  - Its step summary and error annotation name only the missing secrets.
-  - A server older than PostgreSQL 16 fails the same way.
-- **Client version.** `maintenance-store.mts server` reports the server's major
-  version through the runner's default client. When the runner image has no
-  client of that major version, the job installs one from the PostgreSQL apt
-  repository and sets `PORTCOVE_POSTGRES_BIN`. Ubuntu's own `postgresql-common`
-  script configures that repository.
-- **Credentials.** The collect job has `contents: read`, `actions: read` and
-  `issues: read`.
-  - Release health, release content, upstream observer snapshots and hosted
-    intake read through that job's `GITHUB_TOKEN`, passed as `GH_TOKEN`.
-  - Only the issue and Project source reads the existing
-    `PORTCOVE_ROADMAP_TOKEN`, read-only, as the Roadmap health workflow does. The
-    token is passed as `PORTCOVE_ROADMAP_GH_TOKEN` and read through
-    `collect --issues-token-env`, which never falls back to another credential.
-  - The collector removes that variable from its own environment once read, so
-    Core, Git and `psql` do not inherit it.
-  - Definition publication and delivery need no credential.
-- **Collect job.** It runs these steps in order:
-  1. Build the debug Core CLI, sharing the observer's Rust cache.
-  2. `migrate`.
-  3. `collect --all` with `--issues`, `--release-health`, `--release-content`,
-     `--publication`, `--delivery`, `--upstream`, `--hosted-intake` and
-     `--targets`. The collection transaction reaches the
-     server as one batched query (psql `\;`), so a remote host costs one round
-     trip rather than one per statement. The isolation and quoting settings
-     run first as their own statements, because a batched query is parsed whole
-     before any setting inside it takes effect. That one call has a 15-minute
-     budget; other store calls keep two minutes.
-  4. `handoffs --record`, which plans and never dispatches.
-  5. `report`, `digest` and `backup`.
-- **Artifacts.** These are GitHub Actions artifacts kept for 30 days. Nothing is
-  published to GitHub Pages.
-  - `maintenance-report-<run>-<attempt>` holds the report (`report/index.html`,
-    `report/inventory.json`), the changes-only digest (`digest/digest.json`,
-    `digest/digest.md`) and `evidence.json`.
-  - `maintenance-backup-<run>-<attempt>` holds `maintenance.dump` and
-    `manifest.json`.
-  - `maintenance-restore-proof-<run>-<attempt>` holds the restore evidence.
-  - No executor acknowledges or posts the digest, so pending changes accumulate
-    until an authorized executor delivers them
-    ([changes-only digest](#changes-only-digest)).
-- **Restore proof.** A second job downloads the backup artifact and starts a
-  fresh PostgreSQL server of the same major version on its own runner, reachable
-  only through a private Unix socket. It then runs `restore`, which verifies the
-  dump digest and every table's count and digest in its own transaction. The job
-  also compares the restored digests with the manifest and fails on any
-  difference. Restore drops exactly the provider's own column-version
-  statements (`ALTER TABLE ONLY … ALTER COLUMN … SET (pg_attver=N)`), which
-  Neon adds to every column and standard PostgreSQL refuses. The store sets no
-  column options, so nothing of the store is lost, and `COPY` data is never
-  filtered.
-- **Evidence.** `evidence.json` (`portcove-maintenance-hosted-evidence`, format 1)
-  and the step summary record these fields:
-  - the run ID, attempt, event and head commit;
-  - the collect, report and backup step outcomes;
-  - the report's `generated_at`, so report age is observable;
-  - every source's latest run: ID, coverage, revision, counts and gap count;
-  - the pending change count;
-  - the server version and `pg_database_size`;
-  - the schema version, dump size and digest, and per-table row counts;
-  - the duration of each step;
-  - the size and SHA-256 of every report, digest and backup file.
+The daily 04:47 UTC run collects every declared source, records eligible
+handoffs, takes a portable recovery point and renders inventory and digest files
+from that recovery point on a local PostgreSQL server. Existing Core input
+digests let unchanged assessments be reused. A full Core pass still runs when
+inputs change or the last compatible full pass reaches seven days. A failed
+source preserves its last verified data. The backup checks the committed store
+independently of the collection exit status.
 
-  The restore evidence records both server versions, the restore duration and
-  the verification result.
+Manual runs default to `status`. Each purpose runs on repository `main`.
+Purpose and revision scope the concurrency groups. A manual request cannot
+replace a pending scheduled run. PostgreSQL serializes budget admissions and
+fences stale collection writes across groups. Reuse retained artifacts when
+inspecting historical executions. Before migration 0006, a historical rerun can still use the original full export path.
+
+| Purpose           | Work                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `status`          | Record the provider reading and exercise bounded admission with a migration-status query.                                           |
+| `collect-changed` | Read only pinned catalog and Core facts with selective reassessment. Leave external sources, reports and recovery to the daily run. |
+| `report`          | Restore a retained, independently verified backup and render its report and digest on local PostgreSQL.                             |
+| `verify-recovery` | Restore a retained backup on a clean local PostgreSQL instance and verify it.                                                       |
+| `recover`         | Create and independently restore a portable recovery point using the retained history prefix.                                       |
+| `recovery-full`   | Request a separately admitted full recovery export to seed a replacement baseline.                                                  |
+
+Equivalent manual catalog requests with the same pinned revision and a recent
+completed result coalesce inside a ten-minute window. A clock-dated change or
+an incomplete result remains eligible. Daily collection reads fresh external
+source identities.
+
+The daily run keeps existing source and repository access. The production steps
+use the direct database secret `PORTCOVE_DATABASE_URL`. Only collection receives
+`PORTCOVE_ROADMAP_TOKEN` to read the Project. The metered steps also require
+`PORTCOVE_NEON_METER_TOKEN` with effective Viewer access to the existing Portcove
+project. A personal token from a dedicated Neon Collaborator with only this
+project's Viewer grant can supply that access. Project-scoped organization keys
+have Editor rights. The application checks effective Viewer access before using
+the metadata response. See [Neon API keys](https://neon.com/docs/manage/api-keys)
+and [Neon user permissions](https://neon.com/docs/manage/user-permissions).
+
+During local PostgreSQL replay, pass the existing `--database-env` or
+`--database-env-file` options with a local connection. On Neon the store and
+inventory CLI apply the same meter used by the workflow, including for direct
+report, digest, recovery and migration commands. `maintenance-inventory.mts
+status` reads small source and notification counts. `history --subject KEY
+--before N` reads up to 100 transitions below sequence N. Run the history command
+on a local restore for offline investigation. Routine reports keep the latest
+12 transitions per subject and indicate when earlier records exist. Report and
+digest queries use the same restored snapshot, and the original tables preserve
+their full history.
+
+### Portable recovery
+
+The service has an implied daily recovery point from the existing schedule.
+There is no separately committed recovery time. The independent restore job
+retains its existing 20-minute job budget and records actual restore duration.
+
+The newest retained backup with matching independent restore evidence seeds the
+next export. A manual recovery request can reuse a verified backup under 20 hours
+old after matching protected table digests and sequence values. PostgreSQL compares ordered content hashes and row counts for the
+retained prefix of each large append-only table under one exported snapshot.
+When a prefix matches, only newer rows cross the network. A mismatch requires
+that table's full payload to fit the admission. The schedule requests a larger
+envelope when the retained recovery point is more than 30 hours old. Beyond 54
+hours, a live meter can admit a full recovery envelope. Incomplete GitHub
+inventory never implies that the prior backup is missing. All smaller tables, including
+mutable state and the migration ledger, come from the same snapshot. The
+independent reconstruction loads current schema and data, preserves sequence
+values and verifies all protected table hashes before writing a new standalone
+ordinary PostgreSQL dump. The new dump has no runtime dependency on its seed
+artifact. Portable restore still clears discovery intake activation.
+
+The independent job downloads the exact new backup from GitHub and verifies it
+on its own local server. Backup, report, and restore-proof artifacts retain their
+existing 30-day window. The retention policy covers GitHub files. PostgreSQL
+history remains intact. If recovery is pending, the workflow records the last
+verified artifact and capture time. At recovery age over 24 hours, or if no
+verified artifact can be identified, the job raises an operational warning.
+
+### Free-plan admission and evidence
+
+The policy reads the Free project and production branch metadata over HTTPS.
+`data_transfer_bytes` is the cumulative project transfer counter. The branch
+counter and logical size are separate corroborating measurements.
+`compute_time_seconds / 3600` gives provider CU-hours. Compute active time,
+workflow time, file sizes and PostgreSQL payload estimates keep their own units.
+The sample time records the API request. Neon does not supply a causal watermark
+for individual operations. See [Neon network transfer](https://neon.com/docs/introduction/network-transfer)
+and [Neon plans](https://neon.com/docs/introduction/plans).
+
+An admission transaction locks the shared ledger before comparing the measured
+period, cumulative counter and prior reservations. Its operation key records the
+run, attempt where needed, source revision and trigger. A successful delivery
+with a saved output can satisfy an equivalent request. Cancellation or an
+uncertain outcome leaves its full reservation charged for the period. A completed
+operation records a logical PostgreSQL response estimate with a protocol margin.
+It stays provisionally charged alongside the project meter until period reset
+because a rise in the meter can belong to another client. This deliberately
+overcounts overlap instead of treating an immediate API delta as command bytes.
+Evidence shows the difference that can be attributed only as a lower bound
+and leaves exact unattributed transfer unknown.
+
+`resource.jsonl` in the existing evidence artifact records sample, operation,
+remaining bytes, unreconciled charges, future recovery provision, retry condition
+and outcome. The GitHub summary reports deferred work and the dated recovery point.
+Publication and player routes keep their existing static signed catalog inputs.
+No paid fallback is used.
+
+Missing or regressed readings defer metered work outside the finite November
+cutover. The cutover uses the 20:51 UTC November 20 observation only for the
+existing production endpoint and charges at most 300 MB through the recorded
+December 1 reset. The workflow labels that reading as historical and reports
+current remaining allowance as unknown. It keeps full exports and direct report
+exports outside this temporary envelope. A configured but invalid Viewer token
+defers work. The next scheduled maintenance
+run, or the next existing discovery intake event, retries from its durable source
+or receipt. Retained-artifact reports and restore checks remain available offline.
+A repeated deferral stays visible as the age of the last verified recovery point
+and with its remaining allowance. If a large export cannot fit its reservation,
+work waits for a separately admissible baseline export. Normal collection
+failure does not grant permission for a full export.
+
+### Workload model
+
+The November 20, 2026 sample reported 4,065,773,982 bytes used out of 5,000,000,000,
+with 934,226,018 bytes remaining until December 1 at 00:00 UTC. The production
+branch was 170,606,592 logical bytes, and the provider had recorded 9,790
+compute-seconds (2.72 CU-hours). The cutover policy sets aside 350 MB of emergency
+capacity plus projected daily recovery for the remaining days. A normal full
+period earmarks 2 GB for recovery and uncertainty, outside the routine 3 GB
+allowance. Recovery itself can draw from the earmark while retaining emergency
+capacity for failure or unaccounted transfer.
+
+| Case                     | Recurring and burst assumptions                                                     | Transfer model                                                                                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Legacy November baseline | One normal export per day, with the same backup size as run 44799126269             | 143.61 MB logical COPY × 31 = 4.45 GB for backups alone. The compressed dump was 17.01 MB. The 26.66 MB rendered inventory was a separate output.                                                                  |
+| Cutover period           | 10 additional daily slots at 22 MB recovery forecast and 350 MB emergency allowance | 220 MB projected future recovery. The credential-free transition envelope limits all new admissions to 300 MB of the 934 MB sampled balance. At least 634 MB of the sampled allowance stays outside that envelope. |
+| Normal full month        | 31 recovery points at 22 MB and 31 collection admissions at up to 18 MB             | 1.24 GB projected plus narrow handoff and status reads. Reports, digest and independent restore are local.                                                                                                         |
+| Development burst        | Normal month plus 15 scoped collection attempts and 15 status probes                | Up to 300 MB in additional reservations before protocol uncertainty, history growth and conservative provider overlap.                                                                                             |
+
+The retained artifact and local PostgreSQL replay measured a zero-change recovery
+at approximately 5.27 MB of small-table SQL output and zero remotely needed
+history rows. The prior backup's 143.61 MB of COPY included 138.34 MB from
+observations and assessments. A high-growth retained collection added about
+11.5 MB of history, and a dispatch-heavy day added about 15 MB. A new 48 MB
+recovery reservation bounds same-snapshot size before downloading. Recheck the
+model as the growing collection ledger or history invalidates these assumptions.
+Local replay measures payload and restored content. Only a later production run
+can establish actual Neon savings. [Retained run 44799126269](https://github.com/boburning/portcove/actions/runs/44799126269)
 
 **First hosted run (2026-11-13, run 43351437599, `workflow_dispatch` on
 f7d26628).** Neon PostgreSQL 18 was detected, and the matching client was
@@ -1314,35 +1377,11 @@ failed on Neon's `pg_attver` column options. Both failures are addressed by the 
 operationally useful: the store kept no partial state, and the independent
 restore found the portability gap before any history depended on it.
 
-**Interruption and provider failure.** Each mutation is atomic. A failed or
-interrupted run therefore leaves the last committed state, and the next
-scheduled run continues from it with no manual cleanup.
-
-- Each migration commits with its ledger row or not at all. A collection commits
-  in one transaction, or commits nothing.
-- A failed source within a collection is a `failed` or `partial` run, never an
-  absence.
-- When the collection step fails, the handoff, report and backup steps still run
-  against the last committed state, so the report and backup stay visibly dated.
-- A backup renames into place only when complete. A restore that fails
-  verification rolls back.
-- An unreachable or suspended database fails the run before anything is
-  written.
-- A run cancelled or timed out mid-collection leaves no in-progress run, because
-  the open transaction ends with the connection.
-
-**$0 activation.** GitHub charges nothing here because the repository is public,
-and standard hosted runners and artifact storage are free for public
-repositories. The database must stay inside the provider's free plan, and no
-paid fallback exists. At activation, compare each run's measured inputs with the
-provider's published free limits:
-
-- `database_size_bytes` for storage;
-- step durations for compute time;
-- dump and report sizes for data transfer.
-
-When the free plan cannot sustain them, an owner disables the workflow and the
-issue records the hold.
+**Interruption and provider failure.** Migrations, collection writes and
+reconstruction are transactional. Interrupted work retains the previous artifact.
+The scheduler reads fresh source inputs at its next attempt. A failed source
+records a partial or failed observation. A finished recovery requires upload
+and independent restore evidence with the same dump SHA-256.
 
 ## Changes-only digest
 

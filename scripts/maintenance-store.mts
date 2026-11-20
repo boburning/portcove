@@ -7,6 +7,7 @@
  * variable and reach the client tools through libpq environment variables, never
  * through command-line arguments or output.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -23,6 +24,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
+import { isRecord } from "./runtime-values.mts";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultMigrationDirectory = path.join(
@@ -36,11 +38,11 @@ export const backupFormat = "portcove-maintenance-backup";
 export const backupFormatVersion = 1;
 const dumpFileName = "maintenance.dump";
 const manifestFileName = "manifest.json";
-const maintenanceSchemas = ["portcove_maintenance", "portcove_maintenance_meta"] as const;
+export const maintenanceSchemas = ["portcove_maintenance", "portcove_maintenance_meta"] as const;
 // Arbitrary constant shared by every maintenance migrator; serializes migrations per database.
 const migrationLockKey = 4129_0001;
 const toolTimeoutMs = 120_000;
-const dumpTimeoutMs = 600_000;
+export const dumpTimeoutMs = 600_000;
 const outputLimitBytes = 64 * 1024 * 1024;
 
 /** Ordered tables and their deterministic, collation-independent row order. */
@@ -56,6 +58,7 @@ export const storeTables = [
   ["portcove_maintenance.operations", 'operation_id COLLATE "C"'],
   ["portcove_maintenance.discovery_intake_batches", "request_comment"],
   ["portcove_maintenance.discovery_intake_candidates", "request_comment, candidate_index"],
+  ["portcove_maintenance_meta.resource_admissions", "attempt_id"],
 ] as const;
 
 const queryParameters = new Map([
@@ -157,20 +160,39 @@ function bounded(text: string) {
   return trimmed.length > 4000 ? `${trimmed.slice(0, 4000)}…` : trimmed;
 }
 
-function runTool(
+export const maintenanceTransfer = new AsyncLocalStorage<{
+  host: string;
+  payloadBytes: number;
+  byteLimit: number;
+  deadline: number;
+}>();
+
+export function runTool(
   name: "psql" | "pg_dump" | "pg_restore",
   args: readonly string[],
   environment: NodeJS.ProcessEnv,
   options: { input?: string; timeoutMs?: number } = {},
 ) {
+  const transfer = maintenanceTransfer.getStore();
+  const measured = transfer?.host === environment.PGHOST ? transfer : undefined;
+  const remaining = measured ? measured.byteLimit - measured.payloadBytes : outputLimitBytes;
+  const timeout = measured
+    ? Math.min(options.timeoutMs ?? toolTimeoutMs, measured.deadline - Date.now())
+    : (options.timeoutMs ?? toolTimeoutMs);
+  if (timeout <= 0) throw new MaintenanceStoreError("Maintenance transfer reservation expired");
+  if (remaining <= 0)
+    throw new MaintenanceStoreError("Maintenance command exhausted its response allowance");
+  const childEnvironment = { ...environment };
+  delete childEnvironment.PORTCOVE_NEON_METER_TOKEN;
   const result = spawnSync(toolPath(name, environment), args, {
-    env: environment,
+    env: childEnvironment,
     input: options.input,
     encoding: "utf8",
-    timeout: options.timeoutMs ?? toolTimeoutMs,
-    maxBuffer: outputLimitBytes,
+    timeout,
+    maxBuffer: Math.min(outputLimitBytes, remaining),
     windowsHide: true,
   });
+  if (measured) measured.payloadBytes += Buffer.byteLength(result.stdout ?? "");
   if (result.error) throw new MaintenanceStoreError(`${name} failed: ${result.error.message}`);
   if (result.signal) throw new MaintenanceStoreError(`${name} stopped by ${result.signal}`);
   if (result.status !== 0)
@@ -178,21 +200,21 @@ function runTool(
   return result.stdout;
 }
 
-const psqlBase = ["-X", "-q", "-v", "ON_ERROR_STOP=1"] as const;
+export const psqlBase = ["-X", "-q", "-v", "ON_ERROR_STOP=1"] as const;
 
 /** Run SQL in one transaction and return unaligned tuples-only output. */
 export function runSql(
   environment: NodeJS.ProcessEnv,
   sql: string,
   /** A longer budget for one known-large transaction; the default suits ordinary queries. */
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; executor?: boolean } = {},
 ) {
   return runTool(
     "psql",
     [...psqlBase, "-A", "-t", "--single-transaction", "-f", "-"],
     environment,
     {
-      input: sql,
+      input: options.executor ? `SET LOCAL ROLE portcove_maintenance_executor;\n${sql}` : sql,
       ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     },
   );
@@ -231,8 +253,12 @@ export function portableRestoreSql(sql: string) {
     .join("\n");
 }
 
-function queryJson(environment: NodeJS.ProcessEnv, sql: string): unknown {
-  const output = runSql(environment, sql).trim();
+export function queryJson(
+  environment: NodeJS.ProcessEnv,
+  sql: string,
+  options?: { executor?: boolean },
+): unknown {
+  const output = runSql(environment, sql, options).trim();
   try {
     return JSON.parse(output);
   } catch {
@@ -399,6 +425,43 @@ export function serverInfo(environment: NodeJS.ProcessEnv) {
 
 export type StoreDigest = Record<string, { rows: number; sha256: string }>;
 
+export const storeSequences = [
+  "observations_observation_id_seq",
+  "assessments_assessment_id_seq",
+  "collection_acquisition",
+] as const;
+export type SequenceState = { last_value: string; is_called: boolean }[];
+export const sequenceStateQuery = `SELECT json_build_array(${storeSequences
+  .map(
+    (name) =>
+      `(SELECT json_build_object('last_value', last_value::text, 'is_called', is_called) FROM portcove_maintenance.${name})`,
+  )
+  .join(",")});`;
+
+function verifySequences(state: SequenceState) {
+  const checks = storeSequences.map(
+    (name, index) =>
+      `(SELECT last_value::text <> ${sqlLiteral(state[index]!.last_value)}
+       OR is_called <> ${state[index]!.is_called} FROM portcove_maintenance.${name})`,
+  );
+  return `DO $$ BEGIN IF ${checks.join(" OR ")} THEN
+    RAISE EXCEPTION 'Restored maintenance sequence differs from its backup'; END IF; END $$;`;
+}
+
+function validSequences(state: unknown): state is SequenceState {
+  return (
+    Array.isArray(state) &&
+    state.length === storeSequences.length &&
+    state.every(
+      (entry: unknown) =>
+        isRecord(entry) &&
+        typeof entry.last_value === "string" &&
+        /^[1-9][0-9]*$/u.test(entry.last_value) &&
+        typeof entry.is_called === "boolean",
+    )
+  );
+}
+
 /** Settings that make row text identical on every host; applied inside the digest's transaction. */
 const digestSettings =
   "SET LOCAL TimeZone = 'UTC'; SET LOCAL DateStyle = 'ISO, MDY'; SET LOCAL IntervalStyle = 'postgres'; SET LOCAL extra_float_digits = 1;";
@@ -440,17 +503,25 @@ export function storeDigest(environment: NodeJS.ProcessEnv): StoreDigest {
   return queryJson(environment, digestQuery()) as StoreDigest;
 }
 
-function sha256File(file: string) {
+export function sha256File(file: string) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
 /** A psql session that holds one exported snapshot while pg_dump reads it. */
-async function withExportedSnapshot<T>(
+export async function withExportedSnapshot<T>(
   environment: NodeJS.ProcessEnv,
   action: (snapshot: string, query: (sql: string) => Promise<string>) => Promise<T>,
 ): Promise<T> {
+  const transfer = maintenanceTransfer.getStore();
+  const timeout =
+    transfer?.host === environment.PGHOST && transfer
+      ? Math.min(dumpTimeoutMs, transfer.deadline - Date.now())
+      : dumpTimeoutMs;
+  if (timeout <= 0) throw new MaintenanceStoreError("Maintenance snapshot reservation expired");
+  const childEnvironment = { ...environment };
+  delete childEnvironment.PORTCOVE_NEON_METER_TOKEN;
   const child = spawn(toolPath("psql", environment), [...psqlBase, "-A", "-t", "-f", "-"], {
-    env: environment,
+    env: childEnvironment,
     stdio: ["pipe", "pipe", "pipe"],
     windowsHide: true,
   });
@@ -484,7 +555,7 @@ async function withExportedSnapshot<T>(
   child.on("exit", (code, signal) =>
     fail(new MaintenanceStoreError(`psql session ended (${signal ?? code}): ${bounded(stderr)}`)),
   );
-  const timer = setTimeout(() => child.kill(), dumpTimeoutMs);
+  const timer = setTimeout(() => child.kill(), timeout);
   const query = (sql: string) =>
     new Promise<string>((resolve, reject) => {
       if (exited) return reject(exited);
@@ -515,6 +586,7 @@ export interface BackupManifest {
   migrations: AppliedMigration[];
   dump: { file: string; sha256: string; bytes: number };
   tables: StoreDigest;
+  sequences?: SequenceState;
 }
 
 /** Back up both maintenance schemas, without ownership or privileges, from one snapshot. */
@@ -543,11 +615,12 @@ export async function backup(
 
 async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
   const dumpPath = path.join(output, dumpFileName);
-  const { tables, serverVersion } = await withExportedSnapshot(
+  const { tables, serverVersion, sequences } = await withExportedSnapshot(
     environment,
     async (snapshot, query) => {
       const tables = JSON.parse((await query(digestQuery())).trim()) as StoreDigest;
       const serverVersion = Number((await query("SHOW server_version_num;")).trim());
+      const sequences = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
       runTool(
         "pg_dump",
         [
@@ -561,7 +634,12 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
         environment,
         { timeoutMs: dumpTimeoutMs },
       );
-      return { tables, serverVersion };
+      const afterDump: unknown = JSON.parse(await query(sequenceStateQuery));
+      if (JSON.stringify(afterDump) !== JSON.stringify(sequences))
+        throw new MaintenanceStoreError(
+          "Maintenance sequences changed while writing the portable dump",
+        );
+      return { tables, serverVersion, sequences };
     },
   );
   const migrations = readLedger(environment);
@@ -581,6 +659,7 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
       bytes: readFileSync(dumpPath).byteLength,
     },
     tables,
+    sequences,
   };
   writeFileSync(path.join(output, manifestFileName), `${JSON.stringify(manifest, null, 2)}\n`, {
     flag: "wx",
@@ -592,7 +671,12 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
 function validTableDigests(tables: unknown, schemaVersion: number): tables is StoreDigest {
   if (typeof tables !== "object" || tables === null || Array.isArray(tables)) return false;
   const entries: [string, unknown][] = Object.entries(tables);
-  const expected = schemaVersion < 5 ? storeTables.slice(0, -2) : storeTables;
+  const expected =
+    schemaVersion < 5
+      ? storeTables.slice(0, -3)
+      : schemaVersion < 6
+        ? storeTables.slice(0, -1)
+        : storeTables;
   return (
     entries.length === expected.length &&
     expected.every(([table]) => Object.hasOwn(tables, table)) &&
@@ -624,7 +708,9 @@ export function readBackupManifest(input: string): BackupManifest {
     !Array.isArray(value.migrations) ||
     !Number.isSafeInteger(value.schema_version) ||
     value.schema_version !== value.migrations.length ||
-    !validTableDigests(value.tables, value.schema_version)
+    !validTableDigests(value.tables, value.schema_version) ||
+    ((value.schema_version >= 6 || value.sequences !== undefined) &&
+      !validSequences(value.sequences))
   )
     throw new MaintenanceStoreError("Backup manifest has an unsupported format");
   return value as BackupManifest;
@@ -670,7 +756,11 @@ export function restore(
     // A provider's own column options are not part of the store and do not restore elsewhere.
     writeFileSync(script, portableRestoreSql(readFileSync(script, "utf8")));
     writeFileSync(roles, roleContract());
-    writeFileSync(verification, restoreVerification(manifest.tables));
+    writeFileSync(
+      verification,
+      restoreVerification(manifest.tables) +
+        (manifest.sequences ? verifySequences(manifest.sequences) : ""),
+    );
     // Verify against the backup's own schema, then bring it to this checkout's schema.
     const migrations = plan.pending.map((migration) => {
       const file = path.join(work, `migration-${migration.version}.sql`);
@@ -703,6 +793,7 @@ export function restore(
     schema_version: manifest.schema_version,
     migrated: plan.pending.map(({ version }) => version),
     tables: storeDigest(environment),
+    sequences_verified: manifest.sequences ? true : null,
   };
 }
 
@@ -723,6 +814,10 @@ commands:
   digest    print per-table row counts and content digests
   server    print the server version, its major version and the database size in bytes
   backup    --output DIR   write maintenance.dump and manifest.json to a new DIR
+  backup-reusing-history --output DIR [--input VERIFIED-BACKUP-DIR] [--recovery-envelope routine|catchup|full]
+            reconstruct a complete independent dump using two local scratch databases
+  resource-meter                read provider metadata without connecting to PostgreSQL
+  resource-probe --output FILE  exercise bounded hosted admission and report migration status
   restore   --input DIR    restore a backup into a database without maintenance schemas
 
 options:
@@ -744,21 +839,117 @@ export async function main(argv = process.argv.slice(2)) {
   const directory = path.resolve(option(args, "--migrations") ?? defaultMigrationDirectory);
   const output = option(args, "--output");
   const input = option(args, "--input");
+  const recoveryEnvelope = option(args, "--recovery-envelope");
+  if (
+    recoveryEnvelope &&
+    (command !== "backup-reusing-history" ||
+      !["routine", "catchup", "full"].includes(recoveryEnvelope))
+  )
+    throw new MaintenanceStoreError(
+      "Recovery envelope must be routine, catchup or full on backup-reusing-history",
+    );
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   const environment = connectionFromEnvironment(environmentName, process.env, envFile);
   // Child processes receive only the libpq translation, never the URL itself.
   delete process.env[environmentName];
+  const policy = await import("./maintenance-resource-policy.mts");
+  delete process.env.PORTCOVE_NEON_METER_TOKEN;
+  try {
+    return await runStoreCommand(
+      command,
+      environment,
+      directory,
+      output,
+      input,
+      recoveryEnvelope,
+      policy,
+    );
+  } catch (error) {
+    if (
+      !(error instanceof policy.MaintenanceResourceDeferred) &&
+      !(error instanceof Error && error.name === "MaintenanceBackupDeferred")
+    )
+      throw error;
+    console.error(`Maintenance deferred: ${error.message}`);
+    return 75;
+  }
+}
+
+async function runStoreCommand(
+  command: string,
+  environment: NodeJS.ProcessEnv,
+  directory: string,
+  output: string | undefined,
+  input: string | undefined,
+  recoveryEnvelope: string | undefined,
+  policy: typeof import("./maintenance-resource-policy.mts"),
+) {
   let result: unknown;
-  if (command === "status") result = migrationStatus(environment, directory);
-  else if (command === "migrate") result = migrate(environment, directory);
-  else if (command === "digest") result = storeDigest(environment);
-  else if (command === "server") result = serverInfo(environment);
-  else if (command === "backup") {
+  if (command === "resource-meter") result = await policy.sampleNeon(environment);
+  else if (command === "resource-probe") {
+    if (!output) throw new MaintenanceStoreError("resource-probe requires --output FILE");
+    result = await policy.writeResourceProbe(environment, path.resolve(output));
+  } else if (command === "status")
+    result = await policy.withMaintenanceAdmission(environment, "inspect", () =>
+      migrationStatus(environment, directory),
+    );
+  else if (command === "migrate")
+    result = await policy.withMaintenanceAdmission(
+      environment,
+      "inspect",
+      () => migrate(environment, directory),
+      { bootstrap: directory === defaultMigrationDirectory },
+    );
+  else if (command === "digest")
+    result = await policy.withMaintenanceAdmission(environment, "inspect", () =>
+      storeDigest(environment),
+    );
+  else if (command === "server")
+    result = await policy.withMaintenanceAdmission(environment, "inspect", () =>
+      serverInfo(environment),
+    );
+  else if (command === "backup-reusing-history") {
+    if (!output) throw new MaintenanceStoreError("backup-reusing-history requires --output DIR");
+    const { backupReusingHistory } = await import("./maintenance-backup-reuse.mts");
+    const prefixDatabase = connectionFromEnvironment("PORTCOVE_MAINTENANCE_PREFIX_URL");
+    const target = connectionFromEnvironment("PORTCOVE_MAINTENANCE_SCRATCH_URL");
+    delete process.env.PORTCOVE_MAINTENANCE_PREFIX_URL;
+    delete process.env.PORTCOVE_MAINTENANCE_SCRATCH_URL;
+    result = await policy.withMaintenanceAdmission(
+      environment,
+      !input || recoveryEnvelope === "full"
+        ? "recovery-full"
+        : recoveryEnvelope === "catchup"
+          ? "recovery-catchup"
+          : "recovery",
+      (bytes) =>
+        backupReusingHistory({
+          source: environment,
+          prefixDatabase,
+          target,
+          previous: input && path.resolve(input),
+          output: path.resolve(output),
+          reservedBytes: bytes,
+          reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
+        }),
+      {
+        estimate: ({ transfer }) =>
+          2_000_000 +
+          Math.ceil(1.25 * (transfer.history_copy_bytes + transfer.other_table_copy_bytes)),
+      },
+    );
+  } else if (command === "backup") {
     if (!output) throw new MaintenanceStoreError("backup requires --output DIR");
+    if (policy.isNeon(environment))
+      throw new MaintenanceStoreError(
+        "For Neon use backup-reusing-history with a local scratch server",
+      );
     result = await backup(environment, path.resolve(output), directory);
   } else if (command === "restore") {
     if (!input) throw new MaintenanceStoreError("restore requires --input DIR");
+    if (policy.isNeon(environment))
+      throw new MaintenanceStoreError("Restore onto an independent recovery target");
     result = restore(environment, path.resolve(input), directory);
   } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
   console.log(JSON.stringify(result, null, 2));
