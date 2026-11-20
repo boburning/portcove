@@ -212,6 +212,32 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
+## Original-file source observations
+
+For an operational Libultraship definition with a source profile, the catalog
+observer can read an upstream `docs/supportedHashes.json` table at the exact
+commit resolved for Core's current Stable release. It binds the observation to
+the provider repository and release identities and the platform artifact
+digests returned by Core. The parser records its version, the source file's Git
+object and SHA-256, and the SHA-1 values the upstream table declares.
+
+For a GitHub N64 Recomp definition with a source profile, the observer reads
+`src/main/main.cpp` at the same release boundary. It recognizes the family's
+literal `supported_games` table and records the game ID, optional native mod game
+ID, and declared 64-bit ROM hash per row. Unrecognized declarations and
+conditional tables leave current evidence unknown. An observed table describes
+the release source. Runtime hash normalization, compiled platform coverage and
+actual acceptance require separate evidence before Core can use it for setup.
+
+These optional facts follow the existing request budget and checkpoint. The
+maintenance projection keeps the last complete exact observation and records
+when current evidence is unavailable. A due refresh checks the release tag
+before reusing the immutable table. A moved tag leaves the stored artifact
+observation intact while reporting the change. A release fallback never supplies a
+current observation. Recognition-only observations carry no verdict about a
+player's files or the runtime's acceptance, and confer no setup, acquisition
+or publication authority.
+
 ## Catalog scheduling and definition-delivery handoff
 
 `node scripts/observe-catalog-upstreams.mts --cli PATH_TO_PORTCOVE` uses the same
@@ -292,10 +318,10 @@ start another operation within that opportunity; each operation keeps its existi
 three-minute admission budget. Request counts and refreshed clocks alone cannot
 authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
 requests, about a third of the observed hourly allowance, so upstream-health and
-other workflows sharing the token keep capacity. The ceiling is a hard total:
-each batch receives only the remaining allowance, and every GitHub request is
-admitted against it. GitLab and direct-manifest sources are counted but keep
-their own per-source bound, and checkpoint recovery, push admission and
+other workflows sharing the token keep capacity. The ceiling is a hard total.
+Each batch receives only the remaining allowance, and release and registry
+requests count against it. GitLab and direct-manifest sources also keep
+their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by
 the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
@@ -476,6 +502,8 @@ The inspection checkpoint also tracks where each baseline group ran out of
 time or download budget. The next run continues from that route in stable
 port, platform and channel order, even when new inspector bytes invalidate
 previous results. Generated baselines keep priority over reviewed layouts.
+If a handoff omits the saved route and the group has no new budget deferral,
+its checkpoint retains that position for a later handoff.
 Oversized archives stay unassessed and do not set the next route. A failed
 download or inspection remains eligible on a later pass. The continuation
 changes only the order of work within existing limits.
@@ -992,6 +1020,15 @@ the complete observation, and retains the original oldest validation clock.
 Reprojection never makes an old provider fact fresh. Normal cadence/expiry still
 requires provider checks.
 
+When every consumer of a source is a descriptive listing, its private
+checkpoint scope binds the source, provider, listing declarations, exact
+descriptive projector and freshness policy. A Core rebuild alone leaves that
+scope current. Mixed sources and managed sources keep their exact Core and
+definition bindings. Earlier listing checkpoints use the same bounded
+reprojection path. Offline success retains the original validation, completion
+and change clocks without postponing a due provider check. A tighter freshness
+limit can move the next provider check earlier.
+
 Current Core must select candidates from the complete header universe, and every
 selected release must have complete validated asset coverage. Missing coverage
 returns to the ordinary incremental collection path. Corrupt or missing page
@@ -1234,6 +1271,9 @@ the repository, hints, restrictions, setup or operational route invalidate reuse
 Core exports the exact supplied directory to format 11 before enrichment; this
 preserves its original guide and current strict-reader compatibility, while the
 authored directory and public browse projection retain format 12 metadata.
+Delivery encodes slash-containing GitHub tags as single URL segments after
+checking the exact observed repository, tag and asset name. The observer
+checkpoint keeps the provider's original URL and observation clock.
 Newer clients retain their existing implementation descriptions when a format-11
 row has the same project URL and exact original-game identity. The older delivery
 cannot express that field; a format-12 delivery can explicitly clear it. Changed
@@ -1330,3 +1370,25 @@ exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping tha
 header correctly, all four configured sources returned usable HTTP 200 reports.
 The actual live observation packet is retained with the implementation evidence;
 fixtures and a local manual read do not establish unattended production operation.
+
+## Mod provider registry
+
+The catalog observation job reads the
+[Thunderstore ecosystem registry](https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/)
+on its existing cadence when the opportunity has request capacity. The public
+read shares the job deadline and response budget and counts toward the same
+request ceiling as the release providers. When Thunderstore defers a request,
+the observer saves the retry deadline before unrelated source work. Its deadline
+is independent of GitHub's retry clock.
+
+The checkpoint retains the schema version, raw response digest, stable community
+IDs, registry game UUIDs, listing states and exact GameBanana game links when
+present. An incomplete response, unsupported schema or change to an already
+observed identity keeps the previous complete snapshot and reports a coverage
+gap. Maintenance reports expired observations as stale using the same
+configured freshness bound. When saved registry evidence and new source progress
+would exceed the existing checkpoint limit, the observer preserves the last
+readable checkpoint and reports the storage hold. The maintenance inventory
+records the registry as one discovery subject.
+A community record supplies neither a canonical Portcove port mapping nor
+runtime, package, installation or publication authority.

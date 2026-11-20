@@ -66,6 +66,16 @@ executor login has read-only access to that flag.
   `handoff:hosted-intake-blocked:intake:123` or
   `handoff:release-health-relocation:port:<id>`.
 
+The derived universe also exposes each catalog port's descriptive
+`original_game_id`, `grouping_disposition` and specific `grouping_reason` beside
+its retained `target_key`. These fields do not replace subject identity or
+lineage grouping. An engine/framework or unresolved review can intentionally
+remain without a single-game ID; missing review, partial target mappings and
+multiple game IDs within one lineage scope remain visible for inspection.
+Count `kind: port` entries when reporting catalog coverage, independently of
+implementation entries. The inventory search and HTML display both identities
+and the grouping review context. Authoring remains authoritative.
+
 An observation's `scope` binds the applicable artifact, source, platform, route,
 operation and check/policy version. Evidence applies only where its whole scope
 matches; a new artifact or platform never inherits unrelated qualification.
@@ -810,6 +820,11 @@ publication has been verified.
   the inventory by its SHA-256. It records the event type, checkpoint bytes, executed job durations and the number of jobs
   with missing times. Skipped jobs contribute no duration. Each report covers
   one imported attempt. Billed cost remains unknown without billing evidence.
+- The hosted report artifact retains the rendered aggregate as
+  `managed-release-summary.md`. A successful append submits the same bytes to
+  the Actions summary. Check the aggregate outcome and file digest in
+  `evidence.json` alongside the separate collection outcome. A successful
+  aggregate can describe retained data after collection fails.
 
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.

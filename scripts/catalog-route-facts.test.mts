@@ -113,6 +113,31 @@ void test("staged archive keeps its managed presentation and the independent pre
   );
   assert.equal(routeEnrollment([raw]).cases[0]?.managed_native, false);
 });
+void test("Wario keeps Windows guidance distinct from the Linux registration", () => {
+  const raw = input("warioland4");
+  const projected = projectRouteFacts(raw);
+  const { steps, references, warnings } = guide(projected);
+  assert.ok(steps.length + references.length <= 8 && warnings.length <= 8);
+  assert.deepEqual(projected.integration, raw.integration);
+  const selected = steps.find(
+    (step) => isRecord(step) && step.title === "Select the prepared Windows player",
+  );
+  assert.ok(isRecord(selected));
+  assert.match(String(selected.instruction), /Select wl4-launcher\.exe/u);
+  assert.equal(
+    steps.some((step) => isRecord(step) && step.title === "Select the prepared player"),
+    false,
+  );
+  const linux = steps.find((step) => isRecord(step) && step.title === "Select the Linux AppImage");
+  assert.ok(isRecord(linux));
+  assert.match(String(linux.instruction), /select the AppImage/u);
+  assert.match(String(linux.instruction), /--appimage-extract-and-run as one argument/u);
+  const managed = projectAuthoredPort(raw);
+  assert.ok(managed && isRecord(managed.release));
+  assert.deepEqual(managed.platforms, ["linux-x86-64"]);
+  assert.equal(managed.release.provider, "user-prepared");
+  assert.deepEqual(managed.presentation?.manual_setup, projected.listing.manual_setup);
+});
 void test("unknown, conflicting and unbounded route facts refuse before projection", () => {
   const object = (value: unknown) => {
     assert.ok(isRecord(value));

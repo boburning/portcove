@@ -6914,6 +6914,12 @@
       "GameInstallPlan": {
         "description": "Exact registered-input review for the first managed installation.",
         "properties": {
+          "package_choice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "plan": {
             "$ref": "#/$defs/InstallPlan"
           },
@@ -25641,6 +25647,16 @@
             "default": "",
             "type": "string"
           },
+          "reviewed_package_choices_v2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedPackageChoicesV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rolling_tag": {
             "default": null,
             "type": [
@@ -25734,6 +25750,32 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageChoicesV2": {
+        "additionalProperties": false,
+        "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_id",
+          "prefix",
+          "choices"
         ],
         "type": "object"
       },

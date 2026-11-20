@@ -3136,9 +3136,13 @@ Default-cover display/cache observations can use repeated `--cover-port-id ID`
 arguments for at most 16 unique accepted mapped ports. Omission retains the full
 mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
 cache observations must include `dkr-r` for the existing missing-cache negative
-control. Selected ports receive detail observations as well as card observations.
-The report records the requested/observed IDs, selection scope and available
-mapped denominator. A focused result is not whole-catalog evidence. This option
+control. The control withholds the accepted original displayed by the DKR-R
+Discover card. Selected ports receive detail observations as well as card
+observations. When a whole-game card displays another port's cover, the report
+records that cover's port and mapping separately from the selected implementation.
+A card without a primary mapping leaves the card sample empty and checks the
+selected implementation in Detail. The report records the request, scope, and
+available mapped denominator. A focused result is not whole-catalog evidence. This option
 requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
 it does not change image acceptance, cache policy or the frozen cohort's fallback
 credit.
@@ -3601,10 +3605,11 @@ For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
 cover mappings, including `dkr-r` for the offline control. Focused cache
 runs use the same window size and theme for the cold pass, the same-session
 Discover revisit, and the offline restart. The report records the initial
-visible primary-cover IDs for mapped managed definitions. It records
+visible primary-cover IDs from the actual artwork frames and checks them against
+the admitted listing catalog, including representative directory entries. It records
 browser-frame timings from the Discover button click to the first ready image
-and the full measured cohort. Collection, companion, and directory-only
-artwork are outside this timing cohort. An incomplete cohort
+and the full measured cohort. Collection and companion artwork are outside this
+timing cohort. An incomplete cohort
 has a null completion time and lists the ready IDs. Individual timing rows
 are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
 matching catalog, viewport, visible IDs, and cache and network conditions.
@@ -3663,6 +3668,16 @@ of retained installed bytes after the isolated installer route, not current
 installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+The Windows normal-package case also reads the actual workspace catalog and
+catalog status, checks the reviewed original-game relationships, and retains
+`normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
+digest, definition/listing provenance, independent relationship fixture, package
+and executable to the executing source revision. The fixture and oracle have
+immutable input custody. Existing packages use their own matching source and
+fixture; the verifier refuses a different candidate revision. A relationship
+failure fails the scenario and retains the readback. This read-only observation
+grants no source compatibility, installation permission or gameplay acceptance.
 
 For the distinct current-installed Windows case, use the fixed existing launcher:
 `just desktop-test --current-installed --installer <absolute-nsis> --package-evidence

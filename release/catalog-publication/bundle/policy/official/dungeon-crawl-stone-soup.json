@@ -2,13 +2,13 @@
   "policy_schema": 3,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "policy_revision": 5,
+  "policy_revision": 7,
   "grant_id": "managed-github-v1-dungeon-crawl-stone-soup",
   "decision": {
     "status": "managed_github",
-    "definition_revision": 3,
-    "index_sha256": "95a069b9d590919b1c4666406bdb864c10c763ef0abd53f57c561bacd381a0e3",
-    "definition_sha256": "43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60",
+    "definition_revision": 4,
+    "index_sha256": "3d86310cfab295a7b07551a76539d090596cf0e1f1b622551f335cec3fe0e49d",
+    "definition_sha256": "2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e",
     "template": "native-portable",
     "repository_id": 23038334,
     "artifact_hosts": [

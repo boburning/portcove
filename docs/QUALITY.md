@@ -466,6 +466,12 @@ budget. The trace resolved the button and the screenshot showed it. This case
 has a 30-second budget. Its assertions, fixture cleanup, and automatic retry
 policy remain in place.
 
+In the macOS contributor run `44794727970`, attempt 1, two existing browser
+cases observed no progress animation or dialog opacity transition. Both cases
+now explicitly set the normal-motion media preference they exercise and restore
+the browser default after each case. Their rendering and transition assertions
+remain in place.
+
 The November 18 Native27 Windows run at `eaae775d` (output
 `2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
 15-second timeout waiting for the backup review's “Review again” control after

@@ -189,6 +189,23 @@ jobs:
           node scripts/maintenance-inventory.mts observer-usage \
             --report work/maintenance-report/report/inventory.json \
             --output work/maintenance-report/observer-operating-usage.json
+      - name: Append the public managed release aggregate
+        id: public-summary
+        if: ${{ !cancelled() && steps.report.outcome == 'success' }}
+        timeout-minutes: 2
+        continue-on-error: true
+        run: |
+          summary=work/maintenance-report/managed-release-summary.md
+          status=0
+          if ! node scripts/maintenance-public-summary.mts \
+            work/maintenance-report/report/inventory.json \
+            work/maintenance-report/observer-operating-usage.json \
+            > "$summary"; then
+            printf '\n## Managed release operations\n\nReport metrics are unknown.\n' > "$summary"
+            status=1
+          fi
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
       - name: Record run evidence
         if: ${{ !cancelled() && steps.migrate.outcome == 'success' }}
         timeout-minutes: 2
@@ -196,6 +213,7 @@ jobs:
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           REPORT_OUTCOME: ${{ steps.report.outcome }}
           BACKUP_OUTCOME: ${{ steps.backup.outcome }}
+          PUBLIC_SUMMARY_OUTCOME: ${{ steps.public-summary.outcome }}
           RUN_ID: ${{ github.run_id }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
           EVENT_NAME: ${{ github.event_name }}
@@ -235,7 +253,8 @@ jobs:
                       "event": os.environ["EVENT_NAME"],
                       "head_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()},
               "outcomes": {"collect": os.environ["COLLECT_OUTCOME"], "report": os.environ["REPORT_OUTCOME"],
-                           "backup": os.environ["BACKUP_OUTCOME"]},
+                           "backup": os.environ["BACKUP_OUTCOME"],
+                           "public_summary": os.environ["PUBLIC_SUMMARY_OUTCOME"]},
               "report_generated_at": inventory.get("generated_at"),
               "report_scope": inventory.get("scope"),
               "subjects": len(inventory.get("subjects", [])),
@@ -264,18 +283,6 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               summary.write("\n".join(lines) + "\n")
           PY
-      - name: Append the public managed release aggregate
-        if: ${{ !cancelled() && steps.report.outcome == 'success' }}
-        timeout-minutes: 2
-        continue-on-error: true
-        run: |
-          if ! node scripts/maintenance-public-summary.mts \
-            work/maintenance-report/report/inventory.json \
-            work/maintenance-report/observer-operating-usage.json \
-            >> "$GITHUB_STEP_SUMMARY"; then
-            printf '\n## Managed release operations\n\nReport metrics are unknown.\n' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
       - name: Retain the report, digest and evidence
         if: ${{ !cancelled() && hashFiles('work/maintenance-report/**') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

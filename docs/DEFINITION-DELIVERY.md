@@ -1979,7 +1979,10 @@ format 4.
 
 When multiple providers are available, select the provider before requesting
 a project or planning an install. Desktop offers the choices and the CLI
-accepts `--provider`. A plan or installed reference for a new scope carries its
+accepts `--provider`. Core project responses and CLI details include provider
+files for inspection. Core offers file review where the port definition and
+host platform have a compatible loader. A plan still checks the exact retained
+runtime and acquired bytes. A plan or installed reference for a new scope carries its
 exact binding. A historical reference with no binding resolves only to its
 original compiled scope. Install, update and recipe replay refuse a changed
 scope.

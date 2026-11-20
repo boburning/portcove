@@ -192,7 +192,7 @@ fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
 }
 
 #[test]
-fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
+fn legacy_crawl_layout_correction_preserves_historical_and_current_presentation() {
     let contract = include_bytes!(
         "../tests/fixtures/definition-projection/crawl-reviewed-layout-contract.json.txt"
     );
@@ -213,6 +213,33 @@ fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
         .find(|port| port.id == selected)
         .unwrap();
     previous.reviewed_package_layouts.clear();
+    let current_baseline = Catalog::from_document(document.clone()).unwrap();
+    let current_title = current_baseline
+        .port(selected)
+        .unwrap()
+        .presentation
+        .as_ref()
+        .unwrap()
+        .original_game_title
+        .as_deref()
+        .unwrap();
+    assert_eq!(current_title, "Dungeon Crawl Stone Soup");
+    // The immutable legacy contract describes the historical title. Its layout
+    // correction must not gain authority to replace newer presentation.
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == selected)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .original_game_title = Some(
+        legacy["catalog"]["ports"][0]["presentation"]["original_game_title"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
+    );
     let baseline = Catalog::from_document(document).unwrap();
     let effective = inspect(&entry(&legacy, contract, 0), contract)
         .unwrap()
@@ -241,6 +268,41 @@ fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
     changed = legacy.clone();
     changed["catalog"]["ports"][0]["reviewed_package_layouts"] = json!({});
     assert!(select(&changed, &effective).is_err());
+
+    assert!(select(&legacy, &current_baseline).is_err());
+    let mut corrected = legacy.clone();
+    corrected["catalog"]["ports"][0]["presentation"]["original_game_title"] = json!(current_title);
+    let corrected_effective = select(&corrected, &current_baseline).unwrap();
+    assert_eq!(
+        corrected_effective.source_catalog(),
+        current_baseline.source_catalog()
+    );
+    assert_eq!(
+        corrected_effective.ports().len(),
+        current_baseline.ports().len()
+    );
+    let mut expected_port = current_baseline.port(selected).unwrap().clone();
+    expected_port.reviewed_package_layouts = effective
+        .port(selected)
+        .unwrap()
+        .reviewed_package_layouts
+        .clone();
+    assert_eq!(
+        serde_json::to_value(corrected_effective.port(selected).unwrap()).unwrap(),
+        serde_json::to_value(expected_port).unwrap()
+    );
+    for (before, after) in current_baseline
+        .ports()
+        .iter()
+        .zip(corrected_effective.ports())
+    {
+        if before.id != selected {
+            assert_eq!(
+                serde_json::to_value(before).unwrap(),
+                serde_json::to_value(after).unwrap()
+            );
+        }
+    }
 }
 
 #[test]
@@ -417,6 +479,35 @@ fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
             .unwrap()
             .declared_upstream_status()
             .is_none()
+    );
+}
+
+#[test]
+fn indexed_projection_cannot_supply_reviewed_package_choices() {
+    let mut document = projection();
+    let port_index = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    let untreated = serde_json::to_vec(&document).unwrap();
+    assert!(inspect(&entry(&document, &untreated, port_index), &untreated).is_ok());
+    document["catalog"]["ports"][port_index]["release"]["reviewed_package_choices_v2"] = json!({
+        "repository_id": 51_711_866,
+        "prefix": "ja2-stracciatella_",
+        "choices": {
+            "mingw64-cross": "_win-mingw64-cross.zip",
+            "msvc64-142": "_win-msvc64-142.zip"
+        },
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let error = inspect(&entry(&document, &contract, port_index), &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(
+        error
+            .message
+            .contains("cannot deliver reviewed package choices")
     );
 }
 

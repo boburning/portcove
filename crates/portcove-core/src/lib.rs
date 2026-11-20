@@ -492,10 +492,10 @@ pub use support_bundle_export::{
     prepare_support_log_directory,
 };
 pub use target_inspection::{
-    CatalogPresence, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS, LegacyCoverage,
-    MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
-    TargetInspection, TargetQualification, TargetQualificationScope, TargetQualificationState,
-    TargetRoute, TargetRoutes, Unassessed, inspect_targets,
+    CatalogPresence, ContentCapabilityState, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS,
+    LegacyCoverage, MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
+    TargetContentCapabilities, TargetInspection, TargetQualification, TargetQualificationScope,
+    TargetQualificationState, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;
