@@ -231,7 +231,7 @@ fn resolve_effective_catalog(
     connection: &Connection,
     state: &CatalogState,
     now: i64,
-) -> Result<(Catalog, CatalogProvenance)> {
+) -> Result<ResolvedCatalog> {
     let (baseline, provenance) = state.resolve(now)?;
     resolve_effective_catalog_from_baseline(connection, baseline, provenance, now)
 }
@@ -282,12 +282,19 @@ pub(crate) fn resolve_before_listings(
     Ok((catalog, provenance))
 }
 
+struct ResolvedCatalog {
+    catalog: Catalog,
+    provenance: CatalogProvenance,
+    reusable_until: i64,
+}
+
 fn resolve_effective_catalog_from_baseline(
     connection: &Connection,
     baseline: Catalog,
     provenance: CatalogProvenance,
     now: i64,
-) -> Result<(Catalog, CatalogProvenance)> {
+) -> Result<ResolvedCatalog> {
+    let baseline_expiry = provenance.expires_at;
     let (catalog, mut provenance) = resolve_before_listings(connection, baseline, provenance, now)?;
     let (catalog, listings) =
         crate::definition_repository::publisher_policy::listing_delivery::load(
@@ -301,7 +308,27 @@ fn resolve_effective_catalog_from_baseline(
             format!("listing directory was not loaded: {reason}"),
         );
     }
-    Ok((catalog, provenance))
+    let listing_expiry = listings.expires_at.as_deref().and_then(|expiry| {
+        time::OffsetDateTime::parse(expiry, &time::format_description::well_known::Rfc3339)
+            .ok()
+            .map(time::OffsetDateTime::unix_timestamp)
+    });
+    // A fallback can change at an issuance boundary, or recover from a
+    // transient read error without writing the database. Reevaluate it.
+    let reusable_until = if !provenance.fallback_reasons.is_empty() {
+        now
+    } else {
+        [baseline_expiry, provenance.expires_at, listing_expiry]
+            .into_iter()
+            .flatten()
+            .min()
+            .unwrap_or(i64::MAX)
+    };
+    Ok(ResolvedCatalog {
+        catalog,
+        provenance,
+        reusable_until,
+    })
 }
 
 pub(crate) fn effective_catalog_status(
@@ -310,14 +337,14 @@ pub(crate) fn effective_catalog_status(
     now: i64,
 ) -> Result<CatalogStatus> {
     let evaluation = state.evaluate_status(now)?;
-    let (_, provenance) = resolve_effective_catalog_from_baseline(
+    let resolved = resolve_effective_catalog_from_baseline(
         connection,
         evaluation.baseline.clone(),
         evaluation.provenance.clone(),
         now,
     )?;
     let mut status = state.status_from_evaluation(&evaluation)?;
-    status.provenance = provenance;
+    status.provenance = resolved.provenance;
     Ok(status)
 }
 
@@ -325,16 +352,105 @@ pub(crate) fn load_catalog_from(
     connection: &Connection,
     now: i64,
 ) -> Result<(Catalog, CatalogProvenance)> {
+    let resolved = load_resolved_catalog_from(connection, now)?;
+    Ok((resolved.catalog, resolved.provenance))
+}
+
+fn load_resolved_catalog_from(connection: &Connection, now: i64) -> Result<ResolvedCatalog> {
     let state = CatalogState::read(connection)?;
     resolve_effective_catalog(connection, &state, now)
+}
+
+pub(crate) struct ArtworkCatalogCache {
+    // SQLite data_version comparisons only apply to this same connection.
+    connection: Connection,
+    resolved: Option<ArtworkCatalogObservation>,
+}
+
+impl std::fmt::Debug for ArtworkCatalogCache {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ArtworkCatalogCache")
+            .field("has_snapshot", &self.resolved.is_some())
+            .finish()
+    }
+}
+
+struct ArtworkCatalogObservation {
+    version: i64,
+    observed_at: i64,
+    resolved: ResolvedCatalog,
 }
 
 impl Library {
     pub(crate) fn load_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let result = load_catalog_from(&transaction, Self::now())?;
+        let started = std::time::Instant::now();
+        let result = load_catalog_from(&transaction, Self::now());
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            success = result.is_ok(),
+            "Effective catalog resolution"
+        );
+        let result = result?;
         transaction.commit()?;
+        Ok(result)
+    }
+
+    /// Reuse only a resolution on the same library lease, before the first
+    /// applicable expiry and without an intervening commit on another
+    /// connection. No mutable artwork choice is stored here.
+    pub(crate) fn load_artwork_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
+        #[cfg(feature = "qualification-fixtures")]
+        if std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG").is_some() {
+            return self.load_catalog();
+        }
+        self.load_artwork_catalog_at(Self::now())
+    }
+
+    fn load_artwork_catalog_at(&self, now: i64) -> Result<(Catalog, CatalogProvenance)> {
+        let mut slot = self
+            .artwork_catalog
+            .lock()
+            .map_err(|_| PortcoveError::state("artwork catalog cache is unavailable"))?;
+        if slot.is_none() {
+            *slot = Some(ArtworkCatalogCache {
+                connection: self.connection()?,
+                resolved: None,
+            });
+        }
+        let cache = slot.as_mut().expect("catalog cache was initialized");
+        let version = crate::library::data_version(&cache.connection)?;
+        if let Some(observation) = &cache.resolved
+            && observation.version == version
+            && (observation.observed_at..observation.resolved.reusable_until).contains(&now)
+        {
+            tracing::debug!("Artwork catalog snapshot reused");
+            return Ok((
+                observation.resolved.catalog.clone(),
+                observation.resolved.provenance.clone(),
+            ));
+        }
+        cache.resolved = None;
+        let transaction = cache.connection.unchecked_transaction()?;
+        let started = std::time::Instant::now();
+        let resolved = load_resolved_catalog_from(&transaction, now);
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            success = resolved.is_ok(),
+            "Effective catalog resolution"
+        );
+        let resolved = resolved?;
+        transaction.commit()?;
+        let result = (resolved.catalog.clone(), resolved.provenance.clone());
+        if crate::library::data_version(&cache.connection)? == version {
+            cache.resolved = Some(ArtworkCatalogObservation {
+                version,
+                observed_at: now,
+                resolved,
+            });
+        }
         Ok(result)
     }
 
@@ -518,4 +634,58 @@ pub(crate) fn verify_catalog_bound(connection: &Connection) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod artwork_cache_tests {
+    use super::*;
+
+    #[test]
+    fn artwork_catalog_reuses_reads_until_a_commit_or_clock_boundary() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = Library::open(directory.path().join("library")).unwrap();
+        let now = Library::now();
+        let (_, original) = library.load_artwork_catalog_at(now).unwrap();
+        let observed_at = || {
+            let cache = library.artwork_catalog.lock().unwrap();
+            cache
+                .as_ref()
+                .unwrap()
+                .resolved
+                .as_ref()
+                .unwrap()
+                .observed_at
+        };
+        let (_, reused) = library.load_artwork_catalog_at(now + 1).unwrap();
+        assert_eq!(original, reused);
+        assert_eq!(observed_at(), now);
+
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE catalog_state SET revision=revision+1 WHERE singleton=1",
+                [],
+            )
+            .unwrap();
+        library.load_artwork_catalog_at(now + 2).unwrap();
+        assert_eq!(observed_at(), now + 2);
+
+        library.load_artwork_catalog_at(now - 1).unwrap();
+        assert_eq!(observed_at(), now - 1);
+
+        {
+            let mut cache = library.artwork_catalog.lock().unwrap();
+            cache
+                .as_mut()
+                .unwrap()
+                .resolved
+                .as_mut()
+                .unwrap()
+                .resolved
+                .reusable_until = now;
+        }
+        library.load_artwork_catalog_at(now).unwrap();
+        assert_eq!(observed_at(), now);
+    }
 }

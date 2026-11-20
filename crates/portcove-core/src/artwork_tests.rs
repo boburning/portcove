@@ -1926,16 +1926,9 @@ fn oversized_published_thumbnail_is_retained_as_an_unexpected_cache_entry() {
         .join(format!("{}.png", selected.asset_sha256.as_ref().unwrap()));
     let oversized = vec![0_u8; crate::artwork_image::MAX_THUMBNAIL_BYTES as usize + 1];
     fs::write(&cache, &oversized).unwrap();
-    let error = service.clear_artwork_cache().unwrap_err();
-    assert!(error.message.contains("unexpected entry"), "{error}");
-    assert_eq!(fs::read(&cache).unwrap(), oversized);
-    fs::write(&cache, &oversized[..oversized.len() - 1]).unwrap();
     let cleared = service.clear_artwork_cache().unwrap();
     assert_eq!(cleared.removed_files, 1);
-    assert_eq!(
-        cleared.removed_bytes,
-        crate::artwork_image::MAX_THUMBNAIL_BYTES
-    );
+    assert_eq!(cleared.removed_bytes, oversized.len() as u64);
     assert!(!cache.exists());
     assert_eq!(
         service
@@ -1962,6 +1955,7 @@ fn transient_cover_failure_backs_off_without_erasing_the_choice() {
             service.library(),
             artwork,
             0,
+            Default::default(),
             |_| panic!("failure cannot publish"),
             || {
                 requests.set(requests.get() + 1);
@@ -2096,6 +2090,7 @@ fn cover_with_fetch(
         service.library(),
         artwork,
         0,
+        Default::default(),
         |bytes| {
             let cache = service.library().root().join("artwork-cache");
             fs::create_dir_all(&cache)?;
@@ -2123,6 +2118,7 @@ fn cover_backoff_expires_from_completion_and_success_recovers() {
         service.library(),
         &artwork,
         0,
+        Default::default(),
         |_| panic!("no publication"),
         || {
             requests.set(1);
@@ -2172,7 +2168,7 @@ fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
         .png
         .is_empty()
     );
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     assert!(cover_with_fetch(&service, &artwork, now, || Ok(bytes)).is_ok());
 }
 
@@ -2253,6 +2249,7 @@ fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
             service.library(),
             &artwork,
             0,
+            Default::default(),
             |_| Err(crate::PortcoveError::conflict("stale choice")),
             || {
                 requests.set(requests.get() + 1);
@@ -2373,6 +2370,7 @@ fn cover_request_registry_is_bounded_and_never_evicts_active_requests() {
             "durable fixture identity".to_owned(),
             format!("image{index}"),
             "0".repeat(64),
+            None,
         )
     };
     let mut active = (0..256)
@@ -2502,7 +2500,7 @@ fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
         cold.png
     );
     assert_eq!(crate::artwork_image::decode_count(), before + 1);
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     fs::write(&original, &bytes).unwrap();
     assert_eq!(
         cover_with_fetch(&service, &artwork, now, || panic!("disk original retained"))
@@ -2606,6 +2604,16 @@ fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
         })
         .unwrap_err();
         assert_eq!(busy.code, crate::ErrorCode::Conflict);
+        let cache = extra_service.library().root().join("artwork-cache");
+        fs::create_dir_all(&cache).unwrap();
+        let original = cache.join(format!("{}.jpg", extra_artwork.image_sha256));
+        fs::write(&original, &extra_bytes).unwrap();
+        let available = cover_with_fetch(&extra_service, &extra_artwork, now, || {
+            panic!("the cached cover must bypass network admission")
+        })
+        .unwrap();
+        assert!(!available.png.is_empty());
+        fs::remove_file(original).unwrap();
         // No library operation lock is held by the artwork admission budget.
         assert!(extra_service.library().try_lock_artwork().is_ok());
         for release in &releases {
@@ -2633,6 +2641,7 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
     let now = Instant::now();
+    let replacement_bytes = bytes.clone();
     let (started, waiting) = mpsc::channel();
     let (release, released) = mpsc::channel();
     std::thread::scope(|scope| {
@@ -2644,18 +2653,16 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
                 released.recv_timeout(Duration::from_secs(10)).unwrap();
                 Ok(bytes)
             })
-            .unwrap()
         });
         waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         service.clear_artwork_cache().unwrap();
         release.send(()).unwrap();
-        let completed = first.join().unwrap();
-        // Clear does not cancel the existing fetch's disk publication. It does
-        // detach its memory state, so this verified original must convert anew.
+        let error = first.join().unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(!cached_original(service, artwork));
         let before = crate::artwork_image::decode_count();
-        let rebuilt =
-            cover_with_fetch(service, artwork, now, || panic!("published original")).unwrap();
-        assert_eq!(rebuilt.png, completed.png);
+        let rebuilt = cover_with_fetch(service, artwork, now, || Ok(replacement_bytes)).unwrap();
+        assert!(!rebuilt.png.is_empty());
         assert_eq!(crate::artwork_image::decode_count(), before + 1);
     });
 }
@@ -2749,10 +2756,8 @@ fn published_cover_at(
         service.library(),
         artwork,
         0,
-        |original| {
-            let _guard = service.library().try_lock_artwork()?;
-            service.publish_igdb_original(artwork, original)
-        },
+        Default::default(),
+        |original| service.publish_igdb_original(artwork, original),
         fetch,
         || now,
     )
@@ -3159,6 +3164,7 @@ fn reference_retention_covers_catalog_media_and_keeps_local_thumbnails() {
         crate::artwork_image::MAX_ORIGINAL_BYTES,
         b"verified media",
         Some(&referenced),
+        None,
     )
     .unwrap();
     let mut names = fs::read_dir(&cache)

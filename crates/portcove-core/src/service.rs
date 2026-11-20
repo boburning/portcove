@@ -323,6 +323,8 @@ pub struct PortcoveService {
     pub(crate) cancellation_requested: std::sync::atomic::AtomicBool,
     catalog: Catalog,
     catalog_provenance: crate::CatalogProvenance,
+    artwork_snapshot_reads: bool,
+    pub(crate) remote_artwork: crate::artwork::RemoteArtworkRead,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     faults: Arc<dyn LifecycleFaultInjector>,
@@ -420,6 +422,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -439,20 +443,70 @@ impl PortcoveService {
         releases: Arc<dyn ReleaseProvider>,
     ) -> Result<Self> {
         let (catalog, catalog_provenance) = library.load_catalog()?;
+        Ok(Self::from_catalog(
+            library,
+            releases,
+            catalog,
+            catalog_provenance,
+        ))
+    }
+
+    /// Desktop artwork uses a reusable read-only catalog observation. Choices
+    /// and retained installation/listing relations are still looked up per call.
+    pub fn with_provider_for_artwork(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+    ) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_artwork_catalog()?;
+        let mut service = Self::from_catalog(library, releases, catalog, catalog_provenance);
+        service.artwork_snapshot_reads = true;
+        Ok(service)
+    }
+
+    /// Probe already available artwork before waiting on any network budget.
+    #[must_use]
+    pub fn with_artwork_cache_epoch(
+        mut self,
+        epoch: crate::ArtworkCacheEpoch,
+        allow_download: bool,
+    ) -> Self {
+        self.remote_artwork = crate::artwork::RemoteArtworkRead {
+            allow_download,
+            epoch: Some(epoch),
+        };
+        self
+    }
+
+    pub(crate) fn current_artwork_service(&self) -> Result<Option<Self>> {
+        if self.artwork_snapshot_reads {
+            return Self::with_provider_for_artwork(self.library.clone(), self.releases.clone())
+                .map(Some);
+        }
+        Ok(None)
+    }
+
+    fn from_catalog(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+        catalog: Catalog,
+        catalog_provenance: crate::CatalogProvenance,
+    ) -> Self {
         #[cfg(feature = "qualification-fixtures")]
         let faults = crate::qualification_checkpoint::faults(library.root());
         #[cfg(not(feature = "qualification-fixtures"))]
         let faults = Arc::new(NoLifecycleFaults);
-        Ok(Self {
+        Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
             store_installs: crate::store_install::default_host(),
-        })
+        }
     }
 
     /// Use other host facts for store install detection (tests and adapters
@@ -487,6 +541,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -506,6 +562,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,

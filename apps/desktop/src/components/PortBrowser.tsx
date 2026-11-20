@@ -1303,8 +1303,8 @@ function LibraryEntry({
   dropTarget: boolean;
   organizationMenu: ReactNode;
 }) {
-  const { element: artworkElement, visible } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(port.id, "cover", visible);
+  const { element: artworkElement, visible, priority } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(port.id, "cover", visible, priority);
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
@@ -1335,6 +1335,7 @@ function LibraryEntry({
             display={artwork}
             portId={port.id}
             visible={visible}
+            priority={priority}
             identityArtwork
             className="card-art collection-art"
           />

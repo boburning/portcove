@@ -232,24 +232,28 @@ export const desktopApi = {
     slot: ArtworkSlot,
     expectedRevision: number,
     generation: number,
+    cacheOnly = false,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_artwork_thumbnail", {
       portId,
       slot,
       expectedRevision,
       generation,
+      ...(cacheOnly ? { cacheOnly } : {}),
     }),
   collectionCoverThumbnail: (
     portId: string,
     expectedSha256: string,
     expectedRevision: number,
     generation: number,
+    cacheOnly = false,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_collection_cover_thumbnail", {
       portId,
       expectedSha256,
       expectedRevision,
       generation,
+      ...(cacheOnly ? { cacheOnly } : {}),
     }),
   companionCoverThumbnail: (
     portId: string,
@@ -257,6 +261,7 @@ export const desktopApi = {
     expectedSha256: string,
     expectedRevision: number,
     generation: number,
+    cacheOnly = false,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_companion_cover_thumbnail", {
       portId,
@@ -264,18 +269,21 @@ export const desktopApi = {
       expectedSha256,
       expectedRevision,
       generation,
+      ...(cacheOnly ? { cacheOnly } : {}),
     }),
   catalogMediaThumbnail: (
     portId: string,
     mediaId: string,
     expectedSha256: string,
     generation: number,
+    cacheOnly = false,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_catalog_media_thumbnail", {
       portId,
       mediaId,
       expectedSha256,
       generation,
+      ...(cacheOnly ? { cacheOnly } : {}),
     }),
   steamGridDbKeyStatus: () => invoke<SteamGridDbKeyStatus>("get_steamgriddb_key_status"),
   /** Saves the player's own key in the OS secure store; it is never read back. */
