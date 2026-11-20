@@ -481,12 +481,14 @@ try {
     $valuePattern.SetValue('Dungeon Crawl Stone Soup')
     Select-Control "Linley's Dungeon Crawl Dungeon Crawl Stone Soup. Setup available. View port"
     # The detail hero starts the normal managed review for a source-free port.
-    $reviewAction = "Install: Linley's Dungeon Crawl · Dungeon Crawl Stone Soup"
+    $separator = [char]0x00b7
+    $reviewAction = "Install: Linley's Dungeon Crawl $separator Dungeon Crawl Stone Soup"
+    $approveAction = "Install $separator 25.3 MiB"
     Select-Control $reviewAction
     $null = Wait-Control '0.34.1'
-    $null = Wait-Control 'Install · 25.3 MiB' -Invokable
+    $null = Wait-Control $approveAction -Invokable
     Write-Receipt 'desktop-install-review' @{ action=$reviewAction; version='0.34.1'; download_bytes=26551751 }
-    Select-Control 'Install · 25.3 MiB'
+    Select-Control $approveAction
 
     $deadline = [DateTime]::UtcNow.AddSeconds(90)
     do {
