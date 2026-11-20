@@ -588,6 +588,37 @@ fn generic_projection() -> Value {
     })
 }
 
+#[test]
+fn original_recognition_projection_requires_the_explicit_reader_capability() {
+    let mut document = generic_projection();
+    let source = &mut document["catalog"]["source_catalog"]["contracts"][0];
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Optional upstream recognition for this artifact.");
+    source["variant_list_recognition_only"] = json!(true);
+    source["applicability"] = json!([{
+        "upstream_ref": "fixture-1", "artifact_sha256": "a".repeat(64)
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("libultraship-portable capability version 7")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "libultraship-portable", "minimum_version": 7, "maximum_version": 7
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }
