@@ -3060,6 +3060,11 @@ export interface PortSourceContract {
   supported_variant_ids: string[];
   tombstones: string[];
   validator_contract_id: string | null;
+  /**
+   * Upstream enumerates recognizable variants for an exact release. A
+   * missing variant cannot reject setup. Historical lists keep their policy.
+   */
+  variant_list_recognition_only?: boolean;
 }
 export interface SourceContractApplicability {
   artifact_sha256: string | null;

@@ -7335,6 +7335,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -42741,6 +42745,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -57034,6 +57042,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -60037,6 +60049,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -61851,6 +61867,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -65866,6 +65886,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -67868,6 +67892,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -70447,6 +70475,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -72542,6 +72574,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
