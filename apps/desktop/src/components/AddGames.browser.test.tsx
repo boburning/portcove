@@ -1,5 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
-import { exactButtonXPath } from "../../scripts/browser-script.mts";
+import { addGamesRouteXPath, exactButtonXPath } from "../../scripts/browser-script.mts";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -208,8 +208,28 @@ it("sends the existing-installation choice to Discover", async () => {
   await expect
     .element(options.getByRole("heading", { name: "Use the game where it is" }))
     .toBeVisible();
+  for (const name of ["Browse games", "Scan a folder"] as const) {
+    const results = document.evaluate(
+      addGamesRouteXPath(name),
+      document,
+      null,
+      XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+      null,
+    );
+    expect(results.snapshotLength).toBe(1);
+    expect(results.snapshotItem(0)).toBe(route(name).element());
+  }
   await options.getByRole("button", { name: "Browse games", exact: true }).click();
   await expectDiscover();
+  expect(
+    document.evaluate(
+      addGamesRouteXPath("Browse games"),
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null,
+    ).singleNodeValue,
+  ).toBeNull();
 });
 it("retains the chosen folder route through details, navigation and closing the workspace", async () => {
   await mount();
