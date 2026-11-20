@@ -3970,6 +3970,11 @@ When GitHub confirms the repository identity, the proposal records its
 immutable ID as the initial lineage. GitHub URL aliases reuse the existing
 authored origin. A repository ID already recorded under a different project
 URL needs lineage review before it can move.
+Include `--record` with the same project URL and reviewed game identity to
+prepare an already-reviewed operational contract. If the record has initial
+lineage, its GitHub repository ID must match the observed repository. Existing
+lineage and issue assignments stay bound to their catalog records. A new
+GitHub-managed route starts from its official project repository.
 Use the existing `--id` if the upstream project names several implementations
 or the existing listing has no reviewed game identity.
 For a non-GitHub project, supply `--name` if the game identity has no single
