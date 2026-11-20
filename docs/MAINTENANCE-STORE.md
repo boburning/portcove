@@ -522,6 +522,12 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   and billed cost unknown without measured evidence. The full report remains
   in its usual run artifact. The summary has no effect on collection,
   retention, or Pages publishing.
+  The summary counts open handoffs by the newest recorded operation for each
+  current assessment and sequence. It reports missing operations, plans,
+  dispatches, ambiguous attempts and operations tied to older assessments.
+  The age uses the last change to the oldest current handoff state. Executor
+  acceptance and completion require their own receipts. Missing or malformed
+  handoff rows leave these counts unknown.
 
 Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16):
 
