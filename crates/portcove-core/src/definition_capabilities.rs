@@ -1234,7 +1234,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(
             n64.checks[0].installed_version,
-            Some(N64_RECOMP_ORIGINAL_RECOGNITION)
+            Some(N64_RECOMP_RELEASE_INPUT_CAPABILITY)
         );
         let future =
             check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
