@@ -10,6 +10,7 @@ on:
         options:
           [
             compatibility,
+            released-preview11-macos-startup,
             presentation,
             product-workflows,
             linux-namespace-preflight,
@@ -63,6 +64,48 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  released-preview11-macos-startup:
+    if: ${{ inputs.operation == 'released-preview11-macos-startup' && !inputs.edge_driver_proof && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 16
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.13'
+      - name: Prepare the public package signature verifier
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          if ! command -v minisign >/dev/null; then brew install minisign; fi
+      - name: Verify the exact immutable public macOS updater package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work
+          bash scripts/verify-published-macos-package.sh "$GITHUB_WORKSPACE/work/published-macos" "$RUNNER_TEMP/published-macos-package"
+      - name: Observe native startup, normal quit and reopen
+        shell: bash
+        env:
+          MACOS_RUNNER: ${{ inputs.runner }}
+        run: |
+          env -u GH_TOKEN -u GITHUB_TOKEN -u PORTCOVE_GITHUB_TOKEN             python3 scripts/verify-published-macos-lifecycle.py "$GITHUB_WORKSPACE/work/published-macos" "$RUNNER_TEMP/published-macos-package"
+      - name: Retain exact package and native witness evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: released-preview11-macos-${{ inputs.runner }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: work/published-macos
+          if-no-files-found: warn
+          retention-days: 14
+
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
