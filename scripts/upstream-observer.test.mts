@@ -12,6 +12,7 @@ import {
   type ProviderObservation,
   observationHash,
   githubDirectPin,
+  assetFact,
   observeUpstream,
   readObserverMetadata,
   validateObserverConfig,
@@ -1399,6 +1400,41 @@ void test("continued facts refuse changed input bindings, corrupted pages and ch
   });
   assert.equal(refused.report.observation, null);
   assert.equal(refused.report.exception?.rule, "repository-identity");
+});
+
+void test("GitHub asset metadata binds the exact slash-tag release and single filename", () => {
+  const repository = "BodbDearg/PsyDoom";
+  const tag = "releases/1.1.1";
+  const name = "PsyDoom_1.1.1_Windows_x86_64.zip";
+  const prefix = `https://github.com/${repository}/releases/download`;
+  const observed = {
+    ...asset(112501908),
+    name,
+    size: 1540884,
+    digest: null,
+  };
+  for (const path of [tag, "releases%2F1.1.1"]) {
+    const browser_download_url = `${prefix}/${path}/${name}`;
+    assert.equal(
+      assetFact({ ...observed, browser_download_url }, { repository }, tag).browser_download_url,
+      browser_download_url,
+    );
+  }
+  for (const browser_download_url of [
+    `${prefix}/releases/2.0.0/${name}`,
+    `${prefix}/releases/1.1.1/client/${name}`,
+    `${prefix}/releases/1.1.1/${name}?download=1`,
+    `${prefix.replace(repository, "somewhere/PsyDoom")}/${tag}/${name}`,
+  ]) {
+    assert.throws(
+      () => assetFact({ ...observed, browser_download_url }, { repository }, tag),
+      (error) => error instanceof ObservationFailure && error.rule === "asset-scope",
+    );
+  }
+  assert.throws(
+    () => githubDirectPin(`${prefix}/${tag}/${name}`),
+    /exact GitHub release asset URL/u,
+  );
 });
 
 void test("a repaired restart can conditionally replace old complete assets after a release tag changes", async () => {
