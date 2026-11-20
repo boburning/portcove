@@ -1359,3 +1359,20 @@ exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping tha
 header correctly, all four configured sources returned usable HTTP 200 reports.
 The actual live observation packet is retained with the implementation evidence;
 fixtures and a local manual read do not establish unattended production operation.
+
+## Mod provider registry
+
+The catalog observation job reads the
+[Thunderstore ecosystem registry](https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/)
+on its existing cadence when the opportunity has request capacity. The public
+read shares the job deadline and response budget. Its rate limit has a separate
+retry clock from GitHub.
+
+The checkpoint retains the schema version, raw response digest, stable community
+IDs, registry game UUIDs, listing states and exact GameBanana game links when
+present. An incomplete response, unsupported schema or change to an already
+observed identity keeps the previous complete snapshot and reports a coverage
+gap. Maintenance reports expired observations as stale using the same
+configured freshness bound. The maintenance inventory records the registry as one discovery subject.
+A community record supplies neither a canonical Portcove port mapping nor
+runtime, package, installation or publication authority.

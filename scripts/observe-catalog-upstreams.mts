@@ -181,6 +181,7 @@ export async function runCatalogUpstreams(
     project?: typeof projectObservation;
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
+    modProviderRegistryFetch?: typeof fetch;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
@@ -321,6 +322,9 @@ export async function runCatalogUpstreams(
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
         : {}),
       ...runtime.observer,
+      ...(runtime.modProviderRegistryFetch
+        ? { modProviderRegistryFetch: runtime.modProviderRegistryFetch }
+        : {}),
       githubScope,
       policyIdentity: coreIdentity.sha256,
       definitionHash: (portId) => definitionHashes.get(portId) ?? "",
@@ -734,12 +738,15 @@ export async function runCatalogOpportunity(
     await appendFile(process.env.GITHUB_OUTPUT, `catalog_handoff_directory=${handoff.directory}\n`);
   }
   try {
+    const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
-          ...runtime,
+          ...batchRuntime,
+          // One registry request per hosted opportunity, including partial responses.
+          ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
           observer: {
             ...runtime.observer,
             githubScope,
@@ -865,10 +872,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
     const result =
       deadline === undefined
-        ? await runCatalogUpstreams(process.argv.slice(2))
+        ? await runCatalogUpstreams(process.argv.slice(2), { modProviderRegistryFetch: fetch })
         : await runCatalogOpportunity(process.argv.slice(2), {
             deadline: Date.parse(deadline),
             scheduledPrioritySources,
+            modProviderRegistryFetch: fetch,
           });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");

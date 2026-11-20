@@ -3890,3 +3890,121 @@ void test("GitLab provider failures export a descriptive failure candidate witho
   assert.equal(state.freshness_observed_at, null);
   assert.equal(state.last_complete_facts_sha256, null);
 });
+
+void test("the mod-provider registry keeps exact discovery evidence across observer restart and incomplete reads", async () => {
+  const h = harness();
+  const { upstreamFacts } = await import("./maintenance-upstream.mts");
+  const { thunderstoreRegistrySubject, thunderstoreRegistryUrl } =
+    await import("./upstream-mod-provider-registry.mts");
+  const ship = {
+    uuid: "9fb26233-032a-43e3-bbe7-6e058f5daf15",
+    label: "ship-of-harkinian",
+    thunderstore: { listed: true, wikiUrl: "https://gamebanana.com/games/16121" },
+  };
+  const twoShip = {
+    uuid: "245724c1-1b08-4fd5-b827-1e9816bda1e1",
+    label: "2-ship-2-harkinian",
+    thunderstore: { listed: false, wikiUrl: "https://gamebanana.com/games/20371" },
+  };
+  const registry = (...games: (typeof ship)[]) => ({
+    schemaVersion: "0.3.0",
+    games: Object.fromEntries(games.map((game) => [game.label, game])),
+    communities: Object.fromEntries(games.map((game) => [game.label, game.thunderstore])),
+  });
+  let response = () => Response.json(registry(ship, twoShip));
+  let requests = 0;
+  h.options.modProviderRegistryFetch = async (url, init) => {
+    assert.equal(
+      url instanceof URL ? url.href : typeof url === "string" ? url : url.url,
+      thunderstoreRegistryUrl,
+    );
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("Authorization"), null);
+    requests++;
+    return response();
+  };
+  const observe = (prior: CatalogObserverCheckpoint | null) =>
+    advanceCatalogObservations(h.input, prior, h.options);
+  const first = await observe(null);
+  const complete = first.checkpoint.mod_provider_registry?.last_complete;
+  assert.ok(complete);
+  assert.equal(requests, 1);
+  assert.deepEqual(complete.communities, [
+    {
+      community: twoShip.label,
+      game_uuid: twoShip.uuid,
+      listed: false,
+      gamebanana_game: 20371,
+    },
+    {
+      community: ship.label,
+      game_uuid: ship.uuid,
+      listed: true,
+      gamebanana_game: 16121,
+    },
+  ]);
+  const published = upstreamFacts(first.checkpoint, h.input, h.options.now!());
+  assert.equal(published.expected, h.input.ports.length + 1);
+  assert.ok(published.facts.has(thunderstoreRegistrySubject));
+  assert.ok(first.report.completed_source_keys.length > 0);
+
+  const saved: unknown = JSON.parse(JSON.stringify(h.snapshots.at(-1)));
+  const restarted = await observe(validateCatalogObserverCheckpoint(saved, h.options.now!()));
+  assert.equal(requests, 1);
+  assert.deepEqual(restarted.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    new Response(Buffer.alloc(h.options.config.budget.response_bytes + 1), {
+      status: 429,
+      headers: { "retry-after": new Date(h.options.now!() + 120000).toUTCString() },
+    });
+  const limited = await observe(restarted.checkpoint);
+  assert.equal(limited.checkpoint.mod_provider_registry?.exception, "rate-limit");
+  assert.deepEqual(limited.checkpoint.mod_provider_registry?.last_complete, complete);
+  assert.equal(limited.checkpoint.provider_retry_at, null);
+  assert.ok(limited.report.completed_source_keys.length > 0);
+  const held = upstreamFacts(limited.checkpoint, h.input, h.options.now!());
+  assert.equal(held.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(held.gaps.some((gap) => gap.subject_key === thunderstoreRegistrySubject));
+  await observe(limited.checkpoint);
+  assert.equal(requests, 2);
+
+  h.advanceClock(120000);
+  response = () => Response.json(registry(ship));
+  const incomplete = await observe(limited.checkpoint);
+  assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    Response.json(
+      registry(ship, {
+        ...twoShip,
+        thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
+      }),
+    );
+  const recovered = await observe(incomplete.checkpoint);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
+    null,
+  );
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.game_uuid,
+    twoShip.uuid,
+  );
+  assert.ok(
+    upstreamFacts(recovered.checkpoint, h.input, h.options.now!()).facts.has(
+      thunderstoreRegistrySubject,
+    ),
+  );
+  h.advanceClock(h.options.config.stale_after_hours * 3600000);
+  const expired = upstreamFacts(recovered.checkpoint, h.input, h.options.now!());
+  assert.equal(expired.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(
+    expired.gaps.some(
+      (gap) => gap.subject_key === thunderstoreRegistrySubject && gap.code === "stale",
+    ),
+  );
+});

@@ -28,6 +28,11 @@ import type {
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 import {
+  observeModProviderRegistry,
+  validateModProviderRegistryProgress,
+  type ModProviderRegistryProgress,
+} from "./upstream-mod-provider-registry.mts";
+import {
   observeOriginalRecognition,
   readOriginalRecognitionProgress,
   revalidateOriginalRecognition,
@@ -128,12 +133,14 @@ export interface SourceProgress {
  * such a stop never notifies.
  */
 export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
+const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
   sequence: number;
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
+  mod_provider_registry?: ModProviderRegistryProgress;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
     id: string;
@@ -299,9 +306,11 @@ export function validateCatalogObserverCheckpoint(
       (typeof value.provider_retry_at !== "string" ||
         !Number.isFinite(Date.parse(value.provider_retry_at)))) ||
     !isRecord(value.sources) ||
-    Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
+    Buffer.byteLength(JSON.stringify(value)) > catalogCheckpointByteLimit
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.mod_provider_registry !== undefined)
+    validateModProviderRegistryProgress(value.mod_provider_registry, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -487,6 +496,7 @@ export interface CatalogObservationOptions extends Pick<
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
+  modProviderRegistryFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
@@ -739,6 +749,29 @@ export async function advanceCatalogObservations(
     requests++;
     if (remaining !== null) remaining--;
   };
+  let registryProgress: ModProviderRegistryProgress | undefined;
+  // A due registry read uses the same opportunity and request accounting.
+  // Thunderstore's independent reserve does not decrement GitHub's quota.
+  if (
+    options.modProviderRegistryFetch &&
+    !options.signal?.aborted &&
+    deadline - now() >= 1000 &&
+    Math.min(template.budget.requests, options.requestLimit ?? Infinity) > 1 &&
+    (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
+  ) {
+    const result = await observeModProviderRegistry(state.mod_provider_registry, {
+      now,
+      cadenceMs: template.cadence_hours * 3600000,
+      staleAfterMs: template.stale_after_hours * 3600000,
+      timeout: Math.min(10000, deadline - now()),
+      responseBytes: template.budget.response_bytes,
+      fetch: options.modProviderRegistryFetch,
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+    requests++;
+    responseBytes += result.bytes;
+    if (!options.signal?.aborted) registryProgress = result.progress;
+  }
   const projectBound = async (
     port: ObservablePort,
     repositoryId: number,
@@ -1571,6 +1604,22 @@ export async function advanceCatalogObservations(
     }
     await options.commit(structuredClone(state));
   }
+  // Preserve the source checkpoint first. This optional registry must fit in
+  // the space remaining after required release progress.
+  if (registryProgress && !options.signal?.aborted) {
+    const candidate = { ...state, mod_provider_registry: registryProgress };
+    if (Buffer.byteLength(JSON.stringify(candidate)) <= catalogCheckpointByteLimit) {
+      state.mod_provider_registry = registryProgress;
+      await options.commit(structuredClone(state));
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "The mod registry does not fit the catalog checkpoint. Prior evidence remains.",
+      });
+    }
+  }
   return {
     checkpoint: state,
     notify_exception: notifyException,
@@ -1579,9 +1628,21 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      ...(state.mod_provider_registry
+        ? {
+            mod_provider_registry: {
+              observed_at: state.mod_provider_registry.last_complete?.observed_at ?? null,
+              expires_at: state.mod_provider_registry.last_complete?.expires_at ?? null,
+              communities: state.mod_provider_registry.last_complete?.communities.length ?? null,
+              response_sha256: state.mod_provider_registry.last_complete?.response_sha256 ?? null,
+              next_due_at: state.mod_provider_registry.next_due_at,
+              exception: state.mod_provider_registry.exception,
+            },
+          }
+        : {}),
       checkpoint_storage: {
         bytes: Buffer.byteLength(JSON.stringify(state)),
-        limit_bytes: 32 * 1024 * 1024,
+        limit_bytes: catalogCheckpointByteLimit,
         provider_read_cache_bytes: Object.values(state.sources).reduce(
           (sum, progress) =>
             sum +
