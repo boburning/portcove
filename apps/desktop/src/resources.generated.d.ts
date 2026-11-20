@@ -2283,11 +2283,16 @@ export default interface Resources {
       "open": "Restore from a library copy",
       "plan": "Library restore plan",
       "recovery": {
+        "bundleIntro": "Finish checking and restoring the bundle before opening the library.",
+        "bundleRestored": "The library has been restored. Open it when you're ready.",
+        "bundleResume": "Resume bundle restore",
+        "bundleUnknown": "Portcove could not confirm this bundle restore.",
         "busy": "Recovering the library restore…",
         "destination": "Restore destination: <path />",
         "heading": "Finish the interrupted library restore",
         "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
         "label": "Library restore recovery",
+        "open": "Open restored library",
         "resume": "Resume restore"
       },
       "restore": "Restore this library",

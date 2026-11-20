@@ -781,7 +781,24 @@ mod tests {
         fs::write(&manifest, original).unwrap();
         let restored = PortcoveService::resume_library_recovery_restore(&restore_root).unwrap();
         assert!(restored.completed);
+
+        let published_root = workspace.path().join("published-restore");
+        let (_, publish_plan) = prepare_restore(&bundle.path, &published_root).unwrap();
+        crate::import_execution::start_reviewed_import(publish_plan, Some(&bundle), &|phase| {
+            if phase == TransferPhase::Published {
+                return Err(PortcoveError::state(
+                    "fixture interruption after publication",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
         fs::rename(&bundle.path, workspace.path().join("offline-bundle")).unwrap();
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&published_root)
+                .unwrap()
+                .completed
+        );
         assert!(
             PortcoveService::resume_library_recovery_restore(&restore_root)
                 .unwrap()

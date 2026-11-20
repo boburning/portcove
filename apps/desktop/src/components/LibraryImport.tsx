@@ -235,15 +235,18 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
 
 export function LibraryImportRecovery({
   destination,
+  bundle = false,
   onBusyChange,
   disabled = false,
 }: {
   destination: string;
+  bundle?: boolean;
   onBusyChange?: (active: boolean) => void;
   disabled?: boolean;
 }) {
   const { t } = useAppTranslation("settings");
   const [busy, setBusy] = useState(false);
+  const [restored, setRestored] = useState(false);
   const [error, setError] = useState<string>();
   const recover = async () => {
     if (busy || disabled) return;
@@ -251,8 +254,20 @@ export function LibraryImportRecovery({
     setError(undefined);
     onBusyChange?.(true);
     try {
-      await desktopApi.recoverLibraryImport(destination);
-      reloadWorkspace();
+      if (bundle) {
+        const status = await desktopApi.bootstrapStatus();
+        const result = await desktopApi.resumeLibraryRecoveryRestore(
+          destination,
+          status.generation,
+        );
+        if (!result.completed || result.destination_root !== destination) {
+          throw new Error(t("libraryRestore.recovery.bundleUnknown"));
+        }
+        setRestored(true);
+      } else {
+        await desktopApi.recoverLibraryImport(destination);
+        reloadWorkspace();
+      }
     } catch (value) {
       setError(errorText(value));
     } finally {
@@ -270,16 +285,20 @@ export function LibraryImportRecovery({
           components={{ path: <bdi dir="ltr">{destination}</bdi> }}
         />
       </p>
-      <p>{t("libraryRestore.recovery.intro")}</p>
+      <p>{t(bundle ? "libraryRestore.recovery.bundleIntro" : "libraryRestore.recovery.intro")}</p>
+      {restored && <p role="status">{t("libraryRestore.recovery.bundleRestored")}</p>}
       <Button
         data-focusable
         variant="primary"
         disabled={busy || disabled}
         onClick={() => {
-          void recover();
+          if (restored) reloadWorkspace();
+          else void recover();
         }}
       >
-        {t("libraryRestore.recovery.resume")}
+        {restored
+          ? t("libraryRestore.recovery.open")
+          : t(bundle ? "libraryRestore.recovery.bundleResume" : "libraryRestore.recovery.resume")}
       </Button>
       {busy && <p role="status">{t("libraryRestore.recovery.busy")}</p>}
       {error && <p role="alert">{error}</p>}
