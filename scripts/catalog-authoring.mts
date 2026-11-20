@@ -22,6 +22,7 @@ import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
+import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
@@ -91,6 +92,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Shared Portcove-owned profile directory and Windows path policy. */
   native_managed_profile_v1?: true;
   route_facts_v1?: RouteFactsV1;
+  /** Reviewed bundled scenario launch and externally owned player profiles. */
+  alephone_pinned_windows_v1?: true;
   /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
   opengoal_setup_v1?: true;
   /** Shared official Raze Windows package and portable-profile layout. */
@@ -730,7 +733,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
   const integration = projectExternalRegistration(
-    projectOpenMohaaPortable(value as AuthoredPort),
+    projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
   ).integration;
   if (integration !== undefined) {
     if (
@@ -841,7 +844,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(
-    projectRazeWindowsProfile(projectOpenGoalSetup(projectNativeManagedProfile(input))),
+    projectRazeWindowsProfile(
+      projectOpenGoalSetup(projectNativeManagedProfile(projectAlephOnePinnedWindows(input))),
+    ),
   );
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(

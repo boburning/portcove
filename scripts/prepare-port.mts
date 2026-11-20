@@ -42,6 +42,7 @@ import {
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactNativeManagedProfile } from "./catalog-native-managed-profile.mts";
+import { compactAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
@@ -172,6 +173,13 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
+  if (record.alephone_pinned_windows_v1) {
+    projections.push({
+      field: "alephone_pinned_windows_v1",
+      scope: "Reviewed Windows launch of the bundled Aleph One scenario with upstream profiles.",
+      next: "Keep each exact Direct archive pin, scenario executable, platform and setup instructions explicit. A different launch layout or profile owner uses an explicit integration.",
+    });
+  }
   if (record.reviewed_flat_package_layout_v1) {
     projections.push({
       field: "reviewed_flat_package_layout_v1",
@@ -1106,6 +1114,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compact !== record) record = checkedAuthoredPort(compact);
     const compactNativeProfile = compactNativeManagedProfile(record);
     if (compactNativeProfile !== record) record = checkedAuthoredPort(compactNativeProfile);
+    const compactAlephOne = compactAlephOnePinnedWindows(record);
+    if (compactAlephOne !== record) record = checkedAuthoredPort(compactAlephOne);
     const compactReflection = compactReflectionHlePortablePaths(record);
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
