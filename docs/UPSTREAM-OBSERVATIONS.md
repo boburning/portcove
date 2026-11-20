@@ -1373,6 +1373,8 @@ IDs, registry game UUIDs, listing states and exact GameBanana game links when
 present. An incomplete response, unsupported schema or change to an already
 observed identity keeps the previous complete snapshot and reports a coverage
 gap. Maintenance reports expired observations as stale using the same
-configured freshness bound. The maintenance inventory records the registry as one discovery subject.
+configured freshness bound. When saved registry evidence and new source progress
+would exceed the existing checkpoint limit, the observer preserves the last
+readable checkpoint and reports the storage hold. The maintenance inventory records the registry as one discovery subject.
 A community record supplies neither a canonical Portcove port mapping nor
 runtime, package, installation or publication authority.

@@ -4006,5 +4006,19 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
     expired.gaps.some(
       (gap) => gap.subject_key === thunderstoreRegistrySubject && gap.code === "stale",
     ),
+  ); // Ordinary source growth must not replace a readable recovered controller
+  // with a checkpoint that cannot be read on the next scheduled run.
+  const retainedRegistry = recovered.checkpoint.mod_provider_registry;
+  assert.ok(retainedRegistry);
+  const large = {
+    ...newCatalogObserverCheckpoint(),
+    mod_provider_registry: retainedRegistry,
+    fixture_padding: "",
+  };
+  large.fixture_padding = "x".repeat(
+    32 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(large)) - 8,
   );
+  const written = h.snapshots.length;
+  await assert.rejects(observe(large), /exceed the checkpoint envelope/u);
+  assert.equal(h.snapshots.length, written);
 });
