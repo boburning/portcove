@@ -233,12 +233,6 @@
     gap: var(--space-1);
     font-size: var(--text-sm);
   }
-  .detail-section-picker [data-slot="select-trigger"] {
-    min-inline-size: 0;
-    inline-size: 100%;
-    min-block-size: 3rem;
-    font-size: var(--text-md);
-  }
   /* A resize switches controls after focus leaves the current navigation. */
   @container detail (width > 20rem) {
     .detail-section-picker:not(:focus-within, :has([aria-expanded="true"])),
@@ -700,5 +694,13 @@
     grid-row: 1;
     justify-self: end;
     color: var(--color-text-muted);
+  }
+}
+
+@layer utilities {
+  .detail-section-picker [data-slot="select-trigger"] {
+    min-inline-size: 0;
+    min-block-size: 3rem;
+    font-size: var(--text-md);
   }
 }

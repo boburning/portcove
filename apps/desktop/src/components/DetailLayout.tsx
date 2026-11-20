@@ -193,14 +193,16 @@ export function DetailLayout({
   const panels = children(reveal, selected);
   const sections = detailSections.filter((section) => panels[section] !== undefined);
   const managementSection = panels.manage !== undefined ? "manage" : "files";
+  const overview = selected === "overview";
+  const channels = selectedChannel ? [selectedChannel] : port.channels;
   const sourceSystems = [
     ...new Set(
       port.presentation?.original_game?.source_editions.map(
         (edition) => edition.system ?? "not-specified",
       ) ?? [],
     ),
-  ];
-  if (!sourceSystems.length) sourceSystems.push("not-specified");
+  ].filter((system) => overview || system !== "not-specified");
+  if (overview && !sourceSystems.length) sourceSystems.push("not-specified");
   const selectSection = (value: unknown) => {
     if (detailSections.includes(value as DetailSection)) {
       setPending(undefined);
@@ -228,12 +230,7 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero
-        port={port}
-        variant="detail"
-        className="detail-hero"
-        compact={selected !== "overview"}
-      >
+      <GameHero port={port} variant="detail" className="detail-hero" compact={!overview}>
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -250,52 +247,56 @@ export function DetailLayout({
               )}
             </p>
           )}
-          <div
-            className={`detail-identity-chips mt-3 flex-wrap gap-2 ${selected === "overview" ? "flex" : "hidden"}`}
-            role="group"
-            aria-label={t("identity.label")}
-          >
-            {sourceSystems.map((system) => (
-              <Chip
-                key={`system:${system}`}
-                style={identityStyle(system)}
-                title={t("identity.originalSystem")}
-              >
-                <IdentityIcon name={system} />
-                {system === "not-specified"
-                  ? t("identity.originalSystemUnspecified")
-                  : identityLabel(system)}
-              </Chip>
-            ))}
-            {[...setupIdentities].map(([label, system]) => (
-              <Chip
-                key={`platform:${label}`}
-                style={identityStyle(system)}
-                title={t("identity.runsOn")}
-              >
-                <IdentityIcon name={system} />
-                {label}
-              </Chip>
-            ))}
-            {[...upstreamIdentities].map(([label, system]) => (
-              <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
-                <IdentityIcon name={system} />
-                {t("identity.upstreamPlatform", { platform: label })}
-              </Chip>
-            ))}
-            {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
-              <Chip
-                key={`channel:${channel}`}
-                style={identityStyle(channel, true)}
-                title={
-                  selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
-                }
-              >
-                <IdentityIcon name={channel} channel />
-                {releaseChannelPresentation(channel).label}
-              </Chip>
-            ))}
-          </div>
+          {(overview || sourceSystems.length > 0 || Boolean(channels?.length)) && (
+            <div
+              className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
+              role="group"
+              aria-label={t("identity.label")}
+            >
+              {sourceSystems.map((system) => (
+                <Chip
+                  key={`system:${system}`}
+                  style={identityStyle(system)}
+                  title={t("identity.originalSystem")}
+                >
+                  <IdentityIcon name={system} />
+                  {system === "not-specified"
+                    ? t("identity.originalSystemUnspecified")
+                    : identityLabel(system)}
+                </Chip>
+              ))}
+              {overview &&
+                [...setupIdentities].map(([label, system]) => (
+                  <Chip
+                    key={`platform:${label}`}
+                    style={identityStyle(system)}
+                    title={t("identity.runsOn")}
+                  >
+                    <IdentityIcon name={system} />
+                    {label}
+                  </Chip>
+                ))}
+              {overview &&
+                [...upstreamIdentities].map(([label, system]) => (
+                  <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+                    <IdentityIcon name={system} />
+                    {t("identity.upstreamPlatform", { platform: label })}
+                  </Chip>
+                ))}
+              {channels?.map((channel) => (
+                <Chip
+                  key={`channel:${channel}`}
+                  style={identityStyle(channel, true)}
+                  title={
+                    selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
+                  }
+                >
+                  <IdentityIcon name={channel} channel />
+                  {releaseChannelPresentation(channel).label}
+                </Chip>
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">
               {readiness}

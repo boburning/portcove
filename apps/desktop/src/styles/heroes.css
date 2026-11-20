@@ -289,6 +289,7 @@
   }
   @container detail (width <= 20rem) {
     .game-hero-detail[data-hero-compact] .detail-header-actions > [data-variant="primary"],
+    .game-hero-detail[data-hero-compact] .detail-hero-primary,
     .game-hero-detail[data-hero-compact] .detail-hero-action {
       min-inline-size: 0;
     }
