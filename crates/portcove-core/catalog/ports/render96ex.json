@@ -63,6 +63,7 @@
       "help_url": "https://github.com/Render96/Render96ex/tree/48da5c491c8abfb2f5192b59278c1c269411e533"
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -72,19 +73,7 @@
     "adapter": "staged-source-portable",
     "release": {
       "provider": "user-prepared",
-      "repository": "Render96/Render96ex",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "Render96/Render96ex"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

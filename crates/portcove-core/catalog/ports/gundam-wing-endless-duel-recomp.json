@@ -66,6 +66,7 @@
       ]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -75,19 +76,7 @@
     "adapter": "staged-source-portable",
     "release": {
       "provider": "user-prepared",
-      "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

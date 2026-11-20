@@ -60,6 +60,7 @@
       "source_editions": []
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -69,19 +70,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "Styd051/DOOM64-EX-Plus-Enhanced",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "Styd051/DOOM64-EX-Plus-Enhanced"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",
