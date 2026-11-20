@@ -16,9 +16,13 @@ import {
 import { initialDetailSection, type DetailOpening } from "../features/game-details/detail-sections";
 import type { Perform } from "../features/operations/use-operation-state";
 import type { PortStatus } from "../types";
-import { platformLabel } from "../view-model";
+import { continueActionPresentation, platformLabel } from "../view-model";
 import { ArtworkControls } from "./Artwork";
 import { GameHeroFramingPreview } from "./GameHero";
+import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
 import { useAppTranslation } from "../localization";
 import { DetailLayout } from "./DetailLayout";
 import { SetupStatement, type DetailOrganization } from "./DetailChoices";
@@ -166,6 +170,13 @@ export function ListingDetailPanel({
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
+  const launchReadiness = presentPortAction(
+    useOperationPresentation(),
+    entry.id,
+    status,
+    "launch",
+  ).readiness;
+  const continueAction = continueActionPresentation(entry, status, launchReadiness.blocked);
   const readinessUnknown =
     registered && !launch.allowed && typeof status?.readiness?.launchable !== "boolean";
   const needsFiles = !registered || !launch.allowed;
@@ -459,6 +470,7 @@ export function ListingDetailPanel({
                     Preview={GameHeroFramingPreview}
                     previewActions={{
                       wide: play && launch.allowed ? t("selfService.play") : setupActionLabel,
+                      narrow: continueAction.label,
                     }}
                   />
                 </ManagementRow>

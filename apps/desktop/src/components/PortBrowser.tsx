@@ -76,6 +76,7 @@ import {
   filterPorts,
   portReadiness,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   releaseChannelPresentation,
   type Filter,
   type CatalogSort,
@@ -1097,16 +1098,6 @@ function BrowserEmptyState({
   );
 }
 
-function continueLaunchable(port: CatalogEntry, status: PortStatus, blocked: boolean) {
-  return (
-    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
-    !port.pendingSetup &&
-    status.readiness?.launchable === true &&
-    status.readiness.blockers.length === 0 &&
-    !blocked
-  );
-}
-
 function ContinueCard({
   recent,
   launch,
@@ -1118,9 +1109,11 @@ function ContinueCard({
 }) {
   const { port, status } = recent;
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  const launchable = continueLaunchable(port, status, action.readiness.blocked);
-  const trial = hasUnconfirmedLaunchInput(status, port);
-  const previouslyPlayed = status.successful_launches > 0;
+  const { launchable, trial, previouslyPlayed, label } = continueActionPresentation(
+    port,
+    status,
+    action.readiness.blocked,
+  );
   return (
     <GameHero
       port={port}
@@ -1156,15 +1149,7 @@ function ContinueCard({
           }
         >
           <Icon glyph={Play} className="fill-current" />
-          {launchable
-            ? status.readiness?.pending_setup
-              ? "Launch to finish setup"
-              : trial
-                ? "Try launch"
-                : previouslyPlayed
-                  ? "Continue playing"
-                  : "Play"
-            : "Review launch"}
+          {label}
         </Button>
         <Button
           data-focusable

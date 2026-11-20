@@ -66,6 +66,7 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       <ArtworkControls
         key={`${portId}:${generation}`}
         port={port}
+        previewPort={{ ...port, name: "Displayed game identity" }}
         Preview={GameHeroFramingPreview}
         previewActions={{ wide: "Play", narrow: "Continue playing" }}
       />
@@ -745,16 +746,19 @@ describe("local artwork controls", () => {
       const previews = container.querySelectorAll<HTMLElement>(".game-hero-framing-preview");
       expect([...previews].map((preview) => preview.inert)).toEqual([true, true]);
       expect(previews[0]?.querySelector(".game-hero-detail .detail-title")?.textContent).toContain(
-        "unusually long",
+        "Displayed game identity",
       );
-      expect(previews[1]?.querySelector(".game-hero-continue .continue-actions")?.textContent).toBe(
-        "Continue playing",
+      expect(
+        previews[1]?.querySelector(".game-hero-continue .continue-actions")?.textContent,
+      ).toContain("Continue playing");
+      expect(previews[1]?.querySelector(".continue-details")?.textContent).toContain(
+        "Game details",
       );
       await expect
         .element(review.getByRole("button", { name: "Continue playing", exact: true }))
         .not.toBeInTheDocument();
       const horizontal = review
-        .getByRole("group", { name: "Narrow preview" })
+        .getByRole("group", { name: "Narrow crop · Continue" })
         .getByRole("slider", { name: "Horizontal" });
       (horizontal.element() as HTMLInputElement).focus();
       await userEvent.keyboard("{End}");

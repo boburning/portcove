@@ -6,8 +6,8 @@ import styles from "./Artwork.module.css";
 
 const defaultPoint = { x: 5000, y: 3500 };
 const frames = [
-  ["wide", "Wide preview"],
-  ["narrow", "Narrow preview"],
+  ["wide", "Wide crop · Overview"],
+  ["narrow", "Narrow crop · Continue"],
 ] as const;
 const axes = [
   ["x", "Horizontal"],

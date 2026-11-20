@@ -222,10 +222,12 @@ const artworkSlots = Object.keys(slotCopy) as ArtworkSlot[];
 
 export function ArtworkControls({
   port,
+  previewPort,
   Preview,
   previewActions,
 }: {
   port: BackgroundPreviewProps["port"];
+  previewPort?: BackgroundPreviewProps["port"] | undefined;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
@@ -277,6 +279,7 @@ export function ArtworkControls({
               {visited.includes(slot) && (
                 <ArtworkSlotControl
                   port={port}
+                  previewPort={previewPort?.id === port.id ? previewPort : port}
                   slot={slot}
                   Preview={Preview}
                   previewActions={previewActions}
@@ -311,11 +314,13 @@ type BackgroundDraft = {
 
 function ArtworkSlotControl({
   port,
+  previewPort,
   slot,
   Preview,
   previewActions,
 }: {
   port: BackgroundPreviewProps["port"];
+  previewPort: BackgroundPreviewProps["port"];
   slot: ArtworkSlot;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
@@ -666,7 +671,7 @@ function ArtworkSlotControl({
       {draft && (
         <BackgroundFramingEditor
           image={draft.image}
-          port={port}
+          port={previewPort}
           Preview={Preview}
           previewActions={previewActions}
           sourceLabel={

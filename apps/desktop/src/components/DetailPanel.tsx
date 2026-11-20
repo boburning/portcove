@@ -100,6 +100,7 @@ import {
   defaultReleaseChannel,
   formatBytes,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   installationMethodLabel,
   installationMethodLabels,
   platformLabel,
@@ -607,17 +608,21 @@ function DetailBody(model: {
     model.installed && model.launchReady
       ? installedPlayPresentation(true, detailHeaderTrial(model), model.pendingSetup).label
       : undefined;
+  const operations = useOperationPresentation();
+  const launchReadiness = presentPortAction(
+    operations,
+    model.port.id,
+    model.status,
+    "launch",
+  ).readiness;
+  const continueAction = continueActionPresentation(
+    model.displayPort ?? { ...model.port, definition: model.port },
+    model.status,
+    launchReadiness.blocked,
+  );
   const previewActions = model.installReadbackRequired
     ? undefined
-    : {
-        wide: launchActionLabel ?? setupActionLabel,
-        ...(launchActionLabel && {
-          narrow:
-            launchActionLabel === "Play" && (model.status?.successful_launches ?? 0) > 0
-              ? "Continue playing"
-              : launchActionLabel,
-        }),
-      };
+    : { wide: launchActionLabel ?? setupActionLabel, narrow: continueAction.label };
   return (
     <DetailLayout
       backLabel={model.backLabel}
@@ -4200,6 +4205,7 @@ function DetailManageSection({
         <ArtworkControls
           key={`controls:${model.port.id}:${model.libraryGeneration}`}
           port={model.port}
+          previewPort={model.displayPort}
           Preview={GameHeroFramingPreview}
           previewActions={previewActions}
         />

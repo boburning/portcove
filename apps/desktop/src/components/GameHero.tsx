@@ -25,6 +25,7 @@ import {
   type HeroMediaPort,
 } from "../hero-media";
 import { Button } from "./ui/button";
+import { ArrowRight } from "lucide-react";
 import { ArtworkSource, ArtworkFrame } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
@@ -276,7 +277,13 @@ export function GameHeroFramingPreview({
               <p className="continue-title">{gameTitle(port)}</p>
               {project && <p className="mt-1 text-xs text-pc-muted-foreground">{project}</p>}
             </div>
-            {action && <div className="continue-actions">{action}</div>}
+            <div className="continue-actions min-w-0">
+              {action}
+              <Button type="button" variant="ghost" className="continue-details">
+                Game details
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
           </>
         )}
       </GameHero>
