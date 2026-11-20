@@ -357,7 +357,7 @@ it.each(["unreadable", "unconfirmed", "multiple"] as const)(
     const addOther = page.getByRole("button", { name: "Add other.zip", exact: true });
     await expect.poll(() => addOther.elements().length).toBe(listing === "multiple" ? 1 : 0);
     await add.click();
-    await expect.element(page.getByText("Pending addition", { exact: true })).toBeVisible();
+    await expect.element(page.getByText("1 pending change", { exact: true })).toBeVisible();
   },
 );
 
