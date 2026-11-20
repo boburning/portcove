@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
     path::{Component, Path},
     sync::Arc,
 };
@@ -80,13 +80,19 @@ pub struct CatalogProposalPortInspection {
 }
 
 #[derive(Debug, Clone)]
+struct RetainedDefinition {
+    snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
+    revision: u64,
+    selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Catalog {
     document: Arc<CatalogDocument>,
     listings: Arc<crate::CatalogListingDocument>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
-    definition_snapshot: Option<(Arc<crate::definition_projection::DefinitionSnapshot>, u64)>,
-    definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+    retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
 /// Share the observation contract without changing legacy proposal receipt hashes.
@@ -288,8 +294,7 @@ impl Catalog {
             listings: Arc::new(listings),
             user_selected_listing: false,
             document: Arc::new(document),
-            definition_snapshot: None,
-            definition_selection: None,
+            retained_definitions: Arc::default(),
         };
         catalog.validate()?;
         Ok(catalog)
@@ -331,7 +336,14 @@ impl Catalog {
         snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
         validated_revision: u64,
     ) {
-        self.definition_snapshot = Some((snapshot, validated_revision));
+        Arc::make_mut(&mut self.retained_definitions).insert(
+            snapshot.port_id().into(),
+            RetainedDefinition {
+                snapshot,
+                revision: validated_revision,
+                selection: None,
+            },
+        );
     }
 
     /// Preserve compiled flags in the effective catalog while leaving the
@@ -391,30 +403,24 @@ impl Catalog {
         &self,
         port_id: &str,
     ) -> Option<&crate::definition_projection::DefinitionSnapshot> {
-        self.definition_snapshot
-            .as_ref()
-            .map(|(snapshot, _)| snapshot.as_ref())
-            .filter(|snapshot| snapshot.port_id() == port_id)
+        self.retained_definitions
+            .get(port_id)
+            .map(|value| value.snapshot.as_ref())
     }
 
     pub(crate) fn retain_definition_selection(
         &mut self,
         selection: Arc<crate::DefinitionSelectionIdentity>,
     ) -> Result<()> {
-        let (snapshot, revision) = self
-            .definition_snapshot
-            .as_ref()
-            .filter(|(snapshot, _)| snapshot.port_id() == selection.stable_id)
+        let retained = Arc::make_mut(&mut self.retained_definitions)
+            .get_mut(&selection.stable_id)
             .ok_or_else(|| {
                 PortcoveError::state(
                     "definition admission provenance has no matching exact snapshot",
                 )
             })?;
-        // The private snapshot/revision pair was established by the complete
-        // projection interpreter. Recheck the supplied identity against that
-        // exact immutable interpretation without interpreting the catalog again.
-        selection.validate_projected_snapshot(snapshot, *revision)?;
-        self.definition_selection = Some(selection);
+        selection.validate_projected_snapshot(&retained.snapshot, retained.revision)?;
+        retained.selection = Some(selection);
         Ok(())
     }
 
@@ -422,9 +428,23 @@ impl Catalog {
         &self,
         port_id: &str,
     ) -> Option<&crate::DefinitionSelectionIdentity> {
-        self.definition_selection
-            .as_deref()
-            .filter(|selection| selection.stable_id == port_id)
+        self.retained_definitions.get(port_id)?.selection.as_deref()
+    }
+
+    pub(crate) fn retain_independent_definition_selection(
+        &mut self,
+        selected: &Self,
+        port_id: &str,
+    ) -> Result<()> {
+        let retained = selected.retained_definitions.get(port_id).ok_or_else(|| {
+            PortcoveError::state("verified subject projection lost its exact selection")
+        })?;
+        Arc::make_mut(&mut self.retained_definitions).insert(port_id.into(), retained.clone());
+        Ok(())
+    }
+
+    pub(crate) fn retain_cached_definition_selections(&mut self, effective: &Self) {
+        self.retained_definitions = Arc::clone(&effective.retained_definitions);
     }
 
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {

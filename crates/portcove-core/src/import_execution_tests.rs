@@ -762,9 +762,9 @@ fn admitted_post_client_definition_survives_offline_import_with_its_full_graph()
         .library()
         .connection()
         .unwrap()
-        .execute(
-            "UPDATE definition_selection_state SET revision=0,replay_floor_json=NULL,active_json=NULL,previous_json=NULL WHERE singleton=1",
-            [],
+        .execute_batch(
+            "DELETE FROM definition_subject_selection;
+             UPDATE definition_selection_state SET revision=0,replay_floor_json=NULL WHERE singleton=1;",
         )
         .unwrap();
     assert!(restarted.artwork(&port_id, ArtworkSlot::Cover).is_err());
@@ -875,11 +875,9 @@ fn successor_manifest_cannot_be_exported_after_source_admission_is_removed() {
     library
         .connection()
         .unwrap()
-        .execute(
-            "UPDATE definition_selection_state
-             SET revision=0,replay_floor_json=NULL,active_json=NULL,previous_json=NULL
-             WHERE singleton=1",
-            [],
+        .execute_batch(
+            "DELETE FROM definition_subject_selection;
+             UPDATE definition_selection_state SET revision=0,replay_floor_json=NULL WHERE singleton=1;",
         )
         .unwrap();
 

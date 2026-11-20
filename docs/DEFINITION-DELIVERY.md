@@ -1254,8 +1254,27 @@ reviewed package layout, and may keep or remove `release.accepted_uploaders`
 but not add an uploader the embedded catalog has not accepted
 ([uploader continuity](CATALOG.md#release-selection-and-maintenance)). An entry
 for a port absent from the embedded catalog therefore cannot accept uploaders.
+Core keeps an active selection and any previous selection for each subject. A
+refresh changes only the requested subject. On reopen, Core verifies each active
+projection and composes its exact port and source records with the other
+eligible selections. An expired, withdrawn or damaged selection triggers a
+diagnostic for that subject. Previously installed versions retain their own
+creating contracts and still require the applicable launch and recovery checks.
+
+Incoming repository metadata must satisfy the library-wide replay floor. An
+exact selection already committed for another subject remains usable while its
+own policy, metadata and evidence permit the requested operation. A portable
+receipt whose older full projection falls outside the current baseline can
+retain its historical launch authority. Core excludes it from current selection
+and requires its exact subject safety preimage before admitting a successor.
+An import that conflicts with another selected subject's source records refuses
+before changing either subject. Schema 72
+carries forward the old single selection and its predecessor. Older database
+writers refuse the migrated library. Preview.9 still has the earlier single
+selection behavior.
+
 An existing service keeps its constructor catalog. A new service, such as the
-next CLI invocation, consumes the durable selection. See [official catalog
+next CLI invocation, consumes the durable selections. See [official catalog
 provisioning](SIGNED-CATALOG.md) for the compiled root and the
 first refresh of an unconfigured library.
 

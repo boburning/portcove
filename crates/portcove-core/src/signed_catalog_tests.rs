@@ -136,6 +136,27 @@ async fn publish(service: &PortcoveService, source: &CatalogUpdateSource) -> Cat
         .unwrap()
 }
 
+pub(crate) async fn publish_source_qualification(
+    library: &Library,
+    root: &std::path::Path,
+) -> crate::SourceEvidence {
+    let baseline = Catalog::embedded().unwrap();
+    let mut payload = fixture(1, Library::now());
+    payload.catalog.ports[0]
+        .summary
+        .clone_from(&baseline.ports()[0].summary);
+    let qualification = append_exact_qualification(&mut payload);
+    let path = root.join("additional-source-qualification.json");
+    std::fs::write(&path, sign(&payload)).unwrap();
+    trusted(library);
+    publish(
+        &PortcoveService::new(library.clone()).unwrap(),
+        &CatalogUpdateSource::File(path),
+    )
+    .await;
+    qualification
+}
+
 #[tokio::test]
 async fn refused_artwork_only_commit_reopens_prior_mapping_and_local_choice_then_retries() {
     let started = std::time::Instant::now();
