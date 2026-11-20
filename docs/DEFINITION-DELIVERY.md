@@ -801,6 +801,14 @@ redistribution each require their applicable authority. A new release identity
 may enter normal protected acceptance. Different bytes under the same accepted
 identity require investigation and must stay held.
 
+If a completed curated transfer matches the admitted length but has a different
+SHA-256, Core refuses it before extraction. When cache capacity and authority
+allow, it verifies and keeps those replacement bytes under an inactive cache
+name. The refusal records both digests and the evidence path, or the reason the
+copy could not be retained. Repeated identical observations share the verified
+sample. A later ordinary attempt still requires the original accepted bytes.
+Incomplete transfers retain their existing bounded recovery rules.
+
 When a reusable local archive fails its independently accepted digest or size,
 Core refuses the operation and rechecks the cache object under its existing
 lock. It quarantines confirmed bad bytes under an inactive cache name. The
