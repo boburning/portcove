@@ -80,6 +80,11 @@ export function runHostedIntakePasses(
       break;
     }
     const report = run(pass, requests, remainingMs);
+    if (isRecord(report) && report.queue_continuation === "maintenance_resource_deferred") {
+      queuePending = true;
+      stopReason = "maintenance_resource_deferred";
+      break;
+    }
     queuePending = isRecord(report) && report.queue_continuation !== undefined;
     if (isRecord(report) && queuePending) {
       if (
@@ -166,6 +171,8 @@ export function runHostedIntakeWorker(
   );
   // spawnSync joins the child before returning. Never restart after a timeout,
   // signal, missing report or unknown worker failure.
+  if (!child.error && !child.signal && child.status === 75)
+    return { queue_continuation: "maintenance_resource_deferred" };
   if (child.error || child.signal || ![0, 1].includes(child.status ?? -1))
     throw new Error("Intake worker did not terminate with a qualified outcome");
   if (!existsSync(summary)) {
@@ -245,6 +252,12 @@ function main() {
       [
         "## Hosted discovery intake",
         "",
+        ...(result.stop_reason === "maintenance_resource_deferred"
+          ? [
+              "Maintenance checkpoint work is pending. The next existing intake event retries it when the provider budget allows.",
+              "",
+            ]
+          : []),
         "| Proposal comment | Result | Delivered | Existing | Held | Pending |",
         "| --- | --- | ---: | ---: | ---: | ---: |",
         ...rows,

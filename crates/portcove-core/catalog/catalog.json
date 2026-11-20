@@ -84103,6 +84103,10 @@
               "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
             },
             {
+              "title": "Play from an installation you maintain",
+              "instruction": "On x64 Linux, select /opt/gzdoom/gzdoom in Portcove. On an Intel or Apple Silicon Mac, select GZDoom.app/Contents/MacOS/gzdoom inside the complete app. Choose the folder containing the executable as the working directory. Review any launch arguments you use, then choose Play. You maintain this installation and its game files."
+            },
+            {
               "title": "Choose your original game",
               "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
             }

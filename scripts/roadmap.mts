@@ -2533,6 +2533,8 @@ export class RoadmapClient {
       includeFields = true,
       pageSize = 50,
       details: suppliedDetails = null,
+      itemIds,
+      includeItemRevision = false,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
@@ -2540,28 +2542,65 @@ export class RoadmapClient {
       includeFields?: boolean;
       pageSize?: 50 | 100;
       details?: ProjectDetails | null;
+      itemIds?: readonly string[];
+      includeItemRevision?: boolean;
     } = {},
   ) {
     const details = suppliedDetails ?? (await this.projectDetails(number));
     if (!details?.id)
       throw new Error("incomplete GitHub inventory: Project identity is unavailable");
     const dependencies = includeDependencies
-      ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
+      ? `blockedBy(first: ${itemIds === undefined ? 10 : 100}) { totalCount nodes { id number title url state } }`
       : "";
     const body = includeBodies ? "body" : "";
     const archive = includeArchived ? "archivedStates: [ARCHIVED, NOT_ARCHIVED]," : "";
     const fields = includeFields
       ? "fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } }"
       : "";
-    const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { id isArchived content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields} } pageInfo { hasNextPage endCursor } } } } }`;
-    return (
-      await this.readInventory(
+    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
+    let nodes: unknown[];
+    if (itemIds !== undefined) {
+      nodes = [];
+      if (new Set(itemIds).size !== itemIds.length || itemIds.some((id) => !id))
+        throw new InventoryError("inventory_identity", "Invalid selected Project item identities");
+      // Use discovery's bounded body hydration size for the exceptional rows.
+      for (let index = 0; index < itemIds.length; index += 10) {
+        const ids = itemIds.slice(index, index + 10);
+        const result = qualificationField(
+          await this.graphql(
+            `query DoctorProjectItemDetails($ids:[ID!]!){nodes(ids:$ids){...on ProjectV2Item{project{id} ${selection}}}}`,
+            { ids },
+          ),
+          "nodes",
+        );
+        if (
+          !Array.isArray(result) ||
+          result.length !== ids.length ||
+          result.some(
+            (row, i) =>
+              !isRecord(row) ||
+              row.id !== ids[i] ||
+              nestedGitHubField(row, "project", "id") !== details.id ||
+              (!includeArchived && row.isArchived !== false),
+          )
+        )
+          throw new InventoryError(
+            "inventory_changed",
+            "Selected Project items changed identity, membership or archive state",
+          );
+        const selected: unknown[] = result;
+        nodes.push(...selected);
+      }
+    } else {
+      const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { ${selection} } pageInfo { hasNextPage endCursor } } } } }`;
+      nodes = await this.readInventory(
         query,
         { id: details.id },
         (data) => nestedGitHubField(data, "node", "items"),
         (node) => qualificationField(node, "id"),
-      )
-    ).map((node) => {
+      );
+    }
+    return nodes.map((node) => {
       if (!isRecord(node) || typeof node.id !== "string")
         throw new Error("incomplete GitHub inventory: malformed Project item identity");
       const sourceContent = completeProjectContent(node.content, includeBodies);
@@ -4433,6 +4472,13 @@ export function doctorProjectItems(
     );
   // Drafts, foreign issues and pull requests are not presumed absent.
   if (links.length < expectedTotal) return undefined;
+  return projectMembershipRows(inventory, links);
+}
+
+function projectMembershipRows(
+  inventory: VerifiedRepositoryIssueInventory,
+  links: NonNullable<VerifiedRepositoryIssueInventory["project_memberships"]>,
+) {
   const issues = new Map(inventory.issues.map((issue) => [issue.id, issue]));
   return links.map((link) => {
     const issue = issues.get(link.issue_id);
@@ -4440,12 +4486,164 @@ export function doctorProjectItems(
       throw new InventoryError("inventory_identity", "Project membership issue is unavailable");
     return issueObservation({
       id: link.id,
+      ...(link.updatedAt ? { updatedAt: link.updatedAt } : {}),
       isArchived: false,
       title: issue.title,
       type: "Issue",
       content: { ...issue, __typename: "Issue" },
       fieldValues: projectFieldValues(link),
     });
+  });
+}
+
+/** Compare the facts consumed by doctor across its two live GraphQL projections.
+ * Connections have no guaranteed order. Preserve multiplicity and require complete blockers. */
+function mixedDoctorFacts(item: RoadmapIssueItem) {
+  const blockedBy = item.content?.blockedBy;
+  const count = qualificationField(blockedBy, "totalCount");
+  const nodes = qualificationField(blockedBy, "nodes");
+  if (!item.fieldValues || !Array.isArray(nodes) || count !== nodes.length)
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Incomplete supplemental Project fields or blockers",
+    );
+  return JSON.stringify([
+    item.fieldValues.map((value) => JSON.stringify([value.field?.name, value.name])).sort(),
+    nodes
+      .map((node: unknown) =>
+        JSON.stringify(
+          ["id", "number", "title", "url", "state"].map((key) => qualificationField(node, key)),
+        ),
+      )
+      .sort(),
+  ]);
+}
+
+export async function readMixedDoctorProject(
+  client: Pick<DoctorClient, "itemList" | "config">,
+  number: number,
+  details: ProjectDetails,
+  inventory: VerifiedRepositoryIssueInventory,
+  expectedTotal: number,
+) {
+  requireRepositoryIssueInventory(inventory, client);
+  const links = inventory.project_memberships?.filter(
+    (link) => link.project_id === details.id && !link.isArchived,
+  );
+  if (!links?.length) return client.itemList(number, { includeDependencies: true, details });
+  const localRows = new Map(projectMembershipRows(inventory, links).map((item) => [item.id, item]));
+  const listed = await client.itemList(number, {
+    includeBodies: false,
+    includeDependencies: false,
+    includeFields: false,
+    includeItemRevision: true,
+    pageSize: 100,
+    details,
+  });
+  requireRepositoryIssueInventory(inventory, client);
+  if (
+    listed.length !== expectedTotal ||
+    new Set(listed.map((item) => item.id)).size !== expectedTotal
+  )
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Mixed Project listing does not cover the independent active count",
+    );
+  const seen = new Set<string>();
+  const knownIssues = new Set(inventory.issues.map((issue) => issue.id));
+  const extraIds: string[] = [];
+  const readStarted = Math.floor(Date.parse(inventory.evidence.started_at) / 1000) * 1000;
+  const identity = (item: RoadmapIssueItem, requireItemRevision = true) => {
+    const c = completeProjectContent(item.content, false);
+    if (
+      typeof item.id !== "string" ||
+      !item.id ||
+      item.isArchived !== false ||
+      (requireItemRevision &&
+        (typeof item.updatedAt !== "string" || !Number.isFinite(Date.parse(item.updatedAt))))
+    )
+      throw new InventoryError("inventory_identity", "Missing active Project identity");
+    return JSON.stringify([
+      item.id,
+      c.id,
+      c.__typename ?? c.type,
+      c.number,
+      c.title,
+      c.url,
+      c.state,
+      c.updatedAt,
+      c.merged,
+    ]);
+  };
+  for (const item of listed) {
+    const itemIdentity = identity(item);
+    const local = localRows.get(item.id);
+    if (local) {
+      if (
+        identity(local, false) !== itemIdentity ||
+        (local.updatedAt && local.updatedAt !== item.updatedAt)
+      )
+        throw new InventoryError(
+          "inventory_changed",
+          "Repository and Project item revisions differ",
+        );
+      seen.add(item.id!);
+      // A missing or same-second version cannot prove the two reads shared a revision.
+      if (
+        typeof local.updatedAt === "string" &&
+        Date.parse(local.updatedAt) < readStarted &&
+        Date.parse(String(local.content!.updatedAt)) < readStarted
+      )
+        continue;
+    }
+    if (
+      !local &&
+      (item.content?.__typename ?? item.content?.type) === "Issue" &&
+      (knownIssues.has(String(item.content?.id)) ||
+        String(item.content?.url).startsWith(`https://github.com/${inventory.repository}/issues/`))
+    )
+      throw new InventoryError(
+        "inventory_changed",
+        "Project and repository membership disagree for a local issue",
+      );
+    extraIds.push(item.id!);
+  }
+  if (seen.size !== localRows.size)
+    throw new InventoryError(
+      "inventory_changed",
+      "Project listing omits a live repository membership",
+    );
+  const extra = await client.itemList(number, {
+    includeDependencies: true,
+    includeItemRevision: true,
+    details,
+    itemIds: extraIds,
+  });
+  if (extra.length !== extraIds.length)
+    throw new InventoryError("inventory_incomplete", "Supplemental Project details are incomplete");
+  const byId = new Map(extra.map((item) => [item.id, item]));
+  if (extraIds.some((id) => !byId.has(id)))
+    throw new InventoryError("inventory_incomplete", "Missing supplemental Project details");
+  return listed.map((item) => {
+    const local = localRows.get(item.id);
+    const full = byId.get(item.id);
+    if (full) {
+      if (
+        identity(item) !== identity(full) ||
+        item.updatedAt !== full.updatedAt ||
+        (local &&
+          (local.content!.body !== full.content!.body ||
+            mixedDoctorFacts(local) !== mixedDoctorFacts(full)))
+      )
+        throw new InventoryError(
+          "inventory_changed",
+          "Supplemental Project item changed during collection",
+        );
+      return full;
+    }
+    if (!local)
+      throw new InventoryError("inventory_incomplete", "Missing supplemental Project details");
+    return local;
   });
 }
 
@@ -4541,10 +4739,22 @@ export async function runDoctor(
     }
     throw error;
   }
+  const mixed =
+    !inventory &&
+    !projected &&
+    repositoryRead!.inventory.project_memberships?.some(
+      (link) => link.project_id === projectId && !link.isArchived,
+    );
   const items =
     inventory?.items ??
     projected ??
-    (await client.itemList(number, { includeDependencies: true, details }));
+    (await readMixedDoctorProject(
+      client,
+      number,
+      details,
+      repositoryRead!.inventory,
+      beforeProject!.total,
+    ));
   for (const item of items) completeProjectContent(item.content);
   if (!inventory) {
     const afterProject = doctorProjectMarker(await client.projectAudit(projectId), projectId);
@@ -4612,7 +4822,9 @@ export async function runDoctor(
       ? "discovery-inventory"
       : projected
         ? "issue-project-memberships"
-        : "project-items-connection",
+        : mixed
+          ? "issue-project-memberships-and-listed-items"
+          : "project-items-connection",
   };
 }
 

@@ -958,6 +958,12 @@ impl Installer {
                 runtime.identity(),
             ))?));
         }
+        crate::runtime_path_policy::check_artifact_destination(
+            &request.port_id,
+            &request.release.asset.sha256,
+            Some(request.qualification.platform),
+            &request.output_root.join(&storage_key),
+        )?;
         let required_bytes = request.release.asset.size.saturating_add(
             request
                 .qualification
@@ -1905,7 +1911,7 @@ impl Installer {
             manifest_sha256,
             selected_executable,
         };
-        check_retained_runtime_paths(
+        check_retained_launch_destination(
             &InstallRecord {
                 path: payload_root.clone(),
                 ..install.clone()
@@ -4668,10 +4674,31 @@ pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32
     )
 }
 
-/// Inspect the authenticated creating contract and immutable members at their
-/// proposed final coordinates. Does not synchronize data or change the record.
-pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Path) -> Result<()> {
+/// Validate the actual destination where a runtime will be used. Integrity-only
+/// inspections also run on outgoing builds and on temporary copies.
+pub(crate) fn check_retained_launch_destination(
+    install: &InstallRecord,
+    target: &Path,
+) -> Result<()> {
     let manifest = verified_manifest(install)?;
+    crate::runtime_path_policy::check_artifact_destination(
+        &manifest.port_id,
+        &manifest.artifact.sha256,
+        manifest.platform,
+        target,
+    )?;
+    check_contract_runtime_paths(install, target, &manifest)
+}
+
+pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Path) -> Result<()> {
+    check_contract_runtime_paths(install, target, &verified_manifest(install)?)
+}
+
+fn check_contract_runtime_paths(
+    install: &InstallRecord,
+    target: &Path,
+    manifest: &InstallManifest,
+) -> Result<()> {
     let Some(contract) = &manifest.retained_contract else {
         return Ok(());
     };
@@ -7156,6 +7183,37 @@ mod tests {
                 selected_executable,
             },
         )
+    }
+
+    #[test]
+    fn long_diablo_source_can_be_verified_for_replacement_or_relocation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("x".repeat(105)).join("y".repeat(85));
+        fs::create_dir_all(&root).unwrap();
+        let player = root.join("game.exe");
+        fs::write(&player, b"inert executable").unwrap();
+        let mut qualification =
+            InstallQualification::test_for_port("alexbeav-diablo-recomp", "game.exe");
+        qualification.platform = Platform::WindowsX86_64;
+        let artifact = ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            sha256: "ea3aa940848e0f5c450d54ab11fea5961ac82f2afbc3c5e5de873e91b7fe063d".into(),
+            size: 32,
+        };
+        let (installer, install) =
+            create_test_install_with_artifact(&root, &qualification, "v0.1.6", artifact);
+        assert!(check_retained_launch_destination(&install, &root).is_err());
+        check_retained_launch_destination(&install, &temporary.path().join("short")).unwrap();
+        installer
+            .verify_critical_for_replacement(&install, &qualification)
+            .unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        fs::write(&player, b"changed executable").unwrap();
+        assert!(
+            installer
+                .verify_critical_for_replacement(&install, &qualification)
+                .is_err()
+        );
     }
 
     #[cfg(unix)]

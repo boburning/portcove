@@ -997,5 +997,12 @@ observation options to derive descriptive metadata and expected member facts.
 Independent initial acceptance remains necessary. Covered ordinary releases use
 the existing dynamic resolver and applicable integrity checks, with no new
 version/applicability row, guide rewrite, wrapper or routine agent approval.
+Current managed setup should refer to the selected release or package when the
+same steps apply across releases. Preparation and ordinary catalog generation
+(including `--check`) flag explicit release or package choices for review in
+ordinary GitHub-managed guides. The check uses complete action phrases tied to
+the managed repository or a declared asset hint. It leaves the guide and
+generated outputs intact. Keep deliberate pins and release-specific evidence
+with their scope. Keep exact original-file requirements and dependencies explicit.
 See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
 prepared route retaining explicit retail-ROM and save/state limitations.

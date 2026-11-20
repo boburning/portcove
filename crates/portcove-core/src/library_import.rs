@@ -326,8 +326,12 @@ impl PortcoveService {
                 .port(&install.port_id)?
                 .windows_runtime_path_policy
                 == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+                || crate::runtime_path_policy::has_bundled_manifest_path_limit(
+                    &install.port_id,
+                    &install.artifact.sha256,
+                )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &observed,
                     &destination_root.join(relative),
                 )?;

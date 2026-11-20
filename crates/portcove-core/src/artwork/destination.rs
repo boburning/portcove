@@ -509,11 +509,14 @@ impl PortcoveService {
                 };
             } else if role == DestinationArtworkRole::PortraitCover {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
-                if automatic && let Some(artwork) = port.artwork.as_ref() {
-                    handoff.source = DestinationArtworkSource::CatalogDefault {
-                        artwork: artwork.clone(),
-                    };
-                    handoff.selected_asset_sha256 = Some(artwork.image_sha256.clone());
+                if automatic {
+                    self.require_current_artwork_listing(&port)?;
+                    if let Some(artwork) = self.automatic_cover(&port) {
+                        handoff.source = DestinationArtworkSource::CatalogDefault {
+                            artwork: artwork.clone(),
+                        };
+                        handoff.selected_asset_sha256 = Some(artwork.image_sha256.clone());
+                    }
                 }
                 handoff.content = DestinationArtworkContent::Unavailable {
                     reason: DestinationArtworkUnavailableReason::NoLocalOriginal,

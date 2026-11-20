@@ -610,6 +610,7 @@ impl PortcoveService {
         };
         let actual = current.artwork_port(&expected.id)?;
         if actual.as_ref() == expected
+            && self.automatic_cover(expected) == current.automatic_cover(&actual)
             && self.catalog_companion_cover(&expected.id)
                 == current.catalog_companion_cover(&expected.id)
         {
@@ -628,6 +629,49 @@ impl PortcoveService {
             .as_ref()?
             .companion_cover
             .as_ref()
+    }
+
+    /// Direct catalog mappings take precedence. Only reviewed underlying-game
+    /// mappings from listings with the same single declared edition can be shared.
+    fn automatic_cover<'a>(
+        &'a self,
+        port: &'a crate::PortListing,
+    ) -> Option<&'a crate::IgdbArtwork> {
+        if let Some(cover) = &port.artwork {
+            return Some(cover);
+        }
+        if port.collection_covers.is_some() {
+            return None;
+        }
+        let game = port.original_game.as_ref()?;
+        let [edition] = game.source_editions.as_slice() else {
+            return None;
+        };
+        let mut shared = None;
+        for candidate in self.catalog().listings() {
+            let Some((donor, cover)) = candidate
+                .original_game
+                .as_ref()
+                .zip(candidate.artwork.as_ref())
+            else {
+                continue;
+            };
+            let [donor_edition] = donor.source_editions.as_slice() else {
+                continue;
+            };
+            if donor.id != game.id
+                || donor_edition.id != edition.id
+                || donor_edition.system != edition.system
+                || cover.match_kind != crate::IgdbArtworkMatch::UnderlyingGame
+            {
+                continue;
+            }
+            if shared.is_some_and(|previous| previous != cover) {
+                return None;
+            }
+            shared = Some(cover);
+        }
+        shared
     }
 
     /// Content identities of remote originals that a currently resolvable port
@@ -764,8 +808,11 @@ impl PortcoveService {
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
-            None => match (slot, port.artwork.as_ref()) {
-                (ArtworkSlot::Cover, Some(artwork)) if choice.is_automatic() => (
+            None => match (slot == ArtworkSlot::Cover && choice.is_automatic())
+                .then(|| self.automatic_cover(port))
+                .flatten()
+            {
+                Some(artwork) => (
                     ArtworkAvailability::Available,
                     None,
                     ArtworkResolvedSource::IgdbCover {
@@ -773,7 +820,7 @@ impl PortcoveService {
                         cache_id: igdb_cache_id(artwork),
                     },
                 ),
-                _ => (
+                None => (
                     ArtworkAvailability::Fallback,
                     None,
                     ArtworkResolvedSource::GeneratedFallback,
@@ -1674,11 +1721,9 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkThumbnail> {
         let port = self.artwork_port(port_id)?;
-        let mapped_cover = match slot {
-            ArtworkSlot::Cover => port.artwork.as_ref(),
-            // Catalog defaults are portrait covers; other slots fall back.
-            ArtworkSlot::Detail | ArtworkSlot::Landscape | ArtworkSlot::Logo => None,
-        };
+        let mapped_cover = (slot == ArtworkSlot::Cover)
+            .then(|| self.automatic_cover(&port))
+            .flatten();
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;
             let choice = crate::artwork_store::require_revision(
