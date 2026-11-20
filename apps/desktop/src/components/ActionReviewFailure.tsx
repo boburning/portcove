@@ -2,7 +2,15 @@ import { errorText, failurePresentation } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 
 /** Keep Core's reported consequences attached to a failed review or execution. */
-export function ActionReviewFailure({ error }: { error: unknown }) {
+export function ActionReviewFailure({
+  error,
+  summary,
+  showMutationSummary = true,
+}: {
+  error: unknown;
+  summary?: string | undefined;
+  showMutationSummary?: boolean;
+}) {
   if (error === undefined) return null;
   const presentation = failurePresentation(error);
   const neutral =
@@ -15,9 +23,15 @@ export function ActionReviewFailure({ error }: { error: unknown }) {
   return (
     <div role={neutral ? "status" : "alert"}>
       <p className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
-        {errorText(error)}
+        {summary ?? errorText(error)}
       </p>
-      {presentation && <FailureDetails presentation={presentation} code={code} />}
+      {presentation && (
+        <FailureDetails
+          presentation={presentation}
+          code={code}
+          showMutationSummary={showMutationSummary}
+        />
+      )}
     </div>
   );
 }

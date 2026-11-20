@@ -1875,6 +1875,63 @@ it.each(
   );
 });
 
+it("explains a required external release mismatch without reporting an uncertain registration", async () => {
+  vi.mocked(pickInstallFolder).mockResolvedValue(record.path);
+  const error = failureReport();
+  error.code = "verification";
+  error.presentation.presentation_key = "verification_failed";
+  error.presentation.summary = "Required verification did not pass.";
+  error.presentation.technical_message =
+    "user-prepared runtime differs from the accepted immutable package";
+  error.presentation.technical_context = {
+    expected_tree_sha256: "a".repeat(64),
+    actual_tree_sha256: "b".repeat(64),
+  };
+  const preview = vi
+    .spyOn(desktopApi, "previewExternalRuntime")
+    .mockResolvedValue(runtimePreview())
+    .mockRejectedValueOnce(error);
+  const register = vi.spyOn(desktopApi, "registerExternalRuntime").mockResolvedValue(record);
+  const viewport = { width: innerWidth, height: innerHeight };
+  try {
+    await page.viewport(1028, 749);
+    await root.rerender(
+      <ExternalRuntimeControl port={port} status={portStatus()} generation={7} busy={false} />,
+    );
+    await page.getByRole("button", { name: "Choose game folder", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    const alert = dialog.getByRole("alert");
+    await expect
+      .element(alert.getByText(/The files in this folder don’t match the required release/))
+      .toBeVisible();
+    await expect
+      .element(alert.getByText(/couldn't confirm whether anything changed/))
+      .not.toBeInTheDocument();
+    await expect.element(dialog.getByRole("button", { name: "Cancel", exact: true })).toHaveFocus();
+    await expect
+      .element(dialog.getByRole("button", { name: "Use this installation", exact: true }))
+      .not.toBeInTheDocument();
+    await captureParityState("external-runtime-preview-release-mismatch");
+    await alert.getByText("View technical details", { exact: true }).click();
+    expect(JSON.parse(alert.element().querySelector("pre")!.textContent!)).toEqual({
+      code: error.code,
+      mutation_state: "unknown",
+      phase: null,
+      message: error.presentation.technical_message,
+      context: error.presentation.technical_context,
+    });
+    await captureParityState("external-runtime-preview-release-mismatch-details");
+    await dialog.getByRole("button", { name: "Check again", exact: true }).click();
+    await expect
+      .element(dialog.getByRole("button", { name: "Use this installation", exact: true }))
+      .toBeEnabled();
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(register).not.toHaveBeenCalled();
+  } finally {
+    await page.viewport(viewport.width, viewport.height);
+  }
+});
+
 it.each([
   ["not_started", "This operation did not start."],
   ["no_changes", "No files were changed by this operation."],
@@ -1894,6 +1951,13 @@ it.each([
       "Check this runtime's current registration before another attempt.";
     failure.presentation.phase = "registration_readback";
     failure.presentation.technical_context = { port_id: port.id };
+    if (state === "unknown") {
+      failure.code = "verification";
+      failure.presentation.technical_context = {
+        expected_tree_sha256: "a".repeat(64),
+        actual_tree_sha256: "b".repeat(64),
+      };
+    }
     const register = vi.spyOn(desktopApi, "registerExternalRuntime").mockRejectedValue(failure);
     await root.rerender(
       <ExternalRuntimeControl port={port} status={portStatus()} generation={7} busy={false} />,
