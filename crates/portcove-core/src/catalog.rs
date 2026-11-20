@@ -3602,15 +3602,20 @@ mod tests {
                 ),
             ]
         );
-        // The v0.4.6 artifacts are excluded because relaunch can create an
-        // untracked successor process.
+        // Each affected release has four exact artifacts excluded because
+        // relaunch can create an untracked successor process.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
-        assert_eq!(hold.excluded_artifacts.len(), 4);
-        assert!(
-            hold.excluded_artifacts
-                .iter()
-                .all(|artifact| artifact.version == "v0.4.6")
-        );
+        assert_eq!(hold.excluded_artifacts.len(), 8);
+        for version in ["v0.4.6", "v0.4.7"] {
+            assert_eq!(
+                hold.excluded_artifacts
+                    .iter()
+                    .filter(|artifact| artifact.version == version)
+                    .count(),
+                4,
+                "{version}"
+            );
+        }
         // The Windows packages plus each release's published Linux and Mac
         // siblings, all matching their release SHA256SUMS.
         assert_eq!(
@@ -3653,7 +3658,8 @@ mod tests {
                 ),
             ]
         );
-        assert!(hold.reason.contains("Exit, not Quit to launcher"));
+        assert!(hold.reason.contains("Quit to launcher"));
+        assert!(hold.reason.contains("use Exit"));
         assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
             artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
         }));

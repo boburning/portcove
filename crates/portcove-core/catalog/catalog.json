@@ -41404,8 +41404,8 @@
       ],
       "adapter": "staged-source-portable",
       "managed_acquisition_hold": {
-        "reason": "Portcove skips Super Metroid Recompiled 0.4.6 because Quit to launcher can start a game process it can't follow. If you're already playing 0.4.6, use Exit, not Quit to launcher.",
-        "activation_reason": "Portcove can't activate this Super Metroid Recompiled 0.4.6 package because Quit to launcher can start a new window it can't follow.",
+        "reason": "Portcove skips Super Metroid Recompiled 0.4.6 and 0.4.7 because Quit to launcher can start a game process it can't follow. If you're already playing either version, use Exit to close the game.",
+        "activation_reason": "Portcove can't activate this Super Metroid Recompiled package because Quit to launcher can start a game process it can't follow.",
         "excluded_artifacts": [
           {
             "version": "v0.4.6",
@@ -41422,6 +41422,22 @@
           {
             "version": "v0.4.6",
             "sha256": "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+          },
+          {
+            "version": "v0.4.7",
+            "sha256": "1c8891ad9700c87427794620eb0d4eaa5201aec3bf5e1b05828c33cf2f6beed0"
+          },
+          {
+            "version": "v0.4.7",
+            "sha256": "8858c75fc8aa062978cb5dc1a95f71628795a9192f7f3e12e5ddeea688d3e46d"
+          },
+          {
+            "version": "v0.4.7",
+            "sha256": "98de08608f702b63752ccfdc596c183e8c8b414e95eb0b5c13e941aef6914317"
+          },
+          {
+            "version": "v0.4.7",
+            "sha256": "e83cb8b742990495c88111b224d36ffc0507a57b399a34268854bbd2a34018be"
           }
         ],
         "reviewed_artifacts": [

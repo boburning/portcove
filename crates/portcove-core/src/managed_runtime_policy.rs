@@ -452,12 +452,12 @@ mod tests {
     }
 
     #[test]
-    fn super_metroid_excludes_v0_4_6_without_withdrawing_acquisition() {
+    fn super_metroid_excludes_known_packages_without_withdrawing_acquisition() {
         let catalog = crate::Catalog::embedded().unwrap();
         let id = "super-metroid-recomp";
         assert!(require_acquisition_available(&catalog, id).is_ok());
 
-        let staged = |version: &str, sha256: &str| crate::InstallRecord {
+        let staged = |version: &str, package: &str, sha256: &str| crate::InstallRecord {
             id: "staged".into(),
             port_id: id.into(),
             version: version.into(),
@@ -467,12 +467,17 @@ mod tests {
             verified: true,
             staged: true,
             artifact: crate::ArtifactIdentity {
-                asset_name: format!("supermetroid-{}-windows-x64.zip", &version[1..]),
+                asset_name: format!("supermetroid-{}-{package}.zip", &version[1..]),
                 sha256: sha256.into(),
                 size: 1,
             },
             manifest_sha256: "a".repeat(64),
-            selected_executable: "SuperMetroidSNESRecomp.exe".into(),
+            selected_executable: if package == "windows-x64" {
+                "SuperMetroidSNESRecomp.exe"
+            } else {
+                "SuperMetroidSNESRecomp"
+            }
+            .into(),
             runtime: None,
         };
         for (version, sha256) in [
@@ -486,27 +491,62 @@ mod tests {
             ),
         ] {
             assert!(
-                require_managed_activation_available(&catalog, &staged(version, sha256)).is_ok(),
+                require_managed_activation_available(
+                    &catalog,
+                    &staged(version, "windows-x64", sha256)
+                )
+                .is_ok(),
                 "{version}"
             );
         }
         // A published Linux sibling is reviewed too, so it activates.
-        let mut linux = staged(
+        let linux = staged(
             "v0.4.5",
+            "linux-x64",
             "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
         );
-        linux.artifact.asset_name = "supermetroid-0.4.5-linux-x64.zip".into();
-        linux.selected_executable = "SuperMetroidSNESRecomp".into();
         assert!(require_managed_activation_available(&catalog, &linux).is_ok());
-        let refusal = require_managed_activation_available(
-            &catalog,
-            &staged(
+        let hold = acquisition_hold(&catalog, id).unwrap();
+        for (version, package, sha256) in [
+            (
                 "v0.4.6",
+                "windows-x64",
                 "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429",
             ),
-        )
-        .unwrap_err();
-        assert!(refusal.message.contains("new window"));
+            (
+                "v0.4.7",
+                "windows-x64",
+                "e83cb8b742990495c88111b224d36ffc0507a57b399a34268854bbd2a34018be",
+            ),
+            (
+                "v0.4.7",
+                "linux-x64",
+                "1c8891ad9700c87427794620eb0d4eaa5201aec3bf5e1b05828c33cf2f6beed0",
+            ),
+            (
+                "v0.4.7",
+                "macos-x64",
+                "98de08608f702b63752ccfdc596c183e8c8b414e95eb0b5c13e941aef6914317",
+            ),
+            (
+                "v0.4.7",
+                "macos-arm64",
+                "8858c75fc8aa062978cb5dc1a95f71628795a9192f7f3e12e5ddeea688d3e46d",
+            ),
+        ] {
+            let refusal =
+                require_managed_activation_available(&catalog, &staged(version, package, sha256))
+                    .unwrap_err();
+            assert_eq!(
+                refusal.code,
+                crate::ErrorCode::Unsupported,
+                "{version} {package}"
+            );
+            assert_eq!(
+                refusal.message, hold.activation_reason,
+                "{version} {package}"
+            );
+        }
     }
 
     const PORTS: [&str; 3] = [
