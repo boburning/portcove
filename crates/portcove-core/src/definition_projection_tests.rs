@@ -192,6 +192,119 @@ fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
 }
 
 #[test]
+fn sparse_schema_three_reuses_exact_shared_source_records_and_rejects_conflicts() {
+    let mut full = generic_projection();
+    full["catalog"]["schema_version"] = json!(3);
+    let graph = &mut full["catalog"]["source_catalog"];
+    let mut sibling_evidence = graph["evidence"][0].clone();
+    sibling_evidence["id"] = json!("sibling-source-byte-evidence");
+    graph["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(sibling_evidence);
+    graph["contracts"][1]["evidence_ids"] = json!(["sibling-source-byte-evidence"]);
+    graph["validators"] = json!([{
+        "id": "shared-fixture-validator", "tool_id": "fixture-check",
+        "protocol_version": "1", "evidence_ids": ["fixture-bytes"]
+    }]);
+    for contract in graph["contracts"].as_array_mut().unwrap() {
+        contract["validator_contract_id"] = json!("shared-fixture-validator");
+    }
+    let baseline = Catalog::from_json(&full["catalog"].to_string()).unwrap();
+
+    let mut sparse = full.clone();
+    sparse["catalog"]["ports"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    sparse["catalog"]["ports"][0]["summary"] = json!("Reviewed fixture correction");
+    let graph = &mut sparse["catalog"]["source_catalog"];
+    graph["evidence"].as_array_mut().unwrap().truncate(1);
+    graph["contracts"].as_array_mut().unwrap().truncate(1);
+    let mut selected_evidence = graph["evidence"][0].clone();
+    selected_evidence["id"] = json!("new-selected-source-byte-evidence");
+    graph["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(selected_evidence);
+    graph["contracts"][0]["evidence_ids"] =
+        json!(["fixture-bytes", "new-selected-source-byte-evidence"]);
+
+    let select = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        inspect(&entry(document, &bytes, 0), &bytes)?.catalog_for_selection(&baseline)
+    };
+    let effective = select(&sparse).unwrap();
+    let before = baseline.source_catalog().unwrap();
+    let after = effective.source_catalog().unwrap();
+    assert_eq!(
+        &after.evidence[..before.evidence.len()],
+        before.evidence.as_slice()
+    );
+    assert_eq!(
+        after.evidence.last().unwrap().id,
+        "new-selected-source-byte-evidence"
+    );
+    assert_eq!(after.identities, before.identities);
+    assert_eq!(after.validators, before.validators);
+    assert_eq!(
+        after
+            .contracts
+            .iter()
+            .find(|row| row.port_id == "projection-sibling"),
+        before
+            .contracts
+            .iter()
+            .find(|row| row.port_id == "projection-sibling"),
+    );
+    assert_eq!(
+        effective.port("projection-fixture").unwrap().summary,
+        "Reviewed fixture correction",
+    );
+
+    for (collection, field, value) in [
+        ("evidence", "claim", "Changed evidence"),
+        ("identities", "label", "Changed identity"),
+        ("validators", "protocol_version", "2"),
+    ] {
+        let mut conflicting = sparse.clone();
+        conflicting["catalog"]["source_catalog"][collection][0][field] = json!(value);
+        let error = select(&conflicting).unwrap_err();
+        assert!(
+            error.message.contains("projected source record conflicts"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn complete_schema_three_one_port_keeps_graph_order_checks() {
+    let mut full = generic_projection();
+    full["catalog"]["schema_version"] = json!(3);
+    full["catalog"]["ports"].as_array_mut().unwrap().truncate(1);
+    let graph = &mut full["catalog"]["source_catalog"];
+    graph["contracts"].as_array_mut().unwrap().truncate(1);
+    let mut additional = graph["evidence"][0].clone();
+    additional["id"] = json!("additional-fixture-bytes");
+    graph["evidence"].as_array_mut().unwrap().push(additional);
+    graph["contracts"][0]["evidence_ids"] = json!(["fixture-bytes", "additional-fixture-bytes"]);
+    let baseline = Catalog::from_json(&full["catalog"].to_string()).unwrap();
+
+    let select = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        inspect(&entry(document, &bytes, 0), &bytes)?.catalog_for_selection(&baseline)
+    };
+    let effective = select(&full).unwrap();
+    assert_eq!(effective.source_catalog(), baseline.source_catalog());
+    full["catalog"]["source_catalog"]["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    let error = select(&full).unwrap_err();
+    assert!(error.message.contains("source evidence order"), "{error}");
+}
+
+#[test]
 fn indexed_upstream_review_requires_matching_new_schemas() {
     let mut document = generic_projection();
     document["catalog"]["ports"][0]["upstream_active_reviewed"] = json!(true);

@@ -1,7 +1,7 @@
 //! Lossless interpretation of a shared, terminal catalog contract.
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{Catalog, DefinitionContentIndex, DefinitionEntryInspection, PortcoveError, Result};
 
@@ -173,9 +173,13 @@ impl DefinitionCatalogProjection {
         let selected = self.snapshot.port_id();
         let schema = self.catalog.document().schema_version;
         let legacy_addition = schema == 2 && baseline.port(selected).is_err();
+        // A complete one-port catalog keeps the same transition checks as a
+        // complete multi-port catalog, including source graph ordering.
+        let sparse_schema_three =
+            schema == 3 && baseline.ports().iter().any(|port| port.id != selected);
         let mut catalog = if self.catalog.ports().len() == 1
             && baseline.document().schema_version == 3
-            && (schema == 3 || legacy_addition)
+            && (sparse_schema_three || legacy_addition)
         {
             // A single-port projection supplies only its admitted contract.
             // Keep the baseline's catalog and unrelated source graph.
@@ -213,10 +217,21 @@ impl DefinitionCatalogProjection {
             } else {
                 document.ports.push(port);
             }
-            sources.evidence.extend(evidence);
-            sources.identities.extend(identities);
+            if sparse_schema_three {
+                extend_shared_source_records(&mut sources.evidence, evidence, |record| &record.id)?;
+                extend_shared_source_records(&mut sources.identities, identities, |record| {
+                    &record.id
+                })?;
+                extend_shared_source_records(&mut sources.validators, validators, |record| {
+                    &record.id
+                })?;
+            } else {
+                // Keep the legacy new-port contract's duplicate-ID checks.
+                sources.evidence.extend(evidence);
+                sources.identities.extend(identities);
+                sources.validators.extend(validators);
+            }
             sources.contracts.extend(contracts);
-            sources.validators.extend(validators);
             sources.qualification.extend(qualification);
             let mut catalog = Catalog::from_document(document)?;
             catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
@@ -233,6 +248,29 @@ impl DefinitionCatalogProjection {
     pub(crate) fn snapshot(&self) -> &DefinitionSnapshot {
         &self.snapshot
     }
+}
+
+fn extend_shared_source_records<T: PartialEq>(
+    baseline: &mut Vec<T>,
+    supplied: Vec<T>,
+    id: impl Fn(&T) -> &str,
+) -> Result<()> {
+    let existing: HashMap<_, _> = baseline.iter().map(|record| (id(record), record)).collect();
+    let mut added = Vec::new();
+    for record in supplied {
+        match existing.get(id(&record)) {
+            Some(previous) if *previous != &record => {
+                return Err(PortcoveError::conflict(format!(
+                    "projected source record conflicts with the baseline: {}",
+                    id(&record)
+                )));
+            }
+            Some(_) => {}
+            None => added.push(record),
+        }
+    }
+    baseline.extend(added);
+    Ok(())
 }
 
 impl DefinitionContentIndex {
