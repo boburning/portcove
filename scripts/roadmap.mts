@@ -2550,7 +2550,7 @@ export class RoadmapClient {
     if (!details?.id)
       throw new Error("incomplete GitHub inventory: Project identity is unavailable");
     const dependencies = includeDependencies
-      ? "blockedBy(first: 10) { totalCount nodes { id number title url state } }"
+      ? `blockedBy(first: ${itemIds === undefined ? 10 : 100}) { totalCount nodes { id number title url state } }`
       : "";
     const body = includeBodies ? "body" : "";
     const archive = includeArchived ? "archivedStates: [ARCHIVED, NOT_ARCHIVED]," : "";
@@ -4495,6 +4495,29 @@ function projectMembershipRows(
   });
 }
 
+/** Compare the facts consumed by doctor across its two live GraphQL projections.
+ * Connections have no guaranteed order. Preserve multiplicity and require complete blockers. */
+function mixedDoctorFacts(item: RoadmapIssueItem) {
+  const blockedBy = item.content?.blockedBy;
+  const count = qualificationField(blockedBy, "totalCount");
+  const nodes = qualificationField(blockedBy, "nodes");
+  if (!item.fieldValues || !Array.isArray(nodes) || count !== nodes.length)
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Incomplete supplemental Project fields or blockers",
+    );
+  return JSON.stringify([
+    item.fieldValues.map((value) => JSON.stringify([value.field?.name, value.name])).sort(),
+    nodes
+      .map((node: unknown) =>
+        JSON.stringify(
+          ["id", "number", "title", "url", "state"].map((key) => qualificationField(node, key)),
+        ),
+      )
+      .sort(),
+  ]);
+}
+
 export async function readMixedDoctorProject(
   client: Pick<DoctorClient, "itemList" | "config">,
   number: number,
@@ -4607,7 +4630,9 @@ export async function readMixedDoctorProject(
       if (
         identity(item) !== identity(full) ||
         item.updatedAt !== full.updatedAt ||
-        (local && local.content!.body !== full.content!.body)
+        (local &&
+          (local.content!.body !== full.content!.body ||
+            mixedDoctorFacts(local) !== mixedDoctorFacts(full)))
       )
         throw new InventoryError(
           "inventory_changed",

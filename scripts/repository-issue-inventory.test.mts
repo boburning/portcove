@@ -311,7 +311,11 @@ void test("a mixed Project reuses verified local bodies and fields and hydrates 
         .map((row) => ({
           ...row,
           updatedAt: moved ? "2026-10-18T00:00:00Z" : stamp,
-          content: { ...row.content, body: row.id === "ITEM_D" ? "foreign draft body" : "body" },
+          content: {
+            ...row.content,
+            blockedBy: { totalCount: 0, nodes: [] },
+            body: row.id === "ITEM_D" ? "foreign draft body" : "body",
+          },
           fieldValues: [],
         }));
     },
@@ -342,6 +346,95 @@ void test("a mixed Project reuses verified local bodies and fields and hydrates 
   moved = false;
   foreign.content.url = `https://github.com/${repository}/issues/2`;
   await assert.rejects(read, /membership disagree/u);
+});
+
+void test("same-second local Project fields and blockers must agree across the two live query shapes", async (t) => {
+  const stamp = "2026-11-20T12:00:00Z";
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse(stamp) });
+  const end = { hasNextPage: false, endCursor: null };
+  const fields = [
+    { field: { name: "Status" }, name: "Validating" },
+    { field: { name: "Port stage" }, name: "Cataloged" },
+  ];
+  const blockers = [8, 9].map((n) => ({
+    id: `I_${n}`,
+    number: n,
+    title: `Issue ${n}`,
+    url: `https://github.com/${repository}/issues/${n}`,
+    state: "OPEN",
+  }));
+  const localItems: Record<string, unknown>[] = [];
+  const fixture = membershipFixture((row) => {
+    const link = (row.projectItems as { nodes: Record<string, unknown>[] }).nodes[0]!;
+    link.updatedAt = row.number === 1 ? stamp : row.updatedAt;
+    if (row.number === 1) {
+      link.fieldValues = {
+        totalCount: fields.length,
+        edges: fields.map((node, i) => ({ cursor: String(i), node })),
+        pageInfo: end,
+      };
+      row.blockedBy = { totalCount: blockers.length, nodes: blockers, pageInfo: end };
+    }
+    const { id, number, title, url, state, updatedAt } = row;
+    localItems.push({
+      id: link.id,
+      isArchived: false,
+      updatedAt: link.updatedAt,
+      content: { __typename: "Issue", id, number, title, url, state, updatedAt },
+    });
+  });
+  const draft = {
+    id: "D",
+    isArchived: false,
+    updatedAt: stamp,
+    content: { __typename: "DraftIssue", id: "DI", title: "Draft", updatedAt: stamp },
+  };
+  let selectedFields = fields.toReversed(),
+    selectedBlockers = blockers.toReversed();
+  const client = await sdkRoadmap(config, {
+    graphql(query, variables) {
+      if (query.includes("RepositoryIssue")) return fixture.reader.graphql(query, variables);
+      if (query.includes("DoctorProjectItemDetails")) {
+        assert.deepEqual(variables.ids, ["ITEM_1", "D"]);
+        assert.match(query, /blockedBy\(first: 100\)/u);
+        return {
+          nodes: [localItems[0]!, draft].map((row) => {
+            const local = row.id === "ITEM_1";
+            const values = local ? selectedFields : [];
+            return {
+              ...row,
+              project: { id: "P" },
+              content: {
+                ...(row.content as Record<string, unknown>),
+                body: "body",
+                ...(local
+                  ? { blockedBy: { totalCount: blockers.length, nodes: selectedBlockers } }
+                  : {}),
+              },
+              fieldValues: { totalCount: values.length, nodes: values, pageInfo: end },
+            };
+          }),
+        };
+      }
+      assert.match(query, /items\(first: 100/u);
+      return { node: { items: { totalCount: 3, nodes: [...localItems, draft], pageInfo: end } } };
+    },
+  });
+  const inventory = await collectRepositoryIssueInventory(client, { projectMemberships: true });
+  assert.equal(Date.parse(inventory.evidence.started_at), Date.parse(stamp));
+  const read = () => readMixedDoctorProject(client, 1, { id: "P" }, inventory, 3);
+  assert.equal(
+    (await read()).length,
+    3,
+    "Equivalent fields and blockers can arrive in a different order",
+  );
+  selectedFields = [fields[1]!, { ...fields[0]!, name: "Done" }];
+  await assert.rejects(read, { code: "inventory_changed" });
+  selectedFields = fields;
+  selectedBlockers = [{ ...blockers[0]!, state: "CLOSED" }, blockers[1]!];
+  await assert.rejects(read, { code: "inventory_changed" });
+  selectedBlockers = [blockers[0]!];
+  await assert.rejects(read, { code: "inventory_incomplete" });
 });
 
 void test("nested memberships and blockers cannot silently truncate or lose identity", async () => {
