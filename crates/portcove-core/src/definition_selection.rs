@@ -576,7 +576,7 @@ impl Library {
             provenance: identity.provenance.clone(),
             snapshot: snapshot.clone(),
         };
-        stored.validate()?;
+        let projection = stored.validate()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let state = DefinitionSelectionState::read(&transaction)?;
@@ -603,6 +603,7 @@ impl Library {
             ));
         }
         if role == "active" {
+            require_composable_selection(&transaction, &projection, None, Self::now())?;
             if let Some(policy) =
                 PublisherPolicyRecord::read(&transaction, &identity.namespace, &identity.stable_id)?
                 && (!policy.matches_identity(identity)
@@ -757,23 +758,31 @@ impl Library {
         if held_legacy_scope && !has_explicit_scope {
             return Err(crate::provider_binding::implicit_successor());
         }
+        let subject =
+            DefinitionSubjectSelection::read(&transaction, &stored.namespace, &stored.stable_id)?;
+        let predecessor = subject.as_ref().map(|slot| &slot.active);
+        let mut definition_changed = false;
+        if let Some(predecessor) = predecessor {
+            definition_changed =
+                require_definition_revision(&predecessor.projection, &candidate.projection)?;
+        }
         if validate_transition {
-            let (baseline, _) =
-                crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
-            let projection = candidate.projection.catalog_for_selection(&baseline)?;
-            let unaffected = load_definition_selections_except(
+            require_composable_selection(
                 &transaction,
-                &baseline,
+                &candidate.projection,
+                predecessor
+                    .filter(|_| definition_changed)
+                    .map(|slot| &slot.projection),
                 Self::now(),
-                Some(selected),
             )?;
-            if let Some((effective, _)) = unaffected.catalog {
-                crate::definition_loader::compose_verified_definition(
-                    &effective,
-                    &projection,
-                    selected,
-                )?;
-            }
+        } else if let Some(predecessor) = predecessor.filter(|_| definition_changed) {
+            // The lower-level candidate API does not resolve the current baseline.
+            // It still cannot replace the exact same-subject safety preimage.
+            crate::definition_loader::validate_definition_transition(
+                predecessor.projection.catalog(),
+                candidate.projection.catalog(),
+                selected,
+            )?;
         }
         if has_explicit_scope {
             transaction.execute(
@@ -782,8 +791,6 @@ impl Library {
                 [selected],
             )?;
         }
-        let subject =
-            DefinitionSubjectSelection::read(&transaction, &stored.namespace, &stored.stable_id)?;
         if subject
             .as_ref()
             .is_some_and(|slot| slot.active_json == active_json)
@@ -1002,6 +1009,55 @@ fn portable_restore_keeps_an_older_selection_for_the_same_publisher() {
             .unwrap(),
         Some("previous")
     );
+}
+
+fn require_definition_revision(
+    predecessor: &crate::DefinitionCatalogProjection,
+    candidate: &crate::DefinitionCatalogProjection,
+) -> Result<bool> {
+    use std::cmp::Ordering;
+    match candidate
+        .entry()
+        .revision()
+        .cmp(&predecessor.entry().revision())
+    {
+        Ordering::Less => Err(PortcoveError::verification(
+            "selected definition revision cannot go backwards",
+        )),
+        Ordering::Equal
+            if candidate.entry().bytes() != predecessor.entry().bytes()
+                || candidate.contract_bytes() != predecessor.contract_bytes() =>
+        {
+            Err(PortcoveError::verification(
+                "selected definition changed without a definition revision advance",
+            ))
+        }
+        Ordering::Equal => Ok(false),
+        Ordering::Greater => Ok(true),
+    }
+}
+
+fn require_composable_selection(
+    connection: &Connection,
+    projection: &crate::DefinitionCatalogProjection,
+    predecessor: Option<&crate::DefinitionCatalogProjection>,
+    now: i64,
+) -> Result<()> {
+    let selected = &projection.entry().port().id;
+    let (baseline, _) = crate::catalog_store::CatalogState::read(connection)?.resolve(now)?;
+    let proposed = projection.catalog_for_selection(&baseline)?;
+    if let Some(predecessor) = predecessor {
+        // The exact previously committed snapshot remains the safety preimage.
+        // Its present publisher policy, trust freshness and load status can
+        // have changed during this refresh.
+        let prior = predecessor.catalog_for_selection(&baseline)?;
+        crate::definition_loader::validate_definition_transition(&prior, &proposed, selected)?;
+    }
+    let unaffected = load_definition_selections_except(connection, &baseline, now, Some(selected))?;
+    if let Some((effective, _)) = unaffected.catalog {
+        crate::definition_loader::compose_verified_definition(&effective, &proposed, selected)?;
+    }
+    Ok(())
 }
 
 pub(crate) struct DefinitionSelectionLoad {

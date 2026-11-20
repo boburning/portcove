@@ -1566,20 +1566,14 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     );
 }
 
-#[tokio::test]
-async fn per_subject_selection_retains_independent_authority_and_interrupts_atomically() {
-    let fixture = RepositoryFixture::new();
-    let (first, first_id) = post_client_catalog();
-    let first_id = first_id.as_str();
-    let mut second = Catalog::embedded().unwrap().authoritative_document();
-    let second_id = second.ports[0].id.clone();
-    let second_id = second_id.as_str();
-    let old_summary = second.ports[0].summary.clone();
-    let new_summary = "Independent admitted summary.";
-    second.ports[0].summary = new_summary.into();
-    let second = Catalog::from_document(second).unwrap();
-    let mut first = indexed_catalog_bundle(&first, first_id);
-    let second = indexed_catalog_bundle(&second, second_id);
+fn paired_definition_targets(
+    first: &Catalog,
+    first_id: &str,
+    second: &Catalog,
+    second_id: &str,
+) -> Vec<(String, Vec<u8>)> {
+    let mut first = indexed_catalog_bundle(first, first_id);
+    let second = indexed_catalog_bundle(second, second_id);
     let mut index: Value = serde_json::from_slice(&first.index).unwrap();
     let sibling: Value = serde_json::from_slice(&second.index).unwrap();
     for field in ["definitions", "contents"] {
@@ -1592,8 +1586,230 @@ async fn per_subject_selection_retains_independent_authority_and_interrupts_atom
     first
         .contents
         .push((INDEX_TARGET.into(), serde_json::to_vec(&index).unwrap()));
+    first.contents
+}
+
+async fn prepare_selection_revision(
+    fixture: &RepositoryFixture,
+    library: &Library,
+    catalog: &Catalog,
+    port_id: &str,
+    metadata_version: u64,
+    definition_revision: u64,
+) -> crate::EligibleDefinitionCandidate {
+    let bundle = crate::test_fixture::indexed_catalog_bundle_at_revision(
+        catalog,
+        port_id,
+        definition_revision,
+    );
+    let mut targets = bundle.contents;
+    targets.push((INDEX_TARGET.into(), bundle.index));
     let root = fixture
-        .publish(&first.contents, true, &DEFINITION_ROLE_PATHS, later())
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&fixture.offline[0], metadata_version)),
+        )
+        .await;
+    let candidate = acquire(fixture, &root).await.unwrap();
+    library
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            port_id,
+            metadata_version,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Scoped,
+        )
+        .unwrap();
+    library
+        .assess_definition_candidate(&candidate, "official", port_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn an_ordinary_successor_cannot_weaken_the_latest_retained_subject() {
+    let fixture = RepositoryFixture::new();
+    let directory = TempDir::new().unwrap();
+    let library = Library::open(directory.path()).unwrap();
+    let port_id = "open-nectar-pikmin";
+    let baseline = Catalog::embedded().unwrap();
+    let mut reviewed = baseline.authoritative_document();
+    let port = reviewed
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    port.reviewed_package_layouts.insert(
+        crate::Platform::WindowsX86_64,
+        crate::ReviewedPackageLayout {
+            ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
+            directories: vec![],
+            executables: vec!["reviewed.exe".into()],
+        },
+    );
+    let reviewed = Catalog::from_document(reviewed).unwrap();
+    let eligible = prepare_selection_revision(&fixture, &library, &reviewed, port_id, 1, 7).await;
+    let initial = library.select_definition_catalog(eligible).unwrap();
+
+    let mut changed = reviewed.authoritative_document();
+    changed
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .summary = "An independently corrected description.".into();
+    let changed = Catalog::from_document(changed).unwrap();
+    for (version, revision, supplied, expected) in [
+        (2, 8, &baseline, "package layout was removed"),
+        (3, 6, &reviewed, "revision cannot go backwards"),
+        (
+            4,
+            7,
+            &changed,
+            "changed without a definition revision advance",
+        ),
+    ] {
+        let rejected =
+            prepare_selection_revision(&fixture, &library, supplied, port_id, version, revision)
+                .await;
+        let error = library.select_definition_catalog(rejected).unwrap_err();
+        assert!(error.message.contains(expected), "{error:?}");
+        assert_eq!(library.definition_selection_status().unwrap(), initial);
+    }
+    // Renewing policy and repository metadata may keep the same exact revision.
+    let renewal = prepare_selection_revision(&fixture, &library, &reviewed, port_id, 5, 7).await;
+    library.select_definition_catalog(renewal).unwrap();
+    let eligible = prepare_selection_revision(&fixture, &library, &changed, port_id, 6, 8).await;
+    let selected = library.select_definition_catalog(eligible).unwrap();
+    assert_eq!(selected.selected.unwrap().definition_revision, 8);
+    assert!(selected.can_rollback);
+}
+
+#[tokio::test]
+async fn a_post_client_successor_preserves_its_predecessors_immutable_source_identity() {
+    let fixture = RepositoryFixture::new();
+    let directory = TempDir::new().unwrap();
+    let library = Library::open(directory.path()).unwrap();
+    let (prior, port_id) = post_client_catalog();
+    let eligible = prepare_selection_revision(&fixture, &library, &prior, &port_id, 1, 7).await;
+    let initial = library.select_definition_catalog(eligible).unwrap();
+    let profile = prior
+        .port(&port_id)
+        .unwrap()
+        .source_profile
+        .as_deref()
+        .unwrap();
+    let mut changed = prior.authoritative_document();
+    let graph = changed.source_catalog.as_mut().unwrap();
+    graph
+        .identities
+        .iter_mut()
+        .find(|row| row.id == profile)
+        .unwrap()
+        .label = "Changed previously admitted source".into();
+    let changed = Catalog::from_document(changed).unwrap();
+    let rejected = prepare_selection_revision(&fixture, &library, &changed, &port_id, 2, 8).await;
+    // The newer policy is already current, so the active catalog no longer
+    // loads the old projection. Its exact scoped preimage still governs selection.
+    assert!(library.load_catalog().unwrap().0.port(&port_id).is_err());
+    let error = library.select_definition_catalog(rejected).unwrap_err();
+    assert!(error.message.contains("source identity"), "{error:?}");
+    assert_eq!(library.definition_selection_status().unwrap(), initial);
+}
+
+#[tokio::test]
+async fn portable_active_restore_refuses_source_collision_in_both_subject_orders() {
+    let fixture = RepositoryFixture::new();
+    let (first, first_id) = post_client_catalog();
+    let second_id = "alternate-post-client-fixture";
+    let mut second = first.authoritative_document();
+    let port = second
+        .ports
+        .iter_mut()
+        .find(|port| port.id == first_id)
+        .unwrap();
+    port.id = second_id.into();
+    let profile = port.source_profile.clone().unwrap();
+    let graph = second.source_catalog.as_mut().unwrap();
+    for contract in graph
+        .contracts
+        .iter_mut()
+        .filter(|row| row.port_id == first_id)
+    {
+        contract.port_id = second_id.into();
+        contract.id = format!("{second_id}-game");
+    }
+    graph
+        .identities
+        .iter_mut()
+        .find(|row| row.id == profile)
+        .unwrap()
+        .label = "Conflicting independent source".into();
+    let second = Catalog::from_document(second).unwrap();
+    let targets = paired_definition_targets(&first, &first_id, &second, second_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+
+    for (existing, incoming) in [
+        (first_id.as_str(), second_id),
+        (second_id, first_id.as_str()),
+    ] {
+        let destination = TempDir::new().unwrap();
+        let source = TempDir::new().unwrap();
+        let destination = Library::open(destination.path()).unwrap();
+        let source = Library::open(source.path()).unwrap();
+        select_candidate(&destination, &candidate, existing);
+        select_candidate(&source, &candidate, incoming);
+        let retained = source.load_catalog().unwrap().0;
+        assert!(retained.port(incoming).is_ok());
+        let identity = retained.definition_selection(incoming).unwrap();
+        let snapshot = retained.definition_snapshot(incoming).unwrap();
+        let before = destination.definition_selection_status().unwrap();
+        let refusal = destination
+            .restore_retained_definition_admission(identity, snapshot, "active")
+            .unwrap_err();
+        assert!(
+            refusal
+                .message
+                .contains("independently selected source records conflict"),
+            "{refusal:?}"
+        );
+        assert_eq!(destination.definition_selection_status().unwrap(), before);
+        assert_eq!(
+            destination
+                .retained_definition_admission_role(identity)
+                .unwrap(),
+            None
+        );
+        let effective = destination.load_catalog().unwrap().0;
+        assert!(effective.port(existing).is_ok());
+        assert!(effective.port(incoming).is_err());
+    }
+}
+
+#[tokio::test]
+async fn per_subject_selection_retains_independent_authority_and_interrupts_atomically() {
+    let fixture = RepositoryFixture::new();
+    let (first, first_id) = post_client_catalog();
+    let first_id = first_id.as_str();
+    let mut second = Catalog::embedded().unwrap().authoritative_document();
+    let second_id = second.ports[0].id.clone();
+    let second_id = second_id.as_str();
+    let old_summary = second.ports[0].summary.clone();
+    let new_summary = "Independent admitted summary.";
+    second.ports[0].summary = new_summary.into();
+    let second = Catalog::from_document(second).unwrap();
+    let targets = paired_definition_targets(&first, first_id, &second, second_id);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
         .await;
     let mut candidate = acquire(&fixture, &root).await.unwrap();
     let directory = TempDir::new().unwrap();
