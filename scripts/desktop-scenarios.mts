@@ -679,6 +679,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-cli-handoff-test.mts",
   }),
   scenario(
+    "native-library-recovery-bundle",
+    "Create, verify and restore an owned recovery bundle before a separate library switch.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      platforms: ["win32"],
+      source: "desktop-library-handoff-test.mts",
+    },
+  ),
+  scenario(
     "native-local-artwork-picker-and-recovery",
     "Local artwork uses the native picker safely.",
     {
@@ -1136,7 +1146,8 @@ export function desktopHarnessDeadlineMs(
     // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
     // the copy and move journeys and was still in the CLI handoff when the 300 s
     // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
-    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
+    selection.selected_scenarios.includes("native-library-recovery-bundle") ||
+      selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 600_000
       : 0,

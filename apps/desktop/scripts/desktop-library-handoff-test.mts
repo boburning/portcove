@@ -23,16 +23,299 @@ import { executeBrowserScript } from "./browser-script.mts";
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { access, cp, mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
+import {
+  access,
+  copyFile,
+  cp,
+  mkdir,
+  readFile,
+  realpath,
+  rename,
+  writeFile,
+} from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
+  clickVisible,
+  replaceKeyboardText,
   reviewControls,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
+import type { PreparationContext } from "./desktop-preparation-test.mts";
+
+export async function libraryRecoveryBundleScenario({
+  browser,
+  invoke,
+  scenario,
+  library,
+  output,
+  artifacts,
+  command,
+  tool,
+  chooseOwnedLibrary,
+  restartApplication,
+}: Omit<HandoffContext, "confirmNative"> &
+  Pick<PreparationContext, "tool" | "chooseOwnedLibrary" | "restartApplication">) {
+  await scenario("native-library-recovery-bundle", async () => {
+    assert.equal(process.platform, "win32");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    const source = path.join(output, "bundle-working-library");
+    const original = path.join(output, "bundle-adoption-source");
+    const bundle = path.join(output, "verified-bundle");
+    const corrupt = path.join(output, "tampered-bundle");
+    const destination = path.join(output, "restored-library");
+    const portId = "zelda64-recomp";
+    const owned = (args: readonly string[]) => command(args, source);
+    const port = transportValue("port", command(["catalog", "show", portId]));
+    await mkdir(original);
+    await copyFile(
+      tool,
+      path.join(original, required(port.executable_hints["windows-x86-64"]?.[0])),
+    );
+    await writeFile(path.join(original, "general.json"), "owned fixture preferences", {
+      flag: "wx",
+    });
+    owned(["adopt", original, "--port", portId, "--yes"]);
+    const paths = transportValue("port_paths", owned(["paths", portId]));
+    const active = required(transportValue("status", owned(["status", portId])).active);
+    const save = path.join(paths.user_data_root, "owned-bundle-save.bin");
+    await writeFile(save, "owned save before backup", { flag: "wx" });
+    const backup = transportValue("backup", owned(["backup", "create", portId]));
+    const originalBackup = await fileIdentity(path.join(backup.path, "data", path.basename(save)));
+    const metadataLeaf = "portcove-recovery-bundle.json";
+    const bundleSave = (root: string) => path.join(root, "content", path.relative(source, save));
+    const read = async <K extends Parameters<typeof transportValue>[0]>(
+      contract: K,
+      name: string,
+      args?: Record<string, unknown>,
+    ) => transportValue(contract, success(await invoke(name, args)));
+    const bootstrap = () => read("desktop_bootstrap_status", "get_bootstrap_status");
+    const identity = async (root: string) => {
+      const expected = await realpath(root);
+      const state = required(
+        (await browser.wait(
+          async () => {
+            const observed = await bootstrap();
+            return observed.ready &&
+              observed.library_root &&
+              (await realpath(observed.library_root)) === expected
+              ? observed
+              : false;
+          },
+          60_000,
+          "Portcove did not settle on the expected library",
+        )) || undefined,
+      );
+      const selected = await read("library_identity", "get_library_identity", {
+        generation: state.generation,
+      });
+      assert.equal(await realpath(selected.root), expected);
+      return { generation: state.generation, id: selected.id };
+    };
+    const location = async () => {
+      await browser.wait(
+        until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+        60_000,
+      );
+      await selectPrimaryNavigation(browser, "Settings");
+      const controls = reviewControls(browser);
+      await controls.click(controls.button("Library and storage"));
+      return controls;
+    };
+    const modal = async () => {
+      const dialog = await browser.wait(until.elementLocated(By.css('[role="dialog"]')), 15_000);
+      await browser.wait(until.elementIsVisible(dialog), 15_000);
+      return dialog;
+    };
+    const field = async (label: string, value: string) => {
+      const dialog = await modal();
+      const input = await dialog.findElement(By.xpath(`.//label[normalize-space(.)="${label}"]`));
+      const id = await input.getAttribute("for");
+      assert.ok(id, `Missing labelled field: ${label}`);
+      await replaceKeyboardText(browser, await dialog.findElement(By.id(id)), value);
+    };
+    const waitText = async (text: string) =>
+      browser.wait(async () => (await (await modal()).getText()).includes(text), 60_000, text);
+    const capture = async (name: string) => {
+      const file = path.join(output, `${name}.png`);
+      await writeFile(file, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+      artifacts.push(file);
+    };
+    const close = async () => {
+      const controls = reviewControls(browser);
+      await controls.click(controls.button("Close"));
+      await browser.wait(
+        async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+        60_000,
+      );
+    };
+    const refuses = async (forbiddenAction: string) => {
+      const alert = await browser.wait(
+        until.elementLocated(By.css('[role="dialog"] [role="alert"]')),
+        60_000,
+      );
+      assert.ok((await alert.getText()).trim());
+      const apply = By.xpath(`.//button[normalize-space(.)="${forbiddenAction}"]`);
+      assert.equal((await (await modal()).findElements(apply)).length, 0);
+    };
+    const inspect = (root: string) =>
+      read("library_recovery_bundle", "inspect_library_recovery_bundle", { path: root });
+
+    // Bind the driver to an explicitly separate harness library before touching UI.
+    success(await invoke("set_default_library", { path: source }));
+    await browser.navigate().refresh();
+    const initial = await identity(source);
+    let controls = await location();
+    await controls.click(controls.button("Create recovery bundle"));
+    await field("New bundle folder", path.join(source, "not-a-bundle"));
+    await controls.click(controls.button("Review bundle creation"));
+    await refuses("Copy and verify");
+    await assert.rejects(access(path.join(source, "not-a-bundle")), { code: "ENOENT" });
+
+    await field("New bundle folder", bundle);
+    await controls.click(controls.button("Review bundle creation"));
+    await waitText("Review what Portcove will copy");
+    await writeFile(save, "current bytes changed after review");
+    await controls.click(controls.button("Copy and verify"));
+    await refuses("Copy and verify");
+    await assert.rejects(access(bundle), { code: "ENOENT" });
+    const afterStale = await identity(source);
+    assert.equal(afterStale.id, initial.id);
+    await close();
+
+    controls = await location();
+    await controls.click(controls.button("Create recovery bundle"));
+    await field("New bundle folder", bundle);
+    await controls.click(controls.button("Review bundle creation"));
+    await waitText("Review what Portcove will copy");
+    const review = await browser.findElement(By.css('[aria-label="Creation review"]'));
+    for (const text of [
+      "Installed game versions",
+      "Library saves and settings",
+      "Game-save backups",
+      "Original game files and BIOS outside the library",
+      "Sign-in credentials",
+    ])
+      assert.ok((await review.getText()).includes(text), text);
+    await capture("native-recovery-bundle-creation-review");
+    await controls.click(controls.button("Copy and verify"));
+    await waitText("Bundle verified");
+    const verified = await inspect(bundle);
+    assert.equal(verified.source_library_id, initial.id);
+    assert.match(verified.receipt_sha256, /^[a-f0-9]{64}$/u);
+    assert.equal((await identity(source)).id, initial.id);
+    const manifestIdentity = await fileIdentity(path.join(bundle, metadataLeaf));
+    const captured = await fileIdentity(save);
+    assert.equal((await fileIdentity(bundleSave(bundle))).sha256, captured.sha256);
+    await close();
+
+    browser = await restartApplication("verified-recovery-bundle-before-tamper", async () => {
+      await cp(bundle, corrupt, { recursive: true, force: false, errorOnExist: true });
+    });
+    assert.equal((await inspect(corrupt)).receipt_sha256, verified.receipt_sha256);
+    browser = await restartApplication("verify-tampered-recovery-bundle", async () => {
+      await writeFile(bundleSave(corrupt), "tampered payload");
+    });
+    controls = await location();
+    await controls.click(controls.button("Inspect or restore a bundle"));
+    await field("Recovery bundle folder", corrupt);
+    await controls.click(controls.button("Verify bundle"));
+    await refuses("Review restore");
+    assert.equal(
+      object(await invoke("inspect_library_recovery_bundle", { path: corrupt })).ok,
+      false,
+    );
+    assert.equal((await identity(source)).id, initial.id);
+    await capture("native-recovery-bundle-tamper-refusal");
+
+    await field("Recovery bundle folder", bundle);
+    await controls.click(controls.button("Verify bundle"));
+    await waitText("Bundle verified");
+    await field("Restore destination", destination);
+    await controls.click(controls.button("Review restore"));
+    await waitText("Review the restore destination");
+    await assert.rejects(access(destination), { code: "ENOENT" });
+    await capture("native-recovery-bundle-restore-review");
+    await controls.click(controls.button("Restore library"));
+    await waitText("Library restored");
+    const afterRestore = await identity(source);
+    assert.equal(afterRestore.id, initial.id);
+    const restoredPaths = transportValue("port_paths", command(["paths", portId], destination));
+    const restoredSave = await fileIdentity(
+      path.join(restoredPaths.user_data_root, path.basename(save)),
+    );
+    assert.equal(restoredSave.sha256, captured.sha256);
+    const restoredActive = required(
+      transportValue("status", command(["status", portId], destination)).active,
+    );
+    assert.equal(restoredActive.id, active.id);
+    const restoredBackup = required(
+      transportValue(
+        "backup_inventory",
+        command(["backup", "list", portId], destination),
+      ).backups.find(({ id }) => id === backup.id),
+    );
+    assert.equal(
+      (await fileIdentity(path.join(restoredBackup.path, "data", path.basename(save)))).sha256,
+      originalBackup.sha256,
+    );
+    assert.deepEqual(await fileIdentity(path.join(bundle, metadataLeaf)), manifestIdentity);
+    assert.deepEqual(await fileIdentity(save), captured);
+    await close();
+
+    controls = await location();
+    await controls.click(controls.button("Choose another library"));
+    const picker = object(
+      await chooseOwnedLibrary(
+        "Choose Portcove library",
+        "Select Folder",
+        "Folder",
+        "open-verified-restored-library",
+        undefined,
+        destination,
+      ),
+    );
+    assert.equal(await realpath(String(picker.selected_directory)), await realpath(destination));
+    const choice = await modal();
+    assert.ok((await choice.getText()).includes("Switch libraries?"));
+    assert.equal((await identity(source)).id, initial.id);
+    await clickVisible(browser, await choice.findElement(controls.button("Switch library")));
+    const opened = await identity(destination);
+    assert.ok(opened.generation > afterRestore.generation);
+    browser = await restartApplication("restored-library-explicitly-opened");
+    assert.equal((await identity(destination)).id, opened.id);
+
+    const report = path.join(output, "native-recovery-bundle-result.json");
+    await writeFile(
+      report,
+      JSON.stringify(
+        {
+          source,
+          bundle,
+          destination,
+          initial,
+          afterStale,
+          afterRestore,
+          opened,
+          verified,
+          manifest_identity: manifestIdentity,
+          working_save: captured,
+          restored_save: restoredSave,
+          restored_install_id: restoredActive.id,
+          restored_backup_id: restoredBackup.id,
+          refusals: ["overlapping-destination", "source-changed-after-review", "tampered-copy"],
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+}
 
 export async function libraryHandoffScenario({
   browser,

@@ -106,6 +106,7 @@ export function planDesktopExecution(
         "install-progress-cancellation",
         "native-reviewed-existing-install-copy",
         "native-library-move-invalidates-prior-reviews",
+        "native-library-recovery-bundle",
         "native-contextual-cli-handoff",
         "native-library-layout",
         "native-secondary-panel-presentation",
