@@ -1110,7 +1110,8 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       if (
         portId !== "stable-port" &&
         !(portId === "stable-port-second" && unavailable === "rate-limit")
-      ) return policy;
+      )
+        return policy;
       const release = observation.facts.releases.find((release) => release.id === 1);
       assert.ok(release);
       return {
@@ -1226,10 +1227,14 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       .find((source) => source.repository === "owner/shared")
       ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
     assert.equal(
-      readOriginalSourceProgress(secondPolicy?.[inputEvidenceKey(family)], {
-        repository: "owner/shared",
-        repository_id: 7,
-      }, family)?.state,
+      readOriginalSourceProgress(
+        secondPolicy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      )?.state,
       "budget",
     );
     const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
