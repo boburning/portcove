@@ -452,6 +452,7 @@ export function planDesktopExecution(
     hashResumeJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
   const updateReviewJourney = executed.has("native-game-update-review");
+  const gameSettingsJourney = executed.has("native-game-settings-review");
   const roles = [
     ...selection.selected_scenarios.map((id) => ({ id, role: "selected" })),
     ...selection.setup_scenarios.map((id) => ({ id, role: "setup" })),
@@ -483,6 +484,7 @@ export function planDesktopExecution(
           "install-progress-cancellation",
           "install-commit-refresh-recovery",
           "native-staged-update-composition",
+          "native-game-settings-review",
           "native-update-acquisition-lifecycle",
         ].includes(id),
       ),
@@ -555,17 +557,19 @@ export function planDesktopExecution(
       completionJourney,
       ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
       ...(updateReviewJourney ? { updateReviewJourney: true } : {}),
+      ...(gameSettingsJourney ? { gameSettingsJourney: true } : {}),
       ...(registeredSourceReuse ? { registeredSourceReuse: true } : {}),
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
       holdFirstDownload: completionJourney,
       designCompatibility: needs("design-compatibility-fixture"),
     },
     build: {
-      cliFeatures:
-        sourceJourney ||
-        completionJourney ||
-        updateReviewJourney ||
-        selection.selected_scenarios.includes("native-host-publication-recovery")
+      cliFeatures: gameSettingsJourney
+        ? ["portcove-cli/qualification-fixtures"]
+        : sourceJourney ||
+            completionJourney ||
+            updateReviewJourney ||
+            selection.selected_scenarios.includes("native-host-publication-recovery")
           ? ["portcove-core/qualification-fixtures"]
           : [],
       qualificationFeatures:

@@ -3,6 +3,7 @@ import {
   fixtureSuccess as success,
   requiredFixtureValue as required,
   fixtureObject as object,
+  ownedFixtureCommand,
 } from "./desktop-scenario-state.mts";
 import type { WebDriver, WebElement } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
@@ -33,6 +34,7 @@ interface InstallContext extends ScenarioContext {
   library: string;
   inputs: FileIdentity[];
   fixture: InstallFixture | undefined;
+  cli?: string;
   ownedGameProcess?: AcquisitionGameObserver | undefined;
   confirmNative?: ReturnType<typeof nativeConfirmation> | undefined;
   restartApplication: (name: string, prepare?: () => Promise<void>) => Promise<WebDriver>;
@@ -305,6 +307,7 @@ export async function installScenarios({
   artifacts,
   inputs,
   fixture,
+  cli,
   ownedGameProcess,
   confirmNative,
   restartApplication,
@@ -416,6 +419,171 @@ export async function installScenarios({
         item.operation === "install" && item.target_id === port.id && item.status === status,
     );
   };
+
+  await scenario("native-game-settings-review", async () => {
+    const owned = required(fixture);
+    const port = owned.port;
+    assert.equal(process.platform, "win32");
+    assert.equal(path.resolve(library), path.resolve(output, "library"));
+    await openFixture(port);
+    await reviewAndStart();
+    await browser.wait(async () => installActivity(port, "succeeded"), 60_000);
+    const active = await browser.wait(
+      async () => (await statuses()).find(({ port_id }) => port_id === port.id)?.active ?? false,
+      60_000,
+    );
+    assert.ok(active);
+    assert.equal(active.artifact.sha256, fixtureHash(port));
+
+    const command = ownedFixtureCommand({
+      cli: required(cli),
+      library,
+      output,
+      catalogPath: owned.catalogPath,
+    });
+    const scope = object(command(["game-settings", "qualification-scope", port.id]));
+    assert.equal(scope.install_id, active.id);
+    assert.ok(Array.isArray(scope.files));
+    assert.equal(scope.files.length, 1);
+    const audio = object(scope.files[0]);
+    assert.equal(audio.file_id, "audio");
+    assert.equal(audio.path, "fixture-settings.json");
+    const configPaths = [audio.canonical_path, audio.runtime_path].map((candidate) => {
+      assert.equal(typeof candidate, "string");
+      assert.ok(typeof candidate === "string");
+      const relative = path.relative(library, candidate);
+      assert.ok(relative && !path.isAbsolute(relative) && relative.split(path.sep)[0] !== "..");
+      return candidate;
+    });
+    assert.notEqual(configPaths[0], configPaths[1]);
+    const initial = { master: 40, music: 60, keep: ["unrelated", true] };
+    const snapshot = async (phase: string) => {
+      const copies = await Promise.all(configPaths.map((file) => readFile(file)));
+      assert.deepEqual(copies[0], copies[1], `Configuration copies diverged at ${phase}`);
+      const artifact = path.join(output, `settings-${phase}.json`);
+      await writeFile(artifact, required(copies[0]), { flag: "wx" });
+      artifacts.push(artifact);
+      return fileIdentity(artifact);
+    };
+    for (const file of configPaths) {
+      await mkdir(path.dirname(file), { recursive: true });
+      await writeFile(file, JSON.stringify(initial), { flag: "wx" });
+    }
+    const before = await snapshot("before");
+    inputs.push(before);
+
+    await revealDetailSection(browser, "Game settings");
+    const field = (name: string) => By.css(`input[name="${name}"]`);
+    const readValues = async () =>
+      Promise.all(
+        ["master-volume", "music-volume"].map(async (name) =>
+          (await browser.findElement(field(name))).getProperty("value"),
+        ),
+      );
+    const click = async (label: string) =>
+      clickVisible(browser, await browser.wait(until.elementLocated(button(label)), 30_000));
+    await click("Read game settings");
+    await browser.wait(until.elementLocated(field("master-volume")), 30_000);
+    assert.deepEqual(await readValues(), ["40", "60"]);
+    const edit = async (name: string, value: string) => {
+      const input = await browser.findElement(field(name));
+      await input.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, value);
+      assert.equal(await input.getProperty("value"), value);
+    };
+    await edit("master-volume", "84");
+    await edit("music-volume", "65");
+    await revealDetailSection(browser, "Versions & updates");
+    await revealDetailSection(browser, "Game settings");
+    assert.deepEqual(await readValues(), ["84", "65"]);
+
+    const review = async (expected: readonly string[]) => {
+      await click("Review changes");
+      const modal = await browser.wait(until.elementLocated(By.css('[role="dialog"]')), 30_000);
+      await browser.wait(
+        async () => (await modal.findElement(button("Save changes"))).isEnabled(),
+        30_000,
+        "The native review never loaded its exact preimage",
+      );
+      const reviewText = await modal.getText();
+      for (const label of [
+        "Review game settings",
+        active.version,
+        "fixture-settings.json",
+        ...expected,
+      ])
+        assert.ok(reviewText.includes(label), `Review did not display ${label}`);
+    };
+    await review(["Master volume", "Music volume", "40", "84", "60", "65"]);
+    for (const file of configPaths)
+      assert.equal(await readFile(file, "utf8"), JSON.stringify(initial));
+    const screenshot = path.join(output, "native-game-settings-review.png");
+    await writeFile(screenshot, await browser.takeScreenshot(), { flag: "wx", encoding: "base64" });
+    artifacts.push(screenshot);
+    await click("Save changes");
+    await browser.wait(
+      until.elementLocated(By.xpath('//*[@role="status" and normalize-space(.)="Changes saved."]')),
+      30_000,
+    );
+    for (const file of configPaths)
+      assert.deepEqual(JSON.parse(await readFile(file, "utf8")), {
+        ...initial,
+        master: 84,
+        music: 65,
+      });
+    assert.deepEqual(await readValues(), ["84", "65"]);
+    const afterSave = await snapshot("after-save");
+
+    await edit("master-volume", "72");
+    await review(["Master volume", "84", "72"]);
+    const outside = JSON.stringify({ ...initial, master: 84, music: 67 });
+    for (const file of configPaths) await writeFile(file, outside);
+    await click("Save changes");
+    await browser.wait(
+      async () => {
+        const modal = await browser.findElement(By.css('[role="dialog"]'));
+        const details = await modal.findElements(By.css(".failure-details pre"));
+        if (details.length !== 1 || (await modal.findElement(button("Save changes")).isEnabled()))
+          return false;
+        const refusal = object(JSON.parse(await required(details[0]).getProperty("textContent")));
+        assert.equal(refusal.mutation_state, "not_started");
+        assert.equal(
+          refusal.message,
+          "settings review is stale; read the configuration and review again",
+        );
+        return true;
+      },
+      30_000,
+      "The stale settings review did not show a refusal",
+    );
+    await click("Cancel");
+    await browser.wait(
+      until.elementLocated(
+        By.xpath(
+          '//*[@role="status" and contains(normalize-space(.),"could not confirm this save")]',
+        ),
+      ),
+      30_000,
+    );
+    for (const file of configPaths) assert.equal(await readFile(file, "utf8"), outside);
+    const afterRefusal = await snapshot("outside-edit-retained");
+    const receipt = path.join(output, "native-game-settings-review.json");
+    await writeFile(
+      receipt,
+      `${JSON.stringify(
+        {
+          port_id: port.id,
+          install_id: active.id,
+          artifact_sha256: active.artifact.sha256,
+          saved: { master: 84, music: 65 },
+          snapshots: { before, afterSave, afterRefusal },
+        },
+        null,
+        2,
+      )}\n`,
+      { flag: "wx" },
+    );
+    artifacts.push(receipt);
+  });
 
   await scenario("install-progress-cancellation", async () => {
     assert.ok(fixture, "install fixture must be initialized before the Desktop starts");
