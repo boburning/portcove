@@ -2575,6 +2575,61 @@ void test("official URL preparation compacts the exact Alexbeav PSX layout witho
   }
 });
 
+void test("official URL preparation compacts both exact PSX split-mods diagnostics routes", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    for (const [id, repositoryId] of [
+      ["alexbeav-medievil-recomp", 1355812398],
+      ["mortal-kombat-4-recompiled", 1352192597],
+    ] as const) {
+      const record = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectPsxManagedWindows(record);
+      delete explicit.psx_managed_windows_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({
+                  ...metadata,
+                  id: repositoryId,
+                  full_name: new URL(record.listing.project_url).pathname.slice(1),
+                  archived: false,
+                }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      assert.equal(candidate.psx_managed_windows_v1, "split-mods-diagnostics");
+      assert.deepEqual(candidate.listing, record.listing);
+      assert.deepEqual(candidate.integration, record.integration);
+      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
+      assert.deepEqual(
+        JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+        accepted.catalog,
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
+  } finally {
+    f.clean();
+  }
+});
+
 void test("official URL preparation proposes the exact reviewed N64 persistence layout", async () => {
   const f = fixture();
   try {

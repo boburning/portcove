@@ -106,6 +106,7 @@ export interface AuthoredPort extends Record<string, unknown> {
     | true
     | "bundled-openbios"
     | "split-mods"
+    | "split-mods-diagnostics"
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
