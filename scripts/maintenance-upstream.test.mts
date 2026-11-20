@@ -303,6 +303,7 @@ void test("operating usage binds the imported attempt and measures only executed
   };
   const usage = await readObserverOperatingUsage(report, transport);
   assert.equal(usage.producer.event, "schedule");
+  assert.equal(usage.observation_finished_at, "2026-11-11T00:01:17.000Z");
   assert.equal(usage.observed_runner_seconds, 77);
   assert.equal(usage.unmeasured_jobs, 1);
   assert.equal(usage.billed_cost_usd, null);
@@ -319,6 +320,7 @@ void test("operating usage binds the imported attempt and measures only executed
   const malformed = await readObserverOperatingUsage(report, transport);
   assert.equal(malformed.observed_runner_seconds, null);
   assert.equal(malformed.unmeasured_jobs, 2);
+  assert.equal(malformed.observation_finished_at, null);
 
   jobInventory.total_count = 4;
   await assert.rejects(readObserverOperatingUsage(report, transport), /inventory is incomplete/u);
