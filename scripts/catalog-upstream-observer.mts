@@ -1485,9 +1485,12 @@ export async function advanceCatalogObservations(
               try {
                 if (retained?.binding === binding) {
                   const key = JSON.stringify([
+                    family,
                     target.release_id,
                     target.release_tag,
                     retained.fact.source_tag_sha1,
+                    retained.fact.source_tag_type,
+                    retained.fact.source_commit,
                   ]);
                   let matches = tagMatches.get(key);
                   if (matches === undefined) {

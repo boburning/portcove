@@ -141,6 +141,25 @@ type N64Evidence = SourceIdentity &
 
 type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
 
+async function resolveRecognitionCommit(
+  repository: string,
+  tag: Awaited<ReturnType<typeof readRecognitionTag>>,
+  read: ReadGitHub,
+) {
+  let object: Record<string, unknown> = tag;
+  for (let depth = 0; object.type === "tag" && depth < 4; depth++) {
+    if (typeof object.sha !== "string" || !gitSha.test(object.sha))
+      throw new Error("Original recognition tag object has an invalid identity");
+    const annotated = await read(`${repository}/git/tags/${object.sha}`);
+    if (!isRecord(annotated) || annotated.sha !== object.sha || !isRecord(annotated.object))
+      throw new Error("Original recognition annotated tag does not bind its object");
+    object = annotated.object;
+  }
+  if (object.type !== "commit" || typeof object.sha !== "string" || !gitSha.test(object.sha))
+    throw new Error("Original recognition release does not resolve to a bounded exact commit");
+  return object.sha;
+}
+
 /** Observe a family table at the selected tag's exact Git commit. */
 export function observeOriginalSource(
   target: OriginalSourceTarget,
@@ -174,19 +193,9 @@ export async function observeOriginalSource(
     );
   const repository = `/repos/${target.repository}`;
   const tag = await readRecognitionTag(target, read);
-  let commit: Record<string, unknown> = tag;
-  for (let depth = 0; commit.type === "tag" && depth < 4; depth++) {
-    if (typeof commit.sha !== "string" || !gitSha.test(commit.sha))
-      throw new Error("Original recognition tag object has an invalid identity");
-    const annotated = await read(`${repository}/git/tags/${commit.sha}`);
-    if (!isRecord(annotated) || annotated.sha !== commit.sha || !isRecord(annotated.object))
-      throw new Error("Original recognition annotated tag does not bind its object");
-    commit = annotated.object;
-  }
-  if (commit.type !== "commit" || typeof commit.sha !== "string" || !gitSha.test(commit.sha))
-    throw new Error("Original recognition release does not resolve to a bounded exact commit");
+  const commit = await resolveRecognitionCommit(repository, tag, read);
   const path = family === "libultraship" ? tablePath : n64GameTablePath;
-  const contents = await read(`${repository}/contents/${path}?ref=${commit.sha}`);
+  const contents = await read(`${repository}/contents/${path}?ref=${commit}`);
   const declaration =
     family === "libultraship"
       ? ({
@@ -214,7 +223,7 @@ export async function observeOriginalSource(
     ...target,
     source_tag_sha1: tag.sha,
     source_tag_type: tag.type,
-    source_commit: commit.sha,
+    source_commit: commit,
     ...declaration,
   } as const;
 }
@@ -241,6 +250,7 @@ export async function observeN64RuntimeSource(
         `/repos/${fact.repository}/contents/${n64RuntimeLinkPath}?ref=${fact.source_commit}`,
       ),
     );
+    if (revision === undefined) return { state: "unavailable" };
     cache.links.set(linkKey, revision);
   }
   if (revision === null) return { state: "unsupported-gitlink" };
@@ -326,7 +336,14 @@ export async function revalidateOriginalSource(
   read: ReadGitHub,
 ): Promise<boolean> {
   const current = await readRecognitionTag(fact, read);
-  return current.sha === fact.source_tag_sha1 && current.type === fact.source_tag_type;
+  if (current.sha !== fact.source_tag_sha1 || current.type !== fact.source_tag_type) return false;
+  if (current.type === "commit") return current.sha === fact.source_commit;
+  if (fact.parser === "n64-recomp-game-entry-v1")
+    return (
+      (await resolveRecognitionCommit(`/repos/${fact.repository}`, current, read)) ===
+      fact.source_commit
+    );
+  return true;
 }
 
 export interface OriginalSourceProgress {
@@ -376,6 +393,7 @@ export function readOriginalSourceProgress(
     (fact.source_tag_type !== "commit" && fact.source_tag_type !== "tag") ||
     typeof fact.source_commit !== "string" ||
     !gitSha.test(fact.source_commit) ||
+    (fact.source_tag_type === "commit" && fact.source_commit !== fact.source_tag_sha1) ||
     typeof fact.source_blob_sha1 !== "string" ||
     !gitSha.test(fact.source_blob_sha1) ||
     typeof fact.source_sha256 !== "string" ||

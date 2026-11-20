@@ -4,6 +4,7 @@ import {
   observeOriginalSource,
   parseSupportedOriginalHashes,
   readOriginalSourceProgress,
+  revalidateOriginalSource,
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import {
@@ -2430,6 +2431,47 @@ void test("N64 runtime reads bind the pinned canonical gitlink and checked blob"
     },
   };
   assert.deepEqual(readOriginalSourceProgress(progress, target, "n64-recomp"), progress);
+  const differentCommit = "9".repeat(40);
+  assert.equal(
+    readOriginalSourceProgress(
+      {
+        ...progress,
+        last_complete: {
+          ...progress.last_complete,
+          fact: { ...progress.last_complete.fact, source_commit: differentCommit },
+        },
+      },
+      target,
+      "n64-recomp",
+    ),
+    undefined,
+  );
+  const annotatedTag = "8".repeat(40);
+  const annotated = { ...fact, source_tag_type: "tag", source_tag_sha1: annotatedTag } as const;
+  const readAnnotated = async (endpoint: string) => {
+    if (endpoint === `/repos/fixture/one/git/tags/${annotatedTag}`)
+      return { sha: annotatedTag, object: { type: "commit", sha: tag } };
+    assert.equal(endpoint, "/repos/fixture/one/git/ref/tags/release-1");
+    return { ref: "refs/tags/release-1", object: { type: "tag", sha: annotatedTag } };
+  };
+  assert.equal(await revalidateOriginalSource(annotated, readAnnotated), true);
+  assert.equal(
+    await revalidateOriginalSource({ ...annotated, source_commit: differentCommit }, readAnnotated),
+    false,
+  );
+
+  const retryCache = n64RuntimeSourceCache();
+  assert.deepEqual(
+    await observeN64RuntimeSource(
+      fact,
+      async () => ({ path: n64RuntimeLinkPath, type: "submodule" }),
+      retryCache,
+    ),
+    { state: "unavailable" },
+  );
+  returnedLink = { ...link, type: "file" };
+  assert.deepEqual(await observeN64RuntimeSource(fact, read, retryCache), runtime);
+  returnedLink = link;
 
   returnedSource = { ...source, sha: "e".repeat(40) };
   await assert.rejects(observeN64RuntimeSource(fact, read, n64RuntimeSourceCache()), /Git object/);

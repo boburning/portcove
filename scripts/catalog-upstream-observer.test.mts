@@ -2,6 +2,7 @@ import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
 import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
+import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -1138,16 +1139,18 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const requests: string[] = [];
     const runtimeRequests: string[] = [];
     h.options.observeN64Runtime = family === "n64-recomp";
-    let deferRuntime = true;
+    let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
     let tagSha = "c".repeat(40);
     let retryAt: string | null = null;
     h.options.readOriginalRecognition = async (repository, endpoint, account) => {
       account.admitRequest();
-      if (endpoint.includes("/contents/lib/N64ModernRuntime")) {
+      if (endpoint.includes(`/contents/${n64RuntimeLinkPath}`)) {
         runtimeRequests.push(endpoint);
-        if (deferRuntime)
+        if (gitlinkResponse === "deferred")
           throw new ObservationFailure("budget", "fixture runtime metadata deferred");
-        return { type: "file" };
+        return gitlinkResponse === "incomplete"
+          ? { path: n64RuntimeLinkPath, type: "submodule" }
+          : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
       }
       requests.push(endpoint);
       if (unavailable)
@@ -1204,14 +1207,21 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(requests.length, 4);
 
     h.advanceClock(48 * 3600_000);
-    deferRuntime = false;
-    const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    gitlinkResponse = "incomplete";
+    let refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    let extraTagReads = 0;
     if (family === "n64-recomp") {
       assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
       assert.deepEqual(fact.runtime_source, { state: "unavailable" });
+      assert.deepEqual(retained(refreshed.checkpoint)?.last_complete, observation?.last_complete);
+      h.advanceClock(48 * 3600_000);
+      gitlinkResponse = "unsupported";
+      refreshed = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+      extraTagReads++;
       assert.deepEqual(runtimeRequests, [
-        `/repos/owner/shared/contents/lib/N64ModernRuntime?ref=${tagSha}`,
-        `/repos/owner/shared/contents/lib/N64ModernRuntime?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
       ]);
       const refreshedObservation = retained(refreshed.checkpoint);
       const refreshedFact = refreshedObservation?.last_complete?.fact;
@@ -1224,14 +1234,14 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       assert.deepEqual(retained(refreshed.checkpoint), observation);
       assert.equal(runtimeRequests.length, 0);
     }
-    assert.equal(requests.length, 5);
+    assert.equal(requests.length, 5 + extraTagReads);
 
     h.advanceClock(48 * 3600_000);
     tagSha = "d".repeat(40);
     const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
-    assert.equal(requests.length, 6);
+    assert.equal(requests.length, 6 + extraTagReads);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();
@@ -1240,7 +1250,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(retained(deferred.checkpoint)?.state, "budget");
     assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(deferred.report.completed_source_keys.length, 2);
-    assert.equal(requests.length, 7);
+    assert.equal(requests.length, 7 + extraTagReads);
 
     h.advanceClock(48 * 3600_000);
     unavailable = "rate-limit";

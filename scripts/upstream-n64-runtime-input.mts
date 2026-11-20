@@ -87,16 +87,30 @@ export function n64RuntimeLinkRevision(value: unknown) {
   if (
     !isRecord(value) ||
     value.path !== n64RuntimeLinkPath ||
-    value.type !== "submodule" ||
     typeof value.sha !== "string" ||
-    !gitSha.test(value.sha) ||
+    !gitSha.test(value.sha)
+  )
+    return;
+  if (value.type === "dir" || value.type === "symlink") return null;
+  if (
+    (value.type !== "submodule" && value.type !== "file") ||
+    typeof value.submodule_git_url !== "string" ||
+    !value.submodule_git_url.length ||
+    typeof value.git_url !== "string" ||
+    !value.git_url.length
+  )
+    return;
+  if (
     !(
       value.submodule_git_url === `https://github.com/${n64RuntimeRepository}` ||
       value.submodule_git_url === `https://github.com/${n64RuntimeRepository}.git`
-    ) ||
-    value.git_url !== `https://api.github.com/repos/${n64RuntimeRepository}/git/trees/${value.sha}`
+    )
   )
     return null;
+  if (
+    value.git_url !== `https://api.github.com/repos/${n64RuntimeRepository}/git/trees/${value.sha}`
+  )
+    return;
   return value.sha;
 }
 
