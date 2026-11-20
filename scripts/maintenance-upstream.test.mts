@@ -349,7 +349,15 @@ void test("rolling eligibility counts one candidate per target separately from c
       row("a", "2026-11-10T12:00:00.000Z", true),
       row("a", "2026-11-09T12:00:00.000Z"),
       row("a", "2026-11-10T18:00:00.000Z", true),
-      row("b", "2026-11-09T12:00:00.000Z"),
+      {
+        ...row("b", "2026-11-09T12:00:00.000Z"),
+        hold_reasons: [
+          "missing-digest",
+          "held-without-receipt",
+          "asset-missing-or-ambiguous",
+          "missing-digest",
+        ],
+      },
       row("c", "2026-11-09T12:00:00.000Z", false, null),
       row("d", "2026-11-09T12:00:00.000Z", false, "2026-09-08T12:00:00.000Z"),
       row("e", "2026-11-12T12:00:00.000Z", true),
@@ -364,11 +372,16 @@ void test("rolling eligibility counts one candidate per target separately from c
   assert.equal(result.eligible_candidates, 1);
   assert.equal(result.pending_candidates, 2);
   assert.equal(result.pending_without_recorded_hold_reason, 1);
+  assert.equal(result.pending_with_other_recorded_hold_reason, 1);
   assert.equal(result.observed_pending_candidates, 3);
   assert.equal(result.observed_pending_to_eligible_candidates, 1);
   assert.equal(result.unknown_publication_times, 1);
   assert.equal(result.oldest_pending_age_ms, 216_000_000);
-  assert.deepEqual(result.hold_reasons, [{ reason: "missing-digest", distinct_candidates: 1 }]);
+  assert.deepEqual(result.hold_reasons, [
+    { reason: "asset-missing-or-ambiguous", distinct_candidates: 1 },
+    { reason: "held-without-receipt", distinct_candidates: 1 },
+    { reason: "missing-digest", distinct_candidates: 1 },
+  ]);
   assert.deepEqual(result.publication_to_recorded_eligibility_ms, {
     samples: 1,
     median: 172_800_000,

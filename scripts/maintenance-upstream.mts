@@ -256,9 +256,17 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     .sort((left, right) => left - right);
   const reasons = new Map<string, number>();
   let pendingWithoutReason = 0;
+  let pendingWithOtherReason = 0;
   for (const { latest } of held) {
     const recordedReasons = new Set(latest.hold_reasons.filter((reason) => reason.trim().length));
     if (!recordedReasons.size) pendingWithoutReason++;
+    if (
+      [...recordedReasons].some(
+        (reason) =>
+          reason !== "asset-missing-or-ambiguous" && reason !== "reviewed-artifact-excluded",
+      )
+    )
+      pendingWithOtherReason++;
     for (const reason of recordedReasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
   }
   return {
@@ -274,6 +282,7 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
     eligible_candidates: eligible.length,
     pending_candidates: held.length,
     pending_without_recorded_hold_reason: pendingWithoutReason,
+    pending_with_other_recorded_hold_reason: pendingWithOtherReason,
     observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
       Number.isFinite(firstPendingAt),
     ).length,
