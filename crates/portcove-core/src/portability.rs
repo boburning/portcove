@@ -160,8 +160,10 @@ impl Library {
             let absolute = crate::path::resolve_existing_ancestor(&install.path)?;
             let relative = absolute.strip_prefix(&original_root).map_err(|_| {
                 PortcoveError::state(
-                    "registered installation is outside the library being exported",
+                    "a Portcove installation is outside the library being exported",
                 )
+                .detail("port_id", &install.port_id)
+                .detail("install_id", &install.id)
             })?;
             install.path = PathBuf::from(portable_relative(relative)?);
             install.selected_executable =
