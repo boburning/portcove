@@ -865,6 +865,14 @@ impl PortcoveService {
 
     /// Shared preflight before the caller's reuse, activation or recovery commit.
     pub(crate) fn prepare_retained_install_data(&self, install: &InstallRecord) -> Result<()> {
+        self.prepare_retained_install_data_except(install, None)
+    }
+
+    pub(super) fn prepare_retained_install_data_except(
+        &self,
+        install: &InstallRecord,
+        excluded: Option<&str>,
+    ) -> Result<()> {
         crate::install::check_retained_runtime_paths(install, &install.path)?;
         self.require_portable_runtime_unchanged(install)?;
         let qualification = self.installed_mutability_qualification(install)?;
@@ -875,11 +883,11 @@ impl PortcoveService {
         if let Some(active) = &active {
             self.require_portable_target_transition(active, install)?;
         }
-        self.collect_active_user_data_if_launched(&install.port_id)?;
+        self.collect_active_user_data_except(&install.port_id, excluded)?;
         if let Some(active) = &active {
             self.require_portable_target_transition(active, install)?;
         }
-        self.restore_retained_user_data_to(install)?;
+        self.restore_retained_user_data_except(install, excluded)?;
         if let Some(active) = &active {
             self.adopt_additive_archive_data(active, install)?;
             self.record_additive_rollback_baseline(active, install)?;

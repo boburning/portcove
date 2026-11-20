@@ -241,7 +241,7 @@ pub(crate) struct RestoreOperation {
     pub(crate) staged_data: PathBuf,
     pub(crate) user_root: PathBuf,
     pub(crate) previous_data: PathBuf,
-    input_manifest: Option<PathBuf>,
+    pub(crate) input_manifest: Option<PathBuf>,
 }
 
 impl RestoreOperation {
@@ -460,7 +460,7 @@ impl BackupDeletionOperation {
     }
 }
 
-const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+pub(super) const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -662,7 +662,9 @@ impl PortcoveService {
             self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
-            self.create_backup_locked(port_id)
+            let backup = self.create_backup_locked(port_id)?;
+            self.record_native_settings_backup(&backup)?;
+            Ok(backup)
         })();
         self.finish_activity(activity, result)
     }
@@ -700,20 +702,6 @@ impl PortcoveService {
             port_id,
             None,
             Some(overlay),
-            UnknownFileScope::Automatic,
-            None,
-        )
-    }
-
-    fn create_backup_locked_labeled(
-        &self,
-        port_id: &str,
-        label: crate::AutomaticSnapshotLabel,
-    ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(
-            port_id,
-            Some(label),
-            None,
             UnknownFileScope::Automatic,
             None,
         )
@@ -820,15 +808,15 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            if !source_exists {
-                // Only unknown files remain to protect; restore sees no saves.
-                fs::create_dir(staging_path.join("data"))?;
-            } else if let Some(overlay) = overlay {
+            if let Some(overlay) = overlay {
                 let merged = staging_path.join("overlay");
                 copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
                 overlay(&merged)?;
                 copy_backup_tree(&merged, &staging_path.join("data"), &merged, &mut stats)?;
                 fs::remove_dir_all(&merged)?;
+            } else if !source_exists {
+                // Only unknown files remain to protect; restore sees no saves.
+                fs::create_dir(staging_path.join("data"))?;
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
@@ -1715,7 +1703,15 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
-            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
+            let settings_deletion = self.prepare_restore_settings_deletion(
+                &lifecycle,
+                &staged_data,
+                &user_root,
+                manifest.partitioned_data_v1.as_deref(),
+                &restored_backup,
+                &reviewed_manifest,
+            )?;
+            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest, settings_deletion)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
             let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
@@ -1770,6 +1766,12 @@ impl PortcoveService {
                 self.require_restore_profile_projection(port_id, &previous_data)?;
             }
             self.synchronize_restored_user_data(port_id)?;
+            self.finish_restore_settings_deletion(
+                &lifecycle,
+                &previous_data,
+                &user_root,
+                restore.input_manifest.as_deref(),
+            )?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.finish_restore_cleanup(&store, &mut lifecycle)?;
             Ok(RestoreResult {
@@ -1938,13 +1940,14 @@ impl PortcoveService {
     /// failure returns an error, so the caller stops before it mutates anything.
     pub(super) fn snapshot_before_version_change(
         &self,
-        port_id: &str,
         kind: VersionChangeKind,
         contract_install: &InstallRecord,
         from_version: Option<&str>,
         to_version: &str,
         collect_first: bool,
+        overlay: Option<&SnapshotOverlay<'_>>,
     ) -> Result<SnapshotOutcome> {
+        let port_id = &contract_install.port_id;
         if !self.library.automatic_snapshots_enabled()? {
             return Ok(SnapshotOutcome::Disabled);
         }
@@ -1980,7 +1983,13 @@ impl PortcoveService {
                 from_version: from_version.map(str::to_owned),
                 to_version: to_version.to_owned(),
             };
-            match self.create_backup_locked_labeled(port_id, label) {
+            match self.create_backup_snapshot(
+                port_id,
+                Some(label),
+                overlay,
+                UnknownFileScope::Automatic,
+                None,
+            ) {
                 Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
                     Ok(SnapshotOutcome::Created { pruned })

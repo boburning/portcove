@@ -178,6 +178,10 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    #[cfg(any(test, windows))]
+    SettingsDefaultsConflict,
+    #[cfg(any(test, windows))]
+    SettingsDefaultsUnverified,
     /// Two copies of a settings file a newer version newly carries differ, so
     /// Core cannot tell which to keep. `other` is the saved copy, or the new
     /// version's copy when `other_is_saved` is false.
@@ -361,6 +365,16 @@ impl KnownFailureCause {
             Self::PortableDataContractChanged => (
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsDefaultsConflict => (
+                "settings_defaults_conflict",
+                "Your settings and the new version’s defaults changed in different ways. Portcove kept your settings and the new defaults. You can keep using the installed version while the update waits.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsDefaultsUnverified => (
+                "settings_defaults_unverified",
+                "Portcove couldn’t verify the settings defaults for both versions. The update is waiting. Keep using the installed version until verified defaults are available.",
             ),
             Self::AppendedSettingsDiverged {
                 file,

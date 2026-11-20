@@ -423,7 +423,11 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - Issue blockers, Project memberships and Project item fields follow their
     own continuation cursors. An incomplete page or a changed revision fails
     the issue collection and retains the prior facts.
-- `--issues` adds the `issues-project` source.
+- `--issues` adds the `issues-project` source. If GitHub reports a change during
+  pagination, the collector discards that read and recollects once on the same
+  read-only client and remaining allowance. A failed second read leaves prior
+  facts current. The collection log records the first error code and the
+  recollection outcome.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
     read-only request scope.
@@ -766,7 +770,11 @@ publication has been verified.
   `held` (no observation source serves the port), `unobserved`
   (its source never completed), or `scope-changed` (its source's completion was
   reset, or does not cover the port). Gaps carry the source's exception key and
-  rule. The current-scope binding includes Core's policy identity and definition
+  rule. For a port with more than one source in the checkpoint, the gap also
+  carries the retained facts for each completed source and names every incomplete
+  source. The port remains outside complete coverage. This preserves descriptive
+  evidence for a successor repository while an older managed origin is unavailable.
+  The current-scope binding includes Core's policy identity and definition
   digests, which the snapshot does not carry, so a completion that predates a
   catalog or Core change is not detected here; the observer's own scope checks
   still apply.
@@ -791,6 +799,41 @@ publication has been verified.
 
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.
+
+To attach operator-supplied intervention assertions, use
+`report --intervention-evidence FILE --intervention-evidence-sha256 DIGEST`.
+The file has format
+`portcove-managed-intervention-evidence`, `format_version` 1 and `sequences`
+for up to 96 candidate scopes within 64 KiB. The
+existing report then includes `managed_intervention_evidence` in its JSON.
+Each sequence binds `candidate_key`, `port_key`, `platform`, `channel`,
+`observer_revision`, `definition_sha256` and `client_sha256` to a durable
+`review_ref`. Use the exact observer run, attempt, source commit and checkpoint
+digest. `start` and `end` are the stated time bounds for that candidate, in UTC
+with milliseconds. `coverage` is `complete` or `partial`. `actions` lists up to
+32 reported human actions with an immutable `id`, `evidence_sha256` and
+`witnessed_at`. Reuse the same action ID when one action affects several routes.
+The report counts duplicates of the same digest and timestamp once, even if
+their IDs differ. Distinct clients and time intervals for the same candidate
+remain separate. An action inside a complete zero interval conflicts with that
+zero when both claims refer to the same candidate, client and definition. An actor name, workflow trigger, poll, retry, or absence of an
+event cannot witness a human action or a zero-intervention interval.
+
+The report checks the supplied file digest and joins each sequence to exact
+retained observer facts recorded in its interval. It shows the matched pending
+and eligible states separately from the assertion. Complete coverage with an
+empty action list can produce `zero-reported`, including on a pending candidate.
+The review URL and client digest are supplied claims. Verified intervention
+totals and rates remain unknown.
+
+For hosted integration, give the existing maintenance inventory workflow the
+immutable reviewed witness bytes and expected digest from the existing
+independent acceptance record. Bind that record to the exact observer candidate
+and shipped client. Include the existing protected publisher's live readback
+receipt for a claimed signed repair, and the exact client observation for a
+claimed availability outcome. The optional input currently records assertions
+with explicit provenance. Hosted intervention measurement needs independent
+verification of the witness and those bindings.
 
 On 2026-11-11, none of the 24 newest completed schedule or push `main` runs from
 the previous 24 hours retained a snapshot. In scheduled runs 43058926577,

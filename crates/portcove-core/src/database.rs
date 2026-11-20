@@ -13,7 +13,9 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 70;
+// The native release source recipe reads this declaration as a literal.
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 71;
+pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
     version: i64,
@@ -443,7 +445,58 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_70,
         verify: verify_migration_69,
     },
+    Migration {
+        version: SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION,
+        name: "managed settings activation custody writer protocol",
+        apply: migration_71,
+        verify: verify_migration_71,
+    },
 ];
+
+fn migration_71(transaction: &Transaction<'_>) -> Result<()> {
+    // Older writers cannot enforce the per-install settings custody fence.
+    // The library lease applies this protocol change before any new intent.
+    transaction.execute_batch(
+        "CREATE TABLE settings_restore_deletions (
+            restore_id TEXT PRIMARY KEY NOT NULL,
+            pending_id TEXT UNIQUE REFERENCES lifecycle_operations(id) ON DELETE CASCADE,
+            port_id TEXT NOT NULL,
+            install_id TEXT NOT NULL,
+            file_id TEXT NOT NULL,
+            evidence BLOB NOT NULL CHECK(length(evidence) BETWEEN 1 AND 4096)
+        );
+        CREATE INDEX committed_settings_deletion_by_install
+        ON settings_restore_deletions (port_id, install_id, file_id) WHERE pending_id IS NULL;
+        CREATE TABLE settings_backup_coverage (
+            backup_id TEXT PRIMARY KEY NOT NULL,
+            port_id TEXT NOT NULL,
+            coverage_sha256 TEXT NOT NULL CHECK(length(coverage_sha256) = 64)
+        );",
+    )?;
+    verify_migration_71(transaction)
+}
+
+fn verify_migration_71(connection: &Connection) -> Result<()> {
+    verify_migration_69(connection)?;
+    verify_migration_44(connection)?;
+    require_columns(
+        connection,
+        "settings_restore_deletions",
+        &[
+            "restore_id",
+            "pending_id",
+            "port_id",
+            "install_id",
+            "file_id",
+            "evidence",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "settings_backup_coverage",
+        &["backup_id", "port_id", "coverage_sha256"],
+    )
+}
 
 fn migration_70(transaction: &Transaction<'_>) -> Result<()> {
     // The library lease excludes older writers that can erase a saved choice
@@ -3072,7 +3125,7 @@ mod tests {
         let current = crate::Library::open(root).unwrap();
         let connection = current.connection().unwrap();
         let versions = recorded_versions(&connection).unwrap();
-        assert_eq!(versions.last(), Some(&70));
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
         let error = validate_recorded_versions(&versions, 69).unwrap_err();
         assert_eq!(error.details["library_schema_version"], "70");
         assert_eq!(error.details["supported_schema_version"], "69");
@@ -3084,6 +3137,46 @@ mod tests {
             )
             .unwrap();
         assert_eq!(installed, ("v1".into(), "b".repeat(64)));
+    }
+
+    #[test]
+    fn settings_activation_upgrade_waits_for_schema_70_writers_and_preserves_journals() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 70).unwrap();
+        connect(root).unwrap().execute(
+            "INSERT INTO lifecycle_operations(id,kind,port_id,phase,original_paths_json,activate,created_at,updated_at,last_error,game_settings_json)
+             VALUES('retained-editor','settings_change','shipwright','preparing','[]',0,1,2,'requires review','{\"format_version\":1}')",
+            [],
+        ).unwrap();
+        let old_writer = crate::library_access::LibraryLease::acquire(root).unwrap();
+        assert_eq!(
+            crate::Library::open(root).unwrap_err().code,
+            crate::ErrorCode::Conflict
+        );
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&70)
+        );
+        drop(old_writer);
+
+        let library = crate::Library::open(root).unwrap();
+        let connection = library.connection().unwrap();
+        let versions = recorded_versions(&connection).unwrap();
+        assert_eq!(
+            versions.last(),
+            Some(&SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION)
+        );
+        assert!(validate_recorded_versions(&versions, 70).is_err());
+        let retained = connection
+            .query_row(
+                "SELECT game_settings_json FROM lifecycle_operations WHERE id='retained-editor'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert_eq!(retained, r#"{"format_version":1}"#);
     }
 
     #[test]
@@ -4208,6 +4301,7 @@ mod tests {
         schema_67: 67,
         schema_68: 68,
         schema_69: 69,
+        schema_70: 70,
     }
 
     #[test]

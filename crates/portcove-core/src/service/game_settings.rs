@@ -7,6 +7,13 @@ use crate::{
     GameSettingsView,
 };
 
+#[cfg(windows)]
+mod activation;
+#[cfg(windows)]
+mod activation_deletion;
+#[cfg(windows)]
+mod activation_recovery;
+mod restore_deletion;
 #[cfg(all(test, windows))]
 mod tests;
 #[cfg(windows)]
@@ -55,11 +62,7 @@ impl PortcoveService {
             )
         })?;
         descriptor.validate(&port.persistent_paths)?;
-        if !descriptor.releases.iter().any(|release| {
-            release.platform == platform
-                && release.version == install.version
-                && release.archive_sha256 == install.artifact.sha256
-        }) {
+        if !descriptor.covers_archive(platform, &install.version, &install.artifact.sha256) {
             return Err(PortcoveError::unsupported(
                 "this installed release/artifact has no verified settings contract",
             ));
@@ -178,14 +181,15 @@ impl PortcoveService {
         context: &SettingsContext,
         file: &GameSettingsFile,
     ) -> Result<(String, Vec<Option<serde_json::Value>>)> {
-        let canonical = self.library.user_dir(&context.port.id).join(&file.path);
-        let bytes = crate::external_runtime::read_single_link_metadata(&canonical, file.maximum_bytes)
-            .map_err(|_| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
+        let canonical = self.library.user_dir(&context.port.id);
+        let bytes = crate::game_settings::observe_player_settings_copy(&canonical, file)
+            .ok()
+            .flatten()
+            .ok_or_else(|| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
         if !context.direct {
-            let runtime = context.runtime_root.join(&file.path);
             let runtime_bytes =
-                crate::external_runtime::read_single_link_metadata(&runtime, file.maximum_bytes)?;
-            if bytes != runtime_bytes {
+                crate::game_settings::observe_player_settings_copy(&context.runtime_root, file)?;
+            if runtime_bytes.as_deref() != Some(bytes.as_slice()) {
                 return Err(PortcoveError::conflict(
                     "runtime and canonical configuration differ; preserve both and complete normal synchronization before editing",
                 ));
@@ -277,6 +281,40 @@ struct PreparedSettingsChange {
 }
 
 #[cfg(windows)]
+struct HeldSettingsCopies {
+    canonical: crate::game_settings::windows::HeldFile,
+    runtime: Option<crate::game_settings::windows::HeldFile>,
+    before: Vec<u8>,
+}
+
+#[cfg(windows)]
+impl HeldSettingsCopies {
+    fn open(canonical: &Path, runtime: Option<&Path>, maximum_bytes: u64) -> Result<Self> {
+        use crate::game_settings::windows::HeldFile;
+        let mut canonical = HeldFile::open(canonical)?;
+        canonical.require_editable_security()?;
+        let before = canonical.bytes(maximum_bytes)?;
+        let runtime = runtime
+            .map(|path| {
+                let mut runtime = HeldFile::open(path)?;
+                runtime.require_editable_security()?;
+                if runtime.bytes(maximum_bytes)? != before {
+                    return Err(PortcoveError::conflict(
+                        "runtime and canonical configuration differ; synchronize and review again",
+                    ));
+                }
+                Ok(runtime)
+            })
+            .transpose()?;
+        Ok(Self {
+            canonical,
+            runtime,
+            before,
+        })
+    }
+}
+
+#[cfg(windows)]
 impl PortcoveService {
     fn prepare_settings_change(
         &self,
@@ -285,7 +323,7 @@ impl PortcoveService {
         setting_id: &str,
         change: GameSettingChange,
     ) -> Result<PreparedSettingsChange> {
-        use crate::game_settings::{document, windows::HeldFile};
+        use crate::game_settings::document;
         let file = context
             .port
             .game_settings
@@ -305,22 +343,16 @@ impl PortcoveService {
                 PortcoveError::usage("setting is absent from the retained descriptor")
             })?;
         let setting = &file.settings[index];
-        let mut canonical =
-            HeldFile::open(&self.library.user_dir(&context.port.id).join(&file.path))?;
-        canonical.require_editable_security()?;
-        let before = canonical.bytes(file.maximum_bytes)?;
-        let runtime = if context.direct {
-            None
-        } else {
-            let mut runtime = HeldFile::open(&context.runtime_root.join(&file.path))?;
-            runtime.require_editable_security()?;
-            if runtime.bytes(file.maximum_bytes)? != before {
-                return Err(PortcoveError::conflict(
-                    "runtime and canonical configuration differ; synchronize and review again",
-                ));
-            }
-            Some(runtime)
-        };
+        let runtime = (!context.direct).then(|| context.runtime_root.join(&file.path));
+        let HeldSettingsCopies {
+            canonical,
+            runtime,
+            before,
+        } = HeldSettingsCopies::open(
+            &self.library.user_dir(&context.port.id).join(&file.path),
+            runtime.as_deref(),
+            file.maximum_bytes,
+        )?;
         let previous_value = document::read(file, &before)?.remove(index);
         let proposed = match &change {
             GameSettingChange::Set { value } => value.clone(),

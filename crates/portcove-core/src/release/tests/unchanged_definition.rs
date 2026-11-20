@@ -1472,6 +1472,154 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("snowboard-kids").unwrap();
+    let channel = ReleaseChannel::Beta;
+    let platform = Platform::LinuxX86_64;
+    let repository = || ok_json(r#"{"id":1383482900,"archived":false}"#, "");
+    let beta_release = |tag, id: u64, assets| {
+        let mut value = release(tag, assets);
+        value["id"] = id.into();
+        value["prerelease"] = true.into();
+        value
+    };
+    let archive = |tag: &str, id, size, digest: &str| {
+        let name = format!("SnowboardKidsRecompiled-{tag}-Linux-x86_64.zip");
+        serde_json::json!({
+            "id": id, "name": name, "size": size, "digest": format!("sha256:{digest}"),
+            "browser_download_url": format!("https://github.com/HikariLucy/SnowboardKids-Recomp/releases/download/v{tag}/{name}"),
+        })
+    };
+    let first = archive(
+        "0.9.0-beta",
+        596_227_934_u64,
+        8_365_825_u64,
+        "04e3415ea4cb5d40d082d0eb50459665f85ad3d2c15d77b696daa287a50249f8",
+    );
+    let second_digest = "5f325afc55c597c7108567ccfc2007eac06c664c7e7d979f6b39d38bd76bef3c";
+    let second = archive("0.9.0-beta.1", 599_134_547, 8_372_842, second_digest);
+    let inventories =
+        |assets: Vec<serde_json::Value>| ok_json(&serde_json::to_string(&assets).unwrap(), "");
+    let lookalikes = ["0.9.0", "0.9.0-beta", "0.9.0-beta.1-deluxe", "0.9.0-rc"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, tag)| archive(tag, index as u64 + 201, 8, &"c".repeat(64)))
+        .collect::<Vec<_>>();
+    let old = beta_release("v0.9.0-beta", 398_558_638, vec![first]);
+    let new = || beta_release("v0.9.0-beta.1", 399_498_102, vec![second.clone()]);
+    let options = |actual, reverse: bool| {
+        let mut all = lookalikes.clone();
+        all.push(actual);
+        if reverse {
+            all.reverse();
+        }
+        all
+    };
+    let mut pending = second.clone();
+    pending["digest"] = serde_json::Value::Null;
+
+    let mut duplicate = second.clone();
+    duplicate["id"] = 299.into();
+    duplicate["name"] = "SnowboardKidsRecompiled-v0.9.0-beta.1-Linux-x86_64.zip".into();
+    let mut competing = options(second.clone(), true);
+    competing.push(duplicate);
+    let next_maturity = archive("0.9.0-rc", 298, 8, &"b".repeat(64));
+    let numeric = archive("0.9.0", 300, 8, &"b".repeat(64));
+    let stable = archive("0.9.1", 303, 8, &"b".repeat(64));
+    let mut stable_release = release("v0.9.1", vec![stable.clone()]);
+    stable_release["id"] = 302.into();
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        releases(&[old]),
+        repository(),
+        releases(&[new()]),
+        inventories(options(pending, false)),
+        repository(),
+        releases(&[new()]),
+        inventories(options(second.clone(), true)),
+        repository(),
+        releases(&[new()]),
+        inventories(competing),
+        repository(),
+        releases(&[beta_release("v0.9.0-rc", 297, vec![next_maturity.clone()])]),
+        inventories(vec![next_maturity]),
+        repository(),
+        releases(&[beta_release("v0.9.0", 301, vec![numeric.clone()])]),
+        inventories(vec![numeric]),
+        repository(),
+        releases(&[stable_release]),
+        inventories(vec![stable]),
+    ]);
+    let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    let accepted = provider
+        .resolve_scoped(port, channel, platform, None)
+        .await
+        .unwrap();
+    assert_eq!(
+        accepted.github_identity.as_ref().unwrap().asset_id,
+        596_227_934
+    );
+    let choice = ManagedPackageVariant::from_review(port, platform, &accepted).unwrap();
+    assert!(choice.matches(
+        "v0.9.0-beta.1",
+        "SnowboardKidsRecompiled-0.9.0-beta.1-Linux-x86_64.zip"
+    ));
+    for tag in ["v0.9.0-beta.01", "v0.9.0-beta.1-debug"] {
+        let name = format!(
+            "SnowboardKidsRecompiled-{}-Linux-x86_64.zip",
+            tag.trim_start_matches('v')
+        );
+        assert!(!choice.matches(tag, &name), "{tag}");
+    }
+
+    let held = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Verification);
+    let offered = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap();
+    assert_eq!(
+        offered.github_identity.as_ref().unwrap().asset_id,
+        599_134_547
+    );
+    assert_eq!(offered.release.asset.sha256, second_digest);
+    assert_eq!(offered.saved_variant.as_ref(), Some(&choice));
+    let ambiguous = provider
+        .resolve_saved_variant(port, channel, platform, None, &choice)
+        .await
+        .unwrap_err();
+    assert_eq!(ambiguous.details["saved_package_variant"], "ambiguous");
+    for (version, asset_id) in [("v0.9.0-rc", 298), ("v0.9.0", 300), ("v0.9.1", 303)] {
+        let successor = provider
+            .resolve_saved_variant(port, channel, platform, None, &choice)
+            .await
+            .unwrap();
+        assert_eq!(successor.release.version, version);
+        assert_eq!(successor.release.channel, channel);
+        assert_eq!(
+            successor.github_identity.as_ref().unwrap().asset_id,
+            asset_id
+        );
+        assert_eq!(
+            ManagedPackageVariant::from_review(port, platform, &successor),
+            Some(choice.clone())
+        );
+    }
+    server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|path| path.contains("/assets?"))
+            .count(),
+        6
+    );
+}
+
+#[tokio::test]
 async fn saved_reviewed_native_variant_selects_only_one_exact_provider_successor() {
     let port = variant_port();
     let channel = ReleaseChannel::Stable;

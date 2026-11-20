@@ -18,6 +18,10 @@ import vm from "node:vm";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  encodeManagedInterventionEvidence,
+  readManagedInterventionEvidence,
+} from "./maintenance-interventions.mts";
+import {
   clockWindowCrossed,
   coreReuseKey,
   deferralChanges,
@@ -47,6 +51,7 @@ import {
   capabilityResult,
   collect,
   main,
+  readIssueInventory,
   readSample,
   renderHtml,
   takeIssueCredential,
@@ -61,6 +66,7 @@ import { targetsDigest } from "./release-content-scan.mts";
 import { explicitBlockerFields } from "./roadmap-qualification.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import { RoadmapClient, type RoadmapConfig, type RoadmapRequestScope } from "./roadmap.mts";
 import { migrate, migrationTransaction, readMigrations, runSql } from "./maintenance-store.mts";
 import {
   handoffOperationId,
@@ -99,6 +105,102 @@ const report = (setup: string) => ({
   ],
   observations: [],
   detail_problems: [],
+});
+
+void test("maintenance recollects a changed issue inventory once on the same read-only client", async (context) => {
+  const complete = {
+    repository: "boburning/portcove",
+    observed_at: "2026-11-20T03:49:00.000Z",
+    evidence: { total: 1 },
+    issues: [{ id: "I1", number: 1, title: "Fixture", state: "OPEN" }],
+    project_memberships: [
+      { project_id: "P1", issue_id: "I1", isArchived: false, fieldValues: null },
+    ],
+  };
+  const diagnostic: unknown[] = [];
+  context.mock.method(console, "error", (line: string) => diagnostic.push(JSON.parse(line)));
+  for (const [firstCode, secondCode] of [
+    ["inventory_changed", undefined],
+    ["inventory_changed", "inventory_changed"],
+    ["inventory_changed", "transport_failed"],
+    ["permission_denied", undefined],
+    ["transport_failed", undefined],
+  ] as const) {
+    diagnostic.length = 0;
+    let requests = 0;
+    let projectReads = 0;
+    let connections = 0;
+    const client = {
+      _projectContext: { before: true } as { before: true } | undefined,
+      _completeProjectContext: { before: true } as { before: true } | undefined,
+      async repositoryIssues(options: { projectMemberships?: boolean }) {
+        assert.deepEqual(options, { projectMemberships: true });
+        if (++requests === 1) throw new GitHubApiError(firstCode, "sensitive first-input fixture");
+        assert.equal(client._projectContext, undefined);
+        assert.equal(client._completeProjectContext, undefined);
+        if (secondCode) throw new GitHubApiError(secondCode, "sensitive second-input fixture");
+        return complete;
+      },
+      projectNumber: () => 1,
+      async projectDetails(number: number) {
+        assert.equal(number, 1);
+        projectReads++;
+        return { id: "P1", title: "Portcove Roadmap" };
+      },
+    };
+    const connection = context.mock.method(
+      RoadmapClient,
+      "connect",
+      async (_config: RoadmapConfig, scope: RoadmapRequestScope) => {
+        assert.equal(scope.allowMutations, false);
+        connections++;
+        return client as unknown as RoadmapClient;
+      },
+    );
+    try {
+      const result = readIssueInventory({ kind: "explicit", token: "not-a-real-token" });
+      if (firstCode === "inventory_changed" && !secondCode) {
+        assert.deepEqual(await result, {
+          repository: complete.repository,
+          observed_at: complete.observed_at,
+          total: 1,
+          issues: complete.issues,
+          memberships: complete.project_memberships,
+          roadmap_project_id: "P1",
+        });
+        assert.equal(projectReads, 1);
+      } else {
+        if (firstCode === "inventory_changed") {
+          await assert.rejects(result, {
+            message: `Issue and Project inventory recollection failed (${secondCode}).`,
+          });
+        } else {
+          await assert.rejects(result, { code: firstCode });
+        }
+        assert.equal(projectReads, 0);
+      }
+      assert.equal(connections, 1);
+      assert.equal(requests, firstCode === "inventory_changed" ? 2 : 1);
+      if (firstCode === "inventory_changed") {
+        assert.deepEqual(diagnostic, [
+          {
+            format: 1,
+            kind: "maintenance-issue-inventory-recollection",
+            first: { code: firstCode },
+            second: { status: "pending" },
+          },
+          {
+            format: 1,
+            kind: "maintenance-issue-inventory-recollection",
+            first: { code: firstCode },
+            second: secondCode ? { status: "failed", code: secondCode } : { status: "complete" },
+          },
+        ]);
+      } else assert.deepEqual(diagnostic, []);
+    } finally {
+      connection.mock.restore();
+    }
+  }
 });
 
 void test("inventory facts hash canonically and Core reports are projected without reinterpretation", () => {
@@ -1787,6 +1889,8 @@ void test(
     );
     const published_at = new Date(Date.now() - 86_400_000).toISOString();
     const previous = progress("owner/alpha", [port]);
+    const checkpointRevision = (run: number) =>
+      `upstream-observer-run:${run}-1@${source}#sha256:${"f".repeat(64)}`;
     let run = 0;
     const observe = (eligible: boolean) => {
       const candidate = { id: 100, tag: "v2", published_at };
@@ -1797,7 +1901,7 @@ void test(
         targets: true,
         upstream: () =>
           Promise.resolve({
-            revision: `upstream-observer-run:${++run}`,
+            revision: checkpointRevision(++run),
             config_sha256: scope,
             checkpoint: checkpoint({
               [keyOf("owner/alpha")]: {
@@ -1830,6 +1934,7 @@ void test(
     };
     await observe(false);
     const inventory = buildReport(store.owner);
+    assert.equal(inventory.managed_intervention_evidence, undefined);
     const routeCoverage = inventory.managed_route_observation_coverage;
     assert.equal(routeCoverage?.offered_managed_platforms, 1);
     assert.equal(routeCoverage.platforms_with_candidate_observed, 1);
@@ -1851,6 +1956,39 @@ void test(
     assert.equal(pending.pending_candidates, 1);
     assert.equal(pending.observed_pending_candidates, 1);
     assert.equal(pending.observed_pending_to_eligible_candidates, 0);
+    const candidate_key = createHash("sha256")
+      .update(
+        JSON.stringify([port, "github", previous.repository_id, 100, "linux-x86-64", "stable"]),
+      )
+      .digest("hex");
+    const { bytes, sha256: inputDigest } = encodeManagedInterventionEvidence([
+      {
+        candidate_key,
+        port_key: `port:${port}`,
+        platform: "linux-x86-64",
+        channel: "stable",
+        observer_revision: checkpointRevision(1),
+        definition_sha256: "d".repeat(64),
+        client_sha256: "e".repeat(64),
+        review_ref: "https://github.com/boburning/portcove/issues/246#issuecomment-8",
+        start: published_at,
+        end: inventory.generated_at,
+        coverage: "complete",
+        actions: [],
+      },
+    ]);
+    const reviewedReport = buildReport(
+      store.owner,
+      new Date(inventory.generated_at),
+      readManagedInterventionEvidence(bytes, inputDigest),
+    );
+    const [reportedSequence] = reviewedReport.managed_intervention_evidence?.sequences ?? [];
+    assert.ok(reportedSequence && "matched_observation_states" in reportedSequence);
+    assert.deepEqual(reportedSequence.matched_observation_states, ["pending"]);
+    assert.equal(reportedSequence.state, "zero-reported");
+    assert.equal(reviewedReport.managed_intervention_evidence?.distinct_reported_actions, 0);
+    assert.equal(reviewedReport.managed_intervention_evidence?.verified_human_interventions, null);
+    assert.deepEqual(reviewedReport.managed_release_eligibility, pending);
     await observe(true);
     const eligibleReport = buildReport(store.owner);
     const eligible = eligibleReport.managed_release_eligibility;

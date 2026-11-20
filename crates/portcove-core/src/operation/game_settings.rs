@@ -7,8 +7,13 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{LifecycleOperation, LifecycleOperationKind};
+use super::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
 use crate::{InstallRecord, Library, PortcoveError, Result};
+
+#[cfg(windows)]
+mod activation_writer;
+#[cfg(windows)]
+pub(crate) use activation_writer::SettingsActivationWriter;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -24,6 +29,97 @@ pub(crate) struct SettingsJournal {
     /// A projection of the same canonical postimage, never a second policy or
     /// settings store. Direct-to-user-root runtimes require no second leg.
     pub runtime: Option<FileCustody>,
+}
+
+/// Whole-file custody for one staged activation. The lifecycle record owns the
+/// exact staged target; this payload also binds the still-active predecessor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ActivationSettingsJournal {
+    pub format_version: u32,
+    pub previous: InstallRecord,
+    pub file_id: String,
+    pub relative_path: String,
+    pub maximum_bytes: u64,
+    pub previous_runtime: Option<SettingsFileWitness>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub canonical: Option<FileCustody>,
+    pub runtime: Option<FileCustody>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deletion: Option<ActivationSettingsDeletion>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_projection_launch_id: Option<String>,
+}
+
+/// A positively recorded absence has no writable canonical leg. Only the
+/// pristine incoming runtime file can be moved into this operation's custody.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ActivationSettingsDeletion {
+    pub restore_id: String,
+    pub canonical: SettingsAbsenceWitness,
+    pub previous_runtime: SettingsAbsenceWitness,
+    pub incoming: SettingsFileWitness,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SettingsAbsenceWitness {
+    pub path: PathBuf,
+    pub parent_identity: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SettingsActivationPointer {
+    PreviousActive,
+    TargetActive,
+}
+
+pub(crate) fn activation_pointer(
+    operation: &LifecycleOperation,
+    status: &crate::PortStatus,
+) -> Result<SettingsActivationPointer> {
+    let payload = operation.settings_activation.as_ref().ok_or_else(invalid)?;
+    let target = operation.install.as_ref().ok_or_else(invalid)?;
+    let matches = |actual: Option<&InstallRecord>, expected| {
+        actual.is_some_and(|actual| crate::recovery::same_activation_install(actual, expected))
+    };
+    if status.port_id == operation.port_id {
+        if matches!(
+            operation.phase,
+            LifecyclePhase::Preparing | LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
+        ) && matches(status.active.as_ref(), &payload.previous)
+            && matches(status.staged.as_ref(), target)
+        {
+            return Ok(SettingsActivationPointer::PreviousActive);
+        }
+        // SQLite can commit the pointer just before journal phase publication.
+        // Recognize only the exact target and its exact retained predecessor.
+        if matches!(
+            operation.phase,
+            LifecyclePhase::PayloadPublished
+                | LifecyclePhase::MetadataCommitted
+                | LifecyclePhase::CleanupPending
+        ) && matches(status.active.as_ref(), target)
+            && matches(status.previous.as_ref(), &payload.previous)
+            && status.staged.is_none()
+        {
+            return Ok(SettingsActivationPointer::TargetActive);
+        }
+    }
+    Err(PortcoveError::conflict(
+        "settings activation custody differs from the current installation pointers",
+    ))
+}
+
+/// An observed predecessor file. Its bytes are bound to the canonical
+/// preimage. It never grants custody to rename or retire the predecessor.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct SettingsFileWitness {
+    pub path: PathBuf,
+    pub parent_identity: String,
+    pub original_identity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +180,18 @@ pub(crate) fn owned_names(path: &Path, id: &str, leg: &str) -> Result<(PathBuf, 
 }
 
 pub(crate) fn decode_journal(encoded: Option<&str>) -> Result<Option<SettingsJournal>> {
+    decode_payload(encoded)
+}
+
+pub(crate) fn decode_activation(
+    encoded: Option<&str>,
+) -> Result<Option<ActivationSettingsJournal>> {
+    decode_payload(encoded)
+}
+
+fn decode_payload<T: serde::de::DeserializeOwned + Serialize>(
+    encoded: Option<&str>,
+) -> Result<Option<T>> {
     encoded
         .map(|value| {
             if value.len() > 16384 {
@@ -91,7 +199,7 @@ pub(crate) fn decode_journal(encoded: Option<&str>) -> Result<Option<SettingsJou
             }
             let crate::definition_entry::strict_json::UniqueValue(raw) =
                 serde_json::from_str(value)?;
-            let decoded: SettingsJournal = serde_json::from_value(raw.clone())?;
+            let decoded: T = serde_json::from_value(raw.clone())?;
             if serde_json::to_value(&decoded)? != raw {
                 return Err(invalid());
             }
@@ -101,6 +209,9 @@ pub(crate) fn decode_journal(encoded: Option<&str>) -> Result<Option<SettingsJou
 }
 
 pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation) -> Result<()> {
+    if let Some(payload) = &operation.settings_activation {
+        validate_activation(library, operation, payload)?;
+    }
     if operation.kind != LifecycleOperationKind::SettingsChange {
         return if operation.game_settings.is_none() {
             Ok(())
@@ -150,24 +261,12 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
     {
         return Err(invalid());
     }
-    for custody in std::iter::once(&payload.canonical).chain(payload.runtime.iter()) {
-        if !identity(&custody.parent_identity)
-            || !identity(&custody.original_identity)
-            || custody
-                .replacement_identity
-                .as_ref()
-                .is_some_and(|value| !identity(value))
-            || (custody.replacement_identity.is_none()
-                && operation.phase != super::LifecyclePhase::Preparing)
-            || custody.replacement_identity.as_deref() == Some(custody.original_identity.as_str())
-            || !digest(&custody.previous_sha256)
-            || !digest(&custody.proposed_sha256)
-            || custody.previous_sha256 != payload.canonical.previous_sha256
-            || custody.proposed_sha256 != payload.canonical.proposed_sha256
-        {
-            return Err(invalid());
-        }
-    }
+    validate_legs(
+        operation.phase,
+        &payload.canonical,
+        payload.runtime.as_ref(),
+        false,
+    )?;
     if let Some(runtime) = &payload.runtime {
         let relative = runtime
             .path
@@ -184,8 +283,184 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
     Ok(())
 }
 
+fn validate_legs(
+    phase: super::LifecyclePhase,
+    canonical: &FileCustody,
+    runtime: Option<&FileCustody>,
+    allow_pristine_runtime: bool,
+) -> Result<()> {
+    for custody in std::iter::once(canonical).chain(runtime) {
+        if !identity(&custody.parent_identity)
+            || !identity(&custody.original_identity)
+            || custody
+                .replacement_identity
+                .as_ref()
+                .is_some_and(|value| !identity(value))
+            || (custody.replacement_identity.is_none() && phase != super::LifecyclePhase::Preparing)
+            || custody.replacement_identity.as_deref() == Some(custody.original_identity.as_str())
+            || !digest(&custody.previous_sha256)
+            || !digest(&custody.proposed_sha256)
+            || (custody.previous_sha256 != canonical.previous_sha256
+                && !(allow_pristine_runtime
+                    && custody.previous_sha256 == canonical.proposed_sha256))
+            || custody.proposed_sha256 != canonical.proposed_sha256
+        {
+            return Err(invalid());
+        }
+    }
+    Ok(())
+}
+
+fn validate_activation(
+    library: &Library,
+    operation: &LifecycleOperation,
+    payload: &ActivationSettingsJournal,
+) -> Result<()> {
+    let target = operation.install.as_ref().ok_or_else(invalid)?;
+    let previous = &payload.previous;
+    crate::archive::validate_relative_path(&payload.relative_path, false)?;
+    crate::archive::validate_relative_path(&operation.port_id, false)?;
+    if operation.kind != LifecycleOperationKind::Activate
+        || operation.activate
+        || !operation.original_paths.is_empty()
+        || operation.paths.staging.is_some()
+        || operation.paths.final_path.is_some()
+        || operation.paths.quarantine.is_some()
+        || operation.port_id.contains(['/', '\\'])
+        || payload.format_version != 1
+        || payload.relative_path.len() > 512
+        || payload.relative_path.contains(['\\', ':'])
+        || payload.file_id.is_empty()
+        || payload.file_id.len() > 64
+        || payload.maximum_bytes == 0
+        || payload.maximum_bytes > crate::game_settings::MAX_SETTINGS_BYTES
+        || previous.id == target.id
+        || previous.path == target.path
+        || previous.staged
+        || !target.staged
+    {
+        return Err(invalid());
+    }
+    for install in [previous, target] {
+        if install.port_id != operation.port_id
+            || install.id.is_empty()
+            || install.id.len() > 128
+            || !install.verified
+            || !digest(&install.manifest_sha256)
+            || !digest(&install.artifact.sha256)
+            || install.artifact.size == 0
+        {
+            return Err(invalid());
+        }
+        crate::output_root::validate_install_path(library, &operation.port_id, &install.path)?;
+    }
+    let canonical_path = library
+        .user_dir(&operation.port_id)
+        .join(&payload.relative_path);
+    if let Some(deletion) = &payload.deletion {
+        if payload.canonical.is_some()
+            || payload.runtime_projection_launch_id.is_some()
+            || payload.runtime.is_some()
+            || payload.previous_runtime.is_some()
+            || !Uuid::parse_str(&deletion.restore_id)
+                .is_ok_and(|id| id.to_string() == deletion.restore_id)
+            || deletion.canonical.path != canonical_path
+            || !identity(&deletion.canonical.parent_identity)
+            || !identity(&deletion.previous_runtime.parent_identity)
+            || !identity(&deletion.incoming.parent_identity)
+            || !identity(&deletion.incoming.original_identity)
+            || deletion.canonical.parent_identity == deletion.previous_runtime.parent_identity
+            || deletion.canonical.parent_identity == deletion.incoming.parent_identity
+            || deletion.previous_runtime.parent_identity == deletion.incoming.parent_identity
+        {
+            return Err(invalid());
+        }
+        for (path, root) in [
+            (&deletion.previous_runtime.path, &previous.path),
+            (&deletion.incoming.path, &target.path),
+        ] {
+            let relative = path.strip_prefix(root).map_err(|_| invalid())?;
+            crate::archive::validate_relative_path(
+                &relative.to_string_lossy().replace('\\', "/"),
+                false,
+            )?;
+            if !relative.ends_with(&payload.relative_path) {
+                return Err(invalid());
+            }
+        }
+        owned_names(&deletion.incoming.path, &operation.id, "runtime")?;
+        return Ok(());
+    }
+    let canonical = payload.canonical.as_ref().ok_or_else(invalid)?;
+    if canonical.path != canonical_path
+        || canonical.previous_sha256 == canonical.proposed_sha256
+        || payload
+            .runtime_projection_launch_id
+            .as_ref()
+            .is_some_and(|id| {
+                payload.previous_runtime.is_none()
+                    || !Uuid::parse_str(id).is_ok_and(|parsed| parsed.to_string() == *id)
+            })
+    {
+        return Err(invalid());
+    }
+    if let Some(runtime) = &payload.runtime {
+        let relative = runtime
+            .path
+            .strip_prefix(&target.path)
+            .map_err(|_| invalid())?;
+        crate::archive::validate_relative_path(
+            &relative.to_string_lossy().replace('\\', "/"),
+            false,
+        )?;
+        if runtime.path == canonical.path
+            || !relative.ends_with(&payload.relative_path)
+            || runtime.parent_identity == canonical.parent_identity
+            || duplicate_physical_objects(canonical, runtime)
+        {
+            return Err(invalid());
+        }
+        owned_names(&runtime.path, &operation.id, "runtime")?;
+    }
+    if let Some(witness) = &payload.previous_runtime {
+        let relative = witness
+            .path
+            .strip_prefix(&previous.path)
+            .map_err(|_| invalid())?;
+        crate::archive::validate_relative_path(
+            &relative.to_string_lossy().replace('\\', "/"),
+            false,
+        )?;
+        if !relative.ends_with(&payload.relative_path)
+            || !identity(&witness.parent_identity)
+            || !identity(&witness.original_identity)
+            || std::iter::once(canonical)
+                .chain(payload.runtime.iter())
+                .any(|leg| {
+                    leg.path == witness.path
+                        || leg.original_identity == witness.original_identity
+                        || leg.replacement_identity.as_deref()
+                            == Some(witness.original_identity.as_str())
+                })
+        {
+            return Err(invalid());
+        }
+    }
+    owned_names(&canonical.path, &operation.id, "canonical")?;
+    validate_legs(operation.phase, canonical, payload.runtime.as_ref(), true)
+}
+
+fn duplicate_physical_objects(left: &FileCustody, right: &FileCustody) -> bool {
+    std::iter::once(left.original_identity.as_str())
+        .chain(left.replacement_identity.as_deref())
+        .any(|identity| {
+            identity == right.original_identity
+                || right.replacement_identity.as_deref() == Some(identity)
+        })
+}
+
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::{ArtifactIdentity, ReleaseChannel, operation::OperationStore};
 
@@ -245,6 +520,217 @@ mod tests {
         });
         std::fs::create_dir_all(&operation.game_settings.as_ref().unwrap().install.path).unwrap();
         operation
+    }
+
+    pub(crate) fn activation_record(library: &Library) -> LifecycleOperation {
+        let scalar = record(library).game_settings.unwrap();
+        let mut previous = scalar.install;
+        previous.artifact.sha256 = "a".repeat(64);
+        previous.artifact.size = 10;
+        let mut target = previous.clone();
+        target.id = "inert-settings-successor".into();
+        target.version = "9.3.2".into();
+        target.staged = true;
+        target.artifact.sha256 = "b".repeat(64);
+        target.manifest_sha256 = "e".repeat(64);
+        target.path = library
+            .versions_dir()
+            .join("shipwright/inert-settings-successor");
+        std::fs::create_dir_all(&target.path).unwrap();
+        let runtime = FileCustody {
+            path: target.path.join("wrapper").join(&scalar.relative_path),
+            parent_identity: format!("win128:{:016x}:{:032x}", 2, 11),
+            original_identity: format!("win128:{:016x}:{:032x}", 2, 22),
+            replacement_identity: Some(format!("win128:{:016x}:{:032x}", 2, 33)),
+            previous_sha256: scalar.canonical.previous_sha256.clone(),
+            proposed_sha256: scalar.canonical.proposed_sha256.clone(),
+        };
+        let mut activation = LifecycleOperation::new(
+            Uuid::new_v4().to_string(),
+            LifecycleOperationKind::Activate,
+            "shipwright",
+        );
+        activation.install = Some(target);
+        let previous_runtime_path = previous.path.join(&scalar.relative_path);
+        activation.settings_activation = Some(ActivationSettingsJournal {
+            format_version: 1,
+            file_id: scalar.file_id,
+            relative_path: scalar.relative_path,
+            maximum_bytes: scalar.maximum_bytes,
+            previous_runtime: Some(SettingsFileWitness {
+                path: previous_runtime_path,
+                parent_identity: format!("win128:{:016x}:{:032x}", 3, 11),
+                original_identity: format!("win128:{:016x}:{:032x}", 3, 22),
+            }),
+            canonical: Some(scalar.canonical),
+            runtime: Some(runtime),
+            deletion: None,
+            runtime_projection_launch_id: None,
+            previous,
+        });
+        activation
+    }
+
+    #[test]
+    fn settings_activation_custody_holds_one_port_and_current_writer_refuses_to_emit_it() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut activation = activation_record(&library);
+        assert!(validate_journal(&library, &activation).is_ok());
+        let error = store.put(&mut activation).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(store.get(&activation.id).unwrap().is_none());
+
+        let mut legacy = activation.clone();
+        legacy.settings_activation = None;
+        store.put(&mut legacy).unwrap();
+        assert!(library.try_lock_port("shipwright", "launch").is_ok());
+
+        // Simulate a future-writer recovery row in an isolated library. The
+        // current writer must preserve it without running legacy activation.
+        let encoded = serde_json::to_string(&activation.settings_activation).unwrap();
+        let payload = activation.settings_activation.as_ref().unwrap();
+        for path in [
+            &payload.canonical.as_ref().unwrap().path,
+            &payload.runtime.as_ref().unwrap().path,
+        ] {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, b"owned preimage").unwrap();
+        }
+        library.connection().unwrap().execute(
+            "UPDATE lifecycle_operations SET game_settings_json=?2,phase='payload_published' WHERE id=?1",
+            rusqlite::params![activation.id, encoded],
+        ).unwrap();
+        let observed = store.get(&activation.id).unwrap().unwrap();
+        assert_eq!(
+            observed.phase,
+            super::super::LifecyclePhase::PayloadPublished
+        );
+        assert_eq!(
+            serde_json::to_string(&observed.settings_activation).unwrap(),
+            encoded
+        );
+        assert!(store.put(&mut legacy).is_err());
+        assert!(store.remove(&activation.id).is_err());
+        assert!(library.try_lock_port("shipwright", "launch").is_err());
+        assert!(
+            library
+                .try_lock_port("shipwright", "collect-user-data")
+                .is_err()
+        );
+        assert!(library.try_lock_port("another-port", "launch").is_ok());
+        assert!(
+            library
+                .try_lock_port_for_settings_recovery("shipwright", "foreign")
+                .is_err()
+        );
+        drop(
+            library
+                .try_lock_port_for_settings_recovery("shipwright", &activation.id)
+                .unwrap(),
+        );
+
+        let _service = crate::PortcoveService::new(library.clone()).unwrap();
+        assert!(store.get(&activation.id).unwrap().is_some());
+        assert_eq!(
+            std::fs::read(&payload.canonical.as_ref().unwrap().path).unwrap(),
+            b"owned preimage"
+        );
+        assert_eq!(
+            std::fs::read(&payload.runtime.as_ref().unwrap().path).unwrap(),
+            b"owned preimage"
+        );
+        assert!(library.try_lock_port("shipwright", "launch").is_err());
+    }
+
+    #[test]
+    fn settings_activation_refuses_foreign_routes_aliases_and_unbound_published_legs() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let valid = activation_record(&library);
+        for mutation in 0..8 {
+            let mut changed = valid.clone();
+            let payload = changed.settings_activation.as_mut().unwrap();
+            let runtime = payload.runtime.as_mut().unwrap();
+            match mutation {
+                0 => payload.previous.port_id = "foreign-port".into(),
+                1 => payload.previous.path = changed.install.as_ref().unwrap().path.clone(),
+                2 => runtime.path = payload.previous.path.join(&payload.relative_path),
+                3 => {
+                    runtime.replacement_identity = Some(
+                        payload
+                            .canonical
+                            .as_ref()
+                            .unwrap()
+                            .original_identity
+                            .clone(),
+                    )
+                }
+                4 => runtime.previous_sha256 = "f".repeat(64),
+                5 => {
+                    changed.phase = super::super::LifecyclePhase::PayloadPublished;
+                    runtime.replacement_identity = None;
+                }
+                6 => changed.kind = LifecycleOperationKind::Install,
+                _ => {
+                    payload.previous_runtime.as_mut().unwrap().original_identity = payload
+                        .canonical
+                        .as_ref()
+                        .unwrap()
+                        .original_identity
+                        .clone()
+                }
+            }
+            assert!(
+                validate_journal(&library, &changed).is_err(),
+                "mutation {mutation}"
+            );
+        }
+        let mut encoded = serde_json::to_value(valid.settings_activation.unwrap()).unwrap();
+        encoded["unknown_execution"] = serde_json::json!("refused");
+        assert!(decode_activation(Some(&encoded.to_string())).is_err());
+    }
+
+    #[test]
+    fn settings_activation_detects_a_committed_pointer_with_a_lagging_journal() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let mut operation = activation_record(&library);
+        operation.phase = LifecyclePhase::PayloadPublished;
+        let previous = &operation.settings_activation.as_ref().unwrap().previous;
+        let target = operation.install.as_ref().unwrap();
+        library.register_install(previous, true).unwrap();
+        library.register_install(target, false).unwrap();
+        let status = || {
+            library
+                .status("shipwright", ReleaseChannel::Stable)
+                .unwrap()
+        };
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::PreviousActive
+        );
+
+        let mut stale = target.clone();
+        stale.manifest_sha256 = "f".repeat(64);
+        assert!(library.activate_staged_exact(previous, &stale).is_err());
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::PreviousActive
+        );
+
+        library.activate_staged_exact(previous, target).unwrap();
+        // Stop after the library commits but before the journal records it.
+        assert_eq!(operation.phase, LifecyclePhase::PayloadPublished);
+        assert_eq!(
+            activation_pointer(&operation, &status()).unwrap(),
+            SettingsActivationPointer::TargetActive
+        );
+        assert!(library.activate_staged_exact(previous, target).is_err());
+        assert_eq!(status().previous.unwrap().id, previous.id);
+        operation.phase = LifecyclePhase::Prepared;
+        assert!(activation_pointer(&operation, &status()).is_err());
     }
 
     #[test]

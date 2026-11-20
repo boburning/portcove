@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -108,7 +109,11 @@ pub struct InstallQualification {
     /// Carried forward from an existing manifest when it is rewritten or derived,
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
+    shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    shipped_settings_capture_gaps: BTreeMap<String, crate::game_settings::ShippedDefaultGap>,
     retained_package_variant: Option<crate::ManagedPackageVariant>,
+    retained_github_artifact_identity:
+        Option<crate::definition_acquisition::GithubArtifactIdentity>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -272,7 +277,10 @@ impl InstallQualification {
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             acquisition: None,
             retained_acquisition: None,
+            shipped_settings_defaults: BTreeMap::new(),
+            shipped_settings_capture_gaps: BTreeMap::new(),
             retained_package_variant: None,
+            retained_github_artifact_identity: None,
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -617,6 +625,12 @@ struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     archive_data_admission: Option<crate::archive_data_transition::Admission>,
+    /// Package defaults observed before preparation. The manifest binds them to
+    /// its artifact; historical installs have no recorded baseline.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    shipped_settings_defaults: BTreeMap<String, crate::game_settings::ShippedDefault>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    shipped_settings_capture_gaps: BTreeMap<String, crate::game_settings::ShippedDefaultGap>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1374,7 +1388,7 @@ impl Installer {
 
     async fn install_inner<F>(
         &self,
-        request: InstallRequest,
+        mut request: InstallRequest,
         replacement: Option<&ExternalReplacement<'_>>,
         acquired: Option<&crate::service::game_update_acquisition::AcquiredInputs>,
         operation: &OperationCoordinator,
@@ -1471,6 +1485,8 @@ impl Installer {
             )?;
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
+        request.qualification.shipped_settings_defaults.clear();
+        request.qualification.shipped_settings_capture_gaps.clear();
         let mut package_shape = None;
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
@@ -1494,6 +1510,23 @@ impl Installer {
                 ));
             }
             let platform = request.qualification.platform;
+            if port.game_settings.is_some()
+                && let Ok(selected) =
+                    resolve_declared_executable(&payload_root, &request.qualification)
+            {
+                let settings_root = request
+                    .qualification
+                    .persistence_root(&payload_root, &selected);
+                let captured = crate::game_settings::capture_shipped_settings(
+                    port,
+                    platform,
+                    &request.release.version,
+                    &artifact.sha256,
+                    &settings_root,
+                );
+                request.qualification.shipped_settings_defaults = captured.defaults;
+                request.qualification.shipped_settings_capture_gaps = captured.gaps;
+            }
             let grant_before_layout =
                 crate::package_layout::grant_precedes_layout_check(port, platform);
             if grant_before_layout {
@@ -3182,7 +3215,10 @@ impl Installer {
         }
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
+        adopted.shipped_settings_defaults.clear();
+        adopted.shipped_settings_capture_gaps.clear();
         adopted.retained_package_variant = None;
+        adopted.retained_github_artifact_identity = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
@@ -3191,6 +3227,33 @@ impl Installer {
         install: &InstallRecord,
     ) -> Result<Option<crate::Catalog>> {
         retained_catalog_for_install(install)
+    }
+
+    pub(crate) fn retained_settings_defaults(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::game_settings::RetainedSettingsDefaults>> {
+        let manifest = verified_manifest(install)?;
+        let (Some(contract), Some(platform)) = (&manifest.retained_contract, manifest.platform)
+        else {
+            return Ok(None);
+        };
+        let catalog = contract.catalog(&install.port_id)?;
+        let Some(settings) = catalog
+            .port(&install.port_id)?
+            .game_settings
+            .as_ref()
+            .filter(|settings| {
+                settings.covers_archive(platform, &manifest.version, &manifest.artifact.sha256)
+            })
+        else {
+            return Ok(None);
+        };
+        Ok(Some(crate::game_settings::RetainedSettingsDefaults {
+            contract: settings.clone(),
+            shipped: manifest.shipped_settings_defaults,
+            capture_gaps: manifest.shipped_settings_capture_gaps,
+        }))
     }
 
     pub(crate) fn archive_data_port(
@@ -3467,6 +3530,8 @@ impl Installer {
         if let Some(runtime) = &install.runtime {
             qualification.runtime_origin = runtime.origin;
         }
+        qualification.shipped_settings_defaults = manifest.shipped_settings_defaults;
+        qualification.shipped_settings_capture_gaps = manifest.shipped_settings_capture_gaps;
         qualification.retained_acquisition = Some(crate::release::RecordedAcquisition {
             facts_recorded: manifest.acquisition_facts_recorded,
             uploader_continuity: manifest.uploader_continuity,
@@ -3474,6 +3539,7 @@ impl Installer {
             acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
         qualification.retained_package_variant = manifest.saved_package_variant;
+        qualification.retained_github_artifact_identity = manifest.github_artifact_identity;
         Ok(qualification)
     }
 
@@ -3739,6 +3805,8 @@ mod legacy_dkr_tests {
         };
         let manifest = InstallManifest {
             archive_data_admission: None,
+            shipped_settings_defaults: BTreeMap::new(),
+            shipped_settings_capture_gaps: BTreeMap::new(),
             schema_version: schema,
             retained_contract: None,
             shared_preferences: None,
@@ -4121,6 +4189,30 @@ impl Installer {
     }
 }
 
+/// Seal an inert, privately extracted ZIP fixture as an ordinary downloaded
+/// installation. External-tree adoption deliberately discards package defaults.
+#[cfg(all(test, windows))]
+pub(crate) fn write_downloaded_settings_fixture_manifest(
+    port: &PortDefinition,
+    version: &str,
+    artifact: &ArtifactIdentity,
+    mut qualification: InstallQualification,
+    root: &Path,
+) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+    let selected = resolve_declared_executable(root, &qualification)?;
+    let settings_root = qualification.persistence_root(root, &selected);
+    let captured = crate::game_settings::capture_shipped_settings(
+        port,
+        qualification.platform,
+        version,
+        &artifact.sha256,
+        &settings_root,
+    );
+    qualification.shipped_settings_defaults = captured.defaults;
+    qualification.shipped_settings_capture_gaps = captured.gaps;
+    write_manifest(version, &port.id, version, artifact, &qualification, root)
+}
+
 fn write_manifest(
     install_id: &str,
     port_id: &str,
@@ -4238,6 +4330,8 @@ fn write_manifest_with_shape(
     }
     let manifest = InstallManifest {
         archive_data_admission: None,
+        shipped_settings_defaults: qualification.shipped_settings_defaults.clone(),
+        shipped_settings_capture_gaps: qualification.shipped_settings_capture_gaps.clone(),
         schema_version: if qualification.shared_preferences.is_some() {
             7
         } else {
@@ -4255,12 +4349,14 @@ fn write_manifest_with_shape(
         github_artifact_identity: qualification
             .acquisition
             .as_ref()
-            .and_then(|proof| proof.github_identity.clone()),
+            .and_then(|proof| proof.github_identity.clone())
+            .or_else(|| qualification.retained_github_artifact_identity.clone()),
         saved_package_variant: qualification
             .acquisition
             .as_ref()
             .and_then(|proof| proof.saved_variant.clone())
-            .or_else(|| qualification.retained_package_variant.clone()),
+            .or_else(|| qualification.retained_package_variant.clone())
+            .filter(|_| crate::ManagedPackageVariant::supports_manifest_receipt(version)),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification
@@ -4540,16 +4636,39 @@ pub(crate) fn recorded_acquisition(
 pub(crate) fn recorded_package_variant(
     install: &InstallRecord,
 ) -> Result<Option<crate::ManagedPackageVariant>> {
-    // Older registrations may lack all manifest identity. Their selection
-    // remains ordinary and does not gain a receipt retroactively.
+    // Builds without a verified manifest cannot supply retained choice evidence.
     if install.manifest_sha256.is_empty() {
         return Ok(None);
     }
     let manifest = verified_manifest(install)?;
-    if let Some(variant) = &manifest.saved_package_variant {
+    if let Some(variant) = manifest.saved_package_variant {
         variant.require_installed(install, manifest.platform)?;
+        return Ok(Some(variant));
     }
-    Ok(manifest.saved_package_variant)
+    if install.channel != crate::ReleaseChannel::Beta
+        || !install.verified
+        || !manifest.acquisition_facts_recorded
+        || install
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.origin == RuntimeOrigin::AdoptedTree)
+    {
+        return Ok(None);
+    }
+    let (Some(identity), Some(contract), Some(platform)) = (
+        manifest.github_artifact_identity,
+        manifest.retained_contract,
+        manifest.platform,
+    ) else {
+        return Ok(None);
+    };
+    let catalog = contract.catalog(&install.port_id)?;
+    Ok(crate::ManagedPackageVariant::from_retained_prerelease(
+        catalog.port(&install.port_id)?,
+        platform,
+        install,
+        &identity,
+    ))
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -4660,6 +4779,9 @@ fn verified_manifest_with_budget(
         || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
+        || (manifest.retained_contract.is_none()
+            && (!manifest.shipped_settings_defaults.is_empty()
+                || !manifest.shipped_settings_capture_gaps.is_empty()))
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
         || (manifest.schema_version < 5
             && (manifest.platform.is_some() || manifest.files.iter().any(|file| file.executable)))
@@ -4687,18 +4809,26 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        let port = catalog.port(&install.port_id)?;
+        let platform = manifest
+            .platform
+            .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?;
+        crate::game_settings::verify_shipped_defaults(
+            port,
+            platform,
+            &manifest.version,
+            &manifest.artifact.sha256,
+            &manifest.shipped_settings_defaults,
+            &manifest.shipped_settings_capture_gaps,
+        )?;
         crate::managed_runtime_policy::require_native_appimage_artifact(
-            catalog.port(&install.port_id)?,
-            manifest
-                .platform
-                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            port,
+            platform,
             &manifest.artifact.asset_name,
         )?;
         crate::native_external_profile::vcmi::require_archive(
-            catalog.port(&install.port_id)?,
-            manifest
-                .platform
-                .ok_or_else(|| PortcoveError::verification("retained manifest has no platform"))?,
+            port,
+            platform,
             &manifest.artifact.asset_name,
         )?;
         if let Some(admission) = &manifest.archive_data_admission {
@@ -8368,6 +8498,11 @@ mod tests {
 
     #[test]
     fn saved_native_package_choice_survives_manifest_refresh() {
+        check_package_choice_manifest("v1.2.3", crate::ReleaseChannel::Stable);
+        check_package_choice_manifest("v1.2.3-alpha.1", crate::ReleaseChannel::Beta);
+    }
+
+    fn check_package_choice_manifest(version: &str, channel: crate::ReleaseChannel) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
@@ -8379,6 +8514,9 @@ mod tests {
             .iter_mut()
             .find(|port| port.id == id)
             .unwrap();
+        if channel == crate::ReleaseChannel::Beta {
+            port.channels.push(channel);
+        }
         port.release
             .asset_hints
             .insert(platform, vec!["sopwith-".into(), "-win64.zip".into()]);
@@ -8388,13 +8526,16 @@ mod tests {
         let root = library.versions_dir().join(id).join("saved-variant");
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join(&executable), b"inert manifest fixture").unwrap();
+        let name = format!("sopwith-{}-win64.zip", version.trim_start_matches('v'));
         let release = crate::ResolvedRelease {
-            version: "v1.2.3".into(),
-            channel: crate::ReleaseChannel::Stable,
+            version: version.into(),
+            channel,
             published_at: None,
             asset: ReleaseAsset {
-                name: "sopwith-1.2.3-win64.zip".into(),
-                url: "https://github.com/fragglet/sdl-sopwith/releases/download/v1.2.3/sopwith-1.2.3-win64.zip".into(),
+                url: format!(
+                    "https://github.com/fragglet/sdl-sopwith/releases/download/{version}/{name}"
+                ),
+                name,
                 size: 42,
                 sha256: "a".repeat(64),
             },
@@ -8458,6 +8599,16 @@ mod tests {
         )
         .unwrap();
         install.manifest_sha256 = digest;
+        let manifest = verified_manifest(&install).unwrap();
+        assert_eq!(
+            manifest.saved_package_variant.is_some(),
+            channel == crate::ReleaseChannel::Stable,
+            "the prerelease choice must not write a receipt older readers cannot understand"
+        );
+        assert_eq!(
+            manifest.github_artifact_identity.as_ref().unwrap().tag,
+            version
+        );
         assert_eq!(
             recorded_package_variant(&install).unwrap().as_ref(),
             Some(&variant)
@@ -8475,18 +8626,19 @@ mod tests {
         drop(library);
 
         let reopened = Library::open(library_root).unwrap();
-        let retained = reopened
-            .status(id, crate::ReleaseChannel::Stable)
-            .unwrap()
-            .active
-            .unwrap();
+        let retained = reopened.status(id, channel).unwrap().active.unwrap();
         assert_eq!(
             recorded_package_variant(&retained).unwrap().as_ref(),
             Some(&variant)
         );
         let mut changed_channel = retained;
-        changed_channel.channel = crate::ReleaseChannel::Beta;
-        assert!(recorded_package_variant(&changed_channel).is_err());
+        if channel == crate::ReleaseChannel::Stable {
+            changed_channel.channel = crate::ReleaseChannel::Beta;
+            assert!(recorded_package_variant(&changed_channel).is_err());
+        } else {
+            changed_channel.channel = crate::ReleaseChannel::Stable;
+            assert_eq!(recorded_package_variant(&changed_channel).unwrap(), None);
+        }
     }
 
     #[test]
@@ -8621,6 +8773,12 @@ mod tests {
         assert!(retained_query_context_with_budget(&install, Some(&mut too_small)).is_err());
         assert_eq!(too_small, 0);
         assert!(installer.verify(&install).unwrap().valid);
+        assert!(
+            installer
+                .retained_settings_defaults(&install)
+                .unwrap()
+                .is_none()
+        );
         assert!(installer.verify_critical(&install, &qualification).is_ok());
         installer
             .verify_import_contract(&install, &qualification)

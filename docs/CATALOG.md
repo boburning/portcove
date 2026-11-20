@@ -2323,13 +2323,18 @@ rule change; existing transition and recovery guards still apply.
 A reviewed download can retain a native GitHub package choice in its install
 manifest. This applies when two authored hints cover the full filename around
 the exact three-part numeric release tag, and GitHub supplied the stable
-repository, release and asset identities. Core remembers the channel, host
+repository, release and asset identities. On the beta channel, this also
+covers full tags ending in `-alpha`, `-beta` or `-rc`, with an optional dot
+and number. Core recovers that choice from the verified acquisition and the
+definition retained when the package was installed. The next package must
+include its full tag. Additional edition or debug labels need their own
+reviewed binding. Core remembers the channel, host
 architecture, native mode, package anchors and any declared original-source
 profile. The next release must offer one verified package with the same
 anchors around its own version. A missing or competing match holds the
 update. Ordinary package eligibility, uploader, digest and activation checks
-still apply. A legacy installation with no receipt uses ordinary selection.
-An explicitly selected different channel and exact curated, direct or rolling
+still apply. An installation without the required retained evidence uses
+ordinary selection. An explicitly selected different channel and exact curated, direct or rolling
 pins use their existing release contracts.
 
 When an upstream release still matches a managed route's selector but changes
@@ -3606,6 +3611,16 @@ and treats the two engine logs as runtime output. Keep each official package
 selector, executable, original IWAD profile and launch arguments explicit.
 Preparation compacts a route only when expansion reproduces its exact bytes.
 
+The authoring-only `openmohaa_portable_v1` generates the official stable
+OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
+It supplies the four platform selectors, shared Windows archive layout,
+edition-specific Unix launcher checks, and original-data paths. Keep each
+edition’s original requirements, instructions, support and qualification
+explicit. The engine still owns the external player profile. Preparation
+compacts a route only when the generated integration reproduces it byte for
+byte. A different source, package, launcher or writer layout uses an explicit
+integration.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the
@@ -3628,7 +3643,10 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
+single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
+`psx_crash.txt`. Their remaining split-mods fields are the same.
+`"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
 Use `"split-mods-overlay-directory"` for the reviewed single-disc retail kits
@@ -3979,6 +3997,11 @@ When GitHub confirms the repository identity, the proposal records its
 immutable ID as the initial lineage. GitHub URL aliases reuse the existing
 authored origin. A repository ID already recorded under a different project
 URL needs lineage review before it can move.
+Include `--record` with the same project URL and reviewed game identity to
+prepare an already-reviewed operational contract. If the record has initial
+lineage, its GitHub repository ID must match the observed repository. Existing
+lineage and issue assignments stay bound to their catalog records. A new
+GitHub-managed route starts from its official project repository.
 Use the existing `--id` if the upstream project names several implementations
 or the existing listing has no reviewed game identity.
 For a non-GitHub project, supply `--name` if the game identity has no single
