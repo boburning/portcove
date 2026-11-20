@@ -242,8 +242,8 @@ if ($Observation -ceq 'installer') {
     return
 }
 
-# Seed a new library using the exact published CLI and its ordinary fixed-anchor
-# approval, signed refresh and reviewed install. No retained machine data enters.
+# Observe signed selection and its retained state with the published CLI and
+# ordinary fixed-anchor approval in an isolated library.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = Get-Artifact $cliName $bound.cli_archive.bytes $bound.cli_archive.sha256
 $cli = Join-Path $root 'portcove.exe'
@@ -340,12 +340,12 @@ if ($refresh.exit -eq 0 -and $refresh.receipt.ok) {
     $signedOutcome = 'selected'
     $sameLibraryPlan = 'not-requested'
 } else {
-    $error = $refresh.receipt.error
-    if ($refresh.exit -ne 11 -or $refresh.receipt.ok -or $error.code -cne 'verification' -or
-        $error.details.definition_refresh_phase -cne 'selection' -or
-        $error.details.definition_policy_changed -cne 'true' -or
-        $error.details.definition_launch_assessment_changed -cne 'true' -or
-        $error.message -cne 'selected definition changes catalog state outside its scope: catalog schema changed') {
+    $refreshError = $refresh.receipt.error
+    if ($refresh.exit -ne 11 -or $refresh.receipt.ok -or $refreshError.code -cne 'verification' -or
+        $refreshError.details.definition_refresh_phase -cne 'selection' -or
+        $refreshError.details.definition_policy_changed -cne 'true' -or
+        $refreshError.details.definition_launch_assessment_changed -cne 'true' -or
+        $refreshError.message -cne 'selected definition changes catalog state outside its scope: catalog schema changed') {
         throw 'The isolated signed Crawl refresh failed at an unexpected boundary'
     }
     $readback = Read-Cli @('catalog','show',$port)
