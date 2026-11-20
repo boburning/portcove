@@ -73304,7 +73304,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -73322,6 +73325,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -73329,7 +73362,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English blue original: revision -, 1 MiB, SHA-1 d7037c83e1ae5b39bde3c30787637ba1d4c48ce2. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English blue original: revision -, 1 MiB, SHA-1 d7037c83e1ae5b39bde3c30787637ba1d4c48ce2. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon Blue",
         "original_game": {
           "format_version": 1,
@@ -73362,7 +73395,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -73502,7 +73535,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -73520,6 +73556,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -73527,7 +73593,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English emerald original: revision 1.0, 16 MiB, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English emerald original: revision 1.0, 16 MiB, SHA-1 f3ae088181bf583e55daf962a92bb46f4f1d07b7. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon Emerald",
         "original_game": {
           "format_version": 1,
@@ -73560,7 +73626,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -73713,7 +73779,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -73731,6 +73800,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -73738,7 +73837,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English firered original: revision 1.0, 16 MiB, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc; revision 1.1, 16 MiB, SHA-1 dd5945db9b930750cb39d00c84da8571feebf417. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English firered original: revision 1.0, 16 MiB, SHA-1 41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc; revision 1.1, 16 MiB, SHA-1 dd5945db9b930750cb39d00c84da8571feebf417. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon FireRed",
         "original_game": {
           "format_version": 1,
@@ -73771,7 +73870,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -73924,7 +74023,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -73942,6 +74044,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -73949,7 +74081,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English leafgreen original: revision 1.0, 16 MiB, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e; revision 1.1, 16 MiB, SHA-1 7862c67bdecbe21d1d69ce082ce34327e1c6ed5e. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English leafgreen original: revision 1.0, 16 MiB, SHA-1 574fa542ffebb14be69902d1d36f1ec0a4afd71e; revision 1.1, 16 MiB, SHA-1 7862c67bdecbe21d1d69ce082ce34327e1c6ed5e. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon LeafGreen",
         "original_game": {
           "format_version": 1,
@@ -73982,7 +74114,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -74023,7 +74155,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -74041,6 +74176,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -74048,7 +74213,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English ruby original: revision 1.0, 16 MiB, SHA-1 f28b6ffc97847e94a6c21a63cacf633ee5c8df1e; revision 1.1, 16 MiB, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894; revision 1.2, 16 MiB, SHA-1 5b64eacf892920518db4ec664e62a086dd5f5bc8. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English ruby original: revision 1.0, 16 MiB, SHA-1 f28b6ffc97847e94a6c21a63cacf633ee5c8df1e; revision 1.1, 16 MiB, SHA-1 610b96a9c9a7d03d2bafb655e7560ccff1a6d894; revision 1.2, 16 MiB, SHA-1 5b64eacf892920518db4ec664e62a086dd5f5bc8. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon Ruby",
         "original_game": {
           "format_version": 1,
@@ -74081,7 +74246,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -74238,7 +74403,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -74256,6 +74424,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -74263,7 +74461,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English sapphire original: revision 1.0, 16 MiB, SHA-1 3ccbbd45f8553c36463f13b938e833f652b793e4; revision 1.1, 16 MiB, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9; revision 1.2, 16 MiB, SHA-1 89b45fb172e6b55d51fc0e61989775187f6fe63c. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English sapphire original: revision 1.0, 16 MiB, SHA-1 3ccbbd45f8553c36463f13b938e833f652b793e4; revision 1.1, 16 MiB, SHA-1 4722efb8cd45772ca32555b98fd3b9719f8e60a9; revision 1.2, 16 MiB, SHA-1 89b45fb172e6b55d51fc0e61989775187f6fe63c. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon Sapphire",
         "original_game": {
           "format_version": 1,
@@ -74296,7 +74494,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
@@ -74545,7 +74743,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -74563,6 +74764,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -74570,7 +74801,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own canonical US English yellow original: revision -, 1 MiB, SHA-1 cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove.",
+        "manual_preparation": "Use your own canonical US English yellow original: revision -, 1 MiB, SHA-1 cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1. Another game, region or unlisted revision is a different input. The upstream importer checks SHA-1; Portcove registration does not authenticate the original or cache. Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper. Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised. The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove. On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch.",
         "original_game_title": "Pokémon Yellow",
         "original_game": {
           "format_version": 1,
@@ -74603,7 +74834,7 @@
             },
             {
               "title": "Set up on Linux, Mac or Android",
-              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+              "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
             },
             {
               "title": "Add the game and manage updates",
