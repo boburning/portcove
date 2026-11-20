@@ -95,21 +95,43 @@ try { $keyHash = [BitConverter]::ToString($hasher.ComputeHash($key)).Replace('-'
 finally { $hasher.Dispose() }
 if ($keyHash -cne $bound.updater_key_sha256) { throw 'Published signature verification key differs' }
 
-if ($Observation -ceq 'binding') {
-    $token = $env:GH_TOKEN
-    if (-not $token -or $token.Length -gt 4096 -or $token -cnotmatch '^[A-Za-z0-9._~+/-]+=*$') {
-        throw 'Missing or invalid read-only release metadata credential'
+function Read-ImmutableReleaseMetadata([string]$ReleaseTag, [string]$Token) {
+    if ($ReleaseTag -cnotmatch '\Anightly-\d+\.\d+\.\d+-preview\.[1-9]\d*\z' -or
+        -not $Token -or $Token.Length -gt 4096 -or $Token -cnotmatch '\A[A-Za-z0-9._~+/-]+=*\z') {
+        throw 'Missing or invalid read-only release metadata credential or tag'
     }
+    Add-Type -AssemblyName System.Net.Http
+    $handler = [Net.Http.HttpClientHandler]::new()
+    $handler.AllowAutoRedirect = $false
+    $client = [Net.Http.HttpClient]::new($handler)
+    $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Get,
+        "https://api.github.com/repos/boburning/portcove/releases/tags/$ReleaseTag")
+    $response = $null
     try {
-        $uri = "https://api.github.com/repos/boburning/portcove/releases/tags/$tag"
-        $releaseJson = @('Accept: application/vnd.github+json', 'X-GitHub-Api-Version: 2022-11-28',
-            ('Authorization: Bearer ' + $token)) | & curl.exe -q -fsS --proto '=https' --max-time 45 --max-filesize 1048576 --header '@-' $uri
-        if ($LASTEXITCODE -ne 0) { throw 'Could not read the immutable public release' }
+        $client.Timeout = [TimeSpan]::FromSeconds(45)
+        $client.MaxResponseContentBufferSize = 1MB
+        $request.Headers.Accept.ParseAdd('application/vnd.github+json')
+        $request.Headers.UserAgent.ParseAdd('portcove-native-release-witness/1')
+        $request.Headers.Add('X-GitHub-Api-Version', '2022-11-28')
+        $request.Headers.Authorization = [Net.Http.Headers.AuthenticationHeaderValue]::new('Bearer', $Token)
+        $response = $client.SendAsync($request).GetAwaiter().GetResult()
+        $status = [int]$response.StatusCode
+        Write-Host "Release metadata HTTP $status"
+        if ($status -ne 200) { throw "Could not read the immutable public release (HTTP $status)" }
+        $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
     } finally {
-        Remove-Variable -Name token -ErrorAction SilentlyContinue
+        if ($response) { $response.Dispose() }
+        $request.Dispose()
+        $client.Dispose()
+    }
+}
+
+if ($Observation -ceq 'binding') {
+    try {
+        $publication = Read-ImmutableReleaseMetadata $tag $env:GH_TOKEN
+    } finally {
         Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
     }
-    $publication = ($releaseJson -join [Environment]::NewLine) | ConvertFrom-Json
     if ($publication.id -ne $bound.release_id -or $publication.tag_name -cne $tag -or
         $publication.target_commitish -cne $bound.source -or $publication.immutable -ne $true -or
         $publication.draft -ne $false -or $publication.prerelease -ne $true) {
