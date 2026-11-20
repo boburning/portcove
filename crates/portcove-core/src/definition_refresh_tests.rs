@@ -765,3 +765,198 @@ async fn ordinary_refresh_refuses_a_transition_that_removes_unrelated_catalog_en
         2
     );
 }
+
+#[tokio::test]
+async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_scope() {
+    use crate::OfficialCatalogAutomaticOutcome as Outcome;
+    use policy::provisioning::official_catalog::automatic_refresh_fixture;
+
+    const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = authority_provisioning::single_owner_root(&fixture).await;
+    let (_directory, library) = library();
+    let host = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(host.path().join("preferences.json")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let repository = source(&fixture);
+    let catalog = Catalog::embedded().unwrap();
+    let ids = [
+        catalog.ports()[0].id.as_str(),
+        catalog.ports()[1].id.as_str(),
+    ];
+    let entries = ids.map(|id| repository_targets_for(&catalog, id));
+    let mut definitions = Vec::new();
+    let mut contents = std::collections::BTreeMap::new();
+    let mut targets = std::collections::BTreeMap::new();
+    for entry in &entries {
+        let index: Value = serde_json::from_slice(&entry[0].1).unwrap();
+        definitions.extend(index["definitions"].as_array().unwrap().iter().cloned());
+        for record in index["contents"].as_array().unwrap() {
+            contents.insert(
+                record["target"].as_str().unwrap().to_owned(),
+                record.clone(),
+            );
+        }
+        targets.extend(entry.iter().skip(1).cloned());
+    }
+    let index = serde_json::to_vec(&serde_json::json!({
+        "index_schema": 1,
+        "definitions": definitions,
+        "contents": contents.into_values().collect::<Vec<_>>(),
+    }))
+    .unwrap();
+    let index_sha256 = hex::encode(Sha256::digest(&index));
+    targets.insert(INDEX_TARGET.to_owned(), index);
+    for (id, entry) in ids.iter().zip(&entries) {
+        let mut document = availability_for(entry, id, 1);
+        document["decision"]["index_sha256"] = index_sha256.clone().into();
+        targets.insert(
+            format!("policy/official/{id}.json"),
+            serde_json::to_vec(&document).unwrap(),
+        );
+    }
+    // An authenticated but unknown policy target cannot make a new ID known.
+    targets.insert(
+        "policy/official/unlisted-scheduled-fixture.json".into(),
+        b"unknown scope must not be read".to_vec(),
+    );
+    fixture
+        .publish_with_policy(
+            &targets.clone().into_iter().collect::<Vec<_>>(),
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+
+    let transport = ObservedTransport::default();
+    preferences
+        .set_official_catalog_automatic_updates(false)
+        .unwrap();
+    let off = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        transport.clone(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(off.outcome, Outcome::TurnedOff);
+    assert!(transport.requests.lock().unwrap().is_empty());
+    assert!(library.activities(10).unwrap().is_empty());
+
+    preferences
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    let first = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        transport.clone(),
+    )
+    .await
+    .unwrap();
+    // No descriptive target in this fixture. Known definitions can still be admitted.
+    assert_eq!(first.outcome, Outcome::Refreshed);
+    let selections = ids.map(|id| {
+        library
+            .definition_selection_status_for("official", id)
+            .unwrap()
+    });
+    for (id, selection) in ids.iter().zip(&selections) {
+        assert_eq!(selection.selected.as_ref().unwrap().stable_id, *id);
+        let (effective, _) = library.load_catalog().unwrap();
+        assert!(effective.definition_selection(id).is_some());
+    }
+    let requests = transport.requests.lock().unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|url| request_leaf(url) == Some("timestamp.json"))
+            .count(),
+        1
+    );
+    assert_eq!(
+        requests
+            .iter()
+            .filter(|url| request_leaf(url)
+                .is_some_and(|leaf| leaf.ends_with(".index.json") || leaf == "index.json"))
+            .count(),
+        1
+    );
+    assert!(
+        !requests
+            .iter()
+            .any(|url| url.path().ends_with("unlisted-scheduled-fixture.json"))
+    );
+    drop(requests);
+
+    let activities = library.activities(10).unwrap().len();
+    let replay = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(replay.outcome, Outcome::Refreshed);
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+    assert_eq!(
+        ids.map(|id| library
+            .definition_selection_status_for("official", id)
+            .unwrap()),
+        selections
+    );
+
+    for (index, id) in ids.into_iter().enumerate() {
+        let policy_path = format!("policy/official/{id}.json");
+        let mut document: Value = serde_json::from_slice(&targets[&policy_path]).unwrap();
+        document["policy_revision"] = 2.into();
+        if index == 0 {
+            document["decision"] = serde_json::json!({ "status": "revoked" });
+        } else {
+            document["policy_schema"] = 99.into();
+        }
+        targets.insert(policy_path, serde_json::to_vec(&document).unwrap());
+    }
+    fixture
+        .publish_with_policy(
+            &targets.into_iter().collect::<Vec<_>>(),
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 2)),
+        )
+        .await;
+    let partial = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(partial.outcome, Outcome::Refreshed);
+    let (effective, _) = library.load_catalog().unwrap();
+    assert!(effective.definition_selection(ids[0]).is_none());
+    assert!(effective.definition_selection(ids[1]).is_some());
+    assert_eq!(
+        library
+            .definition_selection_status_for("official", ids[1])
+            .unwrap()
+            .selected,
+        selections[1].selected,
+    );
+}

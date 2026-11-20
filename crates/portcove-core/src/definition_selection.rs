@@ -851,6 +851,18 @@ impl Library {
         Ok(result)
     }
 
+    pub(crate) fn retained_official_definition_subjects(
+        &self,
+    ) -> Result<std::collections::BTreeSet<String>> {
+        let connection = self.connection()?;
+        let mut query = connection.prepare(
+            "SELECT stable_id FROM definition_subject_selection WHERE namespace='official'",
+        )?;
+        Ok(query
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
     pub(crate) fn definition_selection_status_for(
         &self,
         namespace: &str,

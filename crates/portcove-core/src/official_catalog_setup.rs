@@ -223,7 +223,7 @@ pub enum OfficialCatalogAutomaticOutcome {
     AlreadyRunning,
     /// The location served nothing that verified; nothing changed.
     Unavailable,
-    /// The authenticated refresh completed through the existing listing delivery.
+    /// The authenticated refresh verified listings or a known definition.
     Refreshed,
 }
 
@@ -233,7 +233,7 @@ pub struct OfficialCatalogAutomaticRefresh {
     pub outcome: OfficialCatalogAutomaticOutcome,
     /// What the location served, when `outcome` is `unavailable`.
     pub serving: Option<DefinitionDeliveryServing>,
-    /// The resulting selection, when `outcome` is `refreshed`.
+    /// The selected descriptive directory, if present when the refresh completed.
     pub status: Option<crate::ListingDeliveryStatus>,
 }
 
@@ -272,40 +272,92 @@ where
     };
     ensure_enabled(service.library(), root, source, profile)?;
     super::require_installed(service.library(), root, profile)?;
-    // Acquire, authenticate and check admission before recording an activity.
-    // An outage, an absent, expired or tampered publication, a newer format this
-    // client cannot read or a replay then records nothing and changes nothing.
-    let (repository, transport) = connect()?;
-    let listings = super::super::listing_delivery::acquire_admissible(
-        service.library(),
-        &repository,
-        root,
-        transport,
+    // Both operations read the same authenticated repository snapshot, and
+    // retain their existing independent admission and replay checks.
+    let (source, transport) = connect()?;
+    let deadline = tokio::time::Instant::now() + super::super::super::ACQUISITION_TIMEOUT;
+    let repository = tokio::time::timeout_at(
+        deadline,
+        super::super::super::load_repository(
+            root,
+            source.metadata_base_url,
+            source.targets_base_url,
+            transport,
+        ),
     )
-    .await;
-    let candidate = match listings {
-        Ok(candidate) => candidate,
-        Err(error) => {
-            let serving = delivery_serving(&error);
-            tracing::info!(
-                serving = serving.as_str(),
-                error = %error.message,
-                message = "automatic official catalog refresh found no verified update"
-            );
-            return Ok(OfficialCatalogAutomaticRefresh {
-                outcome: Unavailable,
-                serving: Some(serving),
-                status: None,
-            });
-        }
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "official catalog acquisition timed out",
+        ))
+    });
+    let repository = match repository {
+        Ok(repository) => repository,
+        Err(error) => return Ok(unavailable(&error)),
     };
-    // Publication keeps the ordinary activity, cancellation and atomic admission.
-    let status = super::super::listing_delivery::publish_acquired(service, candidate, emit)?;
+    let listings = tokio::time::timeout_at(
+        deadline,
+        super::super::listing_delivery::acquire_admissible(service.library(), &repository, root),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "listing refresh acquisition timed out",
+        ))
+    });
+    let mut emit = emit;
+    // Check definition identities against the effective catalog after this
+    // accepted descriptive delivery. New listings can become known now.
+    let (status, listing_failure) = match listings {
+        Ok(candidate) => (
+            Some(super::super::listing_delivery::publish_acquired(
+                service, candidate, &mut emit,
+            )?),
+            None,
+        ),
+        Err(error) => (None, Some(error)),
+    };
+    let definitions_verified_or_updated =
+        match super::super::refresh::refresh_known_official_definitions(
+            service,
+            &repository,
+            root,
+            deadline,
+            &mut emit,
+        )
+        .await
+        {
+            Ok(changed) => changed,
+            Err(error) => {
+                tracing::info!(error = %error.message, "scheduled official definitions are unavailable");
+                false
+            }
+        };
+    if status.is_none()
+        && !definitions_verified_or_updated
+        && let Some(error) = listing_failure
+    {
+        return Ok(unavailable(&error));
+    }
     Ok(OfficialCatalogAutomaticRefresh {
         outcome: Refreshed,
         serving: None,
-        status: Some(status),
+        status: status.or_else(|| service.library().listing_delivery_status().ok()),
     })
+}
+
+fn unavailable(error: &PortcoveError) -> OfficialCatalogAutomaticRefresh {
+    let serving = delivery_serving(error);
+    tracing::info!(
+        serving = serving.as_str(),
+        error = %error.message,
+        "automatic official catalog refresh found no verified update"
+    );
+    OfficialCatalogAutomaticRefresh {
+        outcome: OfficialCatalogAutomaticOutcome::Unavailable,
+        serving: Some(serving),
+        status: None,
+    }
 }
 
 impl PortcoveService {

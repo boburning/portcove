@@ -210,6 +210,26 @@ pub struct AuthenticatedDefinitionLaunchAssessment {
 }
 
 impl AuthenticatedDefinitionLaunchAssessment {
+    /// Exact accepted bytes, metadata and retained decision inventory. A
+    /// scheduled replay can skip writes without hiding an incomplete recovery.
+    pub(super) fn already_admitted(&self, connection: &Connection) -> Result<bool> {
+        let namespace = &self.document.namespace;
+        let stable_id = &self.document.stable_id;
+        let stored: Option<(String, String, String)> = connection.query_row(
+            "SELECT document_json,provenance_json,inventory_sha256 FROM definition_launch_assessments
+             WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional()?;
+        let Some((bytes, provenance, digest)) = stored else {
+            return Ok(false);
+        };
+        Ok(bytes.as_bytes() == self.bytes
+            && provenance == serde_json::to_string(&self.provenance)?
+            && established_revision(connection, namespace, stable_id)? == self.document.revision
+            && inventory(connection, namespace, stable_id)?.0 == digest)
+    }
+
     /// Canonical exact decision identities for a subsequent explicit correction.
     /// Authentication and this inspection do not imply library admission.
     pub fn decision_sha256s(&self) -> Result<Vec<String>> {
