@@ -43465,13 +43465,8 @@
       "project_url": "https://github.com/in0finite/SanAndreasUnity",
       "issue_number": 6134,
       "listed_at": "2026-11-15",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
-      "download_block_reason": "Portcove downloads are paused while the cover artwork bundled in the Windows, Linux and Android packages is reviewed. Use these instructions for copies you already trust and are permitted to use.",
       "manual_setup": {
         "help_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
         "steps": [
@@ -43481,11 +43476,12 @@
           },
           {
             "title": "Start an existing Windows or Linux copy",
-            "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data folder together in a writable directory. Launch SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64 from that directory. If the Linux ZIP extracted with no permissions, restore owner read and directory access on that private copy and make SanAndreasUnity.x86_64 executable."
+            "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data together in a writable folder. On Linux, the v4.0 ZIP may need owner read permission on files, owner access on directories and execute permission on SanAndreasUnity.x86_64. In Portcove, select SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64. Choose that folder as the working directory, review the registration and select Play."
           }
         ],
         "warnings": [
-          "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy."
+          "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy.",
+          "The upstream menu and app icons use Grand Theft Auto: San Andreas cover art. You need your own installed PC game for its game data."
         ],
         "references": [
           {
@@ -43506,7 +43502,24 @@
           "https://github.com/in0finite/SanAndreasUnity"
         ],
         "source_editions": []
-      }
+      },
+      "release_url": "https://github.com/in0finite/SanAndreasUnity/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SanAndreasUnity-",
+          "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "SanAndreasUnity-",
+          "-linux.zip"
+        ]
+      },
+      "download_block_reason": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -52462,6 +52475,65 @@
           }
         ]
       }
+    },
+    {
+      "id": "linewars-ii-sdl3",
+      "project_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL",
+      "name": "LineWars II SDL3",
+      "summary": "Fly combat missions in LineWars II using the freeware SDL3 port for Windows and Linux.",
+      "issue_number": 6090,
+      "listed_at": "2026-11-20",
+      "original_game_title": "LineWars II",
+      "availability": "packages",
+      "release_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/releases",
+      "setup_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/tree/v1.0.0",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "LineWars2-SDL3-",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "LineWars2-SDL3-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "linewars-ii",
+        "evidence_urls": [
+          "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/NOTICE.md",
+          "https://github.com/fredangstadt-lang/LineWarsII-SDL"
+        ],
+        "source_editions": []
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/README.md",
+        "steps": [
+          {
+            "title": "Extract the publisher package",
+            "instruction": "Choose the Windows x64 ZIP or the Linux x64 archive. The Linux build requires glibc 2.39 or later. Keep game.dat and the matching SDL3 library in the LineWars2 folder with the player."
+          },
+          {
+            "title": "Register the extracted player",
+            "instruction": "In Portcove, select linewars2.exe on Windows or linewars2 on Linux. Use the writable LineWars2 folder as the working directory. Review the registration, then select Play."
+          }
+        ],
+        "warnings": [
+          "The original game and its data are supplied with permission for freeware use. Keep the bundled notices. The player includes the AT&T PC 6300 and IBM VGA bitmap fonts."
+        ],
+        "references": [
+          {
+            "title": "Keep your settings",
+            "instruction": "The player stores settings.dat beside its executable. When replacing a copy, preserve that file, the complete working folder and the separate LW2/LineWars2 preferences folder."
+          }
+        ]
+      },
+      "download_block_reason": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "linkssy2-darkwatchdarkeredition",
