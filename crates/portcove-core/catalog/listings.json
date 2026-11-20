@@ -44013,7 +44013,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. A GTA III download needs a verified source from the re3 project and a reviewed GTA III package. You can register your own permitted re3 copy with its original PC game files.",
       "artwork": {
         "game_id": 730,
         "cover_id": 120932,
@@ -44064,7 +44064,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "download_block_reason": "Downloads are paused. The archived mirror carries both Vice City and GTA III. A Vice City download needs a verified source from the reVC project and a reviewed Vice City package. You can register your own permitted reVC copy with its original PC game files.",
       "artwork": {
         "game_id": 733,
         "cover_id": 120935,
@@ -72812,7 +72812,7 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+      "download_block_reason": "Downloads are paused. The Windows package includes a native engine linked with Redux code. The project’s distribution notes say the combined engine still needs its native-engine terms and source obligations resolved. A clarified release or a package without that engine can be reviewed. You can register a permitted existing launcher and keep your own ROM and data folder.",
       "artwork": {
         "game_id": 2899,
         "cover_id": 320119,

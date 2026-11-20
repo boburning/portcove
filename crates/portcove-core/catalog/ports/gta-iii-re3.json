@@ -34,7 +34,7 @@
       ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+    "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. A GTA III download needs a verified source from the re3 project and a reviewed GTA III package. You can register your own permitted re3 copy with its original PC game files.",
     "artwork": {
       "game_id": 730,
       "cover_id": 120932,
