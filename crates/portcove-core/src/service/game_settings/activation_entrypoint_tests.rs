@@ -1,6 +1,7 @@
 //! Inert ZIPs and the real staged activation and recovery entry points.
 
 use super::*;
+use crate::game_settings::ShippedDefaultGap;
 use crate::operation::{LifecycleFaultInjector, NoLifecycleFaults, SettingsFaultPoint};
 use std::io::{Cursor, Write};
 
@@ -130,6 +131,9 @@ fn settings_fixture_packages(
                 sha256: digest.clone(),
                 size: bytes.len() as u64,
             };
+            let downloaded = fs::read(&archive_path).unwrap();
+            assert_eq!(downloaded.len() as u64, artifact.size);
+            assert_eq!(hex::encode(Sha256::digest(&downloaded)), artifact.sha256);
             crate::archive::extract_archive(
                 &archive_path,
                 &root,
@@ -137,20 +141,17 @@ fn settings_fixture_packages(
                 artifact.size,
             )
             .unwrap();
-            let captured = crate::game_settings::capture_shipped_settings(
-                &port,
-                Platform::WindowsX86_64,
-                version,
-                digest,
-                &root,
-            );
-            assert!(captured.defaults.contains_key(FILE) || captured.gaps.contains_key(FILE));
             let qualification =
                 InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64)
-                    .unwrap()
-                    .with_fixture_shipped_settings(captured);
-            let (manifest_sha256, selected_executable, runtime) = installer
-                .create_manifest(version, PORT, version, &artifact, &qualification, &root)
+                    .unwrap();
+            let (manifest_sha256, selected_executable, runtime) =
+                crate::install::write_downloaded_settings_fixture_manifest(
+                    &port,
+                    version,
+                    &artifact,
+                    qualification,
+                    &root,
+                )
                 .unwrap();
             let install = InstallRecord {
                 id: (*version).into(),
@@ -166,6 +167,28 @@ fn settings_fixture_packages(
                 manifest_sha256,
                 selected_executable,
             };
+            let retained = installer
+                .retained_settings_defaults(&install)
+                .unwrap()
+                .unwrap();
+            let shipped = retained
+                .shipped
+                .get(FILE)
+                .map(|stock| stock.verified_bytes(&retained.contract.files[0]).unwrap());
+            match defaults[index] {
+                Some(bytes) if bytes == [0xff] => {
+                    assert!(shipped.is_none());
+                    assert_eq!(retained.capture_gaps[FILE], ShippedDefaultGap::Malformed);
+                }
+                Some(bytes) => {
+                    assert_eq!(shipped.as_deref(), Some(bytes));
+                    assert!(retained.capture_gaps.is_empty());
+                }
+                None => {
+                    assert!(shipped.is_none());
+                    assert_eq!(retained.capture_gaps[FILE], ShippedDefaultGap::Omitted);
+                }
+            }
             if index == 0 || register_staged {
                 library.register_install(&install, index == 0).unwrap();
             }
@@ -195,6 +218,7 @@ fn settings_fixture_packages(
 
 #[test]
 fn staged_activation_recovers_two_exact_fake_package_defaults() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let fixture = fixture();
     let store = OperationStore::new(fixture.library.clone());
     let error = fixture.service.activate_staged(PORT).unwrap_err();
@@ -248,6 +272,7 @@ fn staged_activation_recovers_two_exact_fake_package_defaults() {
 
 #[test]
 fn staged_activation_holds_conflict_and_unobserved_deletion_before_projection() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for player in [Some(PLAYER), None] {
         let fixture = fixture();
         let canonical = fixture.library.user_dir(PORT).join(FILE);
@@ -312,6 +337,7 @@ impl LifecycleFaultInjector for InterruptPublishedBackupRestore {
 
 #[test]
 fn reviewed_full_snapshot_records_settings_deletion_only_after_recovered_projection() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for partitioned in [false, true] {
         check_reviewed_full_snapshot_deletion(partitioned);
     }
@@ -400,6 +426,7 @@ fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
 
 #[test]
 fn staged_activation_keeps_reviewed_deletion_and_recovers_only_its_owned_default() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let fixture = settings_fixture_with_stage(false, false);
     let canonical = fixture.library.user_dir(PORT).join(FILE);
     let previous = fixture.old.path.join(FILE);
@@ -525,6 +552,7 @@ fn staged_activation_keeps_reviewed_deletion_and_recovers_only_its_owned_default
 
 #[test]
 fn fresh_native_activation_uses_exact_package_stock_without_mirrored_seed() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let fixture = settings_fixture_with_player(false, true, false, NEW);
     let canonical = fixture.library.user_dir(PORT).join(FILE);
     assert!(!canonical.exists());
@@ -608,6 +636,7 @@ fn completed_managed_launch(fixture: &Fixture, bytes: &[u8]) {
 
 #[test]
 fn exact_launch_allows_owned_runtime_edit_only_if_defaults_are_compatible() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     for (incoming, player, merges) in [(OLD, PLAYER, true), (NEW, NEW, true), (NEW, PLAYER, false)]
     {
         let fixture = settings_fixture_with_player(false, true, true, incoming);
@@ -653,6 +682,7 @@ fn exact_launch_allows_owned_runtime_edit_only_if_defaults_are_compatible() {
 
 #[test]
 fn restoring_pre_update_backup_keeps_the_runtime_only_player_edit() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let fixture = settings_fixture_with_player(false, true, true, OLD);
     completed_managed_launch(&fixture, PLAYER);
     let canonical = fixture.library.user_dir(PORT).join(FILE);
@@ -701,6 +731,7 @@ fn restoring_pre_update_backup_keeps_the_runtime_only_player_edit() {
 
 #[test]
 fn two_verified_omissions_remain_scalar_but_malformed_packages_hold() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let omitted = settings_fixture_packages(false, true, false, [None, None]);
     assert!(omitted.service.activate_staged(PORT).is_ok());
     assert!(!omitted.library.user_dir(PORT).join(FILE).exists());

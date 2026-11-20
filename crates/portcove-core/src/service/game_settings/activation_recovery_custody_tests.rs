@@ -52,6 +52,7 @@ fn stage(
 
 #[test]
 fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let store = OperationStore::new(library.clone());
@@ -100,15 +101,14 @@ fn bound_stage_prefix_and_rename_gap_resume_while_player_edit_holds_publication(
     let (_, target_old) = owned_names(&target_path, &operation.id, "runtime").unwrap();
 
     let unbound = operation.clone();
-    assert!(
-        stage(
-            &writer,
-            &mut operation,
-            "canonical",
-            &FailAt(SettingsFaultPoint::CanonicalStagePartialWrite)
-        )
-        .is_err()
-    );
+    let error = stage(
+        &writer,
+        &mut operation,
+        "canonical",
+        &FailAt(SettingsFaultPoint::CanonicalStagePartialWrite),
+    )
+    .unwrap_err();
+    assert_eq!(error.message, "interrupted fixture transition");
     let prefix = fs::read(&user_stage).unwrap();
     assert!(!prefix.is_empty() && prefix.len() < NEW.len() && NEW.starts_with(&prefix));
     assert_eq!(fs::read(&user_path).unwrap(), OLD);

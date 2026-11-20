@@ -639,6 +639,7 @@ mod tests {
 
     #[test]
     fn freezes_owned_default_legs_and_detects_a_stale_runtime_mirror() {
+        let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
         let temporary = tempfile::tempdir().unwrap();
         let catalog = Catalog::embedded().unwrap();
         let mut port = catalog.port("shipwright").unwrap().clone();

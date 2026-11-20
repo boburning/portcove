@@ -132,16 +132,6 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
-    #[cfg(all(test, windows))]
-    pub(crate) fn with_fixture_shipped_settings(
-        mut self,
-        captured: crate::game_settings::ShippedDefaultCapture,
-    ) -> Self {
-        self.shipped_settings_defaults = captured.defaults;
-        self.shipped_settings_capture_gaps = captured.gaps;
-        self
-    }
-
     pub(crate) fn with_shared_preferences(
         mut self,
         accepted: Option<crate::managed_shared_preferences::Acceptance>,
@@ -4192,6 +4182,30 @@ impl Installer {
         installs.sort_by(|left, right| left.install_id.cmp(&right.install_id));
         Ok(installs)
     }
+}
+
+/// Seal an inert, privately extracted ZIP fixture as an ordinary downloaded
+/// installation. External-tree adoption deliberately discards package defaults.
+#[cfg(all(test, windows))]
+pub(crate) fn write_downloaded_settings_fixture_manifest(
+    port: &PortDefinition,
+    version: &str,
+    artifact: &ArtifactIdentity,
+    mut qualification: InstallQualification,
+    root: &Path,
+) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+    let selected = resolve_declared_executable(root, &qualification)?;
+    let settings_root = qualification.persistence_root(root, &selected);
+    let captured = crate::game_settings::capture_shipped_settings(
+        port,
+        qualification.platform,
+        version,
+        &artifact.sha256,
+        &settings_root,
+    );
+    qualification.shipped_settings_defaults = captured.defaults;
+    qualification.shipped_settings_capture_gaps = captured.gaps;
+    write_manifest(version, &port.id, version, artifact, &qualification, root)
 }
 
 fn write_manifest(
