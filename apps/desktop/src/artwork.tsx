@@ -332,8 +332,8 @@ function useCatalogMediaChain(
     });
   }, [cache, key, candidate]);
   useEffect(() => {
-    if (visible && display.error) reject();
-  }, [visible, display.error, reject]);
+    if (visible && display.error && !display.image && !display.retrying) reject();
+  }, [visible, display.error, display.image, display.retrying, reject]);
   return { candidate, display, reject, exhausted: !candidate };
 }
 

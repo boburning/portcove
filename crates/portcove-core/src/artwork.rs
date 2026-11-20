@@ -1673,9 +1673,17 @@ pub(crate) fn publish_cache_file(
     ensure_parent(path)?;
     let pending = library.root().join("artwork-cache").join(pending_name);
     crate::path::refuse_symlink_ancestors(&pending)?;
-    if pending.exists() {
-        crate::path::read_bounded_regular(&pending, maximum_bytes)?;
-        fs::remove_file(&pending)?;
+    match fs::symlink_metadata(&pending) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+            fs::remove_file(&pending)?;
+        }
+        Ok(_) => {
+            return Err(PortcoveError::verification(
+                "unexpected artwork cache stage",
+            ));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
     }
     crate::artwork_ingestion::write_staged_file(&pending, bytes)?;
     tempfile::TempPath::try_from_path(pending)?
@@ -1724,13 +1732,45 @@ const MAX_RETRY_ALIASES: usize = 8;
 const MAX_IGDB_RETRY_MESSAGE: usize = 2048;
 
 type IgdbRequestKey = (PathBuf, String, String, String, Option<uuid::Uuid>);
-type IgdbRetries = BTreeMap<String, IgdbRetry>;
-type IgdbRequestState = Arc<Mutex<IgdbRetries>>;
+type IgdbRequestState = Arc<Mutex<RemoteArtworkFailures>>;
 
 #[derive(Debug)]
-pub(crate) struct IgdbRetry {
+struct ArtworkFailure {
     retry_at: Instant,
     message: String,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct RemoteArtworkFailures(BTreeMap<String, ArtworkFailure>);
+
+impl RemoteArtworkFailures {
+    pub(crate) fn current(&self, source: &str, now: Instant) -> Option<PortcoveError> {
+        let failure = self
+            .0
+            .get(source)
+            .filter(|failure| now < failure.retry_at)?;
+        Some(PortcoveError::network(failure.message.clone()).detail(ARTWORK_RETRY, "30"))
+    }
+
+    pub(crate) fn remember(&mut self, source: &str, error: &PortcoveError, now: Instant) {
+        if error.code != crate::ErrorCode::Network || error.message.len() > MAX_IGDB_RETRY_MESSAGE {
+            return;
+        }
+        self.0.retain(|_, entry| entry.retry_at > now);
+        if self.0.len() < MAX_RETRY_ALIASES {
+            self.0.insert(
+                source.into(),
+                ArtworkFailure {
+                    retry_at: now + IGDB_RETRY_DELAY,
+                    message: error.message.clone(),
+                },
+            );
+        }
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.0.clear();
+    }
 }
 
 #[derive(Default)]
@@ -1752,7 +1792,7 @@ impl IgdbRequests {
                 .ok_or_else(|| PortcoveError::conflict("cover retrieval is busy; retry shortly"))?;
             self.entries.remove(&idle);
         }
-        let state = Arc::new(Mutex::new(BTreeMap::new()));
+        let state = Arc::new(Mutex::new(RemoteArtworkFailures::default()));
         self.entries.insert(key, Arc::clone(&state));
         Ok(state)
     }
@@ -1775,6 +1815,11 @@ fn igdb_request_state(key: &IgdbRequestKey) -> Result<IgdbRequestState> {
 pub struct ArtworkCacheEpoch(Option<uuid::Uuid>);
 
 impl ArtworkCacheEpoch {
+    pub fn token(self) -> String {
+        self.0
+            .map_or_else(|| "initial".into(), |epoch| epoch.to_string())
+    }
+
     fn require_current(self, library: &Library) -> Result<()> {
         if self.0 == igdb_cache::cache_epoch(library)? {
             return Ok(());
@@ -1829,7 +1874,7 @@ impl RemoteArtworkRequest {
     pub(crate) fn lock(
         &self,
         allow_download: bool,
-    ) -> Result<std::sync::MutexGuard<'_, IgdbRetries>> {
+    ) -> Result<std::sync::MutexGuard<'_, RemoteArtworkFailures>> {
         let unavailable = || PortcoveError::state("artwork request state is unavailable");
         if allow_download {
             return self.state.lock().map_err(|_| unavailable());
@@ -1934,12 +1979,9 @@ pub(super) fn igdb_thumbnail_with_fetch(
     if !read.allow_download {
         return Err(artwork_cache_miss());
     }
-    if let Some(failure) = retry.get(&artwork.image_id)
-        && now() < failure.retry_at
-    {
-        return Err(PortcoveError::network(failure.message.clone()).detail(ARTWORK_RETRY, "30"));
+    if let Some(failure) = retry.current(&artwork.image_id, now()) {
+        return Err(failure);
     }
-    retry.remove(&artwork.image_id);
     let _permit = admit_image_work()?;
     let fetch_started = Instant::now();
     let fetched = fetch();
@@ -1957,17 +1999,7 @@ pub(super) fn igdb_thumbnail_with_fetch(
                 && failure.error.message.len() <= MAX_IGDB_RETRY_MESSAGE
                 && failure.error.details.is_empty()
             {
-                let failure_time = now();
-                retry.retain(|_, entry| entry.retry_at > failure_time);
-                if retry.len() < MAX_RETRY_ALIASES {
-                    retry.insert(
-                        artwork.image_id.clone(),
-                        IgdbRetry {
-                            retry_at: failure_time + IGDB_RETRY_DELAY,
-                            message: failure.error.message.clone(),
-                        },
-                    );
-                }
+                retry.remember(&artwork.image_id, &failure.error, now());
                 return Err(failure.error.detail(ARTWORK_RETRY, "30"));
             }
             return Err(failure.error);

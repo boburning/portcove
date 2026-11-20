@@ -282,6 +282,7 @@ async fn artwork_thumbnail_at_generation<F>(
     state: DesktopState,
     generation: u64,
     cache_only: bool,
+    cache_epoch: Option<String>,
     operation: F,
 ) -> DesktopResult<DesktopArtworkThumbnail>
 where
@@ -292,6 +293,12 @@ where
         .get_or_init(|| Arc::new(Semaphore::new(portcove_core::IGDB_ARTWORK_WORK_LIMIT)));
     let library = library_at_generation(&state, generation)?;
     let epoch = blocking_worker(move || library.artwork_cache_epoch().map_err(Into::into)).await?;
+    if cache_epoch.is_some_and(|expected| expected != epoch.token()) {
+        return Err(portcove_core::PortcoveError::conflict(
+            "the artwork cache was cleared during retrieval",
+        )
+        .into());
+    }
     let operation = Arc::new(operation);
     let cache_state = state.clone();
     let cached_operation = operation.clone();
@@ -304,6 +311,12 @@ where
     })
     .await;
     let thumbnail = match cached {
+        Err(mut error) if cache_only && error.details.contains_key(ARTWORK_CACHE_MISS) => {
+            error
+                .details
+                .insert("artwork_cache_epoch".into(), epoch.token());
+            return Err(error);
+        }
         Err(error) if !cache_only && error.details.contains_key(ARTWORK_CACHE_MISS) => {
             let download_state = state.clone();
             thumbnail_worker(remote_thumbnail_workers(), true, move || {
@@ -329,11 +342,13 @@ pub(crate) async fn get_artwork_thumbnail(
     expected_revision: u64,
     generation: u64,
     cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
     artwork_thumbnail_at_generation(
         state.inner().clone(),
         generation,
         cache_only.unwrap_or(false),
+        cache_epoch,
         move |service| service.artwork_thumbnail(&port_id, slot, expected_revision),
     )
     .await
@@ -347,11 +362,13 @@ pub(crate) async fn get_collection_cover_thumbnail(
     expected_revision: u64,
     generation: u64,
     cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
     artwork_thumbnail_at_generation(
         state.inner().clone(),
         generation,
         cache_only.unwrap_or(false),
+        cache_epoch,
         move |service| {
             service.collection_cover_thumbnail(&port_id, &expected_sha256, expected_revision)
         },
@@ -368,11 +385,13 @@ pub(crate) async fn get_companion_cover_thumbnail(
     expected_revision: u64,
     generation: u64,
     cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
     artwork_thumbnail_at_generation(
         state.inner().clone(),
         generation,
         cache_only.unwrap_or(false),
+        cache_epoch,
         move |service| {
             service.companion_cover_thumbnail(
                 &port_id,
@@ -393,11 +412,13 @@ pub(crate) async fn get_catalog_media_thumbnail(
     expected_sha256: String,
     generation: u64,
     cache_only: Option<bool>,
+    cache_epoch: Option<String>,
 ) -> DesktopResult<DesktopArtworkThumbnail> {
     artwork_thumbnail_at_generation(
         state.inner().clone(),
         generation,
         cache_only.unwrap_or(false),
+        cache_epoch,
         move |service| service.catalog_media_thumbnail(&port_id, &media_id, &expected_sha256),
     )
     .await

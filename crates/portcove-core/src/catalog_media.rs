@@ -401,7 +401,7 @@ fn thumbnail_with_fetch(
     let recipe = format!("{role}:{width}x{height}:{}x{}", asset.width, asset.height);
     let derivative = RemoteDerivative::new(library, &asset.sha256, &recipe)?;
     let request = RemoteArtworkRequest::begin(library, &asset.sha256, derivative.key(), read)?;
-    let _same_rendition = request.lock(read.allow_download)?;
+    let mut failures = request.lock(read.allow_download)?;
     request.require_current(library)?;
     let result = |png| ArtworkThumbnail {
         asset_sha256: asset.sha256.clone(),
@@ -442,11 +442,15 @@ fn thumbnail_with_fetch(
                 png
             };
             request.require_current(library)?;
+            failures.clear();
             return Ok(result(png));
         }
     }
     if !read.allow_download {
         return Err(crate::artwork::artwork_cache_miss());
+    }
+    if let Some(failure) = failures.current(&asset.url, std::time::Instant::now()) {
+        return Err(failure);
     }
     let _permit = admit_image_work()?;
     let started = std::time::Instant::now();
@@ -457,7 +461,12 @@ fn thumbnail_with_fetch(
         success = fetched.is_ok(),
         "Catalog image download"
     );
-    let original = fetched?;
+    let original = fetched.map_err(|error| {
+        if error.details.contains_key(crate::artwork::ARTWORK_RETRY) {
+            failures.remember(&asset.url, &error, std::time::Instant::now());
+        }
+        error
+    })?;
     verify_original(asset, &original)?;
     let png = convert(&original)?;
     let _guard = library.try_lock_artwork()?;
@@ -744,6 +753,23 @@ mod tests {
                 )
             },
         )
+    }
+
+    #[test]
+    fn media_requests_share_a_transient_failure_until_retry_is_due() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = Library::open(directory.path().join("library")).unwrap();
+        let image = asset();
+        let error = thumbnail_with_fetch(&library, &image, || {
+            Err(PortcoveError::network("temporary outage")
+                .detail(crate::artwork::ARTWORK_RETRY, "30"))
+        })
+        .unwrap_err();
+        let repeated = thumbnail_with_fetch(&library, &image, || {
+            panic!("the same media rendition is in backoff")
+        })
+        .unwrap_err();
+        assert_eq!(error.message, repeated.message);
     }
 
     #[test]

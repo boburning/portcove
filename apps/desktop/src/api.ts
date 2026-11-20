@@ -233,6 +233,7 @@ export const desktopApi = {
     expectedRevision: number,
     generation: number,
     cacheOnly = false,
+    cacheEpoch?: string,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_artwork_thumbnail", {
       portId,
@@ -240,6 +241,7 @@ export const desktopApi = {
       expectedRevision,
       generation,
       ...(cacheOnly ? { cacheOnly } : {}),
+      ...(cacheEpoch ? { cacheEpoch } : {}),
     }),
   collectionCoverThumbnail: (
     portId: string,
@@ -247,6 +249,7 @@ export const desktopApi = {
     expectedRevision: number,
     generation: number,
     cacheOnly = false,
+    cacheEpoch?: string,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_collection_cover_thumbnail", {
       portId,
@@ -254,6 +257,7 @@ export const desktopApi = {
       expectedRevision,
       generation,
       ...(cacheOnly ? { cacheOnly } : {}),
+      ...(cacheEpoch ? { cacheEpoch } : {}),
     }),
   companionCoverThumbnail: (
     portId: string,
@@ -262,6 +266,7 @@ export const desktopApi = {
     expectedRevision: number,
     generation: number,
     cacheOnly = false,
+    cacheEpoch?: string,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_companion_cover_thumbnail", {
       portId,
@@ -270,6 +275,7 @@ export const desktopApi = {
       expectedRevision,
       generation,
       ...(cacheOnly ? { cacheOnly } : {}),
+      ...(cacheEpoch ? { cacheEpoch } : {}),
     }),
   catalogMediaThumbnail: (
     portId: string,
@@ -277,6 +283,7 @@ export const desktopApi = {
     expectedSha256: string,
     generation: number,
     cacheOnly = false,
+    cacheEpoch?: string,
   ) =>
     invoke<DesktopArtworkThumbnail>("get_catalog_media_thumbnail", {
       portId,
@@ -284,6 +291,7 @@ export const desktopApi = {
       expectedSha256,
       generation,
       ...(cacheOnly ? { cacheOnly } : {}),
+      ...(cacheEpoch ? { cacheEpoch } : {}),
     }),
   steamGridDbKeyStatus: () => invoke<SteamGridDbKeyStatus>("get_steamgriddb_key_status"),
   /** Saves the player's own key in the OS secure store; it is never read back. */
