@@ -433,6 +433,59 @@ it("prefers the admitted header over automatic artwork and credits only the imag
   expect(document.querySelector(".media-credit")).toBeNull();
 });
 
+it("uses the saved Background crop for each hero's available width", async () => {
+  const port = portDefinition();
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => {
+    if (slot !== "detail") return artworkState(id, slot);
+    const selected = artworkState(id, slot, 3, true);
+    return {
+      ...selected,
+      choice: {
+        ...selected.choice,
+        framing: { version: "v1", wide: { x: 2000, y: 6500 }, narrow: { x: 9000, y: 4300 } },
+      },
+    };
+  });
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_id, _slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: headerPng,
+  }));
+
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <div style={{ width: 640 }}>
+        <GameHero port={port} variant="detail">
+          <h1>{port.name}</h1>
+        </GameHero>
+      </div>
+      <div style={{ width: 400 }}>
+        <GameHero port={port} variant="continue">
+          <button>Continue Sample</button>
+        </GameHero>
+      </div>
+    </ArtworkProvider>,
+  );
+  const background = (variant: "detail" | "continue") =>
+    document.querySelector<HTMLImageElement>(`.game-hero-${variant} .game-hero-background img`);
+  const position = (variant: "detail" | "continue") => {
+    const image = background(variant);
+    return image ? getComputedStyle(image).objectPosition : undefined;
+  };
+  await expect.poll(() => position("detail")).toBe("20% 65%");
+  await expect.poll(() => position("continue")).toBe("90% 43%");
+
+  const detail = background("detail")?.closest(".game-hero")?.parentElement;
+  const continuation = background("continue")?.closest(".game-hero")?.parentElement;
+  if (!detail || !continuation) throw new Error("Hero containers did not render");
+  detail.style.width = "400px";
+  continuation.style.width = "640px";
+  await expect.poll(() => position("detail")).toBe("90% 43%");
+  await expect.poll(() => position("continue")).toBe("20% 65%");
+  await expect.element(page.getByRole("button", { name: "Continue Sample" })).toBeVisible();
+});
+
 it("keeps a selected local header ahead of an admitted remote header and the automatic portrait", async () => {
   const header = { ...image("header"), role: "header" as const };
   const read = vi.spyOn(desktopApi, "catalogMediaThumbnail");

@@ -78,6 +78,7 @@
     min-block-size: 0;
   }
   .game-hero-background {
+    container: hero-background / inline-size;
     position: absolute;
     z-index: 0;
     inset: 0;
@@ -87,8 +88,13 @@
     inline-size: 100%;
     block-size: 100%;
     object-fit: cover;
-    object-position: center 35%;
+    object-position: var(--hero-background-wide-position, center 35%);
     mask: url("../assets/header-artwork-mask.svg") center / 100% 100% no-repeat;
+  }
+  @container hero-background (width <= 32rem) {
+    .game-hero-background img {
+      object-position: var(--hero-background-narrow-position, center 35%);
+    }
   }
   .game-hero-credits {
     position: relative;

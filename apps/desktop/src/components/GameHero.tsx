@@ -47,6 +47,18 @@ export function GameHero({
   const { element, visible } = useArtworkVisibility();
   const artworkVisible = visible && !compact;
   const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
+  const backgroundState = background.display.state;
+  const framing =
+    backgroundState?.resolved_source.kind === "local_import"
+      ? backgroundState.choice.framing
+      : undefined;
+  const backgroundPosition =
+    framing?.version === "v1"
+      ? ({
+          "--hero-background-wide-position": `${framing.wide.x / 100}% ${framing.wide.y / 100}%`,
+          "--hero-background-narrow-position": `${framing.narrow.x / 100}% ${framing.narrow.y / 100}%`,
+        } as CSSProperties)
+      : undefined;
   const collection = useCollectionCovers(port.id, cover, artworkVisible);
   const collectionElement = useRef<HTMLDivElement>(null);
   const [rejectedLogo, setRejectedLogo] = useState<string>();
@@ -131,7 +143,7 @@ export function GameHero({
       data-focus-group
     >
       {!compact && background.display.image && (
-        <div className="game-hero-background" aria-hidden="true">
+        <div className="game-hero-background" aria-hidden="true" style={backgroundPosition}>
           <img
             key={background.display.image}
             src={background.display.image}
