@@ -234,6 +234,10 @@ same observer records the dependency revision and checked runtime source blob.
 It compares the unconditional input and storage routines with reviewed source
 patterns that pad the ROM, normalize it to big-endian byte order and call XXH3.
 Unrelated runtime routines can change while those blocks stay the same. A
+matched runtime's nested canonical xxHash Gitlink and its checked header blobs
+record the hash source pinned by that revision. The observer reuses checked
+headers across releases that pin the same dependency. A missing header read
+leaves the previously checked runtime and game table available. A
 required binding needs evidence of the effective hash implementation and
 provenance linking the selected compiled asset to its source and dependencies.
 Unavailable runtime metadata can be retried without losing the checked game

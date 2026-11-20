@@ -6,6 +6,10 @@ export const n64RuntimeRepository = "N64Recomp/N64ModernRuntime";
 export const n64RuntimeRepositoryId = 802962241;
 export const n64RuntimeLinkPath = "lib/N64ModernRuntime";
 export const n64RuntimeInputPath = "librecomp/src/recomp.cpp";
+export const n64RuntimeHashRepository = "Cyan4973/xxHash";
+export const n64RuntimeHashRepositoryId = 19330466;
+export const n64RuntimeHashLinkPath = "thirdparty/xxHash";
+export const n64RuntimeHashHeaderPaths = ["xxh3.h", "xxhash.h"] as const;
 
 const gitSha = /^[a-f0-9]{40}$/u;
 const sha256 = /^[a-f0-9]{64}$/u;
@@ -83,10 +87,10 @@ function matchInputBlocks(fingerprint: string | null) {
   return fingerprint !== null && reviewedBlocks.has(fingerprint) ? inputBlockPattern : null;
 }
 
-export function n64RuntimeLinkRevision(value: unknown) {
+function gitlinkRevision(value: unknown, path: string, repository: string) {
   if (
     !isRecord(value) ||
-    value.path !== n64RuntimeLinkPath ||
+    value.path !== path ||
     typeof value.sha !== "string" ||
     !gitSha.test(value.sha)
   )
@@ -102,16 +106,81 @@ export function n64RuntimeLinkRevision(value: unknown) {
     return;
   if (
     !(
-      value.submodule_git_url === `https://github.com/${n64RuntimeRepository}` ||
-      value.submodule_git_url === `https://github.com/${n64RuntimeRepository}.git`
+      value.submodule_git_url === `https://github.com/${repository}` ||
+      value.submodule_git_url === `https://github.com/${repository}.git`
     )
   )
     return null;
+  if (value.git_url !== `https://api.github.com/repos/${repository}/git/trees/${value.sha}`) return;
+  return value.sha;
+}
+
+export function n64RuntimeLinkRevision(value: unknown) {
+  return gitlinkRevision(value, n64RuntimeLinkPath, n64RuntimeRepository);
+}
+
+export function n64RuntimeHashLinkRevision(value: unknown) {
+  return gitlinkRevision(value, n64RuntimeHashLinkPath, n64RuntimeHashRepository);
+}
+
+type N64RuntimeHashHeader = {
+  source_path: (typeof n64RuntimeHashHeaderPaths)[number];
+  source_blob_sha1: string;
+  source_sha256: string;
+};
+
+export type N64RuntimeHashSourceObservation =
+  | {
+      state: "observed";
+      repository: typeof n64RuntimeHashRepository;
+      repository_id: typeof n64RuntimeHashRepositoryId;
+      revision: string;
+      headers: N64RuntimeHashHeader[];
+    }
+  | { state: "unsupported-gitlink" }
+  | { state: "unavailable" };
+
+function readN64RuntimeHashSourceObservation(
+  value: unknown,
+): N64RuntimeHashSourceObservation | undefined {
+  if (!isRecord(value)) return;
+  if (value.state === "unavailable" || value.state === "unsupported-gitlink")
+    return { state: value.state };
   if (
-    value.git_url !== `https://api.github.com/repos/${n64RuntimeRepository}/git/trees/${value.sha}`
+    value.state !== "observed" ||
+    value.repository !== n64RuntimeHashRepository ||
+    value.repository_id !== n64RuntimeHashRepositoryId ||
+    typeof value.revision !== "string" ||
+    !gitSha.test(value.revision) ||
+    !Array.isArray(value.headers) ||
+    value.headers.length !== n64RuntimeHashHeaderPaths.length
   )
     return;
-  return value.sha;
+  const headers: N64RuntimeHashHeader[] = [];
+  for (const [index, path] of n64RuntimeHashHeaderPaths.entries()) {
+    const header: unknown = value.headers[index];
+    if (
+      !isRecord(header) ||
+      header.source_path !== path ||
+      typeof header.source_blob_sha1 !== "string" ||
+      !gitSha.test(header.source_blob_sha1) ||
+      typeof header.source_sha256 !== "string" ||
+      !sha256.test(header.source_sha256)
+    )
+      return;
+    headers.push({
+      source_path: path,
+      source_blob_sha1: header.source_blob_sha1,
+      source_sha256: header.source_sha256,
+    });
+  }
+  return {
+    state: "observed",
+    repository: n64RuntimeHashRepository,
+    repository_id: n64RuntimeHashRepositoryId,
+    revision: value.revision,
+    headers,
+  };
 }
 
 interface N64RuntimeSourceEvidence {
@@ -123,6 +192,7 @@ interface N64RuntimeSourceEvidence {
   source_sha256: string;
   input_blocks_sha256: string | null;
   matched_input_blocks: typeof inputBlockPattern | null;
+  hash_source?: N64RuntimeHashSourceObservation;
 }
 
 export type N64RuntimeSourceObservation =
@@ -173,6 +243,7 @@ export function readN64RuntimeSourceObservation(
     source.matched_input_blocks !== matchInputBlocks(source.input_blocks_sha256)
   )
     return;
+  const hashSource = readN64RuntimeHashSourceObservation(source.hash_source);
   return {
     state: "observed",
     source: {
@@ -184,6 +255,7 @@ export function readN64RuntimeSourceObservation(
       source_sha256: source.source_sha256,
       input_blocks_sha256: source.input_blocks_sha256,
       matched_input_blocks: matchInputBlocks(source.input_blocks_sha256),
+      ...(hashSource ? { hash_source: hashSource } : {}),
     },
   };
 }

@@ -8,6 +8,9 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import {
+  n64RuntimeHashLinkPath,
+  n64RuntimeHashRepository,
+  n64RuntimeHashRepositoryId,
   n64RuntimeInputPath,
   n64RuntimeLinkPath,
   n64RuntimeRepository,
@@ -16,6 +19,7 @@ import {
 } from "./upstream-n64-runtime-input.mts";
 import {
   n64RuntimeSourceCache,
+  observeN64RuntimeHashSource,
   observeN64RuntimeSource,
 } from "./upstream-original-recognition.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
@@ -2405,6 +2409,34 @@ void test("N64 runtime reads bind the pinned canonical gitlink and checked blob"
   };
   const recognized = { state: "observed", source: recognizedSource };
   assert.deepEqual(readN64RuntimeSourceObservation(recognized), recognized);
+  const dependencyFixture = {
+    ...recognizedSource,
+    hash_source: {
+      state: "observed",
+      repository: n64RuntimeHashRepository,
+      repository_id: n64RuntimeHashRepositoryId,
+      revision: "1".repeat(40),
+      headers: ["xxh3.h", "xxhash.h"].map((source_path) => ({
+        source_path,
+        source_blob_sha1: "2".repeat(40),
+        source_sha256: "3".repeat(64),
+      })),
+    },
+  };
+  assert.deepEqual(readN64RuntimeSourceObservation({ ...recognized, source: dependencyFixture }), {
+    ...recognized,
+    source: dependencyFixture,
+  });
+  assert.deepEqual(
+    readN64RuntimeSourceObservation({
+      ...recognized,
+      source: {
+        ...dependencyFixture,
+        hash_source: { ...dependencyFixture.hash_source, headers: [] },
+      },
+    }),
+    recognized,
+  );
   assert.equal(
     readN64RuntimeSourceObservation({
       ...recognized,
@@ -2484,4 +2516,61 @@ void test("N64 runtime reads bind the pinned canonical gitlink and checked blob"
   assert.deepEqual(await observeN64RuntimeSource(fact, read, n64RuntimeSourceCache()), {
     state: "unsupported-gitlink",
   });
+});
+
+void test("N64 runtime hash-source observer verifies canonical headers before retaining a dependency", async () => {
+  const runtime = "a".repeat(40);
+  const dependency = "b".repeat(40);
+  const link = {
+    path: n64RuntimeHashLinkPath,
+    type: "submodule",
+    sha: dependency,
+    git_url:
+      "https://api.github.com/repos/" + n64RuntimeHashRepository + "/git/trees/" + dependency,
+    submodule_git_url: "https://github.com/" + n64RuntimeHashRepository + ".git",
+  };
+  const wrapper = n64RuntimeFixtureBlob("xxh3.h", "inline header");
+  const implementation = n64RuntimeFixtureBlob("xxhash.h", "/".repeat(300 * 1024));
+  let returnedImplementation = { ...implementation, sha: "e".repeat(40) };
+  let returnedLink = link;
+  const requests: string[] = [];
+  const read = async (endpoint: string) => {
+    requests.push(endpoint);
+    if (endpoint.startsWith("/repos/" + n64RuntimeRepository + "/contents/")) {
+      assert.match(endpoint, /\/thirdparty\/xxHash\?ref=[a-f0-9]{40}$/u);
+      return returnedLink;
+    }
+    const hashRepo = "/repos/" + n64RuntimeHashRepository;
+    if (endpoint === hashRepo) {
+      return { id: n64RuntimeHashRepositoryId, full_name: n64RuntimeHashRepository };
+    }
+    if (endpoint === hashRepo + "/contents/xxh3.h?ref=" + dependency) return wrapper;
+    assert.equal(endpoint, hashRepo + "/contents/xxhash.h?ref=" + dependency);
+    return returnedImplementation;
+  };
+  const cache = n64RuntimeSourceCache();
+  await assert.rejects(observeN64RuntimeHashSource(runtime, read, cache), /Git object/);
+  returnedImplementation = implementation;
+  const source = await observeN64RuntimeHashSource(runtime, read, cache);
+  assert.ok(source.state === "observed");
+  assert.equal(source.revision, dependency);
+  assert.deepEqual(
+    source.headers.map((header) => header.source_blob_sha1),
+    [wrapper.sha, implementation.sha],
+  );
+  assert.equal(requests.length, 6);
+  assert.deepEqual(await observeN64RuntimeHashSource("c".repeat(40), read, cache), source);
+  assert.equal(requests.length, 7);
+  returnedLink = { ...link, submodule_git_url: "https://github.com/fixture/alternate" };
+  assert.deepEqual(await observeN64RuntimeHashSource("d".repeat(40), read, cache), {
+    state: "unsupported-gitlink",
+  });
+  assert.equal(requests.length, 8);
+  returnedLink = { ...link, git_url: "" };
+  assert.deepEqual(await observeN64RuntimeHashSource("e".repeat(40), read, cache), {
+    state: "unavailable",
+  });
+  returnedLink = link;
+  assert.deepEqual(await observeN64RuntimeHashSource("e".repeat(40), read, cache), source);
+  assert.equal(requests.length, 10);
 });
