@@ -18,14 +18,15 @@ function reviewedRoute(record: AuthoredPort) {
   const hints = integration?.executable_hints;
   const presentation = integration?.presentation;
   const layouts = integration?.reviewed_package_layouts;
+  const repository = record.upstream_lineage?.origin?.repository;
   if (
     !player ||
     integration?.adapter !== "native-portable" ||
     JSON.stringify(integration.channels) !== '["stable"]' ||
     JSON.stringify(integration.platforms) !== JSON.stringify([windows, linux]) ||
     integration.source_profile !== undefined ||
-    record.upstream_lineage?.origin.repository?.host !== "github.com" ||
-    record.upstream_lineage.origin.repository.id !== repositoryId ||
+    repository?.host !== "github.com" ||
+    repository.id !== repositoryId ||
     !isRecord(release) ||
     release.repository !== `elyosh/${player}` ||
     record.listing.project_url !== `https://github.com/${release.repository}` ||

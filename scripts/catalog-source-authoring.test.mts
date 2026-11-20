@@ -2152,6 +2152,10 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
     otherIdentity.upstream_lineage!.origin.repository!.id = "1";
     assert.throws(() => checkedAuthoredPort(otherIdentity), /reviewed OpenXW or OpenXvT/u);
 
+    const missingOrigin = structuredClone(record);
+    Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /reviewed OpenXW or OpenXvT/u);
+
     const duplicate = structuredClone(record);
     duplicate.integration!.persistent_paths = [];
     assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
