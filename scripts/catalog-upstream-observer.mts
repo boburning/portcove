@@ -517,16 +517,27 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) =>
-    observationHash({
+  const scopeBinding = (source: ObservableSource) => {
+    const provider = source.provider ?? "github";
+    if (source.ports.every((port) => port.kind === "listing")) {
+      // The declaration scope already binds the exact descriptive projector.
+      return observationHash({
+        contract: "normalized-current-catalog-listing-policy-v1",
+        source: source.key,
+        provider,
+        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+        scope: source.scope_sha256,
+        stale_after_hours: template.stale_after_hours,
+      });
+    }
+    return observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
-      ...((source.provider ?? "github") !== "github"
-        ? { provider_proof: "explicit-page-coverage-v2" }
-        : {}),
+      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
       definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
     });
+  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;

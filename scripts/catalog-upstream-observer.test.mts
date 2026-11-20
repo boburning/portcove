@@ -3062,6 +3062,115 @@ void test("descriptive consumers share one repository collection without managed
   assert.equal(h.network.filter((url) => url === "identity:owner/shared").length, 1);
 });
 
+void test("Core rebuilds retain pure listing completion and invalidate exact managed and mixed scopes", async () => {
+  const h = harness();
+  const catalog = {
+    ...h.input,
+    listings: [
+      { id: "pure-description", project_url: "https://github.com/owner/pure" },
+      { id: "mixed-description", project_url: "https://github.com/owner/shared" },
+    ],
+  };
+  const sources = catalogObservationSources(catalog).sources;
+  const pure = sources.find((source) => source.repository === "owner/pure")!;
+  const managed = sources.filter((source) => source.key !== pure.key);
+  const originalFetch = h.options.fetch!;
+  h.options.fetch = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith("/owner/pure")) {
+      return Response.json({ id: 8, full_name: "owner/pure", archived: false });
+    }
+    return originalFetch(input, init);
+  };
+  const previousBinding = (source: (typeof sources)[number], policy = h.options.policyIdentity) =>
+    observationHash({
+      contract: "normalized-current-catalog-core-policy-v1",
+      policy,
+      scope: source.scope_sha256,
+      definitions: source.ports.map((port) => [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : h.options.definitionHash(port.id),
+      ]),
+    });
+  const first = await advanceCatalogObservations(catalog, null, h.options);
+  assert.deepEqual(first.report.failures, []);
+  for (const source of managed) {
+    assert.equal(
+      first.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source),
+    );
+  }
+  const pureProgress = first.checkpoint.sources[pure.key]!;
+  assert.ok(pureProgress.completed_scope_sha256);
+  assert.equal(
+    pureProgress.last_complete_policies[0]!.authority,
+    "descriptive-listing-observation-only",
+  );
+  assert.deepEqual(pureProgress.last_complete_policies[0]!.projections, []);
+
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    requestLimit: 0,
+  });
+  assert.deepEqual(rebuilt.report.failures, []);
+  assert.equal(rebuilt.report.requests, 0);
+  assert.deepEqual(
+    rebuilt.report.attempted_source_keys.toSorted(),
+    managed.map(({ key }) => key).toSorted(),
+  );
+  assert.deepEqual(rebuilt.checkpoint.sources[pure.key], pureProgress);
+  for (const source of managed) {
+    assert.equal(
+      rebuilt.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source, "b".repeat(64)),
+    );
+  }
+
+  const legacy = structuredClone(first.checkpoint);
+  legacy.sources[pure.key]!.completed_scope_sha256 = previousBinding(pure);
+  const deferred = await advanceCatalogObservations(catalog, legacy, {
+    ...h.options,
+    excludedSources: new Set(sources.map(({ key }) => key)),
+  });
+  assert.equal(
+    deferred.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+  const reprojected = await advanceCatalogObservations(catalog, deferred.checkpoint, {
+    ...h.options,
+    requestLimit: 0,
+  });
+  assert.deepEqual(reprojected.report.failures, []);
+  assert.deepEqual(reprojected.report.completed_source_keys, [pure.key]);
+  assert.equal(reprojected.report.requests, 0);
+  assert.equal(
+    reprojected.checkpoint.sources[pure.key]!.completed_scope_sha256,
+    pureProgress.completed_scope_sha256,
+  );
+  assert.equal(
+    reprojected.checkpoint.sources[pure.key]!.freshness_observed_at,
+    pureProgress.freshness_observed_at,
+  );
+  assert.equal(
+    reprojected.checkpoint.sources[pure.key]!.last_complete_facts_sha256,
+    pureProgress.last_complete_facts_sha256,
+  );
+
+  const revised = await advanceCatalogObservations(catalog, reprojected.checkpoint, {
+    ...h.options,
+    config: { ...h.options.config, stale_after_hours: 24 },
+    excludedSources: new Set([pure.key]),
+  });
+  assert.equal(
+    revised.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+});
+
 void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
   const { projectListingObservation, listingDeclarationHash } =
     await import("./listing-upstream-observation.mts");
@@ -3348,7 +3457,7 @@ void test("GitLab descriptive listings reuse the provider collector and export n
   const catalog = { ports: [], listings: [listing] };
   const calls: string[] = [];
   let exported: unknown[] = [];
-  const result = await advanceCatalogObservations(catalog, null, {
+  const options: CatalogObservationOptions = {
     ...h.options,
     projectProvider: async () => {
       throw new Error("Descriptive listing must never enter managed Core policy");
@@ -3392,7 +3501,8 @@ void test("GitLab descriptive listings reuse the provider collector and export n
     exportProvider: async (_source, _observations, policies) => {
       exported = policies;
     },
-  });
+  };
+  const result = await advanceCatalogObservations(catalog, null, options);
   assert.deepEqual(result.report.failures, []);
   assert.equal(result.report.completed_source_keys.length, 1);
   assert.equal(calls.length, 4);
@@ -3420,6 +3530,16 @@ void test("GitLab descriptive listings reuse the provider collector and export n
       url: "https://gitlab.com/api/v4/projects/27/packages/generic/game/1.2.0/game-windows-x64.zip",
     },
   ]);
+  const key = result.report.completed_source_keys[0]!;
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, result.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.equal(calls.length, 4);
+  assert.deepEqual(rebuilt.report.attempted_source_keys, []);
+  assert.deepEqual(rebuilt.checkpoint.sources[key], result.checkpoint.sources[key]);
+  assert.equal(rebuilt.report.source_statuses[0]!.current_scope_complete, true);
 });
 
 void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
