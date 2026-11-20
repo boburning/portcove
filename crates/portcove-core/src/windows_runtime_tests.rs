@@ -4,13 +4,13 @@ use std::path::Path;
 
 use super::*;
 
-const X64: u16 = 0x8664;
-const X86: u16 = 0x014c;
+pub(crate) const X64: u16 = 0x8664;
+pub(crate) const X86: u16 = 0x014c;
 const SECTION_ADDRESS: u32 = 0x1000;
 const SECTION_OFFSET: usize = 0x200;
 
 /// A minimal PE image whose single section holds the import table and names.
-fn pe(machine: u16, imports: &[&str]) -> Vec<u8> {
+pub(crate) fn pe(machine: u16, imports: &[&str]) -> Vec<u8> {
     let plus = machine != X86;
     let optional_size: usize = if plus { 240 } else { 224 };
     let mut image = vec![0_u8; SECTION_OFFSET];
@@ -21,6 +21,7 @@ fn pe(machine: u16, imports: &[&str]) -> Vec<u8> {
     image[coff..coff + 2].copy_from_slice(&machine.to_le_bytes());
     image[coff + 2..coff + 4].copy_from_slice(&1_u16.to_le_bytes());
     image[coff + 16..coff + 18].copy_from_slice(&(optional_size as u16).to_le_bytes());
+    image[coff + 18..coff + 20].copy_from_slice(&0x0002_u16.to_le_bytes());
     let optional = coff + 20;
     image[optional..optional + 2]
         .copy_from_slice(&(if plus { 0x20b_u16 } else { 0x10b }).to_le_bytes());
@@ -99,6 +100,25 @@ fn imports(path: &Path) -> (Option<WindowsArchitecture>, Vec<String>) {
     match read_program(path).unwrap() {
         ProgramImage::Windows(image) => (image.architecture, image.imports.into_iter().collect()),
         ProgramImage::NotWindows => panic!("expected a Windows program"),
+    }
+}
+
+#[test]
+fn explicit_package_requires_an_x64_pe32_plus_executable_image() {
+    let mut dll = pe(X64, &[]);
+    dll[0x56..0x58].copy_from_slice(&0x2002_u16.to_le_bytes());
+    let mut mismatched = pe(X86, &[]);
+    mismatched[0x44..0x46].copy_from_slice(&X64.to_le_bytes());
+    let folder = game(&[
+        ("native.exe", pe(X64, &[])),
+        ("legacy.exe", pe(X86, &[])),
+        ("wrong-format.exe", mismatched),
+        ("library.exe", dll),
+        ("text.exe", b"MZ truncated".to_vec()),
+    ]);
+    assert!(is_x64_windows_program(&folder.path().join("native.exe")));
+    for name in ["legacy.exe", "wrong-format.exe", "library.exe", "text.exe"] {
+        assert!(!is_x64_windows_program(&folder.path().join(name)), "{name}");
     }
 }
 

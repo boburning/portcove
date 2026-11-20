@@ -22,6 +22,15 @@ impl ProjectionDocument {
             ));
         }
         let catalog = Catalog::from_json(&catalog_json)?;
+        if catalog
+            .ports()
+            .iter()
+            .any(|port| port.release.reviewed_package_choices_v2.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "indexed catalog projections cannot deliver reviewed package choices",
+            ));
+        }
         for port in catalog.ports() {
             if port.upstream_active_reviewed && self.contract_schema != 2 {
                 return Err(PortcoveError::unsupported(

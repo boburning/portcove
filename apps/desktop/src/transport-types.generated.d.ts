@@ -2832,6 +2832,7 @@ export interface ReleaseSpec {
   };
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
+  reviewed_package_choices_v2?: ReviewedPackageChoicesV2 | null;
   rolling_tag: string | null;
   /**
    * GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
@@ -2891,6 +2892,17 @@ export interface DirectReleaseSpec {
   url: string;
   version: string;
   [k: string]: unknown;
+}
+/**
+ * Reviewed same-target Windows ZIP families. The GitHub tag commit fills the
+ * seven-hex filename slot between the numeric release and the chosen suffix.
+ */
+export interface ReviewedPackageChoicesV2 {
+  choices: {
+    [k: string]: string;
+  };
+  prefix: string;
+  repository_id: number;
 }
 export interface UserPreparedRuntimeSpec {
   archive_name: string;
@@ -4197,6 +4209,7 @@ export interface SourceDiscoveryIssue {
  * Exact registered-input review for the first managed installation.
  */
 export interface GameInstallPlan {
+  package_choice?: string | null;
   plan: InstallPlan;
   plan_sha256: string;
   /**

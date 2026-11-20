@@ -397,6 +397,35 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   assert.equal(accepted.stdout.trim().split("\n").length, 3);
 });
 
+void test("legacy signer refuses reviewed package choices before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  for (const declaration of [
+    {
+      repository_id: 42,
+      prefix: "fixture_",
+      choices: {
+        "mingw64-cross": "_win-mingw64-cross.zip",
+        "msvc64-142": "_win-msvc64-142.zip",
+      },
+    },
+    null,
+  ]) {
+    writeFileSync(
+      item.catalog,
+      JSON.stringify({ ports: [{ release: { reviewed_package_choices_v2: declaration } }] }),
+    );
+    const result = item.run();
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Format-1 signed catalogs cannot deliver reviewed package choices/u,
+    );
+    assert.equal(existsSync(item.output), false);
+  }
+});
+
 void test("legacy signer refuses a mod provider withdrawal before key access", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
