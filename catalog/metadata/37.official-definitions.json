@@ -1,0 +1,58 @@
+{
+  "signatures": [
+    {
+      "keyid": "25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059",
+      "sig": "b91720b49ca75a1b5689ad40233543c1873baccbbedf07843cd5e81a57345896c48b9c4c8f0f6d324efc3134a05e3a71229aee0794bd6cd5937fc4c4f8754305"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "expires": "2026-11-27T11:32:41.282Z",
+    "spec_version": "1.0.0",
+    "targets": {
+      "definitions/index.json": {
+        "hashes": {
+          "sha256": "59329fae59cb0018a24a3e6197ac8ea66ff17e775d858e5c6af7cb9b43c2e425"
+        },
+        "length": 2008
+      },
+      "sha256/43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60.json": {
+        "hashes": {
+          "sha256": "43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60"
+        },
+        "length": 3563
+      },
+      "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json": {
+        "hashes": {
+          "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4"
+        },
+        "length": 5318
+      },
+      "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json": {
+        "hashes": {
+          "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d"
+        },
+        "length": 8325
+      },
+      "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json": {
+        "hashes": {
+          "sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28"
+        },
+        "length": 11074
+      },
+      "sha256/f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0.json": {
+        "hashes": {
+          "sha256": "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0"
+        },
+        "length": 11363
+      },
+      "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json": {
+        "hashes": {
+          "sha256": "ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f"
+        },
+        "length": 3613
+      }
+    },
+    "version": 37
+  }
+}
