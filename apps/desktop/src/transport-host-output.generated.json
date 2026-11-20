@@ -9780,12 +9780,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
-        "type": "string",
         "enum": [
           "logo",
           "artwork",
           "screenshot"
-        ]
+        ],
+        "type": "string"
       },
       "ListingAvailability": {
         "description": "A dated discovery fact, not a managed support or artifact admission decision.",
@@ -22494,12 +22494,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
-        "type": "string",
         "enum": [
           "logo",
           "artwork",
           "screenshot"
-        ]
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
