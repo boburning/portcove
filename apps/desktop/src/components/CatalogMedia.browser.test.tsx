@@ -151,11 +151,14 @@ it("lets players browse reviewed releases without an applicable installed editio
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 844);
   try {
-    const galleryView = await render(
-      <ArtworkProvider generation={7} listings={directory(media)}>
-        <CatalogMediaGallery port={port} />
-      </ArtworkProvider>,
+    const view = (images: typeof media, id = port.id) => (
+      <ArtworkProvider generation={7} listings={directory(images)}>
+        <CatalogMediaGallery
+          port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+        />
+      </ArtworkProvider>
     );
+    const galleryView = await render(view(media));
     const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
     const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
     await expect.element(picker).toHaveTextContent("Choose an original release");
@@ -177,19 +180,36 @@ it("lets players browse reviewed releases without an applicable installed editio
 
     await picker.click();
     await page.getByRole("option", { name: euTitle, exact: true }).click();
-    await expect
-      .element(gallery.getByRole("button", { name: /Enlarge screenshot 1: European/ }))
-      .toBeEnabled();
+    const european = gallery.getByRole("button", { name: /Enlarge screenshot 1: European/ });
+    await expect.element(european).toBeEnabled();
     await expect.element(thumbnail).not.toBeInTheDocument();
     expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
 
-    await galleryView.rerender(
-      <ArtworkProvider generation={7} listings={directory(media)}>
-        <CatalogMediaGallery port={{ ...port, id: "another-port" }} />
-      </ArtworkProvider>,
-    );
+    await european.click();
+    const europeanViewer = page.getByRole("dialog", { name: "European scene" });
+    await expect.element(europeanViewer).toBeVisible();
+    const changed = [us, { ...eu, sha256: "c".repeat(64) }, foreign];
+    await galleryView.rerender(view(changed));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
+    await expect.element(european).toBeEnabled();
+
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    await galleryView.rerender(view([us, foreign]));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
     await expect.element(picker).toHaveTextContent("Choose an original release");
-    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+    await galleryView.rerender(view(changed));
+    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(european).not.toBeInTheDocument();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
+    await galleryView.rerender(view(changed, "another-port"));
+    await expect.element(picker).toHaveTextContent("Choose an original release");
   } finally {
     await page.viewport(viewport.width, viewport.height);
   }
@@ -349,7 +369,7 @@ it("shows source and edition attribution, navigates previews and returns focus t
     description.getBoundingClientRect().top,
   );
   await expect
-    .element(page.getByRole("dialog").getByText(/Original release · usa-v1/))
+    .element(page.getByRole("dialog").getByText(/Original release · US release/))
     .toBeVisible();
   await expect
     .element(page.getByRole("dialog").getByRole("link", { name: "CC0-1.0", exact: true }))

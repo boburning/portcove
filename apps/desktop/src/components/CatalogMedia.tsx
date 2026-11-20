@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, Expand } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useArtworkVisibility, useCatalogMedia } from "../artwork";
 import { useAppTranslation } from "../localization";
@@ -203,6 +203,10 @@ export function CatalogMediaGallery({
 
 const defaultScreenshotSource = "available";
 
+function screenshotKey({ id, sha256 }: CatalogMediaAsset) {
+  return `${id}:${sha256}`;
+}
+
 function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: HeroMediaContext }) {
   const { t } = useAppTranslation("browsing");
   const portId = port.id;
@@ -218,21 +222,29 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
   const [selected, setSelected] = useState<string>();
   const origin = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const index = shots.findIndex((asset) => asset.id === selected);
+  const galleryHeading = useRef<HTMLHeadingElement>(null);
+  const pickerId = useId();
+  const index = shots.findIndex((asset) => screenshotKey(asset) === selected);
   const active = shots[index];
+  // A catalog refresh can withdraw a release or replace an image under the same ID.
+  if (!edition && source !== defaultScreenshotSource) setSource(defaultScreenshotSource);
+  if (selected && !active) setSelected(undefined);
   if (!shots.length && !editions.length) return null;
   const change = (delta: number) =>
-    setSelected(shots[(index + delta + shots.length) % shots.length]!.id);
+    setSelected(screenshotKey(shots[(index + delta + shots.length) % shots.length]!));
   return (
     <section
       className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
       aria-label={t("media.screenshots")}
     >
-      <h3 className="mb-4 text-base">{t("media.screenshots")}</h3>
+      <h3 ref={galleryHeading} tabIndex={-1} className="mb-4 text-base">
+        {t("media.screenshots")}
+      </h3>
       {editions.length > 0 && (
         <div className="mb-4">
           <ChoiceSelect
             label={t("media.screenshotSource")}
+            triggerId={pickerId}
             value={edition ? source : defaultScreenshotSource}
             options={[
               {
@@ -250,13 +262,13 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
       <div className="media-gallery-grid grid gap-4">
         {shots.map((asset, position) => (
           <Screenshot
-            key={`${asset.id}:${asset.sha256}`}
+            key={screenshotKey(asset)}
             port={port}
             media={asset}
             index={position}
             onOpen={(element) => {
               origin.current = element;
-              setSelected(asset.id);
+              setSelected(screenshotKey(asset));
             }}
           />
         ))}
@@ -273,7 +285,7 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
           finalFocus={() =>
             origin.current?.isConnected && !origin.current.closest("[hidden], [inert]")
               ? origin.current
-              : undefined
+              : (document.getElementById(pickerId) ?? galleryHeading.current ?? undefined)
           }
           onKeyDown={(event) => {
             if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
@@ -300,12 +312,12 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
               <div className="media-filmstrip" role="group" aria-label={t("media.choose")}>
                 {shots.map((asset, position) => (
                   <ScreenshotChoice
-                    key={`${asset.id}:${asset.sha256}`}
+                    key={screenshotKey(asset)}
                     portId={portId}
                     media={asset}
                     index={position}
                     selected={position === index}
-                    onSelect={() => setSelected(asset.id)}
+                    onSelect={() => setSelected(screenshotKey(asset))}
                   />
                 ))}
               </div>
