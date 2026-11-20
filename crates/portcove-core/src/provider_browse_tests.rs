@@ -49,6 +49,7 @@ async fn browsing_lists_a_bound_games_mods_and_names_files_to_plan() {
         .unwrap();
     server.join().unwrap();
     assert_eq!(view.project.files[0].file_id, "10");
+    assert_eq!(view.eligible_file_ids, Some(vec!["10".into()]));
     let first = requests.recv().unwrap();
     assert!(
         first.contains("Generic_Game%5D=777") || first.contains("Generic_Game]=777"),

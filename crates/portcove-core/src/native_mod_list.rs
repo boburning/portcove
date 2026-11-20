@@ -25,7 +25,11 @@ use std::{fs, path::Path};
 
 use serde_json::Value;
 
-use crate::{PortcoveError, Result, game_settings::document};
+use crate::{
+    PortcoveError, Result,
+    game_settings::document,
+    profile_loader::{ModEngine, legacy_loader},
+};
 
 const SEPARATOR: char = '|';
 const MAX_CONFIG_BYTES: u64 = 4 * 1024 * 1024;
@@ -41,22 +45,6 @@ pub(crate) struct NativeListContract {
     pub key: &'static [&'static str],
 }
 
-pub(crate) fn contract(port_id: &str) -> Option<NativeListContract> {
-    match port_id {
-        "shipwright" => Some(NativeListContract {
-            config: "shipofharkinian.json",
-            key: &["CVars", "gSettings", "EnabledMods"],
-        }),
-        // The generic fixture port used by tests declares the same contract.
-        #[cfg(test)]
-        "starship" => Some(NativeListContract {
-            config: "starship.cfg.json",
-            key: &["CVars", "gSettings", "EnabledMods"],
-        }),
-        _ => None,
-    }
-}
-
 /// Which native list a reviewed loader keeps its enabled mods and order in.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum LoaderList {
@@ -70,10 +58,7 @@ pub(crate) enum LoaderList {
 
 /// The Recomp game ID a reviewed port's runtime loads mods for.
 pub(crate) fn recomp_game(port_id: &str) -> Option<&'static str> {
-    match port_id {
-        "zelda64-recomp" => Some("mm"),
-        _ => None,
-    }
+    legacy_loader(port_id)?.native_game
 }
 
 /// Mods the runtime builds into its executable for a game (Zelda64Recomp
@@ -86,10 +71,14 @@ pub(crate) fn recomp_builtins(game: &str) -> &'static [&'static str] {
 }
 
 pub(crate) fn loader_list(port_id: &str) -> Option<LoaderList> {
-    if let Some(contract) = contract(port_id) {
-        return Some(LoaderList::Ship(contract));
-    }
-    recomp_game(port_id).map(|_| LoaderList::Recomp)
+    let loader = legacy_loader(port_id)?;
+    Some(match loader.engine {
+        ModEngine::Libultraship => LoaderList::Ship(NativeListContract {
+            config: loader.settings_file,
+            key: &["CVars", "gSettings", "EnabledMods"],
+        }),
+        ModEngine::N64Recomp => LoaderList::Recomp,
+    })
 }
 
 /// The loader's identity for a package file: its name without the last extension.
