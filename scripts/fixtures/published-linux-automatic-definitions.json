@@ -1,4 +1,18 @@
 {
   "schema_version": 2,
-  "expectation": null
+  "expectation": {
+    "release_version": "0.1.0-preview.11",
+    "root_sha256": "743432a536ad25ba6f9544b0ce4e62c79fd941e84c722e22a79a4b315d55d849",
+    "index_sha256": "95a069b9d590919b1c4666406bdb864c10c763ef0abd53f57c561bacd381a0e3",
+    "requested": {
+      "stable_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "definition_revision": 1,
+      "entry_sha256": "7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4"
+    },
+    "coexisting": {
+      "stable_id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "definition_revision": 1,
+      "entry_sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28"
+    }
+  }
 }
