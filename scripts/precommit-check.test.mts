@@ -42,7 +42,11 @@ void test("staged checks preserve declared exact-byte inputs while retaining lin
     "scripts/fixtures/release-resource-baseline-20261103-other/file.json",
   ])
     assert.deepEqual(stagedVitePlusChecks([nearMiss], root), [["check", "--fix", "--", nearMiss]]);
-  for (const file of ["vendor/rfd/source.rs", "release/bootstrap-public-inputs/input.json"])
+  for (const file of [
+    "vendor/rfd/source.rs",
+    "release/bootstrap-public-inputs/input.json",
+    "release/catalog-publication/bundle/sha256/definition.json",
+  ])
     assert.deepEqual(stagedVitePlusChecks([file], root), [
       ["check", "--fix", "--no-fmt", "--", file],
     ]);
