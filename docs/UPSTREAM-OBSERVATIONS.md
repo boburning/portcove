@@ -997,7 +997,9 @@ checkpoint scope binds the source, provider, listing declarations, exact
 descriptive projector and freshness policy. A Core rebuild alone leaves that
 scope current. Mixed sources and managed sources keep their exact Core and
 definition bindings. Earlier listing checkpoints use the same bounded
-reprojection path. Their original provider validation clock still applies.
+reprojection path. Offline success retains the original validation, completion
+and change clocks without postponing a due provider check. A tighter freshness
+limit can move the next provider check earlier.
 
 Current Core must select candidates from the complete header universe, and every
 selected release must have complete validated asset coverage. Missing coverage

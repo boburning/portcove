@@ -3129,7 +3129,11 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   }
 
   const legacy = structuredClone(first.checkpoint);
-  legacy.sources[pure.key]!.completed_scope_sha256 = previousBinding(pure);
+  const priorPure = legacy.sources[pure.key]!;
+  priorPure.completed_scope_sha256 = previousBinding(pure);
+  priorPure.change_intervals = 2;
+  priorPure.mean_change_interval_ms = 20 * 3600000;
+  priorPure.next_due_at = new Date(h.options.now!() + 8 * 3600000).toISOString();
   const deferred = await advanceCatalogObservations(catalog, legacy, {
     ...h.options,
     excludedSources: new Set(sources.map(({ key }) => key)),
@@ -3146,18 +3150,18 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
   assert.deepEqual(reprojected.report.failures, []);
   assert.deepEqual(reprojected.report.completed_source_keys, [pure.key]);
   assert.equal(reprojected.report.requests, 0);
-  assert.equal(
-    reprojected.checkpoint.sources[pure.key]!.completed_scope_sha256,
-    pureProgress.completed_scope_sha256,
-  );
-  assert.equal(
-    reprojected.checkpoint.sources[pure.key]!.freshness_observed_at,
-    pureProgress.freshness_observed_at,
-  );
-  assert.equal(
-    reprojected.checkpoint.sources[pure.key]!.last_complete_facts_sha256,
-    pureProgress.last_complete_facts_sha256,
-  );
+  const currentPure = reprojected.checkpoint.sources[pure.key]!;
+  assert.equal(currentPure.completed_scope_sha256, pureProgress.completed_scope_sha256);
+  for (const key of [
+    "last_complete_facts_sha256",
+    "freshness_observed_at",
+    "completed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(currentPure[key], priorPure[key], key);
 
   const revised = await advanceCatalogObservations(catalog, reprojected.checkpoint, {
     ...h.options,
@@ -3168,6 +3172,18 @@ void test("Core rebuilds retain pure listing completion and invalidate exact man
     revised.report.source_statuses.find((source) => source.source_key === pure.key)
       ?.current_scope_complete,
     false,
+  );
+
+  priorPure.next_due_at = new Date(h.options.now!()).toISOString();
+  const due = await advanceCatalogObservations(catalog, legacy, { ...h.options, requestLimit: 0 });
+  assert.ok(!due.report.attempted_source_keys.includes(pure.key));
+  assert.equal(due.checkpoint.sources[pure.key]!.completed_scope_sha256, previousBinding(pure));
+  const refreshed = await advanceCatalogObservations(catalog, due.checkpoint, h.options);
+  assert.ok(refreshed.report.requests > 0);
+  assert.ok(refreshed.report.completed_source_keys.includes(pure.key));
+  assert.equal(
+    refreshed.checkpoint.sources[pure.key]!.freshness_observed_at,
+    new Date(h.options.now!()).toISOString(),
   );
 });
 
@@ -3457,6 +3473,7 @@ void test("GitLab descriptive listings reuse the provider collector and export n
   const catalog = { ports: [], listings: [listing] };
   const calls: string[] = [];
   let exported: unknown[] = [];
+  let providerObservations: Record<string, unknown>[] = [];
   const options: CatalogObservationOptions = {
     ...h.options,
     projectProvider: async () => {
@@ -3498,8 +3515,9 @@ void test("GitLab descriptive listings reuse the provider collector and export n
         headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
       });
     },
-    exportProvider: async (_source, _observations, policies) => {
+    exportProvider: async (_source, observations, policies) => {
       exported = policies;
+      providerObservations = observations;
     },
   };
   const result = await advanceCatalogObservations(catalog, null, options);
@@ -3540,6 +3558,58 @@ void test("GitLab descriptive listings reuse the provider collector and export n
   assert.deepEqual(rebuilt.report.attempted_source_keys, []);
   assert.deepEqual(rebuilt.checkpoint.sources[key], result.checkpoint.sources[key]);
   assert.equal(rebuilt.report.source_statuses[0]!.current_scope_complete, true);
+
+  const legacy = structuredClone(result.checkpoint);
+  const prior = legacy.sources[key]!;
+  prior.completed_scope_sha256 = "f".repeat(64);
+  const providerCompletion = providerObservations[0]?.completed_at;
+  assert.equal(typeof providerCompletion, "string");
+  prior.completed_at = new Date(Date.parse(prior.completed_at!) + 250).toISOString();
+  prior.change_intervals = 2;
+  prior.mean_change_interval_ms = 16 * 3600000;
+  const migrated = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(migrated.report.failures, []);
+  assert.deepEqual(migrated.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 4);
+  const migratedSource = migrated.checkpoint.sources[key]!;
+  for (const field of [
+    "last_complete_facts_sha256",
+    "completed_at",
+    "freshness_observed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(migratedSource[field], prior[field], field);
+  assert.equal(providerObservations[0]?.completed_at, providerCompletion);
+
+  const tightenedConfig = { ...options.config, stale_after_hours: 6 };
+  const tightened = await advanceCatalogObservations(catalog, legacy, {
+    ...options,
+    config: tightenedConfig,
+  });
+  assert.equal(calls.length, 4);
+  assert.equal(
+    tightened.checkpoint.sources[key]!.next_due_at,
+    new Date(
+      Date.parse(prior.freshness_observed_at!) +
+        tightenedConfig.stale_after_hours * 3600000 -
+        tightenedConfig.budget.duration_ms,
+    ).toISOString(),
+  );
+  assert.equal(tightened.checkpoint.sources[key]!.completed_at, prior.completed_at);
+
+  prior.next_due_at = new Date(h.options.now!()).toISOString();
+  const refreshed = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(refreshed.report.failures, []);
+  assert.deepEqual(refreshed.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 8);
+  assert.equal(
+    refreshed.checkpoint.sources[key]!.completed_at,
+    new Date(h.options.now!()).toISOString(),
+  );
+  assert.equal(providerObservations[0]?.completed_at, new Date(h.options.now!()).toISOString());
 });
 
 void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
