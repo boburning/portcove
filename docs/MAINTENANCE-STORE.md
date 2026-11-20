@@ -423,7 +423,11 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   - Issue blockers, Project memberships and Project item fields follow their
     own continuation cursors. An incomplete page or a changed revision fails
     the issue collection and retains the prior facts.
-- `--issues` adds the `issues-project` source.
+- `--issues` adds the `issues-project` source. If GitHub reports a change during
+  pagination, the collector discards that read and recollects once on the same
+  read-only client and remaining allowance. A failed second read leaves prior
+  facts current. The collection log records the first error code and the
+  recollection outcome.
   - It reads the maintained, completeness-verified issue inventory with
     issue-side Project memberships (`RoadmapClient.repositoryIssues`), through a
     read-only request scope.

@@ -73,6 +73,8 @@ import {
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
 import type { GitHubCredential } from "./github-client.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import { collectRoadmapInventoryWithRecollection } from "./roadmap-inventory.mts";
 import {
   disabledCapabilities,
   handoffCollectionSql,
@@ -709,20 +711,50 @@ export async function readIssueInventory(credential?: GitHubCredential): Promise
       ghCommand: process.env.PORTCOVE_ROADMAP_GH,
     }),
   );
-  const inventory = await client.repositoryIssues({ projectMemberships: true });
-  // The configured Project number, as the roadmap doctor resolves it: one read,
-  // unaffected by other Projects the credential can see.
-  const roadmap = await client.projectDetails(client.projectNumber(undefined));
-  if (roadmap.title !== config.project.title)
-    throw new MaintenanceStoreError("The configured roadmap Project's identity did not match");
-  return {
-    roadmap_project_id: roadmap.id,
-    repository: inventory.repository,
-    observed_at: inventory.observed_at,
-    total: inventory.evidence.total ?? -1,
-    issues: inventory.issues,
-    memberships: inventory.project_memberships ?? [],
+  const attempts = { inventoryRecollections: 0 };
+  const diagnostic = (status: "pending" | "complete" | "failed", code?: string) => {
+    console.error(
+      JSON.stringify({
+        format: 1,
+        kind: "maintenance-issue-inventory-recollection",
+        first: { code: "inventory_changed" },
+        second: { status, ...(code ? { code } : {}) },
+      }),
+    );
   };
+  try {
+    return await collectRoadmapInventoryWithRecollection(
+      client,
+      async () => {
+        const inventory = await client.repositoryIssues({ projectMemberships: true });
+        // The configured Project number, as the roadmap doctor resolves it.
+        const roadmap = await client.projectDetails(client.projectNumber(undefined));
+        if (roadmap.title !== config.project.title)
+          throw new MaintenanceStoreError(
+            "The configured roadmap Project's identity did not match",
+          );
+        return {
+          roadmap_project_id: roadmap.id,
+          repository: inventory.repository,
+          observed_at: inventory.observed_at,
+          total: inventory.evidence.total ?? -1,
+          issues: inventory.issues,
+          memberships: inventory.project_memberships ?? [],
+        };
+      },
+      attempts,
+      {
+        before: () => diagnostic("pending"),
+        after: (status, error) =>
+          diagnostic(status, status === "failed" ? sanitizeOperationError(error).code : undefined),
+      },
+    );
+  } catch (error) {
+    if (!attempts.inventoryRecollections) throw error;
+    throw new MaintenanceStoreError(
+      `Issue and Project inventory recollection failed (${sanitizeOperationError(error).code}).`,
+    );
+  }
 }
 
 /** The appointed official metadata location (docs/DEFINITION-DELIVERY.md). */
