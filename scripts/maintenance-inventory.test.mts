@@ -465,6 +465,47 @@ void test("only Core-verified delivery records published definitions", () => {
   );
 });
 
+void test("publication and delivery preserve long Core definition identities within storage bounds", () => {
+  const readBoth = (namespace: string, stable_id: string) => {
+    const definition = { namespace, stable_id, revision: 1, target: "sha256/x.json" };
+    const delivery = verifiedDelivery([definition]);
+    delivery.definitions[0]!.namespace = namespace;
+    return [
+      () =>
+        publicationFacts({
+          inspection: {
+            index_sha256: "f".repeat(64),
+            definitions: [{ ...definition, definition_target: definition.target }],
+          },
+        }),
+      () => deliveryFacts(delivery),
+    ];
+  };
+
+  const roe = "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine";
+  assert.equal(roe.length, 74);
+  const longest = "-".repeat(255);
+  for (const [namespace, stableId] of [
+    ["official", roe],
+    ["official", longest],
+    ["n".repeat(33), longest],
+  ] as const)
+    for (const read of readBoth(namespace, stableId)) {
+      const { facts } = read();
+      assert.deepEqual([...facts.keys()], [`definition:${namespace}/${stableId}`]);
+    }
+
+  for (const invalid of ["", "a".repeat(256), "a/b", "a:b", "A", "é", "x\n"])
+    for (const [namespace, stableId] of [
+      [invalid, roe],
+      ["official", invalid],
+    ] as const)
+      for (const read of readBoth(namespace, stableId))
+        assert.throws(read, /Unsupported definition identity/u);
+  for (const read of readBoth("n".repeat(34), longest))
+    assert.throws(read, /exceeds the maintenance key bound/u);
+});
+
 void test("publication entries compare main with the last verified publication by identity", () => {
   const main = (id: string, revision: number, target: string) => ({
     definition: `definition:official/${id}`,
@@ -638,6 +679,84 @@ void test("reads the producing CLI platform independently of the launcher's arch
     /did not identify a supported host platform/u,
   );
 });
+
+void test(
+  "unsupported publication facts retain the last good facts and other source updates",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("store");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const collectPublication = (id: string, publishedRevision: number) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        publication: () =>
+          Promise.resolve({
+            inspection: {
+              index_sha256: "f".repeat(64),
+              definitions: [
+                {
+                  namespace: "official",
+                  stable_id: id,
+                  revision: 1,
+                  definition_target: "sha256/a.json",
+                },
+              ],
+            },
+          }),
+        delivery: () =>
+          Promise.resolve(
+            verifiedDelivery([
+              { stable_id: "example", revision: publishedRevision, target: "sha256/a.json" },
+            ]),
+          ),
+        environment: store.owner,
+        runner: "fixture",
+      });
+
+    await collectPublication("example", 1);
+    await collectPublication("bad/id", 2);
+    const failed = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_build_object('coverage', coverage, 'gaps', gaps)
+           FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication'
+           ORDER BY acquisition DESC LIMIT 1;`,
+      ),
+    );
+    assert.equal(failed.coverage, "failed");
+    assert.deepEqual(
+      failed.gaps.map(({ subject_key, code }: { subject_key: string; code: string }) => [
+        subject_key,
+        code,
+      ]),
+      [["source:definition-publication", "unavailable"]],
+    );
+    const inventory = buildReport(store.owner);
+    const definition = inventory.publication.definitions?.find(
+      (entry) => entry.definition === "definition:official/example",
+    );
+    assert.ok(definition);
+    assert.equal(definition.comparison, "published-differs-from-main");
+    assert.deepEqual(definition.facts, {
+      main: {
+        index_sha256: "f".repeat(64),
+        revision: 1,
+        definition_target: "sha256/a.json",
+        policy_target: null,
+        policy_revision: null,
+        launch_revision: null,
+      },
+    });
+    assert.deepEqual(definition.published, {
+      published: { revision: 2, target: "sha256/a.json", sha256: "d".repeat(64), length: 10 },
+    });
+  },
+);
 
 void test(
   "declared records flow through Core assessment, the store and a static report",
@@ -3126,8 +3245,8 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
-      "bound to the assessing Core binary, with its unrecorded source visible",
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified;catalog=unverified$/u,
+      "records the assessing Core binary, the unrecorded source and the unverified catalog",
     );
     const inventory = buildReport(store.owner);
     const ship = (inventory.subjects as { port_key: string; target_routes: unknown }[]).find(
