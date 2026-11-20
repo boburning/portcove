@@ -229,6 +229,16 @@ conditional tables leave current evidence unknown. An observed table describes
 the release source. Runtime hash normalization, compiled platform coverage and
 actual acceptance require separate evidence before Core can use it for setup.
 
+For a release that pins the canonical N64ModernRuntime Git submodule, the
+same observer records the dependency revision and checked runtime source blob.
+It compares the unconditional input and storage routines with reviewed source
+patterns that pad the ROM, normalize it to big-endian byte order and call XXH3.
+Unrelated runtime routines can change while those blocks stay the same. A
+required binding needs evidence of the effective hash implementation and
+provenance linking the selected compiled asset to its source and dependencies.
+Unavailable runtime metadata can be retried without losing the checked game
+table.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag

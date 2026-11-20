@@ -7,6 +7,17 @@ import {
   parseN64GameTable,
 } from "./upstream-n64-game-entry.mts";
 
+import {
+  n64RuntimeInputPath,
+  n64RuntimeLinkPath,
+  n64RuntimeLinkRevision,
+  n64RuntimeRepository,
+  n64RuntimeRepositoryId,
+  readN64RuntimeSourceObservation,
+  type N64RuntimeSourceObservation,
+  inspectN64RuntimeSource,
+} from "./upstream-n64-runtime-input.mts";
+
 export type OriginalSourceFamily = "libultraship" | "n64-recomp";
 const tablePath = "docs/supportedHashes.json";
 const maximumTableBytes = 64 * 1024;
@@ -125,9 +136,29 @@ type N64Evidence = SourceIdentity &
   ReturnType<typeof parseN64ReleaseSource> & {
     parser: "n64-recomp-game-entry-v1";
     coverage: "source-declaration";
+    runtime_source?: N64RuntimeSourceObservation;
   };
 
 type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
+
+async function resolveRecognitionCommit(
+  repository: string,
+  tag: Awaited<ReturnType<typeof readRecognitionTag>>,
+  read: ReadGitHub,
+) {
+  let object: Record<string, unknown> = tag;
+  for (let depth = 0; object.type === "tag" && depth < 4; depth++) {
+    if (typeof object.sha !== "string" || !gitSha.test(object.sha))
+      throw new Error("Original recognition tag object has an invalid identity");
+    const annotated = await read(`${repository}/git/tags/${object.sha}`);
+    if (!isRecord(annotated) || annotated.sha !== object.sha || !isRecord(annotated.object))
+      throw new Error("Original recognition annotated tag does not bind its object");
+    object = annotated.object;
+  }
+  if (object.type !== "commit" || typeof object.sha !== "string" || !gitSha.test(object.sha))
+    throw new Error("Original recognition release does not resolve to a bounded exact commit");
+  return object.sha;
+}
 
 /** Observe a family table at the selected tag's exact Git commit. */
 export function observeOriginalSource(
@@ -162,19 +193,9 @@ export async function observeOriginalSource(
     );
   const repository = `/repos/${target.repository}`;
   const tag = await readRecognitionTag(target, read);
-  let commit: Record<string, unknown> = tag;
-  for (let depth = 0; commit.type === "tag" && depth < 4; depth++) {
-    if (typeof commit.sha !== "string" || !gitSha.test(commit.sha))
-      throw new Error("Original recognition tag object has an invalid identity");
-    const annotated = await read(`${repository}/git/tags/${commit.sha}`);
-    if (!isRecord(annotated) || annotated.sha !== commit.sha || !isRecord(annotated.object))
-      throw new Error("Original recognition annotated tag does not bind its object");
-    commit = annotated.object;
-  }
-  if (commit.type !== "commit" || typeof commit.sha !== "string" || !gitSha.test(commit.sha))
-    throw new Error("Original recognition release does not resolve to a bounded exact commit");
+  const commit = await resolveRecognitionCommit(repository, tag, read);
   const path = family === "libultraship" ? tablePath : n64GameTablePath;
-  const contents = await read(`${repository}/contents/${path}?ref=${commit.sha}`);
+  const contents = await read(`${repository}/contents/${path}?ref=${commit}`);
   const declaration =
     family === "libultraship"
       ? ({
@@ -202,9 +223,59 @@ export async function observeOriginalSource(
     ...target,
     source_tag_sha1: tag.sha,
     source_tag_type: tag.type,
-    source_commit: commit.sha,
+    source_commit: commit,
     ...declaration,
   } as const;
+}
+
+export function n64RuntimeSourceCache() {
+  return {
+    links: new Map<string, string | null>(),
+    sources: new Map<string, ReturnType<typeof inspectN64RuntimeSource>>(),
+    identity_verified: false,
+  };
+}
+
+/** Observe the dependency pinned by the release source, using the same request budget. */
+export async function observeN64RuntimeSource(
+  fact: Pick<N64Evidence, "repository" | "repository_id" | "source_commit">,
+  read: ReadGitHub,
+  cache: ReturnType<typeof n64RuntimeSourceCache>,
+): Promise<N64RuntimeSourceObservation> {
+  const linkKey = `${fact.repository_id}:${fact.source_commit}`;
+  let revision = cache.links.get(linkKey);
+  if (revision === undefined) {
+    revision = n64RuntimeLinkRevision(
+      await read(
+        `/repos/${fact.repository}/contents/${n64RuntimeLinkPath}?ref=${fact.source_commit}`,
+      ),
+    );
+    if (revision === undefined) return { state: "unavailable" };
+    cache.links.set(linkKey, revision);
+  }
+  if (revision === null) return { state: "unsupported-gitlink" };
+
+  const repository = `/repos/${n64RuntimeRepository}`;
+  if (!cache.identity_verified) {
+    const identity = await read(repository);
+    if (
+      !isRecord(identity) ||
+      identity.id !== n64RuntimeRepositoryId ||
+      identity.full_name !== n64RuntimeRepository
+    )
+      throw new Error("N64 runtime dependency repository identity is unavailable");
+    cache.identity_verified = true;
+  }
+  let source = cache.sources.get(revision);
+  if (!source) {
+    const contents = await read(`${repository}/contents/${n64RuntimeInputPath}?ref=${revision}`);
+    source = inspectN64RuntimeSource(
+      revision,
+      readReleaseSourceFile(contents, n64RuntimeInputPath),
+    );
+    cache.sources.set(revision, source);
+  }
+  return { state: "observed", source };
 }
 
 /** Reuse Core's current artifact selection. A fallback release supplies no new recognition target. */
@@ -265,7 +336,14 @@ export async function revalidateOriginalSource(
   read: ReadGitHub,
 ): Promise<boolean> {
   const current = await readRecognitionTag(fact, read);
-  return current.sha === fact.source_tag_sha1 && current.type === fact.source_tag_type;
+  if (current.sha !== fact.source_tag_sha1 || current.type !== fact.source_tag_type) return false;
+  if (current.type === "commit") return current.sha === fact.source_commit;
+  if (fact.parser === "n64-recomp-game-entry-v1")
+    return (
+      (await resolveRecognitionCommit(`/repos/${fact.repository}`, current, read)) ===
+      fact.source_commit
+    );
+  return true;
 }
 
 export interface OriginalSourceProgress {
@@ -315,6 +393,7 @@ export function readOriginalSourceProgress(
     (fact.source_tag_type !== "commit" && fact.source_tag_type !== "tag") ||
     typeof fact.source_commit !== "string" ||
     !gitSha.test(fact.source_commit) ||
+    (fact.source_tag_type === "commit" && fact.source_commit !== fact.source_tag_sha1) ||
     typeof fact.source_blob_sha1 !== "string" ||
     !gitSha.test(fact.source_blob_sha1) ||
     typeof fact.source_sha256 !== "string" ||
@@ -366,12 +445,14 @@ export function readOriginalSourceProgress(
       !games
     )
       return;
+    const runtime = readN64RuntimeSourceObservation(fact.runtime_source);
     evidence = {
       ...source,
       parser: fact.parser,
       coverage: fact.coverage,
       source_path: n64GameTablePath,
       games,
+      ...(runtime ? { runtime_source: runtime } : {}),
     };
   } else {
     if (

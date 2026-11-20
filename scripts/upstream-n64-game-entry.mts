@@ -108,8 +108,8 @@ function parseEntry(tokens: string[], start: number) {
   };
 }
 
-/** Extract source declarations only. No compiled-platform or acceptance claim. */
-export function parseN64GameTable(source: string): N64GameEntry[] {
+/** Lex the bounded source without interpreting macros or directives. */
+export function n64CppTokens(source: string): string[] {
   if (/\\[ \t\v\f]*(?:\r\n|\r|\n)/u.test(source)) return unclear();
   const withoutComments = source.replace(commentOrQuoted, (token) => {
     if (/^(?:u8|u|U|L)?R"$/u.test(token)) return unclear();
@@ -118,21 +118,27 @@ export function parseN64GameTable(source: string): N64GameEntry[] {
     if (!token.endsWith("*/")) return unclear();
     return token.replace(/[^\r\n]/gu, " ");
   });
-  const tokens: string[] = [];
-  let conditionals = 0;
-  let start: number | undefined;
-  for (const match of withoutComments.matchAll(cppToken)) {
+  return Array.from(withoutComments.matchAll(cppToken), (match) => {
     const token = match[0].trim().replace(/^%:/u, "#");
     if (token === "#" || token === '"') return unclear();
+    return token;
+  });
+}
+
+/** Extract source declarations only. No compiled-platform or acceptance claim. */
+export function parseN64GameTable(source: string): N64GameEntry[] {
+  const tokens = n64CppTokens(source);
+  let conditionals = 0;
+  let start: number | undefined;
+  for (const [index, token] of tokens.entries()) {
     if (/^#\s*(?:if|ifdef|ifndef)\b/u.test(token)) conditionals++;
     if (/^#\s*endif\b/u.test(token) && --conditionals < 0) return unclear();
-    tokens.push(token);
     if (
-      tokens.length >= table.length &&
-      table.every((part, i) => part === tokens[tokens.length - table.length + i])
+      index + 1 >= table.length &&
+      table.every((part, i) => part === tokens[index + 1 - table.length + i])
     ) {
       if (conditionals !== 0 || start !== undefined) return unclear();
-      start = tokens.length;
+      start = index + 1;
     }
   }
   if (start === undefined || conditionals !== 0) return unclear();

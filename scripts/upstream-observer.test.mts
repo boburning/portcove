@@ -4,8 +4,21 @@ import {
   observeOriginalSource,
   parseSupportedOriginalHashes,
   readOriginalSourceProgress,
+  revalidateOriginalSource,
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
+import {
+  n64RuntimeInputPath,
+  n64RuntimeLinkPath,
+  n64RuntimeRepository,
+  n64RuntimeRepositoryId,
+  readN64RuntimeSourceObservation,
+} from "./upstream-n64-runtime-input.mts";
+import {
+  n64RuntimeSourceCache,
+  observeN64RuntimeSource,
+} from "./upstream-original-recognition.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
 import { hostedOpportunityMs } from "./observe-catalog-upstreams.mts";
 import { isRecord } from "./runtime-values.mts";
 import { execFileSync } from "node:child_process";
@@ -2307,4 +2320,168 @@ void test("original recognition and provider reads share a bounded retry clock",
   assert.equal(observerGitHubRateLimit(secondary, now).retryAt, "2026-11-20T00:05:00.000Z");
   const unspecified = new GitHubApiError("rate_limited", "fixture quota", { status: 429 });
   assert.equal(observerGitHubRateLimit(unspecified, now).retryAt, "2026-11-20T00:01:00.000Z");
+});
+
+function n64RuntimeFixtureBlob(path: string, text: string) {
+  const raw = Buffer.from(text);
+  return {
+    path,
+    type: "file",
+    encoding: "base64",
+    content: raw.toString("base64"),
+    size: raw.length,
+    sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+  };
+}
+
+void test("N64 runtime reads bind the pinned canonical gitlink and checked blob", async () => {
+  const target = {
+    repository: "fixture/one",
+    repository_id: 72,
+    release_id: 418,
+    release_tag: "release-1",
+    artifacts: [{ platform: "windows-x86-64", sha256: "d".repeat(64) }],
+  };
+  const tag = "a".repeat(40);
+  const revision = "b".repeat(40);
+  const compilerPath = "src/main/main.cpp";
+  const game = n64RuntimeFixtureBlob(
+    compilerPath,
+    `
+    std::vector<recomp::GameEntry> supported_games = {
+      { .game_id = u8"fixture", .rom_hash = 0xfedcba9876543210ULL }
+    };`,
+  );
+  const fact = await observeOriginalSource(
+    target,
+    async (endpoint) => {
+      if (endpoint === "/repos/fixture/one") return { id: 72, full_name: "fixture/one" };
+      if (endpoint === `/repos/fixture/one/contents/${compilerPath}?ref=${tag}`) return game;
+      assert.equal(endpoint, "/repos/fixture/one/git/ref/tags/release-1");
+      return { ref: "refs/tags/release-1", object: { type: "commit", sha: tag } };
+    },
+    "n64-recomp",
+  );
+  assert.equal(fact.parser, "n64-recomp-game-entry-v1");
+  const requests: string[] = [];
+  const source = n64RuntimeFixtureBlob(n64RuntimeInputPath, "int unrelated() { return 0; }");
+  const link = {
+    path: n64RuntimeLinkPath,
+    type: "submodule",
+    sha: revision,
+    git_url: `https://api.github.com/repos/${n64RuntimeRepository}/git/trees/${revision}`,
+    submodule_git_url: `https://github.com/${n64RuntimeRepository}.git`,
+  };
+  let returnedLink = link;
+  let returnedRepoId = n64RuntimeRepositoryId;
+  let returnedSource = source;
+  const read = async (endpoint: string) => {
+    requests.push(endpoint);
+    if (endpoint === `/repos/fixture/one/contents/${n64RuntimeLinkPath}?ref=${tag}`)
+      return returnedLink;
+    if (endpoint === `/repos/${n64RuntimeRepository}`)
+      return { id: returnedRepoId, full_name: n64RuntimeRepository };
+    assert.equal(
+      endpoint,
+      `/repos/${n64RuntimeRepository}/contents/${n64RuntimeInputPath}?ref=${revision}`,
+    );
+    return returnedSource;
+  };
+  const cache = n64RuntimeSourceCache();
+  const runtime = await observeN64RuntimeSource(fact, read, cache);
+  assert.ok(runtime.state === "observed");
+  assert.equal(runtime.source.revision, revision);
+  assert.equal(runtime.source.blob_sha1, source.sha);
+  assert.equal(runtime.source.matched_input_blocks, null);
+  assert.equal(requests.length, 3);
+  assert.deepEqual(await observeN64RuntimeSource(fact, read, cache), runtime);
+  assert.equal(requests.length, 3);
+  assert.deepEqual(readN64RuntimeSourceObservation(runtime), runtime);
+  const recognizedSource = {
+    ...runtime.source,
+    // The exact code-block fingerprint from the independently checked upstream.
+    input_blocks_sha256: "0c7cf4bad35b597ac6fd332cb9110907bf28ab182ab4e526bec3e641f0e21dbc",
+    matched_input_blocks: "n64modernruntime-padded-xxh3-call-sites-v1",
+  };
+  const recognized = { state: "observed", source: recognizedSource };
+  assert.deepEqual(readN64RuntimeSourceObservation(recognized), recognized);
+  assert.equal(
+    readN64RuntimeSourceObservation({
+      ...recognized,
+      source: { ...recognizedSource, repository_id: n64RuntimeRepositoryId + 1 },
+    }),
+    undefined,
+  );
+  assert.equal(
+    readN64RuntimeSourceObservation({
+      ...runtime,
+      source: {
+        ...runtime.source,
+        matched_input_blocks: "n64modernruntime-padded-xxh3-call-sites-v1",
+      },
+    }),
+    undefined,
+  );
+  const progress = {
+    state: "observed",
+    last_complete: {
+      binding: orderedJsonSha256(target),
+      observed_at: "2026-11-20T00:00:00.000Z",
+      fact: { ...fact, runtime_source: runtime },
+    },
+  };
+  assert.deepEqual(readOriginalSourceProgress(progress, target, "n64-recomp"), progress);
+  const differentCommit = "9".repeat(40);
+  assert.equal(
+    readOriginalSourceProgress(
+      {
+        ...progress,
+        last_complete: {
+          ...progress.last_complete,
+          fact: { ...progress.last_complete.fact, source_commit: differentCommit },
+        },
+      },
+      target,
+      "n64-recomp",
+    ),
+    undefined,
+  );
+  const annotatedTag = "8".repeat(40);
+  const annotated = { ...fact, source_tag_type: "tag", source_tag_sha1: annotatedTag } as const;
+  const readAnnotated = async (endpoint: string) => {
+    if (endpoint === `/repos/fixture/one/git/tags/${annotatedTag}`)
+      return { sha: annotatedTag, object: { type: "commit", sha: tag } };
+    assert.equal(endpoint, "/repos/fixture/one/git/ref/tags/release-1");
+    return { ref: "refs/tags/release-1", object: { type: "tag", sha: annotatedTag } };
+  };
+  assert.equal(await revalidateOriginalSource(annotated, readAnnotated), true);
+  assert.equal(
+    await revalidateOriginalSource({ ...annotated, source_commit: differentCommit }, readAnnotated),
+    false,
+  );
+
+  const retryCache = n64RuntimeSourceCache();
+  assert.deepEqual(
+    await observeN64RuntimeSource(
+      fact,
+      async () => ({ path: n64RuntimeLinkPath, type: "submodule" }),
+      retryCache,
+    ),
+    { state: "unavailable" },
+  );
+  returnedLink = { ...link, type: "file" };
+  assert.deepEqual(await observeN64RuntimeSource(fact, read, retryCache), runtime);
+  returnedLink = link;
+
+  returnedSource = { ...source, sha: "e".repeat(40) };
+  await assert.rejects(observeN64RuntimeSource(fact, read, n64RuntimeSourceCache()), /Git object/);
+  returnedRepoId++;
+  await assert.rejects(
+    observeN64RuntimeSource(fact, read, n64RuntimeSourceCache()),
+    /repository identity/,
+  );
+  returnedLink = { ...link, submodule_git_url: "https://github.com/fixture/fork" };
+  assert.deepEqual(await observeN64RuntimeSource(fact, read, n64RuntimeSourceCache()), {
+    state: "unsupported-gitlink",
+  });
 });
