@@ -338,10 +338,13 @@ if ($refresh.exit -eq 0 -and $refresh.receipt.ok) {
         throw 'Authenticated Crawl refresh selected a different subject'
     }
     $signedOutcome = 'selected'
+    $sameLibraryPlan = 'not-requested'
 } else {
     $error = $refresh.receipt.error
     if ($refresh.exit -ne 11 -or $refresh.receipt.ok -or $error.code -cne 'verification' -or
         $error.details.definition_refresh_phase -cne 'selection' -or
+        $error.details.definition_policy_changed -cne 'true' -or
+        $error.details.definition_launch_assessment_changed -cne 'true' -or
         $error.message -cne 'selected definition changes catalog state outside its scope: catalog schema changed') {
         throw 'The isolated signed Crawl refresh failed at an unexpected boundary'
     }
@@ -350,13 +353,21 @@ if ($refresh.exit -eq 0 -and $refresh.receipt.ok) {
         $null -ne (Read-Cli @('status',$port)).active) {
         throw 'Scoped selection refusal changed the ordinary embedded Crawl route or install state'
     }
+    $restricted = Invoke-Cli @('installation','plan',$port)
+    if ($restricted.exit -ne 3 -or $restricted.receipt.ok -or
+        $restricted.receipt.error.code -cne 'unsupported' -or
+        $restricted.receipt.error.message -cne 'restricted acquisition requires its exact selected definition') {
+        throw 'The signed-policy library did not retain the exact restricted acquisition refusal'
+    }
     $signedOutcome = 'verified-revision-refused-at-legacy-schema-transition'
+    $sameLibraryPlan = 'restricted-acquisition-refused'
 }
 Write-Receipt 'signed-crawl-revision' @{ revision=3; catalog_schema=2; index_sha256=$index
-    contract_sha256=$projection; timestamp_sha256=$before; outcome=$signedOutcome }
+    contract_sha256=$projection; timestamp_sha256=$before; outcome=$signedOutcome
+    same_library_plan=$sameLibraryPlan }
 
-# Independent library for the ordinary embedded catalog route. No signed
-# selection or policy data is copied from the diagnostic scope.
+# Independent stock Desktop journey before any explicit policy refresh. Keep
+# it separate from the library that retained the authenticated restriction.
 Set-CrawlProfile 'crawl-embedded'
 if ($null -ne (Read-Cli @('status',$port)).active) { throw 'Expected a fresh embedded library' }
 $plan = Read-Cli @('installation','plan',$port)
@@ -370,7 +381,7 @@ if ($null -ne $plan.selected_install -or $plan.plan.port_id -cne $port -or
     throw 'Ordinary embedded Crawl installation identity differs'
 }
 Write-Receipt 'embedded-plan' @{ port_id=$port; package_sha256=$asset; plan_sha256=$plan.plan_sha256
-    source='compiled embedded catalog'; version='0.34.1' }
+    source='stock embedded catalog before explicit policy refresh'; version='0.34.1' }
 
 # This independent cell observes the exact package-extracted executable.
 # Use its normal accessibility tree and real managed installation controls.
@@ -487,7 +498,7 @@ try {
     if ($verified.install_id -cne $active.id -or -not $verified.valid -or $verified.checked_files -ne 690) {
         throw 'Desktop-installed Crawl package failed independent published CLI verification'
     }
-    Write-Receipt 'desktop-acquisition' @{ install_id=$active.id; source='compiled embedded catalog'
+    Write-Receipt 'desktop-acquisition' @{ install_id=$active.id; source='stock embedded catalog before explicit policy refresh'
         package_sha256=$asset; verified_files=$verified.checked_files; version=$active.version }
 
     Select-Control 'Manage'
@@ -513,7 +524,7 @@ try {
     }
     if ($browserProcesses.Count -ne 1) { throw 'Expected one identity-bound WebView browser in its private profile' }
     Write-Receipt 'desktop-management' @{ pid=$process.Id; start_filetime=$created.ToFileTimeUtc()
-        library='fresh embedded managed setup'; install_id=$active.id; game='Dungeon Crawl Stone Soup'; action='Manage'
+        library='fresh stock embedded setup before explicit policy refresh'; install_id=$active.id; game='Dungeon Crawl Stone Soup'; action='Manage'
         visible_section='Versions & updates'; version='0.34.1'; desktop_sha256=$desktopDigest
         webview_pid=$browserProcesses[0].Id; webview_version=$browserProcesses[0].MainModule.FileVersionInfo.ProductVersion }
 } catch {
@@ -558,4 +569,4 @@ try {
     }
 }
 Write-Receipt 'completed' @{ scope='authenticated package-extracted executable, ordinary embedded Desktop acquisition and management'
-    limits='no signed-route installation, gameplay, next-artifact transition or minimum Windows claim' }
+    limits='signed-policy library observes selection and restriction only; stock native scope excludes gameplay, next-artifact transition and minimum Windows' }
