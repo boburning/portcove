@@ -4357,6 +4357,18 @@ fn write_manifest_with_shape(
     )?;
     validate_artifact(artifact)?;
     let selected = resolve_declared_executable(root, qualification)?;
+    let saved_variant = qualification
+        .acquisition
+        .as_ref()
+        .and_then(|proof| proof.saved_variant.as_ref())
+        .or(qualification.retained_package_variant.as_ref());
+    if saved_variant.is_some_and(crate::ManagedPackageVariant::requires_explicit_proof)
+        && !crate::windows_runtime::is_x64_windows_program(&selected)
+    {
+        return Err(PortcoveError::verification(
+            "the selected Windows package has no matching x64 executable",
+        ));
+    }
     let selected_relative = manifest_relative(root, &selected)?;
     let (files, mutable_paths) = manifest_files(root, qualification, &selected)?;
     if !files
@@ -4416,12 +4428,9 @@ fn write_manifest_with_shape(
             .as_ref()
             .and_then(|proof| proof.github_identity.clone())
             .or_else(|| qualification.retained_github_artifact_identity.clone()),
-        saved_package_variant: qualification
-            .acquisition
-            .as_ref()
-            .and_then(|proof| proof.saved_variant.clone())
-            .or_else(|| qualification.retained_package_variant.clone())
-            .filter(|_| crate::ManagedPackageVariant::supports_manifest_receipt(version)),
+        saved_package_variant: saved_variant
+            .filter(|_| crate::ManagedPackageVariant::supports_manifest_receipt(version))
+            .cloned(),
         explicit_package_tag_commit: qualification
             .acquisition
             .as_ref()
