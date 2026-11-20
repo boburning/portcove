@@ -4393,6 +4393,20 @@ async fn curated_installer_boundary_fixture(
                 assert_eq!(different.message, "different refused download");
                 assert!(different.details.contains_key("quarantine_error"));
                 assert!(!different.details.contains_key("quarantine_path"));
+
+                // The private source can change after the first complete hash.
+                // Refuse the original operation without keeping a different sample.
+                let missing = hex::encode(Sha256::digest(b"a different observed replacement"));
+                let stale_source = worker
+                    .quarantine_download(
+                        &evidence,
+                        &missing,
+                        PortcoveError::verification("original transfer refused"),
+                    )
+                    .await;
+                assert_eq!(stale_source.message, "original transfer refused");
+                assert!(stale_source.details.contains_key("quarantine_error"));
+                assert!(!stale_source.details.contains_key("quarantine_path"));
                 assert_eq!(std::fs::read_dir(&cache).unwrap().count(), 1);
                 assert!(
                     !worker
