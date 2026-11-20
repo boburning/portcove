@@ -74,7 +74,7 @@ function repositoryMetadataReader(
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
-            (/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main\/main\.cpp)$/u.test(
+            (/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main\/main\.cpp|lib\/N64ModernRuntime|librecomp\/src\/recomp\.cpp)$/u.test(
               url.pathname,
             ) &&
               /^\?ref=[a-f0-9]{40}$/u.test(url.search))),
@@ -413,6 +413,7 @@ export async function runCatalogUpstreams(
           throw error;
         }
       },
+      observeN64Runtime: true,
       readOriginalRecognition: async (repository, endpoint, account) => {
         account.admitRequest();
         try {

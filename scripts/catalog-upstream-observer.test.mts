@@ -1136,10 +1136,19 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     );
     const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
     const requests: string[] = [];
+    const runtimeRequests: string[] = [];
+    h.options.observeN64Runtime = family === "n64-recomp";
+    let deferRuntime = true;
     let tagSha = "c".repeat(40);
     let retryAt: string | null = null;
     h.options.readOriginalRecognition = async (repository, endpoint, account) => {
       account.admitRequest();
+      if (endpoint.includes("/contents/lib/N64ModernRuntime")) {
+        runtimeRequests.push(endpoint);
+        if (deferRuntime)
+          throw new ObservationFailure("budget", "fixture runtime metadata deferred");
+        return { type: "file" };
+      }
       requests.push(endpoint);
       if (unavailable)
         throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
@@ -1177,7 +1186,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       );
     };
     const initial = await advanceCatalogObservations(h.input, null, h.options);
-    const observation = retained(initial.checkpoint);
+    let observation = retained(initial.checkpoint);
     assert.equal(observation?.state, "observed");
     const fact = observation?.last_complete?.fact;
     assert.equal(fact?.release_tag, "v1.0.0");
@@ -1195,8 +1204,26 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(requests.length, 4);
 
     h.advanceClock(48 * 3600_000);
+    deferRuntime = false;
     const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
-    assert.deepEqual(retained(refreshed.checkpoint), observation);
+    if (family === "n64-recomp") {
+      assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(fact.runtime_source, { state: "unavailable" });
+      assert.deepEqual(runtimeRequests, [
+        `/repos/owner/shared/contents/lib/N64ModernRuntime?ref=${tagSha}`,
+        `/repos/owner/shared/contents/lib/N64ModernRuntime?ref=${tagSha}`,
+      ]);
+      const refreshedObservation = retained(refreshed.checkpoint);
+      const refreshedFact = refreshedObservation?.last_complete?.fact;
+      assert.deepEqual(refreshedFact, {
+        ...fact,
+        runtime_source: { state: "unsupported-gitlink" },
+      });
+      observation = refreshedObservation;
+    } else {
+      assert.deepEqual(retained(refreshed.checkpoint), observation);
+      assert.equal(runtimeRequests.length, 0);
+    }
     assert.equal(requests.length, 5);
 
     h.advanceClock(48 * 3600_000);

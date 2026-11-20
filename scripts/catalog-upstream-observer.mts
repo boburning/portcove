@@ -34,6 +34,8 @@ import {
 } from "./upstream-mod-provider-registry.mts";
 import {
   inputEvidenceKey,
+  n64RuntimeSourceCache,
+  observeN64RuntimeSource,
   observeOriginalSource,
   type OriginalSourceFamily,
   readOriginalSourceProgress,
@@ -519,6 +521,7 @@ export interface CatalogObservationOptions extends Pick<
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  observeN64Runtime?: boolean;
   readOriginalRecognition?: (
     repository: string,
     endpoint: string,
@@ -707,6 +710,7 @@ export async function advanceCatalogObservations(
     (progress.exception_rule !== null && partialProgressRules.includes(progress.exception_rule));
   const servesManagedPort = (source: ObservableSource) =>
     healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
+  const n64RuntimeCache = n64RuntimeSourceCache();
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -1512,6 +1516,30 @@ export async function advanceCatalogObservations(
                 if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                   remaining = 0;
                   extendProviderDeferral(error.retryAt);
+                }
+              }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              (!complete.fact.runtime_source ||
+                complete.fact.runtime_source.state === "unavailable")
+            ) {
+              const fact = complete.fact;
+              // Runtime evidence is optional until its own lookup completes.
+              // A timeout must keep the release's checked GameEntry observation.
+              try {
+                const runtime = await observeN64RuntimeSource(fact, read, n64RuntimeCache);
+                complete = { ...complete, fact: { ...fact, runtime_source: runtime } };
+              } catch (error) {
+                complete = {
+                  ...complete,
+                  fact: { ...fact, runtime_source: { state: "unavailable" } },
+                };
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  state.provider_retry_at = error.retryAt;
                 }
               }
             }

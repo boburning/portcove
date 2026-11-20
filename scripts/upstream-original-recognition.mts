@@ -7,6 +7,17 @@ import {
   parseN64GameTable,
 } from "./upstream-n64-game-entry.mts";
 
+import {
+  n64RuntimeInputPath,
+  n64RuntimeLinkPath,
+  n64RuntimeLinkRevision,
+  n64RuntimeRepository,
+  n64RuntimeRepositoryId,
+  readN64RuntimeSourceObservation,
+  type N64RuntimeSourceObservation,
+  inspectN64RuntimeSource,
+} from "./upstream-n64-runtime-input.mts";
+
 export type OriginalSourceFamily = "libultraship" | "n64-recomp";
 const tablePath = "docs/supportedHashes.json";
 const maximumTableBytes = 64 * 1024;
@@ -125,6 +136,7 @@ type N64Evidence = SourceIdentity &
   ReturnType<typeof parseN64ReleaseSource> & {
     parser: "n64-recomp-game-entry-v1";
     coverage: "source-declaration";
+    runtime_source?: N64RuntimeSourceObservation;
   };
 
 type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
@@ -205,6 +217,55 @@ export async function observeOriginalSource(
     source_commit: commit.sha,
     ...declaration,
   } as const;
+}
+
+export function n64RuntimeSourceCache() {
+  return {
+    links: new Map<string, string | null>(),
+    sources: new Map<string, ReturnType<typeof inspectN64RuntimeSource>>(),
+    identity_verified: false,
+  };
+}
+
+/** Observe the dependency pinned by the release source, using the same request budget. */
+export async function observeN64RuntimeSource(
+  fact: Pick<N64Evidence, "repository" | "repository_id" | "source_commit">,
+  read: ReadGitHub,
+  cache: ReturnType<typeof n64RuntimeSourceCache>,
+): Promise<N64RuntimeSourceObservation> {
+  const linkKey = `${fact.repository_id}:${fact.source_commit}`;
+  let revision = cache.links.get(linkKey);
+  if (revision === undefined) {
+    revision = n64RuntimeLinkRevision(
+      await read(
+        `/repos/${fact.repository}/contents/${n64RuntimeLinkPath}?ref=${fact.source_commit}`,
+      ),
+    );
+    cache.links.set(linkKey, revision);
+  }
+  if (revision === null) return { state: "unsupported-gitlink" };
+
+  const repository = `/repos/${n64RuntimeRepository}`;
+  if (!cache.identity_verified) {
+    const identity = await read(repository);
+    if (
+      !isRecord(identity) ||
+      identity.id !== n64RuntimeRepositoryId ||
+      identity.full_name !== n64RuntimeRepository
+    )
+      throw new Error("N64 runtime dependency repository identity is unavailable");
+    cache.identity_verified = true;
+  }
+  let source = cache.sources.get(revision);
+  if (!source) {
+    const contents = await read(`${repository}/contents/${n64RuntimeInputPath}?ref=${revision}`);
+    source = inspectN64RuntimeSource(
+      revision,
+      readReleaseSourceFile(contents, n64RuntimeInputPath),
+    );
+    cache.sources.set(revision, source);
+  }
+  return { state: "observed", source };
 }
 
 /** Reuse Core's current artifact selection. A fallback release supplies no new recognition target. */
@@ -366,12 +427,14 @@ export function readOriginalSourceProgress(
       !games
     )
       return;
+    const runtime = readN64RuntimeSourceObservation(fact.runtime_source);
     evidence = {
       ...source,
       parser: fact.parser,
       coverage: fact.coverage,
       source_path: n64GameTablePath,
       games,
+      ...(runtime ? { runtime_source: runtime } : {}),
     };
   } else {
     if (
