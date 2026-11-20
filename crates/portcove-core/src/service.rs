@@ -3949,6 +3949,7 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, staged)?;
             }
             let qualification = self.installed_mutability_qualification(staged)?;
+            crate::install::check_retained_launch_destination(staged, &staged.path)?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
@@ -3981,6 +3982,7 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
+            crate::install::check_retained_launch_destination(&existing, &existing.path)?;
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&existing, &qualification)?;
             if settings_activation {
@@ -4597,7 +4599,8 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
-        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        crate::install::check_retained_launch_destination(previous, &previous.path)
+            .map_err(invalid)?;
         self.require_activation_uploader_continuity(previous, None)
             .map_err(|error| RollbackTargetFailure {
                 reason: if error
@@ -4737,6 +4740,7 @@ impl PortcoveService {
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
+        crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
         crate::profile::require_default_recovery_capacity(
             &self.library.connection()?,
@@ -5083,7 +5087,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
-            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
+            crate::install::check_retained_launch_destination(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",

@@ -323,7 +323,7 @@ impl PortcoveService {
                     &install.artifact.sha256,
                 )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &observed,
                     &destination_root.join(relative),
                 )?;
