@@ -2270,13 +2270,14 @@ narrow combination. This adds no acquisition, modification, backup or removal
 authority over the external runtime or original files, and implies no particular
 port's admission or actual operation acceptance.
 
-Hosted
-installation still requires a provider digest or verified checksum sidecar;
-an exact direct manifest still requires an accepted HTTPS URL, size, version and
-SHA-256 for each declared platform. The owner has approved catalog-curated
-exact-byte acquisition under [#315](https://github.com/boburning/portcove/issues/315),
-but its protected authority and runtime route must be implemented before use.
-No client may accept bytes by hashing an arbitrary first download.
+For ordinary hosted installations, Core checks a provider digest or verifies a
+checksum sidecar. For an exact direct manifest, each platform needs an accepted
+HTTPS URL, size, version and SHA-256. For a curated GitHub artifact, Core obtains
+the expected identity from an independently admitted record under authenticated
+publisher policy. It checks the selected upstream release and asset, then verifies
+the acquired bytes against the accepted size and digest. A client-computed hash
+alone cannot establish provenance. See the [acquisition decision](DEFINITION-DELIVERY.md#acquisition-decision)
+and the [remaining shared rollout acceptance](https://github.com/boburning/portcove/issues/315).
 
 Every declared platform must provide at least one executable hint. A hint is an
 ASCII safe relative path under the declared runtime root; a basename remains a
