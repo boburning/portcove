@@ -26,6 +26,8 @@ import {
   readOriginalRecognitionProgress,
 } from "./upstream-original-recognition.mts";
 
+import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
+
 const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
@@ -458,8 +460,23 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   // The observer's catalog mapping partitions every port into a fact or a gap.
   if (facts.size + gaps.size !== portIds.length)
     throw new MaintenanceStoreError("Unsupported observer catalog mapping");
+  const registry = state.mod_provider_registry;
+  if (registry) {
+    const complete = registry.last_complete;
+    if (registry.exception || !complete || Date.parse(complete.expires_at) <= now)
+      gaps.set(thunderstoreRegistrySubject, {
+        subject_key: thunderstoreRegistrySubject,
+        code: registry.exception ?? (complete ? "stale" : "unobserved"),
+        message:
+          "Current Thunderstore registry coverage is unknown. Prior community facts stay current.",
+      });
+    else {
+      const { observed_at: _clock, expires_at: _expiry, ...semantic } = complete;
+      facts.set(thunderstoreRegistrySubject, semantic);
+    }
+  }
   return {
-    expected: portIds.length,
+    expected: portIds.length + Number(registry !== undefined),
     facts,
     gaps: [...gaps.values()].sort((left, right) => (left.subject_key < right.subject_key ? -1 : 1)),
   };

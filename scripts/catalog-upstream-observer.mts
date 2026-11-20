@@ -28,6 +28,11 @@ import type {
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
 import {
+  observeModProviderRegistry,
+  validateModProviderRegistryProgress,
+  type ModProviderRegistryProgress,
+} from "./upstream-mod-provider-registry.mts";
+import {
   observeOriginalRecognition,
   readOriginalRecognitionProgress,
   revalidateOriginalRecognition,
@@ -128,12 +133,14 @@ export interface SourceProgress {
  * such a stop never notifies.
  */
 export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
+const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
   sequence: number;
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
+  mod_provider_registry?: ModProviderRegistryProgress;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
     id: string;
@@ -299,9 +306,11 @@ export function validateCatalogObserverCheckpoint(
       (typeof value.provider_retry_at !== "string" ||
         !Number.isFinite(Date.parse(value.provider_retry_at)))) ||
     !isRecord(value.sources) ||
-    Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
+    Buffer.byteLength(JSON.stringify(value)) > catalogCheckpointByteLimit
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.mod_provider_registry !== undefined)
+    validateModProviderRegistryProgress(value.mod_provider_registry, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -487,6 +496,7 @@ export interface CatalogObservationOptions extends Pick<
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
+  modProviderRegistryFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
@@ -539,9 +549,21 @@ export async function advanceCatalogObservations(
     prior === null
       ? newCatalogObserverCheckpoint()
       : validateCatalogObserverCheckpoint(prior, now());
+  const commitCheckpoint = () => {
+    if (
+      state.mod_provider_registry &&
+      Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
+    )
+      throw new ObservationFailure(
+        "checkpoint-size",
+        "Catalog progress and retained mod registry exceed the checkpoint envelope. The last complete checkpoint remains.",
+      );
+    return options.commit(structuredClone(state));
+  };
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
+  const requestCeiling = options.requestLimit ?? Infinity;
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -711,7 +733,7 @@ export async function advanceCatalogObservations(
             remaining === null
               ? template.budget.requests - requests
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
-            (options.requestLimit ?? Infinity) - requests,
+            requestCeiling - requests,
             Math.floor(
               (deadline - now()) /
                 (sampledRequests
@@ -739,6 +761,52 @@ export async function advanceCatalogObservations(
     requests++;
     if (remaining !== null) remaining--;
   };
+  let registryProgress: ModProviderRegistryProgress | undefined;
+  const registryFits = (progress: ModProviderRegistryProgress) =>
+    Buffer.byteLength(JSON.stringify({ ...state, mod_provider_registry: progress })) <=
+    catalogCheckpointByteLimit;
+  // A due registry read uses the same opportunity and request accounting.
+  // Thunderstore's independent reserve does not decrement GitHub's quota.
+  if (
+    options.modProviderRegistryFetch &&
+    !options.signal?.aborted &&
+    deadline - now() >= 1000 &&
+    Math.min(template.budget.requests, requestCeiling) > 1 &&
+    (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
+  ) {
+    // Reserve space for Retry-After before spending the request. The longest
+    // ISO representation covers even a provider delay in an extended year.
+    if (
+      registryFits({
+        last_complete: state.mod_provider_registry?.last_complete ?? null,
+        next_due_at: "+275760-09-13T00:00:00.000Z",
+        exception: "rate-limit",
+      })
+    ) {
+      const result = await observeModProviderRegistry(state.mod_provider_registry, {
+        now,
+        cadenceMs: template.cadence_hours * 3600000,
+        staleAfterMs: template.stale_after_hours * 3600000,
+        timeout: Math.min(10000, deadline - now()),
+        responseBytes: template.budget.response_bytes,
+        fetch: options.modProviderRegistryFetch,
+        ...(options.signal ? { signal: options.signal } : {}),
+      });
+      requests++;
+      responseBytes += result.bytes;
+      if (result.progress.exception === "rate-limit") {
+        state.mod_provider_registry = result.progress;
+        await commitCheckpoint();
+      } else if (!options.signal?.aborted) registryProgress = result.progress;
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "A registry retry deadline would exceed the checkpoint envelope.",
+      });
+    }
+  }
   const projectBound = async (
     port: ObservablePort,
     repositoryId: number,
@@ -863,7 +931,7 @@ export async function advanceCatalogObservations(
       throw new Error("Source scheduling sequence exhausted");
     progress.attempted_sequence = ++state.sequence;
     state.sources[source.key] = progress;
-    await options.commit(structuredClone(state));
+    await commitCheckpoint();
     attempted.push(source.key);
     const earlyCollection = earlyTurns.delete(source.key);
     if (source.provider === "gitlab" || source.provider === "direct-manifest") {
@@ -881,7 +949,7 @@ export async function advanceCatalogObservations(
           delete progress.provider_progress;
           progress.policy_progress = null;
           progress.completed_scope_sha256 = null;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
         }
 
         const listingClocks = canReuseListing ? retainedListingClocks(source, progress) : null;
@@ -896,7 +964,7 @@ export async function advanceCatalogObservations(
           progress.provider_previous_progress = progress.provider_progress;
           delete progress.provider_progress;
           progress.completed_scope_sha256 = null;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
         }
         const result = await observeProviderSource(
           { ...source, provider: source.provider },
@@ -904,7 +972,11 @@ export async function advanceCatalogObservations(
           {
             now,
             deadline,
-            maximumRequests: Math.min(64, template.budget.requests),
+            maximumRequests: Math.min(
+              64,
+              template.budget.requests,
+              Math.max(0, requestCeiling - requests),
+            ),
             maximumBytes: template.budget.total_bytes,
             ...(options.signal ? { signal: options.signal } : {}),
             ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
@@ -916,7 +988,7 @@ export async function advanceCatalogObservations(
                   "GitLab numeric project identity changed; preserve the declared source and historical evidence",
                 );
               progress.repository_id = identity;
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
             },
             reuseComplete,
             ...(reuseComplete && retainedListingCompletion && listingClocks
@@ -929,6 +1001,8 @@ export async function advanceCatalogObservations(
                 }
               : {}),
             admit: () => {
+              if (requests >= requestCeiling)
+                throw new ObservationFailure("budget", "Shared provider request budget exhausted");
               requests++;
             },
             charge: (bytes) => {
@@ -936,7 +1010,7 @@ export async function advanceCatalogObservations(
             },
             commit: async (checkpoint) => {
               progress.provider_progress = checkpoint;
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
             },
             project: async (portId, observation) => {
               const port = source.ports.find((consumer) => consumer.id === portId)!;
@@ -1003,7 +1077,7 @@ export async function advanceCatalogObservations(
                 );
               progress.policy_progress.policies.push(structuredClone(policy));
               progress.policy_progress.sha256 = observationHash(progress.policy_progress.policies);
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
               return policy;
             },
           },
@@ -1105,7 +1179,7 @@ export async function advanceCatalogObservations(
         )
           pending.push(source);
       }
-      await options.commit(structuredClone(state));
+      await commitCheckpoint();
       continue;
     }
     try {
@@ -1133,7 +1207,7 @@ export async function advanceCatalogObservations(
             "Provider repository identity is unavailable",
           );
         progress.repository_id = identity;
-        await options.commit(structuredClone(state));
+        await commitCheckpoint();
       }
       const config: ObserverConfig = legacy
         ? template
@@ -1165,7 +1239,7 @@ export async function advanceCatalogObservations(
       )
         progress.retired_configs.push(progress.current_config);
       progress.current_config = config;
-      await options.commit(structuredClone(state));
+      await commitCheckpoint();
       const policies: unknown[] = [];
       const scoped = (observation: ProviderObservation, portId: string) => ({
         ...observation,
@@ -1206,7 +1280,7 @@ export async function advanceCatalogObservations(
             await projectBound(port, config.repository_id, scoped(observation, port.id)),
           );
           pendingPolicies.sha256 = observationHash(pendingPolicies.policies);
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
           coreProgress++;
         }
         policies.splice(0, policies.length, ...pendingPolicies.policies);
@@ -1302,7 +1376,7 @@ export async function advanceCatalogObservations(
           selection.release_ids = [...candidates].sort((a, b) => a - b);
           selection.sha256 = observationHash(selection.release_ids);
           selection.cursor = index + 1;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
           coreProgress++;
         }
         return selection.release_ids;
@@ -1569,7 +1643,22 @@ export async function advanceCatalogObservations(
             : "Source operation failed before an observation could be completed; inspect its exact scope and retained execution evidence.",
       });
     }
-    await options.commit(structuredClone(state));
+    await commitCheckpoint();
+  }
+  // Preserve the source checkpoint first. This optional registry must fit in
+  // the space remaining after required release progress.
+  if (registryProgress && !options.signal?.aborted) {
+    if (registryFits(registryProgress)) {
+      state.mod_provider_registry = registryProgress;
+      await commitCheckpoint();
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "The mod registry does not fit the catalog checkpoint. Prior evidence remains.",
+      });
+    }
   }
   return {
     checkpoint: state,
@@ -1579,9 +1668,21 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      ...(state.mod_provider_registry
+        ? {
+            mod_provider_registry: {
+              observed_at: state.mod_provider_registry.last_complete?.observed_at ?? null,
+              expires_at: state.mod_provider_registry.last_complete?.expires_at ?? null,
+              communities: state.mod_provider_registry.last_complete?.communities.length ?? null,
+              response_sha256: state.mod_provider_registry.last_complete?.response_sha256 ?? null,
+              next_due_at: state.mod_provider_registry.next_due_at,
+              exception: state.mod_provider_registry.exception,
+            },
+          }
+        : {}),
       checkpoint_storage: {
         bytes: Buffer.byteLength(JSON.stringify(state)),
-        limit_bytes: 32 * 1024 * 1024,
+        limit_bytes: catalogCheckpointByteLimit,
         provider_read_cache_bytes: Object.values(state.sources).reduce(
           (sum, progress) =>
             sum +

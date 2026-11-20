@@ -310,10 +310,10 @@ start another operation within that opportunity; each operation keeps its existi
 three-minute admission budget. Request counts and refreshed clocks alone cannot
 authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
 requests, about a third of the observed hourly allowance, so upstream-health and
-other workflows sharing the token keep capacity. The ceiling is a hard total:
-each batch receives only the remaining allowance, and every GitHub request is
-admitted against it. GitLab and direct-manifest sources are counted but keep
-their own per-source bound, and checkpoint recovery, push admission and
+other workflows sharing the token keep capacity. The ceiling is a hard total.
+Each batch receives only the remaining allowance, and release and registry
+requests count against it. GitLab and direct-manifest sources also keep
+their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by
 the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
@@ -1359,3 +1359,25 @@ exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping tha
 header correctly, all four configured sources returned usable HTTP 200 reports.
 The actual live observation packet is retained with the implementation evidence;
 fixtures and a local manual read do not establish unattended production operation.
+
+## Mod provider registry
+
+The catalog observation job reads the
+[Thunderstore ecosystem registry](https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/)
+on its existing cadence when the opportunity has request capacity. The public
+read shares the job deadline and response budget and counts toward the same
+request ceiling as the release providers. When Thunderstore defers a request,
+the observer saves the retry deadline before unrelated source work. Its deadline
+is independent of GitHub's retry clock.
+
+The checkpoint retains the schema version, raw response digest, stable community
+IDs, registry game UUIDs, listing states and exact GameBanana game links when
+present. An incomplete response, unsupported schema or change to an already
+observed identity keeps the previous complete snapshot and reports a coverage
+gap. Maintenance reports expired observations as stale using the same
+configured freshness bound. When saved registry evidence and new source progress
+would exceed the existing checkpoint limit, the observer preserves the last
+readable checkpoint and reports the storage hold. The maintenance inventory
+records the registry as one discovery subject.
+A community record supplies neither a canonical Portcove port mapping nor
+runtime, package, installation or publication authority.
