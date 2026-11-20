@@ -46,6 +46,15 @@
       "warnings": [
         "Experimental v1.0.0-only existing player: preserve the active data root, matching skygame.dll/.id, saves and settings. A startup successor can continue after Portcove’s activity ends. Close actual games/helpers before maintenance; full-game stability is not qualified."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-skyward-sword-hd",
+      "evidence_urls": [
+        "https://github.com/Apolinario-coder/SkyRecomp/blob/ad649b4fd319b7f7c309857b2d14353d2e5dcd79/README.md",
+        "https://github.com/Apolinario-coder/SkyRecomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

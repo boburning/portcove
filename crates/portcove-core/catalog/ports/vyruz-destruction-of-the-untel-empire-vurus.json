@@ -53,6 +53,15 @@
       "warnings": [
         "The managed routes use the desktop beta packages. The separate PortMaster package needs compatible handheld firmware. There is no Android APK or general-purpose Linux ARM64 desktop package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vyruz-destruction-of-the-untel-empire",
+      "evidence_urls": [
+        "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
+        "https://github.com/rzrbld/vurus"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

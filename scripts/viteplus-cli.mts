@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 /** Existing exact-byte formatter exclusions shared with the staged route. */
 export const exactByteFormatInputs = Object.freeze([
   "release/bootstrap-public-inputs/**",
+  "release/catalog-publication/bundle/**",
   ".github/workflows/application-update-production.yml",
   "docs/qualification/application-update-production.windows-20261103.proposed.yml",
   "scripts/fixtures/release-resource-baseline-20261103/**",

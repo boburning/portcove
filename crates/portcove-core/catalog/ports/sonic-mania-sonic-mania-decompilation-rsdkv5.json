@@ -51,6 +51,15 @@
     "download_asset_hints": {
       "windows-x86-64": ["mania-windows-x64.zip"],
       "linux-x86-64": ["mania-linux.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-mania",
+      "evidence_urls": [
+        "https://github.com/RSDKModding/Sonic-Mania-Decompilation/blob/56cf1bbac45ebf9da5df781c2983317c3fbb6d5f/README.md",
+        "https://github.com/RSDKModding/Sonic-Mania-Decompilation"
+      ],
+      "source_editions": []
     }
   }
 }

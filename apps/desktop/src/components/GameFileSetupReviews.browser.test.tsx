@@ -1,8 +1,10 @@
 import { captureParityState } from "../../test/parity-capture";
+import { browserFixture } from "../../test/browser-fixture";
 import { fixtureValue } from "../test-fixtures";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { SetupReviewSelectionProvider } from "../features/game-file-discovery/setup-review-selection";
 import { portDefinition, portStatus, preliminarySourceInspection } from "../test-fixtures";
 import { GameFileSetupReviews } from "./GameFileSetupReviews";
@@ -47,6 +49,77 @@ afterEach(async () => {
 });
 const button = (name: string) =>
   [...element.querySelectorAll("button")].find((b) => b.textContent === name)!;
+
+it.for([
+  [1028, 749, "light"],
+  [320, 800, "dark"],
+] as const)("separates selected setup actions at %sx%s %s", async ([width, height, theme]) => {
+  const fixture = browserFixture({ viewport: true, attributes: ["data-theme"] });
+  const port = {
+    ...fixtureValue(ports[0], "first setup review port"),
+    name: "Portcove Install Fixture with a long edition name for setup review",
+  };
+  try {
+    await page.viewport(width, height);
+    document.documentElement.dataset.theme = theme;
+    await act(async () =>
+      root.render(
+        <div className="bg-pc-background p-4 text-pc-foreground">
+          <SetupReviewSelectionProvider>
+            <GameFileSetupReviews
+              ports={[port]}
+              statuses={statuses}
+              candidates={[source]}
+              registeredSources={[source]}
+              current
+              busy={false}
+              onOpenPort={vi.fn()}
+              onAddToLibrary={vi.fn()}
+              onReviewInstall={vi.fn()}
+            />
+          </SetupReviewSelectionProvider>
+        </div>,
+      ),
+    );
+    await act(async () =>
+      fixtureValue(element.querySelector<HTMLInputElement>("input"), "setup selection").click(),
+    );
+    const section = fixtureValue(element.querySelector("section"), "setup reviews section");
+    const bounds = section.getBoundingClientRect();
+    expect(section.scrollWidth).toBeLessThanOrEqual(section.clientWidth + 1);
+    const review = [
+      button(`Review ${port.name} setup`),
+      button(`Remove ${port.name} from selection`),
+    ];
+    const bulk = [
+      button("Add 1 selected to Library"),
+      button("Review installing 1 selected"),
+      button("Clear setup selection"),
+    ];
+    for (const actions of [review, bulk]) {
+      const rectangles = actions.map((action) => action.getBoundingClientRect());
+      for (const rectangle of rectangles) {
+        expect(rectangle.left).toBeGreaterThanOrEqual(bounds.left - 1);
+        expect(rectangle.right).toBeLessThanOrEqual(bounds.right + 1);
+      }
+      for (const [index, rectangle] of rectangles.slice(1).entries()) {
+        const previous = fixtureValue(rectangles[index], "previous action");
+        expect(
+          Math.max(
+            rectangle.left - previous.right,
+            previous.left - rectangle.right,
+            rectangle.top - previous.bottom,
+          ),
+        ).toBeGreaterThanOrEqual(4);
+      }
+    }
+    await captureParityState(
+      `game-files-selected-setup-action-spacing-${theme}-${width}x${height}`,
+    );
+  } finally {
+    await fixture.dispose();
+  }
+});
 
 it("keeps registered preliminary inputs distinct while opening only fresh Core-eligible setup reviews", async () => {
   const record = { ...source, path: "D:/selected-disc.iso" };

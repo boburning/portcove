@@ -1060,8 +1060,10 @@ The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
 Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
-host preference. Core compares the SHA-1 or SHA-256 and size it already
-observed for the selected files with the DAT entries and reports the matching
+host preference. If the import rejects the Logiqx format, Settings prompts
+players to choose a complete Logiqx XML DAT file and keeps the exact parser
+reason in technical details. Core compares the SHA-1 or SHA-256 and size it
+already observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
 when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor
@@ -2321,13 +2323,18 @@ rule change; existing transition and recovery guards still apply.
 A reviewed download can retain a native GitHub package choice in its install
 manifest. This applies when two authored hints cover the full filename around
 the exact three-part numeric release tag, and GitHub supplied the stable
-repository, release and asset identities. Core remembers the channel, host
+repository, release and asset identities. On the beta channel, this also
+covers full tags ending in `-alpha`, `-beta` or `-rc`, with an optional dot
+and number. Core recovers that choice from the verified acquisition and the
+definition retained when the package was installed. The next package must
+include its full tag. Additional edition or debug labels need their own
+reviewed binding. Core remembers the channel, host
 architecture, native mode, package anchors and any declared original-source
 profile. The next release must offer one verified package with the same
 anchors around its own version. A missing or competing match holds the
 update. Ordinary package eligibility, uploader, digest and activation checks
-still apply. A legacy installation with no receipt uses ordinary selection.
-An explicitly selected different channel and exact curated, direct or rolling
+still apply. An installation without the required retained evidence uses
+ordinary selection. An explicitly selected different channel and exact curated, direct or rolling
 pins use their existing release contracts.
 
 When an upstream release still matches a managed route's selector but changes
@@ -2370,6 +2377,16 @@ different layout is refused with a player-facing reason naming the new or missin
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
+
+An independently reviewed managed GitHub archive with only the selected root
+executable and no fingerprinted directories can declare
+`reviewed_flat_package_layout_v1` as the ordered list of reviewed platforms.
+The existing executable hints supply the basename in the generated fingerprint.
+Keep the actual package selectors, executable hints and all runtime, original
+game and qualification facts explicit. Preparation proposes this form only
+when a previously reviewed fingerprint reproduces the existing integration byte
+for byte. Archives with extra programs, directories or package-layout options
+keep their explicit fingerprints.
 
 For an official Linux archive with a dedicated portable-data directory, omit
 that directory from the reviewed layout. Core checks that the executable's
@@ -3619,7 +3636,10 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
+single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
+`psx_crash.txt`. Their remaining split-mods fields are the same.
+`"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
 Use `"split-mods-overlay-directory"` for the reviewed single-disc retail kits
@@ -3970,6 +3990,11 @@ When GitHub confirms the repository identity, the proposal records its
 immutable ID as the initial lineage. GitHub URL aliases reuse the existing
 authored origin. A repository ID already recorded under a different project
 URL needs lineage review before it can move.
+Include `--record` with the same project URL and reviewed game identity to
+prepare an already-reviewed operational contract. If the record has initial
+lineage, its GitHub repository ID must match the observed repository. Existing
+lineage and issue assignments stay bound to their catalog records. A new
+GitHub-managed route starts from its official project repository.
 Use the existing `--id` if the upstream project names several implementations
 or the existing listing has no reviewed game identity.
 For a non-GitHub project, supply `--name` if the game identity has no single

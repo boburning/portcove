@@ -226,6 +226,7 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     true,
     "bundled-openbios",
     "split-mods",
+    "split-mods-no-crash-log",
     "split-mods-openbios",
     "split-mods-overlay-directory",
   ] as const;
@@ -247,8 +248,12 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   if (layout === "technically-computers") return projectTechnicallyComputers(record);
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
   const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
+  const withoutCrashLog = layout === "split-mods-no-crash-log";
   const splitMods =
-    layout === "split-mods" || layout === "split-mods-openbios" || overlayDirectoryOnly;
+    layout === "split-mods" ||
+    layout === "split-mods-openbios" ||
+    overlayDirectoryOnly ||
+    withoutCrashLog;
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -311,6 +316,20 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       "PSX split-mods authoring requires exact Windows and Linux x64 kit selectors and generated players.",
     );
 
+  if (withoutCrashLog) {
+    const idPrefix = "alexbeav-";
+    const repository = `alexbeavs-ps1-ports/${record.listing.id.slice(idPrefix.length)}`;
+    if (
+      !record.listing.id.startsWith(idPrefix) ||
+      integration.release.repository !== repository ||
+      record.listing.project_url !== `https://github.com/${repository}` ||
+      biosProfile !== "psx-scph-1001-bios"
+    )
+      throw new PsxLayoutMismatch(
+        "PSX split-mods without a crash log requires the reviewed Alexbeav project and retail SCPH-1001 BIOS.",
+      );
+  }
+
   const hasMultidiscContract = multidiscFields.some((field) => Object.hasOwn(integration, field));
   if (
     hasMultidiscContract &&
@@ -349,6 +368,10 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       path === "mods" ? splitModPaths : [path],
     );
   }
+  if (withoutCrashLog)
+    projectedLayout.runtime_mutable_paths = projectedLayout.runtime_mutable_paths.filter(
+      (path) => path !== "psx_crash.txt",
+    );
   if (overlayDirectoryOnly) {
     projectedLayout.persistent_paths = projectedLayout.persistent_paths.filter(
       (path) => !overlayDirectoryLayoutOmissions.has(path),

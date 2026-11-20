@@ -46,6 +46,16 @@
         }
       ],
       "help_url": "https://github.com/freeciv/freeciv/blob/main/INSTALL"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "freeciv",
+      "evidence_urls": [
+        "https://www.freeciv.org/download.html",
+        "https://github.com/freeciv/freeciv/blob/main/INSTALL",
+        "https://github.com/freeciv/freeciv"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

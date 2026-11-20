@@ -35,6 +35,12 @@
       "image_sha256": "6dd026e6f2e46a1916098850454b34b0f01b0b13b64129cdf07ebce57840ce28",
       "game_slug": "doctor-hauzer",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doctor-hauzer",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-doctorhauzer"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

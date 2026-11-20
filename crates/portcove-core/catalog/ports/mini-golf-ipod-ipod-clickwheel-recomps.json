@@ -126,6 +126,14 @@
         }
       ],
       "warnings": []
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mini-golf-ipod",
+      "evidence_urls": [
+        "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

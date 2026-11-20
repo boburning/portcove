@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "blacklabelhq-medievilrecomp",
     "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
@@ -101,12 +102,6 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Requires the .NET 10 runtime. On first Play, use MediEvil's disc picker to select your own supported North American MediEvil CUE/BIN or CHD; the game remembers the disc's path, so keep the disc in a folder outside the game folder. Portcove starts the game with --disable-updated, upstream's switch for an external manager, which removes its update check, Updates menu and installer, so only Portcove replaces the managed copy. Settings, memory-card saves, the interface layout, mods, shader and asset packs, texture dumps and the mod hub cache stay in the game folder and are kept across updates, backups and rollback. Keep the memory cards at their default names, carda.sav and cardb.sav. Mods run code you choose to install."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["medievil.exe"]
-      }
     }
   }
 }

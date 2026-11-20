@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp"
     },
-    "issue_number": 3567
+    "issue_number": 3567,
+    "original_game": {
+      "format_version": 1,
+      "id": "scrabble-1999",
+      "evidence_urls": ["https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

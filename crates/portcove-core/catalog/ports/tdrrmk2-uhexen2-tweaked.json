@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "tdrrmk2-uhexen2-tweaked",
     "artwork": {
@@ -83,12 +84,6 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into data1 in the managed player's folder, and keep your original installation separately. Portcove does not check these files and nothing patches them; the engine refuses older or mixed versions. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log when startup logging is enabled, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["glh2.exe"]
-      }
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"]

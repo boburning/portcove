@@ -35,6 +35,12 @@
       "image_sha256": "1ef1bae65032be69398db30f91b34c72b5ef630537dc7854930c08d01e0ef2ee",
       "game_slug": "yakuza-dead-souls",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yakuza-dead-souls",
+      "evidence_urls": ["https://github.com/canersaka/Yakuza-Dead-Souls-Recompiled"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

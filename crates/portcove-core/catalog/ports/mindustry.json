@@ -50,6 +50,16 @@
         }
       ],
       "help_url": "https://mindustrygame.github.io/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mindustry",
+      "evidence_urls": [
+        "https://mindustrygame.github.io/wiki/",
+        "https://mindustrygame.github.io/",
+        "https://github.com/Anuken/Mindustry"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

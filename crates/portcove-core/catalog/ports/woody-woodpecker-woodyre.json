@@ -57,6 +57,16 @@
           "instruction": "WoodyRE v1.0.12 includes an APK with ARM64 and x86-64 libraries. On first start, choose your original CD image or copied files. Open the installed app again to use that copy. The app keeps the imported files under Android/data/io.github.jjmhalew.woodyre/files/data, with woodyre.sav and woodyre.cfg in the parent folder."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "woody-woodpecker-escape-from-buzz-buzzard-park",
+      "evidence_urls": [
+        "https://github.com/jjmhalew/WoodyRE/blob/02c2bb830accb8b60ee6c2f2cb52cdc7cdb4a914/README.md",
+        "https://github.com/jjmhalew/WoodyRE"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Woody Woodpecker: Escape from Buzz Buzzard Park"
   }
 }

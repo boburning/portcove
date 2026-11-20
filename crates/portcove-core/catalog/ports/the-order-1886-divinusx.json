@@ -36,6 +36,16 @@
       "warnings": [
         "The publisher reports actual play on Linux. The exact release notes identify physical Windows testing as unavailable. Portcove does not manage this runtime or protect its saves."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-order-1886",
+      "evidence_urls": [
+        "https://github.com/DivinusX/a-port-of-the-order-1886-thats-actually-alive/releases/tag/v0.2.33",
+        "https://github.com/lxnis/Order1886-PC",
+        "https://github.com/IgorAugustoHH/The-Order-1886-PC-Port"
+      ],
+      "source_editions": []
     }
   }
 }

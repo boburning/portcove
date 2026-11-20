@@ -96,6 +96,21 @@ export async function prepareLibrarySwitchRecoveryFixture(output: string) {
 
 const canonicalPath = (value: string) => path.toNamespacedPath(path.resolve(value));
 
+export function outgoingLibraryBusyDetails(textContent: string, outgoingRoot: string) {
+  const details = object(JSON.parse(textContent));
+  assert.equal(
+    details.message,
+    "the library is in use by another Portcove operation or process",
+    "Only the outgoing library's exclusive lease refusal can be retried here",
+  );
+  assert.equal(
+    canonicalPath(text(object(details.context).library_root)),
+    canonicalPath(outgoingRoot),
+    "The busy library must be the original library",
+  );
+  return details;
+}
+
 export async function librarySwitchRecoveryScenario({
   browser,
   invoke,
@@ -211,18 +226,49 @@ export async function librarySwitchRecoveryScenario({
     path.join(output, "library-switch-refusal-accessibility.json"),
     artifacts,
   );
-  const healthyReview = await selectAndReview(fixture.healthyRoot, "healthy-library-picker");
-  await healthyReview
-    .findElement(By.xpath('.//button[normalize-space(.)="Switch library"]'))
-    .click();
-  await browser.wait(async () => {
-    const status = await read("get_bootstrap_status");
-    return (
-      status.ready &&
-      canonicalPath(required(status.library_root)) === canonicalPath(fixture.healthyRoot)
+  const confirmHealthyChoice = async (name: string) => {
+    const review = await selectAndReview(fixture.healthyRoot, name);
+    await review.findElement(By.xpath('.//button[normalize-space(.)="Switch library"]')).click();
+    return browser.wait(
+      async () => {
+        const status = await read("get_bootstrap_status");
+        if (
+          status.ready &&
+          canonicalPath(required(status.library_root)) === canonicalPath(fixture.healthyRoot)
+        )
+          return { kind: "switched", status } as const;
+        if ((await browser.findElements(dialog)).length > 0) return undefined;
+        const refusal = (await browser.findElements(alert))[0];
+        return refusal ? ({ kind: "refused", status, refusal } as const) : undefined;
+      },
+      15_000,
+      "The reviewed healthy library must open or show a settled refusal",
     );
-  }, 15_000);
+  };
+  let healthyOutcome = required(await confirmHealthyChoice("healthy-library-picker"));
+  let outgoingBusy;
+  if (healthyOutcome.kind === "refused") {
+    await captureScreenshot("healthy-library-switch-refused");
+    await healthyOutcome.refusal.findElement(By.css("summary")).click();
+    outgoingBusy = outgoingLibraryBusyDetails(
+      await healthyOutcome.refusal.findElement(By.css("pre")).getText(),
+      fixture.currentRoot,
+    );
+    assert.deepEqual(healthyOutcome.status, rejected);
+    assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
+    await assertPreservation();
+    await readWorkspaceSnapshotObservation(invoke, rejected, workspaceReadbacks);
+    await captureScreenshot("healthy-library-outgoing-lease-refused");
+    // Reopen the picker and confirm the same owned target once after an exact
+    // outgoing-library refusal. No write is repeated after a successful switch.
+    healthyOutcome = required(await confirmHealthyChoice("healthy-library-picker-retry"));
+    if (healthyOutcome.kind === "refused")
+      throw new Error(
+        `The reviewed healthy library was refused again: ${await healthyOutcome.refusal.getText()}`,
+      );
+  }
   const recovered = await read("get_bootstrap_status");
+  assert.deepEqual(recovered, healthyOutcome.status);
   assert.ok(recovered.generation > before.generation);
   assert.equal(required(recovered.selection).source, "saved");
   const recoveredIdentity = await read("get_library_identity", {
@@ -252,7 +298,7 @@ export async function librarySwitchRecoveryScenario({
   const evidence = path.join(output, "library-switch-recovery.json");
   await writeFile(
     evidence,
-    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, recovered, recoveredIdentity, restarted, workspace_readbacks: workspaceReadbacks, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
+    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, outgoing_busy: outgoingBusy, recovered, recoveredIdentity, restarted, workspace_readbacks: workspaceReadbacks, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
     { flag: "wx" },
   );
   artifacts.push(evidence);

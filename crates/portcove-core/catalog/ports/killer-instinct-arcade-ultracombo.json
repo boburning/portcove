@@ -46,6 +46,15 @@
       "warnings": [
         "Keep the kinst originals, active data root and per-version settings/states. First-use compilation, game switching and netplay remain upstream-owned operations."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killer-instinct-arcade",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md",
+        "https://github.com/thefixinhixon/UltraCombo"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

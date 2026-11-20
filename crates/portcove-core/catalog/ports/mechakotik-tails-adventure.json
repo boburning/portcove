@@ -44,7 +44,13 @@
         "Upstream reports missing nonessential original features; completion/gameplay claims belong to upstream and have not been repeated here. Preserve a separate copy before changing mods or data."
       ]
     },
-    "original_game_title": "Tails Adventure"
+    "original_game_title": "Tails Adventure",
+    "original_game": {
+      "format_version": 1,
+      "id": "tails-adventure",
+      "evidence_urls": ["https://github.com/mechakotik/tails-adventure"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

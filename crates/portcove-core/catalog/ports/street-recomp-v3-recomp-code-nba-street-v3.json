@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/recomp-code/street-recomp-v3"
     },
-    "issue_number": 3052
+    "issue_number": 3052,
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-street-v3",
+      "evidence_urls": ["https://github.com/recomp-code/street-recomp-v3"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

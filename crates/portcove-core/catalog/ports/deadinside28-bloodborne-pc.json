@@ -45,6 +45,16 @@
       "warnings": [
         "Select the Windows package’s Bloodborne.exe with its complete folder and your own CUSA03173 v1.09. Preserve package data plus %APPDATA%/bbport-launcher/settings.json and existing overrides; Linux/GTK and other forks are separate routes."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/deadinside28/bloodborne_pc/blob/0fc2921c45f8ff3900f6bfa43a299e9a4f532af4/README.md",
+        "https://github.com/deadinside28/bloodborne_pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
   }
 }

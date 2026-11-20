@@ -57,6 +57,16 @@
           "instruction": "Keep the complete actual EdgeOfTimeRecompiled installation, game/ with Default.xex and Data/GameLogic.dll, separate DLC packages and all profiles/. The source selects profiles/<name>/ for user data, cache/ and reeot.toml; preserve every effective profile and any established custom game_data_root/profile argument, not only default. Retain saves, settings, achievement data, mods, backups, caches, logs beside the program and all custom/external roots with the creating runtime. Upstream may adopt earlier user data from its legacy reeot location and publish DLC into a profile; preserve both locations before maintenance. Windows HKCU/Software/reeot/Install records the selected installation; Portcove neither rewrites nor removes it."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-edge-of-time",
+      "evidence_urls": [
+        "https://github.com/goliathret/EdgeOfTimeRecomp",
+        "https://github.com/goliathret/EdgeOfTimeRecomp/blob/ebf7bb904d88062a3bd5b1d59ea642cdc2c1b780/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Spider-Man: Edge of Time"
   }
 }

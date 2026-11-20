@@ -31,6 +31,13 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/yaz0r/Azel#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "panzer-dragoon-saga",
+      "evidence_urls": ["https://github.com/yaz0r/Azel#readme", "https://github.com/yaz0r/Azel"],
+      "source_editions": []
+    },
+    "original_game_title": "Panzer Dragoon Saga"
   }
 }

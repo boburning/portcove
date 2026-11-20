@@ -42,6 +42,15 @@
         "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps.",
         "Movies play only when FFmpeg is installed on your PATH or named by the M2_FFMPEG environment variable."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mercenaries-2-world-in-flames",
+      "evidence_urls": [
+        "https://github.com/bstoney-yt/Mercenaries-2-Decompilation/blob/beta-20261021/README.md",
+        "https://github.com/bstoney-yt/Mercenaries-2-Decompilation"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

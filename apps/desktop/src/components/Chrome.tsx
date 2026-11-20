@@ -130,7 +130,7 @@ export function Sidebar({
 }: {
   view: View;
   setView: Dispatch<SetStateAction<View>>;
-  libraryCount: number;
+  libraryCount: number | undefined;
   updateCount: number;
   activities: ActivityRecord[];
   controller?: string | undefined;
@@ -187,7 +187,7 @@ export function Sidebar({
       >
         <Icon glyph={item.icon} />
         <span className="nav-label min-w-0 flex-1">{item.label}</span>
-        {item.view === "library" && (
+        {item.view === "library" && libraryCount !== undefined && (
           <b
             className={cn(
               "rounded-pc-sm border border-pc-border px-1 py-0.5 text-xs font-normal",

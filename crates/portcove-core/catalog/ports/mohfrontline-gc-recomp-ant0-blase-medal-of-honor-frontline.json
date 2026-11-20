@@ -35,6 +35,12 @@
       "image_sha256": "69ba1c92b934b0c937b687f38a978b6e2eb757b88c44af3a6f7985a531daa896",
       "game_slug": "medal-of-honor-frontline",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-frontline",
+      "evidence_urls": ["https://github.com/ant0-blase/MOHFrontline-GC-RECOMP"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -137,6 +137,8 @@ jobs:
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
             --prior "$PRIOR" >> "$GITHUB_OUTPUT"
+          target/release/portcove-release-tools check-definition-publication-context \
+            "$RUNNER_TEMP/catalog-work/context.json"
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"

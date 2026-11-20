@@ -38,6 +38,12 @@
           "instruction": "The project reports Mac cutscenes, controller input and 60 FPS in the tested levels. Its iOS shell compiles for ARM64. Windows and Linux routes are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blade-ii-the-return-of-evil",
+      "evidence_urls": ["https://github.com/ha7rock/blade2-mobile"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

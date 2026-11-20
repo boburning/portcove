@@ -16,6 +16,10 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
+  compactReviewedFlatPackageLayout,
+  projectReviewedFlatPackageLayout,
+} from "./catalog-reviewed-flat-package-layout.mts";
+import {
   compactN64RecompPersistence,
   projectN64RecompPersistence,
 } from "./catalog-n64-recomp-persistence.mts";
@@ -263,6 +267,46 @@ void test("Raze Windows authoring preserves the exact shared package and profile
   assert.equal(explicit.raze_windows_profile_v1, undefined);
   assert.equal(compactRazeWindowsProfile(explicit), explicit);
   assert.equal(projectAuthoredPort(explicit)?.portable_marker_file, "gzdoom_portable.ini");
+});
+
+void test("reviewed flat package authoring preserves ordered fingerprints and explicit exceptions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
+  assert.equal(family.length, 13);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(prior.get(record.listing.id)),
+    );
+    const explicit = projectReviewedFlatPackageLayout(record);
+    delete explicit.reviewed_flat_package_layout_v1;
+    assert.deepEqual(compactReviewedFlatPackageLayout(explicit), record);
+  }
+  const selected = requiredFixture(
+    family.find((record) => record.listing.id === "bvschaik-julius"),
+  );
+  assert.deepEqual(selected.reviewed_flat_package_layout_v1, ["linux-x86-64", "windows-x86-64"]);
+  const nested = structuredClone(selected);
+  nested.integration!.executable_hints = {
+    "linux-x86-64": ["app/julius"],
+    "windows-x86-64": ["julius.exe"],
+  };
+  assert.throws(
+    () => checkedAuthoredPort(nested),
+    /requires a managed GitHub archive with one root executable/u,
+  );
+  const duplicate = structuredClone(selected);
+  duplicate.integration!.reviewed_package_layouts = {};
+  assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
+  for (const id of [
+    "mdk-sdl-nemo22",
+    "blake-stone-aliens-of-gold-bstone",
+    "bstoney-yt-mercenaries-2-decompilation",
+  ]) {
+    const explicit = requiredFixture(records.find((record) => record.listing.id === id));
+    assert.equal(compactReviewedFlatPackageLayout(explicit), explicit, id);
+  }
 });
 
 void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
@@ -1290,6 +1334,53 @@ void test("PSX retail split-mods preparation preserves the reviewed multidisc co
   const different = structuredClone(explicit);
   different.integration!.runtime_source_filename = "other-discs";
   assert.equal(compactPsxManagedWindows(different), different);
+});
+
+void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "split-mods-no-crash-log",
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "alexbeav-bloody-roar-ii-recomp",
+    "alexbeav-brave-fencer-musashi-recomp",
+    "alexbeav-destruction-derby-2-recomp",
+    "alexbeav-destruction-derby-raw-recomp",
+    "alexbeav-dino-crisis-2-recomp",
+    "alexbeav-dino-crisis-recomp",
+  ]);
+  const mutablePaths = [
+    "cache",
+    "psx_freeze_heartbeat.json",
+    "psx_freeze_heartbeat.json.tmp",
+    "psx_last_run_report.json",
+    "psx_cps_exit_trace.json",
+    "netplay_lan_lobby.txt",
+  ];
+  for (const record of family) {
+    const thin = projectPsxManagedWindows(record).integration;
+    assert.ok(thin);
+    assert.deepEqual(thin.runtime_mutable_paths, mutablePaths);
+    const common = projectPsxManagedWindows({
+      ...record,
+      psx_managed_windows_v1: "split-mods",
+    }).integration;
+    assert.deepEqual(common, {
+      ...thin,
+      runtime_mutable_paths: [...mutablePaths, "psx_crash.txt"],
+    });
+  }
+  const record = family[0]!;
+  const otherSource = {
+    ...record,
+    listing: { ...record.listing, project_url: "https://github.com/fork/port" },
+  };
+  assert.throws(() => projectPsxManagedWindows(otherSource), /reviewed Alexbeav project/u);
+  const otherBios = {
+    ...record,
+    integration: { ...record.integration, bios_source_profile: "psx-scph-5552-bios" },
+  };
+  assert.throws(() => projectPsxManagedWindows(otherBios), /retail SCPH-1001 BIOS/u);
 });
 
 void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {

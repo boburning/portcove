@@ -49,6 +49,15 @@
         }
       ],
       "help_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "endless-sky",
+      "evidence_urls": [
+        "https://github.com/endless-sky/endless-sky/wiki/PlayersManual",
+        "https://github.com/endless-sky/endless-sky"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

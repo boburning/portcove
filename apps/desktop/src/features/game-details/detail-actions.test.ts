@@ -211,6 +211,7 @@ describe("detail actions", () => {
         }),
     );
     const dismiss = vi.fn();
+    const committed = vi.fn();
     const perform: Perform = async (_name, task) => {
       try {
         return await task();
@@ -229,11 +230,59 @@ describe("detail actions", () => {
       backupsChanged: async () => {},
       libraryGeneration: 0,
       dismissInstallReview: dismiss,
+      onInstallCommitted: committed,
     });
     const installing = actions.install();
     expect(dismiss).not.toHaveBeenCalled();
     fail(new Error("Artifact unavailable"));
     await installing;
+    expect(dismiss).toHaveBeenCalledOnce();
+    expect(committed).not.toHaveBeenCalled();
+  });
+
+  it("reports the actual committed install before waiting for workspace readback", async () => {
+    const installed = installRecord({ port_id: port.id });
+    vi.spyOn(desktopApi, "install").mockResolvedValue(installed);
+    let entered!: () => void;
+    const reading = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let release!: () => void;
+    const readback = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const order: string[] = [];
+    const committed = vi.fn(() => {
+      order.push("commit");
+    });
+    const dismiss = vi.fn();
+    const perform: Perform = async (_name, task) => {
+      const result = await task();
+      order.push("readback");
+      entered();
+      await readback;
+      return result;
+    };
+    const pending = detailActions({
+      port,
+      status: undefined,
+      sourcePath: "",
+      biosPath: "",
+      perform,
+      close: vi.fn(),
+      libraryGeneration: 7,
+      onInstallCommitted: committed,
+      dismissInstallReview: dismiss,
+    }).install();
+    try {
+      await reading;
+      expect(committed).toHaveBeenCalledExactlyOnceWith(installed);
+      expect(order).toEqual(["commit", "readback"]);
+      expect(dismiss).not.toHaveBeenCalled();
+    } finally {
+      release();
+      await pending;
+    }
     expect(dismiss).toHaveBeenCalledOnce();
   });
 

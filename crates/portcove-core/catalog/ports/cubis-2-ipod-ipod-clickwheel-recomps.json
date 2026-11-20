@@ -4,7 +4,7 @@
     "id": "cubis-2-ipod-ipod-clickwheel-recomps",
     "name": "Cubis 2 (iPod Click Wheel Recomp)",
     "summary": "Play the iPod edition of Cubis 2 using files from your own copy.",
-    "original_game_title": "Cubis 2 (iPod)",
+    "original_game_title": "Cubis 2",
     "project_url": "https://github.com/DogParty/iPodClickWheelRecomps",
     "issue_number": 7303,
     "listed_at": "2026-11-18",
@@ -122,6 +122,14 @@
         }
       ],
       "warnings": []
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cubis-2",
+      "evidence_urls": [
+        "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Cubis2/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

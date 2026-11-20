@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickDatPath } from "../file-picker";
 import type { DatReferenceStatus } from "../types";
-import { failurePresentation } from "../view-model";
+import { failurePresentation, type FailureDisplay } from "../view-model";
+import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 
@@ -13,8 +14,9 @@ const stateLabels: Record<DatReferenceStatus["state"], string> = {
   unreadable: "Can’t be read",
 };
 
-function problemText(value: unknown, fallback: string) {
-  const failure = failurePresentation(value);
+type DatProblem = { summary: string; details?: FailureDisplay };
+
+function problemText(failure: FailureDisplay | undefined, fallback: string) {
   if (!failure) return fallback;
   return failure.technical_message && failure.technical_message !== failure.summary
     ? `${failure.summary} ${failure.technical_message}`
@@ -37,7 +39,7 @@ export function DatReferenceSettings({
   pick?: () => Promise<string | null>;
 }) {
   const [references, setReferences] = useState<DatReferenceStatus[] | undefined>();
-  const [problem, setProblem] = useState<string | undefined>();
+  const [problem, setProblem] = useState<DatProblem>();
   const [activity, setActivity] = useState<"picking" | "adding" | "removing">();
   // Each completed change asks Core again; only the latest read is shown.
   const [revision, setRevision] = useState(0);
@@ -71,7 +73,10 @@ export function DatReferenceSettings({
         if (request.current === current)
           setLastRead({
             revision,
-            problem: problemText(value, "Portcove couldn’t read your saved DAT files."),
+            problem: problemText(
+              failurePresentation(value),
+              "Portcove couldn’t read your saved DAT files.",
+            ),
           });
       },
     );
@@ -90,7 +95,15 @@ export function DatReferenceSettings({
     try {
       await operation();
     } catch (value) {
-      setProblem(problemText(value, failure));
+      const presentation = failurePresentation(value);
+      setProblem(
+        kind === "adding" && presentation?.technical_context.dat_problem === "logiqx_format"
+          ? {
+              summary: "Choose a complete Logiqx XML DAT file and add it again.",
+              details: presentation,
+            }
+          : { summary: problemText(presentation, failure) },
+      );
     } finally {
       refresh();
       setActivity(undefined);
@@ -104,7 +117,9 @@ export function DatReferenceSettings({
     try {
       path = await pick();
     } catch (value) {
-      setProblem(problemText(value, "Portcove couldn’t open the file picker."));
+      setProblem({
+        summary: problemText(failurePresentation(value), "Portcove couldn’t open the file picker."),
+      });
       setActivity(undefined);
       return;
     }
@@ -138,9 +153,9 @@ export function DatReferenceSettings({
       <div className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
         <h3 className="text-base font-semibold">DAT files</h3>
         <p className="text-sm text-pc-muted-foreground">
-          Add No-Intro or Redump DAT files you already have. When Portcove checks original game
-          files, it names the matching dump. DAT files don’t change which files a game accepts. They
-          stay where they are and aren’t uploaded.
+          Add a Logiqx XML DAT file you already have, such as No-Intro or Redump. When Portcove
+          checks original game files, it names the matching dump. DAT files don’t change which files
+          a game accepts. They stay where they are and aren’t uploaded.
         </p>
         <p role="status" className={status ? "text-sm text-pc-muted-foreground" : "sr-only"}>
           {status}
@@ -193,8 +208,17 @@ export function DatReferenceSettings({
           </ul>
         )}
         {problem && (
-          <Notice role="alert" dir="auto">
-            {problem}
+          <Notice role={problem.details ? undefined : "alert"} dir="auto">
+            {problem.details ? (
+              <div data-slot="notice-body" className="grid gap-2">
+                <p role="alert">
+                  <strong>DAT file wasn’t added.</strong> {problem.summary}
+                </p>
+                <FailureDetails presentation={problem.details} showMutationSummary={false} />
+              </div>
+            ) : (
+              problem.summary
+            )}
           </Notice>
         )}
         {lastRead?.problem && (

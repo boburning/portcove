@@ -199,6 +199,10 @@ fn dat_error(message: &str) -> PortcoveError {
     PortcoveError::source(format!("this DAT file can’t be used: {message}"))
 }
 
+fn logiqx_format_error(message: &str) -> PortcoveError {
+    dat_error(message).detail("dat_problem", "logiqx_format")
+}
+
 /// Strip control and bidirectional characters and cap the length at a
 /// character boundary.
 fn display_text(value: &str, max_bytes: usize) -> String {
@@ -320,7 +324,7 @@ pub(crate) fn parse_dat_with_limits(bytes: &[u8], limits: DatLimits) -> Result<D
         }
     }
     if !parser.stack.is_empty() || !parser.root_seen {
-        return Err(dat_error("it isn’t a complete Logiqx datafile"));
+        return Err(logiqx_format_error("it isn’t a complete Logiqx datafile"));
     }
     let name = name.ok_or_else(|| dat_error("its header has no name"))?;
     Ok(DatDocument {
@@ -347,7 +351,7 @@ impl Parser {
     ) -> Result<()> {
         if self.stack.is_empty() {
             if tag != "datafile" || self.root_seen {
-                return Err(dat_error("it isn’t a Logiqx datafile"));
+                return Err(logiqx_format_error("it isn’t a Logiqx datafile"));
             }
             self.root_seen = true;
             return Ok(());

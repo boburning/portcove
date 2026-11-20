@@ -14,7 +14,12 @@ const heldId = "shipwright";
 const indexTarget = "definitions/index.json";
 const policyTarget = `policy/official/${oldId}.json`;
 const launchTarget = `policy/official/${oldId}.launch.json`;
-const bundle = fileURLToPath(new URL("../release/catalog-publication/bundle", import.meta.url));
+const bundle = fileURLToPath(
+  new URL(
+    "../docs/qualification/chameleon-twist-jp-managed-bundle-2026-10-30/bundle",
+    import.meta.url,
+  ),
+);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const target = (bytes: Buffer) => `sha256/${hash(bytes)}.json`;
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);

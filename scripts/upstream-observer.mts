@@ -1626,11 +1626,13 @@ export async function observeUpstream(
       requireFact(previous, "invalid-checkpoint", "continued page is missing");
       return { url, value: previous };
     }
-    const policy: GitHubRequestPolicy = failedReads.get(url) ?? {
-      replay: "safe-read",
-      attempts: 0,
-      maxAttempts: config.budget.retries + 1,
-    };
+    const retainedPolicy = failedReads.get(url);
+    // The observer's fair turns can decline admission before the SDK charges an
+    // attempt. Such a deferral must not age the later admitted request.
+    const policy: GitHubRequestPolicy =
+      retainedPolicy && retainedPolicy.attempts > 0
+        ? retainedPolicy
+        : { replay: "safe-read", attempts: 0, maxAttempts: config.budget.retries + 1 };
     failedReads.set(url, policy);
     try {
       const response = await sdk.request({
