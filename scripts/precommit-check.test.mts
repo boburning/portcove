@@ -230,6 +230,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-cover-mapping.mts",
       "scripts/catalog-crispy-doom-windows-persistence.mts",
       "scripts/catalog-game-review.mts",
+      "scripts/catalog-gen2recomp-windows-persistence.mts",
       "scripts/catalog-n64-recomp-persistence.mts",
       "scripts/catalog-openmohaa-portable.mts",
       "scripts/catalog-portable-reflectionhle.mts",
