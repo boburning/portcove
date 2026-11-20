@@ -121,12 +121,12 @@ def main(evidence, package):
         checked("/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle))
         helper = work / "observe-window"
         checked("/usr/bin/swiftc", "scripts/verify-published-macos-owned-window.swift", "-o", str(helper), timeout=90)
-        home = work / "private-home"
-        home.mkdir(mode=0o700)
+        cocoa_home = work / "private-cocoa-home"
+        cocoa_home.mkdir(mode=0o700)
         env = dict(os.environ)
         for secret in ("GH_TOKEN", "GITHUB_TOKEN", "PORTCOVE_GITHUB_TOKEN"):
             env.pop(secret, None)
-        env.update(HOME=str(home), CFFIXED_USER_HOME=str(home), PORTCOVE_LIBRARY=str(work / "library"),
+        env.update(CFFIXED_USER_HOME=str(cocoa_home), PORTCOVE_LIBRARY=str(work / "library"),
                    PORTCOVE_PREFERENCES=str(work / "preferences.json"),
                    PORTCOVE_APPLICATION_UPDATE_PREFERENCES=str(work / "updater-preferences.json"),
                    PORTCOVE_APPLICATION_RUNTIME_LOCK=str(work / "desktop.lock"))
