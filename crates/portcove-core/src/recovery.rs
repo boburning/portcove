@@ -859,6 +859,7 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
+            crate::install::check_retained_launch_destination(&install, &install.path)?;
             if let Err(error) = service.require_activation_gates(&install, None) {
                 if error.is_recorded_uploader_hold() {
                     // The target is already staged. Drop only the unfinished

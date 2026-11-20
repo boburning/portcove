@@ -496,6 +496,23 @@ fn execute_relocation(
     let plan = operation.relocation.clone().ok_or_else(|| {
         PortcoveError::state("recoverable output relocation is missing its reviewed plan")
     })?;
+    // Older clients may have journaled a destination before they knew the
+    // package's path restriction. Preserve old authority or its recovery copy.
+    for entry in &plan.installs {
+        if crate::runtime_path_policy::has_bundled_manifest_path_limit(
+            &entry.install.port_id,
+            &entry.install.artifact.sha256,
+        ) {
+            let mut observed = entry.install.clone();
+            if !matches!(
+                checked.phase,
+                RelocationPhase::Copying | RelocationPhase::Prepared
+            ) {
+                observed.path.clone_from(&entry.destination_path);
+            }
+            crate::install::check_retained_launch_destination(&observed, &entry.destination_path)?;
+        }
+    }
     if checked.phase == RelocationPhase::Copying {
         verify_old_authority(service, &plan)?;
         let operation_root = operation.paths.staging.as_ref().ok_or_else(|| {
