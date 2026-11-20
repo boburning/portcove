@@ -1,6 +1,13 @@
 {
   "audited_revision": "538c2f2966a1639e6e680d7f3fa4beccd5fde202",
   "scope": "Independent reviewed real-catalog relationship baseline for #8076. This fixture tests expectations; authored records remain authoritative. New records require audited-ID reconciliation; changed family membership needs reviewed expectation updates.",
+  "selected_definition_entries": {
+    "chameleon-twist-jp-recompiled": {
+      "game_id": "chameleon-twist",
+      "game_title": "Chameleon Twist",
+      "family_port_ids": ["chameleon-twist-jp-recompiled", "chameleon-twist-recompiled"]
+    }
+  },
   "audited_port_ids": [
     "007frwl-xberecomp-tgp482-007-from-russia-with-love",
     "2ship2harkinian",

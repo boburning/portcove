@@ -60,6 +60,14 @@ export interface GameFirstRelationships {
   families: Record<string, string[]>;
   intentionally_separate: Record<string, string>;
   project_entries: Record<string, string>;
+  selected_definition_entries: Record<
+    string,
+    {
+      game_id: string;
+      game_title: string;
+      family_port_ids: string[];
+    }
+  >;
 }
 
 /** Independent reviewed expectations; never substitute these rows for the loaded catalog. */
@@ -74,7 +82,8 @@ export async function readGameFirstRelationships() {
       Array.isArray(value.audited_port_ids) &&
       isRecord(value.families) &&
       isRecord(value.intentionally_separate) &&
-      isRecord(value.project_entries),
+      isRecord(value.project_entries) &&
+      isRecord(value.selected_definition_entries),
   );
   const expected = value as unknown as GameFirstRelationships;
   assert.equal(expected.audited_port_ids.length, 1648);
@@ -88,6 +97,7 @@ export async function readGameFirstRelationships() {
 export function inspectGameFirstRelationships(
   workspace: GameFirstCatalogObservation,
   expected: GameFirstRelationships,
+  catalogProvenance?: { origin: string },
 ) {
   assert.ok(
     workspace.catalog && workspace.listing_catalog,
@@ -140,7 +150,38 @@ export function inspectGameFirstRelationships(
   }
   const groups = [...byGroup.values()];
   const sorted = (ids: readonly string[]) => [...ids].sort((a, b) => a.localeCompare(b));
-  const provenance = expected.audited_port_ids.map((id) => {
+  const selectedEntries = Object.entries(expected.selected_definition_entries).filter(([id]) =>
+    byId.has(id),
+  );
+  const families = { ...expected.families };
+  for (const [id, reviewed] of selectedEntries) {
+    assert.equal(
+      catalogProvenance?.origin,
+      "definition_selected",
+      `${id}: selected definition provenance required`,
+    );
+    const entry = required(byId.get(id));
+    assert.ok(entry.definition, `${id}: reviewed extra must be an actual operational definition`);
+    assert.equal(
+      entry.presentation?.original_game?.id,
+      reviewed.game_id,
+      `${id}: reviewed selected game identity`,
+    );
+    assert.equal(
+      entry.presentation?.original_game_title,
+      reviewed.game_title,
+      `${id}: reviewed selected game title`,
+    );
+    assert.ok(reviewed.family_port_ids.includes(id));
+    families[reviewed.game_id] = reviewed.family_port_ids;
+  }
+  const auditedIds = [...expected.audited_port_ids, ...selectedEntries.map(([id]) => id)];
+  assert.deepEqual(
+    sorted([...byId.keys()]),
+    sorted(auditedIds),
+    "Complete reviewed loaded catalog universe",
+  );
+  const provenance = auditedIds.map((id) => {
     const entry = required(byId.get(id));
     const definition = workspace.catalog!.ports.find((port) => port.id === id);
     const listing = workspace.listing_catalog!.listings.find((port) => port.id === id);
@@ -178,7 +219,7 @@ export function inspectGameFirstRelationships(
           : "project-fallback",
     };
   });
-  for (const [id, ports] of Object.entries(expected.families))
+  for (const [id, ports] of Object.entries(families))
     assert.deepEqual(
       sorted(required(byGroup.get(`game:${id}`)).ports.map((port) => port.id)),
       sorted(ports),
@@ -206,7 +247,7 @@ export function inspectGameFirstRelationships(
       [id],
       `Unresolved/composite project fallback ${id}`,
     );
-  return { entries, groups, provenance };
+  return { entries, groups, provenance, reviewed_families: Object.keys(families).length };
 }
 
 /** The dispatcher owns normal application startup, isolated output and positive-exit restart. */
@@ -561,9 +602,10 @@ export async function gameFirstScenarios({
       const production = inspectGameFirstRelationships(
         observation.workspace,
         relationships.expected,
+        observation.catalog_status.provenance,
       );
       Object.assign(retained, {
-        families: Object.keys(relationships.expected.families).length,
+        families: production.reviewed_families,
         audited_records: production.provenance.length,
         provenance: production.provenance,
       });

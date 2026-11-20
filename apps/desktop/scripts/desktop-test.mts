@@ -3189,10 +3189,9 @@ try {
     });
     assertOwnedBoundaryRequests(requests);
     const {
-      readGameFirstObservation,
+      readGameFirstCatalogObservation,
       readGameFirstRelationships,
       inspectGameFirstRelationships,
-      readGameFirstCatalogProvenance,
     } = await import("./desktop-game-first-test.mts");
     const readbacks: unknown[] = [];
     const report: Record<string, unknown> = {
@@ -3208,15 +3207,17 @@ try {
       const relationships = await readGameFirstRelationships();
       report.expected_baseline_sha256 = relationships.sha256;
       report.audited_revision = relationships.expected.audited_revision;
-      const observation = await readGameFirstObservation(invoke, readbacks);
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
       report.catalog_digest = observation.workspace.catalog_digest ?? null;
-      Object.assign(report, await readGameFirstCatalogProvenance(invoke));
+      report.catalog_status = observation.catalog_status;
+      report.listing_delivery_status = observation.listing_delivery_status;
       report.generation = observation.bootstrap.generation;
       const production = inspectGameFirstRelationships(
         observation.workspace,
         relationships.expected,
+        observation.catalog_status.provenance,
       );
-      report.families = Object.keys(relationships.expected.families).length;
+      report.families = production.reviewed_families;
       report.audited_records = production.provenance.length;
       report.provenance = production.provenance;
       report.outcome = "passed";

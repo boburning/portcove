@@ -18,6 +18,8 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { collectionLayoutKey } from "../features/browsing/use-collection-layout";
 import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
+import { browserFixture } from "../../test/browser-fixture";
+import { THEME_STORAGE_KEY } from "../theme";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -31,7 +33,7 @@ afterEach(async () => {
   document.querySelector("#collection-spacing")?.remove();
 });
 
-async function mount(theme: string) {
+async function mount(theme: string, container?: HTMLElement) {
   transport = installInteractiveTransport("collection", (message) => {
     throw new Error(message);
   });
@@ -41,12 +43,126 @@ async function mount(theme: string) {
     <LocalizationProvider api={desktopApi}>
       <App />
     </LocalizationProvider>,
+    container ? { container } : {},
   );
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect
     .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
     .toBe("12");
 }
+
+it.each([0, 12])(
+  "omits an unloaded Library badge and then shows the actual %i count",
+  async (count) => {
+    const owner = browserFixture({ viewport: true, attributes: ["data-theme"] });
+    let release!: () => void;
+    const initialRead = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalSnapshot = desktopApi.workspaceSnapshot;
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async (generation) => {
+      const snapshot = await originalSnapshot(generation);
+      await initialRead;
+      return { ...snapshot, statuses: snapshot.statuses.slice(0, count) };
+    });
+    const container = document.createElement("div");
+    container.id = "root";
+    document.body.append(container);
+    try {
+      localStorage.clear();
+      localStorage.setItem(THEME_STORAGE_KEY, "light");
+      await page.viewport(960, 640);
+      transport = installInteractiveTransport("collection", (message) => {
+        throw new Error(message);
+      });
+      initializeLocalization(["en"]);
+      document.documentElement.dataset.theme = "light";
+      await render(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+        { container },
+      );
+      await expect
+        .poll(() => document.querySelector('[data-navigation-destination="library"]'))
+        .not.toBeNull();
+      const library = document.querySelector<HTMLButtonElement>(
+        '[data-navigation-destination="library"]',
+      )!;
+      await expect.element(library).toBeVisible();
+      await expect
+        .element(page.getByText("Loading your port library", { exact: true }))
+        .toBeVisible();
+      expect(library.querySelector("b")).toBeNull();
+      expect(library.textContent).toContain("Library");
+      await captureParityState(`library-unloaded-count-${count}`);
+      release();
+      await expect
+        .poll(() => library.querySelector("b")?.getAttribute("aria-label"))
+        .toBe(`${count} in library`);
+      expect(library.querySelector("b")?.textContent).toBe(String(count));
+      await expect
+        .element(page.getByText("Loading your port library", { exact: true }))
+        .not.toBeInTheDocument();
+    } finally {
+      release();
+      await cleanup();
+      container.remove();
+      await owner.dispose();
+    }
+  },
+);
+
+it("retains the loaded Library count during authoritative workspace refresh", async () => {
+  const owner = browserFixture({ viewport: true, attributes: ["data-theme"] });
+  const container = document.createElement("div");
+  container.id = "root";
+  document.body.append(container);
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let readback: ReturnType<typeof desktopApi.workspaceSnapshot> | undefined;
+  try {
+    localStorage.clear();
+    localStorage.setItem(THEME_STORAGE_KEY, "light");
+    await page.viewport(960, 640);
+    await mount("light", container);
+    const originalSnapshot = desktopApi.workspaceSnapshot;
+    const snapshot = vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation((generation) => {
+      readback = (async () => {
+        const result = await originalSnapshot(generation);
+        await pending;
+        return result;
+      })();
+      return readback;
+    });
+    const launch = vi.spyOn(desktopApi, "launch").mockResolvedValue({
+      processId: null,
+      sessionId: "fixture-library-count-readback",
+    });
+    const play = [
+      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
+    ].find((button) => button.textContent?.trim() === "Play")!;
+    play.scrollIntoView({ block: "center" });
+    await userEvent.click(play);
+    await expect.poll(() => snapshot.mock.calls.length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-navigation-destination="library"] b')?.textContent).toBe(
+      "12",
+    );
+    await expect
+      .element(page.getByText("Loading your port library", { exact: true }))
+      .not.toBeInTheDocument();
+    expect(launch).toHaveBeenCalledOnce();
+    await captureParityState("library-refresh-retained-count");
+  } finally {
+    release();
+    await readback;
+    await cleanup();
+    container.remove();
+    await owner.dispose();
+  }
+});
 
 it.each(["Covers", "Compact rows"])(
   "keeps the %s launch origin focused while the same-target operation settles",

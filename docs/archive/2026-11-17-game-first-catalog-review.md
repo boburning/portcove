@@ -411,3 +411,46 @@ in their new authoritative definition presentations, together with all incoming
 registration, source, platform and runtime-ownership facts. Standard generation
 rebuilds both catalog and listing projections. The PSX directory-layout
 extraction preserves expanded compiled facts and changes no game relationships.
+
+## November 20 authored and selected-definition reconciliation
+
+Delivered main `538c2f2966a1639e6e680d7f3fa4beccd5fde202` adds Dungeon Crawl
+Stone Soup to the reviewed universe: 1,648 authored records, 444 operational
+definitions, 1,609 identified records, 1,248 games, 39 project entries and 1,287
+unfiltered groups. The 255 complete multi-option families contain 616 records.
+Its display title is Dungeon Crawl Stone Soup; retain the existing durable
+`linleys-dungeon-crawl` identity. The upstream history distinguishes Stone Soup
+as a branch descended from Linley's Dungeon Crawl. Review any future classic
+Crawl entry separately rather than inferring a relationship from that ID.
+
+Main `0d7a1e928dd8a49c1642f419359347b349b2bc52` also stages official definition
+delivery independently of the authored catalog. Its two indexed definitions
+require descriptive reconciliation in both their definition and typed execution
+projection: Stone Soup's title, and the missing Chameleon Twist identity on
+`chameleon-twist-jp-recompiled`. The latter is a distinct managed route alongside
+authored listing `chameleon-twist-recompiled`, with the same reviewed
+`chameleon-twist` game identity. Preserve its exact Japanese source profile,
+`japan-reviewed` variant, runtime declarations, grant and launch assessments.
+Game identity and the existing descriptive Nintendo 64 edition do not establish
+source-file or save compatibility.
+
+The selected Japanese definition can add one operational row through the
+existing legacy projection path. In that observed selection the expected union
+is 1,649 records and 256 complete multi-option families / 618 members; it still
+has 1,248 games and 1,287 groups because the additional route joins the existing
+Chameleon Twist game. The authored baseline remains 1,648 records / 255 families.
+The independent oracle permits this extra only with actual selected-definition
+provenance, an operational row, its reviewed identity/title and both exact family
+members. Unknown extra rows, missing rows and partial families fail. Staged-index
+regressions also check every official definition against the authored identity
+or its explicitly reviewed selected-route expectation.
+
+Metadata preparation advances the normal definition, index, policy and launch
+bindings while preserving every operational field. The staged bundle contains
+only its current reference closure. Prior bytes remain in immutable Git, retained
+preparation preimages and existing frozen qualification evidence; published
+history remains under the existing publisher. Preparation preserves the existing
+projection schemas and changes no selection, acquisition,
+signing or compatibility authority. These are source and preparation findings;
+actual signed publication, loaded selection and installed application evidence
+remain acceptance work on #8076.

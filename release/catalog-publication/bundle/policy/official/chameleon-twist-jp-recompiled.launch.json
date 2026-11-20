@@ -2,7 +2,7 @@
   "assessment_schema": 1,
   "namespace": "official",
   "stable_id": "chameleon-twist-jp-recompiled",
-  "policy_sha256": "fa75fbd0f69fbc1569dda322ac46ff69cb679a5da504c02389fe59a6f448dbf3",
-  "revision": 1,
+  "policy_sha256": "28d0fac612540aae3722fbac385919a5eb5e5a76385ce54f62025189b77821f2",
+  "revision": 4,
   "assessments": []
 }

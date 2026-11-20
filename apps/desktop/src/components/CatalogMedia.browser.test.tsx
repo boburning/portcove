@@ -707,6 +707,27 @@ it.each([true, false])(
         ? "continue-logo-240-container-synthetic"
         : "continue-horizontal-logo-cover-fallback-240-synthetic",
     );
+    const summary = hero.querySelector<HTMLElement>(".game-hero-credits > summary")!;
+    const firstCredit = summary.nextElementSibling!;
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(summary);
+    await userEvent.keyboard("{Enter}");
+    const focus = getComputedStyle(summary);
+    const outlineEnd =
+      summary.getBoundingClientRect().bottom +
+      Number.parseFloat(focus.outlineOffset) +
+      Number.parseFloat(focus.outlineWidth);
+    expect(summary.matches(":focus-visible")).toBe(true);
+    expect(focus.outlineStyle).toBe("solid");
+    expect(firstCredit.getBoundingClientRect().top - outlineEnd).toBeGreaterThanOrEqual(2);
+    await captureParityState(
+      compactLogo
+        ? "continue-240-focused-image-credits"
+        : "continue-240-fallback-focused-image-credits",
+    );
+    await userEvent.keyboard("{Enter}");
+    expect(summary.closest("details")?.open).toBe(false);
+    expect(document.activeElement).toBe(summary);
   },
 );
 

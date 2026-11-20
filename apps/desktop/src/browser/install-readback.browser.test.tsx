@@ -230,11 +230,14 @@ it.each([
       scrollWorkspaceTo(main, 0);
       await expect.element(retry).toBeVisible();
       const readinessNode = document.querySelector<HTMLElement>("[data-detail-readiness]")!;
-      readinessNode.scrollIntoView({ block: "nearest" });
+      readinessNode.scrollIntoView({ block: "nearest", behavior: "instant" });
       await expect.poll(() => readinessNode.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+      // Nearest scrolling is quantized to device pixels. Keep both the label
+      // and the recovery action in the captured viewport.
       await expect
-        .poll(() => readinessNode.getBoundingClientRect().bottom)
+        .poll(() => Math.round(readinessNode.getBoundingClientRect().bottom))
         .toBeLessThanOrEqual(height);
+      expect(retry.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
       await captureParityState("install-committed-refresh-needed");
       await dismiss.click();
       await page.getByRole("button", { name: "Back to Discover", exact: true }).click();

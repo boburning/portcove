@@ -2,7 +2,8 @@ import { expect, it, vi } from "vite-plus/test";
 import expected from "../../../../../scripts/fixtures/game-first-catalog-relationships.json";
 import embedded from "../../../../../crates/portcove-core/catalog/catalog.json";
 import directory from "../../../../../crates/portcove-core/catalog/listings.json";
-import type { CatalogDocument, CatalogListingDocument } from "../../types";
+import definitionIndex from "../../../../../release/catalog-publication/bundle/definitions/index.json";
+import type { CatalogDocument, CatalogListingDocument, PortDefinition } from "../../types";
 import { catalogEntries } from "./catalog-entry";
 import { commandSurfaceCommands } from "../../use-command-surface";
 import { filterCommands } from "../../components/CommandPalette";
@@ -17,6 +18,53 @@ const entries = catalogEntries(
 const groups = groupCatalog(entries);
 // Frozen independently reviewed relationships, never generated from the tested output.
 const reviewed = expected.families;
+const stagedLeaves = import.meta.glob<{ port: PortDefinition }>(
+  "../../../../../release/catalog-publication/bundle/sha256/*.json",
+  { eager: true, import: "default" },
+);
+
+it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as const))(
+  "presents indexed strict metadata while preserving exact route targets for %s",
+  (id, target) => {
+    const port = stagedLeaves[`../../../../../release/catalog-publication/bundle/${target}`]!.port;
+    expect(port.id).toBe(id);
+    const selectedExtra = Object.entries(expected.selected_definition_entries).find(
+      ([key]) => key === id,
+    )?.[1];
+    const canonical = entries.find((entry) => entry.id === id);
+    const game = selectedExtra?.game_id ?? canonical?.presentation?.original_game?.id;
+    const title = selectedExtra?.game_title ?? canonical?.presentation?.original_game_title;
+    expect(game).toBeDefined();
+    expect(title).toBeDefined();
+    const projected = catalogEntries(
+      {
+        ...embedded,
+        ports: [...embedded.ports.filter((entry) => entry.id !== id), port],
+      } as unknown as CatalogDocument,
+      directory as unknown as CatalogListingDocument,
+      [],
+      [],
+    );
+    const selectedGroups = groupCatalog(projected);
+    const group = selectedGroups.find((entry) => entry.id === `game:${game}`)!;
+    expect(gameGroupTitle(group)).toBe(title);
+    expect(group.ports.map((entry) => entry.id).sort()).toEqual(
+      [...(selectedExtra?.family_port_ids ?? [id])].sort(),
+    );
+    expect(projected.find((entry) => entry.id === id)?.definition).toBe(port);
+    expect(projected.find((entry) => entry.id === id)?.source_profile).toBe(port.source_profile);
+    expect(projected).toHaveLength(entries.length + (canonical ? 0 : 1));
+    expect(selectedGroups).toHaveLength(groups.length);
+    expect(
+      projected
+        .filter((entry) => entry.id === "chameleon-twist-jp-recompiled")
+        .map((entry) => entry.source_profile),
+    ).toEqual(selectedExtra ? ["chameleon-twist-jp"] : []);
+    expect(
+      projected.find((entry) => entry.id === "chameleon-twist-recompiled")?.definition,
+    ).toBeUndefined();
+  },
+);
 
 it.each(Object.entries(reviewed))(
   "projects reviewed real %s members into one production group",

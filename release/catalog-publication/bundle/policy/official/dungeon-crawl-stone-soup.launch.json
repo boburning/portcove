@@ -1,0 +1,8 @@
+{
+  "assessment_schema": 1,
+  "namespace": "official",
+  "stable_id": "dungeon-crawl-stone-soup",
+  "policy_sha256": "b61c215373006daefb132431e114ed335839c2af9dfe993f5afb59b9eb10b2d7",
+  "revision": 3,
+  "assessments": []
+}

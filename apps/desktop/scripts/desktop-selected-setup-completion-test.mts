@@ -3,7 +3,7 @@ import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { addGamesRouteXPath, executeBrowserScript } from "./browser-script.mts";
 import {
   captureSettledVisual,
   observePreparationCompletion,
@@ -608,7 +608,7 @@ export async function selectedSetupCompletionScenario({
         );
         await enlargedStage("choose-inputs");
         // Add games sends game choice to Discover, where the exact port is chosen.
-        await click(By.css('button[aria-label="Browse games"]'));
+        await click(By.xpath(addGamesRouteXPath("Browse games")));
         const query = await browser.wait(until.elementLocated(By.id("port-search")), 5_000);
         await query.sendKeys(port.name);
         await clearCatalogFilters(browser, clickOptions);
@@ -653,7 +653,7 @@ export async function selectedSetupCompletionScenario({
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
           5_000,
         );
-        await click(By.css('button[aria-label="Scan a folder"]'));
+        await click(By.xpath(addGamesRouteXPath("Scan a folder")));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await enlargedStage("scan-and-recognize");

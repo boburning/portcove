@@ -4,20 +4,36 @@
     {
       "namespace": "official",
       "stable_id": "chameleon-twist-jp-recompiled",
-      "revision": 1,
-      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json"
+      "revision": 2,
+      "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json"
+    },
+    {
+      "namespace": "official",
+      "stable_id": "dungeon-crawl-stone-soup",
+      "revision": 2,
+      "target": "sha256/bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48.json"
     }
   ],
   "contents": [
     {
-      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
-      "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
-      "length": 5318
+      "target": "sha256/2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96.json",
+      "sha256": "2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96",
+      "length": 9438
     },
     {
-      "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
-      "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d",
-      "length": 8325
+      "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json",
+      "sha256": "6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e",
+      "length": 6123
+    },
+    {
+      "target": "sha256/bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48.json",
+      "sha256": "bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48",
+      "length": 3339
+    },
+    {
+      "target": "sha256/c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2.json",
+      "sha256": "c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2",
+      "length": 3343
     }
   ]
 }

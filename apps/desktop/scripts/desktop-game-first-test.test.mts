@@ -915,3 +915,95 @@ test("native readback keeps definition authority when accepted listing descripti
   assert.equal(entry.source_profile, definition.source_profile);
   assert.equal(entry.release, definition.release);
 });
+
+async function stagedDefinitions() {
+  const base = new URL("../../../release/catalog-publication/bundle/", import.meta.url);
+  const index: unknown = JSON.parse(
+    await readFile(new URL("definitions/index.json", base), "utf8"),
+  );
+  assert.ok(isRecord(index) && Array.isArray(index.definitions));
+  return Promise.all(
+    index.definitions.map(async (row: unknown) => {
+      assert.ok(
+        isRecord(row) && typeof row.stable_id === "string" && typeof row.target === "string",
+      );
+      assert.match(row.target, /^sha256\/[a-f0-9]{64}\.json$/u);
+      const definition: unknown = JSON.parse(await readFile(new URL(row.target, base), "utf8"));
+      assert.ok(isRecord(definition));
+      const port = authoredDefinition(definition.port);
+      assert.equal(port.id, row.stable_id);
+      return port;
+    }),
+  );
+}
+
+test("every staged official definition retains reviewed game identity through strict precedence", async () => {
+  const { expected } = await readGameFirstRelationships();
+  const actual = await productionWorkspace();
+  for (const definition of await stagedDefinitions()) {
+    const index = actual.catalog.ports.findIndex((port) => port.id === definition.id);
+    if (index >= 0) {
+      const canonical = actual.catalog.ports[index]!;
+      assert.equal(
+        definition.presentation?.original_game?.id,
+        canonical.presentation?.original_game?.id,
+      );
+      assert.equal(
+        definition.presentation?.original_game_title,
+        canonical.presentation?.original_game_title,
+      );
+      actual.catalog.ports[index] = definition;
+    } else {
+      assert.ok(
+        Object.hasOwn(expected.selected_definition_entries, definition.id),
+        `${definition.id}: staged extra requires an independent reviewed disposition`,
+      );
+      actual.catalog.ports.push(definition);
+    }
+  }
+  const observed = inspectGameFirstRelationships(actual, expected, {
+    origin: "definition_selected",
+  });
+  assert.equal(observed.provenance.length, 1649);
+  assert.equal(observed.reviewed_families, 256);
+  assert.deepEqual(
+    observed.groups
+      .find((group) => group.id === "game:chameleon-twist")
+      ?.ports.map((port) => port.id)
+      .sort(),
+    ["chameleon-twist-jp-recompiled", "chameleon-twist-recompiled"],
+  );
+  const selected = observed.entries.find((port) => port.id === "chameleon-twist-jp-recompiled")!;
+  assert.equal(selected.source_profile, "chameleon-twist-jp");
+});
+
+test("loaded universe refuses arbitrary extras and requires selected provenance for the reviewed JP route", async () => {
+  const { expected } = await readGameFirstRelationships();
+  const actual = await productionWorkspace();
+  const selected = (await stagedDefinitions()).find(
+    (port) => port.id === "chameleon-twist-jp-recompiled",
+  )!;
+  actual.catalog.ports.push(selected);
+  assert.throws(
+    () => inspectGameFirstRelationships(actual, expected),
+    /selected definition provenance required/u,
+  );
+  assert.throws(
+    () => inspectGameFirstRelationships(actual, expected, { origin: "embedded" }),
+    /selected definition provenance required/u,
+  );
+  const wrong = structuredClone(actual);
+  wrong.catalog.ports.find((port) => port.id === selected.id)!.presentation!.original_game = {
+    id: "different-game",
+  };
+  assert.throws(
+    () => inspectGameFirstRelationships(wrong, expected, { origin: "definition_selected" }),
+    /reviewed selected game identity/u,
+  );
+  const unknown = await productionWorkspace();
+  unknown.catalog.ports.push({ ...selected, id: "unreviewed-extra" });
+  assert.throws(
+    () => inspectGameFirstRelationships(unknown, expected, { origin: "definition_selected" }),
+    /Complete reviewed loaded catalog universe/u,
+  );
+});

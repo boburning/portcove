@@ -2,17 +2,22 @@ import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { afterEach, beforeEach, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { controlledAct } from "../../test/controlled-react-act";
+import { browserFixture } from "../../test/browser-fixture";
+import { captureParityState } from "../../test/parity-capture";
 import { AdoptionModal } from "../components/AdoptionModal";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Button } from "../components/ui/button";
 import { useAdoptionPlanning } from "../features/installation/use-installation-planning";
-import type { Perform } from "../features/operations/use-operation-state";
+import { useOperationState, type Perform } from "../features/operations/use-operation-state";
+import { installRecord } from "../components/rendered-test-fixtures";
 import { portDefinition } from "../test-fixtures";
 import type { AdoptionPreview, InstallRecord } from "../types";
 import "../styles/index.css";
+
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 
 const port = { ...portDefinition(), id: "browser-port", name: "Browser Fixture Port" };
 const shortPortName = port.name;
@@ -150,6 +155,46 @@ function ExistingInstallReview() {
             adoptionCompletion = planning.adopt();
           }}
           ports={[port]}
+        />
+      )}
+    </DirectionProvider>
+  );
+}
+
+let readbackOperations: ReturnType<typeof useOperationState>;
+function ExistingInstallReadback({ refresh }: { refresh: () => Promise<unknown> }) {
+  const [open, setOpen] = useState(true);
+  const operations = useOperationState({ refresh, libraryGeneration: 1 });
+  readbackOperations = operations;
+  const planning = useAdoptionPlanning(
+    "D:/Existing",
+    undefined,
+    open,
+    1,
+    operations.perform,
+    () => setOpen(false),
+    [port],
+  );
+  return (
+    <DirectionProvider direction="ltr">
+      {open && (
+        <AdoptionModal
+          path="D:/Existing"
+          setPath={() => {}}
+          ports={[port]}
+          preview={planning.preview}
+          applying={planning.applying}
+          refreshing={planning.refreshing}
+          copyFailed={planning.copyFailed}
+          busy={operations.busy}
+          close={() => setOpen(false)}
+          review={(selected) => {
+            reviewCompletion = planning.review(selected);
+          }}
+          adopt={() => {
+            adoptionCompletion = planning.adopt();
+          }}
+          pickFolder={() => {}}
         />
       )}
     </DirectionProvider>
@@ -312,6 +357,99 @@ it("keeps the copy review disabled during mutation and sends the exact request o
   pending.resolve(null);
   await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
 });
+
+it.each([
+  { result: "confirmed", readback: "succeeded", theme: "dark", width: 960, height: 640 },
+  { result: "cancelled", readback: "succeeded", theme: "light", width: 960, height: 640 },
+  { result: "confirmed", readback: "failed", theme: "light", width: 430, height: 780 },
+] as const)(
+  "labels $result adoption as refreshing until $readback workspace readback settles",
+  async ({ result, readback, theme, width, height }) => {
+    const owner = browserFixture({ attributes: ["data-theme"], viewport: true });
+    const command = deferred<InstallRecord | null>();
+    const snapshot = deferred<void>();
+    const refresh = vi.fn(async () => {
+      await snapshot.promise;
+      if (readback === "failed") throw new Error("workspace readback unavailable");
+    });
+    const commandResult = result === "cancelled" ? null : installRecord({ port_id: port.id });
+    expectTransport(
+      { command: "preview_adoption", args: { path: "D:/Existing", generation: 1, portId: null } },
+      preview,
+    );
+    expectTransport(
+      {
+        command: "adopt_port",
+        args: {
+          path: "D:/Existing",
+          generation: 1,
+          portId: port.id,
+          planSha256: preview.plan_sha256,
+        },
+      },
+      command.promise,
+    );
+    try {
+      await page.viewport(width, height);
+      document.documentElement.dataset.theme = theme;
+      flushSync(() => root.render(<ExistingInstallReadback refresh={refresh} />));
+      await page.getByRole("button", { name: "Review copy plan" }).click();
+      await page.getByRole("button", { name: /Continue to copy confirmation/ }).click();
+      await expect
+        .element(page.getByRole("button", { name: "Copying…", exact: true }))
+        .toBeDisabled();
+      const status = document.querySelector('[role="dialog"] [role="status"]');
+      expect(status?.textContent?.trim()).toBe("Copying…");
+      expect(refresh).not.toHaveBeenCalled();
+
+      command.resolve(commandResult);
+      await expect.poll(() => refresh.mock.calls.length).toBe(1);
+      const pending = page.getByRole("button", { name: "Refreshing library…", exact: true });
+      await expect.element(pending).toBeDisabled();
+      expect(getComputedStyle(pending.element()).opacity).toBe("1");
+      expect(
+        pending.element().querySelector("svg")?.classList.contains("motion-safe:animate-spin"),
+      ).toBe(true);
+      expect(document.querySelectorAll('[role="dialog"] [role="status"]')).toHaveLength(1);
+      expect(document.querySelector('[role="dialog"] [role="status"]')).toBe(status);
+      expect(status?.textContent?.trim()).toBe("Refreshing library…");
+      await expect
+        .element(page.getByRole("button", { name: "Copying…", exact: true }))
+        .not.toBeInTheDocument();
+      const dialog = document.querySelector<HTMLElement>('[role="dialog"]')!;
+      for (const control of dialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>(
+        "input, button",
+      ))
+        expect(control.disabled).toBe(true);
+      await userEvent.keyboard("{Escape}{Enter}");
+      await expect.element(page.getByRole("dialog")).toBeVisible();
+      expect(calls.map((call) => call.command)).toEqual(["preview_adoption", "adopt_port"]);
+      expect(dialog.getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
+      expect(dialog.getBoundingClientRect().bottom).toBeLessThanOrEqual(height + 1);
+      expect(dialog.scrollWidth).toBeLessThanOrEqual(dialog.clientWidth + 1);
+      await captureParityState(`adoption-${result}-readback-${readback}`);
+
+      snapshot.resolve();
+      await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+      expect(refresh).toHaveBeenCalledOnce();
+      const record = [...readbackOperations.invocations.values()].find(
+        (item) => item.name === "adopt",
+      );
+      expect(record?.phase).toBe("settled");
+      expect(record?.outcome).toBe(result === "cancelled" ? "cancelled" : "succeeded");
+      expect(record?.failure).toBeUndefined();
+      expect(record?.refreshFailure instanceof Error).toBe(readback === "failed");
+      expect(calls).toHaveLength(2);
+    } finally {
+      await controlledAct(async () => {
+        command.resolve(commandResult);
+        snapshot.resolve();
+        await adoptionCompletion;
+      });
+      await owner.dispose();
+    }
+  },
+);
 
 it("requires a detected port choice and reviews that choice before enabling copy", async () => {
   expectTransport(

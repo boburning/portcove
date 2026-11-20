@@ -1,8 +1,10 @@
 import { controlledAct } from "../../../test/controlled-react-act";
+import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
 import { StrictMode, useMemo } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { listen } from "@tauri-apps/api/event";
 import { desktopApi } from "../../api";
 import { useUpdateCenter } from "../port-updates/use-update-center";
@@ -12,6 +14,77 @@ import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { DoctorReport, OperationEvent, WorkspaceSnapshot } from "../../types";
 import { WorkspaceRefreshNotice } from "./WorkspaceRefreshNotice";
 import { indexStatuses } from "../../view-model";
+import "../../styles/index.css";
+
+it.each([
+  {
+    state: "initial",
+    theme: "light",
+    width: 960,
+    height: 640,
+    failure: { error: new Error("Controlled workspace readback unavailable") },
+    hasSnapshot: false,
+  },
+  {
+    state: "stale-and-recovery",
+    theme: "dark",
+    width: 430,
+    height: 780,
+    failure: { error: new Error("Controlled workspace readback unavailable") },
+    recoveryFailure: { error: failureReport() },
+    hasSnapshot: true,
+  },
+  {
+    state: "manual",
+    theme: "light",
+    width: 320,
+    height: 800,
+    hasSnapshot: true,
+    subscriptionFailure: new Error("Controlled workspace event unavailable"),
+  },
+])(
+  "separates guidance from the retry control in the $state workspace notice",
+  async ({ state, theme, width, height, ...notice }) => {
+    // Capturing a rendered frame requires real render and animation timing.
+    vi.useRealTimers();
+    const documentRoot = document.documentElement;
+    const previousTheme = documentRoot.dataset.theme;
+    const viewport = { width: innerWidth, height: innerHeight };
+    try {
+      documentRoot.dataset.theme = theme;
+      await page.viewport(width, height);
+      await root.rerender(
+        <WorkspaceRefreshNotice
+          {...notice}
+          refreshing={false}
+          retry={vi.fn().mockResolvedValue(undefined)}
+          retryRecovery={vi.fn().mockResolvedValue(undefined)}
+        />,
+      );
+      const bodies = [...document.querySelectorAll('[data-slot="notice-body"]')];
+      expect(bodies).toHaveLength(state === "stale-and-recovery" ? 2 : 1);
+      for (const body of bodies) {
+        const icon = fixtureValue(body.previousElementSibling, "notice icon");
+        expect(icon.getBoundingClientRect().top).toBe(body.getBoundingClientRect().top);
+        expect(body.getBoundingClientRect().left).toBeGreaterThan(
+          icon.getBoundingClientRect().right,
+        );
+        const action = fixtureValue(body.lastElementChild, "retry button");
+        const guidance = fixtureValue(action.previousElementSibling, "guidance before retry");
+        expect(
+          action.getBoundingClientRect().top - guidance.getBoundingClientRect().bottom,
+        ).toBeGreaterThanOrEqual(8);
+      }
+      expect(documentRoot.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState(`workspace-notice-${state}`);
+    } finally {
+      await cleanup();
+      if (previousTheme) documentRoot.dataset.theme = previousTheme;
+      else delete documentRoot.dataset.theme;
+      await page.viewport(viewport.width, viewport.height);
+    }
+  },
+);
 
 // Flush the existing fake clock's zero-delay notifications inside the controlled React batch.
 async function act<T>(callback: () => T | Promise<T>) {

@@ -1191,7 +1191,7 @@ function WorkspaceSidebar({ model }: { model: Omit<WorkspaceModel, "workspace"> 
       view={model.ui.view}
       setView={model.setPrimaryView}
       controller={model.controller}
-      libraryCount={model.model.libraryCount}
+      libraryCount={model.data.catalog ? model.model.libraryCount : undefined}
       updateCount={
         model.data.statuses.filter((status) => {
           const check = currentUpdateSnapshot(status)?.check;
@@ -2368,6 +2368,7 @@ function AdoptionOverlay({
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}
+      refreshing={planning.refreshing}
       busy={operations.busy}
       close={() => {
         planning.invalidate();
