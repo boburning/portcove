@@ -67,6 +67,10 @@ import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-sessio
 import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import {
+  automaticDefinitionExpectation,
+  verifyRetainedAutomaticDefinitions,
+} from "./published-automatic-definitions.mts";
 import { get as httpGet } from "node:http";
 import {
   connectLinuxInspector,
@@ -341,6 +345,27 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(required(values.output));
 await mkdir(output); // Existing output is never reused, including after failed runs.
+const publishedDefinitionExpectation = publishedAppImageSmoke
+  ? automaticDefinitionExpectation(
+      JSON.parse(
+        await readFile(
+          path.join(root, "scripts/fixtures/published-linux-automatic-definitions.json"),
+          "utf8",
+        ),
+      ),
+    )
+  : null;
+if (publishedDefinitionExpectation) {
+  assert.ok(
+    !nativeAccount && !linuxBinding,
+    "Automatic definition proof requires a fresh smoke profile",
+  );
+  const binding = object(
+    JSON.parse(await readFile(path.join(output, "../published-binding.json"), "utf8")),
+  );
+  assert.equal(binding.version, publishedDefinitionExpectation.release_version);
+  assert.equal(object(binding.appimage).name, path.basename(application));
+}
 const runtimeRoot = nativeAccount
   ? nativeAccount.runtimeRoot(output)
   : (linuxBinding?.home ?? output);
@@ -1147,6 +1172,28 @@ async function selectSettingsCategory(id: string, activation: "pointer" | "keybo
       ),
     5_000,
     `Settings ${id} heading did not receive focus`,
+  );
+}
+
+async function observePublishedAutomaticCatalogCheck() {
+  const preference = success(await invoke("get_official_catalog_automatic_updates"));
+  assert.equal(preference, true, "Fresh Desktop profile must use the default automatic preference");
+  await selectSettingsCategory("updates");
+  const browser = driverBrowser();
+  // Desktop waits 15 s on startup and Core grants the scheduled acquisition 120 s.
+  return browser.wait(
+    () =>
+      executeBrowserScript(browser, () => {
+        const section = document.querySelector('[aria-label="Official catalog updates"]');
+        const status = section?.querySelector('[role="status"]')?.textContent?.trim();
+        return section?.querySelector('[role="checkbox"][aria-checked="true"]') &&
+          status?.startsWith("Last checked ") &&
+          status.endsWith(". Catalog information verified.")
+          ? status
+          : false;
+      }),
+    140_000,
+    "Default Desktop startup did not report a verified scheduled catalog check",
   );
 }
 
@@ -3531,22 +3578,49 @@ try {
       );
       await captureScenarioScreenshot("published-appimage-ready", true);
       finishPublishedAppImage = async () => {
-        assert.ok(await historyDriverStillOwned(inventory));
-        await driverBrowser().close();
-        const exited = await waitHistorySessionExit({
-          processes: [required(inventory.application), ...inventory.webviews],
-        });
-        assert.ok(await historyDriverStillOwned(inventory));
-        await writeFile(
-          path.join(output, "published-close.json"),
-          JSON.stringify({
-            request: "WebDriver Close Window",
-            process_scope: "AppImage application and owned WebKit WebProcess",
-            driver_still_owned: true,
-            ...exited,
-          }),
-          { flag: "wx" },
-        );
+        let automaticStatus;
+        try {
+          if (publishedDefinitionExpectation)
+            automaticStatus = await observePublishedAutomaticCatalogCheck();
+        } finally {
+          assert.ok(await historyDriverStillOwned(inventory));
+          await driverBrowser().close();
+          const exited = await waitHistorySessionExit({
+            processes: [required(inventory.application), ...inventory.webviews],
+          });
+          assert.ok(await historyDriverStillOwned(inventory));
+          await writeFile(
+            path.join(output, "published-close.json"),
+            JSON.stringify({
+              request: "WebDriver Close Window",
+              process_scope: "AppImage application and owned WebKit WebProcess",
+              driver_still_owned: true,
+              ...exited,
+            }),
+            { flag: "wx" },
+          );
+        }
+        if (publishedDefinitionExpectation) {
+          assert.ok(automaticStatus);
+          const database = path.join(library, "portcove.sqlite3");
+          const selections = verifyRetainedAutomaticDefinitions(
+            database,
+            publishedDefinitionExpectation,
+          );
+          await writeFile(
+            path.join(output, "published-automatic-definitions.json"),
+            JSON.stringify({
+              release_version: publishedDefinitionExpectation.release_version,
+              root_sha256: publishedDefinitionExpectation.root_sha256,
+              default_automatic_preference: true,
+              scheduled_status: automaticStatus,
+              database,
+              database_access: "read-only after native close",
+              ...selections,
+            }),
+            { flag: "wx" },
+          );
+        }
       };
     }
   });
