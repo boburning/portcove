@@ -319,11 +319,33 @@ export function useGameHeroArtwork(
   context: HeroMediaContext = {},
 ) {
   const candidates = heroMediaCandidates(port, context);
-  const foreground = useCatalogMediaChain(port.id, candidates.foreground, visible);
+  const { display: logo } = useArtwork(port.id, "logo", visible);
+  const hasLogoChoice = Boolean(logo.state?.choice.asset_sha256);
+  const rejectLogo = useCallback(() => logo.onImageError?.(), [logo.onImageError]);
+  const catalogForeground = useCatalogMediaChain(
+    port.id,
+    candidates.foreground,
+    visible && Boolean(logo.state) && !hasLogoChoice,
+  );
+  const foreground = hasLogoChoice
+    ? {
+        display: logo,
+        role: "logo" as const,
+        initialRole: "logo" as const,
+        candidate: undefined,
+        localLogo: true,
+        reject: rejectLogo,
+      }
+    : {
+        ...catalogForeground,
+        role: catalogForeground.candidate?.role,
+        initialRole: candidates.foreground[0]?.role,
+        localLogo: false,
+      };
   const { display: cover } = useArtwork(port.id, "cover", visible);
   const background = useHeaderArtwork(port, visible, context);
   return {
-    foreground: { ...foreground, initialRole: candidates.foreground[0]?.role },
+    foreground,
     cover,
     background,
   };

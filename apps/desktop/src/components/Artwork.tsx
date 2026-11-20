@@ -1,6 +1,7 @@
 import { cn } from "cn";
+import { Tabs } from "@base-ui/react/tabs";
 import styles from "./Artwork.module.css";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Gamepad2 } from "lucide-react";
 import {
   useArtwork,
@@ -12,6 +13,7 @@ import { pickArtworkPath } from "../file-picker";
 import type { ArtworkSlot, ArtworkState, PortDefinition, IgdbArtwork } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
+import { controlFocus } from "./ui/control-style";
 import { ExternalLink } from "./ExternalLink";
 import { SteamGridDbPicker, steamGridDbErrorText } from "./SteamGridDbPicker";
 import type { SteamGridDbCandidate } from "../types";
@@ -196,7 +198,10 @@ const slotCopy: Record<ArtworkSlot, { label: string; description: string }> = {
     description:
       "Optional wide cover. Steam uses it for the game's library capsule. Separate from the detail image.",
   },
+  logo: { label: "Logo", description: "Shown with the game title in Overview and Continue." },
 };
+
+const artworkSlots = Object.keys(slotCopy) as ArtworkSlot[];
 
 export function ArtworkControls({
   port,
@@ -205,7 +210,6 @@ export function ArtworkControls({
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
-  const panelId = useId();
   const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
@@ -213,38 +217,47 @@ export function ArtworkControls({
         Change artwork
       </summary>
       {open && (
-        <div className="artwork-slots grid gap-5">
-          <div role="group" aria-label="Artwork slot" className="flex flex-wrap gap-2">
-            {(Object.keys(slotCopy) as ArtworkSlot[]).map((slot) => (
-              <Button
+        <Tabs.Root
+          value={selected}
+          onValueChange={(value) => {
+            const next = artworkSlots.find((slot) => value === slot);
+            if (!next) return;
+            setSelected(next);
+            setVisited((current) => (current.includes(next) ? current : [...current, next]));
+          }}
+          className="artwork-slots grid min-w-0 gap-5"
+        >
+          <Tabs.List
+            activateOnFocus={false}
+            aria-label="Artwork slot"
+            className="flex gap-2 overflow-x-auto px-1 py-1"
+          >
+            {artworkSlots.map((slot) => (
+              <Tabs.Tab
                 key={slot}
+                value={slot}
+                type="button"
                 data-focusable
-                variant={selected === slot ? "selected" : "outline"}
-                size="sm"
-                aria-pressed={selected === slot}
-                aria-controls={visited.includes(slot) ? `${panelId}-${slot}` : undefined}
-                onClick={() => {
-                  setSelected(slot);
-                  setVisited((current) => (current.includes(slot) ? current : [...current, slot]));
-                }}
+                className={`${controlFocus} hover:bg-pc-subtle shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-semibold whitespace-nowrap text-pc-muted-foreground data-active:border-current data-active:text-pc-selection-foreground`}
               >
                 {slotCopy[slot].label}
-              </Button>
+              </Tabs.Tab>
             ))}
-          </div>
+          </Tabs.List>
           {visited.map((slot) => (
-            <div
-              id={`${panelId}-${slot}`}
+            <Tabs.Panel
               key={slot}
+              value={slot}
+              keepMounted
               className="min-w-0"
               hidden={selected !== slot}
               inert={selected !== slot}
             >
               <ArtworkSlotControl port={port} slot={slot} />
-            </div>
+            </Tabs.Panel>
           ))}
           <DetailArtwork port={port} />
-        </div>
+        </Tabs.Root>
       )}
     </details>
   );
@@ -387,9 +400,9 @@ function ArtworkSlotControl({
   const { label, description } = slotCopy[slot];
   const selection = display.state?.selection;
   const notWide =
-    slot !== "cover" && selection !== null && selection !== undefined
-      ? selection.width <= selection.height
-      : false;
+    (slot === "detail" || slot === "landscape") &&
+    selection != null &&
+    selection.width <= selection.height;
   return (
     <section
       className="artwork-slot min-w-0 rounded-pc-md border border-[var(--color-border)] p-4"
@@ -398,6 +411,17 @@ function ArtworkSlotControl({
     >
       <h3 className="m-0">{label}</h3>
       <p>{description}</p>
+      {slot === "logo" && display.image && (
+        <div className="bg-pc-subtle my-4 grid min-h-20 place-items-center rounded-pc-sm p-3">
+          <img
+            key={display.image}
+            src={display.image}
+            alt="Selected logo preview"
+            className="max-h-28 max-w-full object-contain"
+            onError={() => display.onImageError?.()}
+          />
+        </div>
+      )}
       {notWide && (
         <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
           This image is not wider than tall, so it is not offered where a wide image is needed, such
@@ -598,7 +622,7 @@ export function ArtworkSource({
           {credits.map((credit) => (
             <span key={`${credit.provider}:${credit.asset_id}`} className="block">
               <ExternalLink
-                href={`https://www.steamgriddb.com/${credit.role === "hero_banner" ? "hero" : "grid"}/${credit.asset_id}`}
+                href={`https://www.steamgriddb.com/${credit.role === "logo" ? "logo" : credit.role === "hero_banner" ? "hero" : "grid"}/${credit.asset_id}`}
               >
                 SteamGridDB image {credit.asset_id}
               </ExternalLink>{" "}

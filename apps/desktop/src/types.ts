@@ -57,7 +57,7 @@ export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_s
 export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
 export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
 export type SteamGridDbCandidate = Generated.TransportOutputs["steamgriddb_candidates"][number];
-export type DestinationArtworkRole = SteamGridDbCandidate["role"];
+export type SteamGridDbArtworkRole = SteamGridDbCandidate["role"];
 
 export type { InstallRecord } from "./transport-types.generated";
 

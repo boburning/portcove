@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type {
   ArtworkSlot,
-  DestinationArtworkRole,
+  SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
@@ -35,21 +35,23 @@ function retryAfterMs(error: unknown) {
   return Number.isSafeInteger(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
-/** The destination role each local slot takes from SteamGridDB. */
-const slotRoles: Record<ArtworkSlot, DestinationArtworkRole> = {
+/** The provider role each local slot takes from SteamGridDB. */
+const slotRoles: Record<ArtworkSlot, SteamGridDbArtworkRole> = {
   cover: "portrait_cover",
   detail: "hero_banner",
   landscape: "landscape_cover",
+  logo: "logo",
 };
 
 /** Preview frames follow each role's shape, so wide images are not squeezed. */
-const roleAspect: Record<DestinationArtworkRole, string> = {
+const roleAspect: Record<SteamGridDbArtworkRole, string> = {
   portrait_cover: "aspect-[2/3]",
   hero_banner: "aspect-[96/31]",
   landscape_cover: "aspect-[92/43]",
+  logo: "aspect-[3/2]",
 };
 
-export function steamGridDbRole(slot: ArtworkSlot): DestinationArtworkRole {
+export function steamGridDbRole(slot: ArtworkSlot): SteamGridDbArtworkRole {
   return slotRoles[slot];
 }
 

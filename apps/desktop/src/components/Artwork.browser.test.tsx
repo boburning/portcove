@@ -20,6 +20,7 @@ import type {
 } from "../types";
 import { ArtworkControls, ArtworkImage, listingEvidenceText } from "./Artwork";
 import { ListingDetailPanel } from "./ListingDetailPanel";
+import { GameHero } from "./GameHero";
 import { SteamGridDbPicker } from "./SteamGridDbPicker";
 
 // Valid 1×1 PNG also used by artwork-refresh.browser.test.tsx. Decode failures
@@ -75,18 +76,25 @@ async function open() {
   });
 }
 
-const slotLabels = { cover: "Cover", detail: "Detail", landscape: "Landscape" } as const;
+const slotLabels = {
+  cover: "Cover image",
+  detail: "Detail image",
+  landscape: "Landscape image",
+  logo: "Logo",
+} as const;
 
 function button(slot: keyof typeof slotLabels, label: string) {
-  const section = container.querySelector(`[aria-label="${slotLabels[slot]} image"]`)!;
+  const section = container.querySelector(`[aria-label="${slotLabels[slot]}"]`)!;
   return [...section.querySelectorAll("button")].find((item) => item.textContent === label)!;
 }
 
 async function selectSlot(slot: keyof typeof slotLabels) {
-  const name = `${slotLabels[slot]} image`;
-  const selected = container.querySelector('[aria-label="Artwork slot"] button[aria-pressed=true]');
+  const name = `${slotLabels[slot]}`;
+  const selected = container.querySelector(
+    '[aria-label="Artwork slot"] [role="tab"][aria-selected=true]',
+  );
   if (selected?.textContent !== name) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await page.getByRole("tab", { name, exact: true }).click();
   }
 }
 
@@ -221,9 +229,9 @@ describe("local artwork controls", () => {
     expect(coverControls.top).toBeGreaterThanOrEqual(0);
     expect(coverControls.bottom).toBeLessThanOrEqual(innerHeight);
     await page.viewport(420, 740);
-    const detailSlot = page.getByRole("button", { name: "Detail image", exact: true });
+    const detailSlot = page.getByRole("tab", { name: "Detail image", exact: true });
     await detailSlot.click();
-    await expect.element(detailSlot).toHaveAttribute("aria-pressed", "true");
+    await expect.element(detailSlot).toHaveAttribute("aria-selected", "true");
     expect(button("detail", "Choose local image")).toBeDefined();
     await expect
       .element(page.elementLocator(button("cover", "Choose local image")))
@@ -1338,10 +1346,8 @@ describe("SteamGridDB picker", () => {
       vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: pixel });
       await render();
       await open();
-      await page.getByRole("button", { name: `${slotLabels[slot]} image`, exact: true }).click();
-      expect(
-        container.querySelector(`[aria-label="${slotLabels[slot]} image"]`)?.textContent,
-      ).toContain(
+      await page.getByRole("tab", { name: slotLabels[slot], exact: true }).click();
+      expect(container.querySelector(`[aria-label="${slotLabels[slot]}"]`)?.textContent).toContain(
         slot === "landscape"
           ? "Steam uses it for the game's library capsule"
           : "Optional wide image for this game's details",
@@ -1368,6 +1374,99 @@ describe("SteamGridDB picker", () => {
       await captureParityState(`steamgriddb-${slot}-candidates`);
     },
   );
+});
+
+it("shows and resets a local Logo in Continue without changing the cover", async () => {
+  const port = portDefinition();
+  const cover = artworkState(port.id, "cover", 4, true);
+  let logo = artworkState(port.id, "logo");
+  vi.mocked(desktopApi.artwork).mockImplementation(async (id, slot) => {
+    if (slot === "logo") return logo;
+    if (slot === "cover") return cover;
+    return artworkState(id, slot);
+  });
+  const choose = vi.spyOn(desktopApi, "importArtwork").mockImplementation(async () => {
+    logo = artworkState(port.id, "logo", 1, true);
+    return logo;
+  });
+  const reset = vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async () => {
+    logo = artworkState(port.id, "logo", 2);
+    return logo;
+  });
+  vi.mocked(picker.pickArtworkPath).mockResolvedValue("D:/sample-logo.png");
+
+  await root.rerender(
+    <ArtworkProvider generation={7}>
+      <GameHero port={port} variant="continue">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} />
+    </ArtworkProvider>,
+  );
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await expect
+    .element(page.getByRole("tab", { name: "Logo", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await vi.waitFor(() => expect(button("logo", "Choose local image").disabled).toBe(false));
+  await click("logo", "Choose local image");
+  expect(choose).toHaveBeenCalledExactlyOnceWith(port.id, "logo", "D:/sample-logo.png", 0, 7);
+  await expect.element(page.getByRole("img", { name: "Selected logo preview" })).toBeVisible();
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("logo");
+  await expect.element(page.getByRole("heading", { name: port.name, exact: true })).toBeVisible();
+  expect(container.querySelector('[aria-label="Logo"].artwork-slot')?.textContent).not.toContain(
+    "not wider than tall",
+  );
+
+  await click("logo", "Reset to default");
+  expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("cover");
+  await expect
+    .element(page.getByRole("img", { name: "Selected logo preview" }))
+    .not.toBeInTheDocument();
+});
+
+it("uses the Logo provider role and restores focus to the saved logo control", async () => {
+  const pngCandidate = {
+    id: 818,
+    role: "logo" as const,
+    url: "https://cdn2.steamgriddb.com/logo/logo818.png",
+    thumb: "https://cdn2.steamgriddb.com/thumb/logo818.png",
+    mime: "image/png",
+    width: 320,
+    height: 155,
+    style: "custom",
+    score: 3,
+    author: { name: "Logo artist", steam64: null },
+  };
+  vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+  vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+    { id: 55, name: "Logo game", verified: true },
+  ]);
+  const candidates = vi
+    .spyOn(desktopApi, "steamGridDbCandidates")
+    .mockResolvedValue([pngCandidate]);
+  vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: thumbnailPng });
+  const choose = vi
+    .spyOn(desktopApi, "chooseSteamGridDbArtwork")
+    .mockResolvedValue(artworkState("sample", "logo", 1, true));
+  await render();
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await vi.waitFor(() => expect(button("logo", "Find on SteamGridDB").disabled).toBe(false));
+  await click("logo", "Find on SteamGridDB");
+  await vi.waitFor(() => expect(button("logo", "Search")).toBeDefined());
+  await click("logo", "Search");
+  await vi.waitFor(() => expect(button("logo", "Logo game")).toBeDefined());
+  await click("logo", "Logo game");
+  expect(candidates).toHaveBeenCalledExactlyOnceWith(55, "logo");
+  await page.getByRole("button", { name: /^Use image by Logo artist/ }).click();
+  expect(choose).toHaveBeenCalledExactlyOnceWith("sample", "logo", 55, 818, 0, 7);
+  await expect.element(page.elementLocator(button("logo", "Choose local image"))).toHaveFocus();
 });
 
 it("states recorded SteamGridDB listing evidence, withdrawals and removals with their dates", () => {

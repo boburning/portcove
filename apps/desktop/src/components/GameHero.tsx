@@ -54,8 +54,8 @@ export function GameHero({
   const imageElement = useRef<HTMLImageElement>(null);
   const media = foreground.display.image ? foreground.display : cover;
   const image = media.image;
-  const kind = foreground.display.image ? foreground.candidate?.role : image ? "cover" : "text";
-  const identity = `${port.id}:${image ?? "text"}`;
+  const kind = foreground.display.image ? foreground.role : image ? "cover" : "text";
+  const identity = `${port.id}:${kind}:${image ?? "text"}`;
   const layout = foreground.initialRole ?? "cover";
   const foregroundImage = foreground.display.image;
   const rejectForeground = foreground.reject;
@@ -74,7 +74,9 @@ export function GameHero({
       if (kind !== "logo") return;
       const next = inspectHeroLogo(element);
       if (!next) {
-        rejectForeground();
+        // Catalog logos must pass the layout check. A readable player choice
+        // still displays when the optional appearance analysis cannot classify it.
+        if (!foreground.localLogo) rejectForeground();
         return;
       }
       setSurface((previous) =>
@@ -86,7 +88,7 @@ export function GameHero({
           : { ...next, image: identity },
       );
     },
-    [kind, identity, foregroundImage, rejectForeground, rejectCover],
+    [kind, identity, foregroundImage, foreground.localLogo, rejectForeground, rejectCover],
   );
   useEffect(() => {
     const image = imageElement.current;
@@ -123,6 +125,7 @@ export function GameHero({
       {!compact && background.display.image && (
         <div className="game-hero-background" aria-hidden="true">
           <img
+            key={background.display.image}
             src={background.display.image}
             alt=""
             decoding="async"
@@ -172,7 +175,7 @@ export function GameHero({
                   onError={(event) => {
                     event.currentTarget.style.visibility = "hidden";
                     if (foreground.display.image) {
-                      foreground.display.onImageError?.();
+                      if (!foreground.localLogo) foreground.display.onImageError?.();
                       foreground.reject();
                     } else cover.onImageError?.();
                   }}
@@ -227,6 +230,8 @@ function HeroCredits({
     collectionActive &&
     Boolean(collection?.length && cover.state && !cover.state.choice.asset_sha256 && !cover.stale);
   const foregroundMedia = foreground.display.image ? foreground.candidate : undefined;
+  const logoState =
+    foreground.localLogo && foreground.display.image ? foreground.display.state : undefined;
   const coverState = coverVisible ? cover.state : undefined;
   const backgroundState =
     background.display.image && !background.catalogMedia && background.display.image !== cover.image
@@ -234,6 +239,7 @@ function HeroCredits({
       : undefined;
   const visible =
     foregroundMedia ||
+    logoState ||
     background.catalogMedia ||
     coverState ||
     backgroundState ||
@@ -253,6 +259,9 @@ function HeroCredits({
         <details className="game-hero-credits">
           <summary data-focusable>{t("hero.credits")}</summary>
           {foregroundMedia && <MediaCredit media={foregroundMedia} port={port} />}
+          {logoState && (
+            <ArtworkSource state={logoState} renderedSource={logoState.resolved_source.kind} />
+          )}
           {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
           {coverState && (
             <ArtworkSource state={coverState} renderedSource={coverState.resolved_source.kind} />

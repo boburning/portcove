@@ -2,7 +2,7 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
-  DestinationArtworkRole,
+  SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
@@ -283,7 +283,7 @@ export const desktopApi = {
   clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
   searchSteamGridDbGames: (term: string) =>
     invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
-  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
+  steamGridDbCandidates: (gameId: number, role: SteamGridDbArtworkRole) =>
     invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
