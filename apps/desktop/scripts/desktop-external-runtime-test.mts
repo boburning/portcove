@@ -320,12 +320,16 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       const alert = By.css('[aria-describedby="external-register-description"] [role="alert"]');
       await browser.wait(until.elementLocated(alert), 15_000);
       const rendered = await browser.findElement(alert);
-      assert.ok((await rendered.getText()).includes(error.presentation.summary));
+      const feedback = await rendered.getText();
+      assert.match(feedback, /The files in this folder don’t match the required release/u);
+      assert.doesNotMatch(feedback, /couldn't confirm whether anything changed/u);
       await rendered.findElement(By.css("summary")).click();
       const technical = object(JSON.parse(await rendered.findElement(By.css("pre")).getText()));
       assert.equal(technical.code, error.code);
       assert.equal(technical.mutation_state, error.presentation.mutation_state);
       assert.equal(technical.phase, error.presentation.phase);
+      assert.equal(technical.message, error.presentation.technical_message);
+      assert.deepEqual(technical.context, error.presentation.technical_context);
       report.rejected_preview = {
         code: error.code,
         mutation_state: error.presentation.mutation_state,

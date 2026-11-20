@@ -29,7 +29,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { ExternalLink } from "./ExternalLink";
-import { platformLabel } from "../view-model";
+import { failurePresentation, platformLabel } from "../view-model";
 import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
 import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
@@ -716,6 +716,23 @@ function SelectedRuntimeDialog({
   );
 }
 
+/** Core emits both digests only when the accepted external release check fails. */
+function isExternalRuntimeDigestMismatch(error: unknown) {
+  if (typeof error !== "object" || !error || !("code" in error) || error.code !== "verification")
+    return false;
+  const context = failurePresentation(error)?.technical_context;
+  const expected = context?.expected_tree_sha256;
+  const actual = context?.actual_tree_sha256;
+  const digest = /^[a-f0-9]{64}$/i;
+  return (
+    typeof expected === "string" &&
+    typeof actual === "string" &&
+    digest.test(expected) &&
+    digest.test(actual) &&
+    expected.toLowerCase() !== actual.toLowerCase()
+  );
+}
+
 function RegisterExternalDialog({
   port,
   mode,
@@ -732,7 +749,7 @@ function RegisterExternalDialog({
   onChanged?: (() => void) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const { preview, pending, error, review, execute, dismiss } = useActionReview({
+  const { preview, pending, error, failurePhase, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([mode, port.id, path, generation]),
     retainOnCancel: true,
     load: async (): Promise<ExternalRuntimePreview & { previous_path?: string }> => {
@@ -762,6 +779,7 @@ function RegisterExternalDialog({
     failureMessage:
       "Portcove couldn't use this installation. Check the folder before trying again.",
   });
+  const mismatchedPreview = failurePhase === "review" && isExternalRuntimeDigestMismatch(error);
   return (
     <Dialog
       open
@@ -825,7 +843,15 @@ function RegisterExternalDialog({
             )}
           </div>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            mismatchedPreview
+              ? "The files in this folder don’t match the required release. Prepare the required version and check again, or cancel to choose another folder."
+              : undefined
+          }
+          showMutationSummary={!mismatchedPreview}
+        />
         <DialogFooter>
           <ReviewCancelButton
             cancelRef={cancelButton}
