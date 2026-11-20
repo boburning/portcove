@@ -1371,6 +1371,11 @@ fn plan_local_mod_package(
     Ok(plan)
 }
 
+enum RuntimeSynchronization {
+    Eager,
+    OnLaunch,
+}
+
 impl PortcoveService {
     pub(crate) fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
         if adapter_extensions(port_id).is_none() {
@@ -1712,15 +1717,25 @@ impl PortcoveService {
             orderings: Some(next.orderings),
             ..Default::default()
         };
-        self.advance_and_deploy(port_id, profile_id, &layout, &request, live)
-            .map_err(|mut error| {
-                if edits.is_some()
-                    && error.failure.mutation_state == crate::MutationState::Committed
-                {
-                    error.failure.mutation_state = crate::MutationState::RecoveryRequired;
-                }
-                error
-            })
+        let synchronization = if edits.is_some() {
+            RuntimeSynchronization::OnLaunch
+        } else {
+            RuntimeSynchronization::Eager
+        };
+        self.advance_and_deploy(
+            port_id,
+            profile_id,
+            &layout,
+            &request,
+            live,
+            synchronization,
+        )
+        .map_err(|mut error| {
+            if edits.is_some() && error.failure.mutation_state == crate::MutationState::Committed {
+                error.failure.mutation_state = crate::MutationState::RecoveryRequired;
+            }
+            error
+        })
     }
 
     /// Enables or disables an installed package as a new revision.
@@ -1811,7 +1826,14 @@ impl PortcoveService {
             orderings,
             ..Default::default()
         };
-        self.advance_and_deploy(port_id, profile_id, &layout, &request, live)
+        self.advance_and_deploy(
+            port_id,
+            profile_id,
+            &layout,
+            &request,
+            live,
+            RuntimeSynchronization::Eager,
+        )
     }
 
     /// Makes a profile that already exists the owner of live data. Departing and
@@ -2261,12 +2283,22 @@ impl PortcoveService {
         layout: &Layout,
         request: &ProfileRevisionRequest,
         live: bool,
+        synchronization: RuntimeSynchronization,
     ) -> Result<ProfileRevision> {
         let next = self.create_profile_revision_locked(port_id, profile_id, request)?;
         if live {
             self.library
                 .connection()
-                .and_then(|connection| self.reconcile_selected(port_id, layout, &connection, &next))
+                .and_then(|connection| match synchronization {
+                    RuntimeSynchronization::Eager => {
+                        self.reconcile_selected(port_id, layout, &connection, &next)
+                    }
+                    // The pending marker protects the canonical setup from
+                    // the older runtime copy until launch synchronizes it.
+                    RuntimeSynchronization::OnLaunch => self
+                        .reconcile_selected_projection(port_id, layout, &connection, &next)
+                        .map(|_| ()),
+                })
                 .map_err(|mut error| {
                     error.failure.mutation_state = crate::MutationState::Committed;
                     error

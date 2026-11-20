@@ -3311,6 +3311,12 @@ fn mod_setup_draft_previews_one_order_and_refuses_a_changed_file_before_publishi
     assert_eq!(next.parent_revision, Some(current.revision));
     assert_eq!(next.save_group, current.save_group);
     assert_eq!(
+        profile::selection(&w.service.library.connection().unwrap(), port).unwrap(),
+        Some((w.default.clone(), next.revision))
+    );
+    assert!(restore_pending(&layout.user));
+    assert_eq!(live_mods(&w), ["a.otr", "b.otr"]);
+    assert_eq!(
         enabled_in_override_order(&next)
             .iter()
             .map(|item| item.native_id.as_str())
