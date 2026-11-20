@@ -96,7 +96,7 @@ function required<Value>(value: Value | undefined | null): Value {
 import { errorMessage, errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { WebDriver, By, Key, until } from "selenium-webdriver";
@@ -288,6 +288,16 @@ export async function defaultCoverScenario({
               !presentation.companion_cover,
           )
           .map((port) => port.id);
+        const timingPath = path.join(output, "default-cover-discover-timing.jsonl");
+        if (measureDiscover) {
+          await writeFile(timingPath, "", { flag: "wx" });
+          artifacts.push(timingPath);
+        }
+        const recordDiscover = async (pass: string) => {
+          const timing = await observeDiscoverCovers(browser, pass, mappedIds);
+          discoverTimings.push(timing);
+          await appendFile(timingPath, JSON.stringify(timing) + "\n");
+        };
         for (const [pass, defaultTheme, defaultSize] of coverPasses(cacheConditions)) {
           const theme = measureDiscover ? "light" : defaultTheme;
           const size = measureDiscover ? { width: 1280, height: 800 } : defaultSize;
@@ -307,12 +317,10 @@ export async function defaultCoverScenario({
             height: innerHeight,
           }));
           if (measureDiscover) {
-            discoverTimings.push(await observeDiscoverCovers(browser, pass, mappedIds));
+            await recordDiscover(pass);
             if (pass === "cold-empty-cache") {
               await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-              discoverTimings.push(
-                await observeDiscoverCovers(browser, "same-session-revisit", mappedIds),
-              );
+              await recordDiscover("same-session-revisit");
             }
           }
           rows.push(

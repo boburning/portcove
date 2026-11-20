@@ -3605,7 +3605,8 @@ visible primary-cover IDs for mapped managed definitions. It records
 browser-frame timings from the Discover button click to the first ready image
 and the full measured cohort. Collection, companion, and directory-only
 artwork are outside this timing cohort. An incomplete cohort
-has a null completion time and lists the ready IDs. Compare only runs with
+has a null completion time and lists the ready IDs. Individual timing rows
+are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
 matching catalog, viewport, visible IDs, and cache and network conditions.
 
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
