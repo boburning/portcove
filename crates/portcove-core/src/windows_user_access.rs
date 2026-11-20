@@ -29,19 +29,17 @@ pub(crate) struct CurrentUserDescriptor(PSECURITY_DESCRIPTOR);
 
 impl CurrentUserDescriptor {
     pub(crate) fn for_object() -> io::Result<Self> {
-        Self::new("", "GA")
+        let sid = current_user_sid()?;
+        Self::from_sddl(&format!("D:P(A;;GA;;;{sid})"))
     }
 
     fn for_directory_tree() -> io::Result<Self> {
-        Self::new("OICI", "FA")
+        let sid = current_user_sid()?;
+        Self::from_sddl(&format!("O:{sid}D:P(A;OICI;FA;;;{sid})"))
     }
 
-    fn new(inheritance: &str, rights: &str) -> io::Result<Self> {
-        let sid = current_user_sid()?;
-        let sddl: Vec<u16> = format!("D:P(A;{inheritance};{rights};;;{sid})")
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
+    fn from_sddl(sddl: &str) -> io::Result<Self> {
+        let sddl: Vec<u16> = sddl.encode_utf16().chain(Some(0)).collect();
         let mut descriptor = std::ptr::null_mut();
         // SAFETY: NUL-terminated SDDL and a writable output pointer; the
         // allocation is released by Drop with LocalFree.
@@ -143,7 +141,7 @@ pub(crate) fn require_private_directory(path: &Path) -> io::Result<()> {
         GetNamedSecurityInfoW(
             name.as_ptr(),
             SE_FILE_OBJECT,
-            DACL_SECURITY_INFORMATION,
+            OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
             null_mut(),
             null_mut(),
             null_mut(),
@@ -159,10 +157,32 @@ pub(crate) fn require_private_directory(path: &Path) -> io::Result<()> {
     }
     let actual = CurrentUserDescriptor(actual);
     let expected = CurrentUserDescriptor::for_directory_tree()?;
-    if single_protected_ace(&actual)? != single_protected_ace(&expected)? {
+    if !same_owner(&actual, &expected)?
+        || single_protected_ace(&actual)? != single_protected_ace(&expected)?
+    {
         return Err(insecure_directory());
     }
     Ok(())
+}
+
+fn same_owner(
+    actual: &CurrentUserDescriptor,
+    expected: &CurrentUserDescriptor,
+) -> io::Result<bool> {
+    let mut actual_owner = null_mut();
+    let mut expected_owner = null_mut();
+    let mut defaulted = 0;
+    // SAFETY: both descriptors remain live for these owner SID reads and comparison.
+    unsafe {
+        if GetSecurityDescriptorOwner(actual.0, &mut actual_owner, &mut defaulted) == 0
+            || GetSecurityDescriptorOwner(expected.0, &mut expected_owner, &mut defaulted) == 0
+            || actual_owner.is_null()
+            || expected_owner.is_null()
+        {
+            return Err(insecure_directory());
+        }
+        Ok(EqualSid(actual_owner, expected_owner) != 0)
+    }
 }
 
 fn single_protected_ace(descriptor: &CurrentUserDescriptor) -> io::Result<&[u8]> {
