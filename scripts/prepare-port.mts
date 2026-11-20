@@ -29,6 +29,10 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
@@ -310,9 +314,21 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
+  const releaseAdvice = managedSetupReleaseAdvice(
+    projectAuthoredPort(record),
+    record.listing.release_url,
+  );
   return {
     status: projections.length > 0 ? "declared" : "undeclared",
     projections,
+    ...(releaseAdvice.length > 0
+      ? {
+          managed_setup_release_literals: {
+            steps: releaseAdvice,
+            next: managedSetupReleaseAdviceText,
+          },
+        }
+      : {}),
     next:
       projections.length > 0
         ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
