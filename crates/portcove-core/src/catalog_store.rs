@@ -333,7 +333,14 @@ impl Library {
     pub(crate) fn load_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let result = load_catalog_from(&transaction, Self::now())?;
+        let started = std::time::Instant::now();
+        let result = load_catalog_from(&transaction, Self::now());
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            success = result.is_ok(),
+            message = "Effective catalog resolution"
+        );
+        let result = result?;
         transaction.commit()?;
         Ok(result)
     }

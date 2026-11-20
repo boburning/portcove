@@ -99,6 +99,7 @@ export function ArtworkFrame({
             ? "bg-transparent"
             : palettes[fallback?.palette_index ?? 0],
       )}
+      data-artwork-port-id={portId}
       data-artwork-source={
         collectionImages.length
           ? "igdb_cover_collection"
