@@ -35,7 +35,7 @@ pub struct GameSettingView {
     pub value: Option<Value>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "action", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum GameSettingChange {
     Set { value: Value },
@@ -57,4 +57,44 @@ pub struct GameSettingReview {
     pub proposed_value: Value,
     pub configuration_sha256: String,
     pub review_sha256: String,
+}
+
+/// An edit to one declared key within the change-set's single configuration file.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameSettingsEdit {
+    pub setting_id: String,
+    pub change: GameSettingChange,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedGameSettingsEdit {
+    pub edit: GameSettingsEdit,
+    pub label: String,
+    pub previous_value: Option<Value>,
+    pub proposed_value: Value,
+}
+
+/// A complete review of one logical managed file and any runtime projection.
+/// A materialized setup is a fence on the view, not a second configuration store.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameSettingsChangeSetReview {
+    pub library_id: String,
+    pub port_id: String,
+    pub install_id: String,
+    pub file_id: String,
+    pub path: String,
+    pub configuration_sha256: String,
+    pub setup: Option<GameSettingsSetupIdentity>,
+    pub edits: Vec<ReviewedGameSettingsEdit>,
+    pub review_sha256: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameSettingsSetupIdentity {
+    pub id: String,
+    pub revision: u64,
 }

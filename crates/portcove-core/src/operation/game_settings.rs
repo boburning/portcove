@@ -24,11 +24,29 @@ pub(crate) struct SettingsJournal {
     pub file_id: String,
     pub relative_path: String,
     pub maximum_bytes: u64,
-    pub review: crate::GameSettingReview,
+    pub review: SettingsJournalReview,
     pub canonical: FileCustody,
     /// A projection of the same canonical postimage, never a second policy or
     /// settings store. Direct-to-user-root runtimes require no second leg.
     pub runtime: Option<FileCustody>,
+}
+
+// Preserve the v1 serialized review shape for existing interrupted operations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum SettingsJournalReview {
+    Single(crate::GameSettingReview),
+    ChangeSet(crate::GameSettingsChangeSetReview),
+}
+
+impl SettingsJournalReview {
+    #[cfg(windows)]
+    pub(crate) fn sha256(&self) -> &str {
+        match self {
+            Self::Single(review) => &review.review_sha256,
+            Self::ChangeSet(review) => &review.review_sha256,
+        }
+    }
 }
 
 /// Whole-file custody for one staged activation. The lifecycle record owns the
@@ -222,10 +240,50 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
     let payload = operation.game_settings.as_ref().ok_or_else(invalid)?;
     crate::archive::validate_relative_path(&payload.relative_path, false)?;
     crate::archive::validate_relative_path(&operation.port_id, false)?;
+    let (version, port, install, file, path, previous, review_sha256) = match &payload.review {
+        SettingsJournalReview::Single(review) => (
+            1,
+            &review.port_id,
+            &review.install_id,
+            &review.file_id,
+            &review.path,
+            &review.configuration_sha256,
+            &review.review_sha256,
+        ),
+        SettingsJournalReview::ChangeSet(review) => {
+            if review.library_id != library.identity()?
+                || review.edits.is_empty()
+                || review.edits.len() > crate::game_settings::document::MAX_CHANGE_SET_EDITS
+                || review
+                    .setup
+                    .as_ref()
+                    .is_some_and(|setup| setup.id.is_empty() || setup.revision == 0)
+            {
+                return Err(invalid());
+            }
+            let mut ids = std::collections::BTreeSet::new();
+            if review
+                .edits
+                .iter()
+                .any(|item| !ids.insert(&item.edit.setting_id))
+            {
+                return Err(invalid());
+            }
+            (
+                2,
+                &review.port_id,
+                &review.install_id,
+                &review.file_id,
+                &review.path,
+                &review.configuration_sha256,
+                &review.review_sha256,
+            )
+        }
+    };
     if operation.port_id.contains(['/', '\\'])
         || payload.relative_path.len() > 512
         || payload.relative_path.contains(['\\', ':'])
-        || payload.format_version != 1
+        || payload.format_version != version
         || payload.install.port_id != operation.port_id
         || payload.install.id.is_empty()
         || payload.install.id.len() > 128
@@ -239,12 +297,12 @@ pub(crate) fn validate_journal(library: &Library, operation: &LifecycleOperation
             != library
                 .user_dir(&operation.port_id)
                 .join(&payload.relative_path)
-        || payload.review.port_id != operation.port_id
-        || payload.review.install_id != payload.install.id
-        || payload.review.file_id != payload.file_id
-        || payload.review.path != payload.relative_path
-        || payload.review.configuration_sha256 != payload.canonical.previous_sha256
-        || !digest(&payload.review.review_sha256)
+        || *port != operation.port_id
+        || *install != payload.install.id
+        || *file != payload.file_id
+        || *path != payload.relative_path
+        || *previous != payload.canonical.previous_sha256
+        || !digest(review_sha256)
         || operation.activate
         || !operation.original_paths.is_empty()
     {
@@ -495,7 +553,7 @@ pub(crate) mod tests {
             file_id: "preferences".into(),
             relative_path: "shipofharkinian.json".into(),
             maximum_bytes: 1024,
-            review: crate::GameSettingReview {
+            review: SettingsJournalReview::Single(crate::GameSettingReview {
                 port_id: "shipwright".into(),
                 install_id: "inert-settings-install".into(),
                 file_id: "preferences".into(),
@@ -507,7 +565,7 @@ pub(crate) mod tests {
                 proposed_value: serde_json::json!(40),
                 configuration_sha256: "c".repeat(64),
                 review_sha256: "e".repeat(64),
-            },
+            }),
             canonical: FileCustody {
                 path,
                 parent_identity: format!("win128:{:016x}:{:032x}", 1, 11),
