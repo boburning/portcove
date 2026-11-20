@@ -620,6 +620,58 @@ test("game-first capture settles later complete geometry and still refuses movem
   }
 });
 
+test("game-first capture retains the rejected preflight target without taking a screenshot", async () => {
+  const path = await import("node:path");
+  type WebDriver = import("selenium-webdriver").WebDriver;
+  type WebElement = import("selenium-webdriver").WebElement;
+  const { mkdtemp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const output = await mkdtemp(path.join(tmpdir(), "pcv-game-first-rejected-capture-"));
+  const observed = {
+    target: "#choice",
+    target_count: 1,
+    visible: false,
+    clipping: [{ element: "DIV.scroll-owner", axis: "y", edge: 240, limit: 200 }],
+    rect: { x: 20, y: 180, width: 100, height: 60 },
+    viewport: { width: 480, height: 320, device_pixel_ratio: 2 },
+  };
+  let screenshots = 0;
+  const browser = {
+    executeScript: async (script: unknown) => {
+      const { observeVisibleTarget } = await import("./browser-readiness.mts");
+      return script === observeVisibleTarget ? observed : undefined;
+    },
+    takeScreenshot: async () => {
+      screenshots++;
+      return "";
+    },
+  } as unknown as WebDriver;
+  try {
+    await assert.rejects(
+      captureGameFirstTarget({
+        browser,
+        output,
+        name: "rejected",
+        scenario: "owned-game-first",
+        target: "#choice",
+        element: {} as WebElement,
+        readiness: async () => ({ ready: true }),
+      }),
+      /Capture requires one identified visible target/,
+    );
+    const failure: unknown = JSON.parse(
+      await readFile(path.join(output, "rejected-capture-failure.json"), "utf8"),
+    );
+    assert.ok(isRecord(failure));
+    assert.equal(failure.acceptance, false);
+    assert.equal(failure.phase, "target-preflight");
+    assert.deepEqual(failure.observation, observed);
+    assert.equal(screenshots, 0);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
 test("capture waits for pending optional comparison but permits its failed result", async () => {
   const { runInNewContext } = await import("node:vm");
   let pending = false;

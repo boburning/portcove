@@ -487,18 +487,52 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
   element: WebElement;
   readiness: () => Promise<Semantic>;
 }) {
-  await prepareCaptureTarget({
-    target,
-    label: name,
-    scroll: () =>
-      executeBrowserScript(
-        browser,
-        (selected) =>
-          selected.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-        element,
-      ),
-    observe: () => executeBrowserScript(browser, observeVisibleTarget, target, "visual" as const),
-  });
+  let observation: Awaited<ReturnType<typeof observeVisibleTarget>> | null = null;
+  try {
+    await prepareCaptureTarget({
+      target,
+      label: name,
+      scroll: () =>
+        executeBrowserScript(
+          browser,
+          (selected) =>
+            selected.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+          element,
+        ),
+      observe: async () => {
+        observation = await executeBrowserScript(
+          browser,
+          observeVisibleTarget,
+          target,
+          "visual" as const,
+        );
+        return observation;
+      },
+    });
+  } catch (error) {
+    // Preflight can reject before captureSettledVisual retains its observations.
+    // Keep the original failure and the actual clipping/zoom geometry before
+    // the scenario restores appearance; this record never accepts a capture.
+    await writeFile(
+      path.join(output, `${name}-capture-failure.json`),
+      JSON.stringify(
+        {
+          format_version: 1,
+          outcome: "failed",
+          phase: "target-preflight",
+          scenario,
+          target,
+          message: errorMessage(error),
+          observation,
+          acceptance: false,
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    ).catch(() => {});
+    throw error;
+  }
   return captureSettledVisual({
     browser,
     output,
