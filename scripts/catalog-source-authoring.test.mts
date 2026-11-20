@@ -189,10 +189,31 @@ void test("Aleph One launch settings preserve all three reviewed pinned scenario
       () => checkedAuthoredPort({ ...alternate, alephone_pinned_windows_v1: true }),
       /already supplies the launch and external profile/u,
     );
+  }
+});
 
+void test("Aleph One launch settings require the canonical official release URL", () => {
+  const record = requiredFixture(
+    readCatalogSource(catalogRoot).records.find((item) => item.listing.id === "marathon-aleph-one"),
+  );
+  const prefix = `${record.listing.project_url}/releases/download/`;
+  const pin = `${prefix}release-20260930/Marathon-20260930-Win.zip`;
+  for (const url of [
+    "https://github.com/example/other/archive.zip",
+    `${prefix}../../archive.zip`,
+    `${prefix}transient/%2e%2e/release-20260930/Marathon-20260930-Win.zip`,
+    `${prefix}release%2F20260930/Marathon-20260930-Win.zip`,
+    `${prefix}release-20260930/nested/Marathon-20260930-Win.zip`,
+    `${prefix}/Marathon-20260930-Win.zip`,
+    `${prefix}release-20260930/`,
+    `${pin}?download=1`,
+    `${pin}#archive`,
+    `${pin}?`,
+    `${pin}#`,
+  ]) {
     const otherPackage = structuredClone(record);
     const direct = fixtureRecord(fixtureRecord(otherPackage.integration?.release).direct);
-    fixtureRecord(direct["windows-x86-64"]).url = "https://github.com/example/other/archive.zip";
+    fixtureRecord(direct["windows-x86-64"]).url = url;
     assert.throws(() => checkedAuthoredPort(otherPackage), /reviewed pinned Windows scenario/u);
   }
 });

@@ -1,7 +1,8 @@
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const project = "https://github.com/Aleph-One-Marathon/alephone";
+const project = new URL("https://github.com/Aleph-One-Marathon/alephone");
+const releasePath = `${project.pathname}/releases/download/`;
 const platform = "windows-x86-64";
 const scenarios = new Set([
   "marathon-aleph-one",
@@ -32,13 +33,28 @@ const allowedFields = new Set([
   ...sharedFields,
 ]);
 
+function isOfficialPinUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const url = URL.parse(value);
+  if (
+    !url ||
+    url.origin !== project.origin ||
+    value !== `${url.origin}${url.pathname}` ||
+    !url.pathname.startsWith(releasePath)
+  )
+    return false;
+  const segments = url.pathname.slice(releasePath.length).split("/");
+  // The reviewed tags and filenames use literal unreserved characters.
+  return segments.length === 2 && segments.every((segment) => /^[A-Za-z0-9._-]+$/u.test(segment));
+}
+
 function reviewedRoute(record: AuthoredPort) {
   const integration = record.integration;
   const release = integration?.release;
   const pin = isRecord(release) && isRecord(release.direct) && release.direct[platform];
   if (
     !scenarios.has(record.listing.id) ||
-    record.listing.project_url !== project ||
+    record.listing.project_url !== project.href ||
     integration?.adapter !== "native-portable" ||
     !Array.isArray(integration.platforms) ||
     integration.platforms.length !== 1 ||
@@ -52,8 +68,7 @@ function reviewedRoute(record: AuthoredPort) {
     !isRecord(release.direct) ||
     Object.keys(release.direct).length !== 1 ||
     !isRecord(pin) ||
-    typeof pin.url !== "string" ||
-    !pin.url.startsWith(`${project}/releases/download/`) ||
+    !isOfficialPinUrl(pin.url) ||
     record.route_facts_v1 !== undefined ||
     record.package_observation_v1 !== undefined ||
     record.settings_qualification_v1 !== undefined ||
