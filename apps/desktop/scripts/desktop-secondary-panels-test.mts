@@ -335,7 +335,9 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
 
       // A real preference change asks the mounted notice component to assess again.
       const noticeControls = await browser.findElements(
-        By.xpath('//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]'),
+        By.xpath(
+          '//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]',
+        ),
       );
       assert.equal(noticeControls.length, 1, "Expected the visible ready-notice checkbox");
       const [noticeSwitch] = noticeControls;
