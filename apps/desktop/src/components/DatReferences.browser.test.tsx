@@ -1,6 +1,9 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import "../styles/index.css";
 import type { DatReferenceStatus, SourceInspectionReport } from "../types";
 import { failureReport, sourceInspectionIdentityFixture } from "../test-fixtures";
 import { DatReferenceSettings } from "./DatReferences";
@@ -121,9 +124,24 @@ describe("DAT files", () => {
     const disclosure = host.querySelector("details");
     expect(disclosure?.open).toBe(false);
     expect(disclosure?.querySelector("summary")?.textContent).toBe("View technical details");
-    disclosure?.querySelector("summary")?.click();
-    expect(disclosure?.open).toBe(true);
-    expect(disclosure?.querySelector("pre")?.textContent).toContain(reason);
+    const viewport = { width: innerWidth, height: innerHeight };
+    const theme = document.documentElement.dataset.theme;
+    try {
+      document.documentElement.dataset.theme = "light";
+      await page.viewport(960, 640);
+      await captureParityState("dat-refused-logiqx-format");
+      document.documentElement.dataset.theme = "dark";
+      await page.viewport(430, 780);
+      disclosure?.querySelector("summary")?.click();
+      expect(disclosure?.open).toBe(true);
+      expect(disclosure?.querySelector("pre")?.textContent).toContain(reason);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState("dat-refused-logiqx-format-details");
+    } finally {
+      if (theme) document.documentElement.dataset.theme = theme;
+      else delete document.documentElement.dataset.theme;
+      await page.viewport(viewport.width, viewport.height);
+    }
     await act(async () => addButton.click());
     expect(add).toHaveBeenCalledTimes(2);
     expect(add).toHaveBeenNthCalledWith(2, ready.path);
