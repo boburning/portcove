@@ -1172,6 +1172,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
     <OperationPresentationProvider
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
+      unreadInstallPorts={model.operations.unreadInstallPorts}
+      workspaceRefreshFailed={Boolean(model.data.refreshFailure)}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -2248,6 +2250,7 @@ function SelectedPortPanel({
         backupsChanged: backups.refresh,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
+        onInstallCommitted: operations.noteInstallCommitted,
       })}
     />
   );
@@ -2465,6 +2468,8 @@ function useWorkspaceLibrary({
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
+    workspaceReadRevision: data.workspaceReadRevision,
+    startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
     bootstrap.generation,

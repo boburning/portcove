@@ -270,23 +270,31 @@ export function DetailPanel(props: DetailPanelProps) {
   const runtimeUpdateAvailable = currentUpdateSnapshot(status)?.check.update_available === true;
   const installReviewVisible = Boolean(
     installPlan &&
+    !actionState.installReadbackRequired &&
     !actionPresentation.blocked &&
     !installed &&
     launchReady &&
     !status?.readiness?.blockers.includes("invalid_installation") &&
     !status?.readiness?.blockers.includes("missing_runtime"),
   );
-  const state = presentDetailState({
-    port,
-    status,
-    actionPresentation,
-    installed,
-    launchReady,
-    pendingSetup,
-    selectedRequirement,
-    missingRequirement,
-    runtimeUpdateAvailable,
-  });
+  const state: DetailState = actionState.installReadbackRequired
+    ? {
+        title: "Installation finished",
+        description: "Refresh the library to view this installation’s current state.",
+        tone: "unknown",
+        icon: RefreshCw,
+      }
+    : presentDetailState({
+        port,
+        status,
+        actionPresentation,
+        installed,
+        launchReady,
+        pendingSetup,
+        selectedRequirement,
+        missingRequirement,
+        runtimeUpdateAvailable,
+      });
   const sources: SourceControls = {
     port,
     source,
@@ -395,6 +403,7 @@ export function DetailPanel(props: DetailPanelProps) {
       stagedVersion={status?.staged?.version}
       sources={sources}
       installed={installed}
+      installReadbackRequired={actionState.installReadbackRequired}
       deferSetupChoices={!installed && missingRequirement !== undefined}
       sourceReady={sourceReady}
       biosReady={biosReady}
@@ -419,7 +428,15 @@ export function DetailPanel(props: DetailPanelProps) {
       externalRuntimeChanged={props.externalRuntimeChanged}
       checkAgain={props.checkAgain}
       outputApplying={setOutputApplying}
-      actions={actions}
+      actions={
+        actionState.installReadbackRequired
+          ? {
+              ...actions,
+              reviewInstall: () => undefined,
+              install: () => undefined,
+            }
+          : actions
+      }
       openLibraryStorage={props.openLibraryStorage}
     />
   );
@@ -451,6 +468,7 @@ function detailBodyAvailability(
   promoteAlternative: boolean,
 ) {
   const directInstall =
+    !model.installReadbackRequired &&
     !promoteAlternative &&
     !portActionPresentation(model.status, "install").blocked &&
     !model.installed &&
@@ -495,6 +513,7 @@ function DetailBody(model: {
   stagedVersion?: string | undefined;
   sources: SourceControls;
   installed: boolean;
+  installReadbackRequired: boolean;
   deferSetupChoices: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -572,9 +591,11 @@ function DetailBody(model: {
           {setupRoutes.promoteAlternative ? setupRoutes.label : model.state.title}
         </span>
       }
-      installation={detailInstallationLabel(model.status, directInstall)}
+      installation={
+        model.installReadbackRequired ? "" : detailInstallationLabel(model.status, directInstall)
+      }
       action={(reveal) =>
-        model.installed && model.launchReady ? (
+        model.installReadbackRequired ? null : model.installed && model.launchReady ? (
           <DetailHeaderAction {...{ model, busy }} />
         ) : (
           <Button
@@ -3919,29 +3940,31 @@ function DetailFilesSection({
           pendingSetup={model.pendingSetup}
           busy={model.busy}
         />
-        <StatusActionsGroup
-          hidePlay={model.installed && model.launchReady}
+        {!model.installReadbackRequired && (
+          <StatusActionsGroup
+            hidePlay={model.installed && model.launchReady}
 
-          installCancellations={model.installCancellations}
-          port={model.port}
-          status={model.status}
-          stagedVersion={undefined}
-          sources={model.sources}
-          installed={model.installed}
-          sourceReady={model.sourceReady}
-          biosReady={model.biosReady}
-          launchReady={model.launchReady}
-          pendingSetup={model.pendingSetup}
-          runtimeUpdateAvailable={model.runtimeUpdateAvailable}
-          managedPreparation={managedPreparation}
-          prepare={model.prepare}
-          installPlan={model.installPlan}
-          busy={model.busy}
-          libraryGeneration={model.libraryGeneration}
-          onChanged={model.externalRuntimeChanged}
-          actions={model.actions}
-          openLibraryStorage={model.openLibraryStorage}
-        />
+            installCancellations={model.installCancellations}
+            port={model.port}
+            status={model.status}
+            stagedVersion={undefined}
+            sources={model.sources}
+            installed={model.installed}
+            sourceReady={model.sourceReady}
+            biosReady={model.biosReady}
+            launchReady={model.launchReady}
+            pendingSetup={model.pendingSetup}
+            runtimeUpdateAvailable={model.runtimeUpdateAvailable}
+            managedPreparation={managedPreparation}
+            prepare={model.prepare}
+            installPlan={model.installPlan}
+            busy={model.busy}
+            libraryGeneration={model.libraryGeneration}
+            onChanged={model.externalRuntimeChanged}
+            actions={model.actions}
+            openLibraryStorage={model.openLibraryStorage}
+          />
+        )}
         <SetupIntentChoice
           key={`intent:${model.port.id}:${model.libraryGeneration}`}
           portId={model.port.id}
@@ -3959,11 +3982,13 @@ function DetailFilesSection({
       <aside className="detail-file-context" aria-label="Installation and file details">
         <h3>Installation</h3>
         <p>
-          {model.status?.external_runtime
-            ? "External installation"
-            : model.installed
-              ? "Managed by Portcove"
-              : "Not installed"}
+          {model.installReadbackRequired
+            ? "Refresh needed to view this installation"
+            : model.status?.external_runtime
+              ? "External installation"
+              : model.installed
+                ? "Managed by Portcove"
+                : "Not installed"}
         </p>
         {(model.status?.active?.path || model.status?.external_runtime?.path) && (
           <p className="wrap-anywhere select-text">
@@ -3994,13 +4019,15 @@ function DetailManageSection({
     <>
       <CurrentStateSummary
         title={
-          !model.status
-            ? "Installation status unavailable"
-            : model.status.active || model.status.external_runtime
-              ? model.status.external_runtime
-                ? "External installation"
-                : "Managed installation"
-              : "No active installation"
+          model.installReadbackRequired
+            ? "Installation finished · refresh needed"
+            : !model.status
+              ? "Installation status unavailable"
+              : model.status.active || model.status.external_runtime
+                ? model.status.external_runtime
+                  ? "External installation"
+                  : "Managed installation"
+                : "No active installation"
         }
       >
         {model.status?.active && (
@@ -4218,6 +4245,8 @@ function DetailVersionsSection({
               Open upstream project <Icon glyph={ArrowRight} />
             </ProjectLink>
           </CurrentStateSummary>
+        ) : model.installReadbackRequired ? (
+          <CurrentStateSummary title="Refresh needed to view the installed version" />
         ) : (
           <InstallationVersionSummary
             status={model.status}
