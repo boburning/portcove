@@ -2165,6 +2165,9 @@ function SelectedPortPanel({
     ? sourceHealth.inspections.get(inspectionProfile)
     : undefined;
   const displayPort = model.entry ?? port;
+  const reviewedGame = model.entry?.listing?.original_game;
+  const savedSource =
+    !ui.sourcePath.trim() || ui.sourcePath === model.source?.path ? model.source : undefined;
 
   const managedSetup =
     status &&
