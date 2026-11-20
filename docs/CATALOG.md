@@ -2651,7 +2651,13 @@ platform is the newest reviewed shape. Changing the derivation rules (the
 program classifier, the configuration extensions, a part or its anchoring)
 bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
 over a fixture fails on any such change until the version and the golden are
-updated together. The golden fixture is a Windows route, so the Unix
+updated together. The N64 macOS archive inspection can additionally prove
+flat install-root persistence absent when the whole payload consists of the
+app bundle that contains the resolved executable. It records the previously
+unknown persistence components through a distinct N64 macOS derivation-input
+digest and preserves the existing coordinates and known values of other
+components. Earlier records still compare their known parts. The golden
+fixture is a Windows route, so the Unix
 executable-bit and verified macOS library branches of the shared classifier
 are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
 of the older version, and `--prune` empties the table until entries are
