@@ -52,6 +52,8 @@ interface DiscoverCoverTiming {
   viewport: { width: number; height: number; devicePixelRatio: number };
   visibleIds: string[];
   readyIds: string[];
+  startedAtEpochMs: number;
+  observedAtEpochMs: number;
   firstReadyMs: number | null;
   cohortReadyMs: number | null;
 }
@@ -568,6 +570,7 @@ async function observeDiscoverCovers(
         "click",
         () => {
           const started = performance.now();
+          const startedAtEpochMs = Date.now();
           const viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
           let firstReadyMs: number | null = null;
           let observer: IntersectionObserver | undefined;
@@ -623,6 +626,8 @@ async function observeDiscoverCovers(
                 viewport,
                 visibleIds: [...visible],
                 readyIds: [...ready],
+                startedAtEpochMs,
+                observedAtEpochMs: Date.now(),
                 firstReadyMs,
                 cohortReadyMs: complete ? elapsed : null,
               };
