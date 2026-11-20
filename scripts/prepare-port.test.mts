@@ -2770,6 +2770,45 @@ void test("official URL and reviewed Spearhead identity compact the exact OpenMo
   }
 });
 
+void test("reviewed preparation preserves the release origin of a compact OpenMoHAA route", async () => {
+  const f = fixture();
+  try {
+    const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
+    const { records } = readCatalogSource(catalogRoot);
+    const selected = records.find((record) => record.listing.id === id)!;
+    assert.equal(selected.integration?.release, undefined);
+    const explicit = projectOpenMohaaPortable(selected);
+    const release = explicit.integration!.release;
+    assert.ok(release && typeof release === "object");
+    explicit.integration!.release = {
+      ...release,
+      provider: "gitlab",
+      repository: "unrelated/mohaa",
+    };
+    await assert.rejects(
+      preparePort({
+        id,
+        catalogRoot,
+        outputDirectory: join(f.root, "output"),
+        projectUrl: selected.listing.project_url,
+        originalGame: selected.listing.original_game,
+        record: explicit,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, id: 29029846, full_name: "openmoh/openmohaa" }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      }),
+      /Review changes to an existing release provider as a record edit/u,
+    );
+  } finally {
+    f.clean();
+  }
+});
+
 void test("unsupported managed subshapes and contradictory GBA paths fail authoring validation", () => {
   const { records } = readCatalogSource(catalogRoot);
   const native = structuredClone(records.find((record) => record.route_facts_v1?.managed_native)!);

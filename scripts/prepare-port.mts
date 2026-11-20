@@ -25,6 +25,7 @@ import {
   readCatalogSource,
   reviewCompatibilityFixture,
   parseCatalogSource,
+  projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
@@ -713,8 +714,8 @@ export async function preparePort(options: PrepareOptions) {
     if (originalGame !== undefined && explicit) {
       if (!previous && explicit.listing.issue_number !== undefined)
         throw new Error("A new issue-free record cannot supply an unverified issue association.");
-      const release = explicit.integration?.release;
-      const retainedRelease = previous?.integration?.release;
+      const release = projectAuthoredPort(explicit)?.release;
+      const retainedRelease = previous && projectAuthoredPort(previous)?.release;
       const provider = isRecord(release) ? (release.provider ?? "github") : null;
       const retainedProvider = isRecord(retainedRelease)
         ? (retainedRelease.provider ?? "github")
@@ -782,7 +783,7 @@ export async function preparePort(options: PrepareOptions) {
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
         if (!base?.integration) return base?.listing.release_url;
-        const release = projectOpenMohaaPortable(base).integration?.release;
+        const release = projectAuthoredPort(base)?.release;
         return isRecord(release) &&
           (release.provider === undefined || release.provider === "github") &&
           typeof release.repository === "string"
