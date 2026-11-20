@@ -3789,7 +3789,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -3824,6 +3824,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -3834,6 +3844,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -3843,6 +3856,55 @@
           "asset_sha256"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -3974,7 +4036,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -3999,14 +4062,6 @@
             "type": "string"
           }
         ]
-      },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
       },
       "GeneratedArtworkFallback": {
         "additionalProperties": false,
@@ -4124,6 +4179,16 @@
           "imported_at"
         ],
         "type": "object"
+      },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
       },
       "SteamGridDbListingResult": {
         "description": "Whether SteamGridDB's own listing still includes a stored image.",
@@ -12111,12 +12176,24 @@
   },
   "destination_artwork_bytes": {
     "$defs": {
-      "ArtworkAttribution": {
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkAttribution": {
         "additionalProperties": false,
-        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
         "properties": {
           "asset_id": {
-            "description": "The provider's identity for this image.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12135,7 +12212,6 @@
             "type": "integer"
           },
           "game_id": {
-            "description": "The provider's game the image was listed under; a proposal, not port identity.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12162,7 +12238,7 @@
         ],
         "type": "object"
       },
-      "ArtworkChoice": {
+      "DestinationArtworkChoice": {
         "additionalProperties": false,
         "properties": {
           "asset_sha256": {
@@ -12180,7 +12256,7 @@
             "type": "integer"
           },
           "slot": {
-            "$ref": "#/$defs/ArtworkSlot"
+            "$ref": "#/$defs/DestinationArtworkSlot"
           }
         },
         "required": [
@@ -12190,36 +12266,6 @@
           "asset_sha256"
         ],
         "type": "object"
-      },
-      "ArtworkImageFormat": {
-        "enum": [
-          "png",
-          "jpeg"
-        ],
-        "type": "string"
-      },
-      "ArtworkProvider": {
-        "description": "A remote provider an image was chosen from; a local import has none.",
-        "enum": [
-          "steamgriddb"
-        ],
-        "type": "string"
-      },
-      "ArtworkSlot": {
-        "oneOf": [
-          {
-            "enum": [
-              "cover",
-              "detail"
-            ],
-            "type": "string"
-          },
-          {
-            "const": "landscape",
-            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
-            "type": "string"
-          }
-        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -12266,14 +12312,14 @@
           "attribution": {
             "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
             "items": {
-              "$ref": "#/$defs/ArtworkAttribution"
+              "$ref": "#/$defs/DestinationArtworkAttribution"
             },
             "type": "array"
           },
           "choice": {
             "anyOf": [
               {
-                "$ref": "#/$defs/ArtworkChoice"
+                "$ref": "#/$defs/DestinationArtworkChoice"
               },
               {
                 "type": "null"
@@ -12326,6 +12372,14 @@
           "portrait_cover",
           "landscape_cover",
           "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail",
+          "landscape"
         ],
         "type": "string"
       },
@@ -12547,12 +12601,24 @@
   },
   "destination_artwork_handoff": {
     "$defs": {
-      "ArtworkAttribution": {
+      "ArtworkImageFormat": {
+        "enum": [
+          "png",
+          "jpeg"
+        ],
+        "type": "string"
+      },
+      "ArtworkProvider": {
+        "description": "A remote provider an image was chosen from; a local import has none.",
+        "enum": [
+          "steamgriddb"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkAttribution": {
         "additionalProperties": false,
-        "description": "Where a provider image came from and who made it. Recorded per origin, never\nreplaced by a later identical import, and shown wherever the image is credited.",
         "properties": {
           "asset_id": {
-            "description": "The provider's identity for this image.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12571,7 +12637,6 @@
             "type": "integer"
           },
           "game_id": {
-            "description": "The provider's game the image was listed under; a proposal, not port identity.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -12598,7 +12663,7 @@
         ],
         "type": "object"
       },
-      "ArtworkChoice": {
+      "DestinationArtworkChoice": {
         "additionalProperties": false,
         "properties": {
           "asset_sha256": {
@@ -12616,7 +12681,7 @@
             "type": "integer"
           },
           "slot": {
-            "$ref": "#/$defs/ArtworkSlot"
+            "$ref": "#/$defs/DestinationArtworkSlot"
           }
         },
         "required": [
@@ -12626,36 +12691,6 @@
           "asset_sha256"
         ],
         "type": "object"
-      },
-      "ArtworkImageFormat": {
-        "enum": [
-          "png",
-          "jpeg"
-        ],
-        "type": "string"
-      },
-      "ArtworkProvider": {
-        "description": "A remote provider an image was chosen from; a local import has none.",
-        "enum": [
-          "steamgriddb"
-        ],
-        "type": "string"
-      },
-      "ArtworkSlot": {
-        "oneOf": [
-          {
-            "enum": [
-              "cover",
-              "detail"
-            ],
-            "type": "string"
-          },
-          {
-            "const": "landscape",
-            "description": "A wide cover, separate from the detail image; Steam's library capsule.",
-            "type": "string"
-          }
-        ]
       },
       "DestinationArtworkContent": {
         "oneOf": [
@@ -12700,6 +12735,14 @@
           "portrait_cover",
           "landscape_cover",
           "hero_banner"
+        ],
+        "type": "string"
+      },
+      "DestinationArtworkSlot": {
+        "enum": [
+          "cover",
+          "detail",
+          "landscape"
         ],
         "type": "string"
       },
@@ -12902,14 +12945,14 @@
       "attribution": {
         "description": "Provider credits for the selected local image, shown by a destination that\npresents the image; empty for a purely local import and every other source.",
         "items": {
-          "$ref": "#/$defs/ArtworkAttribution"
+          "$ref": "#/$defs/DestinationArtworkAttribution"
         },
         "type": "array"
       },
       "choice": {
         "anyOf": [
           {
-            "$ref": "#/$defs/ArtworkChoice"
+            "$ref": "#/$defs/DestinationArtworkChoice"
           },
           {
             "type": "null"
@@ -22226,7 +22269,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -22253,6 +22296,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -22263,6 +22316,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -22289,6 +22345,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -22375,7 +22480,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -22538,14 +22644,6 @@
           "provenance"
         ],
         "type": "object"
-      },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -23853,6 +23951,16 @@
         ],
         "type": "string"
       },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
+      },
       "TypedOrdering": {
         "additionalProperties": false,
         "description": "One precedence domain. A loader may need several; no universal number exists.",
@@ -24015,7 +24123,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -24042,6 +24150,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -24052,6 +24170,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -24078,6 +24199,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -24164,7 +24334,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -24327,14 +24498,6 @@
           "provenance"
         ],
         "type": "object"
-      },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -25497,6 +25660,16 @@
         ],
         "type": "string"
       },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
+        ],
+        "type": "string"
+      },
       "TypedOrdering": {
         "additionalProperties": false,
         "description": "One precedence domain. A loader may need several; no universal number exists.",
@@ -25781,7 +25954,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -25808,6 +25981,16 @@
               "null"
             ]
           },
+          "framing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkFraming"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "port_id": {
             "type": "string"
           },
@@ -25818,6 +26001,9 @@
           },
           "slot": {
             "$ref": "#/$defs/ArtworkSlot"
+          },
+          "suppressed": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -25844,6 +26030,55 @@
           "evicted_at"
         ],
         "type": "object"
+      },
+      "ArtworkFocalPoint": {
+        "additionalProperties": false,
+        "description": "A focal point on the orientation-corrected image, in ten-thousandths.",
+        "properties": {
+          "x": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "y": {
+            "format": "uint16",
+            "maximum": 10000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "ArtworkFraming": {
+        "description": "Presentation data for wide and narrow consumers of the same background.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "narrow": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              },
+              "version": {
+                "const": "v1",
+                "type": "string"
+              },
+              "wide": {
+                "$ref": "#/$defs/ArtworkFocalPoint"
+              }
+            },
+            "required": [
+              "version",
+              "wide",
+              "narrow"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "ArtworkImageFormat": {
         "enum": [
@@ -25930,7 +26165,8 @@
           {
             "enum": [
               "cover",
-              "detail"
+              "detail",
+              "logo"
             ],
             "type": "string"
           },
@@ -26093,14 +26329,6 @@
           "provenance"
         ],
         "type": "object"
-      },
-      "DestinationArtworkRole": {
-        "enum": [
-          "portrait_cover",
-          "landscape_cover",
-          "hero_banner"
-        ],
-        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -27384,6 +27612,16 @@
           "passed",
           "failed",
           "missing_tool"
+        ],
+        "type": "string"
+      },
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },
@@ -76312,11 +76550,13 @@
   },
   "steamgriddb_candidates": {
     "$defs": {
-      "DestinationArtworkRole": {
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
         "enum": [
           "portrait_cover",
           "landscape_cover",
-          "hero_banner"
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },
@@ -76358,7 +76598,7 @@
             "type": "string"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "score": {
             "format": "int64",
@@ -76481,7 +76721,7 @@
             "$ref": "#/$defs/ArtworkProvider"
           },
           "role": {
-            "$ref": "#/$defs/DestinationArtworkRole"
+            "$ref": "#/$defs/SteamGridDbArtworkRole"
           },
           "source_url": {
             "type": "string"
@@ -76506,11 +76746,13 @@
         ],
         "type": "string"
       },
-      "DestinationArtworkRole": {
+      "SteamGridDbArtworkRole": {
+        "description": "Artwork categories accepted by the optional SteamGridDB provider client.",
         "enum": [
           "portrait_cover",
           "landscape_cover",
-          "hero_banner"
+          "hero_banner",
+          "logo"
         ],
         "type": "string"
       },

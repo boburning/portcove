@@ -29,6 +29,14 @@ export type InputDesktopAdoptionBatchItems = AdoptionBatchItem[];
  * is an opt-in feed that receives builds before Beta.
  */
 export type ApplicationUpdateChannel = "beta" | "preview";
+/**
+ * Presentation data for wide and narrow consumers of the same background.
+ */
+export type ArtworkFraming = {
+  narrow: ArtworkFocalPoint;
+  version: "v1";
+  wide: ArtworkFocalPoint;
+};
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -155,6 +163,7 @@ export interface TransportInputs {
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
   desktop_application_update_preferences: InputDesktopApplicationUpdatePreferences;
+  desktop_artwork_selection_framing: InputDesktopArtworkSelectionFraming;
   desktop_bug_report_field: InputDesktopBugReportField;
   desktop_catalog_download_request: InputDesktopCatalogDownloadRequest;
   desktop_game_comparison_request: InputDesktopGameComparisonRequest;
@@ -243,6 +252,20 @@ export interface InputDesktopApplicationUpdatePreferences {
    */
   automatic_checks: boolean;
   channel: ApplicationUpdateChannel;
+}
+/**
+ * The full identity of a reviewed image and optional background framing.
+ */
+export interface InputDesktopArtworkSelectionFraming {
+  framing?: ArtworkFraming | null;
+  preview_sha256: string;
+}
+/**
+ * A focal point on the orientation-corrected image, in ten-thousandths.
+ */
+export interface ArtworkFocalPoint {
+  x: number;
+  y: number;
 }
 export interface InputDesktopBugReportField {
   id: string;

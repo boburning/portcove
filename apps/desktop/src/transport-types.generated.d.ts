@@ -276,9 +276,20 @@ export type OutputArtworkAssets = LocalArtworkAsset[];
  * A remote provider an image was chosen from; a local import has none.
  */
 export type ArtworkProvider = "steamgriddb";
-export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+/**
+ * Artwork categories accepted by the optional SteamGridDB provider client.
+ */
+export type SteamGridDbArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner" | "logo";
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
-export type ArtworkSlot = ("cover" | "detail") | "landscape";
+/**
+ * Presentation data for wide and narrow consumers of the same background.
+ */
+export type ArtworkFraming = {
+  narrow: ArtworkFocalPoint;
+  version: "v1";
+  wide: ArtworkFocalPoint;
+};
+export type ArtworkSlot = ("cover" | "detail" | "logo") | "landscape";
 /**
  * Whether SteamGridDB's own listing still includes a stored image.
  */
@@ -631,6 +642,8 @@ export type CatalogUpdateSource =
 export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
+export type DestinationArtworkSlot = "cover" | "detail" | "landscape";
 export type DestinationArtworkContent =
   | {
       asset: LocalArtworkAsset;
@@ -1427,6 +1440,7 @@ export interface TransportOutputs {
   desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
   desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
+  desktop_artwork_selection_preview: OutputDesktopArtworkSelectionPreview;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
   desktop_bootstrap_status: OutputDesktopBootstrapStatus;
@@ -2153,14 +2167,23 @@ export interface ArtworkAttribution {
    */
   game_id: number;
   provider: ArtworkProvider;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   source_url: string;
 }
 export interface ArtworkChoice {
   asset_sha256: string | null;
+  framing?: ArtworkFraming | null;
   port_id: string;
   revision: number;
   slot: ArtworkSlot;
+  suppressed?: boolean;
+}
+/**
+ * A focal point on the orientation-corrected image, in ten-thousandths.
+ */
+export interface ArtworkFocalPoint {
+  x: number;
+  y: number;
 }
 export interface GeneratedArtworkFallback {
   identity: string;
@@ -3578,8 +3601,8 @@ export interface DestinationArtworkHandoff {
    * Provider credits for the selected local image, shown by a destination that
    * presents the image; empty for a purely local import and every other source.
    */
-  attribution: ArtworkAttribution[];
-  choice: ArtworkChoice | null;
+  attribution: DestinationArtworkAttribution[];
+  choice: DestinationArtworkChoice | null;
   content: DestinationArtworkContent;
   handoff_schema: number;
   library: LibraryIdentity;
@@ -3587,6 +3610,22 @@ export interface DestinationArtworkHandoff {
   role: DestinationArtworkRole;
   selected_asset_sha256: string | null;
   source: DestinationArtworkSource;
+}
+export interface DestinationArtworkAttribution {
+  asset_id: number;
+  author_name: string;
+  author_steam64: string | null;
+  fetched_at: number;
+  game_id: number;
+  provider: ArtworkProvider;
+  role: DestinationArtworkRole;
+  source_url: string;
+}
+export interface DestinationArtworkChoice {
+  asset_sha256: string | null;
+  port_id: string;
+  revision: number;
+  slot: DestinationArtworkSlot;
 }
 /**
  * Durable library identity and its current effective location.
@@ -6707,7 +6746,7 @@ export interface SteamGridDbCandidate {
   height: number;
   id: number;
   mime: string;
-  role: DestinationArtworkRole;
+  role: SteamGridDbArtworkRole;
   score: number;
   style: string;
   thumb: string;
@@ -6941,6 +6980,11 @@ export interface ApplicationUpdateAvailable {
   date: string | null;
   notes: string | null;
   version: string;
+  [k: string]: unknown;
+}
+export interface OutputDesktopArtworkSelectionPreview {
+  original_sha256: string;
+  png_base64: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {
