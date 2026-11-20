@@ -1791,10 +1791,7 @@ async function restartApplication(
   prepareWhileStopped?: () => Promise<void>,
   childEnvironment: NodeJS.ProcessEnv = {},
 ) {
-  if (
-    selection.selected_scenarios.includes("native-library-recovery-bundle") &&
-    name === "restored-library-explicitly-opened"
-  ) {
+  if (name === "restored-library-explicitly-opened") {
     assert.deepEqual(selection.selected_scenarios, ["native-library-recovery-bundle"]);
     assert.equal(prepareWhileStopped, undefined);
     const preferences: unknown = JSON.parse(

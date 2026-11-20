@@ -704,6 +704,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "owned-fixture", "native-dialog"],
       host_resources: [...nativeResources, "native-dialog"],
       platforms: ["win32"],
+      qualification_only: true,
       source: "desktop-library-handoff-test.mts",
     },
   ),
