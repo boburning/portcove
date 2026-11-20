@@ -27,11 +27,18 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
+import {
+  observeOriginalRecognition,
+  readOriginalRecognitionProgress,
+  revalidateOriginalRecognition,
+  selectOriginalRecognitionTarget,
+} from "./upstream-original-recognition.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
   kind?: "listing";
   listing?: Record<string, unknown>;
+  observes_original_recognition?: true;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -197,6 +204,9 @@ export function catalogObservationSources(input: unknown) {
       scope_sha256: "",
     };
     source.ports.push({
+      ...(port.adapter === "libultraship-portable" && typeof port.source_profile === "string"
+        ? { observes_original_recognition: true as const }
+        : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -491,6 +501,13 @@ export interface CatalogObservationOptions extends Pick<
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  readOriginalRecognition?: (
+    repository: string,
+    endpoint: string,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<unknown>;
   repositoryId: (
     source: ObservableSource,
     transport: Required<
@@ -592,6 +609,15 @@ export async function advanceCatalogObservations(
   let remaining: number | null = null;
   let resetAt: number | null = null;
   let providerLimit: number | null = null;
+  const extendProviderDeferral = (retryAt: string | null) => {
+    if (
+      retryAt !== null &&
+      (state.provider_retry_at === null ||
+        Date.parse(retryAt) > Date.parse(state.provider_retry_at))
+    )
+      state.provider_retry_at = retryAt;
+    return state.provider_retry_at;
+  };
   const consumeResponseBytes = (bytes: number | null) => {
     if (bytes !== null && (!Number.isSafeInteger(bytes) || bytes < 0))
       throw new ObservationFailure("invalid-metadata", "Provider response size is invalid");
@@ -700,13 +726,14 @@ export async function advanceCatalogObservations(
     const providerDepleted =
       remaining !== null &&
       remaining <= Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05));
-    if (providerDepleted && resetAt !== null)
-      state.provider_retry_at = new Date(resetAt).toISOString();
+    const retryAt = providerDepleted
+      ? extendProviderDeferral(resetAt === null ? null : new Date(resetAt).toISOString())
+      : null;
     if (now() >= deadline || capacity() < 1)
       throw new ObservationFailure(
         "budget",
         "Shared provider reserve or runtime exhausted",
-        providerDepleted && resetAt !== null ? new Date(resetAt).toISOString() : null,
+        retryAt,
       );
     requestStartedAt = now();
     requests++;
@@ -1215,6 +1242,16 @@ export async function advanceCatalogObservations(
             : Math.max(fairShare, Math.min(minimumTurn, available)),
         ),
       );
+      const admitSourceRequest = () => {
+        if (sourceRequests >= quantum)
+          throw new ObservationFailure(
+            "budget",
+            "Fair source batch admission exhausted; continue after other admitted source turns",
+            null,
+          );
+        admitRequest();
+        sourceRequests++;
+      };
       const selectAssetReleases = async (headers: ProviderObservation) => {
         if (
           progress.selection_progress?.binding !== binding ||
@@ -1301,16 +1338,7 @@ export async function advanceCatalogObservations(
           now,
           catalogIds,
           reprojectFreshFacts,
-          admitRequest: () => {
-            if (sourceRequests >= quantum)
-              throw new ObservationFailure(
-                "budget",
-                "Fair source batch admission exhausted; continue after other admitted source turns",
-                null,
-              );
-            admitRequest();
-            sourceRequests++;
-          },
+          admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,
           selectAssetReleases,
@@ -1331,6 +1359,79 @@ export async function advanceCatalogObservations(
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
         const fallback = progress.last_complete_policies;
+        const readOriginalRecognition = options.readOriginalRecognition;
+        if (!result.report.exception && readOriginalRecognition) {
+          const account = {
+            admitRequest: admitSourceRequest,
+            observeResponse,
+            consumeResponseBytes,
+          };
+          const freshByRelease = new Map<
+            string,
+            Awaited<ReturnType<typeof observeOriginalRecognition>>
+          >();
+          const tagMatches = new Map<string, boolean>();
+          const read = (endpoint: string) =>
+            readOriginalRecognition(source.repository, endpoint, account);
+          for (const policy of policies) {
+            if (!isRecord(policy)) continue;
+            const port = source.ports.find((port) => port.id === policy.port_id);
+            if (!port?.observes_original_recognition) continue;
+            const target = selectOriginalRecognitionTarget(
+              policy,
+              source.repository,
+              config.repository_id,
+            );
+            const previous = readOriginalRecognitionProgress(
+              fallback.find((prior) => prior.port_id === port.id)?.original_recognition,
+              { repository: source.repository, repository_id: config.repository_id },
+            );
+            const retained = previous?.last_complete ?? null;
+            let recognitionState: string;
+            let complete = retained;
+            if (!target) {
+              recognitionState = "exact-artifact-unavailable";
+            } else {
+              const binding = observationHash(target);
+              try {
+                if (retained?.binding === binding) {
+                  const key = JSON.stringify([
+                    target.release_id,
+                    target.release_tag,
+                    retained.fact.source_tag_sha1,
+                  ]);
+                  let matches = tagMatches.get(key);
+                  if (matches === undefined) {
+                    matches = await revalidateOriginalRecognition(retained.fact, read);
+                    tagMatches.set(key, matches);
+                  }
+                  recognitionState = matches ? "observed" : "source-tag-changed";
+                } else {
+                  const release = JSON.stringify([
+                    target.repository_id,
+                    target.release_id,
+                    target.release_tag,
+                  ]);
+                  const fresh = freshByRelease.get(release);
+                  const fact = fresh
+                    ? { ...fresh, ...target }
+                    : await observeOriginalRecognition(target, read);
+                  if (!fresh) freshByRelease.set(release, fact);
+                  complete = { binding, observed_at: new Date(now()).toISOString(), fact };
+                  recognitionState = "observed";
+                }
+              } catch (error) {
+                recognitionState =
+                  error instanceof ObservationFailure ? error.rule : "source-metadata-unavailable";
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  extendProviderDeferral(error.retryAt);
+                }
+              }
+            }
+            policy.original_recognition = { state: recognitionState, last_complete: complete };
+          }
+        }
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
@@ -1354,7 +1455,7 @@ export async function advanceCatalogObservations(
         progress.retry_at = result.report.exception.retry_at;
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
-          state.provider_retry_at = result.report.exception.retry_at;
+          extendProviderDeferral(result.report.exception.retry_at);
         }
         failures.push({
           source: source.key,
@@ -1446,7 +1547,7 @@ export async function advanceCatalogObservations(
       progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
       if (error instanceof ObservationFailure && error.rule === "rate-limit") {
         remaining = 0;
-        state.provider_retry_at = error.retryAt;
+        extendProviderDeferral(error.retryAt);
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
       const key = exceptionKey(source, rule);

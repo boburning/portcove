@@ -1,3 +1,11 @@
+import { GitHubApiError } from "./github-operation.mts";
+import { createHash } from "node:crypto";
+import {
+  observeOriginalRecognition,
+  parseSupportedOriginalHashes,
+  readOriginalRecognitionProgress,
+  selectOriginalRecognitionTarget,
+} from "./upstream-original-recognition.mts";
 import { hostedOpportunityMs } from "./observe-catalog-upstreams.mts";
 import { isRecord } from "./runtime-values.mts";
 import { execFileSync } from "node:child_process";
@@ -15,6 +23,7 @@ import {
   assetFact,
   observeUpstream,
   readObserverMetadata,
+  observerGitHubRateLimit,
   validateObserverConfig,
   compactObserverCache,
   reusableProviderObservation,
@@ -2203,4 +2212,99 @@ void test("push runs observe only to fill schedule gaps and use a reduced reques
   await assert.rejects(
     admit("push", fixture({ schedule: [run(17, "schedule", 1, { head_branch: "feature" })] }, {})),
   );
+});
+
+void test("original recognition binds the selected release and exact source blob", async () => {
+  const raw = Buffer.from(JSON.stringify([{ name: "Fixture ROM", sha1: "a".repeat(40) }]));
+  const contents = {
+    type: "file",
+    path: "docs/supportedHashes.json",
+    encoding: "base64",
+    size: raw.length,
+    content: raw.toString("base64"),
+    sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+  };
+  const platform = "windows-x86-64";
+  const sha256 = "b".repeat(64);
+  const current = {
+    platform,
+    channel: "stable",
+    channel_candidate: { id: 31, tag: "1.2.3" },
+    latest_eligible: { release_id: 31, release: { version: "1.2.3", asset: { sha256 } } },
+  };
+  const target = selectOriginalRecognitionTarget({ projections: [current] }, "sample/runtime", 12);
+  assert.ok(target);
+  const ref = { ref: "refs/tags/1.2.3", object: { type: "commit", sha: "c".repeat(40) } };
+  const paths: string[] = [];
+  const observed = await observeOriginalRecognition(target, async (endpoint) => {
+    paths.push(endpoint);
+    if (endpoint === "/repos/sample/runtime") return { id: 12, full_name: "sample/runtime" };
+    return endpoint.includes("/contents/") ? contents : ref;
+  });
+  assert.deepEqual(paths, [
+    "/repos/sample/runtime/git/ref/tags/1.2.3",
+    `/repos/sample/runtime/contents/docs/supportedHashes.json?ref=${ref.object.sha}`,
+    "/repos/sample/runtime/git/ref/tags/1.2.3",
+    "/repos/sample/runtime",
+  ]);
+  assert.equal(observed.source_commit, ref.object.sha);
+  assert.equal(observed.coverage, "recognition-only");
+  assert.deepEqual(observed.artifacts, [{ platform, sha256 }]);
+  assert.equal(observed.source_blob_sha1, contents.sha);
+  assert.equal(observed.source_sha256, createHash("sha256").update(raw).digest("hex"));
+  assert.equal(observed.variants[0]?.sha1, "a".repeat(40));
+  assert.throws(
+    () => parseSupportedOriginalHashes({ ...contents, sha: "d".repeat(40) }),
+    /Git object/,
+  );
+  assert.equal(
+    selectOriginalRecognitionTarget(
+      {
+        projections: [
+          { ...current, latest_eligible: { ...current.latest_eligible, release_id: 30 } },
+        ],
+      },
+      "sample/runtime",
+      12,
+    ),
+    undefined,
+  );
+  const previous = {
+    state: "observed",
+    last_complete: {
+      binding: observationHash(target),
+      observed_at: "2026-11-20T00:00:00Z",
+      fact: observed,
+    },
+  };
+  assert.deepEqual(readOriginalRecognitionProgress(previous, target), previous);
+  assert.equal(
+    readOriginalRecognitionProgress(
+      {
+        ...previous,
+        last_complete: {
+          ...previous.last_complete,
+          fact: { ...observed, release_id: 30 },
+        },
+      },
+      target,
+    ),
+    undefined,
+  );
+  const replies = [ref, contents, { ...ref, object: { ...ref.object, sha: "d".repeat(40) } }];
+  await assert.rejects(
+    observeOriginalRecognition(target, async () => replies.shift()),
+    /tag changed/,
+  );
+});
+
+void test("original recognition and provider reads share a bounded retry clock", () => {
+  const now = Date.parse("2026-11-20T00:00:00Z");
+  const secondary = new GitHubApiError("rate_limited", "fixture throttle", {
+    status: 429,
+    retryAfter: "300",
+  });
+  assert.equal(observerGitHubRateLimit(secondary, now).retryAt, "2026-11-20T00:05:00.000Z");
+  const unspecified = new GitHubApiError("rate_limited", "fixture quota", { status: 429 });
+  assert.equal(observerGitHubRateLimit(unspecified, now).retryAt, "2026-11-20T00:01:00.000Z");
 });
