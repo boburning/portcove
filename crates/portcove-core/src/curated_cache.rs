@@ -144,21 +144,29 @@ fn regular(path: &Path) -> Result<Option<fs::Metadata>> {
     }
 }
 
-fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
+fn integrity_error(path: &Path, worker: &CacheWorker) -> Result<Option<PortcoveError>> {
     let asset = &worker.asset;
     let operation = &worker.operation;
     let metadata = regular(path)?
         .ok_or_else(|| PortcoveError::verification("curated cache bytes disappeared"))?;
-    crate::archive::validate_download_size(metadata.len(), asset.size)?;
+    if let Err(error) = crate::archive::validate_download_size(metadata.len(), asset.size) {
+        return Ok(Some(error));
+    }
     let (hash, size) = crate::adapter::hash_file_bounded_with_checkpoint(path, asset.size, || {
         operation.checkpoint()
     })?;
-    crate::archive::validate_download_size(size, asset.size)?;
-    if hash != asset.sha256 {
-        return Err(
-            PortcoveError::verification("curated cache bytes failed SHA-256 verification")
-                .detail("path", path.display().to_string()),
-        );
+    if let Err(error) = crate::archive::validate_download_size(size, asset.size) {
+        return Ok(Some(error));
+    }
+    Ok((hash != asset.sha256).then(|| {
+        PortcoveError::verification("curated cache bytes failed SHA-256 verification")
+            .detail("path", path.display().to_string())
+    }))
+}
+
+fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
+    if let Some(error) = integrity_error(path, worker)? {
+        return Err(error);
     }
     #[cfg(test)]
     if let Some(hook) = worker
@@ -166,7 +174,7 @@ fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
         .as_ref()
         .and_then(|hook| hook.after_verify.as_ref())
     {
-        hook(path, size)?;
+        hook(path, worker.asset.size)?;
     }
     Ok(())
 }
@@ -206,6 +214,80 @@ fn copy_checked(
     verify(destination, worker)
 }
 
+/// Diagnose the canonical object under the existing cache lock. A private
+/// copy can fail for unrelated reasons, including a change after it was copied.
+fn quarantine_invalid_cache(
+    path: &Path,
+    worker: &CacheWorker,
+    original_error: PortcoveError,
+) -> Result<bool> {
+    if original_error.code != ErrorCode::Verification {
+        return Err(original_error);
+    }
+    // Only the independently rechecked canonical bytes can be quarantined.
+    // Reparse points, I/O failures and cancellation never identify bad bytes.
+    regular(path)?.ok_or_else(|| PortcoveError::conflict("curated cache entry disappeared"))?;
+    let original = same_file::Handle::from_path(path)?;
+    if integrity_error(path, worker)?.is_none() {
+        return Err(original_error);
+    }
+    entry(&worker.scope, &worker.asset)?;
+    worker.operation.checkpoint()?;
+    if same_file::Handle::from_path(path)? != original {
+        return Err(PortcoveError::conflict(
+            "curated cache entry changed during verification",
+        ));
+    }
+    // This reserved inactive name is already understood by earlier readers.
+    // It counts towards the same storage limits and is never a cache hit.
+    let quarantine = path.with_file_name(format!(".partial-{}", uuid::Uuid::new_v4()));
+    let refusal = original_error.detail("expected_sha256", &worker.asset.sha256);
+    if let Err(error) = crate::durability::rename_noreplace(path, &quarantine) {
+        return Err(refusal.detail("quarantine_move_error", error.to_string()));
+    }
+    let confirmation = (|| -> Result<bool> {
+        crate::durability::sync_publication(path.parent().expect("cache entry has parent"))?;
+        regular(&quarantine)?
+            .ok_or_else(|| PortcoveError::conflict("quarantine entry disappeared"))?;
+        Ok(same_file::Handle::from_path(&quarantine)? == original
+            && integrity_error(&quarantine, worker)?.is_some())
+    })();
+    Err(finish_quarantine(path, &quarantine, refusal, confirmation))
+}
+
+// The move has completed. Every subsequent failure preserves the original
+// verification error and names the location at which we left the evidence.
+fn finish_quarantine(
+    canonical: &Path,
+    quarantine: &Path,
+    mut refusal: PortcoveError,
+    confirmation: Result<bool>,
+) -> PortcoveError {
+    match confirmation {
+        Ok(true) => {}
+        Err(error) => {
+            refusal = refusal.detail("quarantine_confirmation_error", error.to_string());
+        }
+        Ok(false) => match crate::durability::rename_noreplace(quarantine, canonical) {
+            Ok(()) => {
+                refusal = refusal
+                    .detail("cache_changed_during_quarantine", "true")
+                    .detail("retained_path", canonical.display().to_string());
+                if let Err(error) = crate::durability::sync_publication(
+                    canonical.parent().expect("cache entry has parent"),
+                ) {
+                    refusal = refusal.detail("quarantine_restore_sync_error", error.to_string());
+                }
+                return refusal;
+            }
+            Err(error) => {
+                refusal = refusal.detail("quarantine_restore_error", error.to_string());
+            }
+        },
+    }
+    refusal.detail("quarantine_path", quarantine.display().to_string())
+}
+
 fn restore_inner(worker: &CacheWorker, destination: &Path) -> Result<bool> {
     let scope = &worker.scope;
     let asset = &worker.asset;
@@ -218,10 +300,13 @@ fn restore_inner(worker: &CacheWorker, destination: &Path) -> Result<bool> {
     let Some(metadata) = regular(&path)? else {
         return Ok(false);
     };
-    crate::archive::validate_download_size(metadata.len(), asset.size)?;
     // Verify the private copy, so a concurrent source substitution cannot bless
     // bytes that differ from the independently accepted expected digest.
-    copy_checked(&path, destination, asset, worker)?;
+    let copied = crate::archive::validate_download_size(metadata.len(), asset.size)
+        .and_then(|()| copy_checked(&path, destination, asset, worker));
+    if let Err(error) = copied {
+        return quarantine_invalid_cache(&path, worker, error);
+    }
     entry(scope, asset)?;
     Ok(true)
 }
@@ -237,7 +322,9 @@ fn retain_inner(worker: &CacheWorker, source: &Path) -> Result<bool> {
         Err(error) => return Err(error),
     };
     if regular(&path)?.is_some() {
-        verify(&path, worker)?;
+        if let Err(error) = verify(&path, worker) {
+            return quarantine_invalid_cache(&path, worker, error);
+        }
         entry(scope, asset)?;
         return Ok(true);
     }
@@ -301,6 +388,42 @@ fn retain_inner(worker: &CacheWorker, source: &Path) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interrupted_quarantine_reports_the_original_refusal_and_retained_evidence() {
+        let directory = tempfile::tempdir().unwrap();
+        let canonical = directory.path().join("accepted.asset");
+        let quarantine = directory.path().join(".partial-evidence");
+        fs::write(&quarantine, b"rejected").unwrap();
+        let refused =
+            || PortcoveError::verification("curated cache bytes failed SHA-256 verification");
+        let error = finish_quarantine(
+            &canonical,
+            &quarantine,
+            refused(),
+            Err(PortcoveError::new(
+                ErrorCode::Cancelled,
+                "operation cancelled",
+            )),
+        );
+        assert_eq!(error.code, ErrorCode::Verification);
+        assert_eq!(error.message, refused().message);
+        assert_eq!(Path::new(&error.details["quarantine_path"]), quarantine);
+        assert_eq!(fs::read(&quarantine).unwrap(), b"rejected");
+        assert!(!canonical.exists());
+
+        fs::write(&canonical, b"newer").unwrap();
+        let error = finish_quarantine(&canonical, &quarantine, refused(), Ok(false));
+        assert!(error.details.contains_key("quarantine_restore_error"));
+        assert_eq!(fs::read(&canonical).unwrap(), b"newer");
+        assert_eq!(fs::read(&quarantine).unwrap(), b"rejected");
+
+        fs::remove_file(&canonical).unwrap();
+        let error = finish_quarantine(&canonical, &quarantine, refused(), Ok(false));
+        assert_eq!(Path::new(&error.details["retained_path"]), canonical);
+        assert_eq!(fs::read(&canonical).unwrap(), b"rejected");
+        assert!(!quarantine.exists());
+    }
 
     #[cfg(any(windows, unix))]
     #[test]
