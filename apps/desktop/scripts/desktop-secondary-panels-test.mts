@@ -125,9 +125,17 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await browser.wait(
         async () => {
           for (const candidate of await browser.findElements(By.css("button"))) {
-            if ((await candidate.isDisplayed()) && (await candidate.getAccessibleName()) === name) {
-              result = candidate;
-              return true;
+            try {
+              if (
+                (await candidate.isDisplayed()) &&
+                (await candidate.getAccessibleName()) === name
+              ) {
+                result = candidate;
+                return true;
+              }
+            } catch (error) {
+              if (!(error instanceof Error && error.name === "StaleElementReferenceError"))
+                throw error;
             }
           }
           return false;
