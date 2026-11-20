@@ -34,6 +34,10 @@ import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
 } from "./artwork-operations.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
@@ -680,6 +684,17 @@ if (preparing) {
     throw new Error(
       `Review independent compatibility fixture before generation: ${JSON.stringify(compatibility.collections)}`,
     );
+  const releaseUrls = new Map(
+    authored.records.map(({ listing }) => [listing.id, listing.release_url]),
+  );
+  for (const port of current.ports) {
+    for (const finding of managedSetupReleaseAdvice(port, releaseUrls.get(port.id))) {
+      const { step, kind, literal } = finding;
+      process.stderr.write(
+        `Catalog authoring advice for ${port.id}, setup step ${step}: ${kind} ${JSON.stringify(literal)}. ${managedSetupReleaseAdviceText}\n`,
+      );
+    }
+  }
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const managedSetupReview = Object.fromEntries(
