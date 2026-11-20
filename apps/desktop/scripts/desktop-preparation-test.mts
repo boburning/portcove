@@ -4083,7 +4083,7 @@ export async function preparationScenarios({
         };
         observations.failure_cleanup = cleanup;
         try {
-          assert.ok(ownershipIssue === undefined, ownershipIssue);
+          if (ownershipIssue !== undefined) assert.fail(ownershipIssue);
           assert.ok(
             activity,
             "The attempted preparation has no captured owned operation ID; stop the run",
