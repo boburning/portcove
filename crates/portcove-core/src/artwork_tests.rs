@@ -4304,13 +4304,16 @@ fn reviewed_background_replacement_commits_image_and_framing_together() {
             .unwrap();
     };
     write([20, 90, 40]);
+    let before = service.export_library_metadata().unwrap().artwork;
     let preview = service.preview_local_background(PORT, &image).unwrap();
     assert_eq!(
         preview.original_sha256,
         crate::signed_catalog::digest(&fs::read(&image).unwrap())
     );
     assert!(preview.png.starts_with(b"\x89PNG"));
-    let before = service.export_library_metadata().unwrap().artwork;
+    let original = |sha: &str| crate::artwork::original_path(service.library(), sha).unwrap();
+    assert!(!original(&preview.original_sha256).exists());
+    assert_eq!(service.export_library_metadata().unwrap().artwork, before);
     let framing = ArtworkFraming::V1 {
         wide: ArtworkFocalPoint { x: 2000, y: 6500 },
         narrow: ArtworkFocalPoint { x: 9000, y: 4300 },
@@ -4324,6 +4327,8 @@ fn reviewed_background_replacement_commits_image_and_framing_together() {
         .import_artwork_with_framing(PORT, ArtworkSlot::Detail, &image, 0, Some(update))
         .unwrap_err();
     assert_eq!(changed.code, ErrorCode::Conflict);
+    let changed_digest = crate::signed_catalog::digest(&fs::read(&image).unwrap());
+    assert!(!original(&changed_digest).exists());
     assert_eq!(service.export_library_metadata().unwrap().artwork, before);
 
     let preview = service.preview_local_background(PORT, &image).unwrap();
@@ -4425,4 +4430,28 @@ fn provider_background_refuses_a_crop_reviewed_against_different_bytes() {
     assert_eq!(chosen.choice.revision, 1);
     assert_eq!(chosen.choice.framing, Some(framing));
     assert_eq!(chosen.attribution[0].asset_id, 7);
+
+    // Leave a deletion pending to model interruption after the eviction
+    // marker was committed. A stale Apply must refuse before that sweep.
+    let sha = chosen.choice.asset_sha256.as_deref().unwrap();
+    let original = crate::artwork::original_path(service.library(), sha).unwrap();
+    assert!(original.is_file());
+    let _guard = service.library().try_lock_artwork().unwrap();
+    crate::artwork_store::mark_evicted(&service.library().connection().unwrap(), sha, 1).unwrap();
+    drop(_guard);
+    let stale = service
+        .choose_fetched_artwork_with_framing(
+            &port,
+            ArtworkSlot::Detail,
+            42,
+            candidate(),
+            0,
+            Some(ArtworkSelectionFraming {
+                preview_sha256: sha.into(),
+                framing: Some(framing),
+            }),
+        )
+        .unwrap_err();
+    assert_eq!(stale.code, ErrorCode::Conflict);
+    assert!(original.is_file());
 }

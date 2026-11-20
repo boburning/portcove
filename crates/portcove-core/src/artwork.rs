@@ -1247,13 +1247,17 @@ impl PortcoveService {
             imported_at: Library::now(),
         };
         crate::artwork_store::validate_asset(&proposed)?;
+        let mut connection = self.library().connection()?;
+        if framing.is_some() {
+            // A staged edit rejected for staleness leaves pending maintenance alone.
+            crate::artwork_store::require_revision(&connection, port_id, slot, expected_revision)?;
+        }
         // Removals left over from a check are finished first, so a stale copy of
         // an evicted image is never mistaken for the one being restored.
         let _ = crate::artwork_eviction::complete_pending_evictions(
             self.library(),
             Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
         );
-        let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
         crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         crate::artwork_store::check_capacity(&transaction, &proposed)?;
