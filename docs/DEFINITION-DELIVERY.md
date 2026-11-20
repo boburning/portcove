@@ -1181,18 +1181,25 @@ Desktop schedules one refresh about 15 seconds after a library has loaded, then
 about every 24 hours while it runs. Checks never overlap: Core allows one official
 catalog refresh at a time per process, a scheduled check skips while another runs
 and a player's refresh waits for it. Desktop also waits while another task holds
-the library. Before recording an activity, the scheduled refresh acquires the
-listing target through the same authenticated TUF path and strict parser as the
-manual refresh and runs every admission check without writing. An outage, an
-absent publication (HTTP 404 or 410), expired metadata, a bad signature, a listing
-format this client cannot read, stale metadata or a replay/equivocation returns a
-quiet `unavailable` result with its serving status. No activity is recorded and
-the directory, replay floors and selection do not change. On a library's first
-check, the compiled anchor may already have been installed as described above
-even when the result is `unavailable`. An admissible candidate is published
-through the ordinary update-catalog activity, cancellation and atomic admission
-owner. A player's manual refresh still reports its failures. Any failure keeps
-the accepted directory, replay floors and bundled fallback.
+the library. The scheduled check authenticates one repository snapshot for both listings and
+operational definitions. It checks the listing before recording its ordinary
+update-catalog activity. After its admission, newly accepted listing IDs may
+join existing known IDs and retained official subjects. For those exact
+identities, an independently signed policy can select a compatible indexed
+definition or withdraw its scope. Each positive candidate reads only its entry
+and execution contract from the shared authenticated index. Policy, launch
+assessment and selection use the same admission transactions as the manual check.
+
+Each opportunity allows 120 seconds of network work and up to 32 known subjects.
+The starting subject changes each day, so an early deadline cannot keep the
+same later subjects waiting indefinitely. Unavailable policy, missing or
+unsupported payloads and replay failures leave other subjects eligible for
+checking. Missing policy targets do not withdraw retained authority. Exact
+settled definition replays skip a new definition activity and selection write.
+When neither path verifies, the existing quiet `unavailable` result reports
+the listing or repository failure. On a library's first check, the compiled
+anchor may already have been installed as described above. A player's manual
+refresh still reports its own failures.
 Settings shows the latest result, including a player's successful refresh. A failed scheduled check never raises an
 error notice.
 
@@ -1205,8 +1212,9 @@ updates on removes the value and requests a check soon. **Refresh official
 catalog** stays available while updates are off.
 
 The built-in catalog and installed games remain available when this optional
-source is unconfigured or its refresh fails. A refresh does not install a game,
-authorize a definition or replace executable/player data. The configured
+source is unconfigured or its refresh fails. A scheduled refresh can admit
+signed definition availability within its existing policy scope. It never
+installs a game or replaces executable or player data. The configured
 Windows/native baseline, authenticated feed and protected progression acceptance
 remain separate obligations after this source appointment. Neither compiled input
 nor an installed anchor establishes those outcomes.

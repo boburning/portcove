@@ -6,7 +6,7 @@ use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
-use tough::Transport;
+use tough::{Repository, Transport};
 
 use super::{PolicyProvenance, installed_authority_floor, provisioning};
 use crate::{
@@ -495,35 +495,19 @@ pub(crate) async fn refresh<T: Transport + Send + Sync + 'static>(
 /// strict parser as `refresh`, followed by every admission check, with no
 /// activity and no write. A candidate this client would refuse (outage, absent
 /// or expired publication, bad signature, newer format, replay) records nothing.
-pub(crate) async fn acquire_admissible<T: Transport + Send + Sync + 'static>(
+pub(crate) async fn acquire_admissible(
     library: &Library,
-    source: &DefinitionRepositorySource,
+    repository: &Repository,
     root: &[u8],
-    transport: T,
 ) -> Result<AuthenticatedListings> {
-    let candidate = tokio::time::timeout(super::super::ACQUISITION_TIMEOUT, async {
-        let repository = super::super::load_repository(
-            root,
-            source.metadata_base_url.clone(),
-            source.targets_base_url.clone(),
-            transport,
-        )
-        .await?;
-        let (bytes, provenance) =
-            super::acquire_target_with_limit(&repository, root, TARGET, MAX_BYTES as u64).await?;
-        let document = ListingDeliveryDocument::parse(&bytes)?;
-        Ok(AuthenticatedListings {
-            bytes,
-            document,
-            provenance,
-        })
-    })
-    .await
-    .unwrap_or_else(|_| {
-        Err(PortcoveError::network(
-            "listing refresh acquisition timed out",
-        ))
-    })?;
+    let (bytes, provenance) =
+        super::acquire_target_with_limit(repository, root, TARGET, MAX_BYTES as u64).await?;
+    let document = ListingDeliveryDocument::parse(&bytes)?;
+    let candidate = AuthenticatedListings {
+        bytes,
+        document,
+        provenance,
+    };
     library.check_listings(&candidate)?;
     Ok(candidate)
 }

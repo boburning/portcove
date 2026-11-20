@@ -5382,7 +5382,7 @@ export interface OutputOfficialCatalogAutomaticRefresh {
    */
   serving: DefinitionDeliveryServing | null;
   /**
-   * The resulting selection, when `outcome` is `refreshed`.
+   * The selected descriptive directory, if present when the refresh completed.
    */
   status: ListingDeliveryStatus | null;
   [k: string]: unknown;

@@ -73,6 +73,7 @@ rustix.workspace = true
 windows-sys.workspace = true
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 sevenz-turbo = { workspace = true, features = ["compress"] }
 aws-lc-rs = "1.19.0"
 jiff = "0.2.39"

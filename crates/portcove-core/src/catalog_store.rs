@@ -321,13 +321,19 @@ pub(crate) fn effective_catalog_status(
     Ok(status)
 }
 
+pub(crate) fn load_catalog_from(
+    connection: &Connection,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let state = CatalogState::read(connection)?;
+    resolve_effective_catalog(connection, &state, now)
+}
+
 impl Library {
     pub(crate) fn load_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let now = Self::now();
-        let state = CatalogState::read(&transaction)?;
-        let result = resolve_effective_catalog(&transaction, &state, now)?;
+        let result = load_catalog_from(&transaction, Self::now())?;
         transaction.commit()?;
         Ok(result)
     }

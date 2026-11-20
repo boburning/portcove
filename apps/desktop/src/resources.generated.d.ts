@@ -431,7 +431,7 @@ export default interface Resources {
       "refreshed": "Official catalog refreshed.",
       "reload": "Reload catalog settings",
       "status": {
-        "current": "Last checked {{time}}. Your catalog is up to date.",
+        "current": "Last checked {{time}}. Catalog information verified.",
         "notPublished": "Last checked {{time}}. No catalog updates have been published yet.",
         "off": "Automatic updates are off. Choose Refresh official catalog to check now.",
         "pending": "Portcove checks for catalog updates shortly after it opens.",

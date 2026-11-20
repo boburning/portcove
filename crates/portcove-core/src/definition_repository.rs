@@ -4,6 +4,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error as StdError,
+    sync::Arc,
     time::Duration,
 };
 
@@ -106,14 +107,15 @@ pub enum DefinitionReplayDisposition {
     Advance,
 }
 
-/// Complete authenticated bytes for one inert repository snapshot.
+/// Authenticated content for one inert repository snapshot.
 ///
-/// Construction authenticates and bounds every content record. It does not persist metadata,
-/// select a catalog, grant publisher scope, or authorize an operation.
+/// Public acquisition verifies the complete inventory. Scheduled refresh can
+/// acquire just one subject's content from the same authenticated index. Neither
+/// form persists metadata, selects a catalog, or authorizes an operation.
 #[derive(Debug)]
 pub struct AuthenticatedDefinitionCandidate {
     provenance: AuthenticatedDefinitionProvenance,
-    index: DefinitionContentIndex,
+    index: Arc<DefinitionContentIndex>,
     contents: BTreeMap<String, Vec<u8>>,
 }
 
@@ -418,9 +420,14 @@ where
     Ok(repository)
 }
 
-async fn acquire_from_repository(
-    repository: &Repository,
-) -> Result<AuthenticatedDefinitionCandidate> {
+/// Authenticated inventory and replay identity, shared across one scheduled
+/// check. Only the selected subject needs both of its immutable payloads.
+struct AuthenticatedDefinitionIndex {
+    index: Arc<DefinitionContentIndex>,
+    provenance: AuthenticatedDefinitionProvenance,
+}
+
+async fn acquire_index(repository: &Repository) -> Result<AuthenticatedDefinitionIndex> {
     let role = definition_role(repository)?;
     let index_name = TargetName::new(INDEX_TARGET).map_err(map_tough_error)?;
     let index_metadata = definition_target(role, repository, &index_name)?;
@@ -432,33 +439,6 @@ async fn acquire_from_repository(
     )
     .await?;
     let index = DefinitionContentIndex::parse(&index_bytes)?;
-
-    let content_targets = index
-        .content_records()
-        .map(|(target, expected_sha256, expected_length)| {
-            let name = TargetName::new(target).map_err(map_tough_error)?;
-            let metadata = definition_target(role, repository, &name)?;
-            if metadata.length != expected_length
-                || hex::encode(metadata.hashes.sha256.clone().into_vec()) != expected_sha256
-            {
-                return Err(PortcoveError::verification(
-                    "definition index and authenticated target metadata disagree",
-                ));
-            }
-            Ok((target.to_owned(), name, metadata.clone()))
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let contents = stream::iter(content_targets)
-        .map(|(target, name, metadata)| async move {
-            let bytes = read_target(repository, &name, &metadata, MAX_CONTENT_BYTES).await?;
-            Ok::<_, PortcoveError>((target, bytes))
-        })
-        .buffer_unordered(TARGET_CONCURRENCY)
-        .try_collect::<BTreeMap<_, _>>()
-        .await?;
-    for (target, bytes) in &contents {
-        index.verify_content(target, bytes)?;
-    }
 
     let definitions_metadata = role.targets.as_ref().ok_or_else(|| {
         PortcoveError::verification("definition delegation metadata was not loaded")
@@ -474,7 +454,7 @@ async fn acquire_from_repository(
         .into_iter()
         .min()
         .expect("fixed metadata expiration inventory");
-    Ok(AuthenticatedDefinitionCandidate {
+    Ok(AuthenticatedDefinitionIndex {
         provenance: AuthenticatedDefinitionProvenance {
             root_version: repository.root().signed.version.get(),
             root_sha256: metadata_sha256(&repository.root().signed)?,
@@ -489,9 +469,110 @@ async fn acquire_from_repository(
             earliest_expiration: earliest_expiration.to_string(),
             index_sha256: hex::encode(Sha256::digest(index.bytes())),
         },
-        index,
-        contents,
+        index: Arc::new(index),
     })
+}
+
+impl AuthenticatedDefinitionIndex {
+    fn candidate(&self, contents: BTreeMap<String, Vec<u8>>) -> AuthenticatedDefinitionCandidate {
+        AuthenticatedDefinitionCandidate {
+            provenance: self.provenance.clone(),
+            index: self.index.clone(),
+            contents,
+        }
+    }
+
+    async fn acquire_subject(
+        &self,
+        repository: &Repository,
+        namespace: &str,
+        stable_id: &str,
+    ) -> Result<AuthenticatedDefinitionCandidate> {
+        let definition = self
+            .index
+            .definitions()
+            .iter()
+            .find(|entry| entry.namespace() == namespace && entry.stable_id() == stable_id)
+            .ok_or_else(|| {
+                PortcoveError::not_found("definition identity is outside the candidate")
+            })?;
+        let role = definition_role(repository)?;
+        let entry_target = definition.target();
+        let entry = self.acquire_content(repository, role, entry_target).await?;
+        let inspection = self.index.inspect_entry(namespace, stable_id, &entry)?;
+        let contract_target = inspection.execution_contract();
+        let contract = self
+            .acquire_content(repository, role, contract_target)
+            .await?;
+        Ok(self.candidate(BTreeMap::from([
+            (entry_target.to_owned(), entry),
+            (contract_target.to_owned(), contract),
+        ])))
+    }
+
+    async fn acquire_content(
+        &self,
+        repository: &Repository,
+        role: &DelegatedRole,
+        target: &str,
+    ) -> Result<Vec<u8>> {
+        let (sha256, length) = self.index.content_digest(target).ok_or_else(|| {
+            PortcoveError::verification("definition content is outside the authenticated index")
+        })?;
+        let name = TargetName::new(target).map_err(map_tough_error)?;
+        let metadata = require_indexed_target(role, repository, &name, sha256, length)?;
+        let bytes = read_target(repository, &name, metadata, MAX_CONTENT_BYTES).await?;
+        self.index.verify_content(target, &bytes)?;
+        Ok(bytes)
+    }
+}
+
+fn require_indexed_target<'a>(
+    role: &'a DelegatedRole,
+    repository: &'a Repository,
+    name: &TargetName,
+    expected_sha256: &str,
+    expected_length: u64,
+) -> Result<&'a Target> {
+    let metadata = definition_target(role, repository, name)?;
+    if metadata.length != expected_length
+        || hex::encode(metadata.hashes.sha256.clone().into_vec()) != expected_sha256
+    {
+        return Err(PortcoveError::verification(
+            "definition index and authenticated target metadata disagree",
+        ));
+    }
+    Ok(metadata)
+}
+
+async fn acquire_from_repository(
+    repository: &Repository,
+) -> Result<AuthenticatedDefinitionCandidate> {
+    let authenticated = acquire_index(repository).await?;
+    let index = &authenticated.index;
+    let role = definition_role(repository)?;
+    let content_targets = index
+        .content_records()
+        .map(|(target, expected_sha256, expected_length)| {
+            let name = TargetName::new(target).map_err(map_tough_error)?;
+            let metadata =
+                require_indexed_target(role, repository, &name, expected_sha256, expected_length)?;
+            Ok((target.to_owned(), name, metadata.clone()))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let contents = stream::iter(content_targets)
+        .map(|(target, name, metadata)| async move {
+            let bytes = read_target(repository, &name, &metadata, MAX_CONTENT_BYTES).await?;
+            Ok::<_, PortcoveError>((target, bytes))
+        })
+        .buffer_unordered(TARGET_CONCURRENCY)
+        .try_collect::<BTreeMap<_, _>>()
+        .await?;
+    for (target, bytes) in &contents {
+        index.verify_content(target, bytes)?;
+    }
+
+    Ok(authenticated.candidate(contents))
 }
 
 fn definition_role(repository: &Repository) -> Result<&DelegatedRole> {
