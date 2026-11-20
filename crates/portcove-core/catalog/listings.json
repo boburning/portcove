@@ -34911,16 +34911,10 @@
         "steps": [
           {
             "title": "Start the Windows Tiles edition",
-            "instruction": "Install the official Windows package and choose Play. The package already includes the game files."
-          },
-          {
-            "title": "Keep custom settings in the Crawl profile",
-            "instruction": "Place your init.txt in Portcove’s Dungeon Crawl Stone Soup user-data folder. Leave the packaged defaults in the game folder."
+            "instruction": "Install the official Windows package and choose Play. The package includes the game files."
           }
         ],
-        "warnings": [
-          "Crawl handles a CRAWL_RC override and any custom data paths outside the Portcove user-data folder. Back up those files separately."
-        ],
+        "warnings": [],
         "help_url": "https://crawl.develz.org/wordpress/about"
       },
       "original_game": {

@@ -14,16 +14,10 @@
       "steps": [
         {
           "title": "Start the Windows Tiles edition",
-          "instruction": "Install the official Windows package and choose Play. The package already includes the game files."
-        },
-        {
-          "title": "Keep custom settings in the Crawl profile",
-          "instruction": "Place your init.txt in Portcove’s Dungeon Crawl Stone Soup user-data folder. Leave the packaged defaults in the game folder."
+          "instruction": "Install the official Windows package and choose Play. The package includes the game files."
         }
       ],
-      "warnings": [
-        "Crawl handles a CRAWL_RC override and any custom data paths outside the Portcove user-data folder. Back up those files separately."
-      ],
+      "warnings": [],
       "help_url": "https://crawl.develz.org/wordpress/about"
     },
     "original_game": {
@@ -55,7 +49,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "No original game files are required. Portcove preserves saves, character dumps, the keyboard macro file and an optional init.txt in the game's user-data folder. Crawl handles a CRAWL_RC override or a custom data path outside that folder separately."
+      "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes."
     },
     "launch_arguments": ["-dir", "."]
   }
