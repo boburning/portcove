@@ -1612,6 +1612,14 @@ impl PortcoveService {
                 total.saturating_add(asset.size)
             });
         let temporary_space = if action == InstallPlanAction::Download {
+            crate::runtime_path_policy::check_artifact_destination(
+                port_id,
+                &release.asset.sha256,
+                Some(platform),
+                &output_location
+                    .effective_output_directory
+                    .join(&release.asset.sha256),
+            )?;
             let required_bytes = primary_and_runtime_bytes;
             let capacity = crate::output_root::assess_destination(
                 &self.library,

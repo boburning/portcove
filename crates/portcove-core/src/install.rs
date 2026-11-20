@@ -958,6 +958,12 @@ impl Installer {
                 runtime.identity(),
             ))?));
         }
+        crate::runtime_path_policy::check_artifact_destination(
+            &request.port_id,
+            &request.release.asset.sha256,
+            Some(request.qualification.platform),
+            &request.output_root.join(&storage_key),
+        )?;
         let required_bytes = request.release.asset.size.saturating_add(
             request
                 .qualification
@@ -4658,6 +4664,12 @@ pub(crate) fn verified_launch_subject(install: &InstallRecord) -> Result<[u8; 32
 /// proposed final coordinates. Does not synchronize data or change the record.
 pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Path) -> Result<()> {
     let manifest = verified_manifest(install)?;
+    crate::runtime_path_policy::check_artifact_destination(
+        &manifest.port_id,
+        &manifest.artifact.sha256,
+        manifest.platform,
+        target,
+    )?;
     let Some(contract) = &manifest.retained_contract else {
         return Ok(());
     };
