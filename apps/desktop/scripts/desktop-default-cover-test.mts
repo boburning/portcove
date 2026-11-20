@@ -46,6 +46,20 @@ interface CoverRow {
   detailImage: CoverImage | null;
   mapping: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]>;
 }
+interface DiscoverCoverTiming {
+  scope: "managed-primary-covers";
+  pass: string;
+  viewport: { width: number; height: number; devicePixelRatio: number };
+  visibleIds: string[];
+  readyIds: string[];
+  startedAtEpochMs: number;
+  observedAtEpochMs: number;
+  firstReadyMs: number | null;
+  cohortReadyMs: number | null;
+}
+
+type CoverTimingWindow = Window & { portcoveDiscoverCoverTiming?: DiscoverCoverTiming };
+
 interface InspectContext {
   browser: WebDriver;
   ports: PortDefinition[];
@@ -84,7 +98,7 @@ function required<Value>(value: Value | undefined | null): Value {
 import { errorMessage, errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { WebDriver, By, Key, until } from "selenium-webdriver";
@@ -137,6 +151,7 @@ export async function defaultCoverScenario({
         const ids = selectDefaultCoverIds(catalog.ports, coverPortIds, cacheConditions);
         if (coverPortIds.length) for (const id of ids) detailIds.add(id);
         const rows: CoverRow[] = [];
+        const discoverTimings: DiscoverCoverTiming[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
             () =>
@@ -266,9 +281,31 @@ export async function defaultCoverScenario({
           artifacts.push(firstOfflineReport);
           browser = await restart("default-cover-after-first-offline");
         }
-        for (const [pass, theme, size] of coverPasses(cacheConditions)) {
+        const measureDiscover = cacheConditions && coverPortIds.length > 0;
+        const mappedIds = catalog.ports
+          .filter(
+            ({ presentation }) =>
+              presentation?.artwork &&
+              !presentation.collection_covers?.length &&
+              !presentation.companion_cover,
+          )
+          .map((port) => port.id);
+        const timingPath = path.join(output, "default-cover-discover-timing.jsonl");
+        if (measureDiscover) {
+          await writeFile(timingPath, "", { flag: "wx" });
+          artifacts.push(timingPath);
+        }
+        const recordDiscover = async (pass: string) => {
+          const timing = await observeDiscoverCovers(browser, pass, mappedIds);
+          discoverTimings.push(timing);
+          await appendFile(timingPath, JSON.stringify(timing) + "\n");
+        };
+        for (const [pass, defaultTheme, defaultSize] of coverPasses(cacheConditions)) {
+          const theme = measureDiscover ? "light" : defaultTheme;
+          const size = measureDiscover ? { width: 1280, height: 800 } : defaultSize;
           if (cacheConditions && pass === "offline-cached-restart") {
-            await verifyMappedCache(catalog.ports, ids, cache);
+            const measured = discoverTimings.flatMap((row) => row.readyIds);
+            await verifyMappedCache(catalog.ports, [...new Set([...ids, ...measured])], cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
           }
           await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -281,6 +318,13 @@ export async function defaultCoverScenario({
             width: innerWidth,
             height: innerHeight,
           }));
+          if (measureDiscover) {
+            await recordDiscover(pass);
+            if (pass === "cold-empty-cache") {
+              await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+              await recordDiscover("same-session-revisit");
+            }
+          }
           rows.push(
             ...(await inspectCoverPass({
               browser,
@@ -335,6 +379,7 @@ export async function defaultCoverScenario({
               refusedOrigins,
               catalogCount: catalog.ports.length,
               mappedCount: ids.length,
+              discoverTimings,
               rows,
             },
             null,
@@ -506,6 +551,113 @@ function coverPasses(
   ];
 }
 
+async function observeDiscoverCovers(
+  browser: WebDriver,
+  pass: string,
+  mappedIds: string[],
+): Promise<DiscoverCoverTiming> {
+  const discover = await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]'));
+  await executeBrowserScript(
+    browser,
+    (button, pass, mappedIds) => {
+      const observation = window as CoverTimingWindow;
+      delete observation.portcoveDiscoverCoverTiming;
+      const mapped = new Set(mappedIds);
+      const visible = new Set<string>();
+      const ready = new Set<string>();
+      const selector = '[data-detail-origin^="catalog:card:"]';
+      button.addEventListener(
+        "click",
+        () => {
+          const started = performance.now();
+          const startedAtEpochMs = Date.now();
+          const viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
+          let firstReadyMs: number | null = null;
+          let observer: IntersectionObserver | undefined;
+          const inspect = (now: number) => {
+            const elapsed = Math.max(0, now - started);
+            const cards = document.querySelectorAll<HTMLElement>(selector);
+            if (!visible.size && !observer) {
+              const frames = new Map<Element, string>();
+              for (const card of cards) {
+                const id = card.dataset.detailGameId;
+                const frame = card.querySelector(".collection-art");
+                if (frame && id && mapped.has(id)) frames.set(frame, id);
+              }
+              if (frames.size) {
+                const reported = new Set<Element>();
+                observer = new IntersectionObserver((entries) => {
+                  for (const entry of entries) {
+                    reported.add(entry.target);
+                    const id = frames.get(entry.target);
+                    if (
+                      id &&
+                      entry.isIntersecting &&
+                      entry.intersectionRect.width > 0 &&
+                      entry.intersectionRect.height > 0
+                    )
+                      visible.add(id);
+                  }
+                  if (reported.size === frames.size) {
+                    observer?.disconnect();
+                    observer = undefined;
+                  }
+                });
+                for (const frame of frames.keys()) observer.observe(frame);
+              }
+            }
+            if (!observer) {
+              for (const card of cards) {
+                const id = card.dataset.detailGameId;
+                if (!id || !visible.has(id) || ready.has(id)) continue;
+                const frame = card.querySelector<HTMLElement>(".collection-art");
+                if (frame?.dataset.artworkSource !== "igdb_cover") continue;
+                const image = frame.querySelector("img");
+                if (image?.complete && image.naturalWidth) ready.add(id);
+              }
+            }
+            if (firstReadyMs === null && ready.size) firstReadyMs = elapsed;
+            const complete = visible.size > 0 && ready.size === visible.size;
+            if (complete || elapsed >= 15_000) {
+              observer?.disconnect();
+              observation.portcoveDiscoverCoverTiming = {
+                scope: "managed-primary-covers",
+                pass,
+                viewport,
+                visibleIds: [...visible],
+                readyIds: [...ready],
+                startedAtEpochMs,
+                observedAtEpochMs: Date.now(),
+                firstReadyMs,
+                cohortReadyMs: complete ? elapsed : null,
+              };
+            } else {
+              requestAnimationFrame(inspect);
+            }
+          };
+          requestAnimationFrame(inspect);
+        },
+        { capture: true, once: true },
+      );
+    },
+    discover,
+    pass,
+    mappedIds,
+  );
+  await discover.click();
+  const result = await browser.wait(
+    async () => {
+      return executeBrowserScript(
+        browser,
+        () => (window as CoverTimingWindow).portcoveDiscoverCoverTiming ?? null,
+      );
+    },
+    20_000,
+    `No native Discover artwork timing for ${pass}`,
+  );
+  return required(result);
+}
+
 async function inspectCoverPass({
   browser,
   ports,
@@ -553,7 +705,13 @@ async function inspectCoverPass({
     let detailImage = null;
     if (detailIds.has(id)) {
       await selectCatalogPort(browser, id);
-      await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
+      await revealDetailSection(browser, "Overview");
+      const hero = await browser.findElement(By.css(".game-hero-detail"));
+      await executeBrowserScript(
+        browser,
+        (element) => element.scrollIntoView({ block: "start" }),
+        hero,
+      );
       detailImage = await image(
         '.game-hero-detail[data-hero-identity="cover"] .game-hero-foreground',
       );
