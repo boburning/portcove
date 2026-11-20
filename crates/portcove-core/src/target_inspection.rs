@@ -197,18 +197,18 @@ fn inspect_content(
         managed_install: runtime,
         managed_remove: runtime,
         native_enabled_state: runtime,
-        native_ordering: loader
-            .filter(|loader| matches!(loader.engine, ModEngine::Libultraship))
-            .map_or(Unknown, |_| RequiresReviewedRuntime),
+        native_ordering: runtime,
         native_mod_settings: loader
             .filter(|loader| matches!(loader.engine, ModEngine::N64Recomp))
             .map_or(Unknown, |_| RequiresReviewedRuntime),
         profiles: runtime,
         provider_updates: updates,
         upstream_mod_manager: Unknown,
-        original_recognition: original_source_profile
-            .as_ref()
-            .map_or(Unknown, |_| Declared),
+        original_recognition: if original_recognition {
+            Declared
+        } else {
+            Unknown
+        },
         original_source_profile,
         upstream_setup,
         reconsideration: if port.is_none() {
@@ -798,6 +798,29 @@ mod tests {
         assert_eq!(
             apple.upstream_setup,
             ContentCapabilityState::UpstreamGuidance
+        );
+        let recomp = report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(
+            recomp.content_capabilities[0].native_ordering,
+            ContentCapabilityState::RequiresReviewedRuntime
+        );
+        let dusklight = report
+            .ports
+            .iter()
+            .find(|entry| entry.port_id == "dusklight")
+            .unwrap();
+        let original = &dusklight.content_capabilities[0];
+        assert_eq!(
+            original.original_source_profile.as_deref(),
+            Some("twilight-princess")
+        );
+        assert_eq!(
+            original.original_recognition,
+            ContentCapabilityState::Unknown
         );
         let listing_only = report
             .ports
