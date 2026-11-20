@@ -81,6 +81,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -137,6 +138,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .media
                 .iter()
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+            || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(

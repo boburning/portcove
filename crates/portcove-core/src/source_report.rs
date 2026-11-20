@@ -56,6 +56,9 @@ pub struct SourceInspectionReport {
     pub expected_identity: Option<SourceIdentityProfile>,
     #[serde(default)]
     pub applications: Vec<SourceApplicationInspection>,
+    /// Descriptive matches for this current registered observation only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub original_editions: Vec<crate::VerifiedOriginalEdition>,
     #[serde(default)]
     pub evidence: Vec<SourceEvidenceLink>,
     pub legacy: SourceLegacyCoverage,
@@ -333,6 +336,25 @@ fn assemble_report(
             .then_with(|| role_order(left.role).cmp(&role_order(right.role)))
     });
 
+    let original_editions = inspection
+        .as_ref()
+        .map(|inspection| {
+            applications
+                .iter()
+                .filter(|application| application.role == PortSourceRole::Game)
+                .filter_map(|application| {
+                    let listing = catalog.listing(&application.port_id).ok()?;
+                    let original = listing.original_game.as_ref()?;
+                    let edition = original.verified_edition(&inspection.assessment)?;
+                    Some(crate::VerifiedOriginalEdition {
+                        port_id: application.port_id.clone(),
+                        original_game_id: original.id.clone(),
+                        source_edition_id: edition.id.clone(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     let evidence = referenced_evidence(
         source_catalog,
         expected_identity.as_ref(),
@@ -362,6 +384,7 @@ fn assemble_report(
         problem: status.problem,
         expected_identity,
         applications,
+        original_editions,
         evidence,
         dump_identification: None,
     })

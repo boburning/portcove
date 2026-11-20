@@ -73,7 +73,13 @@ export interface AuthoredListing extends NamedRecord {
     format_version: 1;
     id: string;
     evidence_urls: string[];
-    source_editions: { id: string; title: string; system?: string; evidence_urls: string[] }[];
+    source_editions: {
+      id: string;
+      title: string;
+      system?: string;
+      evidence_urls: string[];
+      verified_sources?: { game_id: string; variant_id: string; representation_id: string }[];
+    }[];
   };
   variant_label?: string;
   issue_number?: number;
@@ -721,6 +727,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Invalid original game identity.");
     evidence(game.evidence_urls);
     const editions = new Set();
+    const sources = new Set<string>();
     for (const edition of game.source_editions) {
       if (
         !isRecord(edition) ||
@@ -729,12 +736,29 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         !boundedText(edition.title, 512) ||
         (edition.system !== undefined && !identity(edition.system)) ||
         Object.keys(edition).some(
-          (key) => !["id", "title", "system", "evidence_urls"].includes(key),
+          (key) => !["id", "title", "system", "evidence_urls", "verified_sources"].includes(key),
         )
       )
         throw new Error("Invalid or duplicate source edition identity.");
       editions.add(edition.id);
       evidence(edition.evidence_urls);
+      if (edition.verified_sources !== undefined) {
+        if (!Array.isArray(edition.verified_sources) || edition.verified_sources.length > 16)
+          throw new Error("Original editions require a bounded list of verified source bindings.");
+        for (const source of edition.verified_sources) {
+          if (
+            !isRecord(source) ||
+            Object.keys(source).length !== 3 ||
+            !identity(source.game_id) ||
+            !identity(source.variant_id) ||
+            !identity(source.representation_id)
+          )
+            throw new Error("Invalid verified source binding.");
+          const key = `${source.game_id}:${source.variant_id}:${source.representation_id}`;
+          if (sources.has(key)) throw new Error("Duplicate verified source binding.");
+          sources.add(key);
+        }
+      }
     }
   }
   for (const field of ["original_game_title", "variant_label"] as const)
@@ -895,6 +919,11 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
     if (field === "manual_setup" && managedGuide != null) {
       presentation[field] = managedGuide;
       integration.presentation = presentation;
+    } else if (field === "original_game" && record.listing.original_game) {
+      const original = structuredClone(record.listing.original_game);
+      for (const edition of original.source_editions) delete edition.verified_sources;
+      presentation[field] = original;
+      integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
       const value = record.listing[field];
       if (field === "media" && Array.isArray(value) && value.some(typedIgdbScene)) {
@@ -1008,40 +1037,45 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const hasIgdbScenes = listings.some(
     ({ media }) => Array.isArray(media) && media.some(typedIgdbScene),
   );
-  const format_version = hasIgdbScenes
-    ? 13
-    : listings.some((listing) => listing.implementation !== undefined)
-      ? 12
-      : coverCollections
-        ? 11
-        : fundingLinks
-          ? 10
-          : listedDates
-            ? 9
-            : gitlabObservations
-              ? 8
-              : listings.some((listing) => listing.compatibility !== undefined)
-                ? 7
-                : guideReferences
-                  ? 6
-                  : extendedMedia
-                    ? 5
-                    : listings.some(
-                          (listing) =>
-                            listing.upstream_observation !== undefined ||
-                            listing.availability_override_reason !== undefined ||
-                            "release_maintenance" in listing,
-                        )
-                      ? 4
+  const hasVerifiedEditions = listings.some((listing) =>
+    listing.original_game?.source_editions.some((edition) => edition.verified_sources?.length),
+  );
+  const format_version = hasVerifiedEditions
+    ? 14
+    : hasIgdbScenes
+      ? 13
+      : listings.some((listing) => listing.implementation !== undefined)
+        ? 12
+        : coverCollections
+          ? 11
+          : fundingLinks
+            ? 10
+            : listedDates
+              ? 9
+              : gitlabObservations
+                ? 8
+                : listings.some((listing) => listing.compatibility !== undefined)
+                  ? 7
+                  : guideReferences
+                    ? 6
+                    : extendedMedia
+                      ? 5
                       : listings.some(
                             (listing) =>
-                              listing.original_game !== undefined ||
-                              (Array.isArray(listing.media) && listing.media.length > 0),
+                              listing.upstream_observation !== undefined ||
+                              listing.availability_override_reason !== undefined ||
+                              "release_maintenance" in listing,
                           )
-                        ? 3
-                        : listings.some((listing) => listing.download_block_reason !== undefined)
-                          ? 2
-                          : 1;
+                        ? 4
+                        : listings.some(
+                              (listing) =>
+                                listing.original_game !== undefined ||
+                                (Array.isArray(listing.media) && listing.media.length > 0),
+                            )
+                          ? 3
+                          : listings.some((listing) => listing.download_block_reason !== undefined)
+                            ? 2
+                            : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

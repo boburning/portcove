@@ -946,6 +946,15 @@ impl Catalog {
             if let Some(presentation) = &port.presentation {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
+                    if game
+                        .source_editions
+                        .iter()
+                        .any(|edition| !edition.verified_sources.is_empty())
+                    {
+                        return Err(PortcoveError::unsupported(
+                            "verified source edition bindings belong in listing format 14",
+                        ));
+                    }
                 }
                 let media = presentation.media.as_deref().unwrap_or_default();
                 if media

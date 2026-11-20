@@ -245,6 +245,27 @@ pub struct SourceEdition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
     pub evidence_urls: Vec<String>,
+    /// Reviewed correspondence to an exact Core source identity. An empty list
+    /// leaves the edition available for manual browsing only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verified_sources: Vec<OriginalEditionSourceBinding>,
+}
+
+/// Exact correspondence to an identity in the reviewed source graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OriginalEditionSourceBinding {
+    pub game_id: String,
+    pub variant_id: String,
+    pub representation_id: String,
+}
+
+impl OriginalEditionSourceBinding {
+    pub(crate) fn matches(&self, identity: &crate::SourceIdentity) -> bool {
+        self.game_id == identity.game_id
+            && self.variant_id == identity.variant_id
+            && self.representation_id == identity.representation_id
+    }
 }
 
 /// Authored instructions only; these steps grant no operation or file authority.
@@ -1393,6 +1414,14 @@ pub struct SourceRecord {
     /// metadata omit this field rather than guessing a schema-2 variant.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub observed_identity: Option<crate::ObservedSourceIdentity>,
+}
+
+/// A reviewed original edition for one port using the verified source profile.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VerifiedOriginalEdition {
+    pub port_id: String,
+    pub original_game_id: String,
+    pub source_edition_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2750,7 +2779,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

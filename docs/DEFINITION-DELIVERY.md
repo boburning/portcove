@@ -1977,6 +1977,12 @@ When that older overlay cannot express a bundled typed scene, a newer reader
 keeps the scene only if the project and original-game scope still match and
 the combined media passes admission. A format-13 replacement can withdraw it.
 
+Listing format 14 can bind an original edition to a reviewed Core source
+identity. A binding names the exact source profile, variant and representation.
+It is descriptive and applies only to current data verified with exact identity.
+Exports through format 13 retain the original editions and omit these bindings.
+The strict operational catalog does not carry the bindings.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:
