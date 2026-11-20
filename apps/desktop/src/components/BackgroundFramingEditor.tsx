@@ -33,18 +33,30 @@ export function BackgroundFramingEditor({
 }) {
   const id = useId();
   const heading = useRef<HTMLHeadingElement>(null);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+  const restoreApplyFocus = useRef(false);
   const [framing, setFraming] = useState(initialFraming);
   const [imageFailed, setImageFailed] = useState(false);
   useLayoutEffect(() => {
     if (!heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
   }, []);
+  useLayoutEffect(() => {
+    if (pending || !restoreApplyFocus.current) return;
+    restoreApplyFocus.current = false;
+    const target = (stale || imageFailed ? cancelButton : applyButton).current;
+    if (!target?.closest("[inert], [hidden]")) target?.focus();
+  }, [pending, stale, imageFailed]);
   return (
     <form
       className={styles.framingEditor}
       aria-labelledby={`${id}-heading`}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!pending && !stale && !imageFailed) onApply(framing);
+        if (!pending && !stale && !imageFailed) {
+          restoreApplyFocus.current = true;
+          onApply(framing);
+        }
       }}
     >
       <h3 id={`${id}-heading`} ref={heading} tabIndex={-1}>
@@ -78,9 +90,12 @@ export function BackgroundFramingEditor({
                     id={`${id}-${layout}-${axis}`}
                     name={`${layout}-${axis}`}
                     type="range"
+                    dir="ltr"
+                    data-focusable
+                    data-controller-range
                     min={0}
                     max={10000}
-                    step={100}
+                    step={1}
                     value={point[axis]}
                     aria-valuetext={`${point[axis] / 100}%`}
                     onChange={(event) => {
@@ -104,22 +119,36 @@ export function BackgroundFramingEditor({
         <p role="alert">The preview could not be displayed. Cancel and choose the image again.</p>
       )}
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={pending || stale || imageFailed}>
+        <Button
+          ref={applyButton}
+          data-focusable
+          type="submit"
+          disabled={pending || stale || imageFailed}
+        >
           Apply
         </Button>
-        <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
+        <Button
+          ref={cancelButton}
+          data-focusable
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={onCancel}
+        >
           Cancel
         </Button>
-        {framing && (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={pending || stale || imageFailed}
-            onClick={() => setFraming(null)}
-          >
-            Use default framing
-          </Button>
-        )}
+        <Button
+          data-focusable
+          type="button"
+          variant="ghost"
+          disabled={pending || stale || imageFailed}
+          aria-disabled={!framing}
+          onClick={() => {
+            if (framing) setFraming(null);
+          }}
+        >
+          Use default framing
+        </Button>
       </div>
     </form>
   );

@@ -689,7 +689,7 @@ describe("local artwork controls", () => {
       const choose = vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       const preview = vi.spyOn(desktopApi, "previewLocalBackground").mockResolvedValue({
         original_sha256: "a".repeat(64),
-        png_base64: pixel,
+        png_base64: thumbnailPng,
       });
       const change = vi
         .spyOn(desktopApi, "importArtwork")
@@ -1405,26 +1405,63 @@ describe("SteamGridDB picker", () => {
       expectCandidateFrameRatio("Artist 701", slot === "landscape" ? 92 / 43 : 96 / 31);
       container.querySelector(".steamgriddb-picker")!.scrollIntoView({ block: "start" });
       await captureParityState(`steamgriddb-${slot}-candidates`);
-      if (slot === "detail") {
-        const preview = vi.spyOn(desktopApi, "previewSteamGridDbBackground").mockResolvedValue({
-          original_sha256: "b".repeat(64),
-          png_base64: pixel,
-        });
-        const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork");
-        const candidateControl = page.getByRole("button", { name: /^Use image by Artist 701/ });
-        await candidateControl.click();
-        const review = page.getByRole("form", { name: "Review Background", exact: true });
-        await expect.element(review.getByText("SteamGridDB image by Artist 701")).toBeVisible();
-        expect(preview).toHaveBeenCalledWith("sample", 55, 701, 7);
-        expect(choose).not.toHaveBeenCalled();
-        await review.getByRole("button", { name: "Cancel", exact: true }).click();
-        await expect.element(review).not.toBeInTheDocument();
-        expect(choose).not.toHaveBeenCalled();
-        await expect.element(candidateControl).toBeVisible();
-        await expect.element(candidateControl).toHaveFocus();
-      }
     },
   );
+  it("returns to SteamGridDB results when cancelling Background review", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+    vi.spyOn(desktopApi, "searchSteamGridDbGames").mockResolvedValue([
+      { id: 55, name: "Wide Game", verified: false },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbCandidates").mockResolvedValue([
+      { ...candidate(701), role: "hero_banner", width: 920, height: 430 },
+    ]);
+    vi.spyOn(desktopApi, "steamGridDbPreview").mockResolvedValue({ png_base64: pixel });
+    await render();
+    await open();
+    await click("detail", "Find on SteamGridDB");
+    await click("detail", "Search");
+    await click("detail", "Wide Game");
+    let completePreview:
+      | ((value: { original_sha256: string; png_base64: string }) => void)
+      | undefined;
+    const preview = vi.spyOn(desktopApi, "previewSteamGridDbBackground").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          completePreview = resolve;
+        }),
+    );
+    const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork");
+    const candidateControl = page.getByRole("button", { name: /^Use image by Artist 701/ });
+    await candidateControl.click();
+    await expect.element(page.getByRole("button", { name: "Search", exact: true })).toBeDisabled();
+    await expect
+      .element(page.getByRole("button", { name: "Back to matches", exact: true }))
+      .toBeDisabled();
+    if (!completePreview) throw new Error("Background preview did not start");
+    const finishPreview = completePreview;
+    await act(async () => finishPreview({ original_sha256: "b".repeat(64), png_base64: pixel }));
+    const review = page.getByRole("form", { name: "Review Background", exact: true });
+    await expect.element(review.getByText("SteamGridDB image by Artist 701")).toBeVisible();
+    expect(preview).toHaveBeenCalledWith("sample", 55, 701, 7);
+    expect(choose).not.toHaveBeenCalled();
+    await review.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect.element(review).not.toBeInTheDocument();
+    expect(choose).not.toHaveBeenCalled();
+    await expect.element(candidateControl).toBeVisible();
+    await expect.element(candidateControl).toHaveFocus();
+
+    preview.mockResolvedValue({ original_sha256: "b".repeat(64), png_base64: pixel });
+    choose.mockResolvedValue(artworkState("sample", "detail", 1, true));
+    await candidateControl.click();
+    await review.getByRole("button", { name: "Apply", exact: true }).click();
+    await vi.waitFor(() =>
+      expect(choose).toHaveBeenCalledExactlyOnceWith("sample", "detail", 55, 701, 0, 7, {
+        preview_sha256: "b".repeat(64),
+        framing: null,
+      }),
+    );
+    await expect.element(review).not.toBeInTheDocument();
+  });
 });
 
 it("moves focus to the Logo tab without starting its read until activation", async () => {

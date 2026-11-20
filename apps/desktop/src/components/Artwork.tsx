@@ -655,6 +655,7 @@ function ArtworkSlotControl({
             slot={slot}
             initialTerm={port.name ?? ""}
             disabled={pending || !display.state || Boolean(display.stale)}
+            selectionPending={pending}
             choose={(gameId, candidate) => void chooseSteamGridDb(gameId, candidate)}
           />
         </div>

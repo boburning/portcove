@@ -84,11 +84,13 @@ export function SteamGridDbPicker({
   slot,
   initialTerm,
   disabled,
+  selectionPending,
   choose,
 }: {
   slot: ArtworkSlot;
   initialTerm: string;
   disabled: boolean;
+  selectionPending: boolean;
   choose: (gameId: number, candidate: SteamGridDbCandidate) => void;
 }) {
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
@@ -238,7 +240,7 @@ export function SteamGridDbPicker({
         className="flex gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (term.trim()) search();
+          if (!selectionPending && term.trim()) search();
         }}
       >
         <label className="sr-only" htmlFor={`steamgriddb-search-${slot}`}>
@@ -251,6 +253,7 @@ export function SteamGridDbPicker({
           className="flex-1"
           value={term}
           maxLength={120}
+          disabled={selectionPending}
           onChange={(event) => setTerm(event.target.value)}
         />
         <Button
@@ -258,7 +261,7 @@ export function SteamGridDbPicker({
           variant="outline"
           size="sm"
           type="submit"
-          disabled={loading || blocked || !term.trim()}
+          disabled={selectionPending || loading || blocked || !term.trim()}
         >
           Search
         </Button>
@@ -278,8 +281,8 @@ export function SteamGridDbPicker({
                   data-focusable
                   variant="ghost"
                   size="sm"
-                  disabled={blocked}
-                  focusableWhenDisabled={blocked}
+                  disabled={selectionPending || blocked}
+                  focusableWhenDisabled={blocked && !selectionPending}
                   onClick={() => pickGame(match)}
                 >
                   {match.name}
@@ -299,6 +302,7 @@ export function SteamGridDbPicker({
               data-focusable
               variant="link"
               size="sm"
+              disabled={selectionPending}
               onClick={() => {
                 // Supersede any listing still in flight for the abandoned game.
                 request.current += 1;
@@ -335,6 +339,7 @@ export function SteamGridDbPicker({
                   data-focusable
                   variant="outline"
                   size="sm"
+                  disabled={selectionPending}
                   onClick={() => setShown((count) => count + PAGE)}
                 >
                   Show more images

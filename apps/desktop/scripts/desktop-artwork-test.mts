@@ -154,9 +154,13 @@ export async function artworkScenario({
       await writeFile(source, bytes, { flag: "wx" });
       const digest = createHash("sha256").update(bytes).digest("hex");
       const { click } = reviewControls(browser);
-      const control = (slot: ArtworkSlot, label: string) =>
+      const slotLabel = (slot: "cover" | "detail") =>
+        slot === "cover" ? "Cover image" : "Background";
+      const activateSlot = (slot: "cover" | "detail") =>
+        click(By.xpath(`//*[@role="tab" and normalize-space(.)="${slotLabel(slot)}"]`));
+      const control = (slot: "cover" | "detail", label: string) =>
         By.xpath(
-          `//section[@aria-label="${slot === "cover" ? "Cover" : "Detail"} image"]//button[normalize-space(.)="${label}"]`,
+          `//section[@aria-label="${slotLabel(slot)}"]//button[normalize-space(.)="${label}"]`,
         );
       const state = async (slot: ArtworkSlot) => {
         const result = await invoke("get_artwork", {
@@ -342,6 +346,8 @@ export async function artworkScenario({
         5000,
       );
       for (const slot of ["cover", "detail"] as const) {
+        await activateSlot(slot);
+        const previous = await state(slot);
         await click(control(slot, "Choose local image"));
         await confirmNative(
           "Choose local artwork",
@@ -350,6 +356,20 @@ export async function artworkScenario({
           `artwork-picker-${slot}`,
           source,
         );
+        if (slot === "detail") {
+          const narrow = await browser.wait(
+            until.elementLocated(By.css('input[type="range"][name="narrow-x"]')),
+            10_000,
+          );
+          assert.deepEqual(await state(slot), previous);
+          await narrow.sendKeys(Key.END);
+          assert.equal(await narrow.getAttribute("aria-valuetext"), "100%");
+          await click(
+            By.xpath(
+              '//form[.//h3[normalize-space(.)="Review Background"]]//button[normalize-space(.)="Apply"]',
+            ),
+          );
+        }
         await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
         const picker = await browser.findElement(control(slot, "Choose local image"));
         // Core commits before the renderer finishes its preview and returns focus.
@@ -371,6 +391,11 @@ export async function artworkScenario({
       const cover = await state("cover"),
         detail = await state("detail");
       assert.equal(cover.choice.revision, before.choice.revision + 1);
+      assert.deepEqual(detail.choice.framing, {
+        version: "v1",
+        wide: { x: 5000, y: 3500 },
+        narrow: { x: 10000, y: 3500 },
+      });
       const oldChoice = object(
         await invoke("reset_artwork", {
           portId,
@@ -432,6 +457,7 @@ export async function artworkScenario({
         }
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
+      await activateSlot("cover");
       await click(control("cover", "Reset to default"));
       await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
       const reset = await state("cover");
@@ -446,6 +472,7 @@ export async function artworkScenario({
       await rename(original, retained);
       let unavailable;
       try {
+        await activateSlot("detail");
         await click(control("detail", "Refresh artwork"));
         await browser.wait(
           async () =>
