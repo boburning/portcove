@@ -299,6 +299,8 @@ function ArtworkSlotControl({
 }) {
   const [findOpen, setFindOpen] = useState(false);
   const [draft, setDraft] = useState<BackgroundDraft>();
+  const slotPanel = useRef<HTMLElement>(null);
+  const refreshButton = useRef<HTMLButtonElement>(null);
   const frameButton = useRef<HTMLButtonElement>(null);
   const findButton = useRef<HTMLButtonElement>(null);
   const { cache, display } = useArtwork(port.id, slot);
@@ -329,10 +331,16 @@ function ArtworkSlotControl({
     if (pending || !returnFocus.current) return;
     const { target, cache: owner } = returnFocus.current;
     returnFocus.current = null;
-    const focus = target?.disabled ? pickerButton.current : target;
-    if (currentIdentity.current.cache === owner && !focus?.closest("[hidden], [inert]")) {
-      focus?.focus();
-    }
+    const panel = slotPanel.current;
+    if (!panel || currentIdentity.current.cache !== owner || panel.closest("[hidden], [inert]"))
+      return;
+    const focus =
+      [target, pickerButton.current, refreshButton.current].find(
+        (control) =>
+          control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
+      ) ??
+      panel.closest("details.artwork-controls")?.querySelector<HTMLElement>(":scope > summary");
+    focus?.focus();
   }, [draft, pending]);
 
   const stillInView = () =>
@@ -554,6 +562,7 @@ function ArtworkSlotControl({
     selection.width <= selection.height;
   return (
     <section
+      ref={slotPanel}
       className="artwork-slot min-w-0 rounded-pc-md border border-[var(--color-border)] p-4"
       aria-label={label}
       aria-busy={pending}
@@ -620,6 +629,7 @@ function ArtworkSlotControl({
             </Button>
           )}
         <Button
+          ref={refreshButton}
           data-focusable
           variant="outline"
           disabled={pending || Boolean(draft) || display.loading}

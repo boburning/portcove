@@ -328,7 +328,7 @@ export function SteamGridDbPicker({
                   <li key={candidate.id}>
                     <CandidateButton
                       candidate={candidate}
-                      disabled={disabled}
+                      disabled={disabled || loading}
                       choose={() => choose(game.id, candidate)}
                     />
                   </li>
@@ -357,7 +357,7 @@ export function SteamGridDbPicker({
             data-focusable
             variant="outline"
             size="sm"
-            disabled={loading || blocked}
+            disabled={selectionPending || loading || blocked}
             onClick={() => (game ? pickGame(game) : term.trim() && search())}
           >
             Try again
