@@ -467,6 +467,13 @@ pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str)
     if !linux_format.is_null() {
         inputs["classify_linux_programs_by_format"] = linux_format.clone();
     }
+    // The prepared OpenMoHAA programs differ from the raw ZIP modes. A
+    // retained observation made before this rule cannot hold the same asset.
+    if port["external_profile_policy"] == "openmohaa-unix-v1"
+        && matches!(platform, "linux-x86-64" | "macos-x86-64" | "macos-aarch64")
+    {
+        inputs["openmohaa_prepared_programs"] = serde_json::Value::Bool(true);
+    }
     inputs.sort_all_objects();
     Ok(hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
         serde_json::to_string(&inputs)?.as_bytes(),

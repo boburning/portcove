@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { derivationInputsDigest } from "./package-shape-baselines.mts";
+import { derivationInputs, derivationInputsDigest } from "./package-shape-baselines.mts";
 import {
   collectDriftTargets,
   completedInspections,
@@ -30,6 +30,21 @@ const table = {
     },
   ],
 };
+
+test("only OpenMoHAA Unix shape identities include the prepared programs rule", () => {
+  const openmohaa = { external_profile_policy: "openmohaa-unix-v1" };
+  for (const platform of ["linux-x86-64", "macos-x86-64", "macos-aarch64"]) {
+    assert.equal(derivationInputs(openmohaa, platform).openmohaa_prepared_programs, true);
+  }
+  assert.equal(
+    derivationInputs(openmohaa, "windows-x86-64").openmohaa_prepared_programs,
+    undefined,
+  );
+  assert.equal(
+    derivationInputs(catalog.ports[0], "linux-x86-64").openmohaa_prepared_programs,
+    undefined,
+  );
+});
 
 function observation(portId = "example") {
   return {

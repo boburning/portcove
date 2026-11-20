@@ -288,4 +288,75 @@ mod tests {
             .is_none()
         );
     }
+    #[test]
+    fn prepared_openmohaa_shape_ignores_the_retained_preview9_raw_program_hold() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog
+            .port("medal-of-honor-allied-assault-openmohaa")
+            .unwrap();
+        let platform = Platform::LinuxX86_64;
+        let release = ResolvedRelease {
+            version: "v0.82.1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "openmohaa-v0.82.1-linux-amd64.zip".into(),
+                url: "https://github.com/openmoh/openmohaa/releases/download/v0.82.1/openmohaa-v0.82.1-linux-amd64.zip".into(),
+                sha256: "57692d057a684afb7f7e91a61fcd8c062b29ab1b639f27453830084a88cd653c".into(),
+                size: 16_999_314,
+            },
+            uploader_continuity: None,
+        };
+        // Exact local refusal captured from Preview.9's first managed install.
+        let legacy = br#"{"shape_version":1,"capability":38,"candidate_key":"4a1a7e7fc2d212a919587f699d0cec5370798068e8d47f4ee3dcae2556591671","shape_inputs":"6cc87014969f9fb4ca9314236e0ca595ca1b2d98ee0441e4b006eac946a47841","shape":{"programs":[],"top_directories":[],"config_files":[]}}"#;
+        let old: Observation = serde_json::from_slice(legacy).unwrap();
+        assert_eq!(
+            candidate_key(&release).unwrap().as_deref(),
+            Some(old.candidate_key.as_str())
+        );
+        let (raw_verdict, _) = evaluate(port, platform, &release.asset.sha256, &old.shape, None);
+        assert!(withholds_release(&raw_verdict));
+        let path = observation_path(&library, port, platform, release.channel).unwrap();
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, legacy).unwrap();
+        assert!(
+            current(&library, port, platform, &release, old.capability, || None)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(fs::read(&path).unwrap(), legacy);
+
+        let new_drift = PackageShape {
+            programs: Some(vec![
+                "launch_openmohaa_base".into(),
+                "omohaaded".into(),
+                "openmohaa".into(),
+            ]),
+            ..old.shape
+        };
+        let (verdict, provenance) =
+            evaluate(port, platform, &release.asset.sha256, &new_drift, None);
+        assert!(withholds_release(&verdict));
+        record(
+            &library,
+            port,
+            platform,
+            &release,
+            old.capability,
+            &PackageShapeRecord {
+                shape_version: SHAPE_VERSION,
+                shape: Some(new_drift),
+                provenance,
+                verdict,
+            },
+        )
+        .unwrap();
+        assert!(
+            current(&library, port, platform, &release, old.capability, || None)
+                .unwrap()
+                .is_some()
+        );
+    }
 }

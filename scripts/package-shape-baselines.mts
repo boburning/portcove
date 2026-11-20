@@ -120,6 +120,10 @@ export function derivationInputs(port: unknown, platform: string) {
   );
   return {
     ...(linuxFormat === null ? {} : { classify_linux_programs_by_format: linuxFormat }),
+    ...(field(port, "external_profile_policy") === "openmohaa-unix-v1" &&
+    ["linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform)
+      ? { openmohaa_prepared_programs: true }
+      : {}),
     adapter: field(port, "adapter"),
     executable_hints: field(field(port, "executable_hints"), platform),
     external_profile_policy: field(port, "external_profile_policy"),
