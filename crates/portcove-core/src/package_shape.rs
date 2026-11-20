@@ -1005,13 +1005,15 @@ pub fn inspect_package_shape_archive(
         )));
     }
     let qualification = crate::install::InstallQualification::from_port(port, platform)?;
+    let native_mac_bundle_tar_xz = crate::runtime::native_mac_bundle_tar_xz(port, platform);
     let (_workspace, payload) = crate::package_layout::extract_verified_archive(
         source,
         platform,
         expected_size,
         expected_sha256,
+        native_mac_bundle_tar_xz,
     )?;
-    let payload = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
+    let payload = if native_mac_bundle_tar_xz {
         crate::package_layout::native_mac_bundle_root(&payload, port, platform)?
     } else {
         payload

@@ -636,8 +636,11 @@ establish release authority.
 
 Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`
 with the publisher's independently obtained size and digest. It verifies and
-extracts the bytes like `inspect-package-layout`, prepares them as the managed
-installer does for the embedded catalog's route, and returns
+extracts the bytes like `inspect-package-layout` and prepares them as the managed
+installer does for the embedded catalog's route. A reviewed native Mac TAR.XZ
+bundle uses the installer’s bounded reader with file links disabled. This
+applies only to routes whose embedded definition declares that capability.
+The command returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
 `shape_version`, the derived `shape`, its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
