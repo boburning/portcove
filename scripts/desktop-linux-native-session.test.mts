@@ -737,9 +737,9 @@ void test(
 import ast, sys
 from pathlib import Path
 tree = ast.parse(Path(sys.argv[1]).read_text())
-names = {'controls','bound_control','invoke','show_location'}
+names = {'controls','bound_control','invoke','show_location','editable','location_entry'}
 functions = [node for node in ast.walk(tree) if isinstance(node,ast.FunctionDef) and node.name in names]
-assert len(functions) == 4
+assert len(functions) == len(names)
 class Role:
     TABLE='table'; TREE='tree'; TREE_TABLE='tree-table'; LIST='list'
     PUSH_BUTTON='button'; TOGGLE_BUTTON='toggle'; TEXT='text'; ENTRY='entry'; FILE_CHOOSER='file-chooser'
@@ -749,6 +749,10 @@ class Atspi: pass
 Atspi.Role, Atspi.StateType = Role, StateType
 class State:
     def contains(self,state): return True
+class Clock:
+    def __init__(self): self.now=0
+    def monotonic(self): return self.now
+    def sleep(self,seconds): self.now+=seconds
 class Peer:
     def __init__(self,bus): self.bus_name=bus
 class Node:
@@ -771,12 +775,16 @@ class Node:
     def set_text_contents(self,text): self.writes+=1; return True
 root=Node(count=2); large=Node('/large',parent=root,count=510)
 root.children=[Node('/pending',parent=root),large]
-scope={'Atspi':Atspi,'chooser':lambda:root,'window_path':'/chooser','bus_name':'owned'}
+scope={'Atspi':Atspi,'chooser':lambda:root,'window_path':'/chooser','bus_name':'owned','time':Clock(),'deadline':10}
 exec(compile(ast.Module(body=functions,type_ignores=[]),sys.argv[1],'exec'),scope)
 try: scope['controls']()
 except RuntimeError: pass
 else: raise AssertionError('Queued inventory bound missing')
 assert root.reads == 2 and large.reads == 0, 'Children read before queue budget'
+root.count=1; root.children=[None]
+try: scope['controls']()
+except RuntimeError as error: assert 'inventory changed' in str(error)
+else: raise AssertionError('Vanished child admitted')
 root.count=0
 foreign=Node('/button','foreign',root,role=Role.PUSH_BUTTON)
 try: scope['invoke'](foreign)
@@ -826,20 +834,109 @@ scope['controls']=production_controls
 entry=Node('/entry','foreign',root,role=Role.ENTRY)
 input_block=[node for node in ast.walk(tree) if isinstance(node,ast.If) and isinstance(node.test,ast.Name) and node.test.id=='directory']
 assert len(input_block)==1
-scope.update(directory=Path('/owned/input'),controls=lambda:[entry],button=lambda names:owned)
-try: exec(compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec'),scope)
+input_code=compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec')
+scope.update(directory=Path('/owned/input'),controls=lambda until=None:[entry],button=lambda names:owned)
+try: exec(input_code,scope)
 except RuntimeError: pass
 else: raise AssertionError('Foreign same-path text admitted')
 assert entry.writes == 0 and owned.actions == 1
 entry.app=Peer('owned')
-exec(compile(ast.Module(body=input_block,type_ignores=[]),sys.argv[1],'exec'),scope)
+exec(input_code,scope)
 assert entry.writes == 1 and owned.actions == 2
+
+def observe(frames, deadline=10, repeat=None):
+    clock=Clock()
+    remaining=iter(frames)
+    reads=[]
+    def inventory(until=None):
+        item=next(remaining,repeat)
+        reads.append(clock.now)
+        assert item is not None, 'Unexpected extra scan'
+        if isinstance(item,RuntimeError): raise item
+        if until is not None: assert clock.now < until <= deadline
+        return item
+    scope.update(time=clock,deadline=deadline,controls=inventory)
+    return clock, reads
+
+def refused(message):
+    previous_writes=entry.writes
+    previous_confirms=owned.actions
+    try: exec(input_code,scope)
+    except RuntimeError as error: assert message in str(error), str(error)
+    else: raise AssertionError('Unsafe location entry admitted')
+    assert entry.writes==previous_writes and owned.actions==previous_confirms
+
+before=widget.actions
+# The exact action may disappear once GTK has opened its location field.
+clock,reads=observe([[widget],[widget],[widget],[entry],[entry]])
+exec(input_code,scope)
+assert len(reads)==5 and clock.now==0.05 and widget.actions==before+1
+assert entry.writes==2 and owned.actions==3
+
+other=Node('/other',parent=root,role=Role.TEXT)
+before=widget.actions
+clock,reads=observe([[entry,other]])
+refused('phase=initial count=2')
+assert len(reads)==1 and clock.now==0 and widget.actions==before
+clock,reads=observe([[widget],[widget],[entry,other]])
+refused('phase=after-show-location count=2')
+assert len(reads)==3 and clock.now==0 and widget.actions==before+1
+assert other.writes==0
+
+for deadline in [10,0.12]:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget]],deadline=deadline,repeat=[widget])
+    refused('phase=after-show-location count=0')
+    assert widget.actions==before+1 and clock.now==min(1,deadline)
+    assert max(reads)<min(1,deadline)
+
+before=widget.actions
+clock,reads=observe([[widget],[widget],[entry]])
+inventory=scope['controls']
+def delayed_inventory(until=None):
+    result=inventory(until)
+    if until is not None: clock.now=until
+    return result
+scope['controls']=delayed_inventory
+refused('phase=after-show-location count=1')
+assert len(reads)==3 and widget.actions==before+1
+
+foreign_entry=Node('/entry','foreign',root,role=Role.ENTRY)
+for changed,message in [
+    ([other],'phase=before-input count=1'),
+    ([entry,other],'phase=before-input count=2'),
+    ([],'phase=before-input count=0'),
+    ([foreign_entry],'accessibility peer changed'),
+]:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget],[entry],changed])
+    refused(message)
+    assert len(reads)==4 and widget.actions==before+1
+assert other.writes==0 and foreign_entry.writes==0
+
+clock,reads=observe([[entry],[entry]])
+editable_interface=entry.get_editable_text_iface
+def lost_entry():
+    entry.role=Role.PUSH_BUTTON
+    return entry
+entry.get_editable_text_iface=lost_entry
+refused('location field unavailable')
+assert len(reads)==2
+entry.role=Role.ENTRY
+entry.get_editable_text_iface=editable_interface
+
+for message in ['Owned GTK chooser identity changed','Owned GTK application exited or changed','Owned GTK chooser control inventory changed']:
+    before=widget.actions
+    clock,reads=observe([[widget],[widget],RuntimeError(message)])
+    refused(message)
+    assert len(reads)==3 and clock.now==0 and widget.actions==before+1
 print('GTK production input and inventory guards passed')
 `;
     const result = spawnSync("/usr/bin/python3", ["-c", control, helper], {
       encoding: "utf8",
-      timeout: 5000,
+      timeout: 15_000,
     });
+    assert.ifError(result.error);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     assert.match(result.stdout, /GTK production input and inventory guards passed/u);
   },
