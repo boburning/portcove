@@ -1,5 +1,6 @@
 import { expect, it } from "vite-plus/test";
 import { portStatus } from "../../test-fixtures";
+import { installRecord } from "../../components/rendered-test-fixtures";
 import { presentPortAction } from "./operation-presentation";
 import { targetInvocationContext, type InvocationRecord } from "./invocation-state";
 
@@ -10,6 +11,27 @@ const pending: InvocationRecord = {
   context: targetInvocationContext("Prepare", { kind: "port", id: "A", label: "Game A" }, 7),
 };
 const owner = { generation: 7, pending: new Map([[1, pending]]) };
+it("scopes committed-install readback to the stale install action without changing Core or Play", () => {
+  const unread = {
+    generation: 7,
+    pending: new Map<number, InvocationRecord>(),
+    unreadInstallPorts: new Set(["A"]),
+  };
+  const missing = portStatus();
+  const current = { ...missing, active: installRecord({ port_id: "A" }) };
+  const installation = presentPortAction(unread, "A", missing, "install");
+  expect(installation.installReadbackRequired).toBe(true);
+  expect(installation.busy).toBeUndefined();
+  expect(installation.readiness.blocked).toBe(false);
+  expect(installation.assessment).toEqual(installation.readiness);
+  expect(presentPortAction(unread, "B", missing, "install").installReadbackRequired).toBe(false);
+  expect(presentPortAction(unread, "A", current, "launch").installReadbackRequired).toBe(false);
+  expect(presentPortAction(unread, "A", current, "install").installReadbackRequired).toBe(false);
+  expect(
+    presentPortAction({ ...unread, unreadInstallPorts: new Set() }, "A", missing, "install")
+      .installReadbackRequired,
+  ).toBe(false);
+});
 it("uses one local-conflict assessment without rewriting observed readiness", () => {
   const a = presentPortAction(owner, "A", portStatus(), "launch");
   const b = presentPortAction(owner, "B", portStatus(), "launch");
