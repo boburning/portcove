@@ -188,6 +188,21 @@ offered. Fixtures, actual setup/launch and optional gameplay/device observations
 remain separate; known relevant failures remain visible. A link, catalog
 placeholder, research record or deferral is not a delivered integration.
 
+An integration can finish when a released client offers an actionable operation
+on an applicable platform and its required checks pass. An upstream-managed
+registration can be the finished title scope. Record which operations Portcove
+offers and who owns each one. Record the Portcove handoff at the boundary
+actually observed. Showing a picker, importing an original and completing
+setup each need evidence when the offered operation depends on that event.
+
+Reuse a shared capability result when the title fits its tested contract.
+Verify the title's package, platform, source and ownership facts and exercise
+unique behavior or a known failure affecting the offered operation. A player's
+matching original is required at the operation that consumes it. Runner custody
+of originals, completed campaigns and natural successors are separate evidence
+unless the specific operation depends on them. Previously failed checks keep
+their outcomes when a narrower operation becomes available.
+
 Ordinary fitting additions use reviewed definition facts and existing behavior.
 Compatible upstream updates normally change artifact facts. Reuse a policy only
 after checking the behavior it relies on; a checksum or filename alone is
