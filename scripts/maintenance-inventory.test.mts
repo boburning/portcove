@@ -727,13 +727,10 @@ void test(
            FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication'
            ORDER BY acquisition DESC LIMIT 1;`,
       ),
-    );
+    ) as { coverage: string; gaps: { subject_key: string; code: string }[] };
     assert.equal(failed.coverage, "failed");
     assert.deepEqual(
-      failed.gaps.map(({ subject_key, code }: { subject_key: string; code: string }) => [
-        subject_key,
-        code,
-      ]),
+      failed.gaps.map(({ subject_key, code }) => [subject_key, code]),
       [["source:definition-publication", "unavailable"]],
     );
     const inventory = buildReport(store.owner);
