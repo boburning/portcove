@@ -47,6 +47,7 @@ interface CoverRow {
   mapping: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]>;
 }
 interface DiscoverCoverTiming {
+  scope: "managed-primary-covers";
   pass: string;
   viewport: { width: number; height: number; devicePixelRatio: number };
   visibleIds: string[];
@@ -280,7 +281,12 @@ export async function defaultCoverScenario({
         }
         const measureDiscover = cacheConditions && coverPortIds.length > 0;
         const mappedIds = catalog.ports
-          .filter((port) => port.presentation?.artwork)
+          .filter(
+            ({ presentation }) =>
+              presentation?.artwork &&
+              !presentation.collection_covers?.length &&
+              !presentation.companion_cover,
+          )
           .map((port) => port.id);
         for (const [pass, defaultTheme, defaultSize] of coverPasses(cacheConditions)) {
           const theme = measureDiscover ? "light" : defaultTheme;
@@ -556,39 +562,55 @@ async function observeDiscoverCovers(
           const started = performance.now();
           const viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
           let firstReadyMs: number | null = null;
+          let observer: IntersectionObserver | undefined;
           const inspect = (now: number) => {
             const elapsed = Math.max(0, now - started);
             const cards = document.querySelectorAll<HTMLElement>(selector);
-            if (!visible.size) {
+            if (!visible.size && !observer) {
+              const frames = new Map<Element, string>();
               for (const card of cards) {
                 const id = card.dataset.detailGameId;
-                if (!id || !mapped.has(id)) continue;
-                const rect = card.getBoundingClientRect();
-                if (
-                  rect.width > 0 &&
-                  rect.height > 0 &&
-                  rect.bottom > 0 &&
-                  rect.top < viewport.height &&
-                  rect.right > 0 &&
-                  rect.left < viewport.width
-                )
-                  visible.add(id);
+                const frame = card.querySelector(".collection-art");
+                if (frame && id && mapped.has(id)) frames.set(frame, id);
+              }
+              if (frames.size) {
+                const reported = new Set<Element>();
+                observer = new IntersectionObserver((entries) => {
+                  for (const entry of entries) {
+                    reported.add(entry.target);
+                    const id = frames.get(entry.target);
+                    if (
+                      id &&
+                      entry.isIntersecting &&
+                      entry.intersectionRect.width > 0 &&
+                      entry.intersectionRect.height > 0
+                    )
+                      visible.add(id);
+                  }
+                  if (reported.size === frames.size) {
+                    observer?.disconnect();
+                    observer = undefined;
+                  }
+                });
+                for (const frame of frames.keys()) observer.observe(frame);
               }
             }
-            for (const card of cards) {
-              const id = card.dataset.detailGameId;
-              if (!id || !visible.has(id) || ready.has(id)) continue;
-              const frame = card.querySelector<HTMLElement>(".collection-art");
-              const source = frame?.dataset.artworkSource;
-              if (source !== "igdb_cover" && source !== "igdb_cover_collection") continue;
-              const pictures = frame?.querySelectorAll("img");
-              if (pictures?.length && [...pictures].some((img) => img.complete && img.naturalWidth))
-                ready.add(id);
+            if (!observer) {
+              for (const card of cards) {
+                const id = card.dataset.detailGameId;
+                if (!id || !visible.has(id) || ready.has(id)) continue;
+                const frame = card.querySelector<HTMLElement>(".collection-art");
+                if (frame?.dataset.artworkSource !== "igdb_cover") continue;
+                const image = frame.querySelector("img");
+                if (image?.complete && image.naturalWidth) ready.add(id);
+              }
             }
             if (firstReadyMs === null && ready.size) firstReadyMs = elapsed;
             const complete = visible.size > 0 && ready.size === visible.size;
             if (complete || elapsed >= 15_000) {
+              observer?.disconnect();
               observation.portcoveDiscoverCoverTiming = {
+                scope: "managed-primary-covers",
                 pass,
                 viewport,
                 visibleIds: [...visible],

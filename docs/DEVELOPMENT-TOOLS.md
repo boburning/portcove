@@ -3601,8 +3601,10 @@ For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
 cover mappings, including `dkr-r` for the offline control. Focused cache
 runs use the same window size and theme for the cold pass, the same-session
 Discover revisit, and the offline restart. The report records the initial
-visible mapped IDs and browser-frame timings from the Discover button click
-to the first ready image and the full visible cohort. An incomplete cohort
+visible primary-cover IDs for mapped managed definitions. It records
+browser-frame timings from the Discover button click to the first ready image
+and the full measured cohort. Collection, companion, and directory-only
+artwork are outside this timing cohort. An incomplete cohort
 has a null completion time and lists the ready IDs. Compare only runs with
 matching catalog, viewport, visible IDs, and cache and network conditions.
 
