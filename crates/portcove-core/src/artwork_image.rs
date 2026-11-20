@@ -48,6 +48,7 @@ pub(crate) fn decode_with_thumbnail_bounds(
             "artwork derivative dimensions are unsupported",
         ));
     }
+    let started = std::time::Instant::now();
     #[cfg(test)]
     DECODE_COUNT.with(|count| count.set(count.get() + 1));
     if bytes.len() as u64 > MAX_ORIGINAL_BYTES {
@@ -108,6 +109,12 @@ pub(crate) fn decode_with_thumbnail_bounds(
             "artwork thumbnail exceeds its byte limit",
         ));
     }
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes = bytes.len() as u64,
+        output_bytes = thumbnail.len() as u64,
+        "Artwork image conversion"
+    );
     Ok(DecodedArtwork {
         format,
         width,

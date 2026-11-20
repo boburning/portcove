@@ -76,6 +76,9 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         | "sequence"
         | "event_schema_version"
         | "elapsed_ms"
+        | "elapsed_us"
+        | "input_bytes"
+        | "output_bytes"
         | "completed"
         | "total"
         | "install_count"
@@ -510,6 +513,16 @@ pub(crate) fn project(record: &Map<String, Value>) -> Value {
 #[cfg(test)]
 mod qualification_marker_tests {
     use super::*;
+
+    #[test]
+    fn artwork_observations_admit_only_unsigned_measurements() {
+        for name in ["elapsed_us", "input_bytes", "output_bytes"] {
+            assert_eq!(field(name, &json!(123)), Some(json!(123)));
+            for rejected in [json!(-1), json!("123"), json!({"path": "private"})] {
+                assert!(field(name, &rejected).is_none());
+            }
+        }
+    }
 
     #[test]
     fn prepared_qualification_marker_accepts_only_its_named_boolean() {

@@ -3589,6 +3589,26 @@ CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
 native development-app display and cache behavior, not installed-package updates,
 production content publication, physical devices or human comprehension.
 
+Windows runs retain the native command trace and debug diagnostics. For an
+artwork comparison, keep the source, executable, catalog cohort, viewport and
+network condition with each observation. Count effective catalog resolutions,
+original disk lookups and verification, derivative hits and conversions,
+worker admission and base64 output bytes. Use the cached-restart control to
+distinguish retained derivatives from same-process reuse. The cover report's
+per-card timings are Selenium observations after a search request.
+
+For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
+cover mappings, including `dkr-r` for the offline control. Focused cache
+runs use the same window size and theme for the cold pass, the same-session
+Discover revisit, and the offline restart. The report records the initial
+visible primary-cover IDs for mapped managed definitions. It records
+browser-frame timings from the Discover button click to the first ready image
+and the full measured cohort. Collection, companion, and directory-only
+artwork are outside this timing cohort. An incomplete cohort
+has a null completion time and lists the ready IDs. Individual timing rows
+are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
+matching catalog, viewport, visible IDs, and cache and network conditions.
+
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mts --app <retained-installed-executable> --output
