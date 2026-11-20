@@ -2,7 +2,7 @@
   "assessment_schema": 1,
   "namespace": "official",
   "stable_id": "doom-3-classic-dude-doom-3-unified-development-engine",
-  "revision": 2,
+  "revision": 4,
   "assessments": [],
-  "policy_sha256": "886e6f6de7fd6be2f78ff683a623cee2f7ff87d8b464b7b9642da141078a9db6"
+  "policy_sha256": "c0cab69b8683dbbf5ffe7d35de20dba4bc6943c8ec6b5b8f60dbd2d18255dc72"
 }

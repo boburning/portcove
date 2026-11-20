@@ -4,8 +4,8 @@
     {
       "namespace": "official",
       "stable_id": "chameleon-twist-jp-recompiled",
-      "revision": 1,
-      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json"
+      "revision": 2,
+      "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json"
     },
     {
       "namespace": "official",
@@ -22,20 +22,30 @@
     {
       "namespace": "official",
       "stable_id": "dungeon-crawl-stone-soup",
-      "revision": 3,
-      "target": "sha256/43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60.json"
+      "revision": 4,
+      "target": "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json"
     }
   ],
   "contents": [
     {
-      "target": "sha256/43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60.json",
-      "sha256": "43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60",
-      "length": 3563
+      "target": "sha256/2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96.json",
+      "sha256": "2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96",
+      "length": 9438
     },
     {
-      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
-      "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
-      "length": 5318
+      "target": "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json",
+      "sha256": "2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e",
+      "length": 3565
+    },
+    {
+      "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json",
+      "sha256": "6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e",
+      "length": 6123
+    },
+    {
+      "target": "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json",
+      "sha256": "666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570",
+      "length": 3615
     },
     {
       "target": "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json",
@@ -48,11 +58,6 @@
       "length": 12149
     },
     {
-      "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
-      "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d",
-      "length": 8325
-    },
-    {
       "target": "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json",
       "sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28",
       "length": 11074
@@ -61,11 +66,6 @@
       "target": "sha256/f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0.json",
       "sha256": "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0",
       "length": 11363
-    },
-    {
-      "target": "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json",
-      "sha256": "ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f",
-      "length": 3613
     }
   ]
 }
