@@ -2234,10 +2234,54 @@ it("filters pending provider and local additions and counts them only after Appl
     native_id: "ui.o2r",
     needs_code_permission: false,
   });
-  vi.spyOn(desktopApi, "applyModSetupDraft").mockImplementation(async () => {
-    read.mockResolvedValue(view({ provider: "gamebanana", applied_package_count: 4 }));
-    return {} as Awaited<ReturnType<typeof desktopApi.applyModSetupDraft>>;
+  const committedSetup = setup("default", "Default", 4, [
+    ["hd.o2r", true],
+    ["sfx.otr", false],
+    ["ui.o2r", true],
+    ["retro-hud.otr", true],
+  ]);
+  const committed: ModSetupView["revision"] = {
+    ...committedSetup.revision,
+    build: {
+      artifact: { asset_name: "test.zip", sha256: "b".repeat(64), size: 1 },
+      definition: null,
+      install_id: "fixture-install",
+      installed_contract_sha256: "c".repeat(64),
+      manifest_sha256: "e".repeat(64),
+      platform: "windows-x86-64",
+      port_id: "shipwright",
+      runtime: null,
+      selected_executable: "game.exe",
+    },
+    created_at: 2,
+    digest: "d".repeat(64),
+    orderings: [],
+    originals: [],
+    parent_revision: 3,
+    save_group: "default",
+  };
+  const refreshed = view({
+    provider: "gamebanana",
+    applied_package_count: 4,
+    inventory: {
+      port_id: "shipwright",
+      profiles: [
+        {
+          ...committedSetup,
+          build_availability: "verified",
+          profile: {
+            ...committedSetup.profile,
+            created_at: 1,
+            updated_at: 2,
+            intent: { update_policy: "keep_current" },
+          },
+          revision: committed,
+        },
+      ],
+    },
+    live: { ...initial.live!, revision: 4 },
   });
+  const apply = vi.spyOn(desktopApi, "applyModSetupDraft").mockResolvedValue(committed);
   const host = await render();
   const click = async (label: string) => act(async () => button(host, label).click());
   await click("Browse mods");
@@ -2275,7 +2319,19 @@ it("filters pending provider and local additions and counts them only after Appl
   await click("Review changes");
   await click("Check files");
   await click("Apply changes");
+  await expect.element(page.getByText("Setup changes applied.", { exact: true })).toBeVisible();
+  const stale = page.getByText("Portcove couldn’t confirm the current setup. Read setups again.", {
+    exact: true,
+  });
+  await expect.element(stale).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Installed mods 2" })).not.toBeVisible();
+
+  read.mockResolvedValue(refreshed);
+  await click("Read setups again");
+  await expect.element(page.getByRole("heading", { name: "Setups and mods" })).toHaveFocus();
   await expect.element(page.getByRole("button", { name: "Installed mods 4" })).toBeVisible();
+  await expect.element(stale).not.toBeInTheDocument();
+  expect(apply).toHaveBeenCalledTimes(1);
 });
 
 it("keeps the draft until the exact recovered apply revision is materialized", async () => {
