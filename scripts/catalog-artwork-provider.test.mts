@@ -726,7 +726,7 @@ void test("incomplete key-art inventory preserves cached media and does not supp
   assert.equal(second.role, "logo");
 });
 
-void test("a new edition screenshot preserves other reviewed scopes and keeps unique IDs", async () => {
+void test("new scenes stay edition-bound and preserve other reviewed scopes", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
   const portScreenshot = {
     id: "port-screenshot",
@@ -752,6 +752,7 @@ void test("a new edition screenshot preserves other reviewed scopes and keeps un
             names: ["Sample Original"],
             evidence_url: "https://example.org/edition",
             source_edition_id: "selected",
+            hero_media_edition_neutral: true,
           },
           presentation: {
             original_game: {
@@ -779,6 +780,16 @@ void test("a new edition screenshot preserves other reviewed scopes and keeps un
               ];
         },
         inspectGameMedia: async (id, role) => {
+          if (id === 7 && role === "logo") return [{ id: 7, game: 7, image_id: "logo" }];
+          if (id === 7 && role === "key_art")
+            return [
+              {
+                id: 5,
+                game: 7,
+                image_id: "background",
+                image_type: { id: 99, name: "Key Art Without Logo" },
+              },
+            ];
           if (role !== "screenshot") return [];
           lookedUp.push(id);
           return [
@@ -790,7 +801,7 @@ void test("a new edition screenshot preserves other reviewed scopes and keeps un
           sha256: "a".repeat(64),
           bytes: 100,
           width: 400,
-          height: 300,
+          height: 200,
           format: "png",
           validator: "portcove-core",
         }),
@@ -800,9 +811,21 @@ void test("a new edition screenshot preserves other reviewed scopes and keeps un
   assert.deepEqual(lookedUp, [7]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
-  assert.equal(media.length, 3);
+  assert.equal(media.length, 6);
   assert.deepEqual(media.slice(0, 2), [portScreenshot, otherEditionScreenshot]);
-  const added: unknown = media[2];
+  const keyArt: unknown = media[2];
+  assert.ok(isRecord(keyArt));
+  assert.equal(keyArt.role, "key_art");
+  assert.equal(keyArt.edition_neutral, true);
+  const logo: unknown = media[3];
+  assert.ok(isRecord(logo));
+  assert.equal(logo.role, "logo");
+  assert.equal(logo.edition_neutral, true);
+  const background: unknown = media[4];
+  assert.ok(isRecord(background));
+  assert.equal(background.role, "header");
+  assert.equal(background.edition_neutral, undefined);
+  const added: unknown = media[5];
   assert.ok(isRecord(added));
   assert.equal(added.id, "igdb-screenshot-original-9");
   assert.equal(added.caption, "Original game screenshot");

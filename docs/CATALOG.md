@@ -3933,9 +3933,10 @@ separate one-record overflow query when the page is full. Overflow, malformed
 responses and provider failures remain unknown; they never establish missing key
 art. Role preparation classifies each image using its expanded `image_type.id/name`
 relationship and does not require a separate inventory request.
-Original identity facts bind `source_edition_id` explicitly; optional
-`hero_media_edition_neutral` records reviewed
-applicability. Image records are bound to the verified game ID before download.
+Original identity facts bind `source_edition_id` explicitly. Optional
+`hero_media_edition_neutral` records reviewed applicability for logo and key art.
+Proposed backgrounds and screenshots retain their exact edition binding.
+Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
 candidate chains and independent role failures. Preparation may fill a missing
 background and propose one screenshot when a subject has none. It preserves

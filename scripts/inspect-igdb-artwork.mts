@@ -1528,7 +1528,7 @@ type GameMediaRole = keyof typeof gameMediaRoles;
 type HeroIdentity = {
   declaration: unknown;
   subject: CatalogMediaSubject;
-  neutral: boolean | undefined;
+  foregroundNeutral: boolean | undefined;
 };
 type HeroImageCandidate = Record<string, unknown> & { id: number; game: number; image_id: string };
 type HeroMediaRecord = {
@@ -1559,7 +1559,7 @@ function declaredHeroMediaIdentities(port: ArtworkPort, input: unknown): HeroIde
         evidence_url: port.project_url,
       },
       subject: { kind: "port", port_id: port.id },
-      neutral: undefined,
+      foregroundNeutral: undefined,
     },
   ];
   // An offered edition is never a selected edition. Require an explicit binding;
@@ -1581,7 +1581,7 @@ function declaredHeroMediaIdentities(port: ArtworkPort, input: unknown): HeroIde
         game_id: original.id,
         source_edition_id: underlying.source_edition_id,
       },
-      neutral:
+      foregroundNeutral:
         typeof underlying.hero_media_edition_neutral === "boolean"
           ? underlying.hero_media_edition_neutral
           : undefined,
@@ -1664,11 +1664,13 @@ function heroAssetProposal(
 ): CatalogMediaAsset {
   const type = isRecord(candidate.image_type) ? candidate.image_type : undefined;
   const { caption, variant, kind } = gameMediaRoles[role];
+  const foregroundNeutral =
+    role === "logo" || role === "key_art" ? identity.foregroundNeutral : undefined;
   return {
     id: `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`,
     role,
     subject: identity.subject,
-    ...(identity.neutral === undefined ? {} : { edition_neutral: identity.neutral }),
+    ...(foregroundNeutral === undefined ? {} : { edition_neutral: foregroundNeutral }),
     caption:
       role === "screenshot" && identity.subject.kind === "original"
         ? "Original game screenshot"
