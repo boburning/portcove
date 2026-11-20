@@ -3658,7 +3658,8 @@ mod tests {
                 ),
             ]
         );
-        assert!(hold.reason.contains("Exit, not Quit to launcher"));
+        assert!(hold.reason.contains("Quit to launcher"));
+        assert!(hold.reason.contains("use Exit"));
         assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
             artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
         }));
