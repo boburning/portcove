@@ -64063,6 +64063,18 @@
           "crawl.exe"
         ]
       },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "dat",
+            "docs",
+            "settings"
+          ],
+          "executables": [
+            "crawl.exe"
+          ]
+        }
+      },
       "persistent_paths": [
         "init.txt",
         "morgue",
