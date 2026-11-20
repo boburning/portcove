@@ -1,0 +1,39 @@
+{
+  "index_schema": 1,
+  "definitions": [
+    {
+      "namespace": "official",
+      "stable_id": "chameleon-twist-jp-recompiled",
+      "revision": 1,
+      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json"
+    },
+    {
+      "namespace": "official",
+      "stable_id": "dungeon-crawl-stone-soup",
+      "revision": 1,
+      "target": "sha256/19c3c379ae5fa5c852fc4d216bd7af2cdd2bc72560f5b7a5c7d89f344d86ccec.json"
+    }
+  ],
+  "contents": [
+    {
+      "target": "sha256/19c3c379ae5fa5c852fc4d216bd7af2cdd2bc72560f5b7a5c7d89f344d86ccec.json",
+      "sha256": "19c3c379ae5fa5c852fc4d216bd7af2cdd2bc72560f5b7a5c7d89f344d86ccec",
+      "length": 3337
+    },
+    {
+      "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
+      "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
+      "length": 5318
+    },
+    {
+      "target": "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json",
+      "sha256": "73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62",
+      "length": 3341
+    },
+    {
+      "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",
+      "sha256": "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d",
+      "length": 8325
+    }
+  ]
+}
