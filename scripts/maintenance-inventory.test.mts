@@ -1834,6 +1834,14 @@ void test(
     assert.equal(routeCoverage?.offered_managed_platforms, 1);
     assert.equal(routeCoverage.platforms_with_candidate_observed, 1);
     assert.equal(routeCoverage.observer_membership_verified, true);
+    const [observed] = routeCoverage.routes ?? [];
+    assert.ok(observed?.evidence === "exact-observation");
+    assert.equal(observed.port_key, `port:${port}`);
+    assert.equal(observed.platform, "linux-x86-64");
+    const [observedPending] = observed.candidates;
+    assert.ok(observedPending);
+    assert.equal(observedPending.state, "pending");
+    assert.equal(observedPending.channel, "stable");
     assert.match(
       renderHtml(inventory),
       /recorded candidates that match the current definition for 1 of 1 offered release-following port and platform pairs/u,
@@ -1844,7 +1852,11 @@ void test(
     assert.equal(pending.observed_pending_candidates, 1);
     assert.equal(pending.observed_pending_to_eligible_candidates, 0);
     await observe(true);
-    const eligible = buildReport(store.owner).managed_release_eligibility;
+    const eligibleReport = buildReport(store.owner);
+    const eligible = eligibleReport.managed_release_eligibility;
+    const [observedEligible] = eligibleReport.managed_route_observation_coverage?.routes ?? [];
+    assert.ok(observedEligible?.evidence === "exact-observation");
+    assert.deepEqual(observedEligible.candidates, [{ ...observedPending, state: "eligible" }]);
     assert.equal(eligible?.distinct_candidates, 1);
     assert.equal(eligible.eligible_candidates, 1);
     assert.equal(eligible.pending_candidates, 0);
@@ -1868,6 +1880,7 @@ void test(
     const unbound = buildReport(store.owner).managed_route_observation_coverage;
     assert.equal(unbound?.offered_following_platforms, null);
     assert.equal(unbound?.platforms_with_candidate_observed, null);
+    assert.equal(unbound?.routes, null);
   },
 );
 
@@ -3567,6 +3580,7 @@ void test("managed observation coverage keeps stale or unverified membership out
   type CoverageRun = Parameters<typeof managedRouteObservationCoverage>[1][number];
   const goodHash = "a".repeat(64);
   const oldHash = "b".repeat(64);
+  const conflictingKey = "c".repeat(64);
   const target = (platform: string, action = "install") => ({
     platform,
     routes: [{ action, offered: true, reason: null }],
@@ -3586,7 +3600,7 @@ void test("managed observation coverage keeps stale or unverified membership out
   const port = (
     id: string,
     offered: [string, string?][],
-    candidates: { platform: string; state: string }[],
+    candidates: { platform: string; state: string; channel?: string; candidate_key?: string }[],
   ): CoverageInput => ({
     port_key: `port:${id}`,
     definition_sha256: goodHash,
@@ -3602,8 +3616,8 @@ void test("managed observation coverage keeps stale or unverified membership out
         {
           catalog_definition_sha256: goodHash,
           managed_release_candidates: candidates.map((candidate) => ({
-            ...candidate,
             candidate_key: goodHash,
+            ...candidate,
           })),
         },
       ],
@@ -3614,11 +3628,34 @@ void test("managed observation coverage keeps stale or unverified membership out
       "covered",
       [["linux-x86-64"], ["windows-x86-64"]],
       [
-        { platform: "linux-x86-64", state: "eligible" },
-        { platform: "linux-x86-64", state: "pending" },
+        { platform: "linux-x86-64", channel: "rolling", state: "eligible" },
+        { platform: "linux-x86-64", channel: "stable", state: "pending", candidate_key: oldHash },
+        { platform: "linux-x86-64", channel: "stable", state: "pending", candidate_key: oldHash },
+        {
+          platform: "linux-x86-64",
+          channel: "beta",
+          state: "pending",
+          candidate_key: conflictingKey,
+        },
+        {
+          platform: "linux-x86-64",
+          channel: "beta",
+          state: "eligible",
+          candidate_key: conflictingKey,
+        },
+        {
+          platform: "linux-x86-64",
+          channel: "beta",
+          state: "pending",
+          candidate_key: conflictingKey,
+        },
       ],
     ),
-    port("old", [["windows-x86-64"]], [{ platform: "windows-x86-64", state: "eligible" }]),
+    port(
+      "old",
+      [["windows-x86-64"]],
+      [{ platform: "windows-x86-64", state: "eligible", channel: "stable" }],
+    ),
     port("external", [["linux-x86-64", "register_external"]], []),
   ];
   const fixed = port("fixed", [["windows-x86-64"]], []);
@@ -3662,6 +3699,41 @@ void test("managed observation coverage keeps stale or unverified membership out
     { reason: "no-managed-candidate", offered_platforms: 1 },
     { reason: "scope-changed", offered_platforms: 1 },
   ]);
+  assert.deepEqual(coverage.routes, [
+    {
+      port_key: "port:covered",
+      platform: "linux-x86-64",
+      evidence: "exact-observation",
+      candidates: [
+        { candidate_key: goodHash, channel: "rolling", state: "eligible" },
+        { candidate_key: oldHash, channel: "stable", state: "pending" },
+        { candidate_key: conflictingKey, state: "ambiguous" },
+      ],
+    },
+    {
+      port_key: "port:covered",
+      platform: "windows-x86-64",
+      evidence: "gap",
+      reason: "no-managed-candidate",
+    },
+    { port_key: "port:fixed", platform: "windows-x86-64", evidence: "fixed" },
+    { port_key: "port:old", platform: "windows-x86-64", evidence: "gap", reason: "scope-changed" },
+  ]);
+  const withoutChannel = managedRouteObservationCoverage(
+    [
+      port("covered", [["linux-x86-64"]], [{ platform: "linux-x86-64", state: "eligible" }]),
+      ...ports.slice(1),
+    ],
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.equal(withoutChannel.platforms_with_candidate_observed, 1);
+  assert.deepEqual(withoutChannel.routes?.[0], {
+    port_key: "port:covered",
+    platform: "linux-x86-64",
+    evidence: "exact-observation",
+    candidates: [],
+  });
   const changed = managedRouteObservationCoverage(
     [{ ...ports[0]!, definition_sha256: oldHash }, ...ports.slice(1)],
     [catalog, targets, upstream],
@@ -3670,6 +3742,12 @@ void test("managed observation coverage keeps stale or unverified membership out
   assert.equal(changed.platforms_with_candidate_observed, 0);
   assert.equal(changed.platforms_with_retained_candidate, 1);
   assert.ok(changed.gaps.some(({ reason }) => reason === "definition-scope-unverified"));
+  assert.deepEqual(changed.routes?.[0], {
+    port_key: "port:covered",
+    platform: "linux-x86-64",
+    evidence: "gap",
+    reason: "definition-scope-unverified",
+  });
   const mismatched = managedRouteObservationCoverage(ports, [catalog, targets, upstream], {
     ...members,
     "port:covered": oldHash,
@@ -3678,6 +3756,7 @@ void test("managed observation coverage keeps stale or unverified membership out
   assert.deepEqual(mismatched.gaps, [
     { reason: "observer-membership-unverified", offered_platforms: 3 },
   ]);
+  assert.ok(mismatched.routes?.every((route) => route.evidence !== "exact-observation"));
   const failed = managedRouteObservationCoverage(
     ports,
     [catalog, targets, { ...upstream, coverage: "failed" }],
@@ -3685,6 +3764,13 @@ void test("managed observation coverage keeps stale or unverified membership out
   );
   assert.deepEqual(failed.gaps, [{ reason: "observer-collection-failed", offered_platforms: 3 }]);
   assert.equal(failed.platforms_with_candidate_observed, null);
+  assert.ok(
+    failed.routes?.every(
+      (route) =>
+        route.evidence === "fixed" ||
+        (route.evidence === "gap" && route.reason === "observer-collection-failed"),
+    ),
+  );
   const oldProjection = managedRouteObservationCoverage(
     ports,
     [catalog, { ...targets, acquisition: 1 }, upstream],
@@ -3692,6 +3778,7 @@ void test("managed observation coverage keeps stale or unverified membership out
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
   assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
+  assert.equal(oldProjection.routes, null);
 });
 
 void test("source freshness ages the last good read against the report and flags stale sources", () => {
