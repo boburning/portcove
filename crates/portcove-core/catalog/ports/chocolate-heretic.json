@@ -57,6 +57,7 @@
       ]
     }
   },
+  "chocolate_family_windows_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -90,25 +91,6 @@
       "-savedir",
       "savegames"
     ],
-    "persistent_paths": [
-      "game.wad",
-      "heretic.cfg",
-      "chocolate-heretic.cfg",
-      "savegames",
-      "autoload",
-      "music-packs"
-    ],
-    "persistent_file_patterns": [
-      {
-        "prefix": "HTIC",
-        "suffix": ".pcx"
-      },
-      {
-        "prefix": "HTIC",
-        "suffix": ".png"
-      }
-    ],
-    "runtime_mutable_paths": ["stdout.txt", "stderr.txt"],
     "presentation": {
       "installation_method": "staged-game-files",
       "source_requirements": [

@@ -193,6 +193,11 @@ export function renderMaintenancePublicSummary(raw: unknown, rawUsage: unknown, 
       upstream.source_revision,
     ) &&
     usage.source_revision === upstream.source_revision;
+  const observationEnd = usageKnown ? utc(usage.observation_finished_at) : null;
+  const observationAge =
+    observationEnd !== null && observationEnd <= generated
+      ? Date.parse(generated) - Date.parse(observationEnd)
+      : null;
   const seconds = usage.observed_runner_seconds;
   const runnerSeconds =
     usageKnown && typeof seconds === "number" && seconds >= 0 && seconds <= Number.MAX_SAFE_INTEGER
@@ -206,7 +211,7 @@ export function renderMaintenancePublicSummary(raw: unknown, rawUsage: unknown, 
     "",
     `- Catalog fleet has ${(catalog.coverage === "complete" ? count(catalog.observed_count) : null) ?? unknown} listings and ${(routes.catalog_collection_complete === true ? count(routes.operational_definitions) : null) ?? unknown} operational definitions.`,
     `- ${routeScope ? `${offered} managed platform offers, including ${following} release-following and ${fixed} fixed` : "Managed platform offer counts are unknown"}. ${observedRoutes ? `${verified} of ${following} following offers have an exact current candidate and ${following - verified} lack that evidence` : "Exact candidate coverage is unknown"}. ${retainedRoutes ? `${retained} have retained candidate evidence` : "Retained candidate coverage is unknown"}.`,
-    `- Upstream collection is ${status}. Subject coverage is ${observedScope ? `${observed} of ${expected}` : unknown}. The last complete or partial maintenance collection was ${sourceAge === null ? unknown : lastGood}, aged ${hours(sourceAge)} at report generation. Actual observer execution age is unknown. Gap counts are ${upstreamGaps(upstream.gaps)}.`,
+    `- Upstream collection is ${status}. Subject coverage is ${observedScope ? `${observed} of ${expected}` : unknown}. The last complete or partial maintenance collection was ${sourceAge === null ? unknown : lastGood}, aged ${hours(sourceAge)} at report generation. ${observationAge === null ? "Actual observer execution age is unknown" : `The imported observation job finished at ${observationEnd}, aged ${hours(observationAge)} at report generation`}. Gap counts are ${upstreamGaps(upstream.gaps)}.`,
     `- Rolling 30-day window ${windowKnown ? `runs from ${from} to ${through}` : "is unknown"}. Retained observations ${hasEvidence ? `span ${first} to ${last}` : "are unknown"}.`,
     `- ${known ? `The observer recorded ${eligible} eligible of ${total} distinct managed candidates with a known release time in the window, with ${pending} still pending` : "Observer eligibility is unknown"}. Candidates without a known release time number ${(hasEvidence ? count(window.unknown_publication_times) : null) ?? unknown}.`,
     `- ${withReason !== null ? `${withReason} pending candidates have a recorded reason and ${reasonless} lack one` : "Pending reasons are unknown"}. Oldest pending age is ${hours(known ? count(window.oldest_pending_age_ms) : null)}. ${known && moved !== null && earlierPending !== null && moved <= earlierPending && earlierPending <= total ? `${moved} of ${earlierPending} candidates observed pending later recorded eligible` : "Pending-to-eligible count is unknown"}.`,
