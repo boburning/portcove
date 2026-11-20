@@ -2751,12 +2751,10 @@ void test("N64 job evidence joins successful checkout and upload steps without p
     workflow_path: run.path,
     observed_at: "2026-11-20T15:00:00Z",
   };
+  const { artifact_created_at: _createdAt, ...legacyOutput } = output;
   const observed = {
     ...target,
-    outputs: [
-      { ...output, sha256: windows, artifact_id: 8, artifact_created_at: undefined },
-      output,
-    ],
+    outputs: [{ ...legacyOutput, sha256: windows, artifact_id: 8 }, output],
     runtime_revision: "a".repeat(40),
     hash_revision: "b".repeat(40),
   };
