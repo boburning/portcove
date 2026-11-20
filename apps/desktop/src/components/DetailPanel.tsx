@@ -43,7 +43,7 @@ import {
 import { ArtworkControls } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -108,6 +108,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import type { ReportSettingsDraft, SettingsDraftSummary } from "./GameSettingsPanel";
 import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
@@ -553,34 +554,60 @@ function DetailBody(model: {
   const external = usesExternalRuntimeRoute(model.port, model.status);
   const { t: tMods } = useAppTranslation("gameSettings");
   const activeInstall = model.status?.active?.id;
-  const modsKey = `${model.libraryGeneration}:${model.port.id}:${activeInstall}`;
+  const installationScope = `${model.libraryGeneration}:${model.port.id}:${activeInstall}`;
   const [modSupport, setModSupport] = useState<{
     key: string;
     supported: boolean | "unavailable";
   }>();
   const [modSupportRetry, retryModSupport] = useState(0);
-  const [observedModPlay, setModPlay] = useState<ModPlayState>();
-  const modPlay =
-    observedModPlay?.port === model.port.id &&
-    observedModPlay.generation === model.libraryGeneration
-      ? observedModPlay
-      : undefined;
+  const [observedModPlay, setModPlay] = useState<{
+    key: string;
+    state: ModPlayState | undefined;
+  }>();
+  const reportModPlay = useCallback(
+    (state: ModPlayState | undefined) => setModPlay({ key: installationScope, state }),
+    [installationScope],
+  );
+  const modPlay = observedModPlay?.key === installationScope ? observedModPlay.state : undefined;
+  const [drafts, setDrafts] = useState(
+    () => new Map<string, SettingsDraftSummary & { scope: string }>(),
+  );
+  const reportDraft = useCallback<ReportSettingsDraft>(
+    (id, summary) => {
+      setDrafts((previous) => {
+        const next = new Map(previous);
+        if (summary) next.set(id, { ...summary, scope: installationScope });
+        else next.delete(id);
+        return next;
+      });
+    },
+    [installationScope],
+  );
+  const settingsDrafts = [...drafts.values()].filter(({ scope }) => scope === installationScope);
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
     if (external || !activeInstall) return;
     let current = true;
     void readModSetupInventory(model.port.id, model.libraryGeneration)
       .then((view) => {
-        if (current) setModSupport({ key: modsKey, supported: view.supported });
+        if (current) setModSupport({ key: installationScope, supported: view.supported });
       })
       .catch(() => {
-        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+        if (current) setModSupport({ key: installationScope, supported: "unavailable" });
       });
     return () => {
       current = false;
     };
-  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
-  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  }, [
+    external,
+    activeInstall,
+    model.port.id,
+    model.libraryGeneration,
+    installationScope,
+    modSupportRetry,
+  ]);
+  const currentModSupport =
+    modSupport?.key === installationScope ? modSupport.supported : undefined;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
 
   const routePresentation = setupRoutePresentation(
@@ -646,28 +673,13 @@ function DetailBody(model: {
               }}
             />
             {modsAvailable && modPlay && (
-              <>
-                <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
-                  <Trans
-                    t={tMods}
-                    i18nKey="mods.workspace.playUses"
-                    components={{ name: <bdi>{modPlay.name}</bdi> }}
-                  />
-                </span>
-                {modPlay.pending > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={modPlay.busy || Boolean(busy)}
-                    onClick={() => {
-                      reveal("mods");
-                      requestModReview((request) => request + 1);
-                    }}
-                  >
-                    {tMods("mods.workspace.review")}
-                  </Button>
-                )}
-              </>
+              <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                <Trans
+                  t={tMods}
+                  i18nKey="mods.workspace.playUses"
+                  components={{ name: <bdi>{modPlay.name}</bdi> }}
+                />
+              </span>
             )}
           </div>
         ) : (
@@ -737,6 +749,19 @@ function DetailBody(model: {
             </div>
           )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
+          <PendingChangeReview
+            key={installationScope}
+            settings={settingsDrafts}
+            modPlay={modsAvailable ? modPlay : undefined}
+            busy={Boolean(busy)}
+            reviewMods={() => {
+              reveal("mods", modPlay?.review?.headingId);
+              if (!modPlay?.review?.open) requestModReview((request) => request + 1);
+            }}
+            reviewSettings={({ formId, canReview }) =>
+              reveal("configuration", formId, canReview ? "[data-settings-file-review]" : undefined)
+            }
+          />
         </>
       )}
     >
@@ -747,14 +772,14 @@ function DetailBody(model: {
           ? {
               mods: (
                 <ModSetupsControl
-                  key={modsKey}
+                  key={installationScope}
                   portId={model.port.id}
                   generation={model.libraryGeneration}
                   libraryRoot={model.libraryRoot}
                   busy={Boolean(busy)}
                   openGameFiles={() => reveal("files")}
                   active={currentSection === "mods"}
-                  onPlayState={setModPlay}
+                  onPlayState={reportModPlay}
                   reviewFromPlay={reviewFromPlay}
                   onAppliedFromPlay={() => reveal("overview")}
                 />
@@ -763,12 +788,73 @@ function DetailBody(model: {
           : {}),
         saves: <DetailSavesSection {...{ model, external }} />,
         ...(model.status?.active && !external
-          ? { configuration: <DetailConfigurationSection model={model} /> }
+          ? {
+              configuration: <DetailConfigurationSection model={model} reportDraft={reportDraft} />,
+            }
           : {}),
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
     </DetailLayout>
+  );
+}
+
+function PendingChangeReview({
+  settings,
+  modPlay,
+  busy,
+  reviewMods,
+  reviewSettings,
+}: {
+  settings: readonly SettingsDraftSummary[];
+  modPlay: ModPlayState | undefined;
+  busy: boolean;
+  reviewMods: () => void;
+  reviewSettings: (draft: SettingsDraftSummary) => void;
+}) {
+  const { t } = useAppTranslation("detail");
+  const disclosure = useRef<HTMLDetailsElement>(null);
+  const count = settings.reduce((sum, file) => sum + file.count, modPlay?.pending ?? 0);
+  if (!count) return null;
+  const choose = (open: () => void) => {
+    if (disclosure.current) disclosure.current.open = false;
+    open();
+  };
+  return (
+    <details ref={disclosure} className="min-w-0">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer font-semibold">
+        {t("changeReview.open", { count })}
+      </summary>
+      <ul className="m-0 grid list-none gap-1 px-2 pb-2">
+        {!!modPlay?.pending && (
+          <li>
+            <Button
+              type="button"
+              variant="ghost"
+              data-focusable
+              disabled={busy || (modPlay.busy && !modPlay.review?.open)}
+              onClick={() => choose(reviewMods)}
+            >
+              {t("changeReview.mods", { count: modPlay.pending })}
+            </Button>
+          </li>
+        )}
+        {settings.map((draft) => (
+          <li key={draft.formId}>
+            <Button
+              type="button"
+              variant="ghost"
+              data-focusable
+              className="h-auto max-w-full flex-wrap justify-start text-start whitespace-normal"
+              onClick={() => choose(() => reviewSettings(draft))}
+            >
+              {t("changeReview.settings", { count: draft.count })}
+              <bdi className="min-w-0 wrap-anywhere text-pc-muted-foreground">{draft.path}</bdi>
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -4300,7 +4386,13 @@ function DetailSavesSection({
   );
 }
 
-function DetailConfigurationSection({ model }: { model: Parameters<typeof DetailBody>[0] }) {
+function DetailConfigurationSection({
+  model,
+  reportDraft,
+}: {
+  model: Parameters<typeof DetailBody>[0];
+  reportDraft: ReportSettingsDraft;
+}) {
   const active = model.status?.active;
   if (!active) return null;
   return (
@@ -4310,6 +4402,7 @@ function DetailConfigurationSection({ model }: { model: Parameters<typeof Detail
         installId={active.id}
         generation={model.libraryGeneration}
         busy={Boolean(model.busy)}
+        reportDraft={reportDraft}
       />
     </div>
   );

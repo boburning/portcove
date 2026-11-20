@@ -110,6 +110,14 @@
     "toVersion": "Active version",
     "unreadable": "Could not be read"
   },
+  "changeReview": {
+    "mods_one": "Mods · {{count}} change",
+    "mods_other": "Mods · {{count}} changes",
+    "open_one": "Review {{count}} change",
+    "open_other": "Review {{count}} changes",
+    "settings_one": "Game settings · {{count}} change",
+    "settings_other": "Game settings · {{count}} changes"
+  },
   "identity": {
     "label": "Game and port identity",
     "offeredChannel": "Offered update channel",

@@ -34,7 +34,7 @@ import {
   type LocalModSelection,
   type ModDraft,
 } from "../features/mod-setups/mod-draft";
-import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
+import { ModProviderBrowser, providerName, type ModDraftReviewState } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
 import { CreateCleanModSetup } from "./CreateCleanModSetup";
 import { ModSetupRecovery } from "./ModSetupRecovery";
@@ -47,6 +47,7 @@ export type ModPlayState = {
   name: string;
   pending: number;
   busy: boolean;
+  review: ModDraftReviewState | undefined;
 };
 
 type Props = {
@@ -222,6 +223,7 @@ function BoundModSetupsControl({
   } = useModSetupInventory(portId, generation, busy);
   const [browseSelected, selectBrowse] = useState<boolean>();
   const [browserBusy, setBrowserBusy] = useState(false);
+  const [draftReview, setDraftReview] = useState<ModDraftReviewState>();
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
   const [historyEpoch, setHistoryEpoch] = useState(0);
@@ -299,10 +301,20 @@ function BoundModSetupsControl({
             name: appliedName,
             pending: pendingCount,
             busy: browserBusy || working,
+            review: draftReview,
           }
         : undefined,
     );
-  }, [appliedName, pendingCount, browserBusy, working, onPlayState, portId, generation]);
+  }, [
+    appliedName,
+    pendingCount,
+    browserBusy,
+    working,
+    draftReview,
+    onPlayState,
+    portId,
+    generation,
+  ]);
   if (!view && error)
     return (
       <section aria-labelledby={headingId}>
@@ -587,6 +599,7 @@ function BoundModSetupsControl({
               browsing={browsing}
               onBrowse={() => selectBrowse(true)}
               onBusyChange={setBrowserBusy}
+              onReviewChange={setDraftReview}
               draft={draft}
               localFiles={localFiles}
               undoLocal={undoLocal}
