@@ -8,6 +8,7 @@ import {
   driftNotices,
   driftTargetKey,
   inspectionFromResponse,
+  readDriftContinuation,
   scanDriftTargets,
   type DriftTarget,
 } from "./scheduled-package-drift.mts";
@@ -302,6 +303,158 @@ void test("generated comparisons retain priority in the existing shared archive 
   assert.equal(updated.attempted_bytes, updatedLayout.asset.size);
   const report = { format: 1, run: source, ...repeated };
   assert.deepEqual(driftNotices(report, layoutListings, source), []);
+});
+
+void test("both drift queues continue after inspector bytes change", async () => {
+  const [generated, layout] = collectWithLayout();
+  assert.ok(generated && layout);
+  const mib = 1024 * 1024;
+  const make = (base: DriftTarget, portId: string, size: number) => ({
+    ...base,
+    portId,
+    asset: { ...base.asset, size: size * mib },
+  });
+  const targets = [
+    ...["f", "e", "d", "c"].map((id) => make(layout, id, 256)),
+    ...["z", "y", "x"].map((id) => make(generated, id, 768)),
+  ];
+  const dependencies = {
+    now: () => now,
+    download: async () => {},
+    inspect: async (_archive: string, target: DriftTarget) =>
+      inspectionFromResponse(
+        coreResponse(target, target.baselineSource ? comparedLayout : { status: "compatible" }),
+        target,
+      ),
+  };
+  const ids = (result: Awaited<ReturnType<typeof scanDriftTargets>>) =>
+    result.observations.map(({ target }) => target.portId);
+  const first = await scanDriftTargets(targets, new Map(), now + 1, dependencies);
+  assert.deepEqual(ids(first), ["x", "y", "c", "d"]);
+  assert.equal(first.attempted_bytes, 2 * 1024 * mib);
+  const previous = {
+    format: 1,
+    inspector_sha256: "a".repeat(64),
+    observations: first.observations,
+    continuation: first.continuation,
+  };
+  assert.deepEqual(readDriftContinuation(previous), {
+    generated: "z/windows-x86-64/stable",
+    reviewed_layout: "e/windows-x86-64/stable",
+  });
+  assert.equal(completedInspections(previous, previous.inspector_sha256).size, 4);
+  const secondCache = completedInspections(previous, "b".repeat(64));
+  assert.equal(secondCache.size, 0);
+  const second = await scanDriftTargets(
+    targets.toReversed(),
+    secondCache,
+    now + 1,
+    dependencies,
+    readDriftContinuation(previous),
+  );
+  assert.deepEqual(ids(second), ["z", "x", "e", "f"]);
+  assert.equal(second.attempted_bytes, first.attempted_bytes);
+  assert.equal(new Set([...ids(first), ...ids(second)]).size, targets.length);
+});
+
+void test("drift continuation survives missing routes and leaves failed archives retryable", async () => {
+  const [generated] = collect([observation()]);
+  assert.ok(generated);
+  const targets = ["a", "c", "e", "z"].map((portId) => ({ ...generated, portId }));
+  targets[3]!.asset = { ...generated.asset, size: 1024 * 1024 * 1024 };
+  let clock = now;
+  let attempted: string[] = [];
+  const dependencies = {
+    now: () => clock,
+    download: async () => {},
+    inspect: async (_archive: string, target: DriftTarget) => {
+      attempted.push(target.portId);
+      if (target.portId === "c") {
+        clock = now + 1;
+        throw new Error("transient Core failure");
+      }
+      return inspectionFromResponse(coreResponse(target, { status: "compatible" }), target);
+    },
+  };
+  const previous = {
+    format: 1,
+    continuation: { generated: "b/windows-x86-64/stable", reviewed_layout: "x/invalid/stable" },
+  };
+  assert.deepEqual(readDriftContinuation(previous), { generated: "b/windows-x86-64/stable" });
+  assert.deepEqual(readDriftContinuation({ format: 1, observations: [] }), {});
+  const first = await scanDriftTargets(
+    targets,
+    new Map(),
+    now + 1,
+    dependencies,
+    readDriftContinuation(previous),
+  );
+  assert.deepEqual(attempted, ["c"]);
+  assert.deepEqual(
+    first.unassessed.map(({ target, reason }) => [target.portId, reason]),
+    [
+      ["c", "core-inspection-failed"],
+      ["e", "inspection-budget"],
+      ["z", "inspection-budget"],
+      ["a", "inspection-budget"],
+    ],
+  );
+  assert.deepEqual(first.continuation, { generated: "e/windows-x86-64/stable" });
+  clock = now;
+  attempted = [];
+  const second = await scanDriftTargets(
+    targets,
+    new Map(),
+    now + 1,
+    dependencies,
+    first.continuation,
+  );
+  assert.deepEqual(attempted, ["e", "a", "c"]);
+  assert.deepEqual(second.continuation, {});
+});
+
+void test("an unfit leading layout advances to another within-limit route", async () => {
+  const [generated, layout] = collectWithLayout();
+  assert.ok(generated && layout);
+  const mib = 1024 * 1024;
+  const targets = [
+    ...["y", "z"].map((portId) => ({
+      ...generated,
+      portId,
+      asset: { ...generated.asset, size: 768 * mib },
+    })),
+    ...(
+      [
+        ["a", 700],
+        ["b", 1024],
+        ["c", 100],
+      ] as const
+    ).map(([portId, size]) => ({
+      ...layout,
+      portId,
+      asset: { ...layout.asset, size: size * mib },
+    })),
+  ];
+  const result = await scanDriftTargets(
+    targets,
+    new Map(),
+    now + 1,
+    {
+      now: () => now,
+      download: async () => {},
+      inspect: async (_archive, target) =>
+        inspectionFromResponse(
+          coreResponse(target, target.baselineSource ? comparedLayout : { status: "compatible" }),
+          target,
+        ),
+    },
+    { reviewed_layout: "z/windows-x86-64/stable" },
+  );
+  assert.deepEqual(
+    result.observations.map(({ target }) => target.portId),
+    ["y", "z", "c"],
+  );
+  assert.deepEqual(result.continuation, { reviewed_layout: "c/windows-x86-64/stable" });
 });
 
 void test("inspects issue-free routes and preserves comparison identity when issue links change", async () => {
