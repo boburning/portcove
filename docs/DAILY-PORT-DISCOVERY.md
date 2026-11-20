@@ -451,6 +451,10 @@ The fixed source scope is:
 | Primary/community leads | Resource-admitted bounded search pages across upstream announcements/docs, native-port/decomp/recomp and relevant game communities, including attributable developer posts. Verify worthwhile leads against primary upstreams; no expansion to whole new registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Curated community lists | Lead hints only: the Decomp Buddy finds feed, portsdr.com and the Alexbeav PS1 catalog, read at most weekly as repository URLs plus inert titles. Bounded primary metadata reads turn uncovered GitHub hints into ordinary leads; see [curated list leads](#curated-list-leads).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
+Quiver manual listings may carry an external HTTPS source URL. The collector
+retains that URL as provenance and fetches only the two Quiver feeds. Each feed
+still requires terminal pagination and the same complete set of app IDs.
+
 PCGamingWiki is a manual lead source. The collector retains an accessible page
 as a partial observation and emits no automated row coverage. The reviewer
 records the wiki revision and relevant changed rows, then verifies candidate
