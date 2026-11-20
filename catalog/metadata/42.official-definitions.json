@@ -1,0 +1,70 @@
+{
+  "signatures": [
+    {
+      "keyid": "25328e801f6eb90c1dd78b646a60978c3f8bc25da0509fd0c970f8c6b82cc059",
+      "sig": "5220cd7977d5e3204f232def0c3abf67cca582c289ea2ad62e503fe2584c619425b6cfb3160f7a5b9a3b735d2f0966a5b0569746e91dbbdc115809afcebb2b0a"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "expires": "2026-11-27T19:09:24.304Z",
+    "spec_version": "1.0.0",
+    "targets": {
+      "definitions/index.json": {
+        "hashes": {
+          "sha256": "3d86310cfab295a7b07551a76539d090596cf0e1f1b622551f335cec3fe0e49d"
+        },
+        "length": 2695
+      },
+      "sha256/2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96.json": {
+        "hashes": {
+          "sha256": "2ad7cbb5d0cde913e7da49d8b53038da402f9e772e3367d89e681d9b11367b96"
+        },
+        "length": 9438
+      },
+      "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json": {
+        "hashes": {
+          "sha256": "2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e"
+        },
+        "length": 3565
+      },
+      "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json": {
+        "hashes": {
+          "sha256": "6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e"
+        },
+        "length": 6123
+      },
+      "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json": {
+        "hashes": {
+          "sha256": "666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570"
+        },
+        "length": 3615
+      },
+      "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json": {
+        "hashes": {
+          "sha256": "7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4"
+        },
+        "length": 11857
+      },
+      "sha256/94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453.json": {
+        "hashes": {
+          "sha256": "94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453"
+        },
+        "length": 12149
+      },
+      "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json": {
+        "hashes": {
+          "sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28"
+        },
+        "length": 11074
+      },
+      "sha256/f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0.json": {
+        "hashes": {
+          "sha256": "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0"
+        },
+        "length": 11363
+      }
+    },
+    "version": 42
+  }
+}
