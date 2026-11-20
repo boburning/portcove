@@ -656,6 +656,13 @@ void test("workflow step log delivery holds its route, omits blob credentials an
     /byte limit/,
   );
   assert.equal(bytes, 22);
+  const budget = new Error("fixture source byte budget");
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(endpoint, options, () => {
+      throw budget;
+    }),
+    (error) => error === budget,
+  );
   await assert.rejects(
     downloadGitHubWorkflowStepLog(endpoint.replace("/steps/2", ""), options, count),
     /Bounded GitHub/,

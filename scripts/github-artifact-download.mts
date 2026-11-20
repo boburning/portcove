@@ -140,6 +140,7 @@ async function transferSignedDelivery(
   const timeout = AbortSignal.timeout(remaining);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let bytes = 0;
+  let chargeFailed = false;
   try {
     const response = await fetcher(delivery, {
       method: "GET",
@@ -172,7 +173,12 @@ async function transferSignedDelivery(
             "GitHub artifact body contains invalid bytes",
           );
         bytes += payload.byteLength;
-        charge?.(payload.byteLength);
+        try {
+          charge?.(payload.byteLength);
+        } catch (error) {
+          chargeFailed = true;
+          throw error;
+        }
         if (bytes > maxBytes)
           throw new GitHubApiError("response_limit", "GitHub artifact exceeds its byte limit");
         await receive(payload);
@@ -185,7 +191,7 @@ async function transferSignedDelivery(
     if (performance.now() >= deadline)
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
   } catch (error) {
-    if (error instanceof GitHubApiError) throw error;
+    if (chargeFailed || error instanceof GitHubApiError) throw error;
     if (timeout.aborted)
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
     if (signal.aborted) throw new GitHubApiError("cancelled", "GitHub artifact delivery cancelled");

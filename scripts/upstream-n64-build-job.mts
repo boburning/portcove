@@ -48,12 +48,14 @@ const positive = (value: unknown): value is number =>
 const digest = (value: unknown): value is string => typeof value === "string" && sha256.test(value);
 
 function recordedLines(bytes: Uint8Array) {
-  if (bytes.byteLength < 1 || bytes.byteLength > 512 * 1024)
-    throw new Error("Upstream job log exceeds the supported evidence envelope");
-  return new TextDecoder("utf-8", { fatal: true })
-    .decode(bytes)
-    .split(/\r?\n/u)
-    .flatMap((line) => timestampLine.exec(line)?.[1] ?? []);
+  if (bytes.byteLength < 1 || bytes.byteLength > 512 * 1024) return [];
+  let text: string;
+  try {
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return [];
+  }
+  return text.split(/\r?\n/u).flatMap((line) => timestampLine.exec(line)?.[1] ?? []);
 }
 
 export function matchesN64BuildCheckout(bytes: Uint8Array, target: N64BuildJobTarget) {
@@ -190,12 +192,11 @@ function matchingBuildSteps(
     value.total_count !== value.jobs.length ||
     value.jobs.length > 100
   )
-    throw new Error("Exact upstream attempt job inventory is unavailable");
+    return [];
   const candidates: { job: number; checkout: number; upload: number }[] = [];
   const ids = new Set<number>();
   for (const job of value.jobs as unknown[]) {
-    if (!isRecord(job) || !positive(job.id) || ids.has(job.id))
-      throw new Error("Exact upstream attempt job inventory has invalid IDs");
+    if (!isRecord(job) || !positive(job.id) || ids.has(job.id)) return [];
     ids.add(job.id);
     if (
       job.run_id !== runId ||
@@ -276,7 +277,15 @@ export async function advanceN64BuildJobObservation(
     try {
       return await readOne();
     } catch (error) {
-      if (error instanceof GitHubApiError && (error.status === 404 || error.status === 410))
+      if (
+        error instanceof GitHubApiError &&
+        error.code !== "rate_limited" &&
+        (error.code === "response_limit" ||
+          error.code === "redirect_refused" ||
+          error.status === 403 ||
+          error.status === 404 ||
+          error.status === 410)
+      )
         return null;
       throw error;
     }
@@ -301,10 +310,9 @@ export async function advanceN64BuildJobObservation(
       metadata.workflow_run.head_sha !== target.source_commit ||
       typeof metadata.created_at !== "string"
     )
-      throw new Error("Exact retained Actions artifact metadata is unavailable");
+      return next;
     created = Date.parse(metadata.created_at);
-    if (!Number.isFinite(created))
-      throw new Error("Exact Actions artifact creation clock is unavailable");
+    if (!Number.isFinite(created)) return next;
   }
   const run = repository + "/actions/runs/" + output.run_id;
   const jobs = await lookup(() => read(run + "/attempts/1/jobs?per_page=100"));

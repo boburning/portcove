@@ -2855,4 +2855,34 @@ void test("N64 job evidence joins successful checkout and upload steps without p
     undefined,
   );
   assert.ok(!JSON.stringify(kept).includes("successfully finalized"));
+  assert.equal(matchesN64BuildUpload(new Uint8Array([0xff]), output), false);
+
+  const twoOutputsAtTheSameClock = {
+    ...observed,
+    outputs: [{ ...output, sha256: windows, artifact_id: 8 }, output],
+  };
+  const rateLimited = new GitHubApiError("rate_limited", "fixture deferral", { status: 403 });
+  await assert.rejects(
+    advanceN64BuildJobObservation(twoOutputsAtTheSameClock, undefined, read, async () => {
+      throw rateLimited;
+    }),
+    (error) => error === rateLimited,
+  );
+  const oversized = await advanceN64BuildJobObservation(
+    twoOutputsAtTheSameClock,
+    undefined,
+    read,
+    async () => {
+      throw new GitHubApiError("response_limit", "fixture oversize");
+    },
+  );
+  assert.deepEqual(oversized.matches, []);
+  assert.equal(oversized.last_artifact, 8);
+  const subsequent = await advanceN64BuildJobObservation(
+    twoOutputsAtTheSameClock,
+    oversized,
+    read,
+    readLog,
+  );
+  assert.equal(subsequent.matches[0]?.artifact_id, 9);
 });
