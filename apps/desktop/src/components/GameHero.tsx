@@ -10,6 +10,7 @@ import {
 import {
   useArtworkVisibility,
   useGameHeroArtwork,
+  usesAutomaticArtwork,
   useCollectionCovers,
   useCoverCollection,
 } from "../artwork";
@@ -322,7 +323,7 @@ function HeroCredits({
   const collection = useCoverCollection(port.id);
   const collectionVisible =
     collectionActive &&
-    Boolean(collection?.length && cover.state && !cover.state.choice.asset_sha256 && !cover.stale);
+    Boolean(collection?.length && usesAutomaticArtwork(cover.state) && !cover.stale);
   const foregroundMedia = foregroundVisible ? foreground.candidate : undefined;
   const logoState =
     foreground.localLogo && foregroundVisible ? foreground.display.state : undefined;

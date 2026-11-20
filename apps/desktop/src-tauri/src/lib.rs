@@ -3183,6 +3183,7 @@ pub fn run() -> std::process::ExitCode {
             artwork::preview_local_background,
             artwork::set_background_artwork_framing,
             artwork::reset_artwork,
+            artwork::suppress_artwork,
             steamgriddb::get_steamgriddb_key_status,
             steamgriddb::set_steamgriddb_key,
             steamgriddb::clear_steamgriddb_key,

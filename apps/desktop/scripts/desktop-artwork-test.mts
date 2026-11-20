@@ -483,9 +483,21 @@ export async function artworkScenario({
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
       await activateSlot("cover");
-      await click(control("cover", "Reset to default"));
-      await browser.wait(async () => (await state("cover")).choice.asset_sha256 === null, 10_000);
+      await click(control("cover", "Hide artwork"));
+      await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
+      const hidden = await state("cover");
+      assert.equal(hidden.choice.asset_sha256, null);
+      assert.equal(hidden.resolved_source.kind, "generated_fallback");
+      await expectHeroText();
+      assert.equal((await state("detail")).choice.asset_sha256, digest);
+      await click(control("cover", "Use automatic"));
+      await browser.wait(
+        async () => (await state("cover")).choice.revision > hidden.choice.revision,
+        10_000,
+      );
       const reset = await state("cover");
+      assert.equal(reset.choice.asset_sha256, null);
+      assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
       await expectHeroText();

@@ -15,6 +15,7 @@ import {
   useArtworkVisibility,
   useCollectionCovers,
   useCoverCollection,
+  usesAutomaticArtwork,
 } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
 import { desktopApi } from "../api";
@@ -341,6 +342,7 @@ function ArtworkSlotControl({
   const busy = useRef(false);
   const pickerButton = useRef<HTMLButtonElement>(null);
   const resetButton = useRef<HTMLButtonElement>(null);
+  const hideButton = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<{
     target: HTMLButtonElement | null;
     cache: typeof cache;
@@ -423,19 +425,24 @@ function ArtworkSlotControl({
     });
   };
 
-  const finishChange = (pick: boolean, restoreFocus = true) => {
+  const finishChange = (target: HTMLButtonElement | null, restoreFocus = true) => {
     busy.current = false;
     if (!mounted.current) return;
-    if (restoreFocus && stillCurrent())
-      returnFocus.current = { target: (pick ? pickerButton : resetButton).current, cache };
+    if (restoreFocus && stillCurrent()) returnFocus.current = { target, cache };
     setPending(false);
   };
 
-  const change = async (pick: boolean) => {
+  const change = async (action: "pick" | "automatic" | "hide") => {
+    const pick = action === "pick";
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
     let changeRequested = false;
     let staged = false;
+    let focusTarget = pick
+      ? pickerButton.current
+      : action === "hide"
+        ? hideButton.current
+        : resetButton.current;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -452,15 +459,22 @@ function ArtworkSlotControl({
         return;
       }
       changeRequested = true;
-      const result = await cache.change(port.id, slot, revision, path, stillCurrent);
+      const result =
+        action === "hide"
+          ? await cache.suppress(port.id, slot, revision, stillCurrent)
+          : await cache.change(port.id, slot, revision, path, stillCurrent);
       if (result && stillInView()) {
         if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
         if (!stillInView()) return;
-        setMessage(
-          pick
-            ? "Local image selected."
-            : "Default artwork restored. The imported image remains in your library.",
-        );
+        if (action === "hide") {
+          focusTarget = resetButton.current;
+          setMessage("Artwork hidden for this port.");
+        } else if (action === "automatic") {
+          focusTarget = hideButton.current;
+          setMessage("Automatic artwork restored.");
+        } else {
+          setMessage("Local image selected.");
+        }
       }
     } catch (value) {
       if (stillInView() && (changeRequested || stillCurrent())) {
@@ -468,7 +482,7 @@ function ArtworkSlotControl({
         await refreshCurrent();
       }
     } finally {
-      finishChange(pick, !staged);
+      finishChange(focusTarget, !staged);
     }
   };
 
@@ -518,7 +532,7 @@ function ArtworkSlotControl({
         await refreshCurrent();
       }
     } finally {
-      finishChange(true, !staged);
+      finishChange(pickerButton.current, !staged);
     }
   };
 
@@ -584,6 +598,8 @@ function ArtworkSlotControl({
 
   const { label, description } = slotCopy[slot];
   const selection = display.state?.selection;
+  const hidden = display.state?.choice.suppressed === true;
+  const canChange = !pending && !draft && Boolean(display.state) && !display.stale;
   const notWide =
     (slot === "detail" || slot === "landscape") &&
     selection != null &&
@@ -597,6 +613,11 @@ function ArtworkSlotControl({
     >
       <h3 className="m-0">{label}</h3>
       <p>{description}</p>
+      {hidden && (
+        <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
+          Hidden for this port. Use automatic to show the default again.
+        </p>
+      )}
       {slot === "logo" && display.image && (
         <div className="bg-pc-subtle my-4 grid min-h-20 place-items-center rounded-pc-sm p-3">
           <img
@@ -619,8 +640,8 @@ function ArtworkSlotControl({
           ref={pickerButton}
           data-focusable
           variant="outline"
-          disabled={pending || Boolean(draft) || !display.state || display.stale}
-          onClick={() => void change(true)}
+          disabled={!canChange}
+          onClick={() => void change("pick")}
         >
           Choose local image
         </Button>
@@ -628,10 +649,19 @@ function ArtworkSlotControl({
           ref={resetButton}
           data-focusable
           variant="outline"
-          disabled={pending || Boolean(draft) || !display.state?.selection || display.stale}
-          onClick={() => void change(false)}
+          disabled={!canChange || usesAutomaticArtwork(display.state)}
+          onClick={() => void change("automatic")}
         >
-          Reset to default
+          Use automatic
+        </Button>
+        <Button
+          ref={hideButton}
+          data-focusable
+          variant="outline"
+          disabled={!canChange || hidden}
+          onClick={() => void change("hide")}
+        >
+          Hide artwork
         </Button>
         <Button
           ref={findButton}
@@ -778,7 +808,8 @@ export function ArtworkSource({
     | undefined;
   collectionCovers?: readonly IgdbArtwork[] | undefined;
 }) {
-  if (collectionCovers?.length && state && !state.choice.asset_sha256) {
+  if (state?.choice.suppressed) return <p>Artwork is hidden for this port.</p>;
+  if (collectionCovers?.length && usesAutomaticArtwork(state)) {
     return (
       <dl>
         <dt>Source</dt>

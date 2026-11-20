@@ -551,10 +551,66 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
   expect(catalog).not.toHaveBeenCalled();
   await page.getByText("Change artwork", { exact: true }).click();
   await page.getByRole("tab", { name: "Logo", exact: true }).click();
-  await page.getByRole("button", { name: "Reset to default", exact: true }).click();
+  await page.getByRole("button", { name: "Use automatic", exact: true }).click();
   expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 5, 7);
   await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
   expect(catalog).toHaveBeenCalledExactlyOnceWith(port.id, logo.id, logo.sha256, 7);
+});
+
+it("hides a cached catalog logo without hiding the background and restores it on request", async () => {
+  const { port, logo, logoBytes } = controlledHeroMedia();
+  let preference = artworkState(port.id, "logo");
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    slot === "logo" ? preference : artworkState(id, slot, 1, slot === "detail"),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (id, slot, revision) => ({
+    asset_sha256: artworkState(id, slot, revision, true).choice.asset_sha256!,
+    choice_revision: revision,
+    png_base64: png,
+  }));
+  vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async () => ({
+    asset_sha256: logo.sha256,
+    choice_revision: 0,
+    png_base64: logoBytes,
+  }));
+  const hide = vi.spyOn(desktopApi, "suppressArtwork").mockImplementation(async (id, slot) => {
+    preference = artworkState(id, slot, 1);
+    preference.choice.suppressed = true;
+    return preference;
+  });
+  const restore = vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async (id, slot) => {
+    preference = artworkState(id, slot, 2);
+    return preference;
+  });
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant="detail">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
+    </ArtworkProvider>,
+  );
+  const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
+  const background = () =>
+    document.querySelector<HTMLImageElement>(".game-hero-background img")?.src;
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  await expect.poll(background).toBe(`data:image/png;base64,${png}`);
+  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  const hideControl = page.getByRole("button", { name: "Hide artwork", exact: true });
+  const automatic = page.getByRole("button", { name: "Use automatic", exact: true });
+  await expect.element(automatic).toBeDisabled();
+  await hideControl.click();
+  expect(hide).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 0, 7);
+  await expect.poll(foreground).toBeUndefined();
+  expect(background()).toBe(`data:image/png;base64,${png}`);
+  expect(document.querySelector(".game-hero-credits .media-credit")).toBeNull();
+  await expect.element(automatic).toHaveFocus();
+  await userEvent.keyboard("{Enter}");
+  expect(restore).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  await expect.element(hideControl).toHaveFocus();
 });
 
 function controlledHeroMedia(compactLogo = false) {

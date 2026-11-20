@@ -60,7 +60,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   await userEvent.click(page.getByText("Change artwork", { exact: true }));
   const cover = page.getByRole("region", { name: "Cover image", exact: true });
   const detail = page.getByRole("region", { name: "Background", exact: true });
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeEnabled();
   const src = host.querySelector<HTMLImageElement>("img")!.src;
   const calls = vi.mocked(desktopApi.artwork).mock.calls;
   const reads = calls.length;
@@ -76,13 +76,13 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   expect(host.querySelector<HTMLImageElement>("img")?.src).toBe(src);
   expect(host.querySelector<HTMLImageElement>("img")?.naturalWidth).toBe(1);
   await expect.element(cover.getByRole("button", { name: "Choose local image" })).toBeDisabled();
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeDisabled();
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeDisabled();
   await userEvent.click(page.getByRole("tab", { name: "Background", exact: true }));
   await expect.element(detail.getByRole("button", { name: "Choose local image" })).toBeEnabled();
   await userEvent.click(page.getByRole("tab", { name: "Cover image", exact: true }));
   await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");
   await userEvent.click(cover.getByRole("button", { name: "Refresh artwork" }));
-  await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
+  await expect.element(cover.getByRole("button", { name: "Use automatic" })).toBeEnabled();
   await expect.element(cover.getByRole("alert")).not.toBeInTheDocument();
   expect(host.textContent).not.toContain("Showing previously loaded artwork.");
   expect(calls.slice(reads).map(([, slot]) => slot)).toEqual(["cover", "detail", "cover"]);

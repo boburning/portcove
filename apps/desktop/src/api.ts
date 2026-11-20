@@ -707,6 +707,18 @@ export const desktopApi = {
       path,
       generation,
     }),
+  suppressArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("suppress_artwork", {
+      portId,
+      slot,
+      expectedRevision,
+      generation,
+    }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>
     invoke<ArtworkState>("reset_artwork", {
       portId,

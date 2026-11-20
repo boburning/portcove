@@ -311,7 +311,7 @@ describe("local artwork controls", () => {
       "Artwork read unavailable.",
     );
     expect(button("cover", "Choose local image").disabled).toBe(true);
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
     expect(button("cover", "Refresh artwork").disabled).toBe(false);
     await selectSlot("detail");
     expect(button("detail", "Choose local image").disabled).toBe(false);
@@ -321,7 +321,7 @@ describe("local artwork controls", () => {
     expect(container.textContent).not.toContain("Showing previously loaded artwork.");
     expect(container.querySelector('[aria-label="Cover image"] [role="alert"]')).toBeNull();
     expect(button("cover", "Choose local image").disabled).toBe(false);
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(imported).not.toHaveBeenCalled();
     expect(reset).not.toHaveBeenCalled();
   });
@@ -366,7 +366,7 @@ describe("local artwork controls", () => {
       vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       await render("sample", 7, "old-cover");
       await open();
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      await click("cover", kind === "import" ? "Choose local image" : "Use automatic");
       expect(change).toHaveBeenCalledTimes(1);
       await render("sample", 7, "corrected-cover");
       expect(button("cover", "Choose local image").disabled).toBe(true);
@@ -378,10 +378,10 @@ describe("local artwork controls", () => {
       expect(
         container.querySelector(".artwork-image")!.getBoundingClientRect().height,
       ).toBeGreaterThan(0);
-      expect(button("cover", "Reset to default").disabled).toBe(kind === "reset");
+      expect(button("cover", "Use automatic").disabled).toBe(kind === "reset");
       expect(button("cover", "Choose local image").disabled).toBe(false);
       expect(container.textContent).toContain(
-        kind === "import" ? "Local image selected." : "Default artwork restored.",
+        kind === "import" ? "Local image selected." : "Automatic artwork restored.",
       );
       expect(change).toHaveBeenCalledTimes(1);
     },
@@ -431,7 +431,7 @@ describe("local artwork controls", () => {
       container.querySelector(".artwork-image")!.getBoundingClientRect().height,
     ).toBeGreaterThan(0);
     expect(reads).toBe(readsBefore + 2);
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(change).toHaveBeenCalledTimes(1);
   });
 
@@ -456,7 +456,7 @@ describe("local artwork controls", () => {
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("local_import");
     await open();
-    await click("cover", "Reset to default");
+    await click("cover", "Use automatic");
     await render("sample", 7, "corrected-cover");
     state = {
       ...artworkState("sample", "cover", 2),
@@ -479,7 +479,7 @@ describe("local artwork controls", () => {
       .poll(() => container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource)
       .toBe("igdb_cover");
     expect(container.textContent).toContain("image corrected-cover");
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
   });
 
   it.each(["select", "cancel", "reject"] as const)(
@@ -544,18 +544,18 @@ describe("local artwork controls", () => {
       vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
       await render("sample", 7, "old-cover");
       await open();
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      await click("cover", kind === "import" ? "Choose local image" : "Use automatic");
       await render("sample", 7, "corrected-cover");
       state = artworkState("sample", "cover", 5, true);
       await act(async () => reject(new Error("Choice changed; review the current image.")));
       expect(container.textContent).toContain("Choice changed; review the current image.");
       expect(container.textContent).toContain("owned-image.png");
       expect(button("cover", "Choose local image").disabled).toBe(false);
-      expect(button("cover", "Reset to default").disabled).toBe(false);
+      expect(button("cover", "Use automatic").disabled).toBe(false);
       expect(container.textContent).not.toContain("Local image selected.");
       await captureParityState(`artwork-${kind}-rejected-fixture`);
       change.mockResolvedValueOnce(artworkState("sample", "cover", 6, kind === "import"));
-      await click("cover", kind === "import" ? "Choose local image" : "Reset to default");
+      await click("cover", kind === "import" ? "Choose local image" : "Use automatic");
       expect(change).toHaveBeenLastCalledWith(
         "sample",
         "cover",
@@ -622,7 +622,7 @@ describe("local artwork controls", () => {
       expect(
         currentButtons.find((item) => item.textContent === "Choose local image")?.disabled,
       ).toBe(kind === "close" ? undefined : false);
-      expect(currentButtons.find((item) => item.textContent === "Reset to default")?.disabled).toBe(
+      expect(currentButtons.find((item) => item.textContent === "Use automatic")?.disabled).toBe(
         kind === "close" ? undefined : true,
       );
     },
@@ -671,7 +671,7 @@ describe("local artwork controls", () => {
       "https://www.igdb.com/games/ship-of-harkinian",
     );
     expect(container.textContent).toContain("Not provided with this catalog mapping");
-    expect(button("cover", "Reset to default").disabled).toBe(true);
+    expect(button("cover", "Use automatic").disabled).toBe(true);
   });
 
   it.each([640, 900])(
@@ -788,7 +788,7 @@ describe("local artwork controls", () => {
         }),
       );
       await expect.element(review).not.toBeInTheDocument();
-      await click("cover", "Reset to default");
+      await click("cover", "Use automatic");
       expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
       expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
       expect(
@@ -803,10 +803,10 @@ describe("local artwork controls", () => {
       expect(choose).toHaveBeenCalledTimes(3);
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
-      expect(button("detail", "Reset to default").disabled).toBe(false);
+      expect(button("detail", "Use automatic").disabled).toBe(false);
       container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
-      expect(button("cover", "Reset to default").disabled).toBe(true);
-      const resetControls = button("cover", "Reset to default").getBoundingClientRect();
+      expect(button("cover", "Use automatic").disabled).toBe(true);
+      const resetControls = button("cover", "Use automatic").getBoundingClientRect();
       expect(resetControls.top).toBeGreaterThanOrEqual(0);
       expect(resetControls.bottom).toBeLessThanOrEqual(innerHeight);
       await captureParityState("artwork-cover-reset-detail-retained-fixture");
@@ -870,7 +870,7 @@ describe("local artwork controls", () => {
     expect(container.textContent).toContain(
       "Generated fallback; the selected local image is not currently rendered.",
     );
-    expect(button("cover", "Reset to default").disabled).toBe(false);
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(container.querySelector("img")).toBeNull();
     await expect
       .poll(() => container.querySelector(".artwork-image > span")?.textContent)
@@ -926,7 +926,7 @@ describe("local artwork controls", () => {
         "Generated fallback; the selected local image is not currently rendered.",
       );
       expect(container.textContent).toContain("f".repeat(64));
-      expect(button("cover", "Reset to default").disabled).toBe(false);
+      expect(button("cover", "Use automatic").disabled).toBe(false);
       expect(detail.querySelector("img")).toBe(detailImage);
       expect(detailImage.complete && detailImage.naturalWidth > 0).toBe(true);
       expect(detail.dataset.artworkSource).toBe("local_import");
@@ -1567,7 +1567,7 @@ it("shows and resets a local Logo in Continue without changing the cover", async
     "not wider than tall",
   );
 
-  await click("logo", "Reset to default");
+  await click("logo", "Use automatic");
   expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
   await expect
     .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
@@ -1602,7 +1602,7 @@ it("keeps a transparent Logo choice in Manage while Continue uses the cover", as
   await expect
     .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
     .toBe("cover");
-  await expect.element(page.elementLocator(button("logo", "Reset to default"))).toBeEnabled();
+  await expect.element(page.elementLocator(button("logo", "Use automatic"))).toBeEnabled();
 });
 
 it("uses the Logo provider role and restores focus to the saved logo control", async () => {

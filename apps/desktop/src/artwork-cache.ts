@@ -613,6 +613,14 @@ export class ArtworkCache {
       return state;
     });
   }
+  suppress(portId: string, slot: ArtworkSlot, revision: number, stillCurrent: () => boolean) {
+    return this.schedule(undefined, async () => {
+      if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
+      const state = await desktopApi.suppressArtwork(portId, slot, revision, this.generation);
+      await this.display(portId, slot, state, stillCurrent);
+      return state;
+    });
+  }
   setBackgroundFraming(
     portId: string,
     revision: number,
