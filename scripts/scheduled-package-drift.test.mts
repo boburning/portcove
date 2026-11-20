@@ -431,7 +431,8 @@ void test("publishes one scoped notice per issue from current drift evidence onl
       /exact observer package inspection/u,
     );
     const [notice] = driftNotices({ ...report, run: nextRun }, listings, nextRun);
-    assert.ok(notice?.body.includes(`started by ${name}.`));
+    assert.ok(notice);
+    assert.ok(notice.body.includes(`started by ${name}.`));
     assert.equal(notice.identity, notices[0]?.identity);
   }
 });
