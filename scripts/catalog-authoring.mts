@@ -25,6 +25,7 @@ import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mt
 import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
@@ -125,6 +126,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   chocolate_family_windows_persistence_v1?: true;
   /** Shared Windows player data paths for the reviewed Gen2Recomped editions. */
   gen2recomp_windows_persistence_v1?: true;
+  /** Reviewed portable data paths for the two distinct RSDKv4 game routes. */
+  rsdkv4_portable_data_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
   package_observation_v1?: PackagePlayerObservationV1;
@@ -805,6 +808,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   projectCrispyDoomWindowsPersistence(record);
   projectChocolateFamilyWindowsPersistence(record);
   projectGen2RecompWindowsPersistence(record);
+  projectRsdkv4PortableData(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -859,7 +863,9 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
     projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
   );
   const operational = projectExternalRegistration(
-    projectGen2RecompWindowsPersistence(projectOpenMohaaPortable(portable)),
+    projectGen2RecompWindowsPersistence(
+      projectOpenMohaaPortable(projectRsdkv4PortableData(portable)),
+    ),
   ).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);

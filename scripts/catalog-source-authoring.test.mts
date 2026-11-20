@@ -47,6 +47,10 @@ import {
   compactNativeManagedProfile,
   projectNativeManagedProfile,
 } from "./catalog-native-managed-profile.mts";
+import {
+  compactRsdkv4PortableData,
+  projectRsdkv4PortableData,
+} from "./catalog-rsdkv4-portable-data.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
@@ -352,6 +356,37 @@ void test("Gen2Recomped persistence preserves all three exact Windows edition ro
     const wrongEdition = structuredClone(record);
     wrongEdition.integration!.source_profile = "pokemon-red";
     assert.throws(() => checkedAuthoredPort(wrongEdition), /reviewed Windows package and edition/u);
+  }
+});
+
+void test("RSDKv4 portable data preserves both reviewed Sonic definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.rsdkv4_portable_data_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+    "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectRsdkv4PortableData(record);
+    delete explicit.rsdkv4_portable_data_v1;
+    assert.deepEqual(compactRsdkv4PortableData(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = ["Data.rsdk", "other-profile"];
+    assert.equal(compactRsdkv4PortableData(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, rsdkv4_portable_data_v1: true }),
+      /already owns the persistent paths/u,
+    );
+    const otherProject = structuredClone(record);
+    otherProject.listing.project_url = "https://github.com/RSDKModding/RSDKv3-Decompilation";
+    assert.throws(
+      () => checkedAuthoredPort(otherProject),
+      /reviewed Sonic route and package source/u,
+    );
   }
 });
 
