@@ -2,7 +2,7 @@ import { Tabs } from "@base-ui/react/tabs";
 import { Menu } from "@base-ui/react/menu";
 import { ArrowLeft, ArrowRight, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
 import type { TFunction } from "i18next";
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useAppTranslation } from "../localization";
 import {
   detailSections,
@@ -28,6 +28,7 @@ import { ExternalLink } from "./ExternalLink";
 import { FundingLinks } from "./FundingLinks";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { controlFocus } from "./ui/control-style";
 
 function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
@@ -200,7 +201,6 @@ export function DetailLayout({
     ),
   ];
   if (!sourceSystems.length) sourceSystems.push("not-specified");
-  const sectionPickerId = useId();
   const selectSection = (value: unknown) => {
     if (detailSections.includes(value as DetailSection)) {
       setPending(undefined);
@@ -367,19 +367,15 @@ export function DetailLayout({
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
       <Tabs.Root value={selected} onValueChange={selectSection} className="detail-tabs">
         <div className="detail-section-picker">
-          <label htmlFor={sectionPickerId}>{t("section.label")}</label>
-          <select
-            id={sectionPickerId}
-            data-focusable
+          <ChoiceSelect
+            label={t("section.label")}
             value={selected}
-            onChange={(event) => selectSection(event.currentTarget.value)}
-          >
-            {sections.map((section) => (
-              <option key={section} value={section}>
-                {sectionLabel(t, section)}
-              </option>
-            ))}
-          </select>
+            options={sections.map((section) => ({
+              value: section,
+              label: sectionLabel(t, section),
+            }))}
+            onChange={selectSection}
+          />
         </div>
         <Tabs.List
           activateOnFocus={false}

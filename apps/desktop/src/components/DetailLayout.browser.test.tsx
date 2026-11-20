@@ -4,7 +4,7 @@ import { cleanup, render } from "vitest-browser-react";
 import { DetailLayout } from "./DetailLayout";
 import { portDefinition } from "../test-fixtures";
 import type { DetailOpening, DetailSection } from "../features/game-details/detail-sections";
-import { focusableControls } from "../focus";
+import { activateFocusedControl, focusableControls } from "../focus";
 import "../styles/index.css";
 import { act } from "react";
 
@@ -195,9 +195,17 @@ it("keeps every label and control within 320 CSS pixels", async () => {
       })}
     </DetailLayout>,
   );
-  const picker = page.getByRole("combobox", { name: "Game detail sections" });
-  await expect.element(picker).toHaveValue("files");
-  expect([...picker.element().querySelectorAll("option")].map((option) => option.text)).toEqual([
+  const picker = page.getByRole("combobox", { name: /^Game detail sections/ });
+  await expect.element(picker).toHaveAccessibleName("Game detail sections Game files");
+  const rect = picker.element().getBoundingClientRect();
+  expect(rect.left).toBeGreaterThanOrEqual(0);
+  expect(rect.right).toBeLessThanOrEqual(320);
+  expect(rect.height).toBeGreaterThanOrEqual(48);
+  (picker.element() as HTMLElement).focus();
+  await act(async () => activateFocusedControl());
+  const options = page.getByRole("option");
+  await expect.poll(() => options.elements().length).toBe(7);
+  expect(options.elements().map((option) => option.textContent)).toEqual([
     "Overview",
     "Game files",
     "Mods",
@@ -206,15 +214,36 @@ it("keeps every label and control within 320 CSS pixels", async () => {
     "Game settings",
     "Manage",
   ]);
-  const rect = picker.element().getBoundingClientRect();
-  expect(rect.left).toBeGreaterThanOrEqual(0);
-  expect(rect.right).toBeLessThanOrEqual(320);
-  expect(rect.height).toBeGreaterThanOrEqual(48);
-  await picker.selectOptions("mods");
+  const mods = page.getByRole("option", { name: "Mods", exact: true });
+  (mods.element() as HTMLElement).focus();
+  await act(async () => activateFocusedControl());
   await expect.element(page.getByText("Installed mods")).toBeVisible();
-  await picker.selectOptions("configuration");
+  await picker.click();
+  await page.getByRole("option", { name: "Game settings", exact: true }).click();
   await expect.element(page.getByText("Game configuration")).toBeVisible();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+});
+
+it("retains navigation focus and selection through a width change", async () => {
+  await page.viewport(900, 720);
+  await render(<Fixture />);
+  const files = page.getByRole("tab", { name: "Game files", exact: true });
+  await files.click();
+  await expect.element(files).toHaveFocus();
+  const picker = page.getByRole("combobox", { name: /^Game detail sections/ });
+  await page.viewport(320, 720);
+  await expect.element(files).toHaveFocus();
+  await expect.element(picker).not.toBeInTheDocument();
+  const play = page.getByRole("button", { name: "Set up game", exact: true });
+  (play.element() as HTMLButtonElement).focus();
+  await expect.element(picker).toHaveAccessibleName("Game detail sections Game files");
+  await expect.element(files).not.toBeInTheDocument();
+  (picker.element() as HTMLElement).focus();
+  await page.viewport(900, 720);
+  await expect.element(picker).toHaveFocus();
+  (play.element() as HTMLButtonElement).focus();
+  await expect.element(files).toHaveAttribute("aria-selected", "true");
+  await expect.element(picker).not.toBeInTheDocument();
 });
 
 it("reveals real management controls through the header and preserves their mounted draft", async () => {

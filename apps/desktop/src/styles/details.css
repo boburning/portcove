@@ -229,22 +229,28 @@
     display: flex;
   }
   .detail-section-picker {
-    display: none;
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
   }
-  @container detail (width <= 21rem) {
-    .detail-tab-list {
+  .detail-section-picker [data-slot="select-trigger"] {
+    min-inline-size: 0;
+    inline-size: 100%;
+    min-block-size: 3rem;
+    font-size: var(--text-md);
+  }
+  /* A resize switches controls after focus leaves the current navigation. */
+  @container detail (width > 21rem) {
+    .detail-section-picker:not(:focus-within, :has([aria-expanded="true"])),
+    .detail-tabs:has(> .detail-section-picker :is(:focus, [aria-expanded="true"]))
+      > .detail-tab-list {
       display: none;
     }
-    .detail-section-picker {
-      display: grid;
-      gap: var(--space-1);
-      font-size: var(--text-sm);
-    }
-    .detail-section-picker select {
-      min-inline-size: 0;
-      inline-size: 100%;
-      min-block-size: 3rem;
-      font-size: var(--text-md);
+  }
+  @container detail (width <= 21rem) {
+    .detail-tab-list:not(:focus-within),
+    .detail-tabs:has(> .detail-tab-list:focus-within) > .detail-section-picker {
+      display: none;
     }
   }
   .detail-tab {

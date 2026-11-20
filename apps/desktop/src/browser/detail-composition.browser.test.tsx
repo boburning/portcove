@@ -76,6 +76,11 @@ function contained() {
     expect(box.right).toBeLessThanOrEqual(innerWidth);
   }
 }
+async function chooseNarrowSection(label: string) {
+  await page.getByRole("combobox", { name: /^Game detail sections/ }).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
 async function capture(name: string, atTop = true) {
   if (atTop) {
     window.scrollTo(0, 0);
@@ -175,10 +180,19 @@ it.each(["dark", "light"])(
     spacing.textContent =
       "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
     document.head.append(spacing);
-    const sections = page.getByRole("combobox", { name: "Game detail sections" });
-    for (const section of ["overview", "files", "saves", "versions", "manage"]) {
-      await sections.selectOptions(section);
-      await expect.element(sections).toHaveValue(section);
+    for (const section of [
+      "Overview",
+      "Game files",
+      "Saves & backups",
+      "Versions & updates",
+      "Manage",
+    ]) {
+      await chooseNarrowSection(section);
+      await expect
+        .element(
+          page.getByRole("combobox", { name: "Game detail sections " + section, exact: true }),
+        )
+        .toBeVisible();
       contained();
     }
     await capture(`text-spacing-${theme}-320`);
@@ -465,11 +479,10 @@ it("keeps the Saves action in view under the compact header at 390x844", async (
   const overviewHeight = hero.getBoundingClientRect().height;
   const title = page.getByRole("heading", { name: comparisonEntries[0]!.title, exact: true });
   const play = page.getByRole("button", { name: "Play", exact: true }).element();
-  const sections = page.getByRole("combobox", { name: "Game detail sections" });
-  await expect.element(sections).toBeVisible();
-  await expect.element(sections).toHaveValue("overview");
-  await sections.selectOptions("saves");
-  await expect.element(sections).toHaveValue("saves");
+  const sections = page.getByRole("combobox", { name: /^Game detail sections/ });
+  await expect.element(sections).toHaveAccessibleName("Game detail sections Overview");
+  await chooseNarrowSection("Saves & backups");
+  await expect.element(sections).toHaveAccessibleName("Game detail sections Saves & backups");
   await expect.element(page.getByRole("tabpanel", { name: "Saves & backups" })).toBeVisible();
   await expect.element(title).toBeVisible();
   expect(document.querySelector("[data-detail-readiness]")?.textContent?.trim()).toBeTruthy();
@@ -486,7 +499,7 @@ it("keeps the Saves action in view under the compact header at 390x844", async (
   expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
   contained();
   await capture("compact-saves-dark-390", false);
-  await sections.selectOptions("overview");
+  await chooseNarrowSection("Overview");
   await expect
     .poll(
       () => hero.querySelector<HTMLImageElement>(".game-hero-foreground img")?.naturalWidth ?? 0,
@@ -501,7 +514,7 @@ it.each([1440, 320])(
     await mount("light");
     await open();
     if (width === 320) {
-      await page.getByRole("combobox", { name: "Game detail sections" }).selectOptions("saves");
+      await chooseNarrowSection("Saves & backups");
     } else {
       await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
     }

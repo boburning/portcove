@@ -281,6 +281,15 @@ function expectManualSummaryGeometry(label: Element, direction: "ltr" | "rtl") {
   expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
 }
 
+async function chooseDetailSection(label: string, narrow: boolean) {
+  if (narrow) {
+    await page.getByRole("combobox", { name: /^Game detail sections/ }).click();
+    await page.getByRole("option", { name: label, exact: true }).click();
+  } else {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+  }
+}
+
 it.each(
   ([430, 960] as const).flatMap((width) =>
     (["dark", "light"] as const).flatMap((theme) =>
@@ -318,7 +327,7 @@ it.each(
         </div>,
       );
       await document.fonts.ready;
-      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      await chooseDetailSection("Game files", width === 430);
       const requirements = page.getByText("Current game-file requirements", { exact: true });
       await expect.element(requirements).toBeVisible();
       expect(requirements.element().closest("details")).toBeNull();
@@ -329,7 +338,7 @@ it.each(
       expect(requirementsBounds.left).toBeGreaterThanOrEqual(0);
       expect(requirementsBounds.right).toBeLessThanOrEqual(innerWidth);
       if (direction === "ltr") await captureParityState("detail-current-game-file-requirements");
-      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      await chooseDetailSection("Manage", width === 430);
       for (const title of ["Folder for a future install", "Technical details"]) {
         const control = page.getByText(title, { exact: true });
         await expect.element(control).toBeVisible();
@@ -1187,7 +1196,7 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
       <DetailPanel {...props} />
     </div>,
   );
-  await userEvent.click(page.getByRole("tab", { name: "Game files" }));
+  await chooseDetailSection("Game files", true);
   const column = page.getByTestId("narrow-details-column").element();
   await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
