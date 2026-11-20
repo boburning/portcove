@@ -1,4 +1,33 @@
 {
   "schema_version": 1,
-  "release": null
+  "release": {
+    "version": "0.1.0-preview.10",
+    "source": "5ca268bd6eeb19e4ec64a87b2ebd6685527de97a",
+    "release_id": 452429525,
+    "minimum_webview2": "155.0.4283.62",
+    "updater_key_sha256": "02e65e0c41e7a794842d422a10e1b73e9cd43b2155b9d03970cf47e354b5ee5a",
+    "installer": {
+      "id": 771031303,
+      "bytes": 20739063,
+      "sha256": "3e9c885c5c0a9b345774d51e7ffb89ea02d7aa36b77a0790158ddd4c03592af7"
+    },
+    "signature": {
+      "id": 771031354,
+      "bytes": 468,
+      "sha256": "c6aa6c067d666681656bc9002f4e96da7a906107e392fa89a0af8b0611662264"
+    },
+    "cli_archive": {
+      "id": 771031609,
+      "bytes": 20383961,
+      "sha256": "159864defd4b5426456ea9ddbc8d4e23e4e4104656e202838e1560e91435597c"
+    },
+    "desktop_executable": {
+      "bytes": 84178432,
+      "sha256": "441a6cae2af91c5a6dcf4e5b8950ebf728cb082927960e5ad25c0f781fa904c4"
+    },
+    "cli_executable": {
+      "bytes": 63234560,
+      "sha256": "fbb1c62623ed3da3cacfe201a23badc302c18cf9c44b7b241c83b650b5e1b60c"
+    }
+  }
 }
