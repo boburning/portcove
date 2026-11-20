@@ -199,6 +199,10 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(european).toBeEnabled();
     await expect.element(thumbnail).not.toBeInTheDocument();
     expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+    await galleryView.rerender(view(media, port.id, "us"));
+    await expect.element(european).toBeEnabled();
+    await expect.element(thumbnail).not.toBeInTheDocument();
+    await expect.element(picker).toHaveTextContent(euTitle);
 
     await european.click();
     const europeanViewer = page.getByRole("dialog", { name: "European scene" });

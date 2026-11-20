@@ -81,6 +81,17 @@ it("requires a current registered game, port and edition before displaying match
   const context = verifiedHeroMediaContext(bound, source, checked);
   expect(heroMediaCandidates(bound, context).backgrounds).toEqual([image]);
   expect(verifiedHeroMediaContext(bound, source, report)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, source, checked, p.presentation.original_game)).toEqual(
+    {},
+  );
+  const renamedTuple = {
+    ...bound.presentation.original_game,
+    source_editions: bound.presentation.original_game.source_editions.map((edition) => ({
+      ...edition,
+      verified_sources: [{ ...edition.verified_sources[0]!, representation_id: "new-layout" }],
+    })),
+  };
+  expect(verifiedHeroMediaContext(bound, source, checked, renamedTuple)).toEqual({});
   expect(verifiedHeroMediaContext(bound, { ...source, updated_at: 2 }, checked)).toEqual({});
   expect(verifiedHeroMediaContext(bound, source, { ...checked, health: "changed" })).toEqual({});
   for (const wrong of [

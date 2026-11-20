@@ -125,6 +125,7 @@ export function GameHero({
       {!compact && background.display.image && (
         <div className="game-hero-background" aria-hidden="true">
           <img
+            key={background.display.image}
             src={background.display.image}
             alt=""
             decoding="async"

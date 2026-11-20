@@ -2298,14 +2298,13 @@ function SelectedPortPanel({
       source={model.source}
       mediaContext={verifiedHeroMediaContext(
         displayPort,
-        model.source,
+        savedSource,
         inspectionRead?.status === "current" ? inspection : undefined,
+        reviewedGame,
       )}
       sourceInspection={inspection}
       savedSourceCheck={
-        inspectionProfile &&
-        model.source &&
-        canCheckEditionArtwork(displayPort, model.entry?.listing?.original_game)
+        inspectionProfile && savedSource && canCheckEditionArtwork(displayPort, reviewedGame)
           ? {
               status: inspectionRead?.status ?? "idle",
               run: () => sourceHealth.inspectSource(inspectionProfile),

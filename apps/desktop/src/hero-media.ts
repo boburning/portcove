@@ -7,6 +7,15 @@ export interface HeroMediaContext {
   originalEditionId?: string | undefined;
 }
 
+type ReviewedOriginalGame = NonNullable<PortListing["original_game"]>;
+type ReviewedEdition = ReviewedOriginalGame["source_editions"][number];
+
+function verifiedBindings(edition: ReviewedEdition): readonly unknown[] {
+  return "verified_sources" in edition && Array.isArray(edition.verified_sources)
+    ? edition.verified_sources
+    : [];
+}
+
 export function canCheckEditionArtwork(
   port: HeroMediaPort,
   reviewedGame: PortListing["original_game"] = port.presentation?.original_game,
@@ -21,10 +30,7 @@ export function canCheckEditionArtwork(
       subjectMatches(port, { subject }) &&
       editions.some(
         (edition) =>
-          edition.id === subject.source_edition_id &&
-          "verified_sources" in edition &&
-          Array.isArray(edition.verified_sources) &&
-          edition.verified_sources.length > 0,
+          edition.id === subject.source_edition_id && verifiedBindings(edition).length > 0,
       ),
   );
 }
@@ -34,14 +40,22 @@ export function verifiedHeroMediaContext(
   port: HeroMediaPort,
   source: SourceRecord | null | undefined,
   report: SourceInspectionReport | undefined,
+  reviewedGame: PortListing["original_game"] = port.presentation?.original_game,
 ): HeroMediaContext {
   const original = port.presentation?.original_game;
   const registered = report?.registered;
+  const assessment = report?.inspection?.assessment;
+  const classification = assessment?.classification;
   if (
     !original ||
+    reviewedGame?.id !== original.id ||
     !source ||
     !registered ||
     report?.health !== "current" ||
+    assessment?.health !== "current" ||
+    assessment.admission.state !== "admitted" ||
+    assessment.admission.mode !== "exact_identity" ||
+    classification?.state !== "recognized" ||
     report.profile_id !== source.profile_id ||
     registered.profile_id !== source.profile_id ||
     registered.path !== source.path ||
@@ -71,7 +85,25 @@ export function verifiedHeroMediaContext(
       typeof entry.source_edition_id === "string" &&
       original.source_editions.some(({ id }) => id === entry.source_edition_id),
   );
-  return matches.length === 1 ? { originalEditionId: matches[0]!.source_edition_id } : {};
+  if (matches.length !== 1) return {};
+
+  const edition = reviewedGame.source_editions.find(
+    ({ id }) => id === matches[0]!.source_edition_id,
+  );
+  if (!edition) return {};
+  const identity = classification.identity;
+  const stillBound = verifiedBindings(edition).some(
+    (binding) =>
+      typeof binding === "object" &&
+      binding !== null &&
+      "game_id" in binding &&
+      binding.game_id === identity.game_id &&
+      "variant_id" in binding &&
+      binding.variant_id === identity.variant_id &&
+      "representation_id" in binding &&
+      binding.representation_id === identity.representation_id,
+  );
+  return stillBound ? { originalEditionId: edition.id } : {};
 }
 
 function subjectMatches(port: HeroMediaPort, { subject }: Pick<CatalogMediaAsset, "subject">) {
