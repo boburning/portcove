@@ -1913,7 +1913,8 @@ it("explains a required external release mismatch without reporting an uncertain
       .not.toBeInTheDocument();
     await captureParityState("external-runtime-preview-release-mismatch");
     await alert.getByText("View technical details", { exact: true }).click();
-    expect(JSON.parse(alert.element().querySelector("pre")!.textContent!)).toEqual({
+    const diagnostic = fixtureValue(alert.element().querySelector("pre"), "mismatch diagnostic");
+    expect(JSON.parse(diagnostic.textContent)).toEqual({
       code: error.code,
       mutation_state: "unknown",
       phase: null,
