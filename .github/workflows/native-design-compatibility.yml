@@ -12,6 +12,7 @@ on:
             compatibility,
             released-preview7-macos-startup,
             released-preview9-macos-tux-lifecycle,
+            released-preview9-macos-bio-menace-lifecycle,
             presentation,
             product-workflows,
             linux-namespace-preflight,
@@ -125,6 +126,25 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           shasum -a 256 scripts/verify-macos-tux-lifecycle.py
           python3 scripts/verify-macos-tux-lifecycle.py
+
+  released-preview9-macos-bio-menace-lifecycle:
+    if: ${{ inputs.operation == 'released-preview9-macos-bio-menace-lifecycle' && !inputs.edge_driver_proof && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the exact published Preview.9 Bio Menace managed lifecycle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_RUNNER: ${{ inputs.runner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          shasum -a 256 scripts/verify-macos-{tux,bio-menace}-lifecycle.py scripts/verify-macos-owned-app.swift
+          python3 scripts/verify-macos-bio-menace-lifecycle.py
 
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}

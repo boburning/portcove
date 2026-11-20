@@ -159,7 +159,7 @@ def command_json(base, env, command, *args, seconds=30):
     return result["data"]
 
 
-def install_evidence(transcript, exit_status):
+def install_evidence(transcript, exit_status, port=PORT, asset_name=TUX_NAME, asset_size=11843880):
     """Retain only fixed identifiers from Preview.9's result and progress schemas."""
     evidence = {"command": "installation.run", "exit_status": exit_status, "last_progress_phase": None}
     if len(transcript) > 256 * 1024:
@@ -173,19 +173,19 @@ def install_evidence(transcript, exit_status):
     saw_started = False
     for event in events[:-1]:
         if (event.get("schema_version"), event.get("operation"), event.get("target")) != (
-            3, "install", {"kind": "port", "id": PORT},
+            3, "install", {"kind": "port", "id": port},
         ):
             continue
         if event.get("type") == "started":
             saw_started = True
-        if event.get("type") == "message" and event.get("level") == "info" and event.get("message") == f"Download checksum matches: {TUX_NAME}":
+        if event.get("type") == "message" and event.get("level") == "info" and event.get("message") == f"Download checksum matches: {asset_name}":
             evidence["selected_asset_checksum_verified"] = True
         if event.get("type") == "finished" and event.get("result") in ("failed", "cancelled", "succeeded"):
             evidence["operation_result"] = event["result"]
         if event.get("type") == "progress" and event.get("phase_id") == "download":
             evidence["last_progress_phase"] = "download"
             count = event.get("completed")
-            if type(count) is int and 0 <= count <= 11843880:
+            if type(count) is int and 0 <= count <= asset_size:
                 evidence["download_bytes_observed"] = count
     evidence["operation_started"] = saw_started
     result = events[-1]
@@ -213,17 +213,17 @@ def install_evidence(transcript, exit_status):
     return False, evidence
 
 
-def install_reviewed(base, env, plan_sha256):
+def install_reviewed(base, env, plan_sha256, port=PORT, asset_name=TUX_NAME, asset_size=11843880):
     with tempfile.TemporaryFile() as transcript:
         try:
             result = subprocess.run([
-                *base, "--jsonl", "installation", "run", PORT, "--expected-plan", plan_sha256, "--yes",
+                *base, "--jsonl", "installation", "run", port, "--expected-plan", plan_sha256, "--yes",
             ], env=env, stdin=subprocess.DEVNULL, stdout=transcript, stderr=subprocess.DEVNULL, timeout=150)
         except subprocess.TimeoutExpired:
             report("install-failed", {"command": "installation.run", "reason": "command_deadline"})
             raise VerificationError("Reviewed installation exceeded its command deadline") from None
         transcript.seek(0)
-        success, evidence = install_evidence(transcript.read(256 * 1024 + 1), result.returncode)
+        success, evidence = install_evidence(transcript.read(256 * 1024 + 1), result.returncode, port, asset_name, asset_size)
     report("install-result" if success else "install-failed", evidence)
     require(success, "Reviewed installation did not succeed")
 
@@ -280,13 +280,16 @@ def owned_game_identity(pid, supervisor_pid, game, durable_identity):
     return tuple(process[:6])
 
 
-def supervised_play(base, env, active, game, cwd):
+def supervised_play(base, env, active, game, cwd, *, port=PORT, game_args=(), normal_quit=None):
     request = str(uuid.uuid4())
     out = cwd / f"{request}.stdout"
     err = cwd / f"{request}.stderr"
+    launch = [*base, "exec", port, "--request-id", request]
+    if game_args:
+        launch.extend(("--", *game_args))
     with out.open("x") as stdout, err.open("x") as stderr:
         supervisor = subprocess.Popen(
-            [*base, "exec", PORT, "--request-id", request],
+            launch,
             env=env, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
         )
         running = None
@@ -319,7 +322,7 @@ def supervised_play(base, env, active, game, cwd):
                 raise VerificationError("Released client did not record a live managed game")
             require(
                 running["id"] == request and running["owner_kind"] == "managed"
-                and running["port_id"] == PORT and running["install_id"] == active["id"]
+                and running["port_id"] == port and running["install_id"] == active["id"]
                 and running["supervisor_pid"] == supervisor.pid
                 and Path(running["install_root"]).resolve() == Path(active["path"]).resolve(),
                 "Recorded launch differs from the isolated managed selection",
@@ -331,7 +334,11 @@ def supervised_play(base, env, active, game, cwd):
             report("running", public_launch(running))
             time.sleep(4)
             require(owned_before_signal(), "Native process identity changed before the requested stop")
-            supervisor.send_signal(signal.SIGTERM)
+            if normal_quit is None:
+                supervisor.send_signal(signal.SIGTERM)
+                stop = {"controller_signal": "SIGTERM"}
+            else:
+                stop = normal_quit(child, game, owned_before_signal)
             result = supervisor.wait(timeout=20)
             finished = current_launch()
             require(
@@ -340,7 +347,7 @@ def supervised_play(base, env, active, game, cwd):
                 and finished["finished_at"] is not None and finished["outcome"] is not None,
                 "Managed launch lacks a terminal receipt",
             )
-            report("stopped", {"controller_signal": "SIGTERM", "supervisor_exit": result, "request": public_launch(finished)})
+            report("stopped", {**stop, "supervisor_exit": result, "request": public_launch(finished)})
             still_running = subprocess.run(["/bin/ps", "-p", str(child), "-o", "pid="], capture_output=True, timeout=5)
             require(still_running.returncode == 1 and not still_running.stdout.strip(), "Managed child did not positively exit")
             require(result == 0 and finished["outcome"] == "succeeded", "Requested stop did not produce a clean game exit")
@@ -363,14 +370,7 @@ def supervised_play(base, env, active, game, cwd):
                 report(f"game-{label}", {"bytes": file.stat().st_size, "sha256": digest(file)})
 
 
-def main():
-    runner = os.environ.get("MACOS_RUNNER")
-    require(platform.system() == "Darwin" and runner in CLIENTS, "Expected the admitted hosted macOS runner")
-    arch, target, asset_id, archive_size, archive_sha, executable_sha = CLIENTS[runner]
-    require(platform.machine() == arch, "Runner architecture differs from its reviewed asset")
-    platform_id = f"macos-{'x86-64' if arch == 'x86_64' else 'aarch64'}"
-    report("runner", {"runner": runner, "architecture": arch, "macos": output(["sw_vers"]).strip()})
-
+def released_cli(workspace, env, arch, target, asset_id, archive_size, archive_sha, executable_sha):
     archive_name = f"portcove-cli-0.1.0-preview.9-macos-{target}.tar.gz"
     client_release = api(f"boburning/portcove/releases/tags/{CLIENT_TAG}")
     require(
@@ -379,6 +379,37 @@ def main():
         "Frozen Portcove publication differs",
     )
     report("client-release", {"source": CLIENT_SOURCE, **verify_asset(client_release, asset_id, archive_name, archive_size, archive_sha)})
+    archive = workspace / archive_name
+    url = f"https://github.com/boburning/portcove/releases/download/{CLIENT_TAG}/{archive_name}"
+    output(["curl", "-fsSL", "--proto", "=https", "--proto-redir", "=https", "--max-time", "90",
+            "--max-filesize", str(archive_size), "--output", str(archive), url], seconds=95)
+    require(archive.stat().st_size == archive_size and digest(archive) == archive_sha, "Mac CLI archive digest differs")
+    cli = workspace / "portcove"
+    with tarfile.open(archive, "r:gz") as payload:
+        members = payload.getmembers()
+        require(len(members) == 1 and members[0].name == "portcove" and members[0].isfile()
+                and 0 < members[0].size <= 120 * 1024 ** 2, "Unexpected Mac CLI archive members")
+        with payload.extractfile(members[0]) as binary, cli.open("xb") as target_file:
+            shutil.copyfileobj(binary, target_file)
+    require(digest(cli) == executable_sha, "Extracted Mac CLI bytes differ")
+    cli.chmod(0o700)
+    architectures = verify_macho_executable(cli, [arch], "Published Portcove CLI")
+    report("client-executable", {"architectures": architectures, "sha256": executable_sha})
+    base = [str(cli), "--library", str(workspace / "library"), "--non-interactive"]
+    read = lambda command, *args, **kwargs: command_json(base, env, command, *args, **kwargs)
+    require(read("about", "about")["version"] == "0.1.0-preview.9", "Released CLI About version differs")
+    report("client-about", {"sha256": executable_sha, "version": "0.1.0-preview.9"})
+    return base
+
+
+def main():
+    runner = os.environ.get("MACOS_RUNNER")
+    require(platform.system() == "Darwin" and runner in CLIENTS, "Expected the admitted hosted macOS runner")
+    arch, target, asset_id, archive_size, archive_sha, executable_sha = CLIENTS[runner]
+    require(platform.machine() == arch, "Runner architecture differs from its reviewed asset")
+    platform_id = f"macos-{'x86-64' if arch == 'x86_64' else 'aarch64'}"
+    report("runner", {"runner": runner, "architecture": arch, "macos": output(["sw_vers"]).strip()})
+
     tux = api("labbej27/tuxracer/releases/latest")
     require(
         tux["id"] == 441626947 and tux["tag_name"] == TUX_TAG and not tux["draft"] and not tux["prerelease"]
@@ -397,26 +428,8 @@ def main():
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "en_US.UTF-8", "HOME": str(home),
         "TMPDIR": str(workspace), "PORTCOVE_PREFERENCES": str(preferences),
     }
-    archive = workspace / archive_name
-    url = f"https://github.com/boburning/portcove/releases/download/{CLIENT_TAG}/{archive_name}"
-    output(["curl", "-fsSL", "--proto", "=https", "--proto-redir", "=https", "--max-time", "90",
-            "--max-filesize", str(archive_size), "--output", str(archive), url], seconds=95)
-    require(archive.stat().st_size == archive_size and digest(archive) == archive_sha, "Mac CLI archive digest differs")
-    cli = workspace / "portcove"
-    with tarfile.open(archive, "r:gz") as payload:
-        members = payload.getmembers()
-        require(len(members) == 1 and members[0].name == "portcove" and members[0].isfile()
-                and 0 < members[0].size <= 120 * 1024 ** 2, "Unexpected Mac CLI archive members")
-        with payload.extractfile(members[0]) as binary, cli.open("xb") as target_file:
-            shutil.copyfileobj(binary, target_file)
-    require(digest(cli) == executable_sha, "Extracted Mac CLI bytes differ")
-    cli.chmod(0o700)
-    architectures = verify_macho_executable(cli, [arch], "Published Portcove CLI")
-    report("client-executable", {"architectures": architectures, "sha256": executable_sha})
-    base = [str(cli), "--library", str(library), "--non-interactive"]
+    base = released_cli(workspace, env, arch, target, asset_id, archive_size, archive_sha, executable_sha)
     read = lambda command, *args, **kwargs: command_json(base, env, command, *args, **kwargs)
-    require(read("about", "about")["version"] == "0.1.0-preview.9", "Released CLI About version differs")
-    report("client-about", {"sha256": executable_sha, "version": "0.1.0-preview.9"})
     require(read("status", "status", PORT)["active"] is None, "Isolated scope already contains an installation")
     proposal = read("installation.plan", "installation", "plan", PORT)
     reviewed = proposal["plan"]
