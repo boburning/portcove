@@ -20,7 +20,7 @@ import type {
 } from "../types";
 import { ArtworkControls, ArtworkImage, listingEvidenceText } from "./Artwork";
 import { ListingDetailPanel } from "./ListingDetailPanel";
-import { GameHero } from "./GameHero";
+import { GameHero, GameHeroFramingPreview } from "./GameHero";
 import { SteamGridDbPicker } from "./SteamGridDbPicker";
 
 // Valid 1×1 PNG also used by artwork-refresh.browser.test.tsx. Decode failures
@@ -63,7 +63,12 @@ async function render(portId = "sample", generation = 7, imageId = "") {
       <div style={{ display: "grid", width: 192, height: 256 }}>
         <ArtworkImage port={port} />
       </div>
-      <ArtworkControls key={`${portId}:${generation}`} port={port} />
+      <ArtworkControls
+        key={`${portId}:${generation}`}
+        port={port}
+        Preview={GameHeroFramingPreview}
+        previewActions={{ wide: "Play", narrow: "Continue playing" }}
+      />
     </ArtworkProvider>,
   );
 }
@@ -737,12 +742,30 @@ describe("local artwork controls", () => {
       await expect
         .element(review.getByRole("heading", { name: "Review Background" }))
         .toHaveFocus();
+      const previews = container.querySelectorAll<HTMLElement>(".game-hero-framing-preview");
+      expect([...previews].map((preview) => preview.inert)).toEqual([true, true]);
+      expect(previews[0]?.querySelector(".game-hero-detail .detail-title")?.textContent).toContain(
+        "unusually long",
+      );
+      expect(previews[1]?.querySelector(".game-hero-continue .continue-actions")?.textContent).toBe(
+        "Continue playing",
+      );
+      await expect
+        .element(review.getByRole("button", { name: "Continue playing", exact: true }))
+        .not.toBeInTheDocument();
       const horizontal = review
         .getByRole("group", { name: "Narrow preview" })
         .getByRole("slider", { name: "Horizontal" });
       (horizontal.element() as HTMLInputElement).focus();
       await userEvent.keyboard("{End}");
       await expect.element(horizontal).toHaveAttribute("aria-valuetext", "100%");
+      const wideImage = previews[0]?.querySelector<HTMLImageElement>(".game-hero-background img");
+      const narrowImage = previews[1]?.querySelector<HTMLImageElement>(".game-hero-background img");
+      if (!wideImage || !narrowImage) throw new Error("Both hero background layers must render");
+      expect(getComputedStyle(wideImage).objectPosition).toBe("50% 35%");
+      expect(getComputedStyle(narrowImage).objectPosition).toBe("100% 35%");
+      expect(getComputedStyle(narrowImage).maskImage).not.toBe("none");
+      await captureParityState("artwork-background-composition-fixture");
       await review.getByRole("button", { name: "Cancel", exact: true }).click();
       await expect.element(review).not.toBeInTheDocument();
       expect(change).toHaveBeenCalledTimes(1);
@@ -1520,7 +1543,7 @@ it("shows and resets a local Logo in Continue without changing the cover", async
       <GameHero port={port} variant="continue">
         <h1>{port.name}</h1>
       </GameHero>
-      <ArtworkControls port={port} />
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
     </ArtworkProvider>,
   );
   await open();
@@ -1566,7 +1589,7 @@ it("keeps a transparent Logo choice in Manage while Continue uses the cover", as
       <GameHero port={port} variant="continue">
         <h1>{port.name}</h1>
       </GameHero>
-      <ArtworkControls port={port} />
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
     </ArtworkProvider>,
   );
   await open();

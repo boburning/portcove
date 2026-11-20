@@ -1,7 +1,14 @@
 import { cn } from "cn";
 import { Tabs } from "@base-ui/react/tabs";
 import styles from "./Artwork.module.css";
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type RefObject,
+} from "react";
 import { Gamepad2 } from "lucide-react";
 import {
   useArtwork,
@@ -24,6 +31,7 @@ import { Button } from "./ui/button";
 import { controlFocus } from "./ui/control-style";
 import { ExternalLink } from "./ExternalLink";
 import { BackgroundFramingEditor } from "./BackgroundFramingEditor";
+import type { BackgroundPreviewProps } from "../hero-media";
 import { SteamGridDbPicker, steamGridDbErrorText } from "./SteamGridDbPicker";
 import type { SteamGridDbCandidate } from "../types";
 
@@ -214,8 +222,12 @@ const artworkSlots = Object.keys(slotCopy) as ArtworkSlot[];
 
 export function ArtworkControls({
   port,
+  Preview,
+  previewActions,
 }: {
-  port: Pick<PortDefinition, "id"> & { name?: string };
+  port: BackgroundPreviewProps["port"];
+  Preview: ComponentType<BackgroundPreviewProps>;
+  previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
@@ -262,7 +274,14 @@ export function ArtworkControls({
               hidden={selected !== slot}
               inert={selected !== slot}
             >
-              {visited.includes(slot) && <ArtworkSlotControl port={port} slot={slot} />}
+              {visited.includes(slot) && (
+                <ArtworkSlotControl
+                  port={port}
+                  slot={slot}
+                  Preview={Preview}
+                  previewActions={previewActions}
+                />
+              )}
             </Tabs.Panel>
           ))}
           <DetailArtwork port={port} />
@@ -293,9 +312,13 @@ type BackgroundDraft = {
 function ArtworkSlotControl({
   port,
   slot,
+  Preview,
+  previewActions,
 }: {
-  port: Pick<PortDefinition, "id"> & { name?: string };
+  port: BackgroundPreviewProps["port"];
   slot: ArtworkSlot;
+  Preview: ComponentType<BackgroundPreviewProps>;
+  previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
   const [findOpen, setFindOpen] = useState(false);
   const [draft, setDraft] = useState<BackgroundDraft>();
@@ -643,6 +666,9 @@ function ArtworkSlotControl({
       {draft && (
         <BackgroundFramingEditor
           image={draft.image}
+          port={port}
+          Preview={Preview}
+          previewActions={previewActions}
           sourceLabel={
             draft.source.kind === "provider"
               ? `SteamGridDB image by ${draft.source.candidate.author.name}`

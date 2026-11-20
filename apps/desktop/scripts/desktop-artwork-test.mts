@@ -364,6 +364,31 @@ export async function artworkScenario({
           assert.deepEqual(await state(slot), previous);
           await narrow.sendKeys(Key.END);
           assert.equal(await narrow.getAttribute("aria-valuetext"), "100%");
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () => {
+                const overview = document.querySelector<HTMLElement>(
+                  ".game-hero-framing-preview-detail",
+                );
+                const continuation = document.querySelector<HTMLElement>(
+                  ".game-hero-framing-preview-continue",
+                );
+                const wide = overview?.querySelector<HTMLImageElement>(".game-hero-background img");
+                const narrow = continuation?.querySelector<HTMLImageElement>(
+                  ".game-hero-background img",
+                );
+                return Boolean(
+                  overview?.inert &&
+                  continuation?.inert &&
+                  wide?.naturalWidth &&
+                  narrow?.naturalWidth &&
+                  getComputedStyle(wide).objectPosition === "50% 35%" &&
+                  getComputedStyle(narrow).objectPosition === "100% 35%" &&
+                  getComputedStyle(narrow).maskImage !== "none",
+                );
+              }),
+            10_000,
+          );
           await click(
             By.xpath(
               '//form[.//h3[normalize-space(.)="Review Background"]]//button[normalize-space(.)="Apply"]',

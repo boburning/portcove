@@ -1,5 +1,5 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
-import { backgroundObjectPosition } from "../hero-media";
+import { useId, useLayoutEffect, useRef, useState, type ComponentType } from "react";
+import { backgroundObjectPosition, type BackgroundPreviewProps } from "../hero-media";
 import type { ArtworkFraming } from "../types";
 import { Button } from "./ui/button";
 import styles from "./Artwork.module.css";
@@ -16,6 +16,9 @@ const axes = [
 
 export function BackgroundFramingEditor({
   image,
+  port,
+  Preview,
+  previewActions,
   sourceLabel,
   initialFraming,
   pending,
@@ -24,6 +27,9 @@ export function BackgroundFramingEditor({
   onCancel,
 }: {
   image: string;
+  port: BackgroundPreviewProps["port"];
+  Preview: ComponentType<BackgroundPreviewProps>;
+  previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
   sourceLabel?: string | undefined;
   initialFraming: ArtworkFraming | null;
   pending: boolean;
@@ -74,14 +80,14 @@ export function BackgroundFramingEditor({
             >
               <legend>{label}</legend>
               {!imageFailed && (
-                <div className={styles.framingImage} data-layout={layout}>
-                  <img
-                    src={image}
-                    alt=""
-                    style={{ objectPosition: backgroundObjectPosition(point) }}
-                    onError={() => setImageFailed(true)}
-                  />
-                </div>
+                <Preview
+                  port={port}
+                  layout={layout}
+                  image={image}
+                  position={backgroundObjectPosition(point)}
+                  actionLabel={previewActions?.[layout]}
+                  onError={() => setImageFailed(true)}
+                />
               )}
               {axes.map(([axis, axisLabel]) => (
                 <div key={axis} className={styles.framingAxis}>

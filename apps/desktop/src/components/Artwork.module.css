@@ -160,7 +160,6 @@
 .framingPreviews {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
 }
 
 .framingPreview {
@@ -171,24 +170,6 @@
 .framingPreview legend {
   padding-block-end: var(--space-2);
   font-weight: 600;
-}
-
-.framingImage {
-  overflow: hidden;
-  aspect-ratio: 16 / 5;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
-}
-
-.framingImage[data-layout="narrow"] {
-  aspect-ratio: 4 / 3;
-  max-inline-size: 12rem;
-}
-
-.framingImage img {
-  inline-size: 100%;
-  block-size: 100%;
-  object-fit: cover;
 }
 
 .framingAxis {

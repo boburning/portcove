@@ -41,6 +41,7 @@ import {
   usesUserSelectedRuntime,
 } from "../shared/external-runtime-trust";
 import { ArtworkControls } from "./Artwork";
+import { GameHeroFramingPreview } from "./GameHero";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
 import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
@@ -596,6 +597,27 @@ function DetailBody(model: {
     setupRoutes.promoteAlternative,
   );
   const requirements = detailRequirementContext(model, external);
+  const setupActionLabel = heroSetupLabel(
+    model,
+    directInstall,
+    managedPreparation,
+    setupRoutes.promoteAlternative,
+  );
+  const launchActionLabel =
+    model.installed && model.launchReady
+      ? installedPlayPresentation(true, detailHeaderTrial(model), model.pendingSetup).label
+      : undefined;
+  const previewActions = model.installReadbackRequired
+    ? undefined
+    : {
+        wide: launchActionLabel ?? setupActionLabel,
+        ...(launchActionLabel && {
+          narrow:
+            launchActionLabel === "Play" && (model.status?.successful_launches ?? 0) > 0
+              ? "Continue playing"
+              : launchActionLabel,
+        }),
+      };
   return (
     <DetailLayout
       backLabel={model.backLabel}
@@ -679,7 +701,7 @@ function DetailBody(model: {
                 : "primary"
             }
             size="lg"
-            aria-label={`${heroSetupLabel(model, directInstall, managedPreparation, setupRoutes.promoteAlternative)}: ${gameIdentityLabel(model.port)}`}
+            aria-label={`${setupActionLabel}: ${gameIdentityLabel(model.port)}`}
             disabled={Boolean(busy)}
             onClick={() => {
               reveal(
@@ -694,12 +716,7 @@ function DetailBody(model: {
               if (directInstall) void model.actions.reviewInstall();
             }}
           >
-            {heroSetupLabel(
-              model,
-              directInstall,
-              managedPreparation,
-              setupRoutes.promoteAlternative,
-            )}
+            {setupActionLabel}
             <Icon glyph={ArrowRight} />
           </Button>
         )
@@ -766,7 +783,7 @@ function DetailBody(model: {
           ? { configuration: <DetailConfigurationSection model={model} /> }
           : {}),
         versions: <DetailVersionsSection {...{ model, external }} />,
-        manage: <DetailManageSection {...{ model, external, reveal }} />,
+        manage: <DetailManageSection {...{ model, external, reveal, previewActions }} />,
       })}
     </DetailLayout>
   );
@@ -4128,9 +4145,11 @@ function DetailManageSection({
   model,
   external,
   reveal,
+  previewActions,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  previewActions: { wide: string; narrow?: string } | undefined;
   reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
@@ -4181,6 +4200,8 @@ function DetailManageSection({
         <ArtworkControls
           key={`controls:${model.port.id}:${model.libraryGeneration}`}
           port={model.port}
+          Preview={GameHeroFramingPreview}
+          previewActions={previewActions}
         />
       </ManagementRow>
       {!external && (
@@ -4492,6 +4513,20 @@ function ManualSetupActions({
   );
 }
 
+function detailHeaderTrial(model: Parameters<typeof DetailBody>[0]) {
+  return (
+    hasUnconfirmedLaunchInput(model.status, model.port) ||
+    Boolean(
+      selectedSourceRequirement(
+        model.sources.source,
+        model.sources.sourcePath,
+        model.sources.bios,
+        model.sources.biosPath,
+      ),
+    )
+  );
+}
+
 function DetailHeaderAction({
   model,
   busy,
@@ -4500,17 +4535,7 @@ function DetailHeaderAction({
     <InstalledPlayActions
       hero
       compact
-      trial={
-        hasUnconfirmedLaunchInput(model.status, model.port) ||
-        Boolean(
-          selectedSourceRequirement(
-            model.sources.source,
-            model.sources.sourcePath,
-            model.sources.bios,
-            model.sources.biosPath,
-          ),
-        )
-      }
+      trial={detailHeaderTrial(model)}
       preparationRequired={false}
       launchReady={model.launchReady}
       pendingSetup={model.pendingSetup}

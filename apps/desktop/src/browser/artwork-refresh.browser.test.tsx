@@ -6,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import { ArtworkControls, ArtworkImage } from "../components/Artwork";
+import { GameHeroFramingPreview } from "../components/GameHero";
 import { artworkState, portDefinition } from "../test-fixtures";
 import "../styles/index.css";
 
@@ -48,7 +49,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
         <ArtworkProvider generation={7}>
           <h2>{port.name}</h2>
           <ArtworkImage port={port} />
-          <ArtworkControls port={port} />
+          <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
         </ArtworkProvider>
       </DirectionProvider>,
     ),

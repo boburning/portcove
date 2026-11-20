@@ -648,7 +648,10 @@ Overview and Continue. When a logo cannot be read at its rendered size, the hero
 uses the Cover or title and preserves the saved choice for review.
 
 Change artwork labels Detail as **Background** and Landscape as **Wide cover**.
-A new Background opens a review with wide and narrow crop controls. **Apply**
+A new Background opens a review with wide and narrow crop controls. The review
+uses the Overview and Continue hero layouts with the draft Background, current
+game identity, and the primary action when its label is available. Preview
+actions only show where controls sit. **Apply**
 saves the selected image and framing together. **Cancel** discards the draft
 and returns to the source control, including SteamGridDB search results when
 they were open. An existing Background offers **Adjust framing**.

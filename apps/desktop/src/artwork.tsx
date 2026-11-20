@@ -317,6 +317,7 @@ export function useGameHeroArtwork(
   port: HeroMediaPort,
   visible: boolean,
   context: HeroMediaContext = {},
+  showBackground = true,
 ) {
   const candidates = heroMediaCandidates(port, context);
   const { cache: logoCache, display: logo } = useArtwork(port.id, "logo", visible);
@@ -344,7 +345,7 @@ export function useGameHeroArtwork(
         localLogo: false,
       };
   const { display: cover } = useArtwork(port.id, "cover", visible);
-  const background = useHeaderArtwork(port, visible, context);
+  const background = useHeaderArtwork(port, visible && showBackground, context);
   return {
     foreground,
     cover,

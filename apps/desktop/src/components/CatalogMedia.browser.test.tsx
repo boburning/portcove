@@ -7,7 +7,7 @@ import { desktopApi, type DesktopArtworkThumbnail } from "../api";
 import type { ArtworkSlot, ArtworkState, CatalogMediaAsset, PortListing } from "../types";
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { artworkState, portDefinition } from "../test-fixtures";
-import { GameHero } from "./GameHero";
+import { GameHero, GameHeroFramingPreview } from "./GameHero";
 import { ArtworkControls } from "./Artwork";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { DetailLayout } from "./DetailLayout";
@@ -543,7 +543,7 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
       <GameHero port={port} variant="detail">
         <h1>{port.name}</h1>
       </GameHero>
-      <ArtworkControls port={port} />
+      <ArtworkControls port={port} Preview={GameHeroFramingPreview} />
     </ArtworkProvider>,
   );
   const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;

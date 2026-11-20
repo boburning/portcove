@@ -18,8 +18,13 @@ import {
   isHeroKeyArtSuitable,
   type HeroLogoSurface,
 } from "../hero-image-suitability";
-import { gameTitle } from "../port-identity";
-import { backgroundObjectPosition, type HeroMediaPort } from "../hero-media";
+import { gameProjectLabel, gameTitle } from "../port-identity";
+import {
+  backgroundObjectPosition,
+  type BackgroundPreviewProps,
+  type HeroMediaPort,
+} from "../hero-media";
+import { Button } from "./ui/button";
 import { ArtworkSource, ArtworkFrame } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
@@ -34,6 +39,7 @@ export function GameHero({
   children,
   successfulLaunches,
   compact = false,
+  preview,
 }: {
   port: HeroMediaPort;
   variant: "detail" | "continue";
@@ -42,23 +48,33 @@ export function GameHero({
   children: ReactNode;
   successfulLaunches?: number | undefined;
   compact?: boolean;
+  preview?: Pick<BackgroundPreviewProps, "image" | "position" | "onError"> | undefined;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const artworkVisible = visible && !compact;
-  const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
+  const { foreground, cover, background } = useGameHeroArtwork(
+    port,
+    artworkVisible,
+    undefined,
+    !preview,
+  );
   const backgroundState = background.display.state;
   const framing =
     backgroundState?.resolved_source.kind === "local_import"
       ? backgroundState.choice.framing
       : undefined;
-  const backgroundPosition =
-    framing?.version === "v1"
-      ? ({
-          "--hero-background-wide-position": backgroundObjectPosition(framing.wide),
-          "--hero-background-narrow-position": backgroundObjectPosition(framing.narrow),
-        } as CSSProperties)
-      : undefined;
+  const widePosition =
+    preview?.position ??
+    (framing?.version === "v1" ? backgroundObjectPosition(framing.wide) : undefined);
+  const narrowPosition =
+    preview?.position ??
+    (framing?.version === "v1" ? backgroundObjectPosition(framing.narrow) : undefined);
+  const backgroundPosition = {
+    "--hero-background-wide-position": widePosition,
+    "--hero-background-narrow-position": narrowPosition,
+  } as CSSProperties;
+  const backgroundImage = preview?.image ?? background.display.image;
   const collection = useCollectionCovers(port.id, cover, artworkVisible);
   const collectionElement = useRef<HTMLDivElement>(null);
   const [rejectedLogo, setRejectedLogo] = useState<string>();
@@ -142,16 +158,17 @@ export function GameHero({
       }
       data-focus-group
     >
-      {!compact && background.display.image && (
+      {!compact && backgroundImage && (
         <div className="game-hero-background" aria-hidden="true" style={backgroundPosition}>
           <img
-            key={background.display.image}
-            src={background.display.image}
+            key={backgroundImage}
+            src={backgroundImage}
             alt=""
             decoding="async"
             onError={(event) => {
               event.currentTarget.style.visibility = "hidden";
-              background.display.onImageError?.();
+              if (preview) preview.onError();
+              else background.display.onImageError?.();
             }}
           />
         </div>
@@ -206,7 +223,7 @@ export function GameHero({
         )}
         <div className="game-hero-content">{children}</div>
       </div>
-      {!compact && (
+      {!compact && !preview && (
         <HeroCredits
           port={port}
           artwork={{ foreground, cover, background }}
@@ -217,6 +234,53 @@ export function GameHero({
         />
       )}
     </section>
+  );
+}
+
+export function GameHeroFramingPreview({
+  port,
+  layout,
+  image,
+  position,
+  actionLabel,
+  onError,
+}: BackgroundPreviewProps) {
+  const variant = layout === "wide" ? "detail" : "continue";
+  const project = gameProjectLabel(port);
+  const action = actionLabel && (
+    <Button type="button" variant="primary" size={variant === "detail" ? "lg" : "default"}>
+      {actionLabel}
+    </Button>
+  );
+  return (
+    <div
+      className={cn("game-hero-framing-preview", `game-hero-framing-preview-${variant}`)}
+      inert
+      aria-hidden="true"
+    >
+      <GameHero
+        port={port}
+        variant={variant}
+        className={variant === "detail" ? "detail-hero" : "continue-card"}
+        preview={{ image, position, onError }}
+      >
+        {variant === "detail" ? (
+          <div className="detail-identity min-w-0 wrap-anywhere">
+            <p className="detail-title">{gameTitle(port)}</p>
+            {project && <p className="detail-project">{project}</p>}
+            {action && <div className="detail-header-actions mt-4">{action}</div>}
+          </div>
+        ) : (
+          <>
+            <div className="continue-identity">
+              <p className="continue-title">{gameTitle(port)}</p>
+              {project && <p className="mt-1 text-xs text-pc-muted-foreground">{project}</p>}
+            </div>
+            {action && <div className="continue-actions">{action}</div>}
+          </>
+        )}
+      </GameHero>
+    </div>
   );
 }
 
