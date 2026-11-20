@@ -7,19 +7,17 @@ type PresentationOwner = {
   generation: number;
   pending: ReadonlyMap<number, InvocationRecord>;
   unreadInstallPorts?: ReadonlySet<string> | undefined;
-  workspaceRefreshFailed?: boolean | undefined;
 };
 const OperationPresentation = createContext<PresentationOwner | null>(null);
 export function OperationPresentationProvider({
   generation,
   pending,
   unreadInstallPorts,
-  workspaceRefreshFailed,
   children,
 }: PresentationOwner & { children: ReactNode }) {
   const owner = useMemo(
-    () => ({ generation, pending, unreadInstallPorts, workspaceRefreshFailed }),
-    [generation, pending, unreadInstallPorts, workspaceRefreshFailed],
+    () => ({ generation, pending, unreadInstallPorts }),
+    [generation, pending, unreadInstallPorts],
   );
   return <OperationPresentation value={owner}>{children}</OperationPresentation>;
 }
@@ -52,8 +50,7 @@ export function presentPortAction(
     pending,
     installReadbackRequired: Boolean(
       action === "install" &&
-      owner?.workspaceRefreshFailed &&
-      owner.unreadInstallPorts?.has(portId) &&
+      owner?.unreadInstallPorts?.has(portId) &&
       !status?.active &&
       !status?.external_runtime,
     ),

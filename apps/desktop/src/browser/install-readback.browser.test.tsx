@@ -168,15 +168,22 @@ it.each([
         finishInstall(installed);
       });
       await expect.poll(() => blockedRead.mock.calls.length).toBeGreaterThan(0);
-      releaseRead();
       const retry = page.getByRole("button", { name: "Retry refresh", exact: true });
+      const readiness = () => document.querySelector("[data-detail-readiness]")?.textContent;
+      await expect.poll(readiness).toContain("Installation finished");
+      await expect
+        .element(
+          page.getByRole("button", { name: "Install: Install readback fixture", exact: true }),
+        )
+        .not.toBeInTheDocument();
+      await expect.element(retry).not.toBeInTheDocument();
+      releaseRead();
       await expect.element(retry).toBeVisible();
       const dismiss = page.getByRole("button", {
         name: "Dismiss completion for Install game",
         exact: true,
       });
       await expect.element(dismiss).toBeEnabled();
-      const readiness = () => document.querySelector("[data-detail-readiness]")?.textContent;
       await expect.poll(readiness).toContain("Installation finished");
       await expect
         .element(page.getByText("Available to install", { exact: true }))
@@ -198,14 +205,25 @@ it.each([
         .element(page.getByText("No active installation", { exact: true }))
         .not.toBeInTheDocument();
       await expect
-        .element(page.getByText("Installation finished · refresh needed", { exact: true }))
+        .element(
+          page.getByText("Installation finished · awaiting library refresh", { exact: true }),
+        )
         .toBeVisible();
+      await page.getByText("Technical details", { exact: true }).click();
+      await expect
+        .element(page.getByText("Recorded check identities", { exact: true }))
+        .toBeVisible();
+      expect(container.querySelector(".cli-continuity")).toBeNull();
       await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
       await expect
         .element(page.getByText("Not installed", { exact: true }))
         .not.toBeInTheDocument();
       await expect
-        .element(page.getByText("Refresh needed to view the installed version", { exact: true }))
+        .element(
+          page.getByText("Installed version will appear after the library refreshes", {
+            exact: true,
+          }),
+        )
         .toBeVisible();
       await page.getByRole("tab", { name: "Game files", exact: true }).click();
       const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;

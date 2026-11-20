@@ -16,7 +16,6 @@ it("scopes committed-install readback to the stale install action without changi
     generation: 7,
     pending: new Map<number, InvocationRecord>(),
     unreadInstallPorts: new Set(["A"]),
-    workspaceRefreshFailed: true,
   };
   const missing = portStatus();
   const current = { ...missing, active: installRecord({ port_id: "A" }) };
@@ -29,7 +28,7 @@ it("scopes committed-install readback to the stale install action without changi
   expect(presentPortAction(unread, "A", current, "launch").installReadbackRequired).toBe(false);
   expect(presentPortAction(unread, "A", current, "install").installReadbackRequired).toBe(false);
   expect(
-    presentPortAction({ ...unread, workspaceRefreshFailed: false }, "A", missing, "install")
+    presentPortAction({ ...unread, unreadInstallPorts: new Set() }, "A", missing, "install")
       .installReadbackRequired,
   ).toBe(false);
 });
