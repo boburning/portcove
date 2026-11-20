@@ -360,7 +360,7 @@ it("keeps an absent saved value distinct from Off while reviewing a default", as
   if (!setting) throw new Error("Missing setting fixture");
   setting.value = null;
   setting.value_type = { kind: "boolean", default: false };
-  const review = vi.fn(async () => ({
+  const review = vi.fn(async (): Promise<GameSettingsChangeSetReview> => ({
     ...reviewed({ action: "reset" }),
     edits: [
       {

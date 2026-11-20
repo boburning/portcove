@@ -286,8 +286,8 @@ function SettingEditor({
   edit,
 }: {
   setting: GameSettingView;
-  draft?: DraftValue;
-  error?: FieldError;
+  draft: DraftValue | undefined;
+  error: FieldError | undefined;
   edit: (value?: DraftValue) => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
