@@ -368,8 +368,10 @@ if (publishedDefinitionExpectation) {
 }
 const runtimeRoot = nativeAccount
   ? nativeAccount.runtimeRoot(output)
-  : (linuxBinding?.home ?? output);
+  : (linuxBinding?.home ??
+    (publishedDefinitionExpectation ? path.join(output, "private-runtime") : output));
 if (nativeAccount) await mkdir(runtimeRoot); // A previous candidate's state is never reused.
+if (publishedDefinitionExpectation) await mkdir(runtimeRoot, { mode: 0o700 });
 const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
       root,
