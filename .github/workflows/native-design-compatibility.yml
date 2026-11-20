@@ -97,10 +97,12 @@ jobs:
           mkdir -p work
           bash scripts/verify-published-linux-appimage.sh "$GITHUB_WORKSPACE/work/published-linux-appimage" "$RUNNER_TEMP/published-linux-package"
       - name: Observe native startup, IPC recovery and normal window close
+        shell: bash
         timeout-minutes: 10
         env:
           PORTCOVE_PUBLISHED_APPIMAGE_SMOKE: "1"
         run: |
+          set -euo pipefail
           evidence="$GITHUB_WORKSPACE/work/published-linux-appimage"
           package="$RUNNER_TEMP/published-linux-package"
           asset=$(jq -er '.appimage.name' "$evidence/published-binding.json")

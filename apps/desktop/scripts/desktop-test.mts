@@ -3509,7 +3509,9 @@ try {
       generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
-    assert.ok(object(failed.error).code);
+    const failureCode = object(failed.error).code;
+    assert.ok(failureCode);
+    if (inventory) assert.equal(failureCode, "not_found");
     const recovered = success(await invoke("get_bootstrap_status"));
     assert.equal(recovered.ready, true);
     if (inventory) {
@@ -3519,7 +3521,7 @@ try {
         path.join(output, "published-ipc.json"),
         JSON.stringify({
           bootstrap_ready: true,
-          unknown_port_refusal: text(object(failed.error).code),
+          unknown_port_refusal: failureCode,
           recovered_ready: true,
           library,
           generation: recovered.generation,
@@ -3537,6 +3539,7 @@ try {
         path.join(output, "published-close.json"),
         JSON.stringify({
           request: "WebDriver Close Window",
+          process_scope: "AppImage application and owned WebKit WebProcess",
           driver_still_owned: true,
           ...exited,
         }),
