@@ -45,13 +45,15 @@ it.each([
 ])(
   "separates guidance from the retry control in the $state workspace notice",
   async ({ state, theme, width, height, ...notice }) => {
-    const root = document.documentElement;
-    const previousTheme = root.dataset.theme;
+    // Capturing a rendered frame requires real render and animation timing.
+    vi.useRealTimers();
+    const documentRoot = document.documentElement;
+    const previousTheme = documentRoot.dataset.theme;
     const viewport = { width: innerWidth, height: innerHeight };
     try {
-      root.dataset.theme = theme;
+      documentRoot.dataset.theme = theme;
       await page.viewport(width, height);
-      await renderComponent(
+      await root.rerender(
         <WorkspaceRefreshNotice
           {...notice}
           refreshing={false}
@@ -68,12 +70,12 @@ it.each([
           action.getBoundingClientRect().top - guidance.getBoundingClientRect().bottom,
         ).toBeGreaterThanOrEqual(8);
       }
-      expect(root.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      expect(documentRoot.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
       await captureParityState(`workspace-notice-${state}`);
     } finally {
       await cleanup();
-      if (previousTheme) root.dataset.theme = previousTheme;
-      else delete root.dataset.theme;
+      if (previousTheme) documentRoot.dataset.theme = previousTheme;
+      else delete documentRoot.dataset.theme;
       await page.viewport(viewport.width, viewport.height);
     }
   },
