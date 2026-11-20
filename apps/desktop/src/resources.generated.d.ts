@@ -734,6 +734,12 @@ export default interface Resources {
       "steam": "Steam shortcut"
     },
     "artwork": {
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "reviewAutomatic": "Use the default artwork for this role.",
+      "reviewChange": "Review artwork change",
+      "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
+      "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
       "scopeCurrentPort": "Artwork changes apply only to this port."
     },
     "capabilities": {

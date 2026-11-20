@@ -552,6 +552,11 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
   await page.getByRole("button", { name: "Change artwork", exact: true }).click();
   await page.getByRole("tab", { name: "Logo", exact: true }).click();
   await page.getByRole("button", { name: "Use automatic", exact: true }).click();
+  expect(reset).not.toHaveBeenCalled();
+  await page
+    .getByRole("form", { name: "Review artwork change", exact: true })
+    .getByRole("button", { name: "Apply", exact: true })
+    .click();
   expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 5, 7);
   await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
   expect(catalog).toHaveBeenCalledExactlyOnceWith(port.id, logo.id, logo.sha256, 7);
@@ -601,13 +606,21 @@ it("hides a cached catalog logo without hiding the background and restores it on
   const hideControl = page.getByRole("button", { name: "Hide artwork", exact: true });
   const automatic = page.getByRole("button", { name: "Use automatic", exact: true });
   await expect.element(automatic).toBeDisabled();
+  const apply = page
+    .getByRole("form", { name: "Review artwork change", exact: true })
+    .getByRole("button", { name: "Apply", exact: true });
   await hideControl.click();
+  expect(hide).not.toHaveBeenCalled();
+  expect(foreground()).toBe(`data:image/png;base64,${logoBytes}`);
+  await apply.click();
   expect(hide).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 0, 7);
   await expect.poll(foreground).toBeUndefined();
   expect(background()).toBe(`data:image/png;base64,${png}`);
   expect(document.querySelector(".game-hero-credits .media-credit")).toBeNull();
   await expect.element(automatic).toHaveFocus();
   await userEvent.keyboard("{Enter}");
+  expect(restore).not.toHaveBeenCalled();
+  await apply.click();
   expect(restore).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 1, 7);
   await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
   await expect.element(hideControl).toHaveFocus();

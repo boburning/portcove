@@ -502,7 +502,12 @@ export async function artworkScenario({
       if (titleRestoreFailure) throw titleRestoreFailure.error;
       await openEditor();
       await activateSlot("cover");
+      const reviewApply = By.xpath(
+        '//form[.//h4[normalize-space(.)="Review artwork change"]]//button[normalize-space(.)="Apply"]',
+      );
       await click(control("cover", "Hide artwork"));
+      assert.deepEqual(await state("cover"), cover);
+      await click(reviewApply);
       await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
       const hidden = await state("cover");
       assert.equal(hidden.choice.asset_sha256, null);
@@ -510,6 +515,8 @@ export async function artworkScenario({
       await expectHeroText();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
       await click(control("cover", "Use automatic"));
+      assert.deepEqual(await state("cover"), hidden);
+      await click(reviewApply);
       await browser.wait(
         async () => (await state("cover")).choice.revision > hidden.choice.revision,
         10_000,

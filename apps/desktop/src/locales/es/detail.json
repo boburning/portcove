@@ -6,6 +6,12 @@
     "steam": "Acceso directo de Steam"
   },
   "artwork": {
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "reviewAutomatic": "Usa la ilustración predeterminada para esta función.",
+    "reviewChange": "Revisar cambio de ilustración",
+    "reviewHide": "Oculta la ilustración para esta función. Las demás no cambian.",
+    "reviewStale": "Esta elección de ilustración cambió. Cancela y revisa la elección actual.",
     "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."
   },
   "capabilities": {

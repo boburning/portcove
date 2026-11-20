@@ -367,10 +367,15 @@ function ArtworkSheetContents({
   );
 }
 
-type BackgroundDraft = {
+type ArtworkReviewTarget = {
   portId: string;
   generation: number;
   revision: number;
+};
+
+type ArtworkVisibilityReview = ArtworkReviewTarget & { action: "hide" | "automatic" };
+
+type BackgroundDraft = ArtworkReviewTarget & {
   originalSha256: string;
   image: string;
   framing: ArtworkFraming | null;
@@ -401,7 +406,12 @@ function ArtworkSlotControl({
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
   const [findOpen, setFindOpen] = useState(false);
+  const { t } = useAppTranslation("detail");
   const [draft, setDraft] = useState<BackgroundDraft>();
+  const [visibilityReview, setVisibilityReview] = useState<ArtworkVisibilityReview>();
+  const visibilityReviewId = useId();
+  const visibilityHeading = useRef<HTMLHeadingElement>(null);
+  const visibilityCancel = useRef<HTMLButtonElement>(null);
   const slotPanel = useRef<HTMLElement>(null);
   const refreshButton = useRef<HTMLButtonElement>(null);
   const frameButton = useRef<HTMLButtonElement>(null);
@@ -431,6 +441,9 @@ function ArtworkSlotControl({
       mounted.current = false;
     };
   }, []);
+  useLayoutEffect(() => {
+    if (visibilityReview) visibilityHeading.current?.focus();
+  }, [visibilityReview]);
   useEffect(() => {
     if (pending || !returnFocus.current || !isCurrentOpening()) return;
     const { target, cache: owner } = returnFocus.current;
@@ -444,7 +457,7 @@ function ArtworkSlotControl({
           control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
       ) ?? panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
     focus?.focus();
-  }, [draft, pending, isCurrentOpening]);
+  }, [draft, visibilityReview, pending, isCurrentOpening]);
 
   const stillInView = () =>
     mounted.current &&
@@ -474,7 +487,7 @@ function ArtworkSlotControl({
           : pickerButton.current;
     returnFocus.current = { target, cache };
   };
-  const draftIsCurrent = (review: BackgroundDraft) =>
+  const draftIsCurrent = (review: ArtworkReviewTarget) =>
     review.portId === port.id &&
     review.generation === cache?.generation &&
     review.revision === display.state?.choice.revision &&
@@ -507,27 +520,21 @@ function ArtworkSlotControl({
     setPending(false);
   };
 
-  const change = async (action: "pick" | "automatic" | "hide") => {
-    const pick = action === "pick";
+  const chooseLocal = async () => {
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
     let changeRequested = false;
     let staged = false;
     let focusOwner = cache;
-    let focusTarget = pick
-      ? pickerButton.current
-      : action === "hide"
-        ? hideButton.current
-        : resetButton.current;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
     setMessage(undefined);
     setError(undefined);
     try {
-      const path = pick ? await pickArtworkPath() : null;
-      if (!stillCurrent() || (pick && !path)) return;
-      if (path && slot === "detail") {
+      const path = await pickArtworkPath();
+      if (!stillCurrent() || !path) return;
+      if (slot === "detail") {
         const preview = await desktopApi.previewLocalBackground(port.id, path, cache.generation);
         if (!stillCurrent()) return;
         stageBackground({ kind: "local", path }, revision, preview);
@@ -535,31 +542,67 @@ function ArtworkSlotControl({
         return;
       }
       changeRequested = true;
-      const result =
-        action === "hide"
-          ? await cache.suppress(port.id, slot, revision, stillCurrent)
-          : await cache.change(port.id, slot, revision, path, stillCurrent);
-      if (result && stillInView()) {
-        if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
-        if (!stillInView()) return;
-        focusOwner = currentIdentity.current.cache ?? cache;
-        if (action === "hide") {
-          focusTarget = resetButton.current;
-          setMessage("Artwork hidden for this port.");
-        } else if (action === "automatic") {
-          focusTarget = hideButton.current;
-          setMessage("Automatic artwork restored.");
-        } else {
-          setMessage("Local image selected.");
-        }
-      }
+      const result = await cache.change(port.id, slot, revision, path, stillCurrent);
+      if (!result || !stillInView()) return;
+      if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+      if (!stillInView()) return;
+      focusOwner = currentIdentity.current.cache ?? cache;
+      setMessage("Local image selected.");
     } catch (value) {
       if (stillInView() && (changeRequested || stillCurrent())) {
         setError(errorText(value));
         await refreshCurrent();
       }
     } finally {
-      finishChange(focusTarget, !staged, focusOwner);
+      finishChange(pickerButton.current, !staged, focusOwner);
+    }
+  };
+
+  const visibilityTrigger = (action: ArtworkVisibilityReview["action"]) =>
+    action === "hide" ? hideButton.current : resetButton.current;
+
+  const stageVisibility = (action: ArtworkVisibilityReview["action"]) => {
+    if (!canChange || !cache || !display.state || !stillCurrent() || busy.current) return;
+    setError(undefined);
+    setMessage(undefined);
+    setVisibilityReview({
+      action,
+      portId: port.id,
+      generation: cache.generation,
+      revision: display.state.choice.revision,
+    });
+  };
+
+  const applyVisibility = async (review: ArtworkVisibilityReview) => {
+    if (!cache || busy.current || !stillCurrent() || !draftIsCurrent(review)) return;
+    let focusOwner = cache;
+    let focusTarget = visibilityCancel.current;
+    busy.current = true;
+    returnFocus.current = null;
+    setPending(true);
+    setError(undefined);
+    try {
+      const result =
+        review.action === "hide"
+          ? await cache.suppress(port.id, slot, review.revision, stillCurrent)
+          : await cache.change(port.id, slot, review.revision, null, stillCurrent);
+      if (!result || !stillInView()) return;
+      if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+      if (!stillInView()) return;
+      focusOwner = currentIdentity.current.cache ?? cache;
+      focusTarget = visibilityTrigger(review.action === "hide" ? "automatic" : "hide");
+      setVisibilityReview(undefined);
+      setMessage(
+        review.action === "hide" ? "Artwork hidden for this port." : "Automatic artwork restored.",
+      );
+    } catch (value) {
+      if (stillInView()) {
+        setError(errorText(value));
+        await refreshCurrent();
+        focusOwner = currentIdentity.current.cache ?? cache;
+      }
+    } finally {
+      finishChange(focusTarget, true, focusOwner);
     }
   };
 
@@ -676,7 +719,8 @@ function ArtworkSlotControl({
   const { label, description } = slotCopy[slot];
   const selection = display.state?.selection;
   const hidden = display.state?.choice.suppressed === true;
-  const canChange = !pending && !draft && Boolean(display.state) && !display.stale;
+  const hasReview = Boolean(draft || visibilityReview);
+  const canChange = !pending && !hasReview && Boolean(display.state) && !display.stale;
   const notWide =
     (slot === "detail" || slot === "landscape") &&
     selection != null &&
@@ -718,7 +762,7 @@ function ArtworkSlotControl({
           data-focusable
           variant="outline"
           disabled={!canChange}
-          onClick={() => void change("pick")}
+          onClick={() => void chooseLocal()}
         >
           Choose local image
         </Button>
@@ -727,7 +771,7 @@ function ArtworkSlotControl({
           data-focusable
           variant="outline"
           disabled={!canChange || usesAutomaticArtwork(display.state)}
-          onClick={() => void change("automatic")}
+          onClick={() => stageVisibility("automatic")}
         >
           Use automatic
         </Button>
@@ -736,7 +780,7 @@ function ArtworkSlotControl({
           data-focusable
           variant="outline"
           disabled={!canChange || hidden}
-          onClick={() => void change("hide")}
+          onClick={() => stageVisibility("hide")}
         >
           Hide artwork
         </Button>
@@ -744,8 +788,8 @@ function ArtworkSlotControl({
           ref={findButton}
           data-focusable
           variant="outline"
-          aria-expanded={findOpen && !draft}
-          disabled={pending || Boolean(draft) || !display.state || display.stale}
+          aria-expanded={findOpen && !hasReview}
+          disabled={!canChange}
           onClick={() => setFindOpen((open) => !open)}
         >
           Find on SteamGridDB
@@ -757,7 +801,7 @@ function ArtworkSlotControl({
               ref={frameButton}
               data-focusable
               variant="outline"
-              disabled={pending || Boolean(draft) || display.stale}
+              disabled={!canChange}
               onClick={editBackground}
             >
               Adjust framing
@@ -767,7 +811,7 @@ function ArtworkSlotControl({
           ref={refreshButton}
           data-focusable
           variant="outline"
-          disabled={pending || Boolean(draft) || display.loading}
+          disabled={pending || hasReview || display.loading}
           onClick={() => {
             void cache?.load(port.id, slot, true);
           }}
@@ -775,6 +819,59 @@ function ArtworkSlotControl({
           Refresh artwork
         </Button>
       </div>
+      {visibilityReview && (
+        <form
+          aria-labelledby={visibilityReviewId}
+          className="mt-4 grid gap-3 border-t border-pc-border pt-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void applyVisibility(visibilityReview);
+          }}
+        >
+          <h4
+            id={visibilityReviewId}
+            ref={visibilityHeading}
+            tabIndex={-1}
+            className="m-0 font-semibold"
+          >
+            {t("artwork.reviewChange")}
+          </h4>
+          <p className="m-0">
+            {t(
+              visibilityReview.action === "hide" ? "artwork.reviewHide" : "artwork.reviewAutomatic",
+            )}
+          </p>
+          {!draftIsCurrent(visibilityReview) && (
+            <p role="status" className="m-0 text-pc-warning-foreground">
+              {t("artwork.reviewStale")}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="submit"
+              data-focusable
+              variant="primary"
+              disabled={pending || !draftIsCurrent(visibilityReview)}
+            >
+              {t("artwork.apply")}
+            </Button>
+            <Button
+              ref={visibilityCancel}
+              type="button"
+              data-focusable
+              variant="outline"
+              disabled={pending}
+              onClick={() => {
+                returnFocus.current = { target: visibilityTrigger(visibilityReview.action), cache };
+                setVisibilityReview(undefined);
+                setError(undefined);
+              }}
+            >
+              {t("artwork.cancel")}
+            </Button>
+          </div>
+        </form>
+      )}
       {draft && (
         <BackgroundFramingEditor
           image={draft.image}
@@ -798,7 +895,7 @@ function ArtworkSlotControl({
         />
       )}
       {findOpen && (
-        <div hidden={Boolean(draft)} inert={Boolean(draft)}>
+        <div hidden={hasReview} inert={hasReview}>
           <SteamGridDbPicker
             slot={slot}
             initialTerm={port.name ?? ""}
