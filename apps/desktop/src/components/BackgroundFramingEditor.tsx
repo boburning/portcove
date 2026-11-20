@@ -98,7 +98,7 @@ export function BackgroundFramingEditor({
                     step={1}
                     value={point[axis]}
                     aria-valuetext={`${point[axis] / 100}%`}
-                    onChange={(event) => {
+                    onInput={(event) => {
                       const value = event.currentTarget.valueAsNumber;
                       setFraming((current) => ({
                         version: "v1",

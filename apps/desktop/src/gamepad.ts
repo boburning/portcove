@@ -195,7 +195,8 @@ function moveControllerRange(direction: NavigationDirection) {
     return false;
   const before = input.value;
   // Move one percentage point while preserving the finer native keyboard step.
-  input.stepUp(direction === "right" ? 100 : -100);
+  if (direction === "right") input.stepUp(100);
+  else input.stepDown(100);
   if (input.value !== before) input.dispatchEvent(new Event("input", { bubbles: true }));
   return true;
 }

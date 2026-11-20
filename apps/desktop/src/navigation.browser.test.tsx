@@ -243,7 +243,7 @@ describe("controller and modal integration", () => {
           step={1}
           value={value}
           data-controller-range
-          onChange={(event) => {
+          onInput={(event) => {
             setValue(event.currentTarget.valueAsNumber);
             change(event.currentTarget.valueAsNumber);
           }}
