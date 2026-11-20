@@ -67,19 +67,26 @@ jobs:
   released-preview9-windows-crawl-management:
     if: ${{ inputs.operation == 'released-preview9-windows-crawl-management' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     runs-on: windows-2022
+    name: released-preview9-windows-crawl-management (${{ matrix.observation }})
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        observation: [installer, crawl]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Observe exact published Windows package and isolated Crawl management
+      - name: Observe one exact published Windows package boundary
         shell: powershell
+        env:
+          PORTCOVE_NATIVE_OBSERVATION: ${{ matrix.observation }}
         run: |
           $ErrorActionPreference = 'Stop'
           $source = (git rev-parse HEAD).Trim()
           if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native diagnostic source differs.' }
           (Get-FileHash scripts/verify-windows-preview9-crawl.ps1 -Algorithm SHA256).Hash
-          & ./scripts/verify-windows-preview9-crawl.ps1
+          & ./scripts/verify-windows-preview9-crawl.ps1 -Observation $env:PORTCOVE_NATIVE_OBSERVATION
 
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
