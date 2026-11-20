@@ -2,7 +2,7 @@
   "assessment_schema": 1,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "policy_sha256": "b61c215373006daefb132431e114ed335839c2af9dfe993f5afb59b9eb10b2d7",
-  "revision": 3,
+  "policy_sha256": "6f181e7e4b970d2c39e3e2497e2a5c1cb00bc7e55aa25f5c6764d479ac5527a4",
+  "revision": 5,
   "assessments": []
 }

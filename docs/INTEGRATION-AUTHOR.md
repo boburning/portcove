@@ -821,6 +821,12 @@ Unrelated lines and comments remain intact; this is not universal INI support.
 An installation must retain the declaration; a current catalog advertisement
 cannot grant new file access to an older retained install.
 
+Whole-file update baselines come from pristine extraction of an exact eligible
+archive. A file that the archive omits provides no baseline. A managed update
+also needs a coherent observation of the canonical player file and any active
+runtime copy. An absent file establishes only absence unless the persistence
+owner has already recorded a deletion.
+
 Compatible settings releases can use the existing package observation and
 preparation route instead of editing `integration.game_settings.releases`.
 The Shipwright authoring record declares a stable `settings_qualification_v1`

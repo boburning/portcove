@@ -3604,6 +3604,23 @@ selector, executable, original edition, launch values and qualification
 explicit. Preparation compacts only integrations that expand byte for byte.
 A fork or a different writer layout uses explicit paths.
 
+Optional authoring-only `chocolate_family_windows_persistence_v1: true`
+expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
+The recipe keeps each title's configuration and screenshots with its saves
+and treats the two engine logs as runtime output. Keep each official package
+selector, executable, original IWAD profile and launch arguments explicit.
+Preparation compacts a route only when expansion reproduces its exact bytes.
+
+The authoring-only `openmohaa_portable_v1` generates the official stable
+OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
+It supplies the four platform selectors, shared Windows archive layout,
+edition-specific Unix launcher checks, and original-data paths. Keep each
+edition’s original requirements, instructions, support and qualification
+explicit. The engine still owns the external player profile. Preparation
+compacts a route only when the generated integration reproduces it byte for
+byte. A different source, package, launcher or writer layout uses an explicit
+integration.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the

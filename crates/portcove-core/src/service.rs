@@ -715,6 +715,54 @@ impl PortcoveService {
     fn recover_lifecycle_operations(&self) -> Result<()> {
         let store = OperationStore::new(self.library.clone());
         for candidate in store.all()? {
+            if candidate.settings_activation.is_some() {
+                // This protocol can recognize the exact owner without running
+                // ordinary collection or changing the active pointer.
+                #[cfg(windows)]
+                if let Ok(_ownership) = self
+                    .library
+                    .try_lock_port_for_settings_recovery(&candidate.port_id, &candidate.id)
+                    && let Ok(Some(mut current)) = store.get(&candidate.id)
+                    && current.created_at == candidate.created_at
+                    && current.port_id == candidate.port_id
+                    && current.settings_activation.is_some()
+                {
+                    match store.settings_activation_writer() {
+                        Ok(Some(writer)) => {
+                            match self.recover_checked_settings_activation(&writer, &mut current) {
+                                Ok(()) => {
+                                    let _ = self.library.finish_activity(
+                                        &candidate.id,
+                                        ActivityStatus::Succeeded,
+                                        Some("managed settings activation recovered"),
+                                    );
+                                    continue;
+                                }
+                                Err(error) => {
+                                    let _ = writer.record_hold(&mut current, &error.message);
+                                    tracing::warn!(operation_id = candidate.id, %error, "settings activation recovery remains held");
+                                }
+                            }
+                        }
+                        Ok(None) => match self.verify_settings_activation_recovery(&current) {
+                            Ok(verified) => {
+                                tracing::debug!(operation_id = candidate.id, next = ?verified.next,
+                            "checked settings activation recovery custody")
+                            }
+                            Err(error) => tracing::warn!(operation_id = candidate.id, %error,
+                            "settings activation recovery needs review"),
+                        },
+                        Err(error) => tracing::warn!(operation_id = candidate.id, %error,
+                            "settings activation writer capability could not be verified"),
+                    }
+                }
+                tracing::warn!(
+                    operation_id = candidate.id,
+                    port_id = candidate.port_id,
+                    "managed settings activation remains held for its recovery writer"
+                );
+                continue;
+            }
             if candidate.kind == LifecycleOperationKind::AcquireUpdate {
                 let acquisition = crate::operation::acquisition::AcquisitionOperation::decode(
                     &self.library,
@@ -3833,6 +3881,11 @@ impl PortcoveService {
                 Ok(staged.clone())
             };
         }
+        #[cfg(windows)]
+        let settings_activation =
+            self.settings_update_requires_staging(port, status.active.as_ref())?;
+        #[cfg(not(windows))]
+        let settings_activation = false;
         if let Some(mut existing) =
             self.library
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
@@ -3848,17 +3901,32 @@ impl PortcoveService {
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&existing, &qualification)?;
+            if settings_activation {
+                reporter.operation.begin_publication()?;
+                self.library.register_install(&existing, false)?;
+                return if activate {
+                    self.activate_staged_locked(
+                        &port.id,
+                        reporter.operation.operation_id(),
+                        crate::VersionChangeKind::Update,
+                        release.uploader_continuity.as_ref(),
+                    )
+                } else {
+                    existing.staged = true;
+                    Ok(existing)
+                };
+            }
             if activate
                 && let Some(active) = &status.active
                 && active.id != existing.id
             {
                 self.snapshot_before_version_change(
-                    &port.id,
                     crate::VersionChangeKind::Update,
                     active,
                     Some(&active.version),
                     &existing.version,
                     true,
+                    None,
                 )?;
             }
             reporter.operation.begin_publication()?;
@@ -3877,7 +3945,9 @@ impl PortcoveService {
             InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?
                 .with_acquisition_resolution(resolution)?
                 .with_shared_preferences(shared_preferences, &shared_root)?;
-        self.collect_active_user_data_if_launched(&port.id)?;
+        if !settings_activation {
+            self.collect_active_user_data_if_launched(&port.id)?;
+        }
         let source =
             self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
         reporter.operation.checkpoint()?;
@@ -3897,7 +3967,8 @@ impl PortcoveService {
                 &mut *reporter.emit,
             )
             .await?;
-        let staged_activation = port.adapter == AdapterKind::NativePortable
+        let staged_activation = settings_activation
+            || port.adapter == AdapterKind::NativePortable
             || crate::persistence::requires_restore_receipt(port)
             || crate::installed_mutability::declared_shipwright_persistence(port, platform);
         if activate
@@ -3907,12 +3978,12 @@ impl PortcoveService {
             // A staged route snapshots at its own activation, so each version
             // change is protected exactly once. Stage-only updates change nothing.
             self.snapshot_before_version_change(
-                &port.id,
                 crate::VersionChangeKind::Update,
                 active,
                 Some(&active.version),
                 &release.version,
                 false,
+                None,
             )?;
         }
         let installed = Installer::with_faults(self.library.clone(), self.faults.clone())?
@@ -4386,12 +4457,12 @@ impl PortcoveService {
                 self.require_portable_rollback_transition(active, &previous)?;
                 // Before any data or version change; a failure stops the rollback.
                 self.snapshot_before_version_change(
-                    port_id,
                     crate::VersionChangeKind::Rollback,
                     active,
                     Some(&active.version),
                     &previous.version,
                     false,
+                    None,
                 )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
@@ -4590,21 +4661,29 @@ impl PortcoveService {
             port_id,
             &staged.id,
         )?;
+        let store = OperationStore::new(self.library.clone());
+        let mut lifecycle =
+            LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
+        lifecycle.install = Some(staged.clone());
+        #[cfg(windows)]
+        if let Some(active) = &status.active
+            && let Some(prepared) =
+                self.prepare_settings_default_activation_locked(active, &staged)?
+        {
+            return self
+                .publish_settings_default_activation_locked(&store, lifecycle, kind, prepared);
+        }
         if let Some(active) = &status.active {
             // The first mutation follows; a snapshot failure stops the change here.
             self.snapshot_before_version_change(
-                port_id,
                 kind,
                 active,
                 Some(&active.version),
                 &staged.version,
                 true,
+                None,
             )?;
         }
-        let store = OperationStore::new(self.library.clone());
-        let mut lifecycle =
-            LifecycleOperation::new(operation_id, LifecycleOperationKind::Activate, port_id);
-        lifecycle.install = Some(staged.clone());
         let mut activation = crate::recovery::ActivationOperation::decode(self, &lifecycle)?;
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
@@ -6704,11 +6783,19 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<PathBuf>> {
+        self.collect_active_user_data_except(port_id, None)
+    }
+
+    fn collect_active_user_data_except(
+        &self,
+        port_id: &str,
+        excluded: Option<&str>,
+    ) -> Result<Vec<PathBuf>> {
         let Some(active) = self.collectible_active_install(port_id)? else {
             return Ok(Vec::new());
         };
         let port = self.installed_mutability_port(&active)?;
-        self.collect_user_data_from(&port, &active.path)
+        self.collect_user_data_from_except(&port, &active.path, excluded)
     }
 
     /// Brings the active build's copy up to the canonical data after a profile
@@ -7279,6 +7366,15 @@ impl PortcoveService {
         port: &PortDefinition,
         install_root: &Path,
     ) -> Result<Vec<PathBuf>> {
+        self.collect_user_data_from_except(port, install_root, None)
+    }
+
+    fn collect_user_data_from_except(
+        &self,
+        port: &PortDefinition,
+        install_root: &Path,
+        excluded: Option<&str>,
+    ) -> Result<Vec<PathBuf>> {
         self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
@@ -7337,6 +7433,9 @@ impl PortcoveService {
         crate::archive_data::initialize(port, &user_root)?;
         for entry in entries {
             let relative = entry.relative;
+            if excluded == Some(relative.as_str()) {
+                continue;
+            }
             let source = persistent_root.join(&relative);
             let destination = entry.canonical;
             if contract.writes_directly {
@@ -7378,20 +7477,30 @@ impl PortcoveService {
     ) -> Result<()> {
         self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
-        self.restore_user_data_with_contract(&contract, install_root)
+        self.restore_user_data_with_contract(&contract, install_root, None)
     }
 
+    #[cfg(test)]
     fn restore_retained_user_data_to(&self, install: &InstallRecord) -> Result<()> {
+        self.restore_retained_user_data_except(install, None)
+    }
+
+    fn restore_retained_user_data_except(
+        &self,
+        install: &InstallRecord,
+        excluded: Option<&str>,
+    ) -> Result<()> {
         self.library
             .require_no_ghostship_recovery(&install.port_id)?;
         let contract = self.persistence_contract_for_install(install)?;
-        self.restore_user_data_with_contract(&contract, &install.path)
+        self.restore_user_data_with_contract(&contract, &install.path, excluded)
     }
 
     fn restore_user_data_with_contract(
         &self,
         contract: &PersistenceContract,
         install_root: &Path,
+        excluded: Option<&str>,
     ) -> Result<()> {
         let port = &contract.port;
         let install_root = self.managed_install_root(&port.id, install_root)?;
@@ -7437,6 +7546,9 @@ impl PortcoveService {
             crate::archive_data::initialize(port, &user_root)?;
             for entry in entries {
                 let relative = entry.relative;
+                if excluded == Some(relative.as_str()) {
+                    continue;
+                }
                 let source = entry.canonical;
                 let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;

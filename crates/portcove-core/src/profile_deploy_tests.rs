@@ -1638,6 +1638,64 @@ fn recomp_local_review_checks_versions_before_offering_code_consent() {
 }
 
 #[test]
+fn recomp_draft_reports_local_code_after_resolving_queued_dependencies() {
+    let w = recomp_world();
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    let mut upgraded: serde_json::Value =
+        serde_json::from_slice(&manifest("base_pack", &[])).unwrap();
+    upgraded["version"] = "2.0.0".into();
+    let upgraded = serde_json::to_vec(&upgraded).unwrap();
+    let dependency = archive(&w.scratch, "new-base.nrm", &[("mod.json", &upgraded)]);
+    let package = w.nrm(
+        "extra.nrm",
+        "extra",
+        &["base_pack:2.0.0"],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let revision = w.revision();
+    assert!(
+        w.service
+            .plan_local_mod_package(RECOMP, &w.default, &package, revision)
+            .is_err()
+    );
+    let local_files = [dependency, package]
+        .into_iter()
+        .map(|path| {
+            let review = w
+                .service
+                .plan_workspace_local_mod_package(RECOMP, &w.default, &path, revision)
+                .unwrap();
+            LocalModDraftFile {
+                path,
+                expected_plan_sha256: review.plan_sha256,
+            }
+        })
+        .collect();
+    let edits = ModSetupEdits {
+        packages: vec![],
+        order: None,
+        local_files,
+    };
+    let preview = w
+        .service
+        .preview_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits)
+        .unwrap();
+    assert_eq!(preview.local_code_packages, ["extra.nrm"]);
+    let error = w
+        .service
+        .apply_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits, false)
+        .unwrap_err();
+    assert!(error.message.contains("needs permission to run code"));
+    assert_eq!(w.revision(), revision);
+    let applied = w
+        .service
+        .apply_mod_setup_draft(RECOMP, &w.default, revision, &[], &edits, true)
+        .unwrap();
+    assert_eq!(applied.revision, revision + 1);
+    assert_eq!(w.live(), ["base_pack.nrm", "extra.nrm"]);
+}
+
+#[test]
 fn recomp_dependencies_must_be_installed_and_stay_on() {
     let w = recomp_world();
     let missing = w
@@ -3189,5 +3247,203 @@ fn mod_inventory_metadata_keeps_current_runtime_policy_refusals() {
         service
             .copy_profile("starship", &profile.id, "Held")
             .is_err()
+    );
+}
+
+#[test]
+fn mod_setup_draft_previews_one_order_and_refuses_a_changed_file_before_publishing() {
+    let w = world();
+    let port = "starship";
+    let original = archive(&w.scratch, "base.otr", &[("assets/shared", b"old")]);
+    let current = w
+        .service
+        .install_mod_package(port, &w.default, &original, 1)
+        .unwrap();
+    let first = archive(&w.scratch, "a.otr", &[("assets/shared", b"a")]);
+    let last = archive(&w.scratch, "b.otr", &[("assets/shared", b"b")]);
+    let files = [first, last].map(|path| {
+        let review = w
+            .service
+            .plan_local_mod_package(port, &w.default, &path, current.revision)
+            .unwrap();
+        LocalModDraftFile {
+            path,
+            expected_plan_sha256: review.plan_sha256,
+        }
+    });
+    let edits = ModSetupEdits {
+        packages: vec![ModSetupPackageEdit {
+            native_id: "base.otr".into(),
+            enabled: Some(false),
+        }],
+        order: None,
+        local_files: files.to_vec(),
+    };
+    let preview = w
+        .service
+        .preview_mod_setup_draft(port, &w.default, current.revision, &[], &edits)
+        .unwrap();
+    assert_eq!(preview.order, ["a.otr", "b.otr"]);
+    assert_eq!(preview.conflicts.first().unwrap().winner, "b.otr");
+
+    archive(&w.scratch, "b.otr", &[("assets/changed", b"replacement")]);
+    assert!(
+        w.service
+            .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+            .is_err()
+    );
+    let layout = w.service.deploy_layout(port).unwrap();
+    assert_eq!(
+        sha256_file(&layout.mods().join("base.otr")).unwrap(),
+        sha256_file(&original).unwrap()
+    );
+    assert_eq!(
+        profile::current_revision(&w.service.library.connection().unwrap(), port, &w.default)
+            .unwrap(),
+        current
+    );
+
+    archive(&w.scratch, "b.otr", &[("assets/shared", b"b")]);
+    let next = w
+        .service
+        .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+        .unwrap();
+    assert_eq!(next.parent_revision, Some(current.revision));
+    assert_eq!(next.save_group, current.save_group);
+    assert_eq!(
+        profile::selection(&w.service.library.connection().unwrap(), port).unwrap(),
+        Some((w.default.clone(), next.revision))
+    );
+    assert!(restore_pending(&layout.user));
+    assert_eq!(live_mods(&w), ["a.otr", "b.otr"]);
+    assert_eq!(
+        enabled_in_override_order(&next)
+            .iter()
+            .map(|item| item.native_id.as_str())
+            .collect::<Vec<_>>(),
+        preview.order
+    );
+    assert!(
+        w.service
+            .apply_mod_setup_draft(port, &w.default, current.revision, &[], &edits, false)
+            .is_err()
+    );
+}
+
+#[test]
+fn mod_setup_draft_can_retry_before_commit_and_finish_one_revision_after_commit() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let package = archive(&w.scratch, "base.otr", &[("assets/base", b"old")]);
+    let original = service
+        .install_mod_package(port, &w.default, &package, 1)
+        .unwrap();
+    let path = archive(&w.scratch, "queued.otr", &[("assets/new", b"new")]);
+    let review = service
+        .plan_local_mod_package(port, &w.default, &path, original.revision)
+        .unwrap();
+    let edits = ModSetupEdits {
+        packages: vec![],
+        order: None,
+        local_files: vec![LocalModDraftFile {
+            path,
+            expected_plan_sha256: review.plan_sha256,
+        }],
+    };
+    let connection = service.library.connection().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER interrupt_draft_commit BEFORE INSERT ON profile_revisions
+             BEGIN SELECT RAISE(ABORT, 'interrupted before publishing'); END;",
+        )
+        .unwrap();
+    let apply = |service: &PortcoveService| {
+        service.apply_mod_setup_draft(port, &w.default, original.revision, &[], &edits, false)
+    };
+    let before_commit = apply(service).unwrap_err();
+    assert!(
+        before_commit
+            .message
+            .contains("interrupted before publishing")
+    );
+    assert!(!before_commit.details.contains_key("setup_revision"));
+    assert_eq!(revision(&w, &w.default), original.revision);
+    assert_eq!(live_mods(&w), ["base.otr"]);
+    assert_eq!(
+        service.activate_profile(port, &w.default).unwrap(),
+        original
+    );
+    connection
+        .execute_batch(
+            "DROP TRIGGER interrupt_draft_commit;
+             CREATE TRIGGER interrupt_draft_activation BEFORE UPDATE ON profile_selection
+             WHEN NEW.materialized_revision != OLD.materialized_revision
+             BEGIN SELECT RAISE(ABORT, 'interrupted after publishing'); END;",
+        )
+        .unwrap();
+    let failure = apply(service).unwrap_err().report();
+    let committed = profile::current_revision(&connection, port, &w.default).unwrap();
+    assert_eq!(committed.parent_revision, Some(original.revision));
+    assert_eq!(
+        failure.presentation.mutation_state,
+        crate::MutationState::RecoveryRequired
+    );
+    assert_eq!(
+        failure.presentation.technical_context["setup_revision"],
+        committed.revision.to_string()
+    );
+    assert_eq!(
+        failure.presentation.technical_context["setup_revision_digest"],
+        committed.digest
+    );
+    assert_eq!(
+        profile::selection(&connection, port).unwrap(),
+        Some((w.default.clone(), original.revision))
+    );
+    assert_eq!(live_mods(&w), ["base.otr", "queued.otr"]);
+    connection
+        .execute_batch("DROP TRIGGER interrupt_draft_activation;")
+        .unwrap();
+    let restarted = PortcoveService::new(service.library().clone()).unwrap();
+    assert!(apply(&restarted).is_err());
+    assert_eq!(
+        restarted.activate_profile(port, &w.default).unwrap(),
+        committed
+    );
+    assert!(apply(&restarted).is_err());
+    assert_eq!(revision(&w, &w.default), committed.revision);
+    assert_eq!(live_mods(&w), ["base.otr", "queued.otr"]);
+}
+
+#[test]
+fn finishing_a_same_name_replacement_keeps_bytes_already_deployed_by_apply() {
+    let w = world();
+    let port = "starship";
+    let source = archive(&w.scratch, "mod.otr", &[("assets/one", b"old")]);
+    let before = w
+        .service
+        .install_mod_package(port, &w.default, &source, 1)
+        .unwrap();
+    let source = archive(&w.scratch, "mod.otr", &[("assets/two", b"new")]);
+    let after = w
+        .service
+        .install_mod_package(port, &w.default, &source, before.revision)
+        .unwrap();
+    let layout = w.service.deploy_layout(port).unwrap();
+    let connection = w.service.library.connection().unwrap();
+    // Simulate termination after placing the target bytes but before recording
+    // the materialized revision.
+    profile::set_selection(&connection, port, &w.default, before.revision).unwrap();
+    w.service
+        .reconcile_selected(port, &layout, &connection, &after)
+        .unwrap();
+    assert_eq!(
+        sha256_file(&layout.mods().join("mod.otr")).unwrap(),
+        after.packages[0].sha256
+    );
+    assert_eq!(
+        profile::selection(&connection, port).unwrap(),
+        Some((w.default, after.revision))
     );
 }

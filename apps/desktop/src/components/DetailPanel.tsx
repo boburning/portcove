@@ -1,3 +1,5 @@
+import { useAppTranslation } from "../localization";
+import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
 import { SetupIntentChoice } from "./SetupIntentChoice";
@@ -106,7 +108,8 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
-import { ModSetupsControl } from "./ModSetupsControl";
+import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -196,6 +199,7 @@ interface DetailPanelProps {
   pickBios?: AsyncAction | undefined;
   busy?: string | undefined;
   libraryGeneration?: number;
+  libraryRoot?: string | undefined;
   gameFileQueryContext?: string;
   gameFileFilterContext?: GameFileFilterContext | undefined;
   gameFileObservation?: GameFileObservationPresentation | undefined;
@@ -425,6 +429,7 @@ export function DetailPanel(props: DetailPanelProps) {
       busy={effectiveBusy}
       outputExternalBusy={actionState.busy}
       libraryGeneration={props.libraryGeneration ?? 0}
+      libraryRoot={props.libraryRoot}
       outputLocationChanged={props.outputLocationChanged}
       externalRuntimeChanged={props.externalRuntimeChanged}
       checkAgain={props.checkAgain}
@@ -535,6 +540,7 @@ function DetailBody(model: {
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
   libraryGeneration: number;
+  libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
   externalRuntimeChanged?: (() => void) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
@@ -545,6 +551,38 @@ function DetailBody(model: {
   const { busy } = model;
   const managedPreparation = needsManagedPreparation(model.port, model.installed, model.status);
   const external = usesExternalRuntimeRoute(model.port, model.status);
+  const { t: tMods } = useAppTranslation("gameSettings");
+  const activeInstall = model.status?.active?.id;
+  const modsKey = `${model.libraryGeneration}:${model.port.id}:${activeInstall}`;
+  const [modSupport, setModSupport] = useState<{
+    key: string;
+    supported: boolean | "unavailable";
+  }>();
+  const [modSupportRetry, retryModSupport] = useState(0);
+  const [observedModPlay, setModPlay] = useState<ModPlayState>();
+  const modPlay =
+    observedModPlay?.port === model.port.id &&
+    observedModPlay.generation === model.libraryGeneration
+      ? observedModPlay
+      : undefined;
+  const [reviewFromPlay, requestModReview] = useState(0);
+  useEffect(() => {
+    if (external || !activeInstall) return;
+    let current = true;
+    void readModSetupInventory(model.port.id, model.libraryGeneration)
+      .then((view) => {
+        if (current) setModSupport({ key: modsKey, supported: view.supported });
+      })
+      .catch(() => {
+        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      });
+    return () => {
+      current = false;
+    };
+  }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
+  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
+
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -600,7 +638,38 @@ function DetailBody(model: {
       }
       action={(reveal) =>
         model.installReadbackRequired ? null : model.installed && model.launchReady ? (
-          <DetailHeaderAction {...{ model, busy }} />
+          <div className="detail-hero-primary grid justify-items-end gap-1">
+            <DetailHeaderAction
+              {...{
+                model,
+                busy: modPlay?.busy && modsAvailable ? tMods("mods.browse.installing") : busy,
+              }}
+            />
+            {modsAvailable && modPlay && (
+              <>
+                <span className="min-w-0 text-xs [overflow-wrap:anywhere] text-pc-muted-foreground">
+                  <Trans
+                    t={tMods}
+                    i18nKey="mods.workspace.playUses"
+                    components={{ name: <bdi>{modPlay.name}</bdi> }}
+                  />
+                </span>
+                {modPlay.pending > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={modPlay.busy || Boolean(busy)}
+                    onClick={() => {
+                      reveal("mods");
+                      requestModReview((request) => request + 1);
+                    }}
+                  >
+                    {tMods("mods.workspace.review")}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         ) : (
           <Button
             data-focusable
@@ -655,16 +724,46 @@ function DetailBody(model: {
               status={model.status}
             />
           )}
+          {currentModSupport === "unavailable" && (
+            <div className="detail-notice-row" role="status">
+              <span>{tMods("mods.workspace.readFailed")}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => retryModSupport((request) => request + 1)}
+              >
+                {tMods("mods.reread")}
+              </Button>
+            </div>
+          )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />
         </>
       )}
     >
-      {(reveal) => ({
+      {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
+        ...(modsAvailable
+          ? {
+              mods: (
+                <ModSetupsControl
+                  key={modsKey}
+                  portId={model.port.id}
+                  generation={model.libraryGeneration}
+                  libraryRoot={model.libraryRoot}
+                  busy={Boolean(busy)}
+                  openGameFiles={() => reveal("files")}
+                  active={currentSection === "mods"}
+                  onPlayState={setModPlay}
+                  reviewFromPlay={reviewFromPlay}
+                  onAppliedFromPlay={() => reveal("overview")}
+                />
+              ),
+            }
+          : {}),
         saves: <DetailSavesSection {...{ model, external }} />,
         ...(model.status?.active && !external
-          ? { configuration: <DetailConfigurationSection {...{ model, reveal }} /> }
+          ? { configuration: <DetailConfigurationSection model={model} /> }
           : {}),
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal }} />,
@@ -4199,13 +4298,7 @@ function DetailSavesSection({
   );
 }
 
-function DetailConfigurationSection({
-  model,
-  reveal,
-}: {
-  model: Parameters<typeof DetailBody>[0];
-  reveal: import("./DetailLayout").RevealDetailSection;
-}) {
+function DetailConfigurationSection({ model }: { model: Parameters<typeof DetailBody>[0] }) {
   const active = model.status?.active;
   if (!active) return null;
   return (
@@ -4215,13 +4308,6 @@ function DetailConfigurationSection({
         installId={active.id}
         generation={model.libraryGeneration}
         busy={Boolean(model.busy)}
-      />
-      <ModSetupsControl
-        key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
-        portId={model.port.id}
-        generation={model.libraryGeneration}
-        busy={Boolean(model.busy)}
-        openGameFiles={() => reveal("files")}
       />
     </div>
   );

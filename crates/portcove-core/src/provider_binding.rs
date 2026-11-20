@@ -89,6 +89,19 @@ pub(crate) fn reference_matches(
     expected.is_some() && expected.as_ref() == reference.binding.as_ref().or(legacy.as_ref())
 }
 
+pub(crate) fn same_project(
+    port_id: &str,
+    left: &crate::ProviderPackageRef,
+    right: &crate::ProviderPackageRef,
+) -> bool {
+    left.provider == right.provider
+        && left.project == right.project
+        && (left.binding == right.binding || {
+            let legacy = legacy_binding(port_id, &left.provider);
+            left.binding.as_ref().or(legacy.as_ref()) == right.binding.as_ref().or(legacy.as_ref())
+        })
+}
+
 pub(crate) fn has_explicit_scope(
     provider: Option<&crate::ProviderPackageRef>,
     requirements: &[crate::ProviderRequirement],

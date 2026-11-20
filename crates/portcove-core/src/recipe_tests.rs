@@ -740,6 +740,7 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
         port_id: "starship".into(),
         profile_id: w.profile.clone(),
         expected_revision: 2,
+        review_nonce: None,
         provider: provider.clone(),
         project_name: "Reviewed fixture".into(),
         file: crate::ProviderFileCandidate {

@@ -10,8 +10,8 @@
     {
       "namespace": "official",
       "stable_id": "dungeon-crawl-stone-soup",
-      "revision": 2,
-      "target": "sha256/bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48.json"
+      "revision": 4,
+      "target": "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json"
     }
   ],
   "contents": [
@@ -21,19 +21,19 @@
       "length": 9438
     },
     {
+      "target": "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json",
+      "sha256": "2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e",
+      "length": 3565
+    },
+    {
       "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json",
       "sha256": "6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e",
       "length": 6123
     },
     {
-      "target": "sha256/bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48.json",
-      "sha256": "bb526f4e7b39efc23203a4ea97ceaa326606828d0007146e600351f3da2c8c48",
-      "length": 3339
-    },
-    {
-      "target": "sha256/c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2.json",
-      "sha256": "c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2",
-      "length": 3343
+      "target": "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json",
+      "sha256": "666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570",
+      "length": 3615
     }
   ]
 }

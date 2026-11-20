@@ -203,6 +203,7 @@ export function secondaryPanelFixtures(portId: string, root: string, installId: 
     port_id: portId,
     game_name: "Owned presentation game",
     project,
+    eligible_file_ids: ["10"],
     observed_at: 1,
     freshness: "fresh",
   };

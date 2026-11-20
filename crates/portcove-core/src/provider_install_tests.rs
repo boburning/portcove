@@ -94,6 +94,71 @@ fn live_mods(w: &World) -> Vec<String> {
 }
 
 #[tokio::test]
+async fn workspace_review_refuses_provider_scope_changes_before_download() {
+    let w = world();
+    let error = w
+        .service
+        .plan_workspace_provider_install("starship", &w.profile, "gamebanana", "42", "10", "123")
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert!(live_mods(&w).is_empty());
+}
+
+#[tokio::test]
+async fn a_provider_draft_retries_the_same_review_after_an_interrupted_commit() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let payload = zip_bytes(&[("hd.o2r", &o2r(&[("objects/hd.bin", b"hd")]))]);
+    let (root, server) = serve(777, "pack.zip", &payload);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = service
+        .plan_provider_install_with(&client, port, &w.profile, 42, 10)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let connection = service.library.connection().unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER interrupt_draft_commit BEFORE INSERT ON profile_revisions
+             BEGIN SELECT RAISE(ABORT, 'interrupted before publishing'); END;",
+        )
+        .unwrap();
+    let apply = || {
+        service.apply_mod_setup_draft(
+            port,
+            &w.profile,
+            plan.expected_revision,
+            std::slice::from_ref(&plan),
+            &crate::ModSetupEdits::default(),
+            false,
+        )
+    };
+    assert!(
+        apply()
+            .unwrap_err()
+            .message
+            .contains("interrupted before publishing")
+    );
+    assert!(live_mods(&w).is_empty());
+    assert_eq!(
+        profile::current_revision(&connection, port, &w.profile)
+            .unwrap()
+            .revision,
+        plan.expected_revision,
+    );
+    connection
+        .execute_batch("DROP TRIGGER interrupt_draft_commit;")
+        .unwrap();
+    let next = apply().unwrap();
+    assert_eq!(next.parent_revision, Some(plan.expected_revision));
+    assert_eq!(next.packages[0].provider.as_ref(), Some(&plan.provider));
+    assert_eq!(live_mods(&w), ["hd.o2r"]);
+    assert!(apply().is_err());
+}
+
+#[tokio::test]
 async fn a_reviewed_wrapper_installs_exactly_its_packages_with_provider_identity() {
     let w = world();
     let payload = zip_bytes(&[

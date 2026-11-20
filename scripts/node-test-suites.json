@@ -1565,6 +1565,13 @@
       ]
     },
     {
+      "file": "scripts/maintenance-public-summary.test.mts",
+      "memberships": [
+        ["catalog-full", 1278],
+        ["repository-tools", 413]
+      ]
+    },
+    {
       "file": "scripts/maintenance-release-health.test.mts",
       "memberships": [
         ["catalog-full", 1272],

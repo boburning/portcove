@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Initial managed Windows Tiles definition for Dungeon Crawl Stone Soup from crawl/crawl, repository 23038334. The reviewed ordinary Stable baseline is 0.34.1, release 297110712, asset 374122427, SHA-256 a772f22db9dde5dfa85bcc1652dbf16e3d62ecd1173f27c39387403532507979. The grant uses ordinary GitHub release selection. Chameleon retains its existing definition and acquisition scope. Its policy and launch revisions advance to bind the two-entry index. The publisher continues to derive descriptive listings separately. Correct the descriptive Stone Soup display title while retaining the admitted game ID and every operational declaration. Reconcile the selected Japanese route with the reviewed Chameleon Twist game identity; exact port IDs, Japanese source requirements and runtime authority remain unchanged."
+    "notes": "Build on the accepted Japanese Chameleon Twist revision 1 and Crawl revision 3 definitions. Correct the reviewed JP original-game identity and Stone Soup display title in both strict entry and projection. Preserve the accepted Preview.9-compatible catalog-schema-2 projections, Crawl Windows package layout, Japanese source checks, grants, acquisition checks and all operational declarations. Changed index, policy and launch bindings advance through normal metadata preparation; no runtime or player-data migration is introduced."
   }
 }

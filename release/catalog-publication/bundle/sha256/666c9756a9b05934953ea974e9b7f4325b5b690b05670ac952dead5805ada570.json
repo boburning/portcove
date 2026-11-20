@@ -76,6 +76,18 @@
           "rolling_tag": null,
           "user_prepared": {}
         },
+        "reviewed_package_layouts": {
+          "windows-x86-64": {
+            "directories": [
+              "dat",
+              "docs",
+              "settings"
+            ],
+            "executables": [
+              "crawl.exe"
+            ]
+          }
+        },
         "runtime_mutable_paths": [],
         "runtime_source_filename": null,
         "runtime_source_hashes": {},
@@ -94,7 +106,7 @@
         "user_data_environment": null
       }
     ],
-    "schema_version": 3,
+    "schema_version": 2,
     "source_catalog": {
       "contracts": [],
       "evidence": [],

@@ -44,6 +44,12 @@
     "executable_hints": {
       "windows-x86-64": ["crawl.exe"]
     },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["dat", "docs", "settings"],
+        "executables": ["crawl.exe"]
+      }
+    },
     "persistent_paths": ["init.txt", "morgue", "saves", "settings/macro.txt"],
     "presentation": {
       "installation_method": "portable-package",

@@ -95,6 +95,9 @@ export async function cliHandoffScenario({
       await click(technical);
     };
     await open("zelda64-recomp", "Library");
+    await browser.wait(
+      until.elementLocated(By.xpath('//*[@role="tab" and normalize-space(.)="Mods"]')),
+    );
     assert.deepEqual(
       await executeBrowserScript(browser, () =>
         Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
@@ -104,9 +107,10 @@ export async function cliHandoffScenario({
       [
         "Overview",
         "Game files",
+        "Mods",
         "Saves & backups",
         "Versions & updates",
-        "Game settings & mods",
+        "Game settings",
         "Manage",
       ],
     );

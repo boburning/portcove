@@ -1067,8 +1067,10 @@ impl Library {
         operation_id: &str,
     ) -> Result<PortOperationGuard> {
         let owned: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='settings_change')",
-            rusqlite::params![operation_id, port_id], |row| row.get(0),
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
+            rusqlite::params![operation_id, port_id],
+            |row| row.get(0),
         )?;
         if !owned {
             return Err(PortcoveError::verification(
@@ -1127,7 +1129,8 @@ impl Library {
 
     fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
         let blocked: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND (?2 IS NULL OR id<>?2)
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
             rusqlite::params![port_id, allowed], |row| row.get(0),
         )?;
         if blocked {
@@ -3550,6 +3553,22 @@ impl Library {
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        self.activate_staged_with_identity(port_id, None)
+    }
+
+    pub(crate) fn activate_staged_exact(
+        &self,
+        previous: &InstallRecord,
+        target: &InstallRecord,
+    ) -> Result<InstallRecord> {
+        self.activate_staged_with_identity(&target.port_id, Some((previous, target)))
+    }
+
+    fn activate_staged_with_identity(
+        &self,
+        port_id: &str,
+        expected: Option<(&InstallRecord, &InstallRecord)>,
+    ) -> Result<InstallRecord> {
         crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
@@ -3563,6 +3582,24 @@ impl Library {
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
         let staged = Self::install_by_id(&transaction, Some(&staged_id))?
             .ok_or_else(|| PortcoveError::state("staged version disappeared during activation"))?;
+        if let Some((previous, target)) = expected {
+            let active_id: Option<String> = transaction.query_row(
+                "SELECT active_install_id FROM port_settings WHERE port_id=?1",
+                [port_id],
+                |row| row.get(0),
+            )?;
+            let active = Self::install_by_id(&transaction, active_id.as_deref())?;
+            if !active
+                .as_ref()
+                .is_some_and(|active| crate::recovery::same_activation_install(active, previous))
+                || !crate::recovery::same_activation_install(&staged, target)
+                || !staged.verified
+            {
+                return Err(PortcoveError::conflict(
+                    "the active or staged install changed before the settings activation commit",
+                ));
+            }
+        }
         crate::profile::follow_active_install(&transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET

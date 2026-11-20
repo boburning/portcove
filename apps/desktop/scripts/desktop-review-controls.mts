@@ -47,7 +47,8 @@ export async function revealDetailSection(
     | "Game files"
     | "Saves & backups"
     | "Versions & updates"
-    | "Game settings & mods"
+    | "Mods"
+    | "Game settings"
     | "Manage",
 ) {
   const tab = await browser.wait(

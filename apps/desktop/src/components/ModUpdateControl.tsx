@@ -14,7 +14,8 @@ export type ModUpdateControlProps = {
   automaticChecks: ModAutoUpdateCheck[];
   disabled: boolean;
   setPolicy: (policy: ModUpdatePolicy) => void;
-  showProject: (projectId: string) => void;
+  providerForPackage: (nativeId: string) => string | undefined;
+  showProject: (projectId: string, provider: string, files: string[]) => void;
 };
 
 const policies = ["keep_current", "review_updates", "automatic_eligible"] as const;
@@ -27,6 +28,7 @@ export function ModUpdateControl({
   automaticChecks,
   disabled,
   setPolicy,
+  providerForPackage,
   showProject,
 }: ModUpdateControlProps) {
   const { t, i18n } = useAppTranslation("gameSettings");
@@ -114,40 +116,46 @@ export function ModUpdateControl({
             className="grid min-w-0 list-none divide-y divide-pc-border p-0 text-sm"
             aria-label={t("mods.updates.lastAutomatic")}
           >
-            {automaticChecks.map(({ checked_at, profile_id, native_ids, project_id, result }) => (
-              <li
-                className="grid min-w-0 gap-1 py-2"
-                key={JSON.stringify([profile_id, native_ids])}
-              >
-                <p>
-                  <bdi className="font-medium">
-                    {native_ids.join(t("mods.separator")) || t("mods.updates.setup")}
-                  </bdi>{" "}
-                  {labels.automatic[result?.outcome ?? "current"]}
-                </p>
-                <time
-                  className="text-xs text-pc-muted-foreground"
-                  dateTime={new Date(checked_at * 1000).toISOString()}
-                >
-                  {new Date(checked_at * 1000).toLocaleString(i18n.resolvedLanguage)}
-                </time>
-                {result && result.outcome !== "applied" && (
-                  <p>
-                    <bdi>{result.reason}</bdi>
-                  </p>
-                )}
-                {result?.outcome === "held" && project_id && (
-                  <Button
-                    className="justify-self-start"
-                    variant="outline"
-                    disabled={disabled || busy}
-                    onClick={() => showProject(project_id)}
+            {automaticChecks.map(
+              ({ checked_at, profile_id, native_ids, project_id, candidate_file_id, result }) => {
+                const providers = [...new Set(native_ids.map(providerForPackage))];
+                const provider = providers.length === 1 ? providers[0] : undefined;
+                return (
+                  <li
+                    className="grid min-w-0 gap-1 py-2"
+                    key={JSON.stringify([profile_id, native_ids])}
                   >
-                    {t("mods.updates.reviewFiles")}
-                  </Button>
-                )}
-              </li>
-            ))}
+                    <p>
+                      <bdi className="font-medium">
+                        {native_ids.join(t("mods.separator")) || t("mods.updates.setup")}
+                      </bdi>{" "}
+                      {labels.automatic[result?.outcome ?? "current"]}
+                    </p>
+                    <time
+                      className="text-xs text-pc-muted-foreground"
+                      dateTime={new Date(checked_at * 1000).toISOString()}
+                    >
+                      {new Date(checked_at * 1000).toLocaleString(i18n.resolvedLanguage)}
+                    </time>
+                    {result && result.outcome !== "applied" && (
+                      <p>
+                        <bdi>{result.reason}</bdi>
+                      </p>
+                    )}
+                    {result?.outcome === "held" && project_id && candidate_file_id && provider && (
+                      <Button
+                        className="justify-self-start"
+                        variant="outline"
+                        disabled={disabled || busy}
+                        onClick={() => showProject(project_id, provider, [candidate_file_id])}
+                      >
+                        {t("mods.updates.reviewFiles")}
+                      </Button>
+                    )}
+                  </li>
+                );
+              },
+            )}
           </ul>
         ) : (
           <p className="text-sm">{t("mods.updates.noAutomaticCheck")}</p>
@@ -198,7 +206,13 @@ export function ModUpdateControl({
                     className="justify-self-start"
                     variant="outline"
                     disabled={disabled || busy}
-                    onClick={() => showProject(observation.provider.project)}
+                    onClick={() =>
+                      showProject(
+                        observation.provider.project,
+                        observation.provider.provider,
+                        observation.newer_files.map((file) => file.file_id),
+                      )
+                    }
                   >
                     {t("mods.updates.reviewFiles")}
                   </Button>

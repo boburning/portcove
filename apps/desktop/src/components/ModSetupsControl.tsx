@@ -1,6 +1,14 @@
 import type { OutputLocalModPackagePlan } from "../transport-types.generated";
 import type { TFunction } from "i18next";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
@@ -17,6 +25,15 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
+import { ChoiceSelect } from "./ChoiceSelect";
+import {
+  changeModEdit,
+  draftSize,
+  emptyModDraft,
+  useModDraft,
+  type LocalModSelection,
+  type ModDraft,
+} from "../features/mod-setups/mod-draft";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
 import { CreateCleanModSetup } from "./CreateCleanModSetup";
@@ -24,10 +41,23 @@ import { ModSetupRecovery } from "./ModSetupRecovery";
 import { ModSetupRuntimeRetirement } from "./ModSetupRuntimeRetirement";
 import { ActionRow, Notice } from "./ui/patterns";
 
+export type ModPlayState = {
+  port: string;
+  generation: number;
+  name: string;
+  pending: number;
+  busy: boolean;
+};
+
 type Props = {
   portId: string;
   generation: number;
   busy: boolean;
+  libraryRoot?: string | undefined;
+  active?: boolean;
+  onPlayState?: (state: ModPlayState | undefined) => void;
+  reviewFromPlay?: number;
+  onAppliedFromPlay?: () => void;
   openGameFiles?: (() => void) | undefined;
 };
 
@@ -75,15 +105,16 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   const [outcome, setOutcome] = useState<string>();
   const [working, setWorking] = useState(false);
   const [request, setRequest] = useState(0);
+  const applyingProviderDraft = useRef(false);
   // False from a change until the view is read again, so no control acts on a
   // revision the change has replaced.
   const [fresh, setFresh] = useState(true);
   useEffect(() => {
     if (busy) return;
-    let current = true;
+    const read = { current: true };
     void readModSetupInventory(portId, generation).then(
       (next) => {
-        if (!current) return;
+        if (!read.current || applyingProviderDraft.current) return;
         if (next.port_id !== portId) {
           setFailure("gameChanged");
           return;
@@ -92,11 +123,12 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
         setFresh(true);
       },
       (failure: unknown) => {
-        if (current) setFailure({ text: errorText(failure) });
+        if (read.current && !applyingProviderDraft.current)
+          setFailure({ text: errorText(failure) });
       },
     );
     return () => {
-      current = false;
+      read.current = false;
     };
   }, [portId, generation, busy, request]);
 
@@ -141,6 +173,9 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     requestStandingSetup();
     setRequest((value) => value + 1);
   };
+  const setProviderDraftApplying = useCallback((applying: boolean) => {
+    applyingProviderDraft.current = applying;
+  }, []);
   return {
     view,
     error,
@@ -154,10 +189,21 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     setOutcome,
     setFailure,
     refreshAfterProviderInstall,
+    setProviderDraftApplying,
   };
 }
 
-function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Props) {
+function BoundModSetupsControl({
+  portId,
+  generation,
+  libraryRoot,
+  active = true,
+  busy,
+  openGameFiles,
+  onPlayState,
+  reviewFromPlay,
+  onAppliedFromPlay,
+}: Props) {
   const { t } = useAppTranslation("gameSettings");
   const {
     view,
@@ -172,21 +218,9 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
     setOutcome,
     setFailure,
     refreshAfterProviderInstall,
+    setProviderDraftApplying,
   } = useModSetupInventory(portId, generation, busy);
-  const [providerChoice, setProviderChoice] = useState<{
-    portId: string;
-    generation: number;
-    provider: string;
-  }>();
-  const selectedProvider =
-    providerChoice?.portId === portId && providerChoice.generation === generation
-      ? providerChoice.provider
-      : undefined;
-  const browseProvider =
-    view?.provider ??
-    (selectedProvider && view?.providers?.includes(selectedProvider)
-      ? selectedProvider
-      : undefined);
+  const [browseSelected, selectBrowse] = useState<boolean>();
   const [browserBusy, setBrowserBusy] = useState(false);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
@@ -200,6 +234,12 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
     if (notice && document.activeElement === document.body) notice.focus();
   }, []);
   const addFile = useRef<HTMLButtonElement>(null);
+  const restoreAddFileFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (localReview || !restoreAddFileFocus.current) return;
+    restoreAddFileFocus.current = false;
+    addFile.current?.focus();
+  }, [localReview]);
   const copyId = useId();
   const headingId = useId();
   // A picker answer that arrives after this view was replaced is dropped.
@@ -210,6 +250,59 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
       alive.current = false;
     };
   }, []);
+  const sources = view?.providers?.length ? view.providers : view?.provider ? [view.provider] : [];
+  const setup = view ? currentModSetup(view) : undefined;
+  const [draft, setDraft, olderDraft, updateOlder] = useModDraft({
+    library: libraryRoot,
+    port: portId,
+    setup: setup?.selected?.profile.id,
+    revision: setup?.selected?.profile.current_revision,
+    appliedRevision:
+      setup?.selected &&
+      view?.live?.profile_id === setup.selected.profile.id &&
+      view.live.revision === setup.selected.revision.revision
+        ? { revision: setup.selected.revision.revision, digest: setup.selected.revision.digest }
+        : undefined,
+  });
+  const localFiles = (draft.localFiles ?? []).filter(
+    ({ review }) =>
+      review.profile_id === setup?.selected?.profile.id &&
+      review.expected_revision === setup?.selected?.profile.current_revision,
+  );
+  const undoLocal = (digest: string) =>
+    setDraft((current) => ({
+      ...current,
+      localFiles: (current.localFiles ?? []).filter(({ review }) => review.plan_sha256 !== digest),
+    }));
+  const recoverable =
+    (olderDraft?.selections.receipt ? undefined : olderDraft?.selections.additions)?.filter(
+      (entry) =>
+        sources.includes(entry.provider) &&
+        !setup?.selected?.revision.packages?.some(
+          ({ provider }) =>
+            provider?.provider === entry.provider &&
+            provider.project === entry.project &&
+            provider.file === entry.file,
+        ) &&
+        !draft.additions.some(
+          (other) => entry.provider === other.provider && entry.project === other.project,
+        ),
+    ) ?? [];
+  const appliedName = setup?.selected?.profile.display_name;
+  const pendingCount = draftSize(draft);
+  useEffect(() => {
+    onPlayState?.(
+      appliedName
+        ? {
+            port: portId,
+            generation,
+            name: appliedName,
+            pending: pendingCount,
+            busy: browserBusy || working,
+          }
+        : undefined,
+    );
+  }, [appliedName, pendingCount, browserBusy, working, onPlayState, portId, generation]);
   if (!view && error)
     return (
       <section aria-labelledby={headingId}>
@@ -224,12 +317,16 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
     );
   // Games without reviewed mod support show nothing, including while loading.
   if (!view?.supported) return null;
-  if (busy) return <p role="status">{t("mods.busy")}</p>;
   // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
-  const locked = working || !fresh || browserBusy || recipeBusy;
-  const { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked } =
-    currentModSetup(view);
+  const locked = busy || working || !fresh || browserBusy || recipeBusy;
+  const { setups, selected, heldUpdates, onOtherBuild, blocked } = setup!;
+  const materializing = Boolean(
+    selected &&
+    view.live?.revision != null &&
+    view.live.revision < selected.profile.current_revision,
+  );
+  const browsing = Boolean(sources.length && (browseSelected ?? true));
   const applicableReview =
     selected &&
     localReview?.review.profile_id === selected.profile.id &&
@@ -255,7 +352,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
   );
 
   return (
-    <section aria-labelledby={headingId} className="grid gap-3">
+    <section aria-labelledby={headingId} className="mod-workspace grid min-w-0 gap-3" inert={busy}>
       <h3
         ref={setupHeading}
         id={headingId}
@@ -315,7 +412,7 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
           <ModSetupNotices
             nativeMessage={nativeMessage}
             browserBusy={browserBusy}
-            provider={browseProvider ?? null}
+            provider={view.provider}
             heldUpdates={heldUpdates}
           />
           {staleDefault && (
@@ -358,26 +455,179 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                 </div>
               </Notice>
             )}
-          <ul aria-label={t("mods.setups")} className="m-0 grid list-none gap-2 p-0">
-            {setups.map((entry) => (
-              <SetupRow
-                key={entry.profile.id}
-                entry={entry}
-                inUse={entry.profile.id === selectedId}
-                disabled={changing || blocked}
-                onUse={() =>
+          {selected && (
+            <div className="mod-workspace-bar flex flex-wrap items-center gap-2">
+              <div role="group" aria-label={t("mods.heading")} className="mod-workspace-views">
+                {sources.length > 0 && (
+                  <Button
+                    variant={browsing ? "selected" : "ghost"}
+                    aria-pressed={browsing}
+                    onClick={() => selectBrowse(true)}
+                  >
+                    {t("mods.workspace.browse")}
+                  </Button>
+                )}
+                <Button
+                  variant={!browsing ? "selected" : "ghost"}
+                  aria-pressed={!browsing}
+                  onClick={() => selectBrowse(false)}
+                >
+                  {t("mods.workspace.installedCount", {
+                    count: view.applied_package_count ?? selected.revision.packages?.length ?? 0,
+                  })}
+                </Button>
+              </div>
+              <div className="mod-setup-select max-w-full min-w-0">
+                <ChoiceSelect
+                  inline
+                  label={t("mods.workspace.setup")}
+                  value={selected.profile.id}
+                  disabled={changing || blocked}
+                  options={setups
+                    .filter(
+                      (entry) =>
+                        setupRuntimeAvailable(entry) || entry.profile.id === selected.profile.id,
+                    )
+                    .map((entry) => ({
+                      value: entry.profile.id,
+                      label: entry.profile.display_name,
+                    }))}
+                  onChange={(next) => {
+                    const entry = setups.find(({ profile }) => profile.id === next);
+                    if (!entry) return;
+                    void perform(
+                      () => desktopApi.useModSetup(portId, next, generation),
+                      t("mods.outcome.using", { name: entry.profile.display_name }),
+                    );
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          <details hidden={browsing || browserBusy}>
+            <summary className="cursor-pointer text-sm">{t("mods.setups")}</summary>
+            <ul aria-label={t("mods.setups")} className="mt-2 grid list-none gap-2 p-0">
+              {setups.map((entry) => (
+                <SetupRow
+                  key={entry.profile.id}
+                  entry={entry}
+                  inUse={entry.profile.id === selected?.profile.id}
+                  disabled={changing || blocked}
+                  onUse={() =>
+                    void perform(
+                      () => desktopApi.useModSetup(portId, entry.profile.id, generation),
+                      t("mods.outcome.using", { name: entry.profile.display_name }),
+                    )
+                  }
+                />
+              ))}
+            </ul>
+          </details>
+          {selected && olderDraft && (
+            <Notice intent="warning">
+              <div data-slot="notice-body" className="grid gap-2">
+                <p>{t("mods.workspace.olderDraft", { revision: olderDraft.base })}</p>
+                <ul className="list-disc ps-5">
+                  {olderDraft.selections.additions.map((item) => (
+                    <li key={JSON.stringify([item.provider, item.project])}>
+                      <bdi>{item.name}</bdi>
+                    </li>
+                  ))}
+                  {olderDraft.selections.packages.map((item) => (
+                    <li key={item.native_id}>
+                      <bdi>{item.native_id}</bdi>
+                    </li>
+                  ))}
+                  {olderDraft.selections.localFiles?.map(({ review }) => (
+                    <li key={review.plan_sha256}>
+                      <bdi>{review.native_id}</bdi>
+                    </li>
+                  ))}
+                  {olderDraft.selections.order && <li>{t("mods.workspace.pendingOrder")}</li>}
+                </ul>
+                <ActionRow>
+                  {recoverable.length > 0 && (
+                    <Button
+                      variant="outline"
+                      disabled={
+                        changing ||
+                        draft.additions.length + recoverable.length + localFiles.length > 16
+                      }
+                      onClick={() => {
+                        const saved = setDraft((current) => ({
+                          ...current,
+                          additions: [...current.additions, ...recoverable],
+                        }));
+                        if (!saved) return;
+                        updateOlder({
+                          ...olderDraft.selections,
+                          additions: olderDraft.selections.additions.filter(
+                            (entry) => !recoverable.includes(entry),
+                          ),
+                        });
+                      }}
+                    >
+                      {t("mods.workspace.recoverAdditions")}
+                    </Button>
+                  )}
+                  <Button variant="ghost" disabled={changing} onClick={() => updateOlder()}>
+                    {t("mods.workspace.discardOlder")}
+                  </Button>
+                </ActionRow>
+              </div>
+            </Notice>
+          )}
+          {selected && (
+            <ModProviderBrowser
+              portId={portId}
+              sources={sources}
+              generation={generation}
+              selected={selected}
+              active={active && !busy}
+              browsing={browsing}
+              onBrowse={() => selectBrowse(true)}
+              onBusyChange={setBrowserBusy}
+              draft={draft}
+              localFiles={localFiles}
+              undoLocal={undoLocal}
+              setDraft={setDraft}
+              disabled={
+                busy ||
+                working ||
+                !fresh ||
+                blocked ||
+                materializing ||
+                recipeBusy ||
+                Boolean(applicableReview)
+              }
+              updates={{
+                policy: selected.profile.intent?.update_policy ?? "review_updates",
+                automaticChecks: (view.last_automatic_checks ?? []).filter(
+                  (check) => check.profile_id === selected.profile.id,
+                ),
+                setPolicy: (policy) =>
                   void perform(
-                    () => desktopApi.useModSetup(portId, entry.profile.id, generation),
-                    t("mods.outcome.using", { name: entry.profile.display_name }),
-                  )
-                }
-              />
-            ))}
-          </ul>
+                    () =>
+                      desktopApi.setModUpdatePolicy(
+                        portId,
+                        selected.profile.id,
+                        policy,
+                        generation,
+                      ),
+                    t("mods.updates.policySaved"),
+                  ),
+              }}
+              onInstalled={refreshAfterProviderInstall}
+              onRefresh={reread}
+              onApplying={setProviderDraftApplying}
+              reviewFromPlay={reviewFromPlay}
+              onAppliedFromPlay={onAppliedFromPlay}
+            />
+          )}
           {selected && (
             <section
               aria-label={t("mods.modsIn", { name: selected.profile.display_name })}
-              className="grid gap-2"
+              className={browsing || browserBusy ? "hidden" : "grid gap-2"}
             >
               <h4 className="text-sm font-semibold">
                 <Trans
@@ -409,38 +659,22 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                   />
                 ))}
               <ModSetupPackages
-                key={JSON.stringify(["packages", selected.profile.id])}
+                key={selected.profile.id}
                 selected={selected}
+                draft={draft}
+                localFiles={localFiles}
+                orderSupported={
+                  view.later_mods_take_priority ||
+                  Boolean(
+                    selected.revision.loader &&
+                    selected.revision.orderings?.some((item) => item.domain === "asset-override"),
+                  )
+                }
                 disabled={changing || blocked}
-                setEnabled={(nativeId, value) =>
-                  void perform(
-                    () =>
-                      desktopApi.setModPackageEnabled(
-                        portId,
-                        selected.profile.id,
-                        nativeId,
-                        value,
-                        selected.profile.current_revision,
-                        generation,
-                      ),
-                    value
-                      ? t("mods.outcome.turnedOn", { name: nativeId })
-                      : t("mods.outcome.turnedOff", { name: nativeId }),
-                  )
+                queueEdit={(native_id, enabled) =>
+                  setDraft((current) => changeModEdit(current, [native_id], enabled))
                 }
-                remove={(nativeId, expectedRevision) =>
-                  void perform(
-                    () =>
-                      desktopApi.removeModPackage(
-                        portId,
-                        selected.profile.id,
-                        nativeId,
-                        expectedRevision,
-                        generation,
-                      ),
-                    t("mods.remove.removed", { name: nativeId }),
-                  )
-                }
+                setOrder={(order) => setDraft((current) => ({ ...current, order }))}
               />
               {selected.profile.current_revision > 1 && (
                 <ModSetupRecovery
@@ -457,6 +691,10 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                   locked={changing}
                   blocked={blocked}
                   perform={perform}
+                  pendingCount={pendingCount}
+                  onRestored={() => {
+                    setDraft(emptyModDraft);
+                  }}
                 />
               )}
               {selected.profile.current_revision > 1 && (
@@ -499,72 +737,45 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
                   review={applicableReview.review}
                   locked={locked || blocked}
                   add={() => {
+                    if (localFiles.length + draft.additions.length >= 16) {
+                      setFailure({ text: t("mods.workspace.draftLimit") });
+                      return;
+                    }
                     const { path, review } = applicableReview;
+                    const {
+                      native_id,
+                      profile_id,
+                      expected_revision,
+                      plan_sha256,
+                      sha256,
+                      needs_code_permission,
+                    } = review;
+                    setDraft((current) => ({
+                      ...current,
+                      localFiles: [
+                        ...(current.localFiles ?? []).filter(
+                          (entry) => entry.review.native_id !== native_id,
+                        ),
+                        {
+                          path,
+                          review: {
+                            native_id,
+                            profile_id,
+                            expected_revision,
+                            plan_sha256,
+                            sha256,
+                            needs_code_permission,
+                          },
+                        },
+                      ],
+                    }));
                     setLocalReview(undefined);
                     setupHeading.current?.focus();
-                    void perform(
-                      () =>
-                        desktopApi.applyLocalModPackage(
-                          portId,
-                          selected.profile.id,
-                          path,
-                          review.plan_sha256,
-                          generation,
-                          review.needs_code_permission,
-                        ),
-                      t("mods.outcome.added", { name: selected.profile.display_name }),
-                    );
                   }}
                   cancel={() => {
+                    restoreAddFileFocus.current = true;
                     setLocalReview(undefined);
-                    requestAnimationFrame(() => addFile.current?.focus());
                   }}
-                />
-              )}
-              {view.providers && view.providers.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                  {view.providers.map((provider) => (
-                    <Button
-                      key={provider}
-                      variant="outline"
-                      aria-pressed={selectedProvider === provider}
-                      disabled={browserBusy || working || !fresh || recipeBusy}
-                      onClick={() => setProviderChoice({ portId, generation, provider })}
-                    >
-                      {providerName(provider)}
-                    </Button>
-                  ))}
-                </div>
-              )}
-              {browseProvider && (
-                <ModProviderBrowser
-                  key={JSON.stringify(["provider", selected.profile.id, browseProvider])}
-                  portId={portId}
-                  provider={browseProvider}
-                  generation={generation}
-                  profileId={selected.profile.id}
-                  profileName={selected.profile.display_name}
-                  inUse={selected.profile.id === selectedId}
-                  onBusyChange={setBrowserBusy}
-                  disabled={working || !fresh || blocked || recipeBusy || Boolean(applicableReview)}
-                  updates={{
-                    policy: selected.profile.intent?.update_policy ?? "review_updates",
-                    automaticChecks: (view.last_automatic_checks ?? []).filter(
-                      (check) => check.profile_id === selected.profile.id,
-                    ),
-                    setPolicy: (policy) =>
-                      void perform(
-                        () =>
-                          desktopApi.setModUpdatePolicy(
-                            portId,
-                            selected.profile.id,
-                            policy,
-                            generation,
-                          ),
-                        t("mods.updates.policySaved"),
-                      ),
-                  }}
-                  onInstalled={refreshAfterProviderInstall}
                 />
               )}
               {onOtherBuild && (
@@ -645,15 +856,17 @@ function BoundModSetupsControl({ portId, generation, busy, openGameFiles }: Prop
           )}
         </>
       )}
-      <ModRecipeControl
-        openGameFiles={openGameFiles}
-        portId={portId}
-        profileId={selected?.profile.id}
-        generation={generation}
-        disabled={changing}
-        onBusyChange={setRecipeBusy}
-        onImported={refreshAfterProviderInstall}
-      />
+      <div hidden={browsing || browserBusy}>
+        <ModRecipeControl
+          openGameFiles={openGameFiles}
+          portId={portId}
+          profileId={selected?.profile.id}
+          generation={generation}
+          disabled={changing}
+          onBusyChange={setRecipeBusy}
+          onImported={refreshAfterProviderInstall}
+        />
+      </div>
     </section>
   );
 }
@@ -723,8 +936,8 @@ function LocalModPackageReview({
         </Notice>
       )}
       <ActionRow>
-        <Button disabled={locked || review.missing_required_mods.length > 0} onClick={add}>
-          {t(review.needs_code_permission ? "mods.code.allow" : "mods.local.add")}
+        <Button disabled={locked} onClick={add}>
+          {t("mods.workspace.queueLocal")}
         </Button>
         <Button variant="outline" onClick={cancel}>
           {t("mods.code.cancel")}
@@ -800,6 +1013,7 @@ async function reviewSelectedModPackage({
       path,
       selected.profile.current_revision,
       generation,
+      true,
     );
     if (alive.current) setLocalReview({ path, review });
   } catch (failure) {
@@ -957,105 +1171,250 @@ function currentModSetup(view: ModSetupsView) {
 function ModSetupPackages({
   selected,
   disabled,
-  setEnabled,
-  remove,
+  draft,
+  localFiles,
+  queueEdit,
+  setOrder,
+  orderSupported,
 }: {
   selected: ModSetupView;
   disabled: boolean;
-  setEnabled: (nativeId: string, value: boolean) => void;
-  remove: (nativeId: string, expectedRevision: number) => void;
+  draft: ModDraft;
+  localFiles: LocalModSelection[];
+  queueEdit: (nativeId: string, value: boolean | null | undefined) => void;
+  setOrder: (order: string[] | null) => void;
+  orderSupported: boolean;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const [choice, setChoice] = useState<{ nativeId: string; revision: number }>();
+  const [editOrder, setEditOrder] = useState(false);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<"all" | "on" | "off" | "pending">("all");
+  const applied = inOverrideOrder(selected);
+  const ordered = draft.order ? inOverrideOrder(selected, draft.order) : applied;
+  const rank = new Map(applied.map((item, index) => [item.native_id, index]));
+  const term = query.trim().toLocaleLowerCase();
+  const matches = (name: string) => name.toLocaleLowerCase().includes(term);
+  const showAdditions = !editOrder && (filter === "all" || filter === "pending");
+  const providerAdditions = showAdditions
+    ? draft.additions.filter((item) => matches(item.name) || matches(item.fileName))
+    : [];
+  const localAdditions = showAdditions
+    ? localFiles.filter(({ review }) => matches(review.native_id))
+    : [];
+  const hasAdditions = draft.additions.length + localFiles.length > 0;
+  const visibleAdditions = providerAdditions.length + localAdditions.length > 0;
+  const visible = editOrder
+    ? ordered
+    : ordered.filter((item, index) => {
+        if (!matches(item.native_id)) return false;
+        if (filter === "on") return item.enabled;
+        if (filter === "off") return !item.enabled;
+        if (filter === "pending") {
+          return (
+            index !== rank.get(item.native_id) ||
+            draft.packages.some((change) => change.native_id === item.native_id)
+          );
+        }
+        return true;
+      });
+  const move = (index: number, step: number) => {
+    const ids = ordered.map((item) => item.native_id);
+    const target = index + step;
+    if (target < 0 || target >= ids.length) return;
+    [ids[index], ids[target]] = [ids[target]!, ids[index]!];
+    setOrder(ids.every((id, position) => id === applied[position]?.native_id) ? null : ids);
+  };
   const revision = selected.profile.current_revision;
   const packageArea = useRef<HTMLDivElement>(null);
   const removeButton = useRef<HTMLButtonElement>(null);
   return (
     <div ref={packageArea} tabIndex={-1}>
-      {(selected.revision.packages ?? []).length === 0 ? (
-        <p className="text-sm">{t("mods.empty")}</p>
-      ) : (
+      <ActionRow>
+        {!editOrder && (
+          <Input
+            type="search"
+            aria-label={t("mods.workspace.searchInstalled")}
+            placeholder={t("mods.workspace.searchInstalled")}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        )}
+        {!editOrder && (ordered.length > 0 || hasAdditions) && (
+          <ChoiceSelect
+            inline
+            label={t("mods.workspace.installation")}
+            value={filter}
+            onChange={setFilter}
+            options={[
+              { value: "all", label: t("mods.workspace.status.all") },
+              { value: "on", label: t("mods.workspace.enabledFilter") },
+              { value: "off", label: t("mods.workspace.disabledFilter") },
+              { value: "pending", label: t("mods.workspace.pendingFilter") },
+            ]}
+          />
+        )}
+        {(editOrder || (orderSupported && ordered.length > 1)) && (
+          <Button variant="outline" disabled={disabled} onClick={() => setEditOrder(!editOrder)}>
+            {t(editOrder ? "mods.workspace.done" : "mods.workspace.editOrder")}
+          </Button>
+        )}
+      </ActionRow>
+      {visibleAdditions && (
         <ul className="m-0 grid list-none gap-1 p-0">
-          {inOverrideOrder(selected).map((item) => (
-            <li key={item.native_id} className="grid gap-1">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
-                  <Checkbox
-                    checked={item.enabled}
-                    disabled={disabled}
-                    onCheckedChange={(value) => setEnabled(item.native_id, value)}
-                  />
-                  {item.provider ? (
-                    <span>
-                      <Trans
-                        t={t}
-                        i18nKey="mods.fromProvider"
-                        components={{
-                          name: <bdi>{item.native_id}</bdi>,
-                          provider: <bdi>{item.provider.provider}</bdi>,
-                        }}
-                      />
-                    </span>
-                  ) : (
-                    <bdi>{item.native_id}</bdi>
-                  )}
-                </label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={disabled}
-                  aria-label={t("mods.remove.choose", { name: item.native_id })}
-                  onClick={(event) => {
-                    removeButton.current = event.currentTarget;
-                    setChoice({ nativeId: item.native_id, revision });
-                  }}
-                >
-                  {t("mods.remove.action")}
-                </Button>
-              </div>
-              {choice?.nativeId === item.native_id && choice.revision === revision && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm">{t("mods.remove.history")}</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={disabled}
-                    onClick={() => {
-                      setChoice(undefined);
-                      packageArea.current?.focus();
-                      remove(choice.nativeId, choice.revision);
-                    }}
-                  >
-                    {t("mods.remove.confirm")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setChoice(undefined);
-                      if (removeButton.current?.disabled === false) removeButton.current.focus();
-                      else packageArea.current?.focus();
-                    }}
-                  >
-                    {t("mods.remove.cancel")}
-                  </Button>
-                </div>
-              )}
+          {providerAdditions.map((item) => (
+            <li key={JSON.stringify([item.provider, item.project])}>
+              <bdi>{item.name}</bdi> · {t("mods.workspace.pendingAddition")}
             </li>
           ))}
+          {localAdditions.map(({ review }) => (
+            <li key={review.plan_sha256}>
+              <bdi>{review.native_id}</bdi> · {t("mods.workspace.pendingAddition")}
+            </li>
+          ))}
+        </ul>
+      )}
+      {ordered.length === 0 && !hasAdditions && !term && filter === "all" ? (
+        <p className="text-sm">{t("mods.empty")}</p>
+      ) : visible.length === 0 && !visibleAdditions ? (
+        <p role="status" className="text-sm">
+          {t("mods.browse.noMatches")}
+        </p>
+      ) : null}
+      {visible.length > 0 && (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {visible.map((item, index) => {
+            const pending = draft.packages.find((edit) => edit.native_id === item.native_id);
+            const moved = ordered.indexOf(item) !== rank.get(item.native_id);
+            return (
+              <li key={item.native_id} className="grid gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
+                    <Checkbox
+                      checked={pending?.enabled ?? item.enabled}
+                      disabled={disabled || pending?.enabled === null || editOrder}
+                      onCheckedChange={(value) =>
+                        queueEdit(item.native_id, value === item.enabled ? undefined : value)
+                      }
+                    />
+                    {item.provider ? (
+                      <span>
+                        <Trans
+                          t={t}
+                          i18nKey="mods.fromProvider"
+                          components={{
+                            name: <bdi>{item.native_id}</bdi>,
+                            provider: <bdi>{item.provider.provider}</bdi>,
+                          }}
+                        />
+                      </span>
+                    ) : (
+                      <bdi>{item.native_id}</bdi>
+                    )}
+                  </label>
+                  {pending && (
+                    <span role="status">
+                      {t(
+                        pending.enabled === null
+                          ? "mods.workspace.pendingRemoval"
+                          : pending.enabled
+                            ? "mods.workspace.pendingEnable"
+                            : "mods.workspace.pendingDisable",
+                      )}
+                    </span>
+                  )}
+                  {moved && <span>{t("mods.workspace.pendingMove")}</span>}
+                  {editOrder ? (
+                    <ActionRow>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || index === 0}
+                        aria-label={t("mods.workspace.moveEarlierName", { name: item.native_id })}
+                        onClick={() => move(index, -1)}
+                      >
+                        {t("mods.workspace.moveEarlier")}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || index === visible.length - 1}
+                        aria-label={t("mods.workspace.moveLaterName", { name: item.native_id })}
+                        onClick={() => move(index, 1)}
+                      >
+                        {t("mods.workspace.moveLater")}
+                      </Button>
+                    </ActionRow>
+                  ) : pending?.enabled === null ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={disabled}
+                      onClick={() => queueEdit(item.native_id, undefined)}
+                    >
+                      {t("mods.workspace.undoRemoval")}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={disabled}
+                      aria-label={t("mods.remove.choose", { name: item.native_id })}
+                      onClick={(event) => {
+                        removeButton.current = event.currentTarget;
+                        setChoice({ nativeId: item.native_id, revision });
+                      }}
+                    >
+                      {t("mods.remove.action")}
+                    </Button>
+                  )}
+                </div>
+                {choice?.nativeId === item.native_id && choice.revision === revision && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm">{t("mods.remove.history")}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={disabled}
+                      onClick={() => {
+                        setChoice(undefined);
+                        packageArea.current?.focus();
+                        queueEdit(choice.nativeId, null);
+                      }}
+                    >
+                      {t("mods.remove.confirm")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setChoice(undefined);
+                        if (removeButton.current?.disabled === false) removeButton.current.focus();
+                        else packageArea.current?.focus();
+                      }}
+                    >
+                      {t("mods.remove.cancel")}
+                    </Button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
 }
 
-function inOverrideOrder(entry: ModSetupView) {
+function inOverrideOrder(entry: ModSetupView, draftOrder?: string[]) {
   const order =
+    draftOrder ??
     (entry.revision.orderings ?? []).find((ordering) => ordering.domain === "asset-override")
-      ?.native_ids ?? [];
+      ?.native_ids ??
+    [];
   const rank = (id: string) => {
     const index = order.indexOf(id);
     return index === -1 ? order.length : index;

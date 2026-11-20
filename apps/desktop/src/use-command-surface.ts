@@ -249,6 +249,10 @@ function gameSearchCommands(
     );
 }
 
+function activeModSearch() {
+  return document.querySelector<HTMLInputElement>("[data-active-mod-search] input[type=search]");
+}
+
 export function useCommandSurface({
   view,
   recent,
@@ -287,8 +291,12 @@ export function useCommandSurface({
   const focusSearch = useCallback(() => openSearch("catalog"), [openSearch]);
   const focusLibrarySearch = useCallback(() => openSearch("library"), [openSearch]);
   const focusCurrentSearch = useCallback(() => {
-    document.querySelector<HTMLInputElement>("#port-search")?.focus();
+    (activeModSearch() ?? document.querySelector<HTMLInputElement>("#port-search"))?.focus();
   }, []);
+  const searchAvailable = useCallback(
+    () => view === "library" || view === "catalog" || activeModSearch() !== null,
+    [view],
+  );
   const commands = useMemo<PaletteCommand[]>(
     () =>
       commandSurfaceCommands({
@@ -325,7 +333,7 @@ export function useCommandSurface({
     setPaletteOpen: setOpen,
     setView,
     focusSearch: focusCurrentSearch,
-    searchAvailable: view === "library" || view === "catalog",
+    searchAvailable,
   });
   return { open, setOpen, commands };
 }

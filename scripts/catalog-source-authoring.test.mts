@@ -31,12 +31,20 @@ import {
   compactRazeWindowsProfile,
   projectRazeWindowsProfile,
 } from "./catalog-raze-windows-profile.mts";
+import {
+  compactOpenMohaaPortable,
+  projectOpenMohaaPortable,
+} from "./catalog-openmohaa-portable.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
   compactCrispyDoomWindowsPersistence,
   projectCrispyDoomWindowsPersistence,
 } from "./catalog-crispy-doom-windows-persistence.mts";
+import {
+  compactChocolateFamilyWindowsPersistence,
+  projectChocolateFamilyWindowsPersistence,
+} from "./catalog-chocolate-family-windows-persistence.mts";
 import {
   compactReflectionHlePortablePaths,
   projectReflectionHlePortablePaths,
@@ -186,6 +194,38 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Chocolate persistence preserves the three reviewed Windows definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.chocolate_family_windows_persistence_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "chocolate-doom-family",
+    "chocolate-heretic",
+    "chocolate-hexen",
+  ]);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(prior.get(record.listing.id)),
+    );
+    const explicit = projectChocolateFamilyWindowsPersistence(record);
+    delete explicit.chocolate_family_windows_persistence_v1;
+    assert.deepEqual(compactChocolateFamilyWindowsPersistence(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.runtime_mutable_paths = ["stdout.txt"];
+    assert.equal(compactChocolateFamilyWindowsPersistence(alternate), alternate);
+    alternate.chocolate_family_windows_persistence_v1 = true;
+    assert.throws(
+      () => checkedAuthoredPort(alternate),
+      /already owns the persistent and mutable paths/u,
+    );
+  }
+  const differentOriginal = structuredClone(requiredFixture(family[0]));
+  differentOriginal.integration!.source_profile = "other-iwad";
+  assert.throws(() => checkedAuthoredPort(differentOriginal), /reviewed staged Windows profile/u);
 });
 
 void test("Crispy Doom persistence preserves all six exact Windows package layouts", () => {
@@ -414,6 +454,65 @@ void test("shared upstream family facts stay consistent while game and permissio
     guide.steps = steps;
   }
   check(independent);
+});
+
+void test("OpenMoHAA shares the official package without mixing edition launchers or data", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.openmohaa_portable_v1);
+  assert.equal(family.length, 3);
+  for (const [edition, additionalDirectory] of [
+    ["base", undefined],
+    ["spearhead", "mainta"],
+    ["breakthrough", "maintt"],
+  ] as const) {
+    const record = requiredFixture(family.find((port) => port.openmohaa_portable_v1 === edition));
+    const explicit = projectOpenMohaaPortable(record);
+    const integration = fixtureRecord(explicit.integration);
+    const launcher = `launch_openmohaa_${edition}`;
+    assert.deepEqual(compactOpenMohaaPortable(explicit), record);
+    assert.equal(projectOpenMohaaPortable(explicit), explicit);
+    assert.deepEqual(projectAuthoredPort(record), projectAuthoredPort(explicit));
+    assert.deepEqual(explicit.listing.original_game, record.listing.original_game);
+    assert.deepEqual(explicit.listing.manual_setup, record.listing.manual_setup);
+    assert.deepEqual(
+      integration.persistent_paths,
+      additionalDirectory ? ["main", additionalDirectory] : ["main"],
+    );
+    assert.deepEqual(fixtureRecord(integration.executable_hints)["windows-x86-64"], [
+      `${launcher}.exe`,
+    ]);
+    const layouts = fixtureRecord(integration.reviewed_package_layouts);
+    for (const target of ["linux-x86-64", "macos-aarch64", "macos-x86-64"]) {
+      assert.deepEqual(fixtureRecord(integration.executable_hints)[target], [launcher]);
+      assert.deepEqual(layouts[target], { directories: [], executables: [launcher, "openmohaa"] });
+    }
+    assert.deepEqual(fixtureRecord(layouts["windows-x86-64"]).executables, [
+      "launch_openmohaa_base.exe",
+      "launch_openmohaa_breakthrough.exe",
+      "launch_openmohaa_spearhead.exe",
+      "omohaaded.exe",
+      "openmohaa.exe",
+    ]);
+    assert.equal(integration.external_profile_policy, "openmohaa-unix-v1");
+
+    const custom = structuredClone(explicit);
+    custom.integration!.persistent_paths = ["player-custom-root"];
+    assert.equal(compactOpenMohaaPortable(custom), custom);
+    assert.throws(
+      () => checkedAuthoredPort({ ...custom, openmohaa_portable_v1: edition }),
+      /supplies the package, launcher and data layout/u,
+    );
+  }
+  const base = requiredFixture(family.find((record) => record.openmohaa_portable_v1 === "base"));
+  assert.throws(
+    () => checkedAuthoredPort({ ...base, openmohaa_portable_v1: "spearhead" }),
+    /matching game edition/u,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({ ...base, listing: { ...base.listing, platforms: ["linux-x86-64"] } }),
+    /platform must be declared once/u,
+  );
 });
 
 void test("ReflectionHLE authoring preserves the exact portable data paths for all configured ports", () => {

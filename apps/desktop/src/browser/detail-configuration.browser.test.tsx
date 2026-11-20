@@ -200,20 +200,27 @@ it("keeps the selected mod setup and settings draft through version and save tas
 
   const openGame = page.getByRole("button", { name: "Update saved for later", exact: true });
   await openGame.click();
-  const configuration = page.getByRole("tab", { name: "Game settings & mods", exact: true });
+  const configuration = page.getByRole("tab", { name: "Game settings", exact: true });
   await configuration.click();
-  const configPanel = page.getByRole("tabpanel", { name: "Game settings & mods", exact: true });
+  const configPanel = page.getByRole("tabpanel", { name: "Game settings", exact: true });
   const read = configPanel.getByRole("button", { name: "Read game settings", exact: true });
   await expect.element(read).toBeVisible();
   await read.click();
   const volume = configPanel.getByRole("spinbutton", { name: "Master volume", exact: true });
   await volume.fill("84");
-  const activeSetup = configPanel.getByRole("region", {
+  const mods = page.getByRole("tab", { name: "Mods", exact: true });
+  await mods.click();
+  const modsPanel = page.getByRole("tabpanel", { name: "Mods", exact: true });
+  const activeSetup = modsPanel.getByRole("region", {
     name: `Mods in ${setupName}`,
     exact: true,
   });
   await expect.element(activeSetup.getByText("textures.o2r", { exact: true })).toBeVisible();
-  await expect.element(configPanel.getByText("In use", { exact: true })).toBeVisible();
+  await modsPanel.getByText("Setups", { exact: true }).click();
+  await expect.element(modsPanel.getByText("In use", { exact: true })).toBeVisible();
+  await modsPanel.getByText("Setups", { exact: true }).click();
+  activeSetup.element().scrollIntoView({ block: "center" });
+  await captureParityState("library-selected-mod-setup");
   expect(readSettings).toHaveBeenCalledWith(portId, generation);
   expect(readSetups).toHaveBeenCalledWith(portId, generation);
 
@@ -236,9 +243,6 @@ it("keeps the selected mod setup and settings draft through version and save tas
   await configuration.click();
   await expect.element(configuration).toHaveFocus();
   await expect.element(volume).toHaveValue(84);
-  await expect.element(activeSetup).toBeVisible();
-  activeSetup.element().scrollIntoView({ block: "center" });
-  await captureParityState("library-selected-mod-setup");
   await configPanel.getByRole("button", { name: "Review change", exact: true }).click();
   await expect
     .element(page.getByRole("heading", { name: "Review game setting", exact: true }))
@@ -256,7 +260,7 @@ it("keeps the selected mod setup and settings draft through version and save tas
     .toBeEnabled();
   await userEvent.keyboard("{Escape}");
   await expect
-    .element(configPanel.getByRole("heading", { name: "Game settings", exact: true }))
+    .element(configPanel.getByRole("heading", { level: 3, name: "Game settings", exact: true }))
     .toHaveFocus();
   await expect.element(volume).toHaveValue(84);
   expect(apply).not.toHaveBeenCalled();

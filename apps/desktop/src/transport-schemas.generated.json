@@ -32760,6 +32760,67 @@
     "title": "ModFilePreservationResult",
     "type": "object"
   },
+  "mod_setup_draft_preview": {
+    "$defs": {
+      "AssetConflict": {
+        "description": "Several packages claim the same asset path.",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "providers": {
+            "description": "Packages providing the path, in the supplied precedence order.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "winner": {
+            "description": "The provider that takes effect under that order.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "providers",
+          "winner"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "conflicts": {
+        "items": {
+          "$ref": "#/$defs/AssetConflict"
+        },
+        "type": "array"
+      },
+      "conflicts_truncated": {
+        "type": "boolean"
+      },
+      "local_code_packages": {
+        "description": "Local packages that require consent after the complete draft passes dependency checks.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "order": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "order",
+      "conflicts",
+      "conflicts_truncated"
+    ],
+    "title": "ModSetupDraftPreview",
+    "type": "object"
+  },
   "mod_setups_view": {
     "$defs": {
       "ArtifactIdentity": {
@@ -33912,8 +33973,16 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "Everything a game-level mods view needs in one read: whether the game has a\nreviewed mod contract, its setups and what is live now. Read-only.",
     "properties": {
+      "applied_package_count": {
+        "description": "Count from the materialized revision, including disabled mods.",
+        "format": "uint",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
       "current_install_id": {
         "description": "The game's current installation. A setup whose build differs stays on\nits own build; an upgraded copy can use this one.",
         "type": [
@@ -47386,6 +47455,63 @@
           }
         ]
       },
+      "ProviderListing": {
+        "description": "Optional provider claims for catalog presentation. Missing metrics stay unknown.",
+        "properties": {
+          "artwork": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "downloads": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "likes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ratings": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
+        ],
+        "type": "object"
+      },
       "ProviderPage": {
         "properties": {
           "complete": {
@@ -47430,6 +47556,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "listing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderListing"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "name": {
@@ -47576,6 +47712,317 @@
       "freshness"
     ],
     "title": "ProviderBrowsePage",
+    "type": "object"
+  },
+  "provider_catalog": {
+    "$defs": {
+      "ProviderFileCandidate": {
+        "description": "A provider's own claims about one downloadable file. The checksum is the\nprovider's claim; an MD5 or any provider-supplied digest never authenticates\na publisher.",
+        "properties": {
+          "added_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "claimed_md5": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "claimed_scan": {
+            "description": "Provider scan outcomes, as claimed (\"clean\", \"infected\", ...). Not an assurance.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "download_url": {
+            "description": "Canonical download location derived from `file_id`, never a provider-supplied URL.",
+            "type": "string"
+          },
+          "file_id": {
+            "description": "Provider file identity; distinct from the project and from any version label.",
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish archival status."
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "file_id",
+          "file_name",
+          "size",
+          "added_at",
+          "download_url",
+          "claimed_md5",
+          "archived",
+          "claimed_scan"
+        ],
+        "type": "object"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "ProviderListing": {
+        "description": "Optional provider claims for catalog presentation. Missing metrics stay unknown.",
+        "properties": {
+          "artwork": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "downloads": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "likes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ratings": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
+        ],
+        "type": "object"
+      },
+      "ProviderProject": {
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/$defs/ProviderFileCandidate"
+            },
+            "type": "array"
+          },
+          "game_id": {
+            "description": "The provider's game identity for this project; compared against a reviewed\nbinding, never matched by name or popularity.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderListing"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "obsolete": {
+            "type": "boolean"
+          },
+          "profile_url": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "status_unknown": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderStatusUnknown"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when the wire response did not establish project eligibility."
+          },
+          "submitter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unreadable_files": {
+            "default": 0,
+            "description": "File records the adapter could not read. Non-zero means the file list is\nincomplete, so \"no newer file\" or \"file removed\" cannot be concluded.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Displayed version label; it does not identify bytes (a file can change\nunder an unchanged label).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "provider",
+          "project_id",
+          "name",
+          "version",
+          "game_id",
+          "updated_at",
+          "obsolete",
+          "profile_url",
+          "submitter",
+          "files",
+          "unreadable_files"
+        ],
+        "type": "object"
+      },
+      "ProviderStatusUnknown": {
+        "description": "Why a provider's eligibility flag could not be determined.",
+        "enum": [
+          "omitted",
+          "null",
+          "malformed"
+        ],
+        "type": "string"
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "A bounded snapshot for searching, filtering and sorting before paginating.",
+    "properties": {
+      "complete": {
+        "description": "False when additional or unreadable records may exist.",
+        "type": "boolean"
+      },
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "legacy_game_id": {
+        "description": "Scope of older unscoped package references, when they belong to this catalog.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "projects": {
+        "items": {
+          "$ref": "#/$defs/ProviderProject"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "projects",
+      "complete",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "ProviderCatalog",
     "type": "object"
   },
   "provider_install_plan": {
@@ -47938,6 +48385,13 @@
         },
         "type": "array"
       },
+      "review_nonce": {
+        "description": "Private workspace reviews use distinct staging even for the same file.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "unverified_claims": {
         "description": "What this plan relies on without verifying.",
         "items": {
@@ -48069,6 +48523,63 @@
           }
         ]
       },
+      "ProviderListing": {
+        "description": "Optional provider claims for catalog presentation. Missing metrics stay unknown.",
+        "properties": {
+          "artwork": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "downloads": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "likes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "ratings": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "categories",
+          "artwork",
+          "created_at",
+          "downloads",
+          "likes",
+          "ratings"
+        ],
+        "type": "object"
+      },
       "ProviderProject": {
         "properties": {
           "files": {
@@ -48082,6 +48593,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "listing": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderListing"
+              },
+              {
+                "type": "null"
+              }
             ]
           },
           "name": {
@@ -48182,6 +48703,16 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "eligible_file_ids": {
+        "description": "Current files that Core can review for this port's loader. The bytes\nstill have to pass the ordinary install review.",
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
       "freshness": {
         "$ref": "#/$defs/ProviderFreshness"
       },
@@ -48744,6 +49275,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "review_nonce": {
+            "description": "Private workspace reviews use distinct staging even for the same file.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "unverified_claims": {
             "description": "What this plan relies on without verifying.",
@@ -49426,6 +49964,13 @@
               "type": "string"
             },
             "type": "array"
+          },
+          "review_nonce": {
+            "description": "Private workspace reviews use distinct staging even for the same file.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "unverified_claims": {
             "description": "What this plan relies on without verifying.",

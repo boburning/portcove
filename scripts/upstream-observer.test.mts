@@ -12,6 +12,7 @@ import {
   type ProviderObservation,
   observationHash,
   githubDirectPin,
+  assetFact,
   observeUpstream,
   readObserverMetadata,
   validateObserverConfig,
@@ -1401,6 +1402,41 @@ void test("continued facts refuse changed input bindings, corrupted pages and ch
   assert.equal(refused.report.exception?.rule, "repository-identity");
 });
 
+void test("GitHub asset metadata binds the exact slash-tag release and single filename", () => {
+  const repository = "BodbDearg/PsyDoom";
+  const tag = "releases/1.1.1";
+  const name = "PsyDoom_1.1.1_Windows_x86_64.zip";
+  const prefix = `https://github.com/${repository}/releases/download`;
+  const observed = {
+    ...asset(112501908),
+    name,
+    size: 1540884,
+    digest: null,
+  };
+  for (const path of [tag, "releases%2F1.1.1"]) {
+    const browser_download_url = `${prefix}/${path}/${name}`;
+    assert.equal(
+      assetFact({ ...observed, browser_download_url }, { repository }, tag).browser_download_url,
+      browser_download_url,
+    );
+  }
+  for (const browser_download_url of [
+    `${prefix}/releases/2.0.0/${name}`,
+    `${prefix}/releases/1.1.1/client/${name}`,
+    `${prefix}/releases/1.1.1/${name}?download=1`,
+    `${prefix.replace(repository, "somewhere/PsyDoom")}/${tag}/${name}`,
+  ]) {
+    assert.throws(
+      () => assetFact({ ...observed, browser_download_url }, { repository }, tag),
+      (error) => error instanceof ObservationFailure && error.rule === "asset-scope",
+    );
+  }
+  assert.throws(
+    () => githubDirectPin(`${prefix}/${tag}/${name}`),
+    /exact GitHub release asset URL/u,
+  );
+});
+
 void test("a repaired restart can conditionally replace old complete assets after a release tag changes", async () => {
   const server = fixture();
   const assetFor = (releaseId: number, assetId = releaseId, tag = `v${releaseId}.0.0`) => {
@@ -1555,6 +1591,119 @@ void test("Core-bounded release shapes continue past the former single-run reque
   assert.equal(server.requests.length, 608);
   // The projection callback is a fixture; actual compiled-Core and hosted
   // observations remain distinct evidence even though these shapes fit its caps.
+});
+
+void test("GitHub starter rows survive scoped continuation but cannot nominate packages", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 4 },
+  });
+  const server = fixture();
+  const page = `${root}/releases/1/assets?per_page=100&page=1`;
+  const windows = asset();
+  const linux = {
+    ...asset(3),
+    name: "fixture-3-linux.tar.xz",
+    browser_download_url: `https://github.com/${config.repository}/releases/download/v1.0.0/fixture-3-linux.tar.xz`,
+  };
+  const starter = { ...linux, state: "starter", size: 4096, digest: null };
+  server.replies.get(page).body = [starter, windows];
+  assert.throws(
+    () => assetFact(starter, config, "v1.0.0"),
+    /asset size or upload state is invalid/,
+  );
+  const seen: number[][] = [];
+  const options = {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases: async (observation: ProviderObservation) => {
+      seen.push(
+        observation.facts.releases.flatMap((release) => release.assets.map((row) => row.id)),
+      );
+      return [1];
+    },
+  };
+  const partial = await advanceObservation(scoped, null, options);
+  assert.equal(partial.checkpoint.continuation?.phase, "validate");
+  assert.deepEqual(partial.checkpoint.continuation?.pages[page]?.body, [starter, windows]);
+  assert.equal(partial.checkpoint.continuation?.pages[page]?.representation, "observer-facts-v2");
+  const mislabeled = structuredClone(partial.checkpoint.continuation);
+  requiredFixture(mislabeled?.pages[page]).representation = "observer-facts-v1";
+  assert.throws(
+    () => validateObservationContinuation(mislabeled, scoped),
+    /page facts or schema differ/,
+  );
+  const malformed = structuredClone(partial.checkpoint.continuation);
+  const malformedPage = requiredFixture(malformed?.pages[page]);
+  objectFixture(arrayFixture(malformedPage.body)[0]).size = -1;
+  const matchesRule = (rule: string) => (error: unknown) =>
+    error instanceof ObservationFailure && error.rule === rule;
+  // Refuse the mismatched retained digest before parsing the malformed row.
+  assert.throws(
+    () => validateObservationContinuation(malformed, scoped),
+    matchesRule("invalid-checkpoint"),
+  );
+  malformedPage.facts_sha256 = observationHash(malformedPage.body);
+  const unknownHeader = structuredClone(malformed);
+  objectFixture(unknownHeader?.pages[page]).representation = "observer-facts-v99";
+  assert.throws(
+    () => validateObservationContinuation(unknownHeader, scoped),
+    matchesRule("invalid-checkpoint"),
+  );
+  // Valid headers and a matching digest still require a valid typed row.
+  assert.throws(
+    () => validateObservationContinuation(malformed, scoped),
+    matchesRule("invalid-metadata"),
+  );
+  const complete = await advanceObservation(scoped, partial.checkpoint, options);
+  assert.equal(complete.report.transition, "initial-baseline");
+  const first = requiredFixture(complete.checkpoint.last_complete);
+  const firstRelease = objectFixture(
+    arrayFixture(objectFixture(first.observation.facts).releases)[0],
+  );
+  assert.deepEqual(firstRelease.assets, [windows]);
+  assert.ok(seen.every((ids) => !ids.includes(starter.id)));
+  assert.deepEqual(
+    reusableProviderObservation(scoped, first.observation, first.cache, undefined, Date.now())
+      ?.facts,
+    first.observation.facts,
+  );
+
+  const inFlight = await advanceObservation(scoped, complete.checkpoint, options);
+  assert.equal(inFlight.checkpoint.continuation?.phase, "validate");
+  server.replies.get(page).body = [linux, windows];
+  const changed = await advanceObservation(scoped, inFlight.checkpoint, options);
+  assert.equal(changed.report.exception?.rule, "concurrent-change");
+  assert.equal(changed.checkpoint.continuation?.phase, "restart");
+  const late = await advanceObservation(scoped, changed.checkpoint, options);
+  const recovered = await advanceObservation(scoped, late.checkpoint, options);
+  assert.equal(recovered.report.transition, "changed");
+  const next = requiredFixture(recovered.checkpoint.last_complete);
+  const nextRelease = objectFixture(
+    arrayFixture(objectFixture(next.observation.facts).releases)[0],
+  );
+  const nextPage = objectFixture(objectFixture(objectFixture(next.cache).pages)[page]);
+  assert.equal(nextRelease.id, firstRelease.id);
+  assert.equal(nextRelease.tag_name, firstRelease.tag_name);
+  assert.deepEqual(nextRelease.assets, [linux, windows]);
+  assert.equal(nextPage.representation, "observer-facts-v1");
+  assert.notEqual(next.observation.facts_sha256, first.observation.facts_sha256);
+  assert.ok(seen.some((ids) => ids.includes(linux.id)));
+});
+
+void test("GitHub asset collection still refuses unknown states and malformed starter rows", async () => {
+  for (const row of [
+    { ...asset(), state: "pending" },
+    { ...asset(), state: "starter", size: -1 },
+    { ...asset(), state: "starter", browser_download_url: "https://outside.example/fixture.zip" },
+  ]) {
+    const server = fixture();
+    server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [row];
+    await assert.rejects(observeUpstream(config, { fetch: server.fetch }), ObservationFailure);
+  }
 });
 
 void test("scoped candidate assets reuse complete headers without fetching irrelevant historical assets", async () => {

@@ -716,16 +716,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: "anonymous",
       } satisfies Awaited<ReturnType<typeof desktopApi.githubAuthStatus>>;
     },
-    discover_steam_client_roots: (args) => {
-      requireArgs("discover_steam_client_roots", args, { generation });
-      return [];
-    },
     get_steamgriddb_key_status: (args) => {
       requireArgs("get_steamgriddb_key_status", args, {});
       // Fixtures never hold a player key, so SteamGridDB stays unconfigured.
       return { configured: false } satisfies Awaited<
         ReturnType<typeof desktopApi.steamGridDbKeyStatus>
       >;
+    },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
     },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});

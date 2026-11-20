@@ -135,7 +135,7 @@ pub fn inspect_package_archive_with_program_filter(
         ));
     }
     let (_workspace, payload) =
-        extract_verified_archive(source, platform, expected_size, expected_sha256)?;
+        extract_verified_archive(source, platform, expected_size, expected_sha256, false)?;
     let layout = observe_root(look_through_wrapper(&payload)?, platform, filter)?;
     if !valid_layout(&layout) {
         return Err(PortcoveError::verification(
@@ -152,13 +152,20 @@ pub(crate) fn extract_verified_archive(
     platform: Platform,
     expected_size: u64,
     expected_sha256: &str,
+    native_mac_bundle_tar_xz: bool,
 ) -> Result<(tempfile::TempDir, PathBuf)> {
     let name = source
         .file_name()
         .and_then(|name| name.to_str())
         .ok_or_else(|| PortcoveError::usage("package archive needs a UTF-8 filename"))?;
     let lower = name.to_ascii_lowercase();
-    let tar_xz = lower.ends_with(".tar.xz") && platform == Platform::LinuxX86_64;
+    let tar_xz = lower.ends_with(".tar.xz")
+        && (platform == Platform::LinuxX86_64 || native_mac_bundle_tar_xz);
+    if native_mac_bundle_tar_xz && !tar_xz {
+        return Err(PortcoveError::usage(
+            "the reviewed Mac bundle requires TAR.XZ",
+        ));
+    }
     if !tar_xz
         && ![".zip", ".tar.gz", ".tgz"]
             .iter()
@@ -201,7 +208,7 @@ pub(crate) fn extract_verified_archive(
             &captured,
             &payload,
             expected_size,
-            true,
+            !native_mac_bundle_tar_xz,
             &|| Ok(()),
         )?;
     } else {

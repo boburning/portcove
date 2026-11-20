@@ -2,7 +2,7 @@
   "definition_schema": 1,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "revision": 2,
+  "revision": 1,
   "required_capabilities": [
     {
       "template": "native-portable",
@@ -65,7 +65,7 @@
         "id": "linleys-dungeon-crawl",
         "source_editions": []
       },
-      "original_game_title": "Dungeon Crawl Stone Soup",
+      "original_game_title": "Linley's Dungeon Crawl",
       "saves_and_settings": "portcove-managed",
       "source_requirements": []
     },
@@ -101,10 +101,10 @@
     "user_data_environment": null
   },
   "source_contracts": [
-    "sha256/c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2.json"
+    "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json"
   ],
-  "execution_contract": "sha256/c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2.json",
-  "persistence_contract": "sha256/c11d322635d428fcbc61644fe8777261f516bc4b2ab6338f998d878ec23b6de2.json",
+  "execution_contract": "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json",
+  "persistence_contract": "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json",
   "artifact_bindings": [],
   "evidence_references": []
 }

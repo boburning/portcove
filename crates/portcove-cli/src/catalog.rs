@@ -136,7 +136,7 @@ pub(crate) enum CatalogCommand {
     /// Derive a verified local archive's package shape and its shadow drift verdict.
     #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
-        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
+        /// Local ZIP, TAR.GZ, Linux x86-64 TAR.XZ, or reviewed native Mac bundle TAR.XZ.
         archive: PathBuf,
         /// Embedded catalog port ID whose managed route the archive belongs to.
         #[arg(long)]
