@@ -92,6 +92,8 @@ jobs:
           cargo install tauri-driver --locked --version "$driver_version"
           pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Verify the exact immutable public AppImage
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           mkdir -p work
@@ -130,6 +132,7 @@ jobs:
           name: released-linux-appimage-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             work/published-linux-appimage/release.json
+            work/published-linux-appimage/release-fetch-status.txt
             work/published-linux-appimage/SHA256SUMS
             work/published-linux-appimage/published-binding.json
             work/published-linux-appimage/signature.log

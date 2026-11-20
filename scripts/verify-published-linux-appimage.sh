@@ -16,8 +16,22 @@ base="https://github.com/$repo/releases/download/$tag"
 
 mkdir -- "$evidence" "$package_dir"
 test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$source"
-curl -fsSL --proto '=https' --proto-redir '=https' --max-time 45 --max-filesize 1048576 \
-  -o "$evidence/release.json" "https://api.github.com/repos/$repo/releases/tags/$tag"
+if [[ ${GITHUB_ACTIONS:-} == true ]]; then
+  : "${GH_TOKEN:?Hosted release metadata needs the read-only workflow token}"
+fi
+if [[ -n ${GH_TOKEN:-} && ! $GH_TOKEN =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo 'Invalid release metadata token format' >&2
+  exit 1
+fi
+release_headers() {
+  printf '%s\n' 'Accept: application/vnd.github+json'
+  if [[ -n ${GH_TOKEN:-} ]]; then printf 'Authorization: Bearer %s\n' "$GH_TOKEN"; fi
+}
+# Send the credential through stdin, for this fixed API request without redirects.
+release_headers | curl -fsS --proto '=https' --max-time 45 --max-filesize 1048576 \
+  --header @- --output "$evidence/release.json" --write-out 'Release metadata HTTP %{http_code}\n' \
+  "https://api.github.com/repos/$repo/releases/tags/$tag" | tee "$evidence/release-fetch-status.txt"
+unset GH_TOKEN
 jq -e --arg tag "$tag" --arg source "$source" --argjson release_id "$release_id" '
   .id==$release_id and .tag_name==$tag and .target_commitish==$source and
   .immutable==true and .draft==false and .prerelease==true
