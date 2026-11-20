@@ -316,7 +316,6 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
               name,
               scenario: scenarioId,
               target: target.selector,
-              element,
               readiness: () =>
                 executeBrowserScript(browser, observeGameFirstCaptureReadiness, layout.size),
             });

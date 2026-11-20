@@ -558,9 +558,17 @@ test("game-first capture settles later complete geometry and still refuses movem
       let observations = 0,
         screenshots = 0;
       const element = {} as ElementHandle;
+      let layoutObserved = false;
       const browser = {
+        findElements: async () => {
+          assert.equal(layoutObserved, true, "Resolve the current target after layout readiness");
+          return [element];
+        },
         executeScript: async (script: unknown, ...args: unknown[]) => {
-          if (script === observeCollectionLayoutReady) return true;
+          if (script === observeCollectionLayoutReady) {
+            layoutObserved = true;
+            return true;
+          }
           if (script !== observeVisibleTarget) {
             assert.equal(args[0], element, "Only the explicit preflight scroll is permitted");
             return;
@@ -597,7 +605,6 @@ test("game-first capture settles later complete geometry and still refuses movem
         name,
         scenario: "owned-game-first",
         target: "#choice",
-        element,
         readiness: async () => ({ ready: true }),
       });
       if (moveDuringScreenshot) {
@@ -639,6 +646,7 @@ test("game-first capture retains the rejected preflight target without taking a 
   };
   let screenshots = 0;
   const browser = {
+    findElements: async () => [{} as WebElement],
     executeScript: async (script: unknown) => {
       const { observeCollectionLayoutReady, observeVisibleTarget } =
         await import("./browser-readiness.mts");
@@ -658,7 +666,6 @@ test("game-first capture retains the rejected preflight target without taking a 
         name: "rejected",
         scenario: "owned-game-first",
         target: "#choice",
-        element: {} as WebElement,
         readiness: async () => ({ ready: true }),
       }),
       /Capture requires one identified visible target/,

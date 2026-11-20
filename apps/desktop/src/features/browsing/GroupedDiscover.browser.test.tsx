@@ -102,8 +102,12 @@ it("reveals one complete game identity after resize restoration finishes", async
     target,
     label: "resized-game-identity",
     ready: observeCollectionLayoutReady,
-    scroll: () =>
-      identity.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+    scroll: () => {
+      const current = host.querySelectorAll<HTMLElement>(target);
+      expect(current).toHaveLength(1);
+      expect(current[0]!.isConnected).toBe(true);
+      current[0]!.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    },
     observe: () => {
       const observation = observeVisibleTarget(target, "visual");
       expect(observation.visible, JSON.stringify(observation)).toBe(true);
@@ -113,7 +117,7 @@ it("reveals one complete game identity after resize restoration finishes", async
   });
   const result = await prepared;
   expect(result.observation.visible).toBe(true);
-  expect(document.activeElement).toBe(identity);
+  expect(document.activeElement).toBe(host.querySelector(target));
   for (let frame = 0; frame < 3; frame++) {
     await frames();
     expect(observeVisibleTarget(target, "visual")).toEqual(result.observation);

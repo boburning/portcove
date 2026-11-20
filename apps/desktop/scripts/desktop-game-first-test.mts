@@ -4,7 +4,7 @@ import { realpath, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { By, Key, until } from "selenium-webdriver";
-import type { WebDriver, WebElement } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { fixtureSuccess, requiredFixtureValue as required } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
@@ -476,7 +476,6 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
   name,
   scenario,
   target,
-  element,
   readiness,
 }: {
   browser: WebDriver;
@@ -484,7 +483,6 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
   name: string;
   scenario: string;
   target: string;
-  element: WebElement;
   readiness: () => Promise<Semantic>;
 }) {
   let observation: Awaited<ReturnType<typeof observeVisibleTarget>> | null = null;
@@ -493,13 +491,18 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
       target,
       label: name,
       ready: () => executeBrowserScript(browser, observeCollectionLayoutReady),
-      scroll: () =>
-        executeBrowserScript(
+      scroll: async () => {
+        // A column change can remount the row while readiness is pending.
+        // Resolve its exact current identity only after that owner has settled.
+        const elements = await browser.findElements(By.css(target));
+        assert.equal(elements.length, 1, "Capture requires one current target before reveal");
+        return executeBrowserScript(
           browser,
           (selected) =>
             selected.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-          element,
-        ),
+          required(elements[0]),
+        );
+      },
       observe: async () => {
         observation = await executeBrowserScript(
           browser,
@@ -722,14 +725,13 @@ export async function gameFirstScenarios({
       return dialog;
     };
     const capture = async (name: string, selector: string, size: number) => {
-      const target = await browser.wait(until.elementLocated(By.css(selector)), 15_000);
+      await browser.wait(until.elementLocated(By.css(selector)), 15_000);
       const captured = await captureGameFirstTarget({
         browser,
         output,
         name: `game-first-${name}`,
         scenario: scenarioId,
         target: selector,
-        element: target,
         readiness: () => executeBrowserScript(browser, observeGameFirstCaptureReadiness, size),
       });
       artifacts.push(captured.image.path, captured.receipt);
