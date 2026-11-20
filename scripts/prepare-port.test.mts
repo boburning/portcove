@@ -2409,6 +2409,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
   assert.ok(records.some((record) => record.opengoal_setup_v1));
   assert.ok(records.some((record) => record.openmohaa_portable_v1));
+  assert.ok(records.some((record) => record.openx_portable_v1));
   assert.ok(records.some((record) => record.native_managed_profile_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
   assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
@@ -2428,6 +2429,7 @@ void test("preparation reports all declared route projections across the current
     if (record.external_registration_v1) expected.push("external_registration_v1");
     if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
     if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
+    if (record.openx_portable_v1) expected.push("openx_portable_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
