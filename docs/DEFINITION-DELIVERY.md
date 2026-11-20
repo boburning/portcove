@@ -801,6 +801,14 @@ redistribution each require their applicable authority. A new release identity
 may enter normal protected acceptance. Different bytes under the same accepted
 identity require investigation and must stay held.
 
+If a completed curated transfer matches the admitted length but has a different
+SHA-256, Core refuses it before extraction. When cache capacity and authority
+allow, it verifies and keeps those replacement bytes under an inactive cache
+name. The refusal records both digests and the evidence path, or the reason the
+copy could not be retained. Repeated identical observations share the verified
+sample. A later ordinary attempt still requires the original accepted bytes.
+Incomplete transfers retain their existing bounded recovery rules.
+
 When a reusable local archive fails its independently accepted digest or size,
 Core refuses the operation and rechecks the cache object under its existing
 lock. It quarantines confirmed bad bytes under an inactive cache name. The
@@ -809,11 +817,11 @@ their storage accounting. A later normal request can fetch the same approved
 identity through its still-current policy and verify the result. This recovery
 preserves the older installed runtime and existing player data.
 
-The Core verifier, GitHub provider integration, accepted record and scoped
-transition handling are implemented. The #315 production canary, verified cache
-reuse, scoped refusals and recovery, and repeated eligible progression still
-need evidence through the protected route. Proposal-producing runners
-cannot approve their own authority changes or hold signing credentials.
+The protected route requires a production canary, verified cache reuse, scoped
+refusals and recovery, and repeated eligible progression. The
+[acquisition issue](https://github.com/boburning/portcove/issues/315) records the
+released Windows evidence and the remaining final 0.1.0 acceptance. Proposal
+runners cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
@@ -1463,10 +1471,11 @@ acquisition holds; adoption and preparation recovery apply local-use holds
 alongside their existing publisher and freshness guards. A refusal retains the
 payload and operation journal without activating or registering the target.
 
-These capability and fixture paths do not establish production acceptance.
-[#315](https://github.com/boburning/portcove/issues/315) still requires complete
-cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
-qualification and a lawful exact canary before its complete route is delivered.
+[#315](https://github.com/boburning/portcove/issues/315) tracks production
+acceptance for the lawful exact canary, cache qualification, scoped holds,
+interruption and recovery, and the applicable transitions. It identifies which
+operations have released-client receipts. Capability and fixture results retain
+their tested scope.
 
 ### Exact managed Launch assessment format
 
