@@ -747,12 +747,11 @@ fn archive_inspection_derives_the_installer_shape() {
 fn reviewed_mac_tar_shape_uses_managed_bundle_rules() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("bio-menace-reflectionhle").unwrap();
+    let no_opt_in = catalog.port("tux-racer-sdl2-port").unwrap();
     let other_adapter = catalog.port("perfect-dark").unwrap();
     let temporary = tempfile::tempdir().unwrap();
     let archive = temporary.path().join("fixture.tar.xz");
     let program = "publisher/reflectionhle.app/Contents/MacOS/reflectionhle";
-    let mut no_opt_in = port.clone();
-    no_opt_in.release.tar_xz_platforms.clear();
 
     for (platform, cpu) in [
         (Platform::MacosX86_64, 0x0100_0007_u32),
@@ -807,7 +806,7 @@ fn reviewed_mac_tar_shape_uses_managed_bundle_rules() {
                 ..
             }
         ));
-        for unqualified in [&no_opt_in, other_adapter] {
+        for unqualified in [no_opt_in, other_adapter] {
             let error =
                 inspect_package_shape_archive(&archive, unqualified, platform, size, &digest)
                     .unwrap_err();
