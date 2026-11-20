@@ -343,16 +343,18 @@ CREATE TABLE IF NOT EXISTS portcove_maintenance_meta.schema_migrations (
 );
 `;
 
-function readLedger(environment: NodeJS.ProcessEnv): AppliedMigration[] {
+function readLedger(environment: NodeJS.ProcessEnv, executor = false): AppliedMigration[] {
   const exists = queryJson(
     environment,
     "SELECT to_json(to_regclass('portcove_maintenance_meta.schema_migrations') IS NOT NULL);",
+    { executor },
   );
   if (exists !== true) return [];
   const rows = queryJson(
     environment,
     `SELECT coalesce(json_agg(json_build_object('version', version, 'name', name, 'sha256', sha256)
        ORDER BY version), '[]'::json) FROM portcove_maintenance_meta.schema_migrations;`,
+    { executor },
   );
   if (!Array.isArray(rows)) throw new MaintenanceStoreError("Migration ledger is malformed");
   return rows as AppliedMigration[];
@@ -386,8 +388,9 @@ function roleContract() {
 export function migrationStatus(
   environment: NodeJS.ProcessEnv,
   directory = defaultMigrationDirectory,
+  executor = false,
 ) {
-  const plan = planMigrations(readMigrations(directory), readLedger(environment));
+  const plan = planMigrations(readMigrations(directory), readLedger(environment, executor));
   return {
     schema_version: plan.applied.at(-1)?.version ?? 0,
     applied: plan.applied.map(({ version, name }) => ({ version, name })),

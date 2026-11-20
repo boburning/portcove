@@ -4379,6 +4379,7 @@ export async function main(argv = process.argv.slice(2)) {
     await import("./maintenance-resource-policy.mts");
   try {
     return await withMaintenanceAdmission(environment, operation, run, {
+      executor: command === "handoffs" && reconcileIntake,
       request,
       completed: () => complete,
     });

@@ -1,5 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
-import { runSql, sqlLiteral } from "./maintenance-store.mts";
+import { queryJson, runSql, sqlLiteral } from "./maintenance-store.mts";
 import { readHostedIntake } from "./maintenance-hosted-intake.mts";
 import type { HostedRequestStatus } from "./hosted-discovery-intake.mts";
 
@@ -102,13 +102,11 @@ export async function reconcileIntakeHandoffReceipts(
   read = readHostedIntake,
 ) {
   const executor = "SET LOCAL ROLE portcove_maintenance_executor;";
-  const plans: IntakePlan[] = JSON.parse(
-    runSql(
-      environment,
-      `${executor}
-    SELECT coalesce(json_agg(p ORDER BY p.operation_id), '[]') FROM (${openPlans}) p;`,
-    ),
-  );
+  const plans = queryJson(
+    environment,
+    `SELECT coalesce(json_agg(p ORDER BY p.operation_id), '[]') FROM (${openPlans}) p;`,
+    { executor: true },
+  ) as IntakePlan[];
   if (!plans.length) return { inspected: 0, completed: [] };
   const queue = await read();
   const receipts = plans.flatMap((plan) => {
