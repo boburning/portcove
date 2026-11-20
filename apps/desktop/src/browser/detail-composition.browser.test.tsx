@@ -474,6 +474,10 @@ it.each([1440, 320])(
       .getByRole("button", { name: "Open folder for saved data", exact: true })
       .element();
     expect(backup.getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
+    const protection = page.getByRole("heading", { name: "Backups and updates", exact: true });
+    expect(protection.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      heading.element().getBoundingClientRect().top,
+    );
     const explanation = document.getElementById("backup-create-explanation")!;
     expect(backup.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       width === 320
