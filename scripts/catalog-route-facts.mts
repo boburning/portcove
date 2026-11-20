@@ -172,9 +172,7 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
     !integration.platforms.includes("windows-x86-64") &&
     integration.platforms.some(
       (platform) =>
-        platform === "linux-x86-64" ||
-        platform === "macos-x86-64" ||
-        platform === "macos-aarch64",
+        platform === "linux-x86-64" || platform === "macos-x86-64" || platform === "macos-aarch64",
     );
   const selector: Step = {
     title:
