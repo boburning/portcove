@@ -136,6 +136,7 @@ function useUpdateCenter({
   cleanupChanged = refreshDiagnostics,
   reviewedActivityId,
   reviewedActivityRequest,
+  claimActivityReveal,
   onReviewActivity,
   perform,
   onLaunch,
@@ -156,6 +157,7 @@ function useUpdateCenter({
   reviewedActivityId?: string | undefined;
   /** Increments for each explicit reveal request, so repeats focus the row again. */
   reviewedActivityRequest?: number | undefined;
+  claimActivityReveal?: (request: number) => boolean;
   onReviewActivity?: (activityId: string) => void;
   perform?: Perform | undefined;
   onLaunch?: ((portId: string) => void) | undefined;
@@ -190,19 +192,28 @@ function useUpdateCenter({
     if (!reviewedActivity) return;
     return focusActivityRow(reviewedActivity.id);
   }, [reviewedActivity]);
-  // "Show task" while Activity is already open changes only the reviewed ID; reveal
-  // that row then. Mounting with a retained ID does not move focus.
+  // The shell owns explicit reveals so opening Activity can focus the exact row
+  // once. A retained review can mount again without moving focus.
   const revealedFromElsewhere = useRef({
     id: reviewedActivityId,
     request: reviewedActivityRequest,
   });
   useEffect(() => {
     const previous = revealedFromElsewhere.current;
-    if (previous.id === reviewedActivityId && previous.request === reviewedActivityRequest) return;
     revealedFromElsewhere.current = { id: reviewedActivityId, request: reviewedActivityRequest };
     if (!reviewedActivityId) return;
-    return focusActivityRow(reviewedActivityId);
-  }, [reviewedActivityId, reviewedActivityRequest]);
+    const changed =
+      previous.id !== reviewedActivityId || previous.request !== reviewedActivityRequest;
+    if (claimActivityReveal && reviewedActivityRequest) {
+      return focusActivityRow(
+        reviewedActivityId,
+        () =>
+          claimActivityReveal(reviewedActivityRequest) ||
+          (changed && previous.request === reviewedActivityRequest),
+      );
+    }
+    if (changed) return focusActivityRow(reviewedActivityId);
+  }, [claimActivityReveal, reviewedActivityId, reviewedActivityRequest]);
   // Recovery's own Review action focuses the row once; record the ID it hands to the
   // shell so the prop change it causes is not revealed a second time.
   const reviewActivity = (id: string) => {
@@ -1591,12 +1602,12 @@ function updateState(
   return { label: "No update found at last check", tone: "current" };
 }
 
-function focusActivityRow(id: string) {
+function focusActivityRow(id: string, claim: () => boolean = () => true) {
   const frame = window.requestAnimationFrame(() => {
     const row = [...document.querySelectorAll<HTMLElement>("[data-activity-id]")].find(
-      (element) => element.dataset.activityId === id,
+      (element) => element.dataset.activityId === id && !element.closest("[hidden], [inert]"),
     );
-    if (row) focusAndReveal(row);
+    if (row && claim()) focusAndReveal(row);
   });
   return () => window.cancelAnimationFrame(frame);
 }

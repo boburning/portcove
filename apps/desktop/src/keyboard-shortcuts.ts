@@ -273,7 +273,12 @@ export function useWorkspaceContinuity(
     };
   }, [view]);
   const switchView = useCallback(
-    (nextView: View, commit: () => void, detailReturn?: DetailReturn) => {
+    (
+      nextView: View,
+      commit: () => void,
+      detailReturn?: DetailReturn,
+      restoreDestination = true,
+    ) => {
       const currentWorkspace = workspace.current;
       const active = document.activeElement;
       const snapshot: WorkspaceSnapshot = detailReturn
@@ -298,7 +303,7 @@ export function useWorkspaceContinuity(
       }
       snapshots.current[view] = snapshot;
       pending.current = undefined;
-      const nextSnapshot = snapshots.current[nextView];
+      const nextSnapshot = restoreDestination ? snapshots.current[nextView] : undefined;
       if (!ready && nextSnapshot) {
         pending.current = {
           view: nextView,

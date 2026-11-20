@@ -101,20 +101,24 @@ export function detailActions({
     dismissInstallReview,
     install: async () => {
       try {
-        return await perform("install", async (reportEvent) => {
-          const installed = await desktopApi.install(
-            port.id,
-            status?.channel ?? defaultReleaseChannel(port),
-            sourcePath,
-            biosPath,
-            false,
-            libraryGeneration,
-            reportEvent,
-            ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
-          );
-          onInstallCommitted?.(installed);
-          return installed;
-        });
+        return await perform(
+          "install",
+          async (reportEvent) => {
+            const installed = await desktopApi.install(
+              port.id,
+              status?.channel ?? defaultReleaseChannel(port),
+              sourcePath,
+              biosPath,
+              false,
+              libraryGeneration,
+              reportEvent,
+              ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
+            );
+            onInstallCommitted?.(installed);
+            return installed;
+          },
+          { installedResult: (install) => install },
+        );
       } finally {
         // The status layer owns the settled result, including failures and cancellation.
         // Close the modal so that result is reachable and another attempt requires a fresh review.

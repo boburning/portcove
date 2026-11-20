@@ -672,9 +672,9 @@ function useWorkspace(props: WorkspaceProps) {
   const [addGamesFromSettings, setAddGamesFromSettings] = useState(false);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
-    (...args: Parameters<typeof setView>) => {
-      const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
-      if (nextView === "updates") setActivitySection("tasks");
+    (next: Parameters<typeof setView>[0], activitySection?: "history") => {
+      const nextView = typeof next === "function" ? next(ui.view) : next;
+      if (nextView === "updates") setActivitySection(activitySection ?? "tasks");
       if (nextView !== "settings") setPendingToolId(undefined);
       const detailReturn = invalidatePortDetails();
       switchView(
@@ -693,6 +693,7 @@ function useWorkspace(props: WorkspaceProps) {
             viewportTop: detailReturn.viewportTop,
           },
         },
+        activitySection === undefined,
       );
     },
     [invalidatePortDetails, setSelectedId, setView, switchView, ui.view, setActivitySection],
@@ -1266,7 +1267,7 @@ type WorkspaceFeedbackModel = Pick<
   | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
-  ui: Pick<WorkspaceModel["ui"], "view" | "revealActivity">;
+  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
   model: Pick<WorkspaceModel["model"], "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
@@ -1279,10 +1280,9 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
         operationEvents={model.operations.operationEvents}
         dismissInvocation={model.operations.dismissInvocation}
         onActivity={model.ui.view === "updates"}
-        openActivity={(id) => {
+        openActivity={(id, section) => {
           model.ui.revealActivity(id);
-          // Also selects the Tasks section, even when Activity is already open.
-          model.setPrimaryView("updates");
+          model.setPrimaryView("updates", section);
         }}
         error={model.operations.error}
         clearError={() => model.operations.setError(undefined)}
@@ -1295,6 +1295,24 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           );
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
+        openInstalledGame={(record) => {
+          const { target, libraryGeneration } = record.context;
+          const current = model.model.statusMap.get(target.id)?.active;
+          if (
+            libraryGeneration !== model.bootstrap.generation ||
+            model.ui.selectedId === target.id ||
+            model.operations.unreadInstallPorts.has(target.id) ||
+            current?.id !== record.installed?.id ||
+            current?.port_id !== target.id
+          )
+            return undefined;
+          return () => model.openPortDetails(target.id, `install-result:${record.id}`);
+        }}
+        completedActivityAvailable={(id) =>
+          model.data.activities.some(
+            (activity) => activity.id === id && activity.status === "succeeded",
+          )
+        }
         readyToPlay={(record) => {
           const { target } = record.context;
           const port = model.data.catalog?.ports.find((entry) => entry.id === target.id);
@@ -1652,6 +1670,7 @@ function CurrentView({
         activityFeed={data.activityFeed}
         reviewedActivityId={ui.reviewedActivityId}
         reviewedActivityRequest={ui.reviewedActivityRequest}
+        claimActivityReveal={ui.claimActivityReveal}
         onReviewActivity={ui.setReviewedActivityId}
         outcomes={updates.outcomes}
         batchRead={updates.batchRead}

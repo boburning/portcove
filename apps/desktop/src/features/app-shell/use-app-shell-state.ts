@@ -1,4 +1,4 @@
-import { useCallback, useState, type SetStateAction } from "react";
+import { useCallback, useRef, useState, type SetStateAction } from "react";
 import { type CatalogSort, type Filter, type View } from "../../view-model";
 import type { CatalogQuery } from "../browsing/catalog-query";
 import type { SettingsCategory } from "./settings-categories";
@@ -69,6 +69,12 @@ export function useAppShellState(
   const [reviewedActivityId, setReviewedActivityId] = useState<string>();
   // Each explicit reveal request (e.g. "Show task") counts, even for the same task.
   const [reviewedActivityRequest, setReviewedActivityRequest] = useState(0);
+  const handledActivityReveal = useRef(0);
+  const claimActivityReveal = useCallback((request: number) => {
+    if (request <= handledActivityReveal.current) return false;
+    handledActivityReveal.current = request;
+    return true;
+  }, []);
   const revealActivity = useCallback((id: string | undefined) => {
     setReviewedActivityId(id);
     setReviewedActivityRequest((request) => request + 1);
@@ -157,6 +163,7 @@ export function useAppShellState(
     reviewedActivityId,
     setReviewedActivityId,
     reviewedActivityRequest,
+    claimActivityReveal,
     revealActivity,
     activitySection,
     setActivitySection,

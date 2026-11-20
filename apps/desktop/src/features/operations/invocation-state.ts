@@ -1,3 +1,5 @@
+import type { InstallRecord } from "../../types";
+
 /** Presentation identities only. None grants a Core lock or execution authority. */
 export type InvocationContext = {
   action: string;
@@ -18,6 +20,7 @@ export type InvocationRecord = {
   outcome?: "succeeded" | "failed" | "cancelled";
   failure?: unknown;
   refreshFailure?: unknown;
+  installed?: Pick<InstallRecord, "id" | "port_id" | "version">;
 };
 
 function invocationContextsConflict(left: InvocationContext, right: InvocationContext) {

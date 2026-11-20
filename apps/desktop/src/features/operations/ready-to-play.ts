@@ -3,8 +3,8 @@ import type { CatalogEntry } from "../browsing/catalog-entry";
 import type { PortStatus } from "../../types";
 import type { InvocationRecord } from "./invocation-state";
 
-/** Completed actions after which a launchable port is handed back to the player. */
-const readyToPlayActions = new Set(["install", "prepare game data"]);
+/** Prepare can hand the current port back to Play. Install has its own exact result. */
+const readyToPlayActions = new Set(["prepare game data"]);
 
 /**
  * Whether a finished invocation may say "ready to play" and offer Play. It uses the
