@@ -376,8 +376,13 @@ it("opens and focuses the real artwork sheet from the hero menu after Manage row
   await page.getByRole("button", { name: /^More actions for / }).click();
   await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
   await expect
-    .element(page.getByRole("tab", { name: "Manage", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
+    .poll(() =>
+      document
+        .getElementById("detail-section-manage")
+        ?.closest('[role="tabpanel"]')
+        ?.hasAttribute("hidden"),
+    )
+    .toBe(false);
   const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
   await expect.element(sheet).toBeVisible();
   await expect.element(sheet.getByRole("button", { name: "Close", exact: true })).toHaveFocus();

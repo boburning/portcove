@@ -235,8 +235,9 @@ export function ArtworkControls(props: ArtworkControlsProps) {
   const { t } = useAppTranslation("detail");
   const { t: common } = useAppTranslation("common");
   const sheet = useRef<HTMLDialogElement>(null);
+  const latestOpening = useRef(0);
   const id = useId();
-  const [open, setOpen] = useState(false);
+  const [opening, setOpening] = useState<number>();
   const identity = props.previewPort?.id === props.port.id ? props.previewPort : props.port;
   return (
     <div className="artwork-controls">
@@ -252,7 +253,8 @@ export function ArtworkControls(props: ArtworkControlsProps) {
           if (!target || target.open) return;
           event.currentTarget.focus({ preventScroll: true });
           target.showModal();
-          setOpen(true);
+          latestOpening.current += 1;
+          setOpening(latestOpening.current);
         }}
       >
         {t("actions.artwork")}
@@ -265,7 +267,7 @@ export function ArtworkControls(props: ArtworkControlsProps) {
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-identity ${id}-scope`}
         onClose={(event) => {
-          if (!event.currentTarget.open) setOpen(false);
+          if (!event.currentTarget.open) setOpening(undefined);
         }}
       >
         <header className={styles.sheetHeader}>
@@ -286,9 +288,15 @@ export function ArtworkControls(props: ArtworkControlsProps) {
             </Button>
           </form>
         </header>
-        {open && (
+        {opening !== undefined && (
           <div className={styles.sheetBody}>
-            <ArtworkSheetContents {...props} />
+            <ArtworkSheetContents
+              key={opening}
+              {...props}
+              isCurrentOpening={() =>
+                latestOpening.current === opening && sheet.current?.open === true
+              }
+            />
           </div>
         )}
       </dialog>
@@ -301,7 +309,8 @@ function ArtworkSheetContents({
   previewPort,
   Preview,
   previewActions,
-}: ArtworkControlsProps) {
+  isCurrentOpening,
+}: ArtworkControlsProps & { isCurrentOpening: () => boolean }) {
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
   const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
@@ -348,6 +357,7 @@ function ArtworkSheetContents({
               slot={slot}
               Preview={Preview}
               previewActions={previewActions}
+              isCurrentOpening={isCurrentOpening}
             />
           )}
         </Tabs.Panel>
@@ -381,9 +391,11 @@ function ArtworkSlotControl({
   slot,
   Preview,
   previewActions,
+  isCurrentOpening,
 }: {
   port: BackgroundPreviewProps["port"];
   previewPort: BackgroundPreviewProps["port"];
+  isCurrentOpening: () => boolean;
   slot: ArtworkSlot;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
@@ -420,7 +432,7 @@ function ArtworkSlotControl({
     };
   }, []);
   useEffect(() => {
-    if (pending || !returnFocus.current) return;
+    if (pending || !returnFocus.current || !isCurrentOpening()) return;
     const { target, cache: owner } = returnFocus.current;
     returnFocus.current = null;
     const panel = slotPanel.current;
@@ -432,11 +444,11 @@ function ArtworkSlotControl({
           control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
       ) ?? panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
     focus?.focus();
-  }, [draft, pending]);
+  }, [draft, pending, isCurrentOpening]);
 
   const stillInView = () =>
     mounted.current &&
-    slotPanel.current?.closest("dialog")?.open === true &&
+    isCurrentOpening() &&
     currentIdentity.current.portId === port.id &&
     currentIdentity.current.slot === slot &&
     currentIdentity.current.cache?.generation === cache?.generation;

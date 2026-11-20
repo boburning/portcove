@@ -207,6 +207,32 @@ describe("local artwork controls", () => {
     expect(navigationScope()).toBe(document);
   });
 
+  it("discards a pending file pick across a close and reopen before the native close event", async () => {
+    let finish!: (path: string) => void;
+    vi.mocked(picker.pickArtworkPath).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const importArtwork = vi.spyOn(desktopApi, "importArtwork");
+    const preview = vi.spyOn(desktopApi, "previewLocalBackground");
+    await render();
+    await open();
+    await click("detail", "Choose local image");
+    expect(picker.pickArtworkPath).toHaveBeenCalledOnce();
+
+    const sheet = container.querySelector<HTMLDialogElement>(".artwork-sheet")!;
+    const trigger = container.querySelector<HTMLButtonElement>("[data-artwork-editor-trigger]")!;
+    await act(async () => {
+      sheet.close();
+      trigger.click();
+      finish("E:/closed-sheet.png");
+    });
+    expect(sheet.open).toBe(true);
+    expect(importArtwork).not.toHaveBeenCalled();
+    expect(preview).not.toHaveBeenCalled();
+    await expect
+      .element(page.getByRole("tab", { name: "Cover image", exact: true }))
+      .toHaveAttribute("aria-selected", "true");
+    expect(container.textContent).not.toContain("Review Background");
+  });
+
   it("keeps a listing's independent artwork slots and one detail preview inside Change artwork", async () => {
     const listing: PortListing = {
       id: "listing-only",
