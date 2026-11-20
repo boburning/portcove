@@ -2850,10 +2850,14 @@ It accounts for managed versions, library user data, source inbox, backups, tool
 and local artwork. External runtimes and save locations, external original or BIOS
 files, unknown save locations and host credentials are excluded. Recorded external
 source references can remain in metadata as locations to verify or relink later.
+An installation managed by Portcove outside the library root holds the bundle
+review because its installation record and runtime could not be restored together.
 
 Creation takes the same exclusive source lease as a library move and rechecks the
 review. It writes an authenticated intent in a private sibling directory and copies
-into that directory. The original library gets no move marker or preference change.
+into that directory. The destination filesystem must enforce private owner access
+for the staging and payload directories. The original library keeps its existing
+authority and active preference.
 Core verifies the copied inventory and metadata, rechecks the source and publishes
 the bundle with an atomic no-replace rename. Staging remains separate from completed
 bundles. Recovery reads the exact intent and either completes the staged copy against

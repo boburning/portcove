@@ -25,6 +25,7 @@ const STAGING_PREFIX: &str = ".portcove-recovery-bundle-";
 const JOURNAL_FILE: &str = "intent.json";
 const PAYLOAD_DIR: &str = "payload";
 const CONTENT_DIR: &str = "content";
+const WORK_DIR: &str = "work";
 const METADATA_FILE: &str = "metadata.json";
 const MANIFEST_FILE: &str = "portcove-recovery-bundle.json";
 const JOURNAL_DOMAIN: &str = "portcove:recovery-bundle-creation:v1";
@@ -97,6 +98,7 @@ impl PortcoveService {
 
     pub fn resume_library_recovery_bundle(staging: &Path) -> Result<LibraryRecoveryBundle> {
         let stage = checked_directory(staging)?;
+        require_private_directory(&stage)?;
         let intent: CreationIntent =
             read_authenticated(&stage.join(JOURNAL_FILE), JOURNAL_DOMAIN, MAX_JOURNAL_BYTES)?;
         require_format(intent.format_version)?;
@@ -206,13 +208,16 @@ fn start_creation(
         created_at: metadata.exported_at,
     };
     let stage = staging_path(&intent)?;
-    fs::create_dir(&stage)?;
-    if let Err(error) = write_authenticated(
-        &stage.join(JOURNAL_FILE),
-        JOURNAL_DOMAIN,
-        &intent,
-        MAX_JOURNAL_BYTES,
-    ) {
+    create_private_directory(&stage)?;
+    if let Err(error) = require_private_directory(&stage).and_then(|()| {
+        write_authenticated(
+            &stage.join(JOURNAL_FILE),
+            &stage,
+            JOURNAL_DOMAIN,
+            &intent,
+            MAX_JOURNAL_BYTES,
+        )
+    }) {
         // This is the only cleanup of a stage. It succeeds only while empty.
         let _ = fs::remove_dir(&stage);
         return Err(creation_error(error, &stage));
@@ -231,20 +236,32 @@ fn publish_creation(
     content: &[LibraryTreePlan],
     after_copy: &dyn Fn() -> Result<()>,
 ) -> Result<LibraryRecoveryBundle> {
+    require_private_directory(stage)?;
     let payload = stage.join(PAYLOAD_DIR);
-    ensure_directory(&payload)?;
+    match create_private_directory(&payload) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => return Err(error.into()),
+    }
+    require_private_directory(&payload)?;
     let content_root = payload.join(CONTENT_DIR);
     ensure_directory(&content_root)?;
     let catalogs = PortabilityCatalogs::from_root(&metadata, service.library().root())?;
     crate::transfer_copy::verify_installations(service.library(), &metadata, &catalogs)?;
-    crate::transfer_copy::copy_content(service.library().root(), &content_root, content)?;
+    let work = stage.join(WORK_DIR);
+    ensure_directory(&work)?;
+    crate::transfer_copy::copy_content_with_work(
+        service.library().root(),
+        &content_root,
+        content,
+        &work,
+    )?;
     after_copy()?;
-    let transfer_work = content_root.join(".portcove-transfer-work");
-    fs::remove_dir(&transfer_work)?;
     metadata.exported_at = intent.created_at;
     let metadata_bytes = serde_json::to_vec_pretty(&metadata)?;
     write_or_verify(
         &payload.join(METADATA_FILE),
+        &work,
         &metadata_bytes,
         MAX_METADATA_BYTES,
     )?;
@@ -261,6 +278,7 @@ fn publish_creation(
     };
     let proof = write_authenticated(
         &payload.join(MANIFEST_FILE),
+        &work,
         RECEIPT_DOMAIN,
         &manifest,
         MAX_MANIFEST_BYTES,
@@ -275,6 +293,8 @@ fn publish_creation(
         &content_root,
         content,
     )?;
+    require_private_directory(stage)?;
+    require_private_directory(&payload)?;
     crate::durability::rename_noreplace(&payload, &intent.plan.destination_root)?;
     crate::durability::sync_publication(stage)?;
     crate::durability::sync_publication(stage.parent().expect("staging has parent"))?;
@@ -422,6 +442,37 @@ fn ensure_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(unix)]
+fn create_private_directory(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::DirBuilderExt;
+    fs::DirBuilder::new().mode(0o700).create(path)
+}
+
+#[cfg(windows)]
+use crate::windows_user_access::create_private_directory;
+
+fn require_private_directory(path: &Path) -> Result<()> {
+    if checked_directory(path)? != path {
+        return Err(PortcoveError::verification(
+            "recovery bundle staging directory was replaced or redirected",
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = fs::symlink_metadata(path)?;
+        // SAFETY: geteuid has no pointer arguments and does not modify process state.
+        if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o077 != 0 {
+            return Err(PortcoveError::verification(
+                "recovery bundle staging needs a directory private to your account",
+            ));
+        }
+    }
+    #[cfg(windows)]
+    crate::windows_user_access::require_private_directory(path)?;
+    Ok(())
+}
+
 fn open_source(path: &Path) -> Result<Library> {
     let root = checked_directory(path)?;
     let database = fs::symlink_metadata(crate::database::database_path(&root))?;
@@ -430,14 +481,7 @@ fn open_source(path: &Path) -> Result<Library> {
             "recovery source must be an existing library",
         ));
     }
-    let library = Library::open_exclusive(&root)?;
-    if crate::library_authority::authority(&root)?.is_some() {
-        return Err(PortcoveError::conflict(
-            "finish library relocation or recovery before creating a bundle",
-        ));
-    }
-    crate::import_journal::check_open(&root)?;
-    Ok(library)
+    Library::open_current_for_recovery_bundle(&root)
 }
 
 fn read_signed<T: DeserializeOwned>(path: &Path, limit: u64) -> Result<Authenticated<T>> {
@@ -461,6 +505,7 @@ fn read_authenticated<T: DeserializeOwned + Serialize>(
 
 fn write_authenticated<T: Serialize>(
     path: &Path,
+    work: &Path,
     domain: &'static str,
     body: &T,
     limit: u64,
@@ -470,11 +515,11 @@ fn write_authenticated<T: Serialize>(
         body,
         proof_sha256: proof_sha256.clone(),
     })?;
-    write_or_verify(path, &bytes, limit)?;
+    write_or_verify(path, work, &bytes, limit)?;
     Ok(proof_sha256)
 }
 
-fn write_or_verify(path: &Path, bytes: &[u8], limit: u64) -> Result<()> {
+fn write_or_verify(path: &Path, work: &Path, bytes: &[u8], limit: u64) -> Result<()> {
     if bytes.len() as u64 > limit {
         return Err(PortcoveError::unsupported(
             "recovery bundle document exceeds the supported size",
@@ -495,7 +540,7 @@ fn write_or_verify(path: &Path, bytes: &[u8], limit: u64) -> Result<()> {
     let parent = path
         .parent()
         .ok_or_else(|| PortcoveError::state("recovery bundle document has no parent"))?;
-    let mut output = tempfile::NamedTempFile::new_in(parent)?;
+    let mut output = tempfile::NamedTempFile::new_in(work)?;
     output.write_all(bytes)?;
     output.as_file().sync_all()?;
     output
@@ -562,8 +607,11 @@ mod tests {
         assert!(
             PortcoveService::inspect_library_recovery_bundle(&stage.join(PAYLOAD_DIR)).is_err()
         );
+        let orphan = stage.join(WORK_DIR).join(".interrupted-private-copy");
+        fs::write(&orphan, b"retained partial data").unwrap();
         let bundle = PortcoveService::resume_library_recovery_bundle(stage).unwrap();
         assert_eq!(bundle.source_library_id, source_id);
+        assert!(orphan.is_file());
         assert_eq!(
             PortcoveService::resume_library_recovery_bundle(stage)
                 .unwrap()
@@ -632,5 +680,50 @@ mod tests {
         fs::write(source.join("user/progress.bin"), b"new progress").unwrap();
         assert!(PortcoveService::resume_library_recovery_bundle(stage).is_err());
         assert!(!destination.exists());
+    }
+
+    #[test]
+    fn a_review_cannot_initialize_or_migrate_a_replaced_source() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        crate::database::recreate_schema_33_fixture(&source).unwrap();
+        assert!(crate::database::requires_migration(&source).unwrap());
+        assert!(
+            PortcoveService::create_library_recovery_bundle(
+                &source,
+                &destination,
+                &plan.plan_sha256
+            )
+            .is_err()
+        );
+        assert!(crate::database::requires_migration(&source).unwrap());
+        assert!(!destination.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn verifies_private_staging_before_resuming() {
+        use std::os::unix::fs::PermissionsExt;
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let interrupted = start_creation(&source, &destination, &plan.plan_sha256, &|| {
+            Err(PortcoveError::state("fixture interruption"))
+        })
+        .unwrap_err();
+        let stage = Path::new(&interrupted.details["recovery_staging"]);
+        assert_eq!(fs::metadata(stage).unwrap().permissions().mode() & 0o077, 0);
+        fs::set_permissions(stage, fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(PortcoveService::resume_library_recovery_bundle(stage).is_err());
+        assert!(!destination.exists());
+        fs::set_permissions(stage, fs::Permissions::from_mode(0o700)).unwrap();
+        PortcoveService::resume_library_recovery_bundle(stage).unwrap();
+        assert_eq!(
+            fs::metadata(destination).unwrap().permissions().mode() & 0o077,
+            0
+        );
     }
 }

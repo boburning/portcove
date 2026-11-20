@@ -239,4 +239,44 @@ mod tests {
         assert!(credential.is_file());
         assert!(!destination.exists());
     }
+
+    #[test]
+    fn holds_a_recovery_plan_with_a_portcove_installation_outside_the_library() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let external = workspace.path().join("managed-output");
+        let destination = workspace.path().join("recovery-copy");
+        let service = PortcoveService::new(crate::Library::open(&source).unwrap()).unwrap();
+        fs::create_dir(&external).unwrap();
+        service
+            .library()
+            .register_install(
+                &crate::InstallRecord {
+                    id: "externally-located-build".into(),
+                    port_id: "starship".into(),
+                    version: "fixture".into(),
+                    path: external,
+                    channel: crate::ReleaseChannel::Stable,
+                    installed_at: 1,
+                    verified: true,
+                    staged: false,
+                    artifact: crate::ArtifactIdentity {
+                        asset_name: "fixture.zip".into(),
+                        sha256: "a".repeat(64),
+                        size: 1,
+                    },
+                    runtime: None,
+                    manifest_sha256: "a".repeat(64),
+                    selected_executable: PathBuf::from("game"),
+                },
+                true,
+            )
+            .unwrap();
+
+        let error = service
+            .plan_library_recovery_bundle(&destination)
+            .unwrap_err();
+        assert_eq!(error.details["install_id"], "externally-located-build");
+        assert!(!destination.exists());
+    }
 }

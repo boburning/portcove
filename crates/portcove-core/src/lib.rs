@@ -167,6 +167,8 @@ mod transfer_copy;
 mod transfer_journal;
 mod types;
 mod windows_runtime;
+#[cfg(windows)]
+mod windows_user_access;
 mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};

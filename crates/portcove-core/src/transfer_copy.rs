@@ -30,11 +30,20 @@ pub(crate) fn copy_content(
     content: &[LibraryTreePlan],
 ) -> Result<()> {
     let work = destination_root.join(".portcove-transfer-work");
-    ensure_directory(&work)?;
+    copy_content_with_work(source_root, destination_root, content, &work)
+}
+
+pub(crate) fn copy_content_with_work(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+    work: &Path,
+) -> Result<()> {
+    ensure_directory(work)?;
     for tree in content {
         let source = source_root.join(&tree.relative_path);
         let destination = destination_root.join(&tree.relative_path);
-        copy_reviewed_tree(&source, &destination, &tree.copy, &work)?;
+        copy_reviewed_tree(&source, &destination, &tree.copy, work)?;
     }
     Ok(())
 }
