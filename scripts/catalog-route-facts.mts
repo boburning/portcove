@@ -162,9 +162,23 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   )
     throw new Error("Route facts require a concrete bespoke guide envelope.");
   const player = resolvedPlayer(facts, record.integration);
+  const integration = record.integration;
+  const separateUnixRegistration =
+    record.listing.platforms?.includes("windows-x86-64") &&
+    integration !== undefined &&
+    isRecord(integration.release) &&
+    integration.release.provider === "user-prepared" &&
+    Array.isArray(integration.platforms) &&
+    !integration.platforms.includes("windows-x86-64") &&
+    integration.platforms.some(
+      (platform) =>
+        platform === "linux-x86-64" ||
+        platform === "macos-x86-64" ||
+        platform === "macos-aarch64",
+    );
   const selector: Step = {
     title:
-      facts.managed_native && record.listing.platforms?.length
+      (facts.managed_native && record.listing.platforms?.length) || separateUnixRegistration
         ? "Select the prepared Windows player"
         : "Select the prepared player",
     instruction: selectionInstruction(player.executable, player.arguments),

@@ -82774,15 +82774,19 @@
           "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
           "steps": [
             {
-              "title": "Open the upstream launcher",
-              "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+              "title": "Open the upstream Windows launcher",
+              "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together."
+            },
+            {
+              "title": "Select the Linux AppImage",
+              "instruction": "Use the official Linux x64 AppImage on a host with glibc 2.38 or later. Make the file executable. In Portcove, select the AppImage and use its containing folder as the working directory. If FUSE is unavailable, enter --appimage-extract-and-run as one argument."
             },
             {
               "title": "Choose your original game",
               "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Select the prepared Windows player",
               "instruction": "Select wl4-launcher.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],
