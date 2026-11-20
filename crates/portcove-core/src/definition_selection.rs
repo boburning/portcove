@@ -698,19 +698,27 @@ impl Library {
         Ok(result)
     }
 
+    /// Commit an eligible definition only if it can coexist with the current catalog.
     pub fn select_definition_candidate(
         &self,
         candidate: EligibleDefinitionCandidate,
     ) -> Result<DefinitionSelectionStatus> {
-        self.commit_definition_candidate(candidate, false)
+        self.commit_definition_candidate(candidate, true)
     }
 
-    /// Ordinary availability must also satisfy the current runtime baseline.
     pub(crate) fn select_definition_catalog(
         &self,
         candidate: EligibleDefinitionCandidate,
     ) -> Result<DefinitionSelectionStatus> {
-        self.commit_definition_candidate(candidate, true)
+        self.select_definition_candidate(candidate)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn select_definition_candidate_fixture(
+        &self,
+        candidate: EligibleDefinitionCandidate,
+    ) -> Result<DefinitionSelectionStatus> {
+        self.commit_definition_candidate(candidate, false)
     }
 
     fn commit_definition_candidate(

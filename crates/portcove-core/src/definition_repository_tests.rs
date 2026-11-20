@@ -465,7 +465,9 @@ fn select_candidate(
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
 }
 
 async fn acquire(
@@ -854,7 +856,9 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         .unwrap()
         .into_eligible()
         .unwrap();
-    let selected = library.select_definition_candidate(eligible).unwrap();
+    let selected = library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     assert_eq!(selected.revision, 1);
     assert_eq!(selected.replay_floor, Some(candidate.replay_floor()));
     let identity = selected.selected.unwrap();
@@ -879,7 +883,7 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
     );
     assert_eq!(
         library
-            .select_definition_candidate(exact_retry)
+            .select_definition_candidate_fixture(exact_retry)
             .unwrap()
             .revision,
         1,
@@ -1758,7 +1762,7 @@ async fn embedded_crawl_accepts_a_schema_three_successor_with_a_retained_schema_
     assert!(old.projection().catalog_for_selection(&baseline).is_err());
     let snapshot = old.projection().snapshot().clone();
     let identity = source
-        .select_definition_candidate(old)
+        .select_definition_candidate_fixture(old)
         .unwrap()
         .selected
         .unwrap();
@@ -1874,7 +1878,7 @@ async fn historical_full_projection_can_import_without_replacing_current_unrelat
     );
     let snapshot = eligible.projection().snapshot().clone();
     let identity = source
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -1893,6 +1897,122 @@ async fn historical_full_projection_can_import_without_replacing_current_unrelat
             .unwrap(),
         Some("active")
     );
+}
+
+#[tokio::test]
+async fn historical_projection_can_import_after_unrelated_source_graph_only_growth() {
+    use ed25519_dalek::{Signer, SigningKey};
+
+    let fixture = RepositoryFixture::new();
+    let source_root = TempDir::new().unwrap();
+    let target_root = TempDir::new().unwrap();
+    let source = Library::open(source_root.path()).unwrap();
+    let target = Library::open(target_root.path()).unwrap();
+    let (old, port_id) = post_client_catalog();
+    let baseline = Catalog::embedded().unwrap();
+    let mut newer = baseline.authoritative_document();
+    let source_graph = newer.source_catalog.as_mut().unwrap();
+    let unrelated_contract = source_graph
+        .contracts
+        .iter()
+        .position(|contract| !contract.evidence_ids.is_empty())
+        .unwrap();
+    let id = &source_graph.contracts[unrelated_contract].evidence_ids[0];
+    let mut new_evidence = source_graph
+        .evidence
+        .iter()
+        .find(|row| &row.id == id)
+        .unwrap()
+        .clone();
+    new_evidence.id = "later-unrelated-catalog-evidence".into();
+    source_graph.contracts[unrelated_contract]
+        .evidence_ids
+        .push(new_evidence.id.clone());
+    source_graph.evidence.push(new_evidence);
+
+    let now = Library::now();
+    let signed = crate::SignedCatalogPayload {
+        sequence: 1,
+        issued_at: now - 60,
+        expires_at: now + 3600,
+        catalog: newer,
+    };
+    let payload = serde_json::to_string(&signed).unwrap();
+    let key = SigningKey::from_bytes(&[19; 32]);
+    let key_id = crate::signed_catalog::digest(key.verifying_key().as_bytes());
+    let signature = key.sign(&crate::signed_catalog::signing_message(&key_id, &payload));
+    let signed_bytes = serde_json::to_vec(&crate::SignedCatalogEnvelope {
+        format_version: 1,
+        key_id,
+        payload,
+        signature: hex::encode(signature.to_bytes()),
+    })
+    .unwrap();
+    target
+        .trust_catalog_key(&hex::encode(key.verifying_key().as_bytes()))
+        .unwrap();
+    target.connection().unwrap().execute(
+        "UPDATE catalog_state SET revision=revision+1,highest_sequence=1,enabled=1,active=?1 WHERE singleton=1",
+        [signed_bytes],
+    ).unwrap();
+    let (newer, provenance) = target.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::SignedActive);
+    assert_eq!(
+        serde_json::to_value(baseline.ports()).unwrap(),
+        serde_json::to_value(newer.ports()).unwrap()
+    );
+    assert!(
+        newer
+            .source_catalog()
+            .unwrap()
+            .evidence
+            .iter()
+            .any(|row| row.id == "later-unrelated-catalog-evidence")
+    );
+
+    let eligible = prepare_selection_revision(&fixture, &source, &old, &port_id, 1, 7).await;
+    assert!(
+        eligible
+            .projection()
+            .catalog_for_selection(&baseline)
+            .is_ok()
+    );
+    let error = eligible
+        .projection()
+        .catalog_for_selection(&newer)
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("existing source evidence changed or was removed")
+    );
+    assert!(error.details.contains_key("definition_baseline_drift"));
+    let snapshot = eligible.projection().snapshot().clone();
+    let identity = source
+        .select_definition_candidate_fixture(eligible)
+        .unwrap()
+        .selected
+        .unwrap();
+    target
+        .restore_retained_definition_admission(&identity, &snapshot, "active")
+        .unwrap();
+    assert_eq!(
+        target
+            .retained_definition_admission_role(&identity)
+            .unwrap(),
+        Some("active")
+    );
+    assert!(
+        target
+            .definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+    let (reopened, provenance) = target.load_catalog().unwrap();
+    assert_eq!(provenance.origin, CatalogOrigin::SignedActive);
+    assert!(reopened.port(&port_id).is_err());
+    assert_eq!(reopened.source_catalog(), newer.source_catalog());
 }
 
 #[tokio::test]
@@ -1945,6 +2065,31 @@ async fn portable_active_restore_refuses_source_collision_in_both_subject_orders
         let identity = retained.definition_selection(incoming).unwrap();
         let snapshot = retained.definition_snapshot(incoming).unwrap();
         let before = destination.definition_selection_status().unwrap();
+        destination
+            .install_definition_policy_for_test(
+                &candidate,
+                "official",
+                incoming,
+                7,
+                "official-fixture-grant",
+                DefinitionPublisherStatus::Scoped,
+            )
+            .unwrap();
+        let pending = destination
+            .assess_definition_candidate(&candidate, "official", incoming)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        let refusal = destination
+            .select_definition_candidate(pending)
+            .unwrap_err();
+        assert!(
+            refusal
+                .message
+                .contains("independently selected source records conflict"),
+            "{refusal:?}"
+        );
+        assert_eq!(destination.definition_selection_status().unwrap(), before);
         let refusal = destination
             .restore_retained_definition_admission(identity, snapshot, "active")
             .unwrap_err();
@@ -2031,7 +2176,7 @@ async fn per_subject_selection_retains_independent_authority_and_interrupts_atom
             .unwrap(),
         Some("active")
     );
-    assert!(library.select_definition_candidate(old).is_err());
+    assert!(library.select_definition_candidate_fixture(old).is_err());
     let install = DefinitionOperationContext::observed(DefinitionOperation::Install, false, true);
     assert_eq!(
         library
@@ -2235,7 +2380,11 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
              BEGIN SELECT RAISE(ABORT, 'synthetic interruption'); END;",
         )
         .unwrap();
-    assert!(library.select_definition_candidate(interrupted).is_err());
+    assert!(
+        library
+            .select_definition_candidate_fixture(interrupted)
+            .is_err()
+    );
     let unchanged = library.definition_selection_status().unwrap();
     assert_eq!(unchanged.revision, 0);
     assert!(unchanged.selected.is_none());
@@ -2251,7 +2400,9 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(initial).unwrap();
+    library
+        .select_definition_candidate_fixture(initial)
+        .unwrap();
     let old_retry = library
         .assess_definition_candidate(&candidate, "official", &port_id)
         .unwrap()
@@ -2269,12 +2420,16 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
         advance.replay_disposition(),
         DefinitionReplayDisposition::Advance
     );
-    let advanced = library.select_definition_candidate(advance).unwrap();
+    let advanced = library
+        .select_definition_candidate_fixture(advance)
+        .unwrap();
     assert_eq!(advanced.revision, 2);
     assert!(advanced.can_rollback);
     assert_eq!(advanced.replay_floor, Some(candidate.replay_floor()));
 
-    let replay_error = library.select_definition_candidate(old_retry).unwrap_err();
+    let replay_error = library
+        .select_definition_candidate_fixture(old_retry)
+        .unwrap_err();
     assert_eq!(replay_error.code, ErrorCode::Verification);
     assert_eq!(library.definition_selection_status().unwrap(), advanced);
 
@@ -2293,7 +2448,9 @@ async fn selection_rechecks_policy_replay_and_atomic_commit_state() {
             DefinitionPublisherStatus::Revoked,
         )
         .unwrap();
-    let policy_error = library.select_definition_candidate(pending).unwrap_err();
+    let policy_error = library
+        .select_definition_candidate_fixture(pending)
+        .unwrap_err();
     assert_eq!(policy_error.code, ErrorCode::Conflict);
     assert_eq!(library.definition_selection_status().unwrap(), advanced);
 }

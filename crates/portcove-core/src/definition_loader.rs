@@ -416,17 +416,50 @@ fn validate_source_transition(
     let baseline_validators = values_by_id(&baseline.validators, |value| &value.id)?;
     let candidate_validators = values_by_id(&candidate.validators, |value| &value.id)?;
 
-    require_existing_records(&baseline_evidence, &candidate_evidence, "source evidence")?;
-    require_existing_records(
-        &baseline_identities,
-        &candidate_identities,
-        "source identity",
-    )?;
-    require_existing_records(
-        &baseline_validators,
-        &candidate_validators,
-        "source validator",
-    )?;
+    let immutable_frame =
+        require_existing_records(&baseline_evidence, &candidate_evidence, "source evidence")
+            .and_then(|()| {
+                require_existing_records(
+                    &baseline_identities,
+                    &candidate_identities,
+                    "source identity",
+                )
+            })
+            .and_then(|()| {
+                require_existing_records(
+                    &baseline_validators,
+                    &candidate_validators,
+                    "source validator",
+                )
+            });
+    if let Err(error) = immutable_frame {
+        let prior = subject_source_records(baseline, selected_port_id);
+        let proposed = subject_source_records(candidate, selected_port_id);
+        let scoped_change = changed_owned_records(
+            &prior.evidence,
+            &proposed.evidence,
+            &baseline_evidence,
+            &candidate_evidence,
+            |row| &row.id,
+        ) || changed_owned_records(
+            &prior.identities,
+            &proposed.identities,
+            &baseline_identities,
+            &candidate_identities,
+            |row| &row.id,
+        ) || changed_owned_records(
+            &prior.validators,
+            &proposed.validators,
+            &baseline_validators,
+            &candidate_validators,
+            |row| &row.id,
+        );
+        return Err(if scoped_change {
+            error
+        } else {
+            error.detail("definition_baseline_drift", "true")
+        });
+    }
     require_existing_order(
         baseline.evidence.iter().map(|value| value.id.as_str()),
         candidate
@@ -611,6 +644,21 @@ fn values_by_id<'a, T: Serialize>(
         .iter()
         .map(|value| Ok((id(value), serde_json::to_value(value)?)))
         .collect()
+}
+
+fn changed_owned_records<T>(
+    prior: &[T],
+    proposed: &[T],
+    baseline: &HashMap<&str, serde_json::Value>,
+    candidate: &HashMap<&str, serde_json::Value>,
+    id: impl Fn(&T) -> &str,
+) -> bool {
+    prior.iter().chain(proposed).any(|record| {
+        let id = id(record);
+        baseline
+            .get(id)
+            .is_some_and(|value| candidate.get(id) != Some(value))
+    })
 }
 
 fn require_existing_records(

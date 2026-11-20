@@ -67,7 +67,7 @@ async fn managed_github_scope_admits_only_its_coupled_lifecycle() {
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -190,7 +190,9 @@ async fn availability_only_definition_cannot_be_adopted_into_retained_lifecycle_
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let service = PortcoveService::new(library.clone()).unwrap();
     assert_eq!(
         service
@@ -289,7 +291,9 @@ async fn prepared_adoption_revocation_survives_rejection_and_interrupted_restart
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         let service = PortcoveService::with_faults(
             library.clone(),
             std::sync::Arc::new(RevokePreparedAdoption {
@@ -450,7 +454,7 @@ async fn protected_policy_enables_exact_availability_but_no_acquisition_operatio
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -549,7 +553,7 @@ async fn admitted_authority_cannot_return_to_an_empty_replay_floor() {
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -645,7 +649,11 @@ async fn revocation_requires_no_candidate_and_invalidates_assessed_selection() {
             .apply_definition_publisher_policy(&revoked, None)
             .unwrap()
     );
-    assert!(library.select_definition_candidate(eligible).is_err());
+    assert!(
+        library
+            .select_definition_candidate_fixture(eligible)
+            .is_err()
+    );
     assert_eq!(
         library
             .assess_definition_candidate(&candidate, "official", ID)
@@ -865,7 +873,9 @@ async fn managed_fixture_before_admission(
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
         &library.connection().unwrap(),
         &authored,
@@ -2910,7 +2920,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
             catalog = library.load_catalog().unwrap().0;
             phase("second admission");
         }
@@ -3142,7 +3154,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         // Observe the unchanged selected catalog once. Launch assessments are
         // read from durable state by each status call; they do not replace the
         // selected catalog. Actual launch attempts below still reopen service.
@@ -3413,7 +3427,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
         }
         let current = library.load_catalog().unwrap().0;
         policy::acquisition_scope(&library, &current, ID)
@@ -3519,7 +3535,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let current_catalog = library.load_catalog().unwrap().0;
     policy::acquisition_scope(&library, &current_catalog, ID)
         .unwrap()
@@ -4613,7 +4631,9 @@ async fn curated_installer_boundary_fixture(
                     .unwrap()
                     .into_eligible()
                     .unwrap();
-                library.select_definition_candidate(eligible).unwrap();
+                library
+                    .select_definition_candidate_fixture(eligible)
+                    .unwrap();
                 let (current_catalog, _) = library.load_catalog().unwrap();
                 // Bind the baseline to the new policy so withdrawal's retained
                 // use is not mistaken for a missing or stale launch-check hold.
@@ -5574,7 +5594,9 @@ async fn managed_ordinary_lifecycle(
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
 
         phase(&format!("revision-{definition_revision}:select:complete"));
         phase(&format!("revision-{definition_revision}:reopen:start"));
@@ -5651,7 +5673,9 @@ async fn managed_ordinary_lifecycle(
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
             let after = PortcoveService::new(library.clone())
                 .unwrap()
                 .status(ID)
@@ -5832,7 +5856,9 @@ async fn managed_compatible_corrections_refuse_old_acquisition_and_changed_retai
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         require_retained_launch();
         for operation in [
             DefinitionOperation::Install,
@@ -6507,7 +6533,9 @@ async fn curated_preparation_fixture(
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
             &library.connection().unwrap(),
             &catalog,
