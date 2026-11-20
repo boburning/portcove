@@ -177,9 +177,12 @@ impl DefinitionCatalogProjection {
         // complete multi-port catalog, including source graph ordering.
         let sparse_schema_three =
             schema == 3 && baseline.ports().iter().any(|port| port.id != selected);
+        let legacy_layout_correction = schema == 2
+            && baseline.document().schema_version == 3
+            && self.is_legacy_layout_correction(baseline, selected)?;
         let mut catalog = if self.catalog.ports().len() == 1
             && baseline.document().schema_version == 3
-            && (sparse_schema_three || legacy_addition)
+            && (sparse_schema_three || legacy_addition || legacy_layout_correction)
         {
             // A single-port projection supplies only its admitted contract.
             // Keep the baseline's catalog and unrelated source graph.
@@ -243,6 +246,42 @@ impl DefinitionCatalogProjection {
         catalog.retain_unrelated_upstream_reviews(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)
+    }
+
+    // A legacy schema-2 singleton could initially add a subject that a later
+    // build embeds. Allow its reviewed layout to carry forward without giving
+    // the older projection authority to replace other fields or source records.
+    fn is_legacy_layout_correction(&self, baseline: &Catalog, selected: &str) -> Result<bool> {
+        let ([next], Ok(previous), Some(supplied), Some(prior)) = (
+            self.catalog.ports(),
+            baseline.port(selected),
+            self.catalog.source_catalog(),
+            baseline.source_catalog(),
+        ) else {
+            return Ok(false);
+        };
+        if next.reviewed_package_layouts.is_empty()
+            || !supplied.evidence.is_empty()
+            || !supplied.identities.is_empty()
+            || !supplied.contracts.is_empty()
+            || !supplied.validators.is_empty()
+            || !supplied.qualification.is_empty()
+            || previous.source_profile.is_some()
+            || previous.bios_source_profile.is_some()
+            || prior
+                .contracts
+                .iter()
+                .any(|record| record.port_id == selected)
+            || prior
+                .qualification
+                .iter()
+                .any(|record| record.scope.port_id == selected)
+        {
+            return Ok(false);
+        }
+        let mut previous = previous.clone();
+        previous.reviewed_package_layouts = next.reviewed_package_layouts.clone();
+        Ok(serde_json::to_value(next)? == serde_json::to_value(previous)?)
     }
 
     pub(crate) fn snapshot(&self) -> &DefinitionSnapshot {
