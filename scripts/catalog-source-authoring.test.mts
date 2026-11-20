@@ -40,6 +40,10 @@ import {
   projectGen2RecompWindowsPersistence,
 } from "./catalog-gen2recomp-windows-persistence.mts";
 import {
+  compactNativeManagedProfile,
+  projectNativeManagedProfile,
+} from "./catalog-native-managed-profile.mts";
+import {
   compactRsdkv4PortableData,
   projectRsdkv4PortableData,
 } from "./catalog-rsdkv4-portable-data.mts";
@@ -92,6 +96,38 @@ void test("managed platform warnings are checked and stay outside definition pro
     assert.throws(
       () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
       /managed_setup_platform_warnings/u,
+    );
+  }
+});
+
+void test("native managed profiles reproduce four independently reviewed games", () => {
+  const { records, catalog } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.native_managed_profile_v1);
+  assert.equal(family.length, 4);
+  for (const record of family) {
+    const explicit = projectNativeManagedProfile(record);
+    assert.deepEqual(compactNativeManagedProfile(explicit), record);
+    assert.deepEqual(
+      projectAuthoredPort(record),
+      catalog.ports.find((port) => port.id === record.listing.id),
+    );
+    const override = {
+      ...explicit,
+      integration: { ...explicit.integration, windows_temp_directory: "different-profile" },
+    };
+    assert.equal(compactNativeManagedProfile(override), override);
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          ...record,
+          integration: {
+            ...record.integration,
+            presentation: {
+              saves_and_settings: "external-user-owned",
+            },
+          },
+        }),
+      /managed profile requires/u,
     );
   }
 });

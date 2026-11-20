@@ -21,6 +21,7 @@ import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mt
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
+import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
@@ -88,6 +89,8 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
+  /** Shared Portcove-owned profile directory and Windows path policy. */
+  native_managed_profile_v1?: true;
   route_facts_v1?: RouteFactsV1;
   /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
   opengoal_setup_v1?: true;
@@ -791,6 +794,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectNativeManagedProfile(record);
   projectReviewedFlatPackageLayout(record);
   projectOpenGoalSetup(record);
   projectRazeWindowsProfile(record);
@@ -841,7 +845,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(
-    projectRazeWindowsProfile(projectOpenGoalSetup(input)),
+    projectRazeWindowsProfile(projectOpenGoalSetup(projectNativeManagedProfile(input))),
   );
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
