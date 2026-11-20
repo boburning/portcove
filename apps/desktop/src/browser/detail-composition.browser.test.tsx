@@ -9,6 +9,7 @@ import { installInteractiveTransport } from "../dev-scenarios/interactive/transp
 import { comparisonEntries } from "../dev-scenarios/interactive/comparison-scene";
 import type { Journey } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -455,6 +456,41 @@ it.each(["dark", "light"])("gives search its own full row at 740px in %s", async
     );
     contained();
   }
+});
+
+it("keeps the Saves action in view under the compact header at 390x844", async () => {
+  await page.viewport(390, 844);
+  await mount("dark");
+  await open();
+  const hero = document.querySelector<HTMLElement>(".detail-hero")!;
+  const overviewHeight = hero.getBoundingClientRect().height;
+  const title = page.getByRole("heading", { name: comparisonEntries[0]!.title, exact: true });
+  const play = page.getByRole("button", { name: "Play", exact: true }).element();
+  const tabs = page.getByRole("tablist", { name: "Game detail sections" });
+  const saves = page.getByRole("tab", { name: "Saves & backups", exact: true });
+  await saves.click();
+  await expect.element(saves).toHaveAttribute("aria-selected", "true");
+  await expect.element(title).toBeVisible();
+  await expect.element(tabs).toBeVisible();
+  expect(document.querySelector("[data-detail-readiness]")?.textContent?.trim()).toBeTruthy();
+  expect(document.querySelector("[data-installation-fact]")?.textContent?.trim()).toBeTruthy();
+  expect(page.getByRole("button", { name: "Play", exact: true }).element()).toBe(play);
+  expect(hero.querySelector("img")).toBeNull();
+  expect(hero.getBoundingClientRect().height).toBeLessThan(overviewHeight);
+  const workspace = document.querySelector<HTMLElement>("[data-focus-region=workspace]")!;
+  scrollWorkspaceTo(workspace, 0);
+  await expect.poll(() => workspaceScrollTop(workspace)).toBe(0);
+  const backup = page.getByRole("button", { name: "Back up now", exact: true }).element();
+  const bounds = backup.getBoundingClientRect();
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  contained();
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
+  await expect
+    .poll(
+      () => hero.querySelector<HTMLImageElement>(".game-hero-foreground img")?.naturalWidth ?? 0,
+    )
+    .toBeGreaterThan(0);
 });
 
 it.each([1440, 320])(

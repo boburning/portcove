@@ -221,7 +221,12 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero">
+      <GameHero
+        port={port}
+        variant="detail"
+        className="detail-hero"
+        compact={selected !== "overview"}
+      >
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
