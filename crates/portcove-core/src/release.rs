@@ -1610,12 +1610,12 @@ impl<'a> GithubSelection<'a> {
         }
     }
 
-    fn asset<'a>(
+    fn asset<'asset>(
         self,
         port: &PortDefinition,
         platform: Platform,
-        release: &'a GithubRelease,
-    ) -> Result<&'a GithubAsset> {
+        release: &'asset GithubRelease,
+    ) -> Result<&'asset GithubAsset> {
         match self {
             Self::Saved(variant) | Self::ExplicitFirst(variant) => choose_asset_for_variant(
                 port,
@@ -2852,10 +2852,10 @@ fn choose_asset_for_variant<'a>(
     }
     let requires_tar_xz = port.release.requires_tar_xz(platform);
     let standalone = native_appimage(port, platform);
-    let hints = if explicit.is_some() {
+    let hints = if let Some((variant, _)) = explicit {
         // The named, checked family replaces the default package preference;
         // portable suitability, package format and profile restrictions still apply.
-        Vec::new()
+        vec![variant.explicit_archive_hint().to_owned()]
     } else {
         port.release
             .asset_hints

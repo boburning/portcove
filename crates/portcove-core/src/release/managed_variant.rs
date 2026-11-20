@@ -198,6 +198,10 @@ impl ManagedPackageVariant {
         self.explicit_id.is_some() && name.starts_with(&self.prefix) && name.ends_with(&self.suffix)
     }
 
+    pub(crate) fn explicit_archive_hint(&self) -> &str {
+        &self.suffix
+    }
+
     pub(crate) fn require_tag_commit(&self, tag: &str, name: &str, commit: &str) -> Result<()> {
         if self.format_version != 2
             || !self.matches(tag, name)
