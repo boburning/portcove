@@ -780,6 +780,7 @@ mod tests {
                 slot: ArtworkSlot::Detail,
                 revision: 1,
                 asset_sha256: None,
+                framing: None,
             }),
             source: DestinationArtworkSource::UnassignedRole,
             selected_asset_sha256: None,

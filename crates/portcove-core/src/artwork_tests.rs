@@ -4169,3 +4169,114 @@ fn local_logo_round_trips_without_changing_other_artwork_roles() {
 
 #[path = "artwork_withdrawal_tests.rs"]
 mod withdrawal;
+
+#[test]
+fn background_framing_follows_the_selected_revision_through_portable_restore() {
+    use crate::{ArtworkFocalPoint, ArtworkFraming, DestinationArtworkRole};
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let image = temporary.path().join("background.png");
+    image::RgbImage::from_pixel(32, 16, image::Rgb([40, 80, 190]))
+        .save(&image)
+        .unwrap();
+    let framing = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 0, y: 5000 },
+        narrow: ArtworkFocalPoint { x: 10000, y: 3400 },
+    };
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 0, Some(framing))
+            .is_err()
+    );
+    let initial = service
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 0)
+        .unwrap();
+    assert!(initial.choice.framing.is_none());
+    let invalid = ArtworkFraming::V1 {
+        wide: ArtworkFocalPoint { x: 10001, y: 1000 },
+        narrow: ArtworkFocalPoint { x: 2000, y: 3400 },
+    };
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 1, Some(invalid))
+            .is_err()
+    );
+    let framed = service
+        .set_background_artwork_framing(PORT, 1, Some(framing))
+        .unwrap();
+    assert_eq!(framed.choice.revision, 2);
+    assert_eq!(framed.choice.framing, Some(framing));
+    assert_eq!(framed.choice.asset_sha256, initial.choice.asset_sha256);
+    assert!(
+        service
+            .set_background_artwork_framing(PORT, 1, None)
+            .is_err()
+    );
+
+    let handoff = service
+        .destination_artwork(PORT, DestinationArtworkRole::HeroBanner)
+        .unwrap();
+    let document = serde_json::to_value(&handoff).unwrap();
+    assert!(document["choice"].get("framing").is_none());
+    for value in [
+        serde_json::Value::Null,
+        serde_json::to_value(framing).unwrap(),
+    ] {
+        let mut invalid_handoff = document.clone();
+        invalid_handoff["choice"]["framing"] = value;
+        assert!(
+            serde_json::from_value::<crate::DestinationArtworkHandoff>(invalid_handoff).is_err()
+        );
+    }
+    let bytes = service
+        .destination_artwork_bytes(
+            PORT,
+            DestinationArtworkRole::HeroBanner,
+            &handoff.library.id,
+            2,
+            framed.choice.asset_sha256.as_deref().unwrap(),
+        )
+        .unwrap();
+    assert_eq!(bytes.original, fs::read(&image).unwrap());
+
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 14);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut downgraded = metadata.clone();
+    downgraded.schema_version = 13;
+    assert!(crate::library_import::validate_metadata(&downgraded, &catalogs).is_err());
+    let mut wrong_role = metadata;
+    wrong_role.artwork.as_mut().unwrap().choices[0].slot = ArtworkSlot::Cover;
+    assert!(crate::library_import::validate_metadata(&wrong_role, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
+        framed.choice
+    );
+    let replacement = image_file(temporary.path(), "replacement.png", image::ImageFormat::Png);
+    let replaced = restored
+        .import_artwork(PORT, ArtworkSlot::Detail, &replacement, 2)
+        .unwrap();
+    assert_eq!(replaced.choice.revision, 3);
+    assert!(replaced.choice.framing.is_none());
+    assert!(restored.export_library_metadata().unwrap().schema_version < 14);
+    restored
+        .set_background_artwork_framing(PORT, 3, Some(framing))
+        .unwrap();
+    let reset = restored
+        .reset_artwork(PORT, ArtworkSlot::Detail, 4)
+        .unwrap();
+    assert_eq!(reset.choice.revision, 5);
+    assert!(reset.choice.framing.is_none());
+    assert!(reset.choice.asset_sha256.is_none());
+}

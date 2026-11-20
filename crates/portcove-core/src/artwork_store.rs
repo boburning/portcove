@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
 use crate::{
-    ArtworkAttribution, ArtworkChoice, ArtworkMetadata, ArtworkProviderRecord, ArtworkSlot,
-    LocalArtworkAsset, PortcoveError, Result,
+    ArtworkAttribution, ArtworkChoice, ArtworkFraming, ArtworkMetadata, ArtworkProviderRecord,
+    ArtworkSlot, LocalArtworkAsset, PortcoveError, Result,
 };
 
 const MAX_ASSETS: usize = 4096;
@@ -135,6 +135,30 @@ pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
 
 pub(crate) fn verify_logo_slot(connection: &Connection) -> Result<()> {
     verify_slots(connection, "artwork_choices_v72", &[LOGO_CHOICES])
+}
+
+const FRAMING_COLUMN: &str = "framing TEXT CHECK(framing IS NULL OR
+    (slot='detail' AND asset_sha256 IS NOT NULL AND length(framing) BETWEEN 1 AND 256))";
+
+pub(crate) fn migrate_framing(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_choices ADD COLUMN {FRAMING_COLUMN}"
+    ))?;
+    Ok(())
+}
+
+pub(crate) fn verify_framing(connection: &Connection) -> Result<()> {
+    let definition: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
+        [],
+        |row| row.get(0),
+    )?;
+    if !definition.contains(FRAMING_COLUMN) {
+        return Err(PortcoveError::verification(
+            "artwork choice framing does not match the library schema",
+        ));
+    }
+    Ok(())
 }
 
 /// Library migration 58: listing-check evidence beside each provider record. It
@@ -828,20 +852,49 @@ pub(crate) fn choice(
 ) -> Result<ArtworkChoice> {
     let recorded = connection
         .query_row(
-            "SELECT revision,asset_sha256 FROM artwork_choices WHERE port_id=?1 AND slot=?2",
+            "SELECT revision,asset_sha256,framing FROM artwork_choices WHERE port_id=?1 AND slot=?2",
             params![port_id, slot.key()],
-            |row| Ok((row.get::<_, u64>(0)?, row.get::<_, Option<String>>(1)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, Option<String>>(2)?)),
         )
         .optional()?;
-    let (revision, asset_sha256) = recorded.unwrap_or((0, None));
+    let (revision, asset_sha256, framing) = recorded.unwrap_or((0, None, None));
+    read_choice(port_id.into(), slot, revision, asset_sha256, framing)
+}
+
+fn validate_choice_framing(
+    slot: ArtworkSlot,
+    asset_sha256: Option<&str>,
+    framing: Option<ArtworkFraming>,
+) -> Result<()> {
+    if let Some(framing) = framing {
+        if slot != ArtworkSlot::Detail || asset_sha256.is_none() {
+            return Err(PortcoveError::verification(
+                "artwork framing requires a selected background",
+            ));
+        }
+        framing.validate()?;
+    }
+    Ok(())
+}
+
+fn read_choice(
+    port_id: String,
+    slot: ArtworkSlot,
+    revision: u64,
+    asset_sha256: Option<String>,
+    framing: Option<String>,
+) -> Result<ArtworkChoice> {
     if let Some(id) = &asset_sha256 {
         validate_hash(id)?;
     }
+    let framing = framing.as_deref().map(serde_json::from_str).transpose()?;
+    validate_choice_framing(slot, asset_sha256.as_deref(), framing)?;
     Ok(ArtworkChoice {
-        port_id: port_id.into(),
+        port_id,
         slot,
         revision,
         asset_sha256,
+        framing,
     })
 }
 
@@ -1093,12 +1146,29 @@ pub(crate) fn write_choice(
     previous: u64,
     id: Option<&str>,
 ) -> Result<()> {
+    write_framed_choice(connection, port_id, slot, previous, id, None)
+}
+
+pub(crate) fn write_framed_choice(
+    connection: &Connection,
+    port_id: &str,
+    slot: ArtworkSlot,
+    previous: u64,
+    id: Option<&str>,
+    framing: Option<ArtworkFraming>,
+) -> Result<()> {
+    validate_choice_framing(slot, id, framing)?;
+    let framing = framing.as_ref().map(serde_json::to_string).transpose()?;
     let revision = previous
         .checked_add(1)
         .filter(|value| *value <= i64::MAX as u64)
         .ok_or_else(|| PortcoveError::state("artwork revision is exhausted"))?;
-    connection.execute("INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256) VALUES (?1,?2,?3,?4)
-        ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision,asset_sha256=excluded.asset_sha256", params![port_id,slot.key(),revision,id])?;
+    connection.execute(
+        "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256,framing) VALUES (?1,?2,?3,?4,?5)
+         ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision,
+         asset_sha256=excluded.asset_sha256,framing=excluded.framing",
+        params![port_id, slot.key(), revision, id, framing],
+    )?;
     Ok(())
 }
 
@@ -1131,26 +1201,22 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
         .iter()
         .map(|id| asset(connection, id))
         .collect::<Result<Vec<_>>>()?;
-    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
+    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256,framing FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
             row.get::<_, u64>(2)?,
             row.get::<_, Option<String>>(3)?,
+            row.get::<_, Option<String>>(4)?,
         ))
     })?;
     let choices = rows
         .map(|row| {
-            let (port_id, slot, revision, asset_sha256) = row?;
+            let (port_id, slot, revision, asset_sha256, framing) = row?;
             let slot = ArtworkSlot::from_key(&slot)
                 .ok_or_else(|| PortcoveError::verification("unknown artwork slot"))?;
-            Ok(ArtworkChoice {
-                port_id,
-                slot,
-                revision,
-                asset_sha256,
-            })
+            read_choice(port_id, slot, revision, asset_sha256, framing)
         })
         .collect::<Result<Vec<_>>>()?;
     let mut statement = connection.prepare(&format!(
@@ -1398,6 +1464,7 @@ pub(crate) fn validate_metadata_with(
     let mut choices = BTreeSet::new();
     for choice in &metadata.choices {
         require_port(&choice.port_id)?;
+        validate_choice_framing(choice.slot, choice.asset_sha256.as_deref(), choice.framing)?;
         if choice.revision == 0
             || choice.revision > i64::MAX as u64
             || !choices.insert((&choice.port_id, choice.slot.key()))
@@ -1443,12 +1510,13 @@ pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Re
         mark_evicted(connection, &asset.asset_sha256, asset.evicted_at)?;
     }
     for choice in &metadata.choices {
-        write_choice(
+        write_framed_choice(
             connection,
             &choice.port_id,
             choice.slot,
             choice.revision - 1,
             choice.asset_sha256.as_deref(),
+            choice.framing,
         )?;
     }
     Ok(())

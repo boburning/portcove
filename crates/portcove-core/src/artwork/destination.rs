@@ -56,14 +56,9 @@ pub enum DestinationArtworkContent {
     },
 }
 
-// The version-4 export only carries the three destination choices. Keep its
-// emitted schema independent of later local artwork slots.
-#[derive(JsonSchema)]
+// Keep the version-4 schema and reader independent of local presentation data.
+#[derive(Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
-#[allow(
-    dead_code,
-    reason = "schema projection for the existing destination choice"
-)]
 struct DestinationArtworkChoice {
     port_id: String,
     slot: DestinationArtworkSlot,
@@ -71,12 +66,24 @@ struct DestinationArtworkChoice {
     asset_sha256: Option<String>,
 }
 
-#[derive(JsonSchema)]
+impl From<DestinationArtworkChoice> for ArtworkChoice {
+    fn from(value: DestinationArtworkChoice) -> Self {
+        Self {
+            port_id: value.port_id,
+            slot: match value.slot {
+                DestinationArtworkSlot::Cover => ArtworkSlot::Cover,
+                DestinationArtworkSlot::Detail => ArtworkSlot::Detail,
+                DestinationArtworkSlot::Landscape => ArtworkSlot::Landscape,
+            },
+            revision: value.revision,
+            asset_sha256: value.asset_sha256,
+            framing: None,
+        }
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-#[allow(
-    dead_code,
-    reason = "schema projection of the version-4 destination slots"
-)]
 enum DestinationArtworkSlot {
     Cover,
     Detail,
@@ -131,6 +138,10 @@ impl DestinationArtworkHandoff {
             || self.library.id.is_empty()
             || self.library.root.as_os_str().is_empty()
             || self.port_id.is_empty()
+            || self
+                .choice
+                .as_ref()
+                .is_some_and(|choice| choice.framing.is_some())
             || self.attribution.len() > MAX_ATTRIBUTIONS
             || (!self.attribution.is_empty()
                 && !matches!(self.source, DestinationArtworkSource::LocalImport { .. }))
@@ -289,7 +300,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             library: LibraryIdentity,
             port_id: String,
             role: DestinationArtworkRole,
-            choice: Option<ArtworkChoice>,
+            choice: Option<DestinationArtworkChoice>,
             source: DestinationArtworkSource,
             selected_asset_sha256: Option<String>,
             content: DestinationArtworkContent,
@@ -301,7 +312,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             library: wire.library,
             port_id: wire.port_id,
             role: wire.role,
-            choice: wire.choice,
+            choice: wire.choice.map(Into::into),
             source: wire.source,
             selected_asset_sha256: wire.selected_asset_sha256,
             content: wire.content,
@@ -446,7 +457,8 @@ impl PortcoveService {
         };
         if let Some(slot) = slot {
             let connection = self.library().connection()?;
-            let choice = crate::artwork_store::choice(&connection, port_id, slot)?;
+            let mut choice = crate::artwork_store::choice(&connection, port_id, slot)?;
+            choice.framing = None;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
                 handoff.attribution = crate::artwork_store::attributions(&connection, id)?

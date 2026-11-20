@@ -85,6 +85,43 @@ pub struct ArtworkChoice {
     pub slot: ArtworkSlot,
     pub revision: u64,
     pub asset_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub framing: Option<ArtworkFraming>,
+}
+
+/// A focal point on the orientation-corrected image, in ten-thousandths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkFocalPoint {
+    #[schemars(range(min = 0, max = 10000))]
+    pub x: u16,
+    #[schemars(range(min = 0, max = 10000))]
+    pub y: u16,
+}
+
+/// Presentation data for wide and narrow consumers of the same background.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "version", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ArtworkFraming {
+    V1 {
+        wide: ArtworkFocalPoint,
+        narrow: ArtworkFocalPoint,
+    },
+}
+
+impl ArtworkFraming {
+    pub(crate) fn validate(self) -> Result<()> {
+        let Self::V1 { wide, narrow } = self;
+        if [wide.x, wide.y, narrow.x, narrow.y]
+            .into_iter()
+            .any(|coordinate| coordinate > 10_000)
+        {
+            return Err(PortcoveError::verification(
+                "artwork focal coordinates must be between 0 and 10000",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// A remote provider an image was chosen from; a local import has none.
@@ -160,6 +197,10 @@ pub struct ArtworkMetadata {
 }
 
 impl ArtworkMetadata {
+    pub(crate) fn contains_framing(&self) -> bool {
+        self.choices.iter().any(|choice| choice.framing.is_some())
+    }
+
     pub(crate) fn contains_logo_records(&self) -> bool {
         self.choices
             .iter()
@@ -1157,6 +1198,39 @@ impl PortcoveService {
                 Ok(())
             }
         }
+    }
+
+    /// Change the presentation of the current selected background.
+    pub fn set_background_artwork_framing(
+        &self,
+        port_id: &str,
+        expected_revision: u64,
+        framing: Option<ArtworkFraming>,
+    ) -> Result<ArtworkState> {
+        let port = self.artwork_port(port_id)?;
+        let slot = ArtworkSlot::Detail;
+        let _guard = self.library().try_lock_artwork()?;
+        let mut connection = self.library().connection()?;
+        let transaction = connection.transaction()?;
+        let current =
+            crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
+        let Some(asset_sha256) = current.asset_sha256.as_deref() else {
+            return Err(PortcoveError::conflict(
+                "choose a background image before adjusting its framing",
+            ));
+        };
+        if current.framing != framing {
+            crate::artwork_store::write_framed_choice(
+                &transaction,
+                port_id,
+                slot,
+                expected_revision,
+                Some(asset_sha256),
+                framing,
+            )?;
+        }
+        transaction.commit()?;
+        self.artwork_for_listing(&port, slot)
     }
 
     pub fn reset_artwork(

@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 73;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 74;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -462,6 +462,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "local logo artwork slot",
         apply: crate::artwork_store::migrate_logo_slot,
         verify: crate::artwork_store::verify_logo_slot,
+    },
+    Migration {
+        version: 74,
+        name: "artwork background framing",
+        apply: crate::artwork_store::migrate_framing,
+        verify: crate::artwork_store::verify_framing,
     },
 ];
 
@@ -4089,9 +4095,14 @@ mod tests {
             (crate::ArtworkSlot::Detail, 5),
             (crate::ArtworkSlot::Landscape, 8),
         ] {
-            let retained = crate::artwork_store::choice(&connection, "shipwright", slot).unwrap();
-            assert_eq!(retained.revision, revision);
-            assert!(retained.asset_sha256.is_none());
+            let retained: (i64, Option<String>) = connection
+                .query_row(
+                    "SELECT revision,asset_sha256 FROM artwork_choices WHERE port_id='shipwright' AND slot=?1",
+                    [slot.key()],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(retained, (revision, None));
         }
         connection
             .execute(
@@ -4103,6 +4114,55 @@ mod tests {
             "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','icon',1)",
             [],
         ).is_err());
+    }
+
+    #[test]
+    fn artwork_framing_migration_preserves_previous_choices() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 73).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('fixture','{}',1);
+                 INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256) VALUES
+                 ('shipwright','detail',5,'fixture'),('shipwright','logo',2,NULL);",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_framing(&connection).is_err());
+        drop(connection);
+
+        migrate_to(root, 74).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_framing(&connection).unwrap();
+        let rows = connection
+            .prepare("SELECT slot,revision,asset_sha256,framing FROM artwork_choices ORDER BY slot")
+            .unwrap()
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(
+            rows,
+            [
+                ("detail".into(), 5, Some("fixture".into()), None),
+                ("logo".into(), 2, None, None),
+            ]
+        );
+        for statement in [
+            "UPDATE artwork_choices SET framing='{}' WHERE slot='logo'",
+            "UPDATE artwork_choices SET asset_sha256=NULL,framing='{}' WHERE slot='detail'",
+        ] {
+            assert!(connection.execute(statement, []).is_err());
+        }
     }
 
     #[test]
@@ -4404,6 +4464,7 @@ mod tests {
         schema_70: 70,
         schema_71: 71,
         schema_72: 72,
+        schema_73: 73,
     }
 
     #[test]

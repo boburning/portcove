@@ -760,6 +760,14 @@ bounded static image ingest, content store, revision checks and read-only
 thumbnail path as the existing Cover, Detail and Landscape choices. Library
 metadata records a Logo selection or reset revision under schema 13.
 
+Core stores versioned wide and narrow focal points with the selected Detail
+asset and its choice revision in library schema 74. Each coordinate is measured
+in ten-thousandths of the orientation-corrected image. Replacing the asset or
+returning to automatic artwork clears its framing. Exports that include framing
+require library metadata schema 14 and restore it against the same admitted
+choice. The destination handoff carries the original asset and its choice
+revision and omits these presentation points.
+
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
 choice revision. Any explicit local choice suppresses the collection. Tauri delegates

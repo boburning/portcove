@@ -59,7 +59,8 @@ capability 36, so an older reader refuses it rather than copying a headered file
 API 101 adds the `logo` slot to artwork choices and the `logo` role to
 SteamGridDB candidates, attribution and listing reports. Logo changes can require
 library metadata format 13 and writer schema 73. Destination artwork handoff stays
-at schema 4 and events stay at schema 3. The managed definition publication
+at schema 4 and events stay at schema 3. Optional background framing on
+`artwork_state.choice` requires library metadata format 14 and writer schema 74. The managed definition publication
 inspection uses its fixed API 100 envelope for publication report schema 1.
 
 API 100 extends the exact recipe review with format 3 originals, typed setup
