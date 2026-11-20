@@ -31,7 +31,7 @@ const table = {
   ],
 };
 
-test("only OpenMoHAA Unix shape identities include the prepared programs rule", () => {
+void test("only OpenMoHAA Unix shape identities include the prepared programs rule", () => {
   const openmohaa = { external_profile_policy: "openmohaa-unix-v1" };
   for (const platform of ["linux-x86-64", "macos-x86-64", "macos-aarch64"]) {
     assert.equal(derivationInputs(openmohaa, platform).openmohaa_prepared_programs, true);
