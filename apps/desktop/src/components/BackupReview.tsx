@@ -1,15 +1,21 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
-import { formatBytes } from "../view-model";
+import { failurePresentation, formatBytes } from "../view-model";
 import { automaticSnapshotLabel } from "../features/backups/snapshot-label";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { useAppTranslation } from "../localization";
 
 const backupSelectionChanged = new Error("Backup preview does not match the selected backup.");
+const restoreReviewHolds = {
+  backupUnavailable: new Error(),
+  inventoryUnavailable: new Error(),
+  targetChanged: new Error(),
+};
+export type RestoreReviewAvailability = "ready" | keyof typeof restoreReviewHolds;
 
 export type ApplyBackupAction = (
   backup: BackupRecord,
@@ -24,6 +30,9 @@ export function BackupReviewDialog({
   apply,
   close,
   finalFocus,
+  restoreAvailability = "ready",
+  refreshingHistory = false,
+  refreshRestoreReview,
 }: {
   gameName?: string | undefined;
   backup: BackupRecord;
@@ -32,19 +41,34 @@ export function BackupReviewDialog({
   apply: ApplyBackupAction;
   close: () => void;
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
+  restoreAvailability?: RestoreReviewAvailability;
+  refreshingHistory?: boolean;
+  refreshRestoreReview?: (() => Promise<RestoreReviewAvailability>) | undefined;
 }) {
   const { t } = useAppTranslation("backups");
   const reviewTitle = useRef<HTMLHeadingElement>(null);
+  const refreshBeforeReview = useRef(false);
+  const originalRestoreTarget = useRef<{ identity: string; scope: string | null | undefined }>(
+    undefined,
+  );
+  const restore = action === "restore";
+  const identity = `${backup.port_id}:${backup.id}:${backup.sha256}:${action}:${generation}`;
   const {
     preview: review,
     pending,
     error,
+    failurePhase,
     review: load,
     execute,
     dismiss,
   } = useActionReview({
-    identity: `${backup.port_id}:${backup.id}:${backup.sha256}:${action}:${generation}`,
+    identity,
     load: async () => {
+      if (refreshBeforeReview.current && refreshRestoreReview) {
+        refreshBeforeReview.current = false;
+        const availability = await refreshRestoreReview();
+        if (availability !== "ready") throw restoreReviewHolds[availability];
+      }
       const result = await desktopApi.previewBackupAction(
         backup.port_id,
         backup.id,
@@ -60,14 +84,49 @@ export function BackupReviewDialog({
       ) {
         throw backupSelectionChanged;
       }
+      const original = originalRestoreTarget.current;
+      if (restore && original?.identity === identity) {
+        if (!original.scope || !result.preview.restore_target_sha256)
+          throw restoreReviewHolds.inventoryUnavailable;
+        if (original.scope !== result.preview.restore_target_sha256)
+          throw restoreReviewHolds.targetChanged;
+      }
       return result;
     },
     apply: (review) => apply(review.preview.backup, review.preview.preview_sha256),
     close,
     failureMessage: t("review.failure"),
   });
+  useLayoutEffect(() => {
+    if (restore && review && originalRestoreTarget.current?.identity !== identity)
+      originalRestoreTarget.current = { identity, scope: review.preview.restore_target_sha256 };
+  }, [restore, review, identity]);
   const selectionChanged = error === backupSelectionChanged;
-  const restore = action === "restore";
+  const hold =
+    (Object.keys(restoreReviewHolds) as (keyof typeof restoreReviewHolds)[]).find(
+      (reason) => error === restoreReviewHolds[reason],
+    ) ?? (restore && restoreAvailability !== "ready" ? restoreAvailability : undefined);
+  const mutation = failurePresentation(error)?.mutation_state;
+  const requiresReconciliation =
+    restore && failurePhase === "apply" && mutation !== "no_changes" && mutation !== "not_started";
+  const canRefresh =
+    refreshRestoreReview &&
+    !requiresReconciliation &&
+    hold !== "targetChanged" &&
+    hold !== "backupUnavailable";
+  const canApply = Boolean(review && (!restore || (!hold && !refreshingHistory)));
+  const holdMessage = {
+    backupUnavailable: t("review.backupUnavailable"),
+    inventoryUnavailable: t("review.inventoryUnavailable"),
+    targetChanged: t("review.targetChanged"),
+  };
+  const explanation = requiresReconciliation
+    ? t("review.reconcileRestore")
+    : hold && !pending && !refreshingHistory
+      ? holdMessage[hold]
+      : selectionChanged
+        ? t("review.selectionChanged")
+        : undefined;
   return (
     <Dialog
       open
@@ -96,25 +155,36 @@ export function BackupReviewDialog({
           )}
           {restore ? t("review.descriptionRestore") : t("review.descriptionDelete")}
         </DialogDescription>
-        {pending === "review" && <p role="status">{t("review.checking")}</p>}
-        {review && <BackupReviewDetails review={review} />}
-        <ActionReviewFailure error={selectionChanged ? t("review.selectionChanged") : error} />
+        {(pending === "review" || (restore && refreshingHistory)) && (
+          <p role="status">{t("review.checking")}</p>
+        )}
+        {review && (canApply || pending === "apply") && <BackupReviewDetails review={review} />}
+        <ActionReviewFailure
+          error={explanation ? (error ?? explanation) : error}
+          summary={explanation}
+        />
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}
           </Button>
-          {!review && !selectionChanged && (
-            <Button
-              data-focusable
-              disabled={Boolean(pending)}
-              onClick={() => {
-                void load();
-              }}
-            >
-              {t("review.reviewAgain")}
-            </Button>
-          )}
-          {review && (
+          {!canApply &&
+            (canRefresh || (!restore && !review && !selectionChanged)) &&
+            pending !== "apply" && (
+              <Button
+                data-focusable
+                disabled={Boolean(pending) || (restore && refreshingHistory)}
+                onClick={() => {
+                  if (canRefresh) {
+                    refreshBeforeReview.current = true;
+                    reviewTitle.current?.focus();
+                  }
+                  void load();
+                }}
+              >
+                {t(canRefresh ? "history.refresh" : "review.reviewAgain")}
+              </Button>
+            )}
+          {(canApply || pending === "apply") && (
             <Button
               data-focusable
               variant={restore ? "primary" : "destructive"}

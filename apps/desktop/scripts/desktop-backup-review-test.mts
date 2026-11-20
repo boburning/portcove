@@ -286,11 +286,24 @@ export async function backupReviewScenario({
     // Native27 observed consecutive 11.032 s and 11.063 s workspace readbacks
     // while this refused apply was still settling; exact promise attribution is
     // unproven. Match the finite confirmed-restore allowance for this UI wait.
-    await browser.wait(until.elementLocated(button("Review again")), 60_000);
+    const refreshRestoreReview = By.xpath(
+      '//*[@aria-labelledby="backup-review-title"]//button[normalize-space(.)="Refresh backup history"]',
+    );
+    await browser.wait(until.elementLocated(refreshRestoreReview), 60_000);
     assert.equal(await readFile(save, "utf8"), "changed after review");
     assert.equal(list().length, 2);
-    await browser.findElement(button("Review again")).click();
+    await browser.wait(
+      until.elementIsEnabled(await browser.findElement(refreshRestoreReview)),
+      60_000,
+    );
+    await browser.findElement(refreshRestoreReview).click();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    const refreshedReview = await browser.findElement(
+      By.css('[aria-labelledby="backup-review-title"]'),
+    );
+    assert.ok((await refreshedReview.getText()).includes(selected.path));
+    assert.equal(await readFile(save, "utf8"), "changed after review");
+    assert.equal(list().length, 2);
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",

@@ -2178,6 +2178,14 @@ fn restore_authorization_rejects_live_data_changes_after_review() {
         .preview_backup_action("zelda64-recomp", &backup.id, BackupAction::Restore)
         .unwrap();
     fs::write(user_root.join("save.dat"), b"new live data").unwrap();
+    let refreshed = service
+        .preview_backup_action("zelda64-recomp", &backup.id, BackupAction::Restore)
+        .unwrap();
+    assert_eq!(
+        preview.restore_target_sha256,
+        refreshed.restore_target_sha256
+    );
+    assert_ne!(preview.preview_sha256, refreshed.preview_sha256);
     reset_adoption_copy_plan_passes();
     let authorization = service
         .authorize_backup_action(
@@ -2198,6 +2206,49 @@ fn restore_authorization_rejects_live_data_changes_after_review() {
     assert_eq!(
         fs::read(user_root.join("save.dat")).unwrap(),
         b"new live data"
+    );
+}
+
+#[test]
+fn restore_review_binds_materialized_setup_without_requiring_a_saved_data_change() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let port_id = "zelda64-recomp";
+    register_zelda_install(&library, "v1", true);
+    let service = service_with_release(library.clone(), "v1");
+    let profile = service.ensure_default_profile(port_id).unwrap();
+    let user_root = library.user_dir(port_id);
+    fs::create_dir_all(&user_root).unwrap();
+    fs::write(user_root.join("save.dat"), b"same saved bytes").unwrap();
+    let backup = service.create_backup(port_id).unwrap();
+    let review = || {
+        service
+            .preview_backup_action(port_id, &backup.id, BackupAction::Restore)
+            .unwrap()
+    };
+    let before = review();
+    // Model the materialized pointer changing without changing any files.
+    crate::profile::set_selection(&library.connection().unwrap(), port_id, &profile.id, 2).unwrap();
+    let after = review();
+    assert!(before.restore_target_sha256.is_some());
+    assert_ne!(before.restore_target_sha256, after.restore_target_sha256);
+    assert_ne!(before.preview_sha256, after.preview_sha256);
+    let authorization = service
+        .authorize_backup_action(
+            port_id,
+            &backup.id,
+            BackupAction::Restore,
+            &before.preview_sha256,
+        )
+        .unwrap();
+    let error = service
+        .restore_backup(port_id, &backup.id, &authorization.token)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert!(error.message.contains("state changed"));
+    assert_eq!(
+        fs::read(user_root.join("save.dat")).unwrap(),
+        b"same saved bytes"
     );
 }
 

@@ -3499,7 +3499,13 @@ impl Library {
     }
 
     pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
-        let connection = self.connection()?;
+        Self::installs_for_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn installs_for_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Vec<InstallRecord>> {
         let mut statement = connection.prepare(
             "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,

@@ -42,6 +42,7 @@ beforeEach(async () => {
           safety_backup_will_be_created: false,
           retained_runtime_copy_will_be_deleted: false,
           preview_sha256: "reviewed-data",
+          ...(action === "restore" ? { restore_target_sha256: "a".repeat(64) } : {}),
         },
       }) satisfies BackupReview,
   );
@@ -144,8 +145,8 @@ async function openDeletion(id: string) {
   return opener;
 }
 
-async function click(label: string) {
-  const button = [...document.body.querySelectorAll("button")].find(
+async function click(label: string, scope: ParentNode = document.body) {
+  const button = [...scope.querySelectorAll("button")].find(
     (element) => element.textContent === label,
   );
   expect(button).toBeDefined();
@@ -619,7 +620,7 @@ function DetailReadHistory({
   observe,
 }: {
   portId?: string;
-  observe?: (refresh: () => Promise<void>) => void;
+  observe?: (refresh: () => Promise<unknown>) => void;
 }) {
   const port = { ...portDefinition(), id: portId };
   const current = usePortBackups(portId);
@@ -691,7 +692,7 @@ it.each(
 });
 
 it("projects restore-only recovery separately from deletion and refuses stale eligibility after a failed read", async () => {
-  let refresh!: () => Promise<void>;
+  let refresh!: () => Promise<unknown>;
   const inventory: BackupInventory = {
     port_id: "sample",
     state: "healthy",
@@ -742,7 +743,7 @@ it("projects restore-only recovery separately from deletion and refuses stale el
 });
 
 it("holds Restore during a pending refresh and when an assessment is absent", async () => {
-  let refresh!: () => Promise<void>;
+  let refresh!: () => Promise<unknown>;
   let finish!: (inventory: BackupInventory) => void;
   const inventory: BackupInventory = {
     port_id: "sample",
@@ -769,7 +770,7 @@ it("holds Restore during a pending refresh and when an assessment is absent", as
   const restore = () =>
     container.querySelector<HTMLButtonElement>('button[data-backup-action="restore"]')!;
   expect(restore().disabled).toBe(false);
-  let pending!: Promise<void>;
+  let pending!: Promise<unknown>;
   await act(async () => {
     pending = refresh();
   });
@@ -788,7 +789,7 @@ it("holds Restore during a pending refresh and when an assessment is absent", as
 });
 
 it("offers retained owned-data backup without an install and rejects last-loaded availability after refresh fails", async () => {
-  let refresh!: () => Promise<void>;
+  let refresh!: () => Promise<unknown>;
   vi.spyOn(desktopApi, "backups")
     .mockResolvedValueOnce({
       port_id: "sample",
@@ -1061,6 +1062,133 @@ it("keeps the retry control focused when an uninstalled port's unknown list beco
   expect(container.querySelector(".backup-history")?.textContent).toContain("No backups yet");
   expect(retry.isConnected).toBe(true);
   expect(document.activeElement).toBe(retry);
+});
+
+it.each(["survives", "disappears", "is replaced", "changes target"] as const)(
+  "refreshes the exact selection after a refused restore when the backup %s",
+  async (outcome) => {
+    const selected = fixtureValue(backups[0], "selected backup");
+    const second = fixtureValue(backups[1], "other backup");
+    const inventory: BackupInventory = {
+      port_id: "sample",
+      state: "healthy",
+      restore_assessment: {
+        action: "backup_restore",
+        availability: "allowed",
+        reason: "available",
+      },
+      create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+      backups,
+      problems: [],
+    };
+    const currentBackups =
+      outcome === "disappears"
+        ? [second]
+        : outcome === "is replaced"
+          ? [second, { ...selected, sha256: "b".repeat(64) }]
+          : [second, selected];
+    const read = vi
+      .spyOn(desktopApi, "backups")
+      .mockResolvedValueOnce(inventory)
+      .mockResolvedValue({ ...inventory, backups: currentBackups });
+    const preview = vi.mocked(desktopApi.previewBackupAction);
+    const originalPreview = fixtureValue(preview.getMockImplementation(), "preview");
+    preview.mockImplementation(async (...parameters) => {
+      const reviewed = await originalPreview(...parameters);
+      return preview.mock.calls.length > 1 && outcome === "changes target"
+        ? { ...reviewed, preview: { ...reviewed.preview, restore_target_sha256: "b".repeat(64) } }
+        : reviewed;
+    });
+    const refusal = failureReport();
+    refusal.presentation.mutation_state = "no_changes";
+    const restore = vi.spyOn(desktopApi, "restoreBackup").mockRejectedValueOnce(refusal);
+    await root.rerender(<DetailReadHistory />);
+    const opener = container.querySelector<HTMLButtonElement>(
+      '[data-backup-id="backup-1"] button[data-backup-action="restore"]',
+    )!;
+    await act(async () => {
+      opener.focus();
+      opener.click();
+    });
+    const dialog = fixtureValue(document.body.querySelector('[role="dialog"]'), "restore review");
+    await click("Restore this backup", dialog);
+    expect(read).toHaveBeenCalledOnce();
+    await click("Refresh backup history", dialog);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(restore).toHaveBeenCalledExactlyOnceWith("sample", selected.id, "reviewed-data", 7);
+    const survived = outcome === "survives";
+    expect(preview.mock.calls).toEqual(
+      Array.from({ length: survived || outcome === "changes target" ? 2 : 1 }, () => [
+        "sample",
+        selected.id,
+        "restore",
+        7,
+      ]),
+    );
+    expect(dialog.textContent).not.toContain(second.path);
+    expect(
+      [...dialog.querySelectorAll("button")].some(
+        (item) => item.textContent === "Restore this backup",
+      ),
+    ).toBe(survived);
+    expect(dialog.textContent).toContain(
+      {
+        survives: selected.path,
+        disappears: "selected backup is missing or has changed",
+        "is replaced": "selected backup is missing or has changed",
+        "changes target": "installation or setup changed",
+      }[outcome],
+    );
+    await click("Cancel", dialog);
+    const historyHeading = container.querySelector(".backup-heading [role=heading]");
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(
+        outcome === "disappears" || outcome === "is replaced" ? historyHeading : opener,
+      ),
+    );
+  },
+);
+
+it("routes an uncertain restore result to Activity before offering another restore review", async () => {
+  let rejectRestore!: (reason: unknown) => void;
+  const restore = vi.fn(
+    () =>
+      new Promise<boolean>((_, reject) => {
+        rejectRestore = reject;
+      }),
+  );
+  const refreshHistory = vi.fn();
+  const heldHistory = (
+    <BackupHistory
+      backups={backups.slice(1)}
+      restoreAssessment={{ action: "backup_restore", availability: "allowed", reason: "available" }}
+      retryRead={refreshHistory}
+      restore={restore}
+      remove={vi.fn()}
+    />
+  );
+  await root.rerender(
+    <BackupHistory
+      backups={backups}
+      restoreAssessment={{ action: "backup_restore", availability: "allowed", reason: "available" }}
+      retryRead={refreshHistory}
+      restore={restore}
+      remove={vi.fn()}
+    />,
+  );
+  const opener = container.querySelector<HTMLButtonElement>(
+    'button[data-backup-action="restore"]',
+  )!;
+  await act(async () => opener.click());
+  const dialog = fixtureValue(document.body.querySelector('[role="dialog"]'), "restore review");
+  await click("Restore this backup", dialog);
+  await root.rerender(heldHistory);
+  await act(async () => rejectRestore(failureReport()));
+  expect(dialog.textContent).toContain("Check the restore result in Activity");
+  expect(dialog.textContent).not.toContain("Refresh backup history");
+  expect(dialog.textContent).not.toContain("Restore this backup");
+  expect(refreshHistory).not.toHaveBeenCalled();
+  expect(restore).toHaveBeenCalledOnce();
 });
 
 it("preserves a completed reviewed restore and its focus when inventory readback fails", async () => {

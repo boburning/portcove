@@ -108,7 +108,7 @@ it.each([
     );
     await expect
       .poll(() => document.body.querySelector('[role="alert"]')?.textContent)
-      .toContain("Close it and refresh backup history.");
+      .toContain("this review matches the selected backup.");
     expect(document.body.textContent).not.toContain("Restore this backup");
     expect(document.body.textContent).not.toContain("Review again");
     expect(apply).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ it("closes without reporting failure when native consent is declined", async () 
   expect(document.body.querySelector('[role="alert"]')).toBeNull();
 });
 
-it("requires a fresh review after a changed selection fails and rejects duplicate application", async () => {
+it("holds an unconfirmed restore for reconciliation and rejects duplicate application", async () => {
   const preview = vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue(review);
   let finish!: (result: boolean) => void;
   const apply = vi.fn().mockImplementation(
@@ -218,11 +218,13 @@ it("requires a fresh review after a changed selection fails and rejects duplicat
   expect(apply).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => finish(false));
-  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("did not complete");
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(
+    "Check the restore result in Activity",
+  );
   await captureParityState("backup-restore-failed-fixture");
   expect(document.body.textContent).not.toContain("Restore this backup");
-  await click("Review again");
-  expect(preview).toHaveBeenCalledTimes(2);
+  expect(document.body.textContent).not.toContain("Review again");
+  expect(preview).toHaveBeenCalledOnce();
 });
 
 it("ignores an old review after the library or selected backup changes", async () => {

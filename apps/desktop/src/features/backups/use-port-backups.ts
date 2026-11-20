@@ -38,8 +38,10 @@ export function usePortBackups(
       .then((inventory) => {
         if (inventory.port_id !== portId)
           throw new Error("Backup inventory does not match the selected port.");
-        if (request === requestId.current && currentSelection.current === selection)
+        if (request === requestId.current && currentSelection.current === selection) {
           setRead({ selection, inventory, status: "current" });
+          return inventory;
+        }
       })
       .catch((value: unknown) => {
         const failure = failurePresentation(value);
@@ -65,7 +67,7 @@ export function usePortBackups(
         : {}),
       status: "pending",
     }));
-    await readInventory();
+    return readInventory();
   }, [portId, selection, readInventory]);
   useEffect(() => {
     void refresh();

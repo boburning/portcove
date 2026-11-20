@@ -41,7 +41,7 @@ export interface DetailActionContext {
   perform: Perform;
   close: () => void;
   reviewInstall?: DetailActions["reviewInstall"];
-  backupsChanged?: () => Promise<void>;
+  backupsChanged?: () => Promise<unknown>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
   onInstallCommitted?: (install: InstallRecord) => void;
@@ -171,7 +171,7 @@ export function detailActions({
       const result = await perform(
         "restore backup",
         () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
-        nullableNativeConsent,
+        { ...nullableNativeConsent, propagateFailure: true },
       );
       if (result === null) return "cancelled";
       const completed = Boolean(result);
