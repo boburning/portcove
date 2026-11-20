@@ -137,14 +137,12 @@ it("keeps the selected mod setup and settings draft through version and save tas
       },
     ],
   };
-  const readSettings = vi
-    .spyOn(desktopApi, "gameSettingsChangeSetView")
-    .mockResolvedValue({
-      settings,
-      setup: null,
-      setup_name: null,
-      installed_version: active.version,
-    });
+  const readSettings = vi.spyOn(desktopApi, "gameSettingsChangeSetView").mockResolvedValue({
+    settings,
+    setup: null,
+    setup_name: null,
+    installed_version: active.version,
+  });
   const readSetups = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
     port_id: portId,
     supported: true,
