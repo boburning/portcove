@@ -672,7 +672,7 @@ jobs:
       matrix:
         include:
           - selection: review-continuation
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-interrupted-preparation-recovery
               - native-source-intake-and-discovery-dialogs
@@ -704,7 +704,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: install-steam-artwork
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - install-progress-cancellation
               - install-commit-refresh-recovery
@@ -731,7 +731,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: saved-folder-selected-setup
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-saved-folder-selected-setup
             expected_plan:
@@ -745,7 +745,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: preliminary-selected-setup
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-preliminary-selected-setup
             expected_plan:
@@ -758,36 +758,8 @@ jobs:
                 "cli_required": true,
                 "probe_required": true,
               }
-          - selection: saved-folder-hash-resume
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
-            scenarios:
-              - native-saved-folder-hash-resume
-            expected_plan:
-              {
-                "selected": ["native-saved-folder-hash-resume"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": ["qualification-fixtures"],
-                "cli_features": ["portcove-core/qualification-fixtures"],
-                "cli_required": true,
-                "probe_required": true,
-              }
-          - selection: external-runtime-review
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
-            scenarios:
-              - native-external-runtime-review
-            expected_plan:
-              {
-                "selected": ["native-external-runtime-review"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": ["qualification-fixtures"],
-                "cli_features": [],
-                "cli_required": false,
-                "probe_required": false,
-              }
           - selection: library-switch-recovery
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-library-switch-recovery
             expected_plan:
@@ -800,36 +772,8 @@ jobs:
                 "cli_required": false,
                 "probe_required": false,
               }
-          - selection: minimized-preparation-continuity
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
-            scenarios:
-              - native-minimized-preparation-continuity
-            expected_plan:
-              {
-                "selected": ["native-minimized-preparation-continuity"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": [],
-                "cli_features": [],
-                "cli_required": true,
-                "probe_required": true,
-              }
-          - selection: closed-preparation-recovery
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
-            scenarios:
-              - native-closed-preparation-recovery
-            expected_plan:
-              {
-                "selected": ["native-closed-preparation-recovery"],
-                "setup": [],
-                "harness_ms": 180000,
-                "qualification_features": [],
-                "cli_features": [],
-                "cli_required": true,
-                "probe_required": true,
-              }
           - selection: secondary-panels
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-secondary-panel-presentation
             expected_plan:
@@ -843,7 +787,7 @@ jobs:
                 "probe_required": true,
               }
           - selection: public-collection
-            source: 8fae27ea0bae1fa188c8292bc2f03f0238b72752
+            source: 254d105c23abc9a5d8ec459912e06cb71cb33e59
             scenarios:
               - native-collection-artwork-presentation
             expected_plan:
@@ -858,7 +802,7 @@ jobs:
               }
     env:
       SOURCE_HEAD: ${{ matrix.source }}
-      SOURCE_TREE: f67daf29fe8f54c2f3c16993e7c28569f05bdb71
+      SOURCE_TREE: 8ec07f77f99987f0f8b62e2f83dc6c521cdcb5a7
       CONTROLLER_HEAD: ${{ github.sha }}
       EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}

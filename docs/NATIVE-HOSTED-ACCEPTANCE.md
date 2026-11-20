@@ -267,9 +267,9 @@ the exact App checkout tested by CI, commit
 `8a4901ed0129feabe4277e955717f884b79ac42d` separately from the controller commit.
 The prerequisite report includes the AT-SPI package used by the GTK folder chooser.
 The Windows rows bind application commit
-`8fae27ea0bae1fa188c8292bc2f03f0238b72752` and tree
-`f67daf29fe8f54c2f3c16993e7c28569f05bdb71` with the Windows startup repair.
-Eleven fixed Windows rows request only the remaining 21 scenarios; each checks
+`254d105c23abc9a5d8ec459912e06cb71cb33e59` and tree
+`8ec07f77f99987f0f8b62e2f83dc6c521cdcb5a7` with the Windows startup repair.
+Seven fixed Windows rows request 17 scenarios including 15 unresolved ones; each checks
 its actual maintained plan, dependencies, artifact roles and harness budget before
 execution. This controller does not replace Main's 18 groups and must close
 unmerged with its source, logs and evidence retained. The combined Steam row

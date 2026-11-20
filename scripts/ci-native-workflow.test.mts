@@ -305,11 +305,7 @@ void test("temporary native controller preserves exact remaining selections, art
       "install-steam-artwork",
       "saved-folder-selected-setup",
       "preliminary-selected-setup",
-      "saved-folder-hash-resume",
-      "external-runtime-review",
       "library-switch-recovery",
-      "minimized-preparation-continuity",
-      "closed-preparation-recovery",
       "secondary-panels",
       "public-collection",
     ],
@@ -336,11 +332,11 @@ void test("temporary native controller preserves exact remaining selections, art
       cli_required: execution.fixtures.owned,
       probe_required: execution.fixtures.owned,
     });
-    assert.equal(group.source, "8fae27ea0bae1fa188c8292bc2f03f0238b72752");
+    assert.equal(group.source, "254d105c23abc9a5d8ec459912e06cb71cb33e59");
     requested.push(...scenarios);
   }
-  assert.equal(requested.length, 21);
-  assert.equal(new Set(requested).size, 21);
+  assert.equal(requested.length, 17);
+  assert.equal(new Set(requested).size, 17);
   assert.deepEqual(requested, [
     "native-interrupted-preparation-recovery",
     "native-source-intake-and-discovery-dialogs",
@@ -356,11 +352,7 @@ void test("temporary native controller preserves exact remaining selections, art
     "native-local-artwork-picker-and-recovery",
     "native-saved-folder-selected-setup",
     "native-preliminary-selected-setup",
-    "native-saved-folder-hash-resume",
-    "native-external-runtime-review",
     "native-library-switch-recovery",
-    "native-minimized-preparation-continuity",
-    "native-closed-preparation-recovery",
     "native-secondary-panel-presentation",
     "native-collection-artwork-presentation",
   ]);
