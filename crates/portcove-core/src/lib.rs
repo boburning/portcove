@@ -537,7 +537,7 @@ pub use windows_runtime::{
 // Public 98 adds reviewed mod-file inspection and preservation receipts.
 // Public 99 reports partial results when the game setup queue is unavailable.
 // Public 100 adds exact original, settings and acquisition data to recipe reviews.
-pub const API_SCHEMA_VERSION: u32 = 100;
+pub const API_SCHEMA_VERSION: u32 = 101;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

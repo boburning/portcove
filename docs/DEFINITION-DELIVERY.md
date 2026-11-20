@@ -1668,12 +1668,11 @@ missing, extra, changed, linked or unsupported content refuses. The bounds are
 definition entries, and 64 KiB policy records. Its exact file/definition manifest grants no semantic or publisher
 acceptance. An empty index is bootstrap preparation, not a delivered definition.
 
-The maintained release inspector and its real-CLI build fixtures accept API84
-and API85 machine envelopes for this unchanged publication-schema-1 report.
-They retain exact envelope/report validation, byte binding and same-process
-inspection custody; unknown versions and reflected authority remain refused.
-This compatibility window changes no publisher, Root, signature or acceptance
-authority, and does not relabel earlier API84 observations.
+The maintained release inspector requires the fixed API 100 machine envelope
+for publication report schema 1. The CLI keeps that response version when its
+general API version advances. Inspection validates the exact envelope and report
+against the input bytes and keeps the result in the same process. It refuses
+unexpected versions and reflected authority.
 
 The release tool provides `sign-offline-definition-targets CONFIG`,
 `sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
