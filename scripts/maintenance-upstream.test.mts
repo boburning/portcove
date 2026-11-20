@@ -3,6 +3,11 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { canonicalJson, sha256 } from "./maintenance-inventory.mts";
 import {
+  encodeManagedInterventionEvidence,
+  readManagedInterventionEvidence,
+  scopedManagedInterventions,
+} from "./maintenance-interventions.mts";
+import {
   managedReleaseEligibilityWindow,
   readObserverOperatingUsage,
   readUpstreamObservations,
@@ -26,6 +31,165 @@ import {
 } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 const now = Date.parse("2026-11-11T00:00:00.000Z");
+
+const witnessStart = "2026-11-02T00:00:00.000Z";
+const witnessEnd = "2026-11-03T00:00:00.000Z";
+const action = {
+  id: "f".repeat(64),
+  evidence_sha256: "e".repeat(64),
+  witnessed_at: "2026-11-02T20:00:00.000Z",
+};
+const witness = (id: string, coverage = "complete", actions: (typeof action)[] = []) => ({
+  candidate_key: id.repeat(64),
+  port_key: `port:${id}`,
+  platform: "windows-x86-64",
+  channel: "stable",
+  observer_revision: `upstream-observer-run:42-1@${"1".repeat(40)}#sha256:${"2".repeat(64)}`,
+  definition_sha256: "3".repeat(64),
+  client_sha256: "4".repeat(64),
+  review_ref: "https://github.com/boburning/portcove/issues/246#issuecomment-8",
+  start: witnessStart,
+  end: witnessEnd,
+  coverage,
+  actions,
+});
+const witnessObservation = (sequence: ReturnType<typeof witness>) => ({
+  ...sequence,
+  state: "pending",
+  recorded_at: "2026-11-02 19:00:00+00",
+});
+
+function reportWitnesses(sequences: ReturnType<typeof witness>[], rows: readonly unknown[]) {
+  const { bytes, sha256 } = encodeManagedInterventionEvidence(sequences);
+  const evidence = readManagedInterventionEvidence(bytes, sha256);
+  return scopedManagedInterventions(evidence, rows, witnessStart, witnessEnd);
+}
+
+void test("reviewed intervention evidence deduplicates witnessed actions and candidate sequences", () => {
+  const alias = { ...action, id: "8".repeat(64) };
+  const positive = witness("a", "complete", [action, action, alias]);
+  const shared = witness("b", "partial", [alias]);
+  const zero = witness("c");
+  const partial = witness("d", "partial");
+  const unbound = witness("e");
+  const report = reportWitnesses(
+    [positive, { ...positive, actions: [alias] }, shared, zero, partial, unbound],
+    [
+      witnessObservation(positive),
+      witnessObservation(positive),
+      witnessObservation(shared),
+      witnessObservation(zero),
+      witnessObservation(partial),
+      { ...witnessObservation(unbound), definition_sha256: "a".repeat(64) },
+    ],
+  );
+  assert.equal(report.distinct_reported_actions, 1);
+  assert.equal(report.reported_zero_sequences, 1);
+  assert.deepEqual(
+    report.sequences.map(({ state }) => state),
+    ["action-reported", "action-reported", "zero-reported", "partial", "scope-unverified"],
+  );
+  const zeroOnly = reportWitnesses([zero], [witnessObservation(zero)]);
+  assert.equal(zeroOnly.distinct_reported_actions, 0);
+  assert.equal(zeroOnly.provenance, "operator-supplied-unverified");
+  assert.equal(zeroOnly.verified_human_interventions, null);
+  const [zeroSequence] = zeroOnly.sequences;
+  assert.ok(zeroSequence && "matched_observation_states" in zeroSequence);
+  assert.deepEqual(zeroSequence.matched_observation_states, ["pending"]);
+  const incomplete = reportWitnesses([partial], [witnessObservation(partial)]);
+  assert.equal(incomplete.distinct_reported_actions, null);
+  assert.equal(incomplete.reported_zero_sequences, 0);
+  assert.equal(managedReleaseEligibilityWindow([], new Date(witnessEnd)).human_interventions, null);
+});
+
+void test("intervention assertions preserve distinct client and disjoint time scopes for one candidate", () => {
+  const first = witness("a");
+  const otherClient = { ...first, client_sha256: "5".repeat(64), coverage: "partial" };
+  const later = {
+    ...first,
+    start: "2026-11-04T00:00:00.000Z",
+    end: "2026-11-05T00:00:00.000Z",
+    observer_revision: first.observer_revision.replace(":42-1@", ":43-1@"),
+  };
+  const { bytes, sha256 } = encodeManagedInterventionEvidence([first, otherClient, later]);
+  const report = scopedManagedInterventions(
+    readManagedInterventionEvidence(bytes, sha256),
+    [
+      witnessObservation(first),
+      { ...witnessObservation(later), state: "eligible", recorded_at: "2026-11-04 19:00:00+00" },
+    ],
+    first.start,
+    later.end,
+  );
+  assert.equal(report.submitted_distinct_candidates, 1);
+  assert.deepEqual(
+    report.sequences.map((sequence) => [
+      sequence.client_sha256,
+      sequence.start,
+      sequence.state,
+      "matched_observation_states" in sequence ? sequence.matched_observation_states : null,
+    ]),
+    [
+      [first.client_sha256, first.start, "zero-reported", ["pending"]],
+      [later.client_sha256, later.start, "zero-reported", ["eligible"]],
+      [otherClient.client_sha256, otherClient.start, "partial", ["pending"]],
+    ],
+  );
+  assert.equal(report.verified_human_interventions, null);
+});
+
+void test("conflicting reviewed intervention facts cannot supply a count", () => {
+  const zero = witness("a");
+  const positive = witness("a", "complete", [action]);
+  const shared = witness("b", "complete", [action]);
+  const substituted = witness("c", "complete", [{ ...action, evidence_sha256: "9".repeat(64) }]);
+  const valid = witness("d");
+  const report = reportWitnesses(
+    [zero, positive, shared, substituted, valid],
+    [zero, shared, substituted, valid].map(witnessObservation),
+  );
+  assert.deepEqual(
+    report.sequences.map(({ state }) => state),
+    ["conflicting-evidence", "conflicting-evidence", "conflicting-evidence", "zero-reported"],
+  );
+  assert.equal(report.distinct_reported_actions, null);
+  assert.equal(report.reported_zero_sequences, 1);
+});
+
+void test("reviewed intervention evidence refuses bytes, malformed clocks and false observer binding", () => {
+  const zero = witness("a");
+  const { bytes, sha256 } = encodeManagedInterventionEvidence([zero]);
+  assert.throws(() => readManagedInterventionEvidence(bytes, "0".repeat(64)), /reviewed input/u);
+  assert.throws(
+    () => encodeManagedInterventionEvidence([{ ...zero, end: "2026-11-35" }]),
+    /binding or scope/u,
+  );
+  assert.throws(
+    () =>
+      encodeManagedInterventionEvidence([
+        { ...zero, actions: [{ ...action, witnessed_at: "2026-11-04T00:00:00.000Z" }] },
+      ]),
+    /witnessed intervention action/u,
+  );
+  const recorded = witnessObservation(zero);
+  for (const incompatible of [
+    { ...recorded, recorded_at: "2026-11-04 00:00:00+00" },
+    { ...recorded, platform: "linux-x86-64" },
+    { ...recorded, channel: "rolling" },
+    { ...recorded, port_key: "port:wrong" },
+    { ...recorded, state: "unknown" },
+    { ...recorded, observer_revision: recorded.observer_revision.replace(":42-1@", ":42-2@") },
+  ]) {
+    const parsed = scopedManagedInterventions(
+      readManagedInterventionEvidence(bytes, sha256),
+      [incompatible],
+      witnessStart,
+      witnessEnd,
+    );
+    assert.equal(parsed.sequences[0]?.state, "scope-unverified");
+    assert.equal(parsed.distinct_reported_actions, null);
+  }
+});
 
 void test("operating usage binds the imported attempt and measures only executed jobs", async () => {
   const source = "a".repeat(40);

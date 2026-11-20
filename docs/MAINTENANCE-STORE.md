@@ -786,6 +786,40 @@ publication has been verified.
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.
 
+To attach operator-supplied intervention assertions, use
+`report --intervention-evidence FILE --intervention-evidence-sha256 DIGEST`.
+The file has format
+`portcove-managed-intervention-evidence`, `format_version` 1 and `sequences`
+for up to 96 candidate scopes within 64 KiB. The
+existing report then includes `managed_intervention_evidence` in its JSON.
+Each sequence binds `candidate_key`, `port_key`, `platform`, `channel`,
+`observer_revision`, `definition_sha256` and `client_sha256` to a durable
+`review_ref`. Use the exact observer run, attempt, source commit and checkpoint
+digest. `start` and `end` are the stated time bounds for that candidate, in UTC
+with milliseconds. `coverage` is `complete` or `partial`. `actions` lists up to
+32 reported human actions with an immutable `id`, `evidence_sha256` and
+`witnessed_at`. Reuse the same action ID when one action affects several routes.
+The report counts duplicates of the same digest and timestamp once, even if
+their IDs differ. Distinct clients and time intervals for the same candidate
+remain separate. An actor name, workflow trigger, poll, retry, or absence of an
+event cannot witness a human action or a zero-intervention interval.
+
+The report checks the supplied file digest and joins each sequence to exact
+retained observer facts recorded in its interval. It shows the matched pending
+and eligible states separately from the assertion. Complete coverage with an
+empty action list can produce `zero-reported`, including on a pending candidate.
+The review URL and client digest are supplied claims. Verified intervention
+totals and rates remain unknown.
+
+For hosted integration, give the existing maintenance inventory workflow the
+immutable reviewed witness bytes and expected digest from the existing
+independent acceptance record. Bind that record to the exact observer candidate
+and shipped client. Include the existing protected publisher's live readback
+receipt for a claimed signed repair, and the exact client observation for a
+claimed availability outcome. The optional input currently records assertions
+with explicit provenance. Hosted intervention measurement needs independent
+verification of the witness and those bindings.
+
 On 2026-11-11, none of the 24 newest completed schedule or push `main` runs from
 the previous 24 hours retained a snapshot. In scheduled runs 43058926577,
 42985430786 and 42934324534 the export step failed with "Observer snapshot
