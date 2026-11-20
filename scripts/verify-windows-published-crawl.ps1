@@ -508,7 +508,8 @@ try {
         package_sha256=$asset; verified_files=$verified.checked_files; version=$active.version }
 
     Select-Control 'Manage'
-    $null = Wait-Control 'Technical details'
+    $null = Wait-Control 'Managed installation'
+    Write-Receipt 'desktop-manage-tab' @{ install_id=$active.id; heading='Managed installation' }
     Select-Control 'Versions & updates'
     $null = Wait-Control 'Installation and release versions'
     $null = Wait-Control '0.34.1'
