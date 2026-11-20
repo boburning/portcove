@@ -288,17 +288,24 @@ it.for([
           </ArtworkProvider>
         </main>,
       );
-      for (const frame of document.querySelectorAll<HTMLElement>(".collection-art")) {
-        frame.scrollIntoView();
-        const imageExpected = frame !== document.querySelectorAll(".collection-art")[4];
+      const mountedFrames = [...document.querySelectorAll<HTMLElement>(".collection-art")];
+      for (const [index, frame] of mountedFrames.entries()) {
+        frame.scrollIntoView({ block: "center", behavior: "instant" });
         await expect
-          .poll(() =>
-            imageExpected
-              ? frame.querySelector("img")?.complete === true &&
-                frame.querySelector("img")!.naturalWidth > 0
-              : frame.dataset.artworkSource === "generated_fallback",
+          .poll(
+            () => {
+              const image = frame.querySelector("img");
+              return {
+                frame: index + 1,
+                source: frame.dataset.artworkSource,
+                complete: image?.complete,
+                width: image?.naturalWidth,
+                decoded: image?.complete === true && image.naturalWidth > 0,
+              };
+            },
+            { timeout: 5_000 },
           )
-          .toBe(true);
+          .toMatchObject(index === 4 ? { source: "generated_fallback" } : { decoded: true });
       }
       // Exercise neutral layout measurement after a card was hovered.
       if (view === "library") {
