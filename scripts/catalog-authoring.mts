@@ -743,7 +743,11 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       editions.add(edition.id);
       evidence(edition.evidence_urls);
       if (edition.verified_sources !== undefined) {
-        if (!Array.isArray(edition.verified_sources) || edition.verified_sources.length > 16)
+        if (
+          !Array.isArray(edition.verified_sources) ||
+          edition.verified_sources.length === 0 ||
+          edition.verified_sources.length > 16
+        )
           throw new Error("Original editions require a bounded list of verified source bindings.");
         for (const source of edition.verified_sources) {
           if (

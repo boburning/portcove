@@ -1325,6 +1325,11 @@ mod tests {
         value["original_game"]["source_editions"][1]["verified_sources"] = json!([exact]);
         assert!(parse(&value, 14).is_err());
         value["original_game"]["source_editions"][1]["verified_sources"] = json!([]);
+        assert!(parse(&value, 14).is_err());
+        value["original_game"]["source_editions"][1]
+            .as_object_mut()
+            .unwrap()
+            .remove("verified_sources");
         value["original_game"]["source_editions"][0]["verified_sources"][0]["unknown_qualifier"] =
             json!("unknown");
         assert!(parse(&value, 14).is_err());

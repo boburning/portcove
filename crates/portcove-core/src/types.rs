@@ -247,7 +247,11 @@ pub struct SourceEdition {
     pub evidence_urls: Vec<String>,
     /// Reviewed correspondence to an exact Core source identity. An empty list
     /// leaves the edition available for manual browsing only.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "present_verified_sources"
+    )]
     pub verified_sources: Vec<OriginalEditionSourceBinding>,
 }
 
@@ -258,6 +262,21 @@ pub struct OriginalEditionSourceBinding {
     pub game_id: String,
     pub variant_id: String,
     pub representation_id: String,
+}
+
+fn present_verified_sources<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<OriginalEditionSourceBinding>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let identities = Vec::deserialize(deserializer)?;
+    if identities.is_empty() {
+        return Err(serde::de::Error::custom(
+            "an explicit source binding list needs at least one identity",
+        ));
+    }
+    Ok(identities)
 }
 
 impl OriginalEditionSourceBinding {
