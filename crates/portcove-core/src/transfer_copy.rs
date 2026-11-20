@@ -245,6 +245,15 @@ pub(crate) fn verify_destination(
             "destination database integrity check failed",
         ));
     }
+    verify_installations(library, expected_metadata, &catalogs)
+}
+
+pub(crate) fn verify_installations(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+    catalogs: &crate::library_import::PortabilityCatalogs,
+) -> Result<()> {
+    let destination_root = library.root();
     let installer = crate::install::Installer::new(library.clone())?;
     let platform = crate::Platform::current()?;
     for relative in &expected_metadata.application_versions {

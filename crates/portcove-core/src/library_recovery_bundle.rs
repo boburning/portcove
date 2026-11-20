@@ -9,6 +9,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+mod execution;
+pub use execution::{LibraryRecoveryBundle, LibraryRecoveryRestorePlan};
+
 use crate::{
     LibraryContentKind, LibraryMetadata, LibraryTreePlan, PortcoveError, PortcoveService, Result,
     library_import::{PortabilityCatalogs, validate_metadata},
@@ -58,71 +61,95 @@ impl PortcoveService {
         &self,
         destination: &Path,
     ) -> Result<LibraryRecoveryBundlePlan> {
-        let source_root = fs::canonicalize(self.library().root())?;
-        let destination_root =
-            crate::library_transfer::transfer_destination(&source_root, destination)?;
-        require_transfer_idle(self.library(), LibraryTransferPurpose::RecoveryBundle)?;
-        let source_library_id = self.library().identity()?;
-        let metadata = self.export_library_metadata()?;
-        let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
-        validate_metadata(&metadata, &catalogs)?;
-        let content = plan_portable_content(&metadata, &source_root)?;
-        let coverage = content
-            .iter()
-            .map(|tree| LibraryRecoveryCoverage {
-                kind: tree.kind,
-                relative_path: tree.relative_path.clone(),
-                directories: tree.copy.directories.len(),
-                files: tree.copy.files.len(),
-                bytes: tree.copy.total_bytes,
-            })
-            .collect::<Vec<_>>();
-        let exclusions = vec![
-            LibraryRecoveryExclusion::ExternalInstallations,
-            LibraryRecoveryExclusion::ExternalOriginalsAndBios,
-            LibraryRecoveryExclusion::ExternalSaves,
-            LibraryRecoveryExclusion::UnknownSaveLocations,
-            LibraryRecoveryExclusion::HostCredentials,
-        ];
-        let metadata_bytes = serde_json::to_vec_pretty(&metadata)?.len() as u64;
-        let required_bytes = coverage
-            .iter()
-            .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))
-            .and_then(|bytes| bytes.checked_add(64 * 1024 * 1024))
-            .ok_or_else(|| PortcoveError::state("recovery bundle capacity estimate overflowed"))?;
-        let parent = destination_root
-            .parent()
-            .ok_or_else(|| PortcoveError::usage("recovery bundle destination needs a parent"))?;
-        let available_bytes = fs4::available_space(parent)?;
-        if available_bytes < required_bytes {
-            return Err(PortcoveError::state(
-                "destination has insufficient free space for a verified recovery bundle",
-            )
-            .detail("required_bytes", required_bytes.to_string())
-            .detail("available_bytes", available_bytes.to_string()));
-        }
-        let mut plan = LibraryRecoveryBundlePlan {
-            source_root,
-            destination_root,
-            source_library_id,
-            coverage,
-            exclusions,
-            required_bytes,
-            available_bytes,
-            plan_sha256: String::new(),
-        };
-        plan.plan_sha256 = plan_sha256(&plan, metadata, &content)?;
+        let (plan, _, _) = prepare(self, destination)?;
+        require_capacity(&plan)?;
         Ok(plan)
     }
 }
 
+fn prepare(
+    service: &PortcoveService,
+    destination: &Path,
+) -> Result<(
+    LibraryRecoveryBundlePlan,
+    LibraryMetadata,
+    Vec<LibraryTreePlan>,
+)> {
+    let source_root = fs::canonicalize(service.library().root())?;
+    let destination_root =
+        crate::library_transfer::transfer_destination(&source_root, destination)?;
+    execution::refuse_staging_path(&destination_root)?;
+    require_transfer_idle(service.library(), LibraryTransferPurpose::RecoveryBundle)?;
+    let source_library_id = service.library().identity()?;
+    let metadata = service.export_library_metadata()?;
+    let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
+    validate_metadata(&metadata, &catalogs)?;
+    let content = plan_portable_content(&metadata, &source_root)?;
+    let coverage = content
+        .iter()
+        .map(|tree| LibraryRecoveryCoverage {
+            kind: tree.kind,
+            relative_path: tree.relative_path.clone(),
+            directories: tree.copy.directories.len(),
+            files: tree.copy.files.len(),
+            bytes: tree.copy.total_bytes,
+        })
+        .collect::<Vec<_>>();
+    let exclusions = vec![
+        LibraryRecoveryExclusion::ExternalInstallations,
+        LibraryRecoveryExclusion::ExternalOriginalsAndBios,
+        LibraryRecoveryExclusion::ExternalSaves,
+        LibraryRecoveryExclusion::UnknownSaveLocations,
+        LibraryRecoveryExclusion::HostCredentials,
+    ];
+    let metadata_bytes = serde_json::to_vec_pretty(&metadata)?.len() as u64;
+    if metadata_bytes > execution::MAX_METADATA_BYTES {
+        return Err(PortcoveError::unsupported(
+            "recovery bundle metadata exceeds the supported import size",
+        ));
+    }
+    let required_bytes = coverage
+        .iter()
+        .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))
+        .and_then(|bytes| bytes.checked_add(64 * 1024 * 1024))
+        .ok_or_else(|| PortcoveError::state("recovery bundle capacity estimate overflowed"))?;
+    let parent = destination_root
+        .parent()
+        .ok_or_else(|| PortcoveError::usage("recovery bundle destination needs a parent"))?;
+    let available_bytes = fs4::available_space(parent)?;
+    let mut plan = LibraryRecoveryBundlePlan {
+        source_root,
+        destination_root,
+        source_library_id,
+        coverage,
+        exclusions,
+        required_bytes,
+        available_bytes,
+        plan_sha256: String::new(),
+    };
+    plan.plan_sha256 = plan_sha256(&plan, &metadata, &content)?;
+    Ok((plan, metadata, content))
+}
+
+fn require_capacity(plan: &LibraryRecoveryBundlePlan) -> Result<()> {
+    if plan.available_bytes < plan.required_bytes {
+        return Err(PortcoveError::state(
+            "destination has insufficient free space for a verified recovery bundle",
+        )
+        .detail("required_bytes", plan.required_bytes.to_string())
+        .detail("available_bytes", plan.available_bytes.to_string()));
+    }
+    Ok(())
+}
+
 fn plan_sha256(
     plan: &LibraryRecoveryBundlePlan,
-    mut metadata: LibraryMetadata,
+    metadata: &LibraryMetadata,
     content: &[LibraryTreePlan],
 ) -> Result<String> {
     // Time of observation and measured free space can change without touching
     // the data or the reviewed destination. Apply still checks capacity anew.
+    let mut metadata = metadata.clone();
     metadata.exported_at = 0;
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
         "portcove-library-recovery-bundle-plan-v1",

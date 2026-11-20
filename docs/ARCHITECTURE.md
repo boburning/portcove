@@ -2842,6 +2842,33 @@ the separate checked destination and historical-admission contract.
 
 Publication records the source as moved before clearing the destination's pending marker. Normal library opens follow only matching receipts, stop at pending transfers, and bound relocation chains. Recovery after activation only finalizes bookkeeping; it never copies old data over a destination that could have received new saves. Abort before publication removes the original's gate and retains the incomplete destination under its gate. Neither operation deletes either data tree. Pending transfer activity remains running with an explicit recovery journal, then becomes succeeded or failed on completion or abort. Flushed files and directory synchronization support Linux process/power-loss recovery; Windows/macOS retain process interruption recovery without a directory power-loss guarantee. Tauri owns only the temporary handoff of its cached library/provider handles and reopens the root selected by core. This changes no durable domain ownership or crate dependency rule.
 
+## Library recovery bundles
+
+Core previews a bundle from one existing library and a separate destination.
+The review binds the library identity, exact metadata and managed file inventory.
+It accounts for managed versions, library user data, source inbox, backups, toolchains
+and local artwork. External runtimes and save locations, external original or BIOS
+files, unknown save locations and host credentials are excluded. Recorded external
+source references can remain in metadata as locations to verify or relink later.
+
+Creation takes the same exclusive source lease as a library move and rechecks the
+review. It writes an authenticated intent in a private sibling directory and copies
+into that directory. The original library gets no move marker or preference change.
+Core verifies the copied inventory and metadata, rechecks the source and publishes
+the bundle with an atomic no-replace rename. Staging remains separate from completed
+bundles. Recovery reads the exact intent and either completes the staged copy against
+the unchanged source or verifies the already-published bundle. A changed source needs
+a new review and the old staged files remain available.
+
+Bundle inspection validates the format, installed-contract authority, exact content
+and host-authenticated receipt without opening a library. The receipt uses a separate
+proof domain from historical installation admissions. A different host cannot use
+that receipt to establish local verification or publisher authority. Restore binds
+the verified receipt and checked import plan to a new or empty destination outside
+both the bundle and its source library. The import journal owns the restore and its
+recovery. The player opens the recovered library through the separate library
+selection operation.
+
 ## Library imports
 
 Library import reads a metadata export and an explicitly selected copy of its content trees without opening or migrating the input database. The destination must be new or contain an empty Portcove library; merging into existing domain state is rejected. Core reviews capacity, portable paths, source references, and active/previous/staged identity, then requires the content-bound plan again under an exclusive destination lease. A bounded destination-owned import journal is also the open gate and is published before database initialization or copying. Metadata hydration uses one SQLite transaction and the same source/install writers as ordinary registration. The shared transfer verifier checks all copied bytes and manifest identities; import additionally rebuilds the current platform executable, mutable-path, and critical-file policy for comparison with each restored manifest. An exact retained definition that records prior authenticated admission remains the authority for its own installed version, including a successor port absent from the running client's embedded catalog. Export first requires the retained identity to match the source library's persisted active or rollback selection transaction, then binds the selection role plus install, manifest and selection identities to a host-local key in operating-system secure storage. Planning and every recovery read verify that receipt before using the digest-bound retained graph; this deliberately proves same-host continuity rather than inventing cross-device trust. Import restores that admitted active/rollback context into the otherwise empty destination before comparing its metadata. A bare definition snapshot, copied catalog, unknown port ID, structurally valid admission object, or self-consistent content hashes cannot create admission, and an unadmitted retained contract for an embedded port must still match the embedded installed-code contract. This preserves frozen source, execution, persistence, artwork and qualification identities without treating the current definition as permission to rewrite historical installs. It establishes consistency with a trusted local backup, not independent publisher authenticity for that backup.
