@@ -75,6 +75,89 @@ pub(crate) fn validate_definition_transition(
     }
 }
 
+/// Combine one already-validated subject with previously validated unrelated
+/// selections. A legacy full projection can only contribute its selected port
+/// and in-scope source graph. It cannot replace another selection's document.
+pub(crate) fn compose_verified_definition(
+    effective: &Catalog,
+    scoped: &Catalog,
+    selected: &str,
+) -> Result<Catalog> {
+    let mut document = effective.authoritative_document();
+    let port = scoped.port(selected)?.clone();
+    if let Some(prior) = document.ports.iter_mut().find(|value| value.id == selected) {
+        *prior = port;
+    } else {
+        document.ports.push(port);
+    }
+    match (document.source_catalog.as_mut(), scoped.source_catalog()) {
+        (Some(effective), Some(scoped)) => {
+            merge_immutable_records(&mut effective.evidence, &scoped.evidence, |value| &value.id)?;
+            merge_immutable_records(&mut effective.identities, &scoped.identities, |value| {
+                &value.id
+            })?;
+            merge_immutable_records(&mut effective.validators, &scoped.validators, |value| {
+                &value.id
+            })?;
+            effective
+                .contracts
+                .retain(|value| value.port_id != selected);
+            effective.contracts.extend(
+                scoped
+                    .contracts
+                    .iter()
+                    .filter(|value| value.port_id == selected)
+                    .cloned(),
+            );
+            effective
+                .qualification
+                .retain(|value| value.scope.port_id != selected);
+            effective.qualification.extend(
+                scoped
+                    .qualification
+                    .iter()
+                    .filter(|value| value.scope.port_id == selected)
+                    .cloned(),
+            );
+        }
+        (None, None) => {}
+        _ => return Err(out_of_scope("source authority presence changed")),
+    }
+    let mut catalog = Catalog::from_document(document)?;
+    catalog.retain_embedded_file_patterns(effective, selected)?;
+    catalog.retain_unrelated_upstream_reviews(effective, selected);
+    validate_definition_transition(effective, &catalog, selected)?;
+    catalog.retain_cached_definition_selections(effective);
+    catalog.retain_independent_definition_selection(scoped, selected)?;
+    Ok(catalog)
+}
+
+fn merge_immutable_records<T: Clone + PartialEq>(
+    effective: &mut Vec<T>,
+    scoped: &[T],
+    id: impl Fn(&T) -> &str,
+) -> Result<()> {
+    let positions: HashMap<_, _> = effective
+        .iter()
+        .enumerate()
+        .map(|(position, record)| (id(record), position))
+        .collect();
+    let mut added = Vec::new();
+    for record in scoped {
+        match positions.get(id(record)) {
+            Some(position) if &effective[*position] != record => {
+                return Err(out_of_scope(
+                    "independently selected source records conflict",
+                ));
+            }
+            Some(_) => {}
+            None => added.push(record.clone()),
+        }
+    }
+    effective.extend(added);
+    Ok(())
+}
+
 /// A selected definition may keep or narrow an existing managed acquisition
 /// hold, but never remove it or allow an artifact the baseline did not review.
 /// Clearing a hold is a reviewed catalog change shipped with the application.

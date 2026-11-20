@@ -532,11 +532,7 @@ async fn provider_scope_floor_survives_expiry_revocation_and_reopen() {
         .unwrap();
     assert!(default_binding(library.load_catalog().unwrap().0.port(port_id).unwrap()).is_none());
     connection
-        .execute(
-            "UPDATE definition_selection_state
-             SET active_json=NULL,replay_floor_json=NULL WHERE singleton=1",
-            [],
-        )
+        .execute("DELETE FROM definition_subject_selection", [])
         .unwrap();
     drop(connection);
     drop(library);
@@ -897,7 +893,7 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         .connection()
         .unwrap()
         .query_row(
-            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            "SELECT active_json FROM definition_subject_selection",
             [],
             |row| row.get(0),
         )
@@ -923,7 +919,7 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            "UPDATE definition_subject_selection SET active_json=?1",
             [serde_json::to_string(&changed).unwrap()],
         )
         .unwrap();
@@ -933,7 +929,7 @@ async fn library_selection_persists_the_exact_candidate_and_floor_together() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            "UPDATE definition_subject_selection SET active_json=?1",
             [active_json],
         )
         .unwrap();
@@ -1429,7 +1425,7 @@ async fn stored_selection_rejects_revision_mismatch_in_active_and_previous() {
         .connection()
         .unwrap()
         .query_row(
-            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            "SELECT active_json FROM definition_subject_selection",
             [],
             |row| row.get(0),
         )
@@ -1448,7 +1444,7 @@ async fn stored_selection_rejects_revision_mismatch_in_active_and_previous() {
             .connection()
             .unwrap()
             .execute(
-                "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+                "UPDATE definition_subject_selection SET active_json=?1,previous_json=?2",
                 [Some(active), prior],
             )
             .unwrap();
@@ -1462,7 +1458,7 @@ async fn stored_selection_rejects_revision_mismatch_in_active_and_previous() {
             .connection()
             .unwrap()
             .execute(
-                "UPDATE definition_selection_state SET active_json=?1,previous_json=NULL WHERE singleton=1",
+                "UPDATE definition_subject_selection SET active_json=?1,previous_json=NULL",
                 [&active_json],
             )
             .unwrap();
@@ -1494,7 +1490,7 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
         .connection()
         .unwrap()
         .query_row(
-            "SELECT active_json FROM definition_selection_state WHERE singleton=1",
+            "SELECT active_json FROM definition_subject_selection",
             [],
             |row| row.get(0),
         )
@@ -1505,7 +1501,7 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            "UPDATE definition_subject_selection SET active_json=?1",
             [serde_json::to_string(&stale).unwrap()],
         )
         .unwrap();
@@ -1525,7 +1521,7 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET active_json=?1 WHERE singleton=1",
+            "UPDATE definition_subject_selection SET active_json=?1",
             [serde_json::to_string(&corrupt).unwrap()],
         )
         .unwrap();
@@ -1540,7 +1536,7 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET active_json=?1,previous_json=?2 WHERE singleton=1",
+            "UPDATE definition_subject_selection SET active_json=?1,previous_json=?2",
             [&active_json, &serde_json::to_string(&corrupt).unwrap()],
         )
         .unwrap();
@@ -1554,7 +1550,7 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE definition_selection_state SET previous_json=NULL WHERE singleton=1",
+            "UPDATE definition_subject_selection SET previous_json=NULL",
             [],
         )
         .unwrap();
@@ -1567,6 +1563,252 @@ async fn stale_or_corrupt_selected_definition_falls_back_visibly() {
     assert_eq!(
         serde_json::to_value(restored.authoritative_document()).unwrap(),
         serde_json::to_value(valid_catalog.authoritative_document()).unwrap()
+    );
+}
+
+#[tokio::test]
+async fn per_subject_selection_retains_independent_authority_and_interrupts_atomically() {
+    let fixture = RepositoryFixture::new();
+    let (first, first_id) = post_client_catalog();
+    let first_id = first_id.as_str();
+    let mut second = Catalog::embedded().unwrap().authoritative_document();
+    let second_id = second.ports[0].id.clone();
+    let second_id = second_id.as_str();
+    let old_summary = second.ports[0].summary.clone();
+    let new_summary = "Independent admitted summary.";
+    second.ports[0].summary = new_summary.into();
+    let second = Catalog::from_document(second).unwrap();
+    let mut first = indexed_catalog_bundle(&first, first_id);
+    let second = indexed_catalog_bundle(&second, second_id);
+    let mut index: Value = serde_json::from_slice(&first.index).unwrap();
+    let sibling: Value = serde_json::from_slice(&second.index).unwrap();
+    for field in ["definitions", "contents"] {
+        index[field]
+            .as_array_mut()
+            .unwrap()
+            .extend(sibling[field].as_array().unwrap().iter().cloned());
+    }
+    first.contents.extend(second.contents);
+    first
+        .contents
+        .push((INDEX_TARGET.into(), serde_json::to_vec(&index).unwrap()));
+    let root = fixture
+        .publish(&first.contents, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let mut candidate = acquire(&fixture, &root).await.unwrap();
+    let directory = TempDir::new().unwrap();
+    let library = Library::open(directory.path()).unwrap();
+    let select = |candidate: &super::AuthenticatedDefinitionCandidate, id: &str| {
+        library
+            .install_definition_policy_for_test(
+                candidate,
+                "official",
+                id,
+                7,
+                "official-fixture-grant",
+                DefinitionPublisherStatus::Scoped,
+            )
+            .unwrap();
+        let eligible = library
+            .assess_definition_candidate(candidate, "official", id)
+            .unwrap()
+            .into_eligible()
+            .unwrap();
+        library.select_definition_catalog(eligible).unwrap();
+    };
+    select(&candidate, first_id);
+    let first_selection = library
+        .definition_selection_status_for("official", first_id)
+        .unwrap()
+        .selected
+        .unwrap();
+    let old = library
+        .assess_definition_candidate(&candidate, "official", first_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    // Advance the authenticated test candidate's timestamp independently of
+    // the unchanged exact definitions. No second development catalog is used.
+    candidate.provenance.timestamp_version += 1;
+    candidate.provenance.timestamp_sha256 = "c".repeat(64);
+    select(&candidate, second_id);
+    let sibling = library
+        .definition_selection_status_for("official", second_id)
+        .unwrap();
+    assert!(!sibling.can_rollback);
+    assert_eq!(sibling.replay_floor, Some(candidate.replay_floor()));
+    assert_eq!(
+        library
+            .retained_definition_admission_role(&first_selection)
+            .unwrap(),
+        Some("active")
+    );
+    assert!(library.select_definition_candidate(old).is_err());
+    let install = DefinitionOperationContext::observed(DefinitionOperation::Install, false, true);
+    assert_eq!(
+        library
+            .assess_definition_operation(&first_selection, install)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+
+    let connection = library.connection().unwrap();
+    let pending = library
+        .assess_definition_candidate(&candidate, "official", first_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER reject_scoped_commit BEFORE UPDATE ON definition_selection_state
+         BEGIN SELECT RAISE(ABORT, 'synthetic interruption'); END;",
+        )
+        .unwrap();
+    assert!(library.select_definition_catalog(pending).is_err());
+    assert_eq!(
+        library
+            .definition_selection_status_for("official", second_id)
+            .unwrap(),
+        sibling
+    );
+    assert_eq!(
+        library
+            .retained_definition_admission_role(&first_selection)
+            .unwrap(),
+        Some("active")
+    );
+    connection
+        .execute("DROP TRIGGER reject_scoped_commit", [])
+        .unwrap();
+    let update = library
+        .assess_definition_candidate(&candidate, "official", first_id)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    let status = library.select_definition_catalog(update).unwrap();
+    assert!(status.can_rollback);
+    assert_eq!(
+        library
+            .retained_definition_admission_role(&first_selection)
+            .unwrap(),
+        Some("previous")
+    );
+    let first_bytes: String = connection
+        .query_row(
+            "SELECT active_json FROM definition_subject_selection WHERE stable_id=?1",
+            [first_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let (sibling_bytes, global_floor): (String, String) = connection
+        .query_row(
+            "SELECT subject.active_json,state.replay_floor_json
+         FROM definition_subject_selection AS subject CROSS JOIN definition_selection_state AS state
+         WHERE subject.stable_id=?1",
+            [second_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    for (previous, expected_subjects) in [(&first_bytes, 2), (&sibling_bytes, 1)] {
+        let mut legacy = rusqlite::Connection::open_in_memory().unwrap();
+        let migration = legacy.transaction().unwrap();
+        super::selection::migrate(&migration).unwrap();
+        migration
+            .execute(
+                "UPDATE definition_selection_state
+             SET revision=2,replay_floor_json=?1,active_json=?2,previous_json=?3",
+                [&global_floor, &sibling_bytes, previous],
+            )
+            .unwrap();
+        super::selection::migrate_subject_selection(&migration).unwrap();
+        migration.commit().unwrap();
+        let subjects: u64 = legacy
+            .query_row(
+                "SELECT COUNT(*) FROM definition_subject_selection",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(subjects, expected_subjects);
+        let current: (String, Option<String>) = legacy.query_row(
+            "SELECT active_json,previous_json FROM definition_subject_selection WHERE stable_id=?1",
+            [second_id], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(current.0, sibling_bytes);
+        assert_eq!(
+            current.1.as_deref(),
+            (expected_subjects == 1).then_some(previous.as_str())
+        );
+        if expected_subjects == 2 {
+            let migrated: String = legacy
+                .query_row(
+                    "SELECT active_json FROM definition_subject_selection WHERE stable_id=?1",
+                    [first_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(migrated, first_bytes);
+        }
+        let floor: String = legacy
+            .query_row(
+                "SELECT replay_floor_json FROM definition_selection_state",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(floor, global_floor);
+    }
+    drop(connection);
+    drop(library);
+
+    let reopened = Library::open(directory.path()).unwrap();
+    let reopened_sibling = reopened
+        .definition_selection_status_for("official", second_id)
+        .unwrap();
+    assert_eq!(reopened_sibling.selected, sibling.selected);
+    assert!(!reopened_sibling.can_rollback);
+    assert_eq!(reopened.definition_selection_status().unwrap(), status);
+    let (catalog, _) = reopened.load_catalog().unwrap();
+    assert!(catalog.port(first_id).is_ok());
+    assert_eq!(catalog.port(second_id).unwrap().summary, new_summary);
+    assert_eq!(
+        catalog.definition_selection(first_id),
+        status.selected.as_ref()
+    );
+    assert_eq!(
+        catalog.definition_selection(second_id),
+        sibling.selected.as_ref()
+    );
+    reopened
+        .install_definition_policy_for_test(
+            &candidate,
+            "official",
+            second_id,
+            8,
+            "official-fixture-grant",
+            DefinitionPublisherStatus::Revoked,
+        )
+        .unwrap();
+    let (catalog, provenance) = reopened.load_catalog().unwrap();
+    assert_eq!(catalog.port(second_id).unwrap().summary, old_summary);
+    assert!(catalog.definition_selection(second_id).is_none());
+    assert_eq!(
+        catalog.definition_selection(first_id),
+        status.selected.as_ref()
+    );
+    assert!(
+        provenance
+            .fallback_reasons
+            .iter()
+            .any(|reason| reason.contains(second_id))
+    );
+
+    assert_eq!(
+        reopened
+            .retained_definition_admission_role(&first_selection)
+            .unwrap(),
+        Some("previous")
     );
 }
 

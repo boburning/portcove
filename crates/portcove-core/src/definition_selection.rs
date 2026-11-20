@@ -189,73 +189,127 @@ impl ValidatedDefinitionSelection {
 struct DefinitionSelectionState {
     revision: u64,
     replay_floor: Option<DefinitionReplayFloor>,
-    active: Option<ValidatedDefinitionSelection>,
-    previous: Option<ValidatedDefinitionSelection>,
-    active_json: Option<String>,
 }
 
-impl DefinitionSelectionState {
-    fn read(connection: &Connection) -> Result<Self> {
-        let (revision, replay_floor_json, active_json, previous_json): (
-            i64,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-        ) = connection.query_row(
-            "SELECT revision,replay_floor_json,active_json,previous_json
-             FROM definition_selection_state WHERE singleton=1",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
-        )?;
-        let revision = u64::try_from(revision)
-            .map_err(|_| PortcoveError::state("definition selection revision is invalid"))?;
-        let replay_floor: Option<DefinitionReplayFloor> =
-            decode_bounded(replay_floor_json.as_deref(), "replay floor")?;
-        let active: Option<StoredDefinitionSelection> =
-            decode_bounded(active_json.as_deref(), "active selection")?;
-        let previous: Option<StoredDefinitionSelection> =
-            decode_bounded(previous_json.as_deref(), "previous selection")?;
-        if let Some(floor) = &replay_floor {
-            floor.validate()?;
-        }
-        let active = active.map(ValidatedDefinitionSelection::new).transpose()?;
-        let previous = previous
-            .map(ValidatedDefinitionSelection::new)
+struct DefinitionSubjectSelection {
+    active: ValidatedDefinitionSelection,
+    previous: Option<ValidatedDefinitionSelection>,
+    active_json: String,
+}
+
+impl DefinitionSubjectSelection {
+    fn read(connection: &Connection, namespace: &str, stable_id: &str) -> Result<Option<Self>> {
+        let stored: Option<(String, Option<String>)> = connection
+            .query_row(
+                "SELECT active_json,previous_json FROM definition_subject_selection
+                 WHERE namespace=?1 AND stable_id=?2",
+                params![namespace, stable_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        stored
+            .map(|(active, previous)| Self::decode(namespace, stable_id, active, previous))
+            .transpose()
+    }
+
+    fn decode(
+        namespace: &str,
+        stable_id: &str,
+        active_json: String,
+        previous_json: Option<String>,
+    ) -> Result<Self> {
+        let parse = |json: &str, label: &str| -> Result<ValidatedDefinitionSelection> {
+            let stored: StoredDefinitionSelection = decode_bounded(Some(json), label)?
+                .ok_or_else(|| PortcoveError::state("stored definition selection is missing"))?;
+            if stored.namespace != namespace || stored.stable_id != stable_id {
+                return Err(PortcoveError::state(
+                    "stored definition selection differs from its subject",
+                ));
+            }
+            ValidatedDefinitionSelection::new(stored)
+        };
+        let active = parse(&active_json, "active selection")?;
+        let previous = previous_json
+            .as_deref()
+            .map(|value| parse(value, "previous selection"))
             .transpose()?;
-        if active.is_some() != replay_floor.is_some()
-            || (revision == 0) != active.is_none()
-            || (previous.is_some() && active.is_none())
-        {
-            return Err(PortcoveError::state(
-                "definition selection revision, active value, previous value and replay floor are inconsistent",
-            ));
-        }
-        if let (Some(active), Some(floor)) = (&active, &replay_floor)
-            && *floor != DefinitionReplayFloor::from(&active.stored.provenance)
-        {
-            return Err(PortcoveError::state(
-                "active definition selection differs from its replay floor",
-            ));
-        }
         Ok(Self {
-            revision,
-            replay_floor,
             active,
             previous,
             active_json,
         })
     }
 
-    fn status(&self) -> DefinitionSelectionStatus {
+    fn require_namespace(connection: &Connection, namespace: &str, stable_id: &str) -> Result<()> {
+        let conflict: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM definition_subject_selection
+             WHERE stable_id=?1 AND namespace!=?2)",
+            params![stable_id, namespace],
+            |row| row.get(0),
+        )?;
+        if conflict {
+            return Err(PortcoveError::conflict(
+                "definition port is already selected by another namespace",
+            ));
+        }
+        Ok(())
+    }
+
+    fn most_recent(connection: &Connection) -> Result<Option<Self>> {
+        let subject: Option<(String, String)> = connection
+            .query_row(
+                "SELECT namespace,stable_id FROM definition_subject_selection
+                 ORDER BY selected_revision DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        match subject {
+            Some((namespace, id)) => Self::read(connection, &namespace, &id),
+            None => Ok(None),
+        }
+    }
+}
+
+impl DefinitionSelectionState {
+    fn read(connection: &Connection) -> Result<Self> {
+        let (revision, replay_floor_json): (i64, Option<String>) = connection.query_row(
+            "SELECT revision,replay_floor_json FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        let revision = u64::try_from(revision)
+            .map_err(|_| PortcoveError::state("definition selection revision is invalid"))?;
+        let replay_floor: Option<DefinitionReplayFloor> =
+            decode_bounded(replay_floor_json.as_deref(), "replay floor")?;
+        if let Some(floor) = &replay_floor {
+            floor.validate()?;
+        }
+        if (revision == 0) != replay_floor.is_none() {
+            return Err(PortcoveError::state(
+                "definition selection revision differs from its replay floor",
+            ));
+        }
+        Ok(Self {
+            revision,
+            replay_floor,
+        })
+    }
+
+    fn status(&self, subject: Option<&DefinitionSubjectSelection>) -> DefinitionSelectionStatus {
         DefinitionSelectionStatus {
             revision: self.revision,
-            selected: self
-                .active
-                .as_ref()
-                .map(|selection| selection.stored.identity()),
+            selected: subject.map(|slot| slot.active.stored.identity()),
             replay_floor: self.replay_floor.clone(),
-            can_rollback: self.previous.is_some(),
+            can_rollback: subject.is_some_and(|slot| slot.previous.is_some()),
         }
+    }
+
+    fn next_revision(&self) -> Result<i64> {
+        self.revision
+            .checked_add(1)
+            .and_then(|revision| i64::try_from(revision).ok())
+            .ok_or_else(|| PortcoveError::state("definition selection revision is exhausted"))
     }
 }
 
@@ -288,10 +342,20 @@ impl DefinitionOperationAssessment<'_> {
         let state = &self.state;
         let policy =
             PublisherPolicyRecord::read(transaction, &identity.namespace, &identity.stable_id)?;
-        let replayed_metadata = state
-            .replay_floor
-            .as_ref()
-            .is_some_and(|floor| floor.evaluate(&identity.provenance).is_err());
+        let replayed_metadata = if let Some(floor) = &state.replay_floor {
+            floor.evaluate(&identity.provenance).is_err()
+                && !(floor.covers(&DefinitionReplayFloor::from(&identity.provenance))
+                    && DefinitionSubjectSelection::read(
+                        transaction,
+                        &identity.namespace,
+                        &identity.stable_id,
+                    )?
+                    .is_some_and(|slot| slot.active.stored.identity() == *identity))
+        } else {
+            false
+        };
+        // A newer global floor blocks incoming replay. It does not invalidate
+        // an exact committed subject whose own policy and expiry still apply.
         let publisher_scoped = policy
             .as_ref()
             .is_some_and(|policy| policy.status == DefinitionPublisherStatus::Scoped)
@@ -476,19 +540,21 @@ impl Library {
         identity: &DefinitionSelectionIdentity,
     ) -> Result<Option<&'static str>> {
         let connection = self.connection()?;
-        let state = DefinitionSelectionState::read(&connection)?;
-        let role = state
-            .active
-            .as_ref()
-            .filter(|selection| selection.stored.identity() == *identity)
-            .map(|_| "active")
-            .or_else(|| {
-                state
-                    .previous
+        let subject = DefinitionSubjectSelection::read(
+            &connection,
+            &identity.namespace,
+            &identity.stable_id,
+        )?;
+        let role = subject.as_ref().and_then(|slot| {
+            if slot.active.stored.identity() == *identity {
+                Some("active")
+            } else {
+                slot.previous
                     .as_ref()
                     .filter(|selection| selection.stored.identity() == *identity)
                     .map(|_| "previous")
-            });
+            }
+        });
         Ok(role)
     }
 
@@ -514,9 +580,14 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let state = DefinitionSelectionState::read(&transaction)?;
+        let subject = DefinitionSubjectSelection::read(
+            &transaction,
+            &identity.namespace,
+            &identity.stable_id,
+        )?;
         let existing = match role {
-            "active" => state.active.as_ref(),
-            "previous" => state.previous.as_ref(),
+            "active" => subject.as_ref().map(|slot| &slot.active),
+            "previous" => subject.as_ref().and_then(|slot| slot.previous.as_ref()),
             _ => {
                 return Err(PortcoveError::verification(
                     "portable definition has an invalid selection role",
@@ -526,7 +597,7 @@ impl Library {
         if existing.is_some_and(|selection| selection.stored.identity() == *identity) {
             return transaction.commit().map_err(Into::into);
         }
-        if existing.is_some() || (role == "previous" && state.active.is_none()) {
+        if existing.is_some() || (role == "previous" && subject.is_none()) {
             return Err(PortcoveError::conflict(
                 "import destination has a different retained definition authority",
             ));
@@ -556,26 +627,35 @@ impl Library {
             )?;
         }
         let stored_json = encode_bounded(&stored, "portable definition selection")?;
+        let next = state.next_revision()?;
+        DefinitionSubjectSelection::require_namespace(
+            &transaction,
+            &identity.namespace,
+            &identity.stable_id,
+        )?;
+        let incoming = DefinitionReplayFloor::from(&identity.provenance);
+        let retained_floor = match &state.replay_floor {
+            Some(floor) if role == "previous" => floor,
+            Some(floor) => floor.newest_compatible(&incoming)?,
+            None => &incoming,
+        };
         if role == "active" {
             transaction.execute(
-                "UPDATE definition_selection_state
-                 SET revision=revision+1,replay_floor_json=?1,active_json=?2
-                 WHERE singleton=1",
-                params![
-                    encode_bounded(
-                        &DefinitionReplayFloor::from(&identity.provenance),
-                        "portable replay floor"
-                    )?,
-                    stored_json,
-                ],
+                "INSERT INTO definition_subject_selection
+                 (namespace,stable_id,selected_revision,active_json) VALUES(?1,?2,?3,?4)",
+                params![identity.namespace, identity.stable_id, next, stored_json],
             )?;
         } else {
             transaction.execute(
-                "UPDATE definition_selection_state
-                 SET revision=revision+1,previous_json=?1 WHERE singleton=1",
-                [stored_json],
+                "UPDATE definition_subject_selection SET previous_json=?3
+                 WHERE namespace=?1 AND stable_id=?2",
+                params![identity.namespace, identity.stable_id, stored_json],
             )?;
         }
+        transaction.execute(
+            "UPDATE definition_selection_state SET revision=?1,replay_floor_json=?2 WHERE singleton=1",
+            params![next, encode_bounded(retained_floor, "portable replay floor")?],
+        )?;
         transaction.commit()?;
         Ok(())
     }
@@ -662,6 +742,7 @@ impl Library {
             floor.evaluate(&candidate.provenance)?;
         }
         let selected = candidate.publisher.stable_id();
+        DefinitionSubjectSelection::require_namespace(&transaction, &stored.namespace, selected)?;
         let has_explicit_scope = candidate
             .projection
             .catalog()
@@ -679,7 +760,20 @@ impl Library {
         if validate_transition {
             let (baseline, _) =
                 crate::catalog_store::CatalogState::read(&transaction)?.resolve(Self::now())?;
-            candidate.projection.catalog_for_selection(&baseline)?;
+            let projection = candidate.projection.catalog_for_selection(&baseline)?;
+            let unaffected = load_definition_selections_except(
+                &transaction,
+                &baseline,
+                Self::now(),
+                Some(selected),
+            )?;
+            if let Some((effective, _)) = unaffected.catalog {
+                crate::definition_loader::compose_verified_definition(
+                    &effective,
+                    &projection,
+                    selected,
+                )?;
+            }
         }
         if has_explicit_scope {
             transaction.execute(
@@ -688,25 +782,33 @@ impl Library {
                 [selected],
             )?;
         }
-        if state.active_json.as_deref() == Some(active_json.as_str())
+        let subject =
+            DefinitionSubjectSelection::read(&transaction, &stored.namespace, &stored.stable_id)?;
+        if subject
+            .as_ref()
+            .is_some_and(|slot| slot.active_json == active_json)
             && state.replay_floor.as_ref() == Some(&proposed_floor)
         {
             transaction.commit()?;
-            return Ok(state.status());
+            return Ok(state.status(subject.as_ref()));
         }
-        let next_revision = state
-            .revision
-            .checked_add(1)
-            .ok_or_else(|| PortcoveError::state("definition selection revision is exhausted"))?;
-        let next_revision = i64::try_from(next_revision)
-            .map_err(|_| PortcoveError::state("definition selection revision exceeds SQLite"))?;
+        let next = state.next_revision()?;
         transaction.execute(
-            "UPDATE definition_selection_state
-             SET revision=?1,replay_floor_json=?2,previous_json=active_json,active_json=?3
-             WHERE singleton=1",
-            params![next_revision, floor_json, active_json],
+            "INSERT INTO definition_subject_selection(namespace,stable_id,selected_revision,active_json)
+             VALUES(?1,?2,?3,?4)
+             ON CONFLICT(namespace,stable_id) DO UPDATE SET
+               selected_revision=excluded.selected_revision, previous_json=active_json,
+               active_json=excluded.active_json",
+            params![stored.namespace, stored.stable_id, next, active_json],
         )?;
-        let result = DefinitionSelectionState::read(&transaction)?.status();
+        transaction.execute(
+            "UPDATE definition_selection_state SET revision=?1,replay_floor_json=?2 WHERE singleton=1",
+            params![next, floor_json],
+        )?;
+        let result = DefinitionSelectionState::read(&transaction)?.status(
+            DefinitionSubjectSelection::read(&transaction, &stored.namespace, &stored.stable_id)?
+                .as_ref(),
+        );
         transaction.commit()?;
         Ok(result)
     }
@@ -714,7 +816,22 @@ impl Library {
     pub fn definition_selection_status(&self) -> Result<DefinitionSelectionStatus> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let result = DefinitionSelectionState::read(&transaction)?.status();
+        let result = DefinitionSelectionState::read(&transaction)?
+            .status(DefinitionSubjectSelection::most_recent(&transaction)?.as_ref());
+        transaction.commit()?;
+        Ok(result)
+    }
+
+    pub(crate) fn definition_selection_status_for(
+        &self,
+        namespace: &str,
+        stable_id: &str,
+    ) -> Result<DefinitionSelectionStatus> {
+        let connection = self.connection()?;
+        let transaction = connection.unchecked_transaction()?;
+        let state = DefinitionSelectionState::read(&transaction)?;
+        let subject = DefinitionSubjectSelection::read(&transaction, namespace, stable_id)?;
+        let result = state.status(subject.as_ref());
         transaction.commit()?;
         Ok(result)
     }
@@ -833,15 +950,22 @@ pub(crate) fn trust_catalog_selection_for_test(
             ],
         )
         .unwrap();
+    let revision = DefinitionSelectionState::read(&connection)
+        .unwrap()
+        .next_revision()
+        .unwrap();
     connection
         .execute(
-            "UPDATE definition_selection_state
-             SET revision=revision+1,replay_floor_json=?1,active_json=?2,previous_json=NULL
-             WHERE singleton=1",
-            params![
-                serde_json::to_string(&DefinitionReplayFloor::from(&identity.provenance)).unwrap(),
-                serde_json::to_string(&stored).unwrap(),
-            ],
+            "INSERT INTO definition_subject_selection(namespace,stable_id,selected_revision,active_json)
+             VALUES(?1,?2,?3,?4) ON CONFLICT(namespace,stable_id) DO UPDATE SET
+               selected_revision=excluded.selected_revision,active_json=excluded.active_json,previous_json=NULL",
+            params![identity.namespace, identity.stable_id, revision, serde_json::to_string(&stored).unwrap()],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE definition_selection_state SET revision=?1,replay_floor_json=?2 WHERE singleton=1",
+            params![revision, serde_json::to_string(&DefinitionReplayFloor::from(&identity.provenance)).unwrap()],
         )
         .unwrap();
 }
@@ -880,16 +1004,108 @@ fn portable_restore_keeps_an_older_selection_for_the_same_publisher() {
     );
 }
 
+pub(crate) struct DefinitionSelectionLoad {
+    pub catalog: Option<(Catalog, i64)>,
+    pub failures: Vec<(Option<String>, PortcoveError)>,
+}
+
+pub(crate) fn load_definition_selections(
+    connection: &Connection,
+    baseline: &Catalog,
+    now_unix: i64,
+) -> Result<DefinitionSelectionLoad> {
+    load_definition_selections_except(connection, baseline, now_unix, None)
+}
+
+fn load_definition_selections_except(
+    connection: &Connection,
+    baseline: &Catalog,
+    now_unix: i64,
+    excluded_subject: Option<&str>,
+) -> Result<DefinitionSelectionLoad> {
+    let state = DefinitionSelectionState::read(connection)?;
+    let mut loaded: Option<(Catalog, i64)> = None;
+    let mut failures = Vec::new();
+    let undecodable_migration: bool = connection.query_row(
+        "SELECT active_json IS NOT NULL OR previous_json IS NOT NULL
+         FROM definition_selection_state WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    if undecodable_migration {
+        failures.push((
+            None,
+            PortcoveError::state("legacy selection could not be decoded during migration"),
+        ));
+    }
+    let mut statement = connection.prepare(
+        "SELECT namespace,stable_id FROM definition_subject_selection ORDER BY namespace,stable_id",
+    )?;
+    let subjects = statement.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    for subject in subjects {
+        let (namespace, stable_id) = subject?;
+        if excluded_subject == Some(stable_id.as_str()) {
+            continue;
+        }
+        let project = || -> Result<(Catalog, i64)> {
+            let slot = DefinitionSubjectSelection::read(connection, &namespace, &stable_id)?
+                .ok_or_else(|| PortcoveError::state("definition subject selection disappeared"))?;
+            let (selected, expiration) =
+                project_active_definition(connection, baseline, now_unix, &state, &slot.active)?;
+            match &loaded {
+                Some((effective, earliest)) => Ok((
+                    crate::definition_loader::compose_verified_definition(
+                        effective, &selected, &stable_id,
+                    )?,
+                    expiration.min(*earliest),
+                )),
+                None => Ok((selected, expiration)),
+            }
+        };
+        match project() {
+            Ok(selection) => loaded = Some(selection),
+            Err(error) => failures.push((Some(stable_id), error)),
+        }
+    }
+    Ok(DefinitionSelectionLoad {
+        catalog: loaded,
+        failures,
+    })
+}
+
+#[cfg(test)]
 pub(crate) fn load_selected_definition_catalog(
     connection: &Connection,
     baseline: &Catalog,
     now_unix: i64,
 ) -> Result<Option<(Catalog, i64)>> {
-    let state = DefinitionSelectionState::read(connection)?;
-    let Some(validated) = state.active.as_ref() else {
-        return Ok(None);
-    };
+    let loaded = load_definition_selections(connection, baseline, now_unix)?;
+    match (loaded.catalog, loaded.failures.into_iter().next()) {
+        (None, Some((_, error))) => Err(error),
+        (catalog, _) => Ok(catalog),
+    }
+}
+
+fn project_active_definition(
+    connection: &Connection,
+    baseline: &Catalog,
+    now_unix: i64,
+    state: &DefinitionSelectionState,
+    validated: &ValidatedDefinitionSelection,
+) -> Result<(Catalog, i64)> {
     let selection = &validated.stored;
+    let incoming = DefinitionReplayFloor::from(&selection.provenance);
+    if !state
+        .replay_floor
+        .as_ref()
+        .is_some_and(|floor| floor.covers(&incoming))
+    {
+        return Err(PortcoveError::state(
+            "active definition selection exceeds its replay floor",
+        ));
+    }
     let policy =
         PublisherPolicyRecord::read(connection, &selection.namespace, &selection.stable_id)?
             .ok_or_else(|| {
@@ -928,7 +1144,7 @@ pub(crate) fn load_selected_definition_catalog(
     }
     let mut catalog = projection.catalog_for_selection(baseline)?;
     catalog.retain_definition_selection(std::sync::Arc::new(selection.identity()))?;
-    Ok(Some((catalog, expiration)))
+    Ok((catalog, expiration))
 }
 
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
@@ -952,6 +1168,94 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
          );
          INSERT INTO definition_selection_state VALUES(1,0,NULL,NULL,NULL);"
     ))?;
+    Ok(())
+}
+
+pub(crate) fn migrate_subject_selection(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    let (revision, floor, active, previous): (i64, Option<String>, Option<String>, Option<String>) =
+        transaction.query_row(
+            "SELECT revision,replay_floor_json,active_json,previous_json
+             FROM definition_selection_state WHERE singleton=1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )?;
+    transaction.execute_batch(&format!(
+        "ALTER TABLE definition_selection_state RENAME TO definition_selection_legacy;
+         CREATE TABLE definition_selection_state(
+           singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+           revision INTEGER NOT NULL CHECK(revision>=0),
+           replay_floor_json TEXT CHECK(length(replay_floor_json)<={MAX_SELECTION_JSON_BYTES}),
+           active_json TEXT CHECK(length(active_json)<={MAX_SELECTION_JSON_BYTES}),
+           previous_json TEXT CHECK(length(previous_json)<={MAX_SELECTION_JSON_BYTES})
+         );
+         CREATE TABLE definition_subject_selection(
+           namespace TEXT NOT NULL,
+           stable_id TEXT NOT NULL UNIQUE,
+           selected_revision INTEGER NOT NULL UNIQUE CHECK(selected_revision>=0),
+           active_json TEXT NOT NULL CHECK(length(active_json)<={MAX_SELECTION_JSON_BYTES}),
+           previous_json TEXT CHECK(length(previous_json)<={MAX_SELECTION_JSON_BYTES}),
+           PRIMARY KEY(namespace,stable_id)
+         );"
+    ))?;
+    // Valid structured bytes retain exact per-subject provenance. A malformed
+    // legacy value stays visible for fallback and later diagnosis without
+    // preventing the embedded catalog or unrelated new subjects from loading.
+    let read_legacy = |json: &str| -> Option<StoredDefinitionSelection> {
+        decode_bounded(Some(json), "legacy selection")
+            .ok()
+            .flatten()
+    };
+    let active_selection = active.as_deref().and_then(read_legacy);
+    let previous_selection = previous.as_deref().and_then(read_legacy);
+    let mut previous_migrated = false;
+    if let (Some(selected), Some(bytes)) = (&active_selection, &active) {
+        let same_subject = previous_selection.as_ref().is_some_and(|prior| {
+            prior.namespace == selected.namespace && prior.stable_id == selected.stable_id
+        });
+        transaction.execute(
+            "INSERT INTO definition_subject_selection VALUES(?1,?2,?3,?4,?5)",
+            params![
+                selected.namespace,
+                selected.stable_id,
+                revision,
+                bytes,
+                previous.as_deref().filter(|_| same_subject)
+            ],
+        )?;
+        previous_migrated = same_subject;
+        // Only an independently identified different predecessor lost its
+        // active role through the old singleton. Do not infer that distinction
+        // from an unverified or inconsistent active selection.
+        if !same_subject
+            && let (Some(prior), Some(bytes)) = (&previous_selection, &previous)
+            && selected.stable_id != prior.stable_id
+            && let Ok(Some(floor)) =
+                decode_bounded::<DefinitionReplayFloor>(floor.as_deref(), "legacy replay floor")
+            && floor == DefinitionReplayFloor::from(&selected.provenance)
+            && selected.validate().is_ok()
+        {
+            transaction.execute(
+                "INSERT INTO definition_subject_selection VALUES(?1,?2,?3,?4,NULL)",
+                params![
+                    prior.namespace,
+                    prior.stable_id,
+                    revision.saturating_sub(1),
+                    bytes
+                ],
+            )?;
+            previous_migrated = true;
+        }
+    }
+    transaction.execute(
+        "INSERT INTO definition_selection_state VALUES(1,?1,?2,?3,?4)",
+        params![
+            revision,
+            floor,
+            active.filter(|_| active_selection.is_none()),
+            previous.filter(|_| !previous_migrated)
+        ],
+    )?;
+    transaction.execute("DROP TABLE definition_selection_legacy", [])?;
     Ok(())
 }
 

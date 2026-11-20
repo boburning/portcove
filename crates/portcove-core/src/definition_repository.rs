@@ -226,6 +226,24 @@ impl DefinitionReplayFloor {
         &self,
         candidate: &AuthenticatedDefinitionProvenance,
     ) -> Result<DefinitionReplayDisposition> {
+        self.evaluate_floor(&Self::from(candidate))
+    }
+
+    // A portability import carries previously admitted authority. It can retain
+    // an older subject without rewinding the repository's incoming replay fence.
+    pub(crate) fn newest_compatible<'a>(&'a self, other: &'a Self) -> Result<&'a Self> {
+        if self.evaluate_floor(other).is_ok() {
+            return Ok(other);
+        }
+        other.evaluate_floor(self)?;
+        Ok(self)
+    }
+
+    pub(crate) fn covers(&self, accepted: &Self) -> bool {
+        accepted.evaluate_floor(self).is_ok()
+    }
+
+    fn evaluate_floor(&self, candidate: &Self) -> Result<DefinitionReplayDisposition> {
         self.validate()?;
         let roles = [
             (

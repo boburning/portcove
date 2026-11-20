@@ -155,6 +155,7 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
         progress.policy_changed =
             library.apply_definition_publisher_policy(&policy, candidate.as_ref())?;
         let mut eligibility = None;
+        let mut selected = None;
         let disposition = if revoked {
             DefinitionRefreshDisposition::Revoked
         } else {
@@ -174,7 +175,7 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
             eligibility = Some(availability.eligibility());
             if let Some(eligible) = availability.into_eligible() {
                 progress.phase = "selection";
-                library.select_definition_catalog(eligible)?;
+                selected = Some(library.select_definition_catalog(eligible)?);
                 DefinitionRefreshDisposition::Selected
             } else {
                 DefinitionRefreshDisposition::Ineligible
@@ -188,7 +189,10 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
             policy_changed: progress.policy_changed,
             launch_assessment_changed: progress.launch_assessment_changed,
             eligibility,
-            selection: library.definition_selection_status()?,
+            selection: match selected {
+                Some(status) => status,
+                None => library.definition_selection_status_for("official", stable_id)?,
+            },
         })
     })
     .await
