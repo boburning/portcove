@@ -35,6 +35,12 @@
       "image_sha256": "305a335bcea66d0de8b94041f07f466c33c7980a7c5449bcc273167d9234eee0",
       "game_slug": "wwe-crush-hour",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-crush-hour",
+      "evidence_urls": ["https://github.com/KaikoClanworth1/wwe-crush-hour-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -46,6 +46,15 @@
       "warnings": [
         "Use the prepared B2recomp.exe and keep it open through the game session. Preserve the full builder/output tree, actual play userdata and owned dump; no encrypted-input or console-key route is offered."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bayonetta-2",
+      "evidence_urls": [
+        "https://github.com/K0NL/B2recomp",
+        "https://github.com/K0NL/B2recomp/blob/26c45d71ee43ce116f82f329be5bb863cfec211e/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

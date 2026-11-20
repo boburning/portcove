@@ -47,6 +47,16 @@
         "Selected tag source and current source differ, including audio code; the README-named custom SDK fork returned HTTP404 and its exact selected binary SDK provenance is not established. Source review records the native entry and path-store boundary, not source-to-binary certification or a reproducible managed kit.",
         "No Core-managed acquisition/preparation/Install/Update/Backup/Rollback/migration/external deletion, new SDK/.NET/compiler provisioning, exact original authentication or generic Xbox framework. No game/package/original execution, gameplay/save compatibility/installed/protected acceptance or Supported promotion is established here."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "destroy-all-humans-path-of-the-furon",
+      "evidence_urls": [
+        "https://github.com/masterspike52/reDAHM/blob/da958b288c6f8f42812b9f36b08c29ffdd7e48fd/README.md",
+        "https://github.com/masterspike52/reDAHM"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Destroy All Humans! Path of the Furon"
   }
 }

@@ -47,6 +47,15 @@
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "heart-of-darkness",
+      "evidence_urls": [
+        "https://github.com/usineur/hode",
+        "https://github.com/usineur/hode/tree/912594e84cee8bcb4075e19520fed7c61dc9a078"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -35,6 +35,12 @@
       "image_sha256": "a0abe8502585f105984c722532697fe59626775b93dc895bd797ef76fc079cde",
       "game_slug": "ea-sports-ufc-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ea-sports-ufc-3",
+      "evidence_urls": ["https://github.com/GNSB/UFC-3-PS4-PORT-LINUX-WINDOWS"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

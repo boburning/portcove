@@ -41,6 +41,14 @@
       "windows-x86-64": ["konami-viper-", "-windows-x86_64.zip"],
       "linux-x86-64": ["konami-viper-", "-linux-x86_64.tar.gz"],
       "macos-aarch64": ["konami-viper-", "-macos-arm64.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "thrill-drive-2",
+      "evidence_urls": [
+        "https://github.com/spita90/konami-viper-recomp/blob/v0.16.2/README.md#download-and-play"
+      ],
+      "source_editions": []
     }
   }
 }

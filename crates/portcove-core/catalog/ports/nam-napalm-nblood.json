@@ -3,7 +3,7 @@
   "listing": {
     "id": "nam-napalm-nblood",
     "name": "NAM (NAPALM) (Rednukem)",
-    "original_game_title": "NAM (NAPALM)",
+    "original_game_title": "NAM",
     "summary": "Play NAM (NAPALM) through Rednukem using your own matching game files.",
     "project_url": "https://github.com/NBlood/NBlood",
     "release_url": "https://github.com/NBlood/NBlood/releases/tag/r14388",
@@ -38,6 +38,15 @@
           "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nam",
+      "evidence_urls": [
+        "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

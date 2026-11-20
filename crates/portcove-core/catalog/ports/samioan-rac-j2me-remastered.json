@@ -17,6 +17,16 @@
       "image_sha256": "8a55d6f4e9926fdcf3c153282c3b7fbbca940db69a9470044baae4a563f28f8d",
       "game_slug": "ratchet-and-clank-clone-home",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank-clone-home",
+      "evidence_urls": [
+        "https://github.com/samioan/rac-j2me-remastered/blob/9d3ab6aa50f9d58ff647cd01e9581260448c222e/README.md",
+        "https://github.com/samioan/rac-j2me-remastered"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Ratchet & Clank: Clone Home"
   }
 }

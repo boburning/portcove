@@ -35,6 +35,16 @@
       "warnings": [
         "Check the setup guide's storage and folder requirements. The Windows package is an installer that builds the game locally."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": [
+        "https://github.com/sweeax-exe/ffny-online/blob/v0.13.0-remaster.95/docs/setup-installer.md",
+        "https://github.com/vyanhursky/DefJamFFNY-recomp",
+        "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp"
+      ],
+      "source_editions": []
     }
   }
 }

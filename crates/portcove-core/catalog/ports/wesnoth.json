@@ -44,6 +44,12 @@
         }
       ],
       "help_url": "https://wiki.wesnoth.org/Download"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-battle-for-wesnoth",
+      "evidence_urls": ["https://wiki.wesnoth.org/Download", "https://github.com/wesnoth/wesnoth"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

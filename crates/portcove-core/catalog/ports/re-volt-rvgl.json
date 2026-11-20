@@ -57,6 +57,15 @@
           "instruction": "Linux launcher setup uses its documented Python dependencies and game launch wrapper; macOS uses its supported application and user data folder. Follow those upstream routes separately. Registering a Windows executable does not establish a supported Linux script or macOS bundle invocation."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "re-volt",
+      "evidence_urls": [
+        "https://re-volt.gitlab.io/rvgl-launcher/installing.html",
+        "https://rvgl.org/"
+      ],
+      "source_editions": []
     }
   }
 }

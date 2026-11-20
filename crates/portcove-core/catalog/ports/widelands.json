@@ -50,6 +50,15 @@
         }
       ],
       "help_url": "https://www.widelands.org/wiki/Technical%20FAQ/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "widelands",
+      "evidence_urls": [
+        "https://www.widelands.org/wiki/Technical%20FAQ/",
+        "https://github.com/widelands/widelands"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

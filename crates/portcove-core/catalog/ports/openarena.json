@@ -50,6 +50,15 @@
         }
       ],
       "help_url": "https://github.com/PlayFDroid/openarena-android/releases"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "openarena",
+      "evidence_urls": [
+        "https://github.com/PlayFDroid/openarena-android/releases",
+        "https://sourceforge.net/projects/oarena/"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

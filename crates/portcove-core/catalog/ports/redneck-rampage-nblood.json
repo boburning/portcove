@@ -38,6 +38,15 @@
           "instruction": "With -usecwd, keep the game folder, settings and saved data together. Back up this folder before replacing a working copy with a newer upstream release. You manage replacement and backups for this upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "redneck-rampage",
+      "evidence_urls": [
+        "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#rednukem",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

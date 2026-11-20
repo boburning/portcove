@@ -53,6 +53,12 @@
           "instruction": "This MegaMod release offers Windows and Linux packages. The tag includes Mac source build material, with no publisher Intel or Apple Silicon Mac binary and no Android APK in this release."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-control-ii",
+      "evidence_urls": ["https://github.com/JHGuitarFreak/UQM-MegaMod"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

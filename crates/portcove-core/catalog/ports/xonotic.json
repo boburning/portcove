@@ -52,6 +52,12 @@
         }
       ],
       "help_url": "https://xonotic.org/faq/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "xonotic",
+      "evidence_urls": ["https://xonotic.org/faq/", "https://gitlab.com/xonotic/xonotic"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

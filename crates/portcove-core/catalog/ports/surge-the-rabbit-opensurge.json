@@ -49,6 +49,12 @@
         }
       ],
       "help_url": "https://wiki.opensurge2d.org/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "surge-the-rabbit",
+      "evidence_urls": ["https://wiki.opensurge2d.org/", "https://github.com/alemart/opensurge"],
+      "source_editions": []
     }
   },
   "integration": {

@@ -53,6 +53,15 @@
       "image_sha256": "216e38aac33db9621d62e2c78ff04fd92edfec104a8922006028c30fdd9012d8",
       "game_slug": "rage-racer",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rage-racer",
+      "evidence_urls": [
+        "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",
+        "https://github.com/khasinski/rage-racer-pc"
+      ],
+      "source_editions": []
     }
   }
 }
