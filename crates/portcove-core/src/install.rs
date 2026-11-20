@@ -1546,6 +1546,15 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
+            // OpenMoHAA ships the reviewed Unix programs without execute bits.
+            // Verify and grant only this title's launcher and engine before
+            // comparing shape. Both existing layout checks still see the
+            // prepared programs, and no adapter data has been added yet.
+            crate::native_external_profile::openmohaa::prepare_package(
+                port,
+                platform,
+                &payload_root,
+            )?;
             // Compare the upstream package before an adapter adds content.
             let shape = self.package_shape_record(
                 port,
@@ -1604,11 +1613,6 @@ impl Installer {
                 )?;
             }
             if openmohaa_unix {
-                crate::native_external_profile::openmohaa::prepare_package(
-                    port,
-                    platform,
-                    &payload_root,
-                )?;
                 crate::package_layout::require_reviewed_layout(
                     port,
                     platform,
