@@ -620,6 +620,8 @@ export function buildSourceProvenanceAudit({
     throw new Error("baseCommit and generatorCommit must be full Git commit IDs");
   }
   const catalog = auditCatalog(JSON.parse(catalogText));
+  const issueFreeIds =
+    listingDirectory === undefined ? undefined : issueFreeCatalogIds(catalog, listingDirectory);
   const source = catalog.source_catalog ?? {
     evidence: [],
     identities: [],
@@ -692,6 +694,7 @@ export function buildSourceProvenanceAudit({
         title: port.name ?? port.title ?? port.id,
         issue: issueNumber(issue),
         issueUrl: issue?.url ?? null,
+        issueFree: issueFreeIds?.has(port.id) === true,
         contracts: contracts.map((contract) => contract.id).sort(),
         deterministicIdentity:
           contractStates.length > 0 && contractStates.every((state) => state.complete),
@@ -725,7 +728,7 @@ export function buildSourceProvenanceAudit({
       repositoryProjectIssues,
       repository,
       allIssues,
-      listingDirectory === undefined ? undefined : issueFreeCatalogIds(catalog, listingDirectory),
+      issueFreeIds,
     ),
     ...validatePortStageSemantics(catalog, repositoryProjectIssues).errors,
     ...missingEvidence.map((id) => `Missing source evidence reference: ${diagnosticText(id)}`),
@@ -796,8 +799,9 @@ function tableCell(value: unknown) {
     .trim();
 }
 
-function issueLink(entry: { issueUrl: string | null; issue: number | null }) {
-  return entry.issueUrl ? `[#${entry.issue}](${entry.issueUrl})` : "Missing";
+function issueLink(entry: { issueUrl: string | null; issue: number | null; issueFree: boolean }) {
+  if (entry.issueUrl) return `[#${entry.issue}](${entry.issueUrl})`;
+  return entry.issueFree ? "Issue-free" : "Missing";
 }
 
 export function renderSourceProvenanceAudit(audit: ReturnType<typeof buildSourceProvenanceAudit>) {
