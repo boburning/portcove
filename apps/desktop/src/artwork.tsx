@@ -319,7 +319,7 @@ export function useGameHeroArtwork(
   context: HeroMediaContext = {},
 ) {
   const candidates = heroMediaCandidates(port, context);
-  const { display: logo } = useArtwork(port.id, "logo", visible);
+  const { cache: logoCache, display: logo } = useArtwork(port.id, "logo", visible);
   const hasLogoChoice = Boolean(logo.state?.choice.asset_sha256);
   const rejectLogo = useCallback(() => logo.onImageError?.(), [logo.onImageError]);
   const catalogForeground = useCatalogMediaChain(
@@ -334,6 +334,7 @@ export function useGameHeroArtwork(
         initialRole: "logo" as const,
         candidate: undefined,
         localLogo: true,
+        logoGeneration: logoCache?.generation,
         reject: rejectLogo,
       }
     : {

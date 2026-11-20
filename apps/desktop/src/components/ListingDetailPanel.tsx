@@ -446,7 +446,7 @@ export function ListingDetailPanel({
                 <ManagementRow
                   title="Artwork"
                   targetId="detail-artwork"
-                  description="Choose a cover or background image for this game."
+                  description="Choose a cover, background, wide cover, or logo for this game."
                 >
                   <ArtworkControls key={entry.id + ":" + generation} port={entry} />
                 </ManagementRow>

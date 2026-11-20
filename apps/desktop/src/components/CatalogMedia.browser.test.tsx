@@ -465,6 +465,7 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
 
 it("returns to the admitted catalog logo after resetting the explicit Logo choice", async () => {
   const { port, logo, logoBytes } = controlledHeroMedia();
+  const chosenLogoBytes = controlledHeroMedia(true).logoBytes;
   let chosen = artworkState(port.id, "logo", 5, true);
   vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
     slot === "logo" ? chosen : artworkState(id, slot),
@@ -472,7 +473,7 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
   vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async () => ({
     asset_sha256: chosen.choice.asset_sha256!,
     choice_revision: 5,
-    png_base64: png,
+    png_base64: chosenLogoBytes,
   }));
   const catalog = vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async () => ({
     asset_sha256: logo.sha256,
@@ -493,7 +494,7 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
     </ArtworkProvider>,
   );
   const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
-  await expect.poll(foreground).toBe(`data:image/png;base64,${png}`);
+  await expect.poll(foreground).toBe(`data:image/png;base64,${chosenLogoBytes}`);
   expect(catalog).not.toHaveBeenCalled();
   await page.getByText("Change artwork", { exact: true }).click();
   await page.getByRole("tab", { name: "Logo", exact: true }).click();

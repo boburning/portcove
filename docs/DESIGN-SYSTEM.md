@@ -643,8 +643,9 @@ ratios instead of silently cropping important content; the letterboxed space sho
 a softened, blurred copy of the same artwork behind the whole image, removed for
 reduced transparency and forced colors. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
-generated fallback states. Logos, icons, animation and a crop editor are not
-required for this slice.
+generated fallback states. Change artwork offers a separate Logo choice for
+Overview and Continue. When a logo cannot be read at its rendered size, the hero
+uses the Cover or title and preserves the saved choice for review.
 
 Library and Catalog use responsive portrait grids. Each artwork frame is 2:3;
 metadata adds height below the frame and never participates in its aspect ratio.

@@ -49,15 +49,23 @@ export function GameHero({
   const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
   const collection = useCollectionCovers(port.id, cover, artworkVisible);
   const collectionElement = useRef<HTMLDivElement>(null);
-  const showCollection = collection.length > 0 && !foreground.display.image;
+  const [rejectedLogo, setRejectedLogo] = useState<string>();
+  const localChoice = foreground.localLogo ? foreground.display.state?.choice : undefined;
+  const localLogoIdentity = localChoice
+    ? `${foreground.localLogo ? foreground.logoGeneration : undefined}:${port.id}:${localChoice.revision}:${localChoice.asset_sha256}`
+    : undefined;
+  const foregroundImage =
+    localLogoIdentity && localLogoIdentity === rejectedLogo ? undefined : foreground.display.image;
+  const showCollection = collection.length > 0 && !foregroundImage;
   const [surface, setSurface] = useState<HeroLogoSurface & { image: string }>();
   const imageElement = useRef<HTMLImageElement>(null);
-  const media = foreground.display.image ? foreground.display : cover;
-  const image = media.image;
-  const kind = foreground.display.image ? foreground.role : image ? "cover" : "text";
+  const image = foregroundImage ?? cover.image;
+  const kind = foregroundImage ? foreground.role : image ? "cover" : "text";
   const identity = `${port.id}:${kind}:${image ?? "text"}`;
-  const layout = foreground.initialRole ?? "cover";
-  const foregroundImage = foreground.display.image;
+  const layout =
+    localLogoIdentity === rejectedLogo && rejectedLogo
+      ? "cover"
+      : (foreground.initialRole ?? "cover");
   const rejectForeground = foreground.reject;
   const rejectCover = cover.onImageError;
   const inspect = useCallback(
@@ -74,9 +82,9 @@ export function GameHero({
       if (kind !== "logo") return;
       const next = inspectHeroLogo(element);
       if (!next) {
-        // Catalog logos must pass the layout check. A readable player choice
-        // still displays when the optional appearance analysis cannot classify it.
-        if (!foreground.localLogo) rejectForeground();
+        // An unsuitable player logo stays selected and remains available in Manage.
+        if (localLogoIdentity) setRejectedLogo(localLogoIdentity);
+        else rejectForeground();
         return;
       }
       setSurface((previous) =>
@@ -88,7 +96,7 @@ export function GameHero({
           : { ...next, image: identity },
       );
     },
-    [kind, identity, foregroundImage, foreground.localLogo, rejectForeground, rejectCover],
+    [kind, identity, foregroundImage, localLogoIdentity, rejectForeground, rejectCover],
   );
   useEffect(() => {
     const image = imageElement.current;
@@ -161,8 +169,8 @@ export function GameHero({
                   className="game-hero-image"
                   src={image}
                   alt=""
-                  width={foreground.display.image ? foreground.candidate?.width : undefined}
-                  height={foreground.display.image ? foreground.candidate?.height : undefined}
+                  width={foregroundImage ? foreground.candidate?.width : undefined}
+                  height={foregroundImage ? foreground.candidate?.height : undefined}
                   decoding="async"
                   style={
                     surface?.image === identity && surface.plate
@@ -174,7 +182,7 @@ export function GameHero({
                   onLoad={(event) => inspect(event.currentTarget)}
                   onError={(event) => {
                     event.currentTarget.style.visibility = "hidden";
-                    if (foreground.display.image) {
+                    if (foregroundImage) {
                       if (!foreground.localLogo) foreground.display.onImageError?.();
                       foreground.reject();
                     } else cover.onImageError?.();
@@ -190,6 +198,7 @@ export function GameHero({
         <HeroCredits
           port={port}
           artwork={{ foreground, cover, background }}
+          foregroundVisible={Boolean(foregroundImage)}
           coverVisible={kind === "cover" && Boolean(image)}
           collectionActive={showCollection}
           collectionLoaded={collection.some((member) => member.image)}
@@ -202,12 +211,14 @@ export function GameHero({
 function HeroCredits({
   port,
   artwork,
+  foregroundVisible,
   coverVisible,
   collectionActive,
   collectionLoaded,
 }: {
   port: HeroMediaPort;
   artwork: Pick<ReturnType<typeof useGameHeroArtwork>, "foreground" | "cover" | "background">;
+  foregroundVisible: boolean;
   coverVisible: boolean;
   collectionActive: boolean;
   collectionLoaded: boolean;
@@ -229,9 +240,9 @@ function HeroCredits({
   const collectionVisible =
     collectionActive &&
     Boolean(collection?.length && cover.state && !cover.state.choice.asset_sha256 && !cover.stale);
-  const foregroundMedia = foreground.display.image ? foreground.candidate : undefined;
+  const foregroundMedia = foregroundVisible ? foreground.candidate : undefined;
   const logoState =
-    foreground.localLogo && foreground.display.image ? foreground.display.state : undefined;
+    foreground.localLogo && foregroundVisible ? foreground.display.state : undefined;
   const coverState = coverVisible ? cover.state : undefined;
   const backgroundState =
     background.display.image && !background.catalogMedia && background.display.image !== cover.image

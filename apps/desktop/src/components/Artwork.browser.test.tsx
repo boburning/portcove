@@ -5,7 +5,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { StrictMode } from "react";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { ArtworkProvider } from "../artwork";
 import { catalogEntries } from "../features/browsing/catalog-entry";
@@ -1376,9 +1376,41 @@ describe("SteamGridDB picker", () => {
   );
 });
 
+it("moves focus to the Logo tab without starting its read until activation", async () => {
+  await render();
+  await open();
+  const cover = page.getByRole("tab", { name: "Cover image", exact: true });
+  const logo = page.getByRole("tab", { name: "Logo", exact: true });
+  await cover.click();
+  const panelId = logo.element().getAttribute("aria-controls");
+  expect(panelId && document.getElementById(panelId)?.getAttribute("role")).toBe("tabpanel");
+  await userEvent.keyboard("{End}");
+  await expect.element(logo).toHaveFocus();
+  await expect.element(cover).toHaveAttribute("aria-selected", "true");
+  expect(desktopApi.artwork).not.toHaveBeenCalledWith("sample", "logo", 7);
+  await userEvent.keyboard("{Enter}");
+  await expect.element(logo).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(() => vi.mocked(desktopApi.artwork).mock.calls)
+    .toContainEqual(["sample", "logo", 7]);
+});
+
 it("shows and resets a local Logo in Continue without changing the cover", async () => {
   const port = portDefinition();
   const cover = artworkState(port.id, "cover", 4, true);
+  const canvas = document.createElement("canvas");
+  canvas.width = 400;
+  canvas.height = 100;
+  const logoContext = canvas.getContext("2d")!;
+  logoContext.fillStyle = "white";
+  logoContext.font = "bold 64px sans-serif";
+  logoContext.fillText("TEST LOGO", 8, 75);
+  const logoBytes = canvas.toDataURL("image/png").split(",")[1]!;
+  vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: slot === "logo" ? logoBytes : thumbnailPng,
+  }));
   let logo = artworkState(port.id, "logo");
   vi.mocked(desktopApi.artwork).mockImplementation(async (id, slot) => {
     if (slot === "logo") return logo;
@@ -1428,6 +1460,34 @@ it("shows and resets a local Logo in Continue without changing the cover", async
   await expect
     .element(page.getByRole("img", { name: "Selected logo preview" }))
     .not.toBeInTheDocument();
+});
+
+it("keeps a transparent Logo choice in Manage while Continue uses the cover", async () => {
+  const port = portDefinition();
+  const blank = document.createElement("canvas").toDataURL("image/png").split(",")[1]!;
+  vi.mocked(desktopApi.artwork).mockImplementation(async (id, slot) =>
+    artworkState(id, slot, 3, slot === "cover" || slot === "logo"),
+  );
+  vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, slot, revision) => ({
+    asset_sha256: "a".repeat(64),
+    choice_revision: revision,
+    png_base64: slot === "logo" ? blank : thumbnailPng,
+  }));
+  await root.rerender(
+    <ArtworkProvider generation={7}>
+      <GameHero port={port} variant="continue">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} />
+    </ArtworkProvider>,
+  );
+  await open();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await expect.element(page.getByRole("img", { name: "Selected logo preview" })).toBeVisible();
+  await expect
+    .poll(() => container.querySelector(".game-hero")?.getAttribute("data-hero-identity"))
+    .toBe("cover");
+  await expect.element(page.elementLocator(button("logo", "Reset to default"))).toBeEnabled();
 });
 
 it("uses the Logo provider role and restores focus to the saved logo control", async () => {

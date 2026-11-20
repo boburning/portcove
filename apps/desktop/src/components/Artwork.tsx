@@ -244,7 +244,7 @@ export function ArtworkControls({
               </Tabs.Tab>
             ))}
           </Tabs.List>
-          {visited.map((slot) => (
+          {artworkSlots.map((slot) => (
             <Tabs.Panel
               key={slot}
               value={slot}
@@ -253,7 +253,7 @@ export function ArtworkControls({
               hidden={selected !== slot}
               inert={selected !== slot}
             >
-              <ArtworkSlotControl port={port} slot={slot} />
+              {visited.includes(slot) && <ArtworkSlotControl port={port} slot={slot} />}
             </Tabs.Panel>
           ))}
           <DetailArtwork port={port} />
