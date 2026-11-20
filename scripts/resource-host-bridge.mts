@@ -12,7 +12,7 @@ import type {
 import type { HeavyProcessRecord } from "./heavy-rust-test-lock.mts";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { lstatSync, readFileSync, writeFileSync, mkdtempSync, rmdirSync, rmSync } from "node:fs";
+import { lstatSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { lstat, readFile, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -518,11 +518,7 @@ export async function acquireBridgedCapacity(
   try {
     requirePrivateLinuxCustodyDirectory(directory);
   } catch (cause) {
-    try {
-      rmdirSync(directory);
-    } catch {
-      // Retain the directory if it is no longer empty or available.
-    }
+    // Leave the path alone when this process could not establish custody.
     throw new Error(
       "Windows host bridge custody needs a private Linux-backed temporary directory.",
       { cause },

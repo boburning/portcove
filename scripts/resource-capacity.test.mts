@@ -804,12 +804,9 @@ void test(
   { skip: process.platform !== "linux" },
   async (t) => {
     const root = await fixture(t);
-    const create = fileSystem.mkdtempSync;
-    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => {
-      const directory = create(path.join(root, "public-custody-"));
-      fileSystem.chmodSync(directory, 0o777);
-      return directory;
-    });
+    const directory = fileSystem.mkdtempSync(path.join(root, "public-custody-"));
+    fileSystem.chmodSync(directory, 0o777);
+    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => directory);
     const spawnHost = t.mock.method(childProcess, "spawn", () =>
       assert.fail("the Windows bridge must not start with public custody"),
     );
@@ -823,7 +820,7 @@ void test(
       );
       assert.equal(temporary.mock.callCount(), 1);
       assert.equal(spawnHost.mock.callCount(), 0);
-      assert.deepEqual(await readdir(root), ["config.json"]);
+      assert.deepEqual(await readdir(directory), []);
     } finally {
       t.mock.restoreAll();
       syncBuiltinESMExports();
