@@ -42,6 +42,10 @@ import {
   projectCrispyDoomWindowsPersistence,
 } from "./catalog-crispy-doom-windows-persistence.mts";
 import {
+  compactChocolateFamilyWindowsPersistence,
+  projectChocolateFamilyWindowsPersistence,
+} from "./catalog-chocolate-family-windows-persistence.mts";
+import {
   compactReflectionHlePortablePaths,
   projectReflectionHlePortablePaths,
 } from "./catalog-portable-reflectionhle.mts";
@@ -190,6 +194,38 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Chocolate persistence preserves the three reviewed Windows definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.chocolate_family_windows_persistence_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "chocolate-doom-family",
+    "chocolate-heretic",
+    "chocolate-hexen",
+  ]);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(prior.get(record.listing.id)),
+    );
+    const explicit = projectChocolateFamilyWindowsPersistence(record);
+    delete explicit.chocolate_family_windows_persistence_v1;
+    assert.deepEqual(compactChocolateFamilyWindowsPersistence(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.runtime_mutable_paths = ["stdout.txt"];
+    assert.equal(compactChocolateFamilyWindowsPersistence(alternate), alternate);
+    alternate.chocolate_family_windows_persistence_v1 = true;
+    assert.throws(
+      () => checkedAuthoredPort(alternate),
+      /already owns the persistent and mutable paths/u,
+    );
+  }
+  const differentOriginal = structuredClone(requiredFixture(family[0]));
+  differentOriginal.integration!.source_profile = "other-iwad";
+  assert.throws(() => checkedAuthoredPort(differentOriginal), /reviewed staged Windows profile/u);
 });
 
 void test("Crispy Doom persistence preserves all six exact Windows package layouts", () => {

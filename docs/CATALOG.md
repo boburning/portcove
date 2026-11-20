@@ -3604,6 +3604,13 @@ selector, executable, original edition, launch values and qualification
 explicit. Preparation compacts only integrations that expand byte for byte.
 A fork or a different writer layout uses explicit paths.
 
+Optional authoring-only `chocolate_family_windows_persistence_v1: true`
+expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
+The recipe keeps each title's configuration and screenshots with its saves
+and treats the two engine logs as runtime output. Keep each official package
+selector, executable, original IWAD profile and launch arguments explicit.
+Preparation compacts a route only when expansion reproduces its exact bytes.
+
 The authoring-only `openmohaa_portable_v1` generates the official stable
 OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
 It supplies the four platform selectors, shared Windows archive layout,

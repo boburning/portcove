@@ -42,6 +42,7 @@ import {
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import {
   compactReflectionHlePortablePaths,
   projectReflectionHlePortablePaths,
@@ -239,6 +240,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "crispy_doom_windows_persistence_v1",
       scope: "Shared reviewed Crispy Doom Windows persistent paths and filename patterns.",
       next: "Keep each package selector, executable, game arguments, originals and temporary directory explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  if (record.chocolate_family_windows_persistence_v1) {
+    projections.push({
+      field: "chocolate_family_windows_persistence_v1",
+      scope: "Reviewed Chocolate Windows persistent paths, screenshots and runtime logs.",
+      next: "Keep each original IWAD profile, package selector, executable and local game arguments explicit. A different runtime layout needs explicit paths.",
     });
   }
   return {
@@ -1069,6 +1077,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
     if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
+    const compactChocolate = compactChocolateFamilyWindowsPersistence(record);
+    if (compactChocolate !== record) record = checkedAuthoredPort(compactChocolate);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
