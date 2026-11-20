@@ -480,8 +480,12 @@ try {
         $valuePattern.Current.IsReadOnly) { throw 'Owned Discover search control is not writable' }
     $valuePattern.SetValue('Dungeon Crawl Stone Soup')
     Select-Control "Linley's Dungeon Crawl Dungeon Crawl Stone Soup. Setup available. View port"
-    Select-Control 'Review installation'
+    # The detail hero starts the normal managed review for a source-free port.
+    $reviewAction = "Install: Linley's Dungeon Crawl · Dungeon Crawl Stone Soup"
+    Select-Control $reviewAction
     $null = Wait-Control '0.34.1'
+    $null = Wait-Control 'Install · 25.3 MiB' -Invokable
+    Write-Receipt 'desktop-install-review' @{ action=$reviewAction; version='0.34.1'; download_bytes=26551751 }
     Select-Control 'Install · 25.3 MiB'
 
     $deadline = [DateTime]::UtcNow.AddSeconds(90)
