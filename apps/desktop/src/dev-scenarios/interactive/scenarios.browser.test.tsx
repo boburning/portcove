@@ -610,8 +610,8 @@ it("stacks downloaded setup and installation context without horizontal overflow
     })
     .click();
   await expect
-    .element(page.getByRole("tab", { name: "Game files", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
+    .element(page.getByRole("combobox", { name: "Game detail sections Game files", exact: true }))
+    .toBeVisible();
   const main = document.querySelector<HTMLElement>(".detail-setup-main")!;
   const context = document.querySelector<HTMLElement>(".detail-setup-context")!;
   await expect

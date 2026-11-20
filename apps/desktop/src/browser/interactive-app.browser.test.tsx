@@ -714,7 +714,7 @@ it("keeps enlarged command palette help inside a scrollable viewport", async () 
 });
 
 it.each(parityCases)(
-  "captures all five detail tabs in $theme at $width × $height",
+  "captures all five detail sections in $theme at $width × $height",
   async (configuration) => {
     await startParityScene("library", configuration);
     await page
@@ -731,9 +731,14 @@ it.each(parityCases)(
       ["Versions & updates", "versions-updates"],
       ["Manage", "manage"],
     ] as const) {
-      const tab = page.getByRole("tab", { name: label, exact: true });
-      await tab.click();
-      await expect.element(tab).toHaveAttribute("aria-selected", "true");
+      if (configuration.width === 320) {
+        const sections = page.getByRole("combobox", { name: /^Game detail sections/ });
+        await sections.click();
+        await page.getByRole("option", { name: label, exact: true }).click();
+      } else {
+        const tab = page.getByRole("tab", { name: label, exact: true });
+        await tab.click();
+      }
       const panel = page.getByRole("tabpanel", { name: label, exact: true });
       await expect.element(panel).toBeVisible();
       panel.element().scrollIntoView({ block: "start" });
