@@ -790,7 +790,7 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ),
         (
             "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
-            23,
+            crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
         ),
     ] {
         let position = document["catalog"]["ports"]

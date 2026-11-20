@@ -15,6 +15,12 @@
     },
     {
       "namespace": "official",
+      "stable_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "revision": 1,
+      "target": "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json"
+    },
+    {
+      "namespace": "official",
       "stable_id": "dungeon-crawl-stone-soup",
       "revision": 3,
       "target": "sha256/43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60.json"
@@ -30,6 +36,16 @@
       "target": "sha256/7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4.json",
       "sha256": "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
       "length": 5318
+    },
+    {
+      "target": "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json",
+      "sha256": "7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4",
+      "length": 11857
+    },
+    {
+      "target": "sha256/94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453.json",
+      "sha256": "94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453",
+      "length": 12149
     },
     {
       "target": "sha256/beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d.json",

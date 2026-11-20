@@ -63218,6 +63218,7 @@
           ]
         },
         "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
           "directories": [
             "base",
             "d3le",
@@ -63225,13 +63226,7 @@
             "lib"
           ],
           "executables": [
-            "base.so",
-            "base/gamepad-d3xp.cfg",
-            "base/gamepad.cfg",
-            "d3le.so",
-            "d3xp.so",
-            "dude",
-            "lib/libvulkan.so.1"
+            "dude"
           ]
         }
       },
