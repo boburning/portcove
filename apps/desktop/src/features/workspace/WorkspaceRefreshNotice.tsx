@@ -8,6 +8,8 @@ import { Icon } from "../../components/ui";
 import { Button } from "../../components/ui/button";
 import { useAppTranslation } from "../../localization";
 
+const noticeLayout = "grid grid-cols-[2rem_minmax(0,1fr)]";
+
 export function WorkspaceRefreshNotice({
   failure,
   recoveryFailure,
@@ -64,7 +66,7 @@ export function WorkspaceRefreshNotice({
       ? String(recoveryFailure.error.code)
       : undefined;
   const recoveryNotice = recoveryFailure && (
-    <Notice intent="danger" role="alert" aria-busy={recoveryBusy}>
+    <Notice intent="danger" className={noticeLayout} role="alert" aria-busy={recoveryBusy}>
       <span
         data-slot="notice-icon"
         className="error-icon grid h-[2rem] w-[2rem] place-items-center"
@@ -95,7 +97,7 @@ export function WorkspaceRefreshNotice({
   if (!failure && recoveryFailure) return recoveryNotice;
   if (!failure)
     return (
-      <Notice intent="neutral" role="status" aria-busy={refreshing}>
+      <Notice intent="neutral" className={noticeLayout} role="status" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"
@@ -133,7 +135,7 @@ export function WorkspaceRefreshNotice({
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
     <>
-      <Notice intent="danger" role="alert" aria-busy={refreshing}>
+      <Notice intent="danger" className={noticeLayout} role="alert" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"

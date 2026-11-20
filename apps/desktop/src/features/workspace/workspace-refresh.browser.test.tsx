@@ -64,6 +64,11 @@ it.each([
       const bodies = [...document.querySelectorAll('[data-slot="notice-body"]')];
       expect(bodies).toHaveLength(state === "stale-and-recovery" ? 2 : 1);
       for (const body of bodies) {
+        const icon = fixtureValue(body.previousElementSibling, "notice icon");
+        expect(icon.getBoundingClientRect().top).toBe(body.getBoundingClientRect().top);
+        expect(body.getBoundingClientRect().left).toBeGreaterThan(
+          icon.getBoundingClientRect().right,
+        );
         const action = fixtureValue(body.lastElementChild, "retry button");
         const guidance = fixtureValue(action.previousElementSibling, "guidance before retry");
         expect(
