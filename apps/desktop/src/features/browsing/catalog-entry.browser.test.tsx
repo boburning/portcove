@@ -184,7 +184,7 @@ it("loads only the chosen screenshot in details when the original edition is unk
   expect(document.querySelector(".game-hero-background")).toBeNull();
   const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
   const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
-  await expect.element(picker).toHaveTextContent("Choose an original release");
+  await expect.element(picker).toHaveAccessibleName("Screenshot source Choose an original release");
   expect(read).not.toHaveBeenCalled();
   await picker.click();
   await page.getByRole("option", { name: "Reviewed original edition", exact: true }).click();

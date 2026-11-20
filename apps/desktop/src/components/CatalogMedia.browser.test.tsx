@@ -165,7 +165,9 @@ it("lets players browse reviewed releases without an applicable installed editio
     const galleryView = await render(view(media));
     const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
     const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
-    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
     expect(read).not.toHaveBeenCalled();
     await picker.click();
     await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
@@ -203,9 +205,13 @@ it("lets players browse reviewed releases without an applicable installed editio
     await galleryView.rerender(view([us, foreign]));
     await expect.element(europeanViewer).not.toBeInTheDocument();
     await expect.element(picker).toHaveFocus();
-    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
     await galleryView.rerender(view(changed));
-    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
     await expect.element(europeanViewer).not.toBeInTheDocument();
     await expect.element(european).not.toBeInTheDocument();
 
@@ -219,14 +225,18 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(europeanViewer).not.toBeInTheDocument();
     await expect.element(page.getByRole("button", { name: "Back to game details" })).toHaveFocus();
     await galleryView.rerender(view(changed));
-    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
     await expect.element(europeanViewer).not.toBeInTheDocument();
 
     await picker.click();
     await page.getByRole("option", { name: euTitle, exact: true }).click();
     await expect.element(european).toBeEnabled();
     await galleryView.rerender(view(changed, "another-port"));
-    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
   } finally {
     await page.viewport(viewport.width, viewport.height);
   }
