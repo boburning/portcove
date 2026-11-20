@@ -1059,7 +1059,7 @@ owns these conclusions; a filename or descriptive label cannot supply them.
 The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
-An informational game-file contract can declare
+An informational contract for a single game file can declare
 `variant_list_recognition_only` with exact release and artifact bindings.
 Setup review leaves compatibility open for these lists and continues to use the
 ordinary input-admission checks. An installed build receives the informational

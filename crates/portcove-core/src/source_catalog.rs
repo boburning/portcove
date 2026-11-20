@@ -547,6 +547,7 @@ impl SourceCatalog {
                 && (contract.admission_mode != CatalogAdmissionMode::Informational
                     || contract.supported_variant_ids.is_empty()
                     || contract.role != PortSourceRole::Game
+                    || profile.kind != SourceIdentityKind::File
                     || contract.validator_contract_id.is_some()
                     || contract.applicability.is_empty()
                     || contract
@@ -555,7 +556,7 @@ impl SourceCatalog {
                         .any(|binding| binding.artifact_sha256.is_none()))
             {
                 return Err(PortcoveError::usage(
-                    "an optional recognition list requires an informational game-file contract with exact artifact bindings",
+                    "an optional recognition list requires an informational single-file game contract with exact artifact bindings",
                 ));
             }
             if contract.release_policy.is_some()

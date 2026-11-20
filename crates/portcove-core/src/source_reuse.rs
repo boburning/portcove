@@ -199,13 +199,16 @@ fn listed_variant_support(
     let SourceClassification::Recognized { identity } = classification else {
         return None;
     };
-    if contract.supported_variant_ids.is_empty() {
+    // Reuse review has no selected release. Recognition data leaves
+    // compatibility open for both listed and unlisted editions.
+    if contract.variant_list_recognition_only || contract.supported_variant_ids.is_empty() {
         return None;
     }
-    let listed = contract
-        .supported_variant_ids
-        .contains(&identity.variant_id);
-    (listed || !contract.variant_list_recognition_only).then_some(listed)
+    Some(
+        contract
+            .supported_variant_ids
+            .contains(&identity.variant_id),
+    )
 }
 
 fn application_review(
@@ -442,6 +445,18 @@ pub(crate) mod tests {
             SourceReuseCompatibility::Potential
         );
         assert!(application.can_review_setup);
+
+        let mut listed = review
+            .inspection
+            .applications
+            .iter()
+            .find(|entry| entry.port_id == "zelda64-recomp")
+            .unwrap()
+            .clone();
+        listed.contract.supported_variant_ids = vec!["ntsc-u-gamecube".into()];
+        let listed = application_review(&review.inspection, &listed);
+        assert_eq!(listed.compatibility, SourceReuseCompatibility::Potential);
+        assert!(listed.can_review_setup);
         let classification = &review
             .inspection
             .inspection
