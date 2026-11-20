@@ -3599,6 +3599,13 @@ selector, executable, original edition, launch values and qualification
 explicit. Preparation compacts only integrations that expand byte for byte.
 A fork or a different writer layout uses explicit paths.
 
+Optional authoring-only `chocolate_family_windows_persistence_v1: true`
+expands the reviewed Windows paths for Chocolate Doom, Heretic and Hexen.
+The recipe keeps each title's configuration and screenshots with its saves
+and treats the two engine logs as runtime output. Keep each official package
+selector, executable, original IWAD profile and launch arguments explicit.
+Preparation compacts a route only when expansion reproduces its exact bytes.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the

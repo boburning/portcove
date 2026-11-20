@@ -17,6 +17,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
@@ -2298,6 +2299,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
   assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
+  assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
@@ -2311,6 +2313,8 @@ void test("preparation reports all declared route projections across the current
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
+    if (record.chocolate_family_windows_persistence_v1)
+      expected.push("chocolate_family_windows_persistence_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2529,6 +2533,45 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
       /change to an existing game or edition identity/u,
     );
     assert.equal(readFileSync(source, "utf8"), alternateBytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation emits the exact Chocolate Windows persistence recipe", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "chocolate-heretic";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectChocolateFamilyWindowsPersistence(selected);
+    delete explicit.chocolate_family_windows_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, full_name: "chocolate-doom/chocolate-doom", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.chocolate_family_windows_persistence_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();
   }
