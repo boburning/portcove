@@ -104,6 +104,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
           REPOSITORY_TOKEN: ${{ github.token }}
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_DISCOVERY_DATABASE_URL || '' }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_NEON_METER_TOKEN || '' }}
           HOSTED_INTAKE_MODE: ${{ inputs.mode }}
           HOSTED_INTAKE_AUDIT_REQUEST: ${{ inputs.audit_request }}
           HOSTED_INTAKE_PROBE: ${{ inputs.probe_issue }}

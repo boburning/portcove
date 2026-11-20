@@ -290,13 +290,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     steps: Step[];
   };
   const workflow = parse(source) as {
-    on: { schedule: { cron: string }[]; workflow_dispatch: unknown };
+    on: {
+      schedule: { cron: string }[];
+      workflow_dispatch: { inputs: { purpose: { default: string; options: string[] } } };
+    };
     permissions: unknown;
     concurrency: { "cancel-in-progress": boolean };
     jobs: Record<string, Job>;
   };
   assert.deepEqual(workflow.on.schedule, [{ cron: "47 4 * * *" }]);
-  assert.equal(workflow.on.workflow_dispatch, null, "dispatch takes no inputs");
+  assert.equal(workflow.on.workflow_dispatch.inputs.purpose.default, "status");
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.purpose.options, [
+    "status",
+    "collect-changed",
+    "report",
+    "recover",
+    "verify-recovery",
+    "recovery-full",
+  ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
@@ -327,8 +338,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       )
       .map((step) => step.name);
   assert.deepEqual(using("PORTCOVE_ROADMAP_TOKEN"), [
-    "Require hosted configuration without exposing credentials",
-    "Collect every declared source in one transaction",
+    "Collect changed sources and periodically reassess all Core subjects",
   ]);
   assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
   // The secret is exposed to the store commands under their default variable name.
@@ -343,7 +353,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "the restore target is local",
   );
   const collection = collect!.steps.find(
-    (step) => step.name === "Collect every declared source in one transaction",
+    (step) => step.name === "Collect changed sources and periodically reassess all Core subjects",
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
@@ -357,8 +367,14 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--upstream",
     "--hosted-intake",
     "--targets",
+    "--reassess changed",
   ])
     assert.ok(collection.run!.includes(flag), flag);
+  const render = collect!.steps.find(
+    (step) => step.name === "Render the report and digest on local PostgreSQL",
+  )!;
+  assert.equal(render.env, undefined);
+  assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);

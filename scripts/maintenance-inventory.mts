@@ -2336,6 +2336,8 @@ export async function collect(options: {
 
 const corePrefix = "core-port-capabilities-";
 
+export const reportHistoryLimit = 12;
+
 const reportQuery = (
   from: string,
   through: string,
@@ -2531,11 +2533,15 @@ SELECT json_build_object(
           WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
-           FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
+           FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+               FROM portcove_maintenance.subject_transitions
+               WHERE subject_key = c.subject_key ORDER BY sequence DESC LIMIT ${reportHistoryLimit}) t) AS history,
+        c.sequence > ${reportHistoryLimit} AS earlier_history_available,
         (SELECT json_agg(json_build_object('source', o.source, 'run_id', o.run_id, 'input_revision', o.input_revision,
                  'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256,
                  'absent', o.payload = portcove_maintenance.absent_payload()) ORDER BY o.source)
-           FROM (SELECT DISTINCT ON (r.source) r.source, ob.*
+           FROM (SELECT DISTINCT ON (r.source) r.source, ob.run_id, ob.input_revision,
+                        ob.scope, ob.observed_at, ob.content_sha256, ob.payload
                    FROM portcove_maintenance.observations ob
                    JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
@@ -4120,6 +4126,8 @@ commands:
                                        --intervention-evidence FILE --intervention-evidence-sha256 DIGEST
                                        optionally include operator-supplied intervention assertions in JSON
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
+  status                               read counts and last completed collection time
+  history --subject KEY [--before N]   read up to 100 retained transitions for one subject
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
                                        delivering executor's receipt (executor role)
@@ -4171,6 +4179,7 @@ export async function main(argv = process.argv.slice(2)) {
   );
   // Core CLI, Git and libpq children receive only the libpq translation, never the URL.
   delete process.env[databaseEnvironment];
+  delete process.env.PORTCOVE_NEON_METER_TOKEN;
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
@@ -4186,6 +4195,10 @@ export async function main(argv = process.argv.slice(2)) {
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
   const progressManifest = option(args, "--progress");
+  const historySubject = option(args, "--subject");
+  const historyBefore = option(args, "--before");
+  if ((historySubject || historyBefore) && command !== "history")
+    throw new MaintenanceStoreError("--subject and --before apply only to history");
   if (progressManifest !== undefined && command !== "collect")
     throw new MaintenanceStoreError("--progress applies only to collect");
   const reassess = option(args, "--reassess");
@@ -4237,107 +4250,146 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--previous applies only to report");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
-  if (command === "collect") {
-    if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
-    const issueCredential =
-      issuesTokenEnvironment === undefined
-        ? undefined
-        : takeIssueCredential(issuesTokenEnvironment);
-    console.log(
-      JSON.stringify(
-        await collect({
-          cli: path.resolve(cli),
-          sample,
-          all,
-          concurrency: concurrency === undefined ? undefined : Number(concurrency),
-          issues: issues ? () => readIssueInventory(issueCredential) : undefined,
-          releaseHealth: releaseHealth ? readReleaseHealth : undefined,
-          releaseContent: releaseContent ? readReleaseContent : undefined,
-          upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
-          progress: progressManifest
-            ? validateProgressSources(
-                JSON.parse(
-                  new TextDecoder("utf-8", { fatal: true }).decode(
-                    await readBoundedPublicBuildInputFile(
-                      path.dirname(path.resolve(progressManifest)),
-                      path.basename(progressManifest),
-                      64 * 1024,
+  const operation =
+    command === "collect" || command === "report" || command === "digest" || command === "handoffs"
+      ? command
+      : "inspect";
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+    await import("./maintenance-resource-policy.mts");
+  try {
+    return await withMaintenanceAdmission(environment, operation, run);
+  } catch (error) {
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    console.error(`Maintenance deferred: ${error.message}`);
+    return 75;
+  }
+
+  async function run() {
+    if (command === "collect") {
+      if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+      const issueCredential =
+        issuesTokenEnvironment === undefined
+          ? undefined
+          : takeIssueCredential(issuesTokenEnvironment);
+      console.log(
+        JSON.stringify(
+          await collect({
+            cli: path.resolve(cli),
+            sample,
+            all,
+            concurrency: concurrency === undefined ? undefined : Number(concurrency),
+            issues: issues ? () => readIssueInventory(issueCredential) : undefined,
+            releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+            releaseContent: releaseContent ? readReleaseContent : undefined,
+            upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+            progress: progressManifest
+              ? validateProgressSources(
+                  JSON.parse(
+                    new TextDecoder("utf-8", { fatal: true }).decode(
+                      await readBoundedPublicBuildInputFile(
+                        path.dirname(path.resolve(progressManifest)),
+                        path.basename(progressManifest),
+                        64 * 1024,
+                      ),
                     ),
                   ),
-                ),
-              )
-            : undefined,
-          hostedIntake: hostedSource ? readHostedIntake : undefined,
-          publication: publication || undefined,
-          delivery: delivery || undefined,
-          targets: targets || undefined,
-          reassess,
-          environment,
-        }),
-        null,
-        2,
-      ),
-    );
-  } else if (command === "report") {
-    if (!output) throw new MaintenanceStoreError("report requires --output DIR");
-    const interventionPath = interventionFile && path.resolve(interventionFile);
-    const evidence =
-      interventionPath && interventionSha256
-        ? readManagedInterventionEvidence(
-            await readBoundedPublicBuildInputFile(
-              path.dirname(interventionPath),
-              path.basename(interventionPath),
-              managedInterventionEvidenceLimit,
+                )
+              : undefined,
+            hostedIntake: hostedSource ? readHostedIntake : undefined,
+            publication: publication || undefined,
+            delivery: delivery || undefined,
+            targets: targets || undefined,
+            reassess,
+            environment,
+          }),
+          null,
+          2,
+        ),
+      );
+    } else if (command === "report") {
+      if (!output) throw new MaintenanceStoreError("report requires --output DIR");
+      const interventionPath = interventionFile && path.resolve(interventionFile);
+      const evidence =
+        interventionPath && interventionSha256
+          ? readManagedInterventionEvidence(
+              await readBoundedPublicBuildInputFile(
+                path.dirname(interventionPath),
+                path.basename(interventionPath),
+                managedInterventionEvidenceLimit,
+              ),
+              interventionSha256,
+            )
+          : undefined;
+      const report = buildReport(environment, new Date(), evidence);
+      writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
+      console.log(
+        JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
+      );
+    } else if (command === "digest") {
+      if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
+      const digest = buildDigest(environment);
+      writeDigest(digest, path.resolve(output));
+      console.log(
+        JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
+      );
+    } else if (command === "acknowledge") {
+      if (!digestFile || !receipt)
+        throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
+      const digest = parseJson(
+        readFileSync(path.resolve(digestFile), "utf8"),
+        "digest",
+      ) as ReturnType<typeof buildDigest>;
+      if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
+        throw new MaintenanceStoreError("Unsupported digest file");
+      console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
+    } else if (command === "handoffs") {
+      if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
+      if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
+      else {
+        const handoffs = readOpenHandoffs(environment);
+        if (json)
+          console.log(
+            JSON.stringify(
+              {
+                format: "portcove-maintenance-handoffs",
+                format_version: 1,
+                dispatch: "disabled",
+                disabled: disabledCapabilities,
+                without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
+                handoffs,
+              },
+              null,
+              2,
             ),
-            interventionSha256,
-          )
-        : undefined;
-    const report = buildReport(environment, new Date(), evidence);
-    writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
-    console.log(
-      JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
-    );
-  } else if (command === "digest") {
-    if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
-    const digest = buildDigest(environment);
-    writeDigest(digest, path.resolve(output));
-    console.log(
-      JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
-    );
-  } else if (command === "acknowledge") {
-    if (!digestFile || !receipt)
-      throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
-    const digest = parseJson(
-      readFileSync(path.resolve(digestFile), "utf8"),
-      "digest",
-    ) as ReturnType<typeof buildDigest>;
-    if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
-      throw new MaintenanceStoreError("Unsupported digest file");
-    console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
-  } else if (command === "handoffs") {
-    if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
-    if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
-    else {
-      const handoffs = readOpenHandoffs(environment);
-      if (json)
-        console.log(
-          JSON.stringify(
-            {
-              format: "portcove-maintenance-handoffs",
-              format_version: 1,
-              dispatch: "disabled",
-              disabled: disabledCapabilities,
-              without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
-              handoffs,
-            },
-            null,
-            2,
-          ),
-        );
-      else process.stdout.write(renderHandoffs(handoffs));
-    }
-  } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
-  return 0;
+          );
+        else process.stdout.write(renderHandoffs(handoffs));
+      }
+    } else if (command === "status") {
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT json_build_object(
+      'subjects', (SELECT count(*) FROM portcove_maintenance.subject_current),
+      'latest_collection', (SELECT max(completed_at) FROM portcove_maintenance.collection_runs),
+      'pending_notifications', (SELECT count(*) FROM portcove_maintenance.notifications WHERE status = 'pending'));`,
+        ),
+      );
+    } else if (command === "history") {
+      const before = historyBefore ?? "9223372036854775807";
+      if (!historySubject || historySubject.length > 512 || !/^[0-9]{1,19}$/u.test(before))
+        throw new MaintenanceStoreError("history requires --subject KEY and optionally --before N");
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT coalesce(json_agg(t ORDER BY sequence DESC), '[]')
+      FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+        FROM portcove_maintenance.subject_transitions WHERE subject_key = ${literal(historySubject)}
+        AND sequence < ${before} ORDER BY sequence DESC LIMIT 100) t;`,
+        ),
+      );
+    } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
+    return 0;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
