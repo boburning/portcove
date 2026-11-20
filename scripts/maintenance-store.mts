@@ -163,6 +163,7 @@ export const maintenanceTransfer = new AsyncLocalStorage<{
   host: string;
   payloadBytes: number;
   byteLimit: number;
+  deadline: number;
 }>();
 
 export function runTool(
@@ -174,6 +175,10 @@ export function runTool(
   const transfer = maintenanceTransfer.getStore();
   const measured = transfer?.host === environment.PGHOST ? transfer : undefined;
   const remaining = measured ? measured.byteLimit - measured.payloadBytes : outputLimitBytes;
+  const timeout = measured
+    ? Math.min(options.timeoutMs ?? toolTimeoutMs, measured.deadline - Date.now())
+    : (options.timeoutMs ?? toolTimeoutMs);
+  if (timeout <= 0) throw new MaintenanceStoreError("Maintenance transfer reservation expired");
   if (remaining <= 0)
     throw new MaintenanceStoreError("Maintenance command exhausted its response allowance");
   const childEnvironment = { ...environment };
@@ -182,7 +187,7 @@ export function runTool(
     env: childEnvironment,
     input: options.input,
     encoding: "utf8",
-    timeout: options.timeoutMs ?? toolTimeoutMs,
+    timeout,
     maxBuffer: Math.min(outputLimitBytes, remaining),
     windowsHide: true,
   });
@@ -507,6 +512,12 @@ export async function withExportedSnapshot<T>(
   environment: NodeJS.ProcessEnv,
   action: (snapshot: string, query: (sql: string) => Promise<string>) => Promise<T>,
 ): Promise<T> {
+  const transfer = maintenanceTransfer.getStore();
+  const timeout =
+    transfer?.host === environment.PGHOST && transfer
+      ? Math.min(dumpTimeoutMs, transfer.deadline - Date.now())
+      : dumpTimeoutMs;
+  if (timeout <= 0) throw new MaintenanceStoreError("Maintenance snapshot reservation expired");
   const childEnvironment = { ...environment };
   delete childEnvironment.PORTCOVE_NEON_METER_TOKEN;
   const child = spawn(toolPath("psql", environment), [...psqlBase, "-A", "-t", "-f", "-"], {
@@ -544,7 +555,7 @@ export async function withExportedSnapshot<T>(
   child.on("exit", (code, signal) =>
     fail(new MaintenanceStoreError(`psql session ended (${signal ?? code}): ${bounded(stderr)}`)),
   );
-  const timer = setTimeout(() => child.kill(), dumpTimeoutMs);
+  const timer = setTimeout(() => child.kill(), timeout);
   const query = (sql: string) =>
     new Promise<string>((resolve, reject) => {
       if (exited) return reject(exited);

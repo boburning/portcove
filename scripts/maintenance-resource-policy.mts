@@ -267,9 +267,10 @@ export function acquireMaintenanceReservation(
         CASE WHEN fits THEN ${costs[operation]} ELSE 0 END,
         CASE WHEN fits THEN 'running' ELSE 'deferred' END, CASE WHEN NOT fits THEN clock_timestamp() END
       FROM decision WHERE valid
-      RETURNING attempt_id, outcome
+      RETURNING attempt_id, outcome, started_at
     )
     SELECT json_build_object('attempt_id', (SELECT attempt_id FROM observed WHERE outcome = 'running'), 'duplicate', duplicate, 'equivalent_completed', equivalent_completed,
+      'started_at', (SELECT started_at FROM observed WHERE outcome = 'running'),
       'prior_meter_high_water_bytes', high_water, 'unreconciled_bytes', unresolved,
       'provider_growth_since_accounting_bytes', CASE WHEN NOT ${useCutover} THEN ${meter.transferBytes} - initial END,
       'unattributed_growth_lower_bound_bytes', CASE WHEN NOT ${useCutover} AND initial IS NOT NULL
@@ -284,6 +285,7 @@ export function acquireMaintenanceReservation(
     { executor: operation === "intake" },
   ) as {
     attempt_id: string | null;
+    started_at: string | null;
     duplicate: boolean;
     equivalent_completed: boolean;
     prior_meter_high_water_bytes: number | null;
@@ -418,6 +420,10 @@ export async function withMaintenanceAdmission<T>(
       host: environment.PGHOST!,
       payloadBytes: 0,
       byteLimit: Math.floor(admission.operation_reservation_bytes * 0.7),
+      deadline: Math.min(
+        Date.parse(admission.started_at!) + admissionTimeout,
+        Date.parse(meter.resetAt) - 60_000,
+      ),
     };
     const value = await maintenanceTransfer.run(measurement, () =>
       callback(admission.operation_reservation_bytes),

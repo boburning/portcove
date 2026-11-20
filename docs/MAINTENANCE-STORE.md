@@ -1219,7 +1219,8 @@ independently of the collection exit status.
 Manual runs default to `status`. Each purpose runs on repository `main`.
 Purpose and revision scope the concurrency groups. A manual request cannot
 replace a pending scheduled run. PostgreSQL serializes budget admissions and
-fences stale collection writes across groups.
+fences stale collection writes across groups. Reuse retained artifacts when
+inspecting historical executions. Before migration 0006, a historical rerun can still use the original full export path.
 
 | Purpose           | Work                                                                                                                                |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |

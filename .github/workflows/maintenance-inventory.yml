@@ -23,7 +23,7 @@ permissions:
 # Manual requests cannot replace a queued nightly recovery. The database fences
 # shared admissions and stale writes across these separate purpose groups.
 concurrency:
-  group: maintenance-inventory-${{ inputs.purpose || 'schedule' }}-${{ inputs.purpose && github.sha || 'nightly' }}
+  group: ${{ inputs.purpose && format('maintenance-inventory-{0}-{1}', inputs.purpose, github.sha) || 'maintenance-inventory' }}
   cancel-in-progress: false
 
 jobs:

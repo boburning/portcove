@@ -21,6 +21,7 @@ import {
   connectionFromEnvironment,
   defaultMigrationDirectory,
   libpqEnvironmentFromUrl,
+  maintenanceTransfer,
   migrate,
   migrationStatus,
   migrationTransaction,
@@ -31,6 +32,7 @@ import {
   runSql,
   serverInfo,
   storeDigest,
+  withExportedSnapshot,
 } from "./maintenance-store.mts";
 
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
@@ -785,3 +787,50 @@ void test("credential-free cutover is bound to one endpoint, period, and finite 
   );
   assert.equal(cutoverReading(endpoint, "recovery", Date.parse(meter.resetAt)), undefined);
 });
+
+void test("expired production reservations refuse client I/O and snapshots", async () => {
+  const environment = {
+    PGHOST: "never-connected.invalid",
+    PORTCOVE_POSTGRES_BIN: "/missing-test-bin",
+  };
+  await maintenanceTransfer.run(
+    { host: environment.PGHOST, byteLimit: 1_000_000, payloadBytes: 0, deadline: Date.now() - 1 },
+    async () => {
+      assert.throws(() => runSql(environment, "SELECT 1;"), /reservation expired/u);
+      await assert.rejects(
+        withExportedSnapshot(environment, async () => null),
+        /reservation expired/u,
+      );
+    },
+  );
+});
+
+void test(
+  "cutover admissions share their finite allowance across purposes",
+  {
+    skip: server.skip ?? false,
+    timeout: 120_000,
+  },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner } = fixture.start("cutover-quota");
+    migrate(owner);
+    const now = Date.now();
+    const meter: NeonMeter = {
+      ...testMeter(4_065_773_982),
+      sampleOrigin: "november-cutover",
+      sampledAt: new Date(now - 6_000_000).toISOString(),
+      resetAt: new Date(now + 4 * 86_400_000).toISOString(),
+    };
+    const take = (
+      request: string,
+      operation: "recovery" | "recovery-catchup" | "collect" | "intake",
+    ) =>
+      acquireMaintenanceReservation(owner, { meter, request, operation, reason: "cutover/test" });
+    assert.ok(take("routine", "recovery").attempt_id);
+    assert.ok(take("collect", "collect").attempt_id);
+    assert.ok(take("intake", "intake").attempt_id);
+    assert.ok(take("catchup", "recovery-catchup").attempt_id);
+    assert.equal(take("overflow", "recovery-catchup").attempt_id, null);
+  },
+);
