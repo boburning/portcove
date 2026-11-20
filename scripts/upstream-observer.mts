@@ -418,9 +418,11 @@ function timestamp(value: unknown, label: string, nullable = false) {
 }
 
 function downloadUrl(value: unknown, config: { repository: string }, tag: string, name: string) {
-  const url = new URL(textFact(value, "asset URL", 4096));
+  const observed = textFact(value, "asset URL", 4096);
+  const url = new URL(observed);
   const prefix = `/${config.repository}/releases/download/`;
   const filename = encodeURIComponent(name);
+  const encodedPath = `${prefix}${encodeURIComponent(tag)}/${filename}`;
   const tagSegments = tag.split("/");
   // GitHub's asset metadata can keep slashes literal in an exact release tag.
   const matchingSegmentedTag =
@@ -433,11 +435,33 @@ function downloadUrl(value: unknown, config: { repository: string }, tag: string
       !url.password &&
       !url.search &&
       !url.hash &&
-      (url.pathname === `${prefix}${encodeURIComponent(tag)}/${filename}` || matchingSegmentedTag),
+      (url.pathname === encodedPath || matchingSegmentedTag),
     "asset-scope",
     "asset URL does not match the configured repository, tag and filename",
   );
-  return textFact(value, "asset URL", 4096);
+  return { observed, encoded: `${url.origin}${encodedPath}` };
+}
+
+/** Older descriptive readers require one exact encoded tag segment. */
+export function compatibleGithubListingAssetUrl(
+  value: string,
+  repository: string,
+  tag: string,
+  name: string,
+) {
+  if (!tag.includes("/")) return value;
+  try {
+    return downloadUrl(value, { repository }, tag, name).encoded;
+  } catch (error) {
+    // Leave an invalid observation to the existing Core verification boundary.
+    if (
+      error instanceof ObservationFailure ||
+      error instanceof TypeError ||
+      error instanceof URIError
+    )
+      return value;
+    throw error;
+  }
 }
 
 export function assetFact(asset: unknown, config: { repository: string }, tag: string) {
@@ -493,7 +517,7 @@ function checkedAssetFact<State extends "uploaded" | "starter">(
     size: asset.size,
     state,
     digest: asset.digest ?? null,
-    browser_download_url: downloadUrl(asset.browser_download_url, config, tag, name),
+    browser_download_url: downloadUrl(asset.browser_download_url, config, tag, name).observed,
     created_at: timestamp(asset.created_at, "asset creation"),
     updated_at: timestamp(asset.updated_at, "asset update"),
   };

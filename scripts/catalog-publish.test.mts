@@ -659,6 +659,61 @@ void test("observation publication retains applicable earlier rows before admitt
   assert.equal(capped.canonical_records, 2);
 });
 
+void test("descriptive delivery encodes an exact GitHub slash tag from a retained observation", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const candidate = fixturePolicy().listing_update;
+  const observation = fixtureRecord(candidate.upstream_observation);
+  const release = requiredFixture(fixtureRecords(observation.releases)[0]);
+  const asset = requiredFixture(fixtureRecords(release.assets)[0]);
+  const tag = "preview-builds/1.2.0-preview1";
+  const root = "https://github.com/owner/game/releases";
+  const name = "game-windows-x64.zip";
+  const raw = `${root}/download/${tag}/${name}`;
+  const encoded = `${root}/download/${encodeURIComponent(tag)}/${name}`;
+  const listing = { format_version: 11, listings: [fixtureListing] };
+  const deliver = (url: string) =>
+    projectListingDelivery(
+      listing,
+      [
+        {
+          ...candidate,
+          upstream_observation: {
+            ...observation,
+            releases: [
+              {
+                ...release,
+                version: tag,
+                release_url: `${root}/tag/${encodeURIComponent(tag)}`,
+                assets: [{ ...asset, url }],
+              },
+            ],
+          },
+        },
+      ],
+      null,
+    );
+  const result = deliver(raw);
+  assert.deepEqual(result.bytes, deliver(encoded).bytes);
+  const directory = fixtureRecord(fixtureRecord(JSON.parse(result.bytes.toString())).directory);
+  const published = requiredFixture(fixtureRecords(directory.listings)[0]);
+  const publishedObservation = fixtureRecord(published.upstream_observation);
+  const publishedRelease = requiredFixture(fixtureRecords(publishedObservation.releases)[0]);
+  assert.deepEqual(publishedRelease.assets, [{ ...asset, url: encoded }]);
+  assert.equal(publishedObservation.facts_sha256, observation.facts_sha256);
+  assert.equal(publishedObservation.observed_at, observation.observed_at);
+  assert.equal(asset.url, `${root}/download/v1.0/${name}`);
+  for (const invalid of [
+    raw.replace("owner/game", "other/game"),
+    raw.replace(tag, "preview-builds/1.2.0-preview2"),
+    raw.replace(name, "other.zip"),
+    `${raw}?unexpected=1`,
+  ]) {
+    assert.ok(deliver(invalid).bytes.toString().includes(invalid));
+  }
+});
+
 void test("only the dynamic listing target is excluded from fixed input comparison", async () => {
   const { sameStaticPublicationTargets } = await import("./catalog-publish.mts");
   const fixed = { "definitions/index.json": "a".repeat(64) };
