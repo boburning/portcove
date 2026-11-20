@@ -617,6 +617,7 @@ void test("workflow step log delivery holds its route, omits blob credentials an
     "https://productionresultssa1.blob.core.windows.net/actions-results/log?sig=fixture";
   let bytes = 0;
   let downloads = 0;
+  let rejectedLookup = false;
   const options = {
     maxBytes: 32,
     deadline: performance.now() + 15000,
@@ -626,6 +627,7 @@ void test("workflow step log delivery holds its route, omits blob credentials an
       if (url.hostname === "api.github.com") {
         assert.equal(url.pathname, "/" + endpoint);
         assert.ok(new Headers(init?.headers).has("authorization"));
+        if (rejectedLookup) return new Response("fixture API failure", { status: 404 });
         return new Response(null, { status: 302, headers: { location } });
       }
       downloads++;
@@ -661,6 +663,42 @@ void test("workflow step log delivery holds its route, omits blob credentials an
     downloadGitHubWorkflowStepLog(endpoint, options, () => {
       throw budget;
     }),
+    (error) => error === budget,
+  );
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(
+      endpoint,
+      {
+        ...options,
+        lookup: {
+          reserve() {
+            throw budget;
+          },
+        },
+      },
+      count,
+    ),
+    (error) => error === budget,
+  );
+  rejectedLookup = true;
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(
+      endpoint,
+      {
+        ...options,
+        lookup: {
+          reserve() {
+            return {
+              consumeBytes() {
+                throw budget;
+              },
+              settle() {},
+            };
+          },
+        },
+      },
+      count,
+    ),
     (error) => error === budget,
   );
   await assert.rejects(

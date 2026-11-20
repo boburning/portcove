@@ -222,18 +222,54 @@ export async function downloadGitHubWorkflowStepLog(
   consumeBytes: (amount: number) => void,
 ) {
   const chunks: Uint8Array[] = [];
-  const length = await transferGitHubActionsObject(
-    endpoint,
-    options,
-    512 * 1024,
-    (chunk) => {
-      chunks.push(chunk);
-    },
-    20_000,
-    "step-log",
-    consumeBytes,
-  );
-  return Buffer.concat(chunks, length);
+  const reserve = options.lookup?.reserve;
+  let accountingFailure: { error: unknown } | undefined;
+  const preserveAccountingFailure = (error: unknown): never => {
+    accountingFailure = { error };
+    throw error;
+  };
+  const metered: ArtifactDownloadOptions = reserve
+    ? {
+        ...options,
+        lookup: {
+          ...options.lookup,
+          async reserve(request) {
+            const reservation = await Promise.resolve()
+              .then(() => reserve(request))
+              .catch(preserveAccountingFailure);
+            return {
+              consumeBytes(bytes) {
+                try {
+                  reservation.consumeBytes(bytes);
+                } catch (error) {
+                  preserveAccountingFailure(error);
+                }
+              },
+              settle: (observation) => reservation.settle(observation),
+            };
+          },
+        },
+      }
+    : options;
+  try {
+    const length = await transferGitHubActionsObject(
+      endpoint,
+      metered,
+      512 * 1024,
+      (chunk) => {
+        chunks.push(chunk);
+      },
+      20_000,
+      "step-log",
+      consumeBytes,
+    );
+    return Buffer.concat(chunks, length);
+  } catch (error) {
+    // The SDK sanitizes request failures. Preserve application budget errors
+    // from its caller-owned admission and accounting hooks.
+    if (accountingFailure) throw accountingFailure.error;
+    throw error;
+  }
 }
 
 async function transferGitHubReleaseAsset(
