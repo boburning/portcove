@@ -325,7 +325,7 @@ export const desktopApi = {
     candidateId: number,
     expectedRevision: number,
     generation: number,
-    ...[framing]: [] | [ArtworkSelectionFraming]
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("choose_steamgriddb_artwork", {
       portId,
@@ -342,7 +342,7 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
-    ...[framing]: [] | [ArtworkSelectionFraming]
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("import_artwork", {
       portId,

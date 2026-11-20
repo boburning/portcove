@@ -570,7 +570,7 @@ export class ArtworkCache {
     gameId: number,
     candidateId: number,
     stillCurrent: () => boolean,
-    ...framing: [] | [ArtworkSelectionFraming]
+    ...framing: [framing?: ArtworkSelectionFraming]
   ) {
     return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
@@ -594,7 +594,7 @@ export class ArtworkCache {
     revision: number,
     path: string | null,
     stillCurrent: () => boolean,
-    ...framing: [] | [ArtworkSelectionFraming]
+    ...framing: [framing?: ArtworkSelectionFraming]
   ) {
     return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;

@@ -84,13 +84,13 @@ export function SteamGridDbPicker({
   slot,
   initialTerm,
   disabled,
-  selectionPending,
+  selectionPending = false,
   choose,
 }: {
   slot: ArtworkSlot;
   initialTerm: string;
   disabled: boolean;
-  selectionPending: boolean;
+  selectionPending?: boolean;
   choose: (gameId: number, candidate: SteamGridDbCandidate) => void;
 }) {
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
