@@ -3676,6 +3676,24 @@ void test("GitLab descriptive listings reuse the provider collector and export n
     },
   ]);
   const key = result.report.completed_source_keys[0]!;
+  let registryRequests = 0;
+  let gitLabRequests = 0;
+  const bounded = await advanceCatalogObservations(catalog, null, {
+    ...options,
+    requestLimit: 2,
+    exportProvider: async () => {},
+    modProviderRegistryFetch: async () => {
+      registryRequests++;
+      return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    },
+    providerFetch: async () => {
+      gitLabRequests++;
+      return Response.json({ id: 27, path_with_namespace: "owner/subgroup/lab", archived: false });
+    },
+  });
+  assert.equal(registryRequests, 1);
+  assert.equal(gitLabRequests, 1);
+  assert.equal(bounded.report.requests, 2);
   h.advanceClock(1000);
   const rebuilt = await advanceCatalogObservations(catalog, result.checkpoint, {
     ...options,
@@ -3969,6 +3987,24 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
   assert.ok(held.gaps.some((gap) => gap.subject_key === thunderstoreRegistrySubject));
   await observe(limited.checkpoint);
   assert.equal(requests, 2);
+  const controller = new AbortController();
+  let beforeSource: CatalogObserverCheckpoint | undefined;
+  await advanceCatalogObservations(h.input, restarted.checkpoint, {
+    ...h.options,
+    signal: controller.signal,
+    commit: async (checkpoint) => {
+      beforeSource ??= structuredClone(checkpoint);
+    },
+    withSourceLock: async () => {
+      controller.abort();
+      throw new ObservationFailure("cancelled", "fixture cancelled the source turn");
+    },
+  });
+  assert.equal(controller.signal.aborted, true);
+  assert.ok(beforeSource);
+  assert.deepEqual(beforeSource.mod_provider_registry, limited.checkpoint.mod_provider_registry);
+  await observe(beforeSource);
+  assert.equal(requests, 3);
 
   h.advanceClock(120000);
   response = () => Response.json(registry(ship));
@@ -4019,6 +4055,8 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
     32 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(large)) - 8,
   );
   const written = h.snapshots.length;
+  const registryRequestsBeforeHold = requests;
   await assert.rejects(observe(large), /exceed the checkpoint envelope/u);
   assert.equal(h.snapshots.length, written);
+  assert.equal(requests, registryRequestsBeforeHold);
 });

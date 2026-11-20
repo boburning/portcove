@@ -563,6 +563,7 @@ export async function advanceCatalogObservations(
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
+  const requestCeiling = Math.min(template.budget.requests, options.requestLimit ?? Infinity);
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -730,9 +731,9 @@ export async function advanceCatalogObservations(
           0,
           Math.min(
             remaining === null
-              ? template.budget.requests - requests
+              ? Infinity
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
-            (options.requestLimit ?? Infinity) - requests,
+            requestCeiling - requests,
             Math.floor(
               (deadline - now()) /
                 (sampledRequests
@@ -761,27 +762,50 @@ export async function advanceCatalogObservations(
     if (remaining !== null) remaining--;
   };
   let registryProgress: ModProviderRegistryProgress | undefined;
+  const registryFits = (progress: ModProviderRegistryProgress) =>
+    Buffer.byteLength(JSON.stringify({ ...state, mod_provider_registry: progress })) <=
+    catalogCheckpointByteLimit;
   // A due registry read uses the same opportunity and request accounting.
   // Thunderstore's independent reserve does not decrement GitHub's quota.
   if (
     options.modProviderRegistryFetch &&
     !options.signal?.aborted &&
     deadline - now() >= 1000 &&
-    Math.min(template.budget.requests, options.requestLimit ?? Infinity) > 1 &&
+    requestCeiling > 1 &&
     (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
   ) {
-    const result = await observeModProviderRegistry(state.mod_provider_registry, {
-      now,
-      cadenceMs: template.cadence_hours * 3600000,
-      staleAfterMs: template.stale_after_hours * 3600000,
-      timeout: Math.min(10000, deadline - now()),
-      responseBytes: template.budget.response_bytes,
-      fetch: options.modProviderRegistryFetch,
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
-    requests++;
-    responseBytes += result.bytes;
-    if (!options.signal?.aborted) registryProgress = result.progress;
+    // Reserve space for Retry-After before spending the request. The longest
+    // ISO representation covers even a provider delay in an extended year.
+    if (
+      registryFits({
+        last_complete: state.mod_provider_registry?.last_complete ?? null,
+        next_due_at: "+275760-09-13T00:00:00.000Z",
+        exception: "rate-limit",
+      })
+    ) {
+      const result = await observeModProviderRegistry(state.mod_provider_registry, {
+        now,
+        cadenceMs: template.cadence_hours * 3600000,
+        staleAfterMs: template.stale_after_hours * 3600000,
+        timeout: Math.min(10000, deadline - now()),
+        responseBytes: template.budget.response_bytes,
+        fetch: options.modProviderRegistryFetch,
+        ...(options.signal ? { signal: options.signal } : {}),
+      });
+      requests++;
+      responseBytes += result.bytes;
+      if (result.progress.exception === "rate-limit") {
+        state.mod_provider_registry = result.progress;
+        await commitCheckpoint();
+      } else if (!options.signal?.aborted) registryProgress = result.progress;
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "A registry retry deadline would exceed the checkpoint envelope.",
+      });
+    }
   }
   const projectBound = async (
     port: ObservablePort,
@@ -948,7 +972,7 @@ export async function advanceCatalogObservations(
           {
             now,
             deadline,
-            maximumRequests: Math.min(64, template.budget.requests),
+            maximumRequests: Math.min(64, Math.max(0, requestCeiling - requests)),
             maximumBytes: template.budget.total_bytes,
             ...(options.signal ? { signal: options.signal } : {}),
             ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
@@ -973,6 +997,8 @@ export async function advanceCatalogObservations(
                 }
               : {}),
             admit: () => {
+              if (requests >= requestCeiling)
+                throw new ObservationFailure("budget", "Shared provider request budget exhausted");
               requests++;
             },
             charge: (bytes) => {
@@ -1618,8 +1644,7 @@ export async function advanceCatalogObservations(
   // Preserve the source checkpoint first. This optional registry must fit in
   // the space remaining after required release progress.
   if (registryProgress && !options.signal?.aborted) {
-    const candidate = { ...state, mod_provider_registry: registryProgress };
-    if (Buffer.byteLength(JSON.stringify(candidate)) <= catalogCheckpointByteLimit) {
+    if (registryFits(registryProgress)) {
       state.mod_provider_registry = registryProgress;
       await commitCheckpoint();
     } else {

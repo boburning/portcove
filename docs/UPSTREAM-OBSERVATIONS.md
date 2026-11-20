@@ -1365,8 +1365,10 @@ fixtures and a local manual read do not establish unattended production operatio
 The catalog observation job reads the
 [Thunderstore ecosystem registry](https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/)
 on its existing cadence when the opportunity has request capacity. The public
-read shares the job deadline and response budget. Its rate limit has a separate
-retry clock from GitHub.
+read shares the job deadline and response budget and counts toward the same
+request ceiling as the release providers. When Thunderstore defers a request,
+the observer saves the retry deadline before unrelated source work. Its deadline
+is independent of GitHub's retry clock.
 
 The checkpoint retains the schema version, raw response digest, stable community
 IDs, registry game UUIDs, listing states and exact GameBanana game links when
@@ -1375,6 +1377,7 @@ observed identity keeps the previous complete snapshot and reports a coverage
 gap. Maintenance reports expired observations as stale using the same
 configured freshness bound. When saved registry evidence and new source progress
 would exceed the existing checkpoint limit, the observer preserves the last
-readable checkpoint and reports the storage hold. The maintenance inventory records the registry as one discovery subject.
+readable checkpoint and reports the storage hold. The maintenance inventory
+records the registry as one discovery subject.
 A community record supplies neither a canonical Portcove port mapping nor
 runtime, package, installation or publication authority.
