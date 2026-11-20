@@ -1057,6 +1057,29 @@ it("contains both staggered originals in an actual narrow App hero and Library",
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     document.documentElement.dataset.theme = "dark";
     await captureParityState("paired-originals-narrow-app-hero");
+    const credits = document.querySelector<HTMLElement>(".game-hero-detail .game-hero-credits")!;
+    const summary = credits.querySelector("summary")!;
+    await userEvent.keyboard("{Tab}");
+    summary.focus();
+    await userEvent.keyboard("{Enter}");
+    await expect.poll(() => summary.matches(":focus-visible")).toBe(true);
+    const firstCredit = credits.querySelector("dt")!;
+    expect(firstCredit.textContent).toBe("Source");
+    for (const [width, height] of [
+      [430, 780],
+      [960, 640],
+    ] as const) {
+      await page.viewport(width, height);
+      credits.scrollIntoView({ block: "center" });
+      const focus = getComputedStyle(summary);
+      const outlineEnd =
+        summary.getBoundingClientRect().bottom +
+        Number.parseFloat(focus.outlineOffset) +
+        Number.parseFloat(focus.outlineWidth);
+      expect(focus.outlineStyle).toBe("solid");
+      expect(firstCredit.getBoundingClientRect().top - outlineEnd).toBeGreaterThanOrEqual(2);
+      await captureParityState("paired-originals-focused-image-credits");
+    }
   } finally {
     await page.viewport(previousViewport.width, previousViewport.height);
   }

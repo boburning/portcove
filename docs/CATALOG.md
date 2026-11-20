@@ -1060,8 +1060,10 @@ The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
 Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
-host preference. Core compares the SHA-1 or SHA-256 and size it already
-observed for the selected files with the DAT entries and reports the matching
+host preference. If the import rejects the Logiqx format, Settings prompts
+players to choose a complete Logiqx XML DAT file and keeps the exact parser
+reason in technical details. Core compares the SHA-1 or SHA-256 and size it
+already observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
 when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor

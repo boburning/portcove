@@ -101,6 +101,9 @@
     inline-size: fit-content;
     cursor: pointer;
   }
+  .game-hero-credits > summary + * {
+    margin-block-start: var(--space-2);
+  }
   .game-hero-continue .game-hero-body {
     align-items: center;
     min-block-size: 8rem;
