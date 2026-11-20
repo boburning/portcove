@@ -483,6 +483,35 @@ fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
 }
 
 #[test]
+fn indexed_projection_cannot_supply_reviewed_package_choices() {
+    let mut document = projection();
+    let port_index = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    let untreated = serde_json::to_vec(&document).unwrap();
+    assert!(inspect(&entry(&document, &untreated, port_index), &untreated).is_ok());
+    document["catalog"]["ports"][port_index]["release"]["reviewed_package_choices_v2"] = json!({
+        "repository_id": 51_711_866,
+        "prefix": "ja2-stracciatella_",
+        "choices": {
+            "mingw64-cross": "_win-mingw64-cross.zip",
+            "msvc64-142": "_win-msvc64-142.zip"
+        },
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let error = inspect(&entry(&document, &contract, port_index), &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(
+        error
+            .message
+            .contains("cannot deliver reviewed package choices")
+    );
+}
+
+#[test]
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({
