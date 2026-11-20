@@ -145,6 +145,13 @@ export async function reconcileIntakeHandoffReceipts(
     .join(",")})
     AS p(operation_id, subject_key, kind, sequence, assessment, generation, revision,
          request, request_sha256, sha256, checkpoint_required, reference, run, attempt)`;
+  const checkpoint = `EXISTS (SELECT 1 FROM portcove_maintenance_meta.discovery_intake_activation WHERE active)
+       AND ((b.request_comment IS NULL AND NOT p.checkpoint_required)
+            OR (b.request_sha256=p.request_sha256 AND encode(sha256(convert_to(b.receipt_body,'UTF8')),'hex')=p.sha256))`;
+  const currentProof = `FROM ${proofTable}
+      JOIN portcove_maintenance.subject_current c ON c.subject_key=p.subject_key
+        AND c.sequence=p.sequence AND c.applicable_assessment_id=p.assessment AND c.verified_run_id=p.generation
+      LEFT JOIN portcove_maintenance.discovery_intake_batches b ON b.request_comment=p.request`;
   const output = runSql(
     environment,
     `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
@@ -153,24 +160,35 @@ export async function reconcileIntakeHandoffReceipts(
     UPDATE portcove_maintenance.operations o
        SET state='dispatched', revision=o.revision+1, receipt_reference=p.reference,
            receipt_sha256=p.sha256, updated_at=greatest(clock_timestamp(),o.updated_at)
-      FROM ${proofTable}
-      JOIN portcove_maintenance.subject_current c ON c.subject_key=p.subject_key
-        AND c.sequence=p.sequence AND c.applicable_assessment_id=p.assessment AND c.verified_run_id=p.generation
-      LEFT JOIN portcove_maintenance.discovery_intake_batches b ON b.request_comment=p.request
+      ${currentProof}
      WHERE o.operation_id=p.operation_id AND o.kind=p.kind AND o.subject_key=p.subject_key
        AND o.fence_sequence=p.sequence AND o.fence_assessment_id=p.assessment AND o.state='planned'
        AND o.revision=p.revision AND o.executor='hosted-discovery-intake.yml'
-       AND EXISTS (SELECT 1 FROM portcove_maintenance_meta.discovery_intake_activation WHERE active)
-       AND ((b.request_comment IS NULL AND NOT p.checkpoint_required)
-            OR (b.request_sha256=p.request_sha256 AND encode(sha256(convert_to(b.receipt_body,'UTF8')),'hex')=p.sha256));
+       AND ${checkpoint};
     WITH completed AS (
       UPDATE portcove_maintenance.operations o
          SET state='completed', revision=o.revision+1, updated_at=greatest(clock_timestamp(),o.updated_at)
-        FROM ${proofTable}
-       WHERE o.operation_id=p.operation_id AND o.state='dispatched' AND o.revision=p.revision+1
+        ${currentProof}
+       WHERE ${checkpoint} AND o.operation_id=p.operation_id AND o.state='dispatched' AND o.revision=p.revision+1
          AND o.receipt_reference=p.reference AND o.receipt_sha256=p.sha256
       RETURNING o.operation_id, o.receipt_reference, o.receipt_sha256, p.run, p.attempt)
     SELECT coalesce(json_agg(row_to_json(c) ORDER BY operation_id), '[]') FROM completed c;`,
   );
-  return { inspected: plans.length, completed: JSON.parse(output) as unknown[] };
+  const completed = JSON.parse(output) as { operation_id: string }[];
+  if (completed.length) {
+    // A new session reads the committed operation. Only returned operation identities are queried.
+    const ids = completed.map(({ operation_id }) => sqlLiteral(operation_id)).join(",");
+    const committed = runSql(
+      environment,
+      `${executor}
+      SELECT coalesce(json_agg(row_to_json(v) ORDER BY operation_id), '[]') FROM (
+        SELECT o.operation_id, o.receipt_reference, o.receipt_sha256, p.run, p.attempt
+          FROM portcove_maintenance.operations o JOIN ${proofTable} ON o.operation_id=p.operation_id
+         WHERE o.operation_id IN (${ids}) AND o.state='completed' AND o.revision=p.revision+2
+           AND o.receipt_reference=p.reference AND o.receipt_sha256=p.sha256
+           AND o.fence_sequence=p.sequence AND o.fence_assessment_id=p.assessment) v;`,
+    );
+    if (committed !== output) throw new Error("Committed hosted intake operation receipt differs");
+  }
+  return { inspected: plans.length, completed };
 }

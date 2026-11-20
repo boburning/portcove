@@ -1154,8 +1154,11 @@ subjects it did observe.
 hosted-intake handoff through the ordinary worker, including audit-only recovery.
 The intake workflow reads back the authenticated bot receipt and records its
 comment URL and exact body digest against the original planned operation. The
-daily inventory repeats that reconciliation before collecting new handoff
-conditions. An owner can use the intake workflow's `receipts` mode after an
+daily inventory reuses its one verified native queue read to reconcile before
+refreshing handoff conditions. Failed or partial intake reads retain the original
+plan. A receipt transaction failure records an intake-specific gap. Other source
+collections, reporting, backup and restore continue, and the receipt outcome is
+checked after the report and backup are retained. An owner can use the intake workflow's `receipts` mode after an
 interruption. These paths make no new intake or Project mutation. They require
 a complete request with every slot resolved, its applicable full audit, the
 original request and receipt identity, and an exact current operation, assessment

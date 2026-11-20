@@ -357,10 +357,20 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--delivery",
     "--upstream",
     "--hosted-intake",
+    "--reconcile-intake",
     "--targets",
   ])
     assert.ok(collection.run!.includes(flag), flag);
 
+  const finalReceiptCheck = collect!.steps.at(-1)!;
+  assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
+  assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
+  assert.ok(collect!.steps.slice(0, -1).some((step) => step.name === "Retain the verified backup"));
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the report, digest and evidence"),
+  );
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);

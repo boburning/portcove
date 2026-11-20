@@ -116,11 +116,6 @@ jobs:
           started=$EPOCHSECONDS
           node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json
           printf 'migrate\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
-      - name: Recover original intake receipts before refreshing their maintenance handoffs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
-        run: node scripts/maintenance-inventory.mts handoffs --reconcile-intake
       - name: Collect every declared source in one transaction
         id: collect
         timeout-minutes: 40
@@ -134,7 +129,7 @@ jobs:
           started=$EPOCHSECONDS
           node scripts/maintenance-inventory.mts collect --all --cli target/debug/portcove \
             --issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN \
-            --release-health --release-content --publication --delivery --upstream --hosted-intake \
+            --release-health --release-content --publication --delivery --upstream --hosted-intake --reconcile-intake \
             --targets --progress scripts/upstream-progress/sources-v1.json \
             > work/maintenance-evidence/collect.json
           printf 'collect\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
@@ -242,6 +237,7 @@ jobs:
           digest = load(work / "maintenance-report/digest/digest.json") or {}
           manifest = load(work / "maintenance-backup/store/manifest.json") or {}
           server = load(evidence_dir / "server.json") or {}
+          collected = load(evidence_dir / "collect.json") or {}
           times = {}
           if (evidence_dir / "step-times.tsv").is_file():
               for line in (evidence_dir / "step-times.tsv").read_text().splitlines():
@@ -262,6 +258,7 @@ jobs:
                            "public_summary": os.environ["PUBLIC_SUMMARY_OUTCOME"]},
               "report_generated_at": inventory.get("generated_at"),
               "report_scope": inventory.get("scope"),
+              "intake_receipts": (collected.get("hosted_intake") or {}).get("receipts"),
               "subjects": len(inventory.get("subjects", [])),
               "pending_changes": len(digest.get("entries", [])),
               "sources": sources,
@@ -304,6 +301,11 @@ jobs:
           path: work/maintenance-backup/store/
           if-no-files-found: error
           retention-days: 30
+      - name: Check original intake receipt reconciliation
+        if: ${{ !cancelled() && steps.collect.outcome == 'success' }}
+        run: |
+          jq '.hosted_intake.receipts' work/maintenance-evidence/collect.json
+          jq -e '.hosted_intake.receipts.status == "passed"' work/maintenance-evidence/collect.json > /dev/null
 
   restore-proof:
     needs: collect
