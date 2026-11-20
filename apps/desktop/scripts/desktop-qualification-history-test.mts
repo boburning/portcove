@@ -196,6 +196,7 @@ export async function captureHistorySession(
   driverPath: string,
   applicationPath: string,
   phase = "interaction",
+  appImageLibrary?: string,
 ) {
   assert.ok(["interaction", "cleanup"].includes(phase));
   const { owner, driver } = await captureHistoryDriver(driverPid, driverPath);
@@ -221,7 +222,21 @@ export async function captureHistorySession(
     }
   }
   const appExecutable = await realpath(applicationPath);
-  const application = processes.find((entry) => entry.executable === appExecutable);
+  let application = processes.find((entry) => entry.executable === appExecutable);
+  if (appImageLibrary) {
+    const matches: HistoryProcess[] = [];
+    for (const entry of processes) {
+      if (!entry.executable || path.basename(entry.executable) !== "portcove-desktop") continue;
+      const environment = (await readFile(`/proc/${entry.pid}/environ`, "utf8")).split("\0");
+      if (
+        environment.includes(`APPIMAGE=${appExecutable}`) &&
+        environment.includes(`PORTCOVE_LIBRARY=${appImageLibrary}`)
+      )
+        matches.push(entry);
+    }
+    assert.ok(matches.length <= 1, "Owned AppImage identity is ambiguous");
+    [application] = matches;
+  }
   const webviews = processes.filter(
     (entry) => entry.executable !== null && path.basename(entry.executable) === "WebKitWebProcess",
   );

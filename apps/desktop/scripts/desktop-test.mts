@@ -282,6 +282,12 @@ const reloadCycles = Number(values["reload-cycles"]);
 if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
 const selection = resolveDesktopHarnessSelection(values);
+const publishedAppImageSmoke = process.env.PORTCOVE_PUBLISHED_APPIMAGE_SMOKE === "1";
+if (publishedAppImageSmoke) {
+  assert.equal(process.platform, "linux");
+  assert.deepEqual(selection.selected_scenarios, ["native-error-recovery"]);
+  assert.match(application, /\.AppImage$/u);
+}
 // Admission stays with the existing native owners; planning never grants it.
 bootstrapRecoverySelection(selection, process.platform);
 librarySwitchRecoverySelection(selection, process.platform);
@@ -3474,13 +3480,69 @@ try {
   await scenario("native-error-recovery", async () => {
     const bootstrap = await invoke("get_bootstrap_status");
     assert.ok(bootstrap.ok);
+    const inventory = publishedAppImageSmoke
+      ? await captureHistorySession(
+          required(driver?.pid),
+          driverPath,
+          application,
+          "interaction",
+          library,
+        )
+      : undefined;
+    if (inventory) {
+      assert.equal(bootstrap.value.ready, true);
+      assert.equal(bootstrap.value.library_root, library);
+      await writeFile(
+        path.join(output, "published-startup.json"),
+        JSON.stringify({
+          application: required(inventory.application),
+          driver: inventory.driver,
+          webviews: inventory.webviews,
+          library,
+          preferences: path.join(runtimeRoot, "preferences.json"),
+        }),
+        { flag: "wx" },
+      );
+    }
     const failed = await invoke("verify_port", {
       portId: "nonexistent-fixture-port",
       generation: bootstrap.value.generation,
     });
     assert.equal(failed.ok, false);
     assert.ok(object(failed.error).code);
-    assert.equal(success(await invoke("get_bootstrap_status")).ready, true);
+    const recovered = success(await invoke("get_bootstrap_status"));
+    assert.equal(recovered.ready, true);
+    if (inventory) {
+      assert.equal(recovered.library_root, library);
+      assert.equal(recovered.generation, bootstrap.value.generation);
+      await writeFile(
+        path.join(output, "published-ipc.json"),
+        JSON.stringify({
+          bootstrap_ready: true,
+          unknown_port_refusal: text(object(failed.error).code),
+          recovered_ready: true,
+          library,
+          generation: recovered.generation,
+        }),
+        { flag: "wx" },
+      );
+      await captureScenarioScreenshot("published-appimage-ready", true);
+      assert.ok(await historyDriverStillOwned(inventory));
+      await driverBrowser().close();
+      const exited = await waitHistorySessionExit({
+        processes: [required(inventory.application), ...inventory.webviews],
+      });
+      assert.ok(await historyDriverStillOwned(inventory));
+      await writeFile(
+        path.join(output, "published-close.json"),
+        JSON.stringify({
+          request: "WebDriver Close Window",
+          driver_still_owned: true,
+          ...exited,
+        }),
+        { flag: "wx" },
+      );
+    }
   });
   await scenario("native-startup-network-diagnostic", async () => {
     const browser = driverBrowser();

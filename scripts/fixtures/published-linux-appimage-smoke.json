@@ -1,0 +1,21 @@
+{
+  "version": "0.1.0-preview.10",
+  "source": "5ca268bd6eeb19e4ec64a87b2ebd6685527de97a",
+  "release_id": 452429525,
+  "appimage": {
+    "id": 771030896,
+    "bytes": 107190776,
+    "sha256": "87a0cb0632ec5a07e7814e1c0f0edaa9787b598a09a4476d36e90d108e8dbbf1"
+  },
+  "signature": {
+    "id": 771031031,
+    "bytes": 468,
+    "sha256": "cb473e7f98237453878ee98ab2a6e22eae99b5c015093ded9bfb36a6113047de"
+  },
+  "checksums": {
+    "id": 771031383,
+    "bytes": 1234,
+    "sha256": "191c70fa1f808f34e8559a82c1faef28c3aaafe7f40815a7bab777fc55087be4"
+  },
+  "updater_key_sha256": "02e65e0c41e7a794842d422a10e1b73e9cd43b2155b9d03970cf47e354b5ee5a"
+}
