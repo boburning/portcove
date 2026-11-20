@@ -726,8 +726,8 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
-      // A refreshed workspace also lets the open detail re-read its own
-      // read-only views; none of these can repeat the install.
+      // A refreshed workspace lets the detail re-read its views. The independent
+      // scheduled catalog refresh may also run; none may repeat the game install.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
@@ -739,6 +739,7 @@ export async function installScenarios({
         "get_mod_setups",
         "get_backups",
         "get_artwork",
+        "refresh_official_catalog_automatically",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(

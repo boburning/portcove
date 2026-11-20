@@ -186,7 +186,7 @@ export async function sourceIntakeNativeBoundaries({
     );
   };
   try {
-    await openCatalogPortAfterRefresh(browser, fixture.port);
+    await openCatalogPortAfterRefresh(browser, fixture.port, fixture.port.name);
     await revealDetailSection(browser, "Game files");
     await click(button("Check game files"));
     await browser.wait(until.elementLocated(dialog), 15000);

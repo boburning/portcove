@@ -81621,10 +81621,12 @@
           "tuxracer"
         ],
         "macos-x86-64": [
-          "Tux Racer.app/Contents/MacOS/Tux Racer"
+          "Tux Racer.app/Contents/MacOS/Tux Racer",
+          "TuxRacer-0.61-sdl2-macOS/Tux Racer.app/Contents/MacOS/Tux Racer"
         ],
         "macos-aarch64": [
-          "Tux Racer.app/Contents/MacOS/Tux Racer"
+          "Tux Racer.app/Contents/MacOS/Tux Racer",
+          "TuxRacer-0.61-sdl2-macOS/Tux Racer.app/Contents/MacOS/Tux Racer"
         ]
       },
       "persistent_paths": [

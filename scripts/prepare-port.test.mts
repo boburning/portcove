@@ -2370,6 +2370,105 @@ void test("official URL preparation retains ReflectionHLE portability observatio
   }
 });
 
+void test("a reviewed operational record retains the verified origin on issue-free onboarding", async (context) => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "dungeon-crawl-stone-soup";
+    const reviewed = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const { upstream_lineage: expected, ...unbound } = reviewed;
+    rmSync(join(root, "ports", `${id}.json`));
+    const validatorCli = join(f.root, "selected-cli");
+    writeFileSync(validatorCli, "inert origin validation fixture");
+    context.mock.method(childProcess, "spawnSync", (_artifact: string, args: string[]) => {
+      const input = readFileSync(args.at(-1)!);
+      const data: unknown = args.includes("inspect-proposal")
+        ? {
+            format_version: 1,
+            input_sha256: createHash("sha256").update(input).digest("hex"),
+            input_bytes: input.length,
+            ports: [],
+            scope: "repository-summary-policy",
+          }
+        : JSON.parse(input.toString("utf8"));
+      return { status: 0, signal: null, stdout: JSON.stringify({ data }), stderr: "" };
+    });
+    syncBuiltinESMExports();
+    const options = {
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: reviewed.listing.project_url,
+      originalGame: reviewed.listing.original_game,
+      record: unbound,
+      validatorCli,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 23038334, full_name: "crawl/crawl", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    };
+    const result = await preparePort(options);
+    const first = readFileSync(result.report.files.records[0]!.path, "utf8");
+    const candidate = checkedAuthoredPort(JSON.parse(first));
+    assert.deepEqual(candidate.upstream_lineage, expected);
+    assert.equal(candidate.listing.issue_number, undefined);
+    assert.deepEqual(candidate.listing.original_game, reviewed.listing.original_game);
+    assert.deepEqual(candidate.integration, reviewed.integration);
+    const repeat = await preparePort(options);
+    assert.equal(readFileSync(repeat.report.files.records[0]!.path, "utf8"), first);
+    await assert.rejects(
+      preparePort({ ...options, projectUrl: "https://github.com/crawl/other" }),
+      /reviewed record belongs to another project URL/u,
+    );
+    await assert.rejects(
+      preparePort({ ...options, originalGame: { ...reviewed.listing.original_game, id: "other" } }),
+      /reviewed record and supplied game or edition identity differ/u,
+    );
+    const unverifiedAssociation = {
+      ...unbound,
+      listing: { ...unbound.listing, issue_number: 900000001 },
+    };
+    await assert.rejects(
+      preparePort({ ...options, record: unverifiedAssociation }),
+      /cannot supply an unverified issue association/u,
+    );
+    const release = unbound.integration?.release;
+    assert.ok(release && typeof release === "object");
+    const otherRepository = {
+      ...unbound,
+      integration: {
+        ...unbound.integration,
+        release: { ...release, repository: "another/project" },
+      },
+    };
+    await assert.rejects(
+      preparePort({ ...options, record: otherRepository }),
+      /must use the official or retained repository/u,
+    );
+    const differentOrigin = structuredClone(reviewed);
+    differentOrigin.upstream_lineage!.origin.repository!.id = "42";
+    await assert.rejects(
+      preparePort({ ...options, record: differentOrigin, outputDirectory: join(f.root, "moved") }),
+      /reviewed record and provider repository identities differ/u,
+    );
+    writeFileSync(
+      join(root, "ports", `${id}.json`),
+      JSON.stringify({ ...reviewed, listing: { ...reviewed.listing, issue_number: 900000001 } }),
+    );
+    await assert.rejects(
+      preparePort({ ...options, record: reviewed, outputDirectory: join(f.root, "existing") }),
+      /review changes to an existing issue association or lineage/iu,
+    );
+  } finally {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+    f.clean();
+  }
+});
+
 void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layout", async () => {
   const f = fixture();
   try {
@@ -2407,6 +2506,50 @@ void test("official URL preparation compacts the exact TechnicallyComputers PSX 
     assert.deepEqual(result.report.changed_records, [id]);
     assert.equal(result.report.operational_changed, false);
     assert.equal(candidate.psx_managed_windows_v1, "technically-computers");
+    assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts the exact Alexbeav PSX layout without a crash log", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "alexbeav-brave-fencer-musashi-recomp";
+    const record = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const result = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: record.listing.project_url,
+      originalGame: record.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                full_name: "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(result.report.changed_records, [id]);
+    assert.equal(result.report.operational_changed, false);
+    assert.equal(candidate.psx_managed_windows_v1, "split-mods-no-crash-log");
     assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {

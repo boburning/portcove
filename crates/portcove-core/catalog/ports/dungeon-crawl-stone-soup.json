@@ -52,5 +52,17 @@
       "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes."
     },
     "launch_arguments": ["-dir", "."]
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dungeon-crawl-stone-soup",
+    "origin": {
+      "project_url": "https://github.com/crawl/crawl",
+      "repository": {
+        "host": "github.com",
+        "id": "23038334"
+      }
+    },
+    "decisions": []
   }
 }

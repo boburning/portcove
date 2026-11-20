@@ -644,13 +644,22 @@ export async function preparePort(options: PrepareOptions) {
   const authored = readCatalogSource(options.catalogRoot);
   const explicit = options.record === undefined ? undefined : checkedAuthoredPort(options.record);
   const originalGame = options.originalGame;
-  if (originalGame !== undefined && (!options.projectUrl || explicit || options.issue))
+  if (originalGame !== undefined && (!options.projectUrl || options.issue))
     throw new Error("An original-game input starts preparation with an official project URL.");
   if (
     originalGame !== undefined &&
     (!isRecord(originalGame) || typeof originalGame.id !== "string")
   )
     throw new Error("An original-game input requires a stable game ID and reviewed evidence.");
+  if (originalGame !== undefined && explicit) {
+    if (identityUrl(explicit.listing.project_url) !== identityUrl(options.projectUrl!))
+      throw new Error("The reviewed record belongs to another project URL.");
+    if (
+      explicit.listing.original_game &&
+      observationHash(explicit.listing.original_game) !== observationHash(originalGame)
+    )
+      throw new Error("The reviewed record and supplied game or edition identity differ.");
+  }
   const route = options.route ?? (originalGame === undefined ? "listing" : "download");
   const validatorIdentity = options.validatorCli
     ? createHash("sha256").update(readFileSync(options.validatorCli)).digest("hex")
@@ -689,9 +698,43 @@ export async function preparePort(options: PrepareOptions) {
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
     const previous = authored.records.find((record) => record.listing.id === id);
+    if (originalGame !== undefined && explicit) {
+      if (!previous && explicit.listing.issue_number !== undefined)
+        throw new Error("A new issue-free record cannot supply an unverified issue association.");
+      const release = explicit.integration?.release;
+      const retainedRelease = previous?.integration?.release;
+      const provider = isRecord(release) ? (release.provider ?? "github") : null;
+      const retainedProvider = isRecord(retainedRelease)
+        ? (retainedRelease.provider ?? "github")
+        : null;
+      if (retainedProvider !== null && provider !== retainedProvider)
+        throw new Error("Review changes to an existing release provider as a record edit.");
+      const retainedRepository =
+        isRecord(retainedRelease) &&
+        retainedProvider === "github" &&
+        typeof retainedRelease.repository === "string"
+          ? retainedRelease.repository.toLowerCase()
+          : undefined;
+      if (
+        isRecord(release) &&
+        provider === "github" &&
+        (typeof release.repository !== "string" ||
+          release.repository.toLowerCase() !== (retainedRepository ?? repository?.toLowerCase()))
+      )
+        throw new Error("The reviewed GitHub route must use the official or retained repository.");
+    }
     if (originalGame !== undefined && previous) {
       if (!sameProject(previous.listing.project_url))
         throw new Error("The stable implementation ID already belongs to another project.");
+      if (
+        explicit &&
+        (explicit.listing.issue_number !== previous.listing.issue_number ||
+          observationHash(explicit.upstream_lineage ?? null) !==
+            observationHash(previous.upstream_lineage ?? null))
+      )
+        throw new Error(
+          "Review changes to an existing issue association or lineage as a record edit.",
+        );
       if (!options.id && !previous.listing.original_game)
         throw new Error("Supply the existing stable --id to bind its reviewed game identity.");
       if (
@@ -757,6 +800,14 @@ export async function preparePort(options: PrepareOptions) {
       metadata.full_name.toLowerCase() === facts.repository.toLowerCase()
         ? String(metadata.id)
         : undefined;
+    if (originalGame !== undefined && explicit?.upstream_lineage && recordedRepositoryId) {
+      const { current } = assessUpstreamLineage(explicit);
+      if (
+        current.repository?.host === "github.com" &&
+        current.repository.id !== recordedRepositoryId
+      )
+        throw new Error("The reviewed record and provider repository identities differ.");
+    }
     if (
       originalGame !== undefined &&
       !previous &&
@@ -774,7 +825,7 @@ export async function preparePort(options: PrepareOptions) {
     const existingListedAt = base?.listing.listed_at ?? previous?.listing.listed_at;
     let record = checkedAuthoredPort({
       ...(base ?? { format_version: 1 }),
-      ...(originalGame !== undefined && !base && recordedRepositoryId
+      ...(originalGame !== undefined && !previous && !base?.upstream_lineage && recordedRepositoryId
         ? {
             upstream_lineage: {
               format_version: 1,

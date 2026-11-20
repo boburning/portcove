@@ -18,6 +18,10 @@ import vm from "node:vm";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
+  encodeManagedInterventionEvidence,
+  readManagedInterventionEvidence,
+} from "./maintenance-interventions.mts";
+import {
   clockWindowCrossed,
   coreReuseKey,
   deferralChanges,
@@ -1787,6 +1791,8 @@ void test(
     );
     const published_at = new Date(Date.now() - 86_400_000).toISOString();
     const previous = progress("owner/alpha", [port]);
+    const checkpointRevision = (run: number) =>
+      `upstream-observer-run:${run}-1@${source}#sha256:${"f".repeat(64)}`;
     let run = 0;
     const observe = (eligible: boolean) => {
       const candidate = { id: 100, tag: "v2", published_at };
@@ -1797,7 +1803,7 @@ void test(
         targets: true,
         upstream: () =>
           Promise.resolve({
-            revision: `upstream-observer-run:${++run}`,
+            revision: checkpointRevision(++run),
             config_sha256: scope,
             checkpoint: checkpoint({
               [keyOf("owner/alpha")]: {
@@ -1830,6 +1836,7 @@ void test(
     };
     await observe(false);
     const inventory = buildReport(store.owner);
+    assert.equal(inventory.managed_intervention_evidence, undefined);
     const routeCoverage = inventory.managed_route_observation_coverage;
     assert.equal(routeCoverage?.offered_managed_platforms, 1);
     assert.equal(routeCoverage.platforms_with_candidate_observed, 1);
@@ -1851,6 +1858,39 @@ void test(
     assert.equal(pending.pending_candidates, 1);
     assert.equal(pending.observed_pending_candidates, 1);
     assert.equal(pending.observed_pending_to_eligible_candidates, 0);
+    const candidate_key = createHash("sha256")
+      .update(
+        JSON.stringify([port, "github", previous.repository_id, 100, "linux-x86-64", "stable"]),
+      )
+      .digest("hex");
+    const { bytes, sha256: inputDigest } = encodeManagedInterventionEvidence([
+      {
+        candidate_key,
+        port_key: `port:${port}`,
+        platform: "linux-x86-64",
+        channel: "stable",
+        observer_revision: checkpointRevision(1),
+        definition_sha256: "d".repeat(64),
+        client_sha256: "e".repeat(64),
+        review_ref: "https://github.com/boburning/portcove/issues/246#issuecomment-8",
+        start: published_at,
+        end: inventory.generated_at,
+        coverage: "complete",
+        actions: [],
+      },
+    ]);
+    const reviewedReport = buildReport(
+      store.owner,
+      new Date(inventory.generated_at),
+      readManagedInterventionEvidence(bytes, inputDigest),
+    );
+    const [reportedSequence] = reviewedReport.managed_intervention_evidence?.sequences ?? [];
+    assert.ok(reportedSequence && "matched_observation_states" in reportedSequence);
+    assert.deepEqual(reportedSequence.matched_observation_states, ["pending"]);
+    assert.equal(reportedSequence.state, "zero-reported");
+    assert.equal(reviewedReport.managed_intervention_evidence?.distinct_reported_actions, 0);
+    assert.equal(reviewedReport.managed_intervention_evidence?.verified_human_interventions, null);
+    assert.deepEqual(reviewedReport.managed_release_eligibility, pending);
     await observe(true);
     const eligibleReport = buildReport(store.owner);
     const eligible = eligibleReport.managed_release_eligibility;
