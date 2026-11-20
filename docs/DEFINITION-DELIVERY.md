@@ -1013,6 +1013,11 @@ Preview.9 can add a new identity from a legacy single-port schema-2 projection
 into a schema-3 baseline. That older compatibility path is limited to a new
 identity. Preview.9 also accepts complete projections matching the baseline
 schema and scope. Use the compatible representation for each supported reader.
+The current reader also carries forward a reviewed layout from a legacy
+single-port projection when the same subject is already embedded. The typed
+port must match apart from its reviewed layouts, and neither side can provide
+source contracts or qualification for that subject. The usual transition checks
+still require every previously reviewed platform to keep its layout check.
 
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant

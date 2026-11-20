@@ -192,6 +192,58 @@ fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
 }
 
 #[test]
+fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
+    let contract = include_bytes!(
+        "../tests/fixtures/definition-projection/crawl-reviewed-layout-contract.json.txt"
+    );
+    assert_eq!(
+        hex::encode(Sha256::digest(contract)),
+        "ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f",
+    );
+    let legacy: Value = serde_json::from_slice(contract).unwrap();
+    let selected = "dungeon-crawl-stone-soup";
+    let select = |legacy: &Value, baseline: &Catalog| {
+        let bytes = serde_json::to_vec(legacy).unwrap();
+        inspect(&entry(legacy, &bytes, 0), &bytes)?.catalog_for_selection(baseline)
+    };
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let previous = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == selected)
+        .unwrap();
+    previous.reviewed_package_layouts.clear();
+    let baseline = Catalog::from_document(document).unwrap();
+    let effective = inspect(&entry(&legacy, contract, 0), contract)
+        .unwrap()
+        .catalog_for_selection(&baseline)
+        .unwrap();
+    assert_eq!(effective.source_catalog(), baseline.source_catalog());
+    assert_eq!(effective.ports().len(), baseline.ports().len());
+    assert_eq!(
+        effective.port(selected).unwrap().reviewed_package_layouts[&crate::Platform::WindowsX86_64]
+            .executables,
+        ["crawl.exe"],
+    );
+    for (before, after) in baseline.ports().iter().zip(effective.ports()) {
+        if before.id != selected {
+            assert_eq!(
+                serde_json::to_value(before).unwrap(),
+                serde_json::to_value(after).unwrap()
+            );
+        }
+    }
+    let mut changed = legacy.clone();
+    changed["catalog"]["ports"][0]["summary"] = json!("Different valid description");
+    let changed_bytes = serde_json::to_vec(&changed).unwrap();
+    let changed_projection = inspect(&entry(&changed, &changed_bytes, 0), &changed_bytes).unwrap();
+    assert!(changed_projection.catalog_for_selection(&baseline).is_err());
+    changed = legacy.clone();
+    changed["catalog"]["ports"][0]["reviewed_package_layouts"] = json!({});
+    assert!(select(&changed, &effective).is_err());
+}
+
+#[test]
 fn sparse_schema_three_reuses_exact_shared_source_records_and_rejects_conflicts() {
     let mut full = generic_projection();
     full["catalog"]["schema_version"] = json!(3);
