@@ -742,6 +742,7 @@ export default interface Resources {
       "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
       "reviewImage": "Review {{role}}",
       "reviewLocalImage": "Local image",
+      "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
       "reviewProviderImage": "SteamGridDB image by {{author}}",
       "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
       "scopeCurrentPort": "Artwork changes apply only to this port."

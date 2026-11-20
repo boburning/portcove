@@ -27,6 +27,7 @@ import type {
   ArtworkSelectionPreview,
   ArtworkSlot,
   ArtworkState,
+  DesktopError,
   PortDefinition,
   IgdbArtwork,
 } from "../types";
@@ -377,6 +378,7 @@ type ArtworkVisibilityReview = ArtworkReviewTarget & { action: "hide" | "automat
 
 type ArtworkImageReview = ArtworkReviewTarget & {
   originalSha256: string;
+  previewChanged?: boolean;
   image: string;
   framing: ArtworkFraming | null;
   source:
@@ -618,7 +620,7 @@ function ArtworkSlotControl({
     } catch (value) {
       if (stillCurrent()) setError(steamGridDbErrorText(value));
     } finally {
-      finishChange(pickerButton.current, !staged);
+      finishChange(trigger?.isConnected ? trigger : findButton.current, !staged);
     }
   };
 
@@ -640,7 +642,14 @@ function ArtworkSlotControl({
   };
 
   const applyImage = async (review: ArtworkImageReview, framing: ArtworkFraming | null) => {
-    if (!cache || !stillCurrent() || !draftIsCurrent(review) || busy.current) return;
+    if (
+      !cache ||
+      !stillCurrent() ||
+      !draftIsCurrent(review) ||
+      review.previewChanged ||
+      busy.current
+    )
+      return;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -676,6 +685,11 @@ function ArtworkSlotControl({
       } else setMessage("Local image selected.");
     } catch (value) {
       if (stillInView()) {
+        const failure = value as Partial<DesktopError> | null | undefined;
+        if (failure?.code === "conflict" && failure.details?.artwork_preview_changed === "true") {
+          setDraft({ ...review, previewChanged: true });
+          return;
+        }
         setError(
           review.source.kind === "provider" ? steamGridDbErrorText(value) : errorText(value),
         );
@@ -865,7 +879,7 @@ function ArtworkSlotControl({
             sourceLabel={sourceLabel}
             initialFraming={draft.framing}
             pending={pending}
-            stale={!draftIsCurrent(draft)}
+            stale={Boolean(draft.previewChanged) || !draftIsCurrent(draft)}
             onApply={(framing) => void applyImage(draft, framing)}
             onCancel={cancelImageReview}
           />
@@ -877,6 +891,7 @@ function ArtworkSlotControl({
             sourceLabel={sourceLabel ?? t("artwork.reviewLocalImage")}
             pending={pending}
             stale={!draftIsCurrent(draft)}
+            previewChanged={Boolean(draft.previewChanged)}
             onApply={() => void applyImage(draft, null)}
             onCancel={cancelImageReview}
           />
@@ -933,6 +948,7 @@ function ImageSelectionReview({
   sourceLabel,
   pending,
   stale,
+  previewChanged,
   onApply,
   onCancel,
 }: {
@@ -941,6 +957,7 @@ function ImageSelectionReview({
   sourceLabel: string;
   pending: boolean;
   stale: boolean;
+  previewChanged: boolean;
   onApply: () => void;
   onCancel: () => void;
 }) {
@@ -951,7 +968,7 @@ function ImageSelectionReview({
   const cancel = useRef<HTMLButtonElement>(null);
   const submitted = useRef(false);
   const [preview, setPreview] = useState<"loading" | "ready" | "failed">("loading");
-  const canApply = !pending && !stale && preview === "ready";
+  const canApply = !pending && !stale && !previewChanged && preview === "ready";
   useLayoutEffect(() => {
     if (!heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
   }, []);
@@ -988,6 +1005,11 @@ function ImageSelectionReview({
           onLoad={() => setPreview("ready")}
           onError={() => setPreview("failed")}
         />
+      )}
+      {previewChanged && (
+        <p role="alert" className="m-0 text-pc-warning-foreground">
+          {t("artwork.reviewPreviewChanged")}
+        </p>
       )}
       {stale && (
         <p role="status" className="m-0 text-pc-warning-foreground">

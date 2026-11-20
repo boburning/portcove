@@ -14,6 +14,7 @@
     "reviewHide": "Oculta la ilustración para esta función. Las demás no cambian.",
     "reviewImage": "Revisar {{role}}",
     "reviewLocalImage": "Imagen local",
+    "reviewPreviewChanged": "La imagen cambió. Cancela y vuelve a elegirla para revisar la nueva imagen.",
     "reviewProviderImage": "Imagen de SteamGridDB de {{author}}",
     "reviewStale": "Esta elección de ilustración cambió. Cancela y revisa la elección actual.",
     "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."

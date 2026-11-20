@@ -245,6 +245,39 @@ describe("local artwork controls", () => {
     },
   );
 
+  it("requires a new preview when the selected image changes before Apply", async () => {
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    const preview = vi.mocked(desktopApi.previewLocalArtwork).mockResolvedValueOnce(reviewedImage);
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockRejectedValueOnce({
+        code: "conflict",
+        message: "the selected image changed; preview it again before applying",
+        details: { artwork_preview_changed: "true" },
+      })
+      .mockResolvedValue(artworkState("sample", "cover", 1, true));
+    await render();
+    await open();
+    await chooseAndApplyLocal("cover");
+
+    const review = page.getByRole("form", { name: "Review Cover image", exact: true });
+    await expect.element(review.getByRole("alert")).toHaveTextContent(/^The image changed\./);
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    const cancel = review.getByRole("button", { name: "Cancel", exact: true });
+    await expect.element(cancel).toHaveFocus();
+    expect(save).toHaveBeenCalledTimes(1);
+
+    await cancel.click();
+    const freshReview = { ...reviewedImage, original_sha256: "b".repeat(64) };
+    preview.mockResolvedValueOnce(freshReview);
+    await chooseAndApplyLocal("cover");
+    expect(preview).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("sample", "cover", "E:/owned.png", 0, 7, {
+      preview_sha256: freshReview.original_sha256,
+      framing: null,
+    });
+  });
+
   it("keeps controller Back in the artwork sheet and returns focus to Change artwork", async () => {
     await render();
     await open();

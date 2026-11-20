@@ -4388,6 +4388,7 @@ fn reviewed_local_selections_bind_bytes_without_background_framing() {
             .import_artwork_with_framing(PORT, slot, &image, 0, Some(review.clone()))
             .unwrap_err();
         assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(refusal.details["artwork_preview_changed"], "true");
         assert_eq!(service.artwork(PORT, slot).unwrap().choice.revision, 0);
         assert!(!original.exists());
         let replacement_path = crate::artwork::original_path(

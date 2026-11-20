@@ -1294,7 +1294,8 @@ impl PortcoveService {
             if framing.preview_sha256 != sha256 {
                 return Err(PortcoveError::conflict(
                     "the selected image changed; preview it again before applying",
-                ));
+                )
+                .detail("artwork_preview_changed", "true"));
             }
         }
         let proposed = LocalArtworkAsset {
