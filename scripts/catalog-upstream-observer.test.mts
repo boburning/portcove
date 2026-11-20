@@ -1071,6 +1071,10 @@ ${gameEntryFixture}
     `%:if 0
 ${gameEntryFixture}
 %:endif`,
+    ["// hidden " + String.fromCharCode(92) + "   ", gameEntryFixture.replace(/\n/gu, " ")].join(
+      "\n",
+    ),
+    ["// hidden " + String.fromCharCode(92), gameEntryFixture.replace(/\n/gu, " ")].join("\r"),
     `/* ${gameEntryFixture} */`,
     `/* missing terminator
 ${gameEntryFixture}`,

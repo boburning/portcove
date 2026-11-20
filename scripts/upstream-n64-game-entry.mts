@@ -110,7 +110,7 @@ function parseEntry(tokens: string[], start: number) {
 
 /** Extract source declarations only. No compiled-platform or acceptance claim. */
 export function parseN64GameTable(source: string): N64GameEntry[] {
-  if (/\\\r?\n/u.test(source)) return unclear();
+  if (/\\[ \t\v\f]*(?:\r\n|\r|\n)/u.test(source)) return unclear();
   const withoutComments = source.replace(commentOrQuoted, (token) => {
     if (/^(?:u8|u|U|L)?R"$/u.test(token)) return unclear();
     if (token.startsWith("//")) return " ";
