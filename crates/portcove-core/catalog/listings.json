@@ -43515,6 +43515,7 @@
           "-linux.zip"
         ]
       },
+      "download_block_reason": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -52528,6 +52529,7 @@
           }
         ]
       },
+      "download_block_reason": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
