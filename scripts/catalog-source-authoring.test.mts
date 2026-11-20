@@ -1441,7 +1441,9 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
   const { records } = readCatalogSource(catalogRoot);
   const consumers = records.filter(
     (record) =>
-      record.psx_managed_windows_v1 && record.psx_managed_windows_v1 !== "technically-computers",
+      record.psx_managed_windows_v1 &&
+      record.psx_managed_windows_v1 !== "technically-computers" &&
+      record.psx_managed_windows_v1 !== "technically-computers-input-files",
   );
   assert.ok(consumers.length > 0);
   for (const record of consumers) {
@@ -1521,6 +1523,81 @@ void test("TechnicallyComputers PSX persistence preserves the reviewed three-pla
   const tomba = requiredFixture(records.find(({ listing }) => listing.id === "tomba-recompiled"));
   assert.equal(tomba.psx_managed_windows_v1, undefined);
   assert.equal(compactPsxManagedWindows(tomba), tomba);
+});
+
+void test("TechnicallyComputers PSX input files preserve the reviewed kit and raw disc contracts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "technically-computers-input-files",
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "bomberman-party-edition-recompiled",
+    "final-fantasy-vii-recompiled",
+  ]);
+  for (const record of family) {
+    const id = record.listing.id;
+    const projected = projectAuthoredPort(record);
+    assert.ok(projected);
+    assert.equal(JSON.stringify(projected), JSON.stringify(accepted.get(id)), id);
+    assert.deepEqual(projected.persistent_paths, [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+      "input.ini",
+      "keybinds.ini",
+    ]);
+    assert.equal(record.integration?.runtime_subdirectory, "build-portcove");
+    assert.deepEqual(record.integration?.runtime_mutable_paths, [
+      "bios.cfg",
+      "disc.cfg",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json",
+    ]);
+
+    const duplicate = structuredClone(record);
+    duplicate.integration!.persistent_paths = [];
+    assert.throws(() => projectPsxManagedWindows(duplicate), /already own the persistent paths/u);
+
+    const downgrade = structuredClone(record);
+    downgrade.psx_managed_windows_v1 = "technically-computers";
+    assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows and macOS/u);
+    downgrade.psx_managed_windows_v1 = true;
+    assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows GitHub kit/u);
+
+    const otherIdentity = structuredClone(record);
+    otherIdentity.listing.id = "other-port";
+    assert.throws(() => projectPsxManagedWindows(otherIdentity), /exact reviewed/u);
+
+    const otherRepository = structuredClone(record);
+    otherRepository.listing.project_url = "https://github.com/TechnicallyComputers/OtherKit";
+    (otherRepository.integration!.release as Record<string, unknown>).repository =
+      "TechnicallyComputers/OtherKit";
+    assert.throws(() => projectPsxManagedWindows(otherRepository), /exact reviewed/u);
+
+    const mismatchedProfile = structuredClone(record);
+    mismatchedProfile.integration!.source_profile = "other-source";
+    assert.throws(() => projectPsxManagedWindows(mismatchedProfile), /exact reviewed/u);
+
+    const unexpectedRoot = structuredClone(record);
+    unexpectedRoot.integration!.runtime_subdirectory = "other-root";
+    assert.throws(() => projectPsxManagedWindows(unexpectedRoot), /exact reviewed/u);
+  }
+  const finalFantasy = requiredFixture(
+    family.find(({ listing }) => listing.id === "final-fantasy-vii-recompiled"),
+  );
+  assert.equal(finalFantasy.integration?.runtime_source_filename, "runtime-discs");
+  assert.equal(finalFantasy.integration?.runtime_source_materialization, "psx-raw-set");
+  assert.deepEqual(finalFantasy.integration?.launch_arguments, ["--no-launcher"]);
+  const wrongDiscSet = projectPsxManagedWindows(structuredClone(finalFantasy));
+  delete wrongDiscSet.psx_managed_windows_v1;
+  wrongDiscSet.integration!.runtime_source_materialization = "copy";
+  assert.equal(compactPsxManagedWindows(wrongDiscSet), wrongDiscSet);
 });
 
 void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {
