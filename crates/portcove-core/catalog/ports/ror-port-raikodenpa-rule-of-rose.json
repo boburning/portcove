@@ -5,10 +5,10 @@
     "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
     "original_game_title": "Rule of Rose",
     "summary": "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+    "project_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/RaikoDenpa/RoR-Port",
+    "setup_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/RaikoDenpa/RoR-Port"
+      "help_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp"
     },
     "issue_number": 3043,
     "listed_at": "2026-10-25",
@@ -62,6 +62,48 @@
         "id": "1431906336"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+          "repository": {
+            "host": "github.com",
+            "id": "1431906336"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1431906336"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "Retain the same GitHub repository and Portcove listing after independently verifying the numeric redirect, retained source history and current project requirements.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/RaikoDenpa/RoR-Port",
+            "note": "On 2026-11-19 the former address returned HTTP 301 to /repositories/1431906336. The new canonical address returns the existing repository ID."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
+            "note": "The historical README remains available. The current guide still describes PS2Recomp, Ghidra and an owned PAL SLES-54218 disc. The repository publishes no GitHub Releases."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/boburning/portcove/issues/3043",
+            "note": "Retain the historical project association and original-game requirements."
+          }
+        ],
+        "reconsider_when": "Review a new observed repository ID, contradictory implementation history or changed source requirements before accepting any further relocation.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/177#issuecomment-7024799955",
+          "decision_sha256": "264edc1f30d6f637855ce9cfebfc603e874a28df8c22f2054d5df8244ccf77e3"
+        }
+      }
+    ]
   }
 }
