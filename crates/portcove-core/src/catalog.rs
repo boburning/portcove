@@ -3602,15 +3602,20 @@ mod tests {
                 ),
             ]
         );
-        // The v0.4.6 artifacts are excluded because relaunch can create an
-        // untracked successor process.
+        // Each affected release has four exact artifacts excluded because
+        // relaunch can create an untracked successor process.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
-        assert_eq!(hold.excluded_artifacts.len(), 4);
-        assert!(
-            hold.excluded_artifacts
-                .iter()
-                .all(|artifact| artifact.version == "v0.4.6")
-        );
+        assert_eq!(hold.excluded_artifacts.len(), 8);
+        for version in ["v0.4.6", "v0.4.7"] {
+            assert_eq!(
+                hold.excluded_artifacts
+                    .iter()
+                    .filter(|artifact| artifact.version == version)
+                    .count(),
+                4,
+                "{version}"
+            );
+        }
         // The Windows packages plus each release's published Linux and Mac
         // siblings, all matching their release SHA256SUMS.
         assert_eq!(
