@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
@@ -2574,6 +2575,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
   assert.ok(records.some((record) => record.opengoal_setup_v1));
   assert.ok(records.some((record) => record.openmohaa_portable_v1));
+  assert.ok(records.some((record) => record.openx_portable_v1));
   assert.ok(records.some((record) => record.native_managed_profile_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
   assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
@@ -2593,6 +2595,7 @@ void test("preparation reports all declared route projections across the current
     if (record.external_registration_v1) expected.push("external_registration_v1");
     if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
     if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
+    if (record.openx_portable_v1) expected.push("openx_portable_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
@@ -3583,6 +3586,55 @@ void test("settings qualification requests complete exact package facts and limi
       JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
       authored.catalog,
     );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts both exact OpenX portable package routes", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const { records } = readCatalogSource(root);
+    for (const [id, repository, repositoryId] of [
+      ["star-wars-x-wing-openxw", "elyosh/OpenXW", 1393268483],
+      ["star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt", "elyosh/OpenXvT", 1367490590],
+    ] as const) {
+      const record = records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectOpenXPortable(record);
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, id: repositoryId, full_name: repository, archived: false }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.equal(candidate.openx_portable_v1, true);
+      assert.equal(result.report.operational_changed, false);
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.deepEqual(projectOpenXPortable(candidate).integration, explicit.integration);
+      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
+      assert.ok(
+        result.report.declarative_authoring.projections.some(
+          ({ field }) => field === "openx_portable_v1",
+        ),
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
   } finally {
     f.clean();
   }
