@@ -479,7 +479,7 @@ try {
         -not $search.element.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$valuePattern) -or
         $valuePattern.Current.IsReadOnly) { throw 'Owned Discover search control is not writable' }
     $valuePattern.SetValue('Dungeon Crawl Stone Soup')
-    Select-Control 'Dungeon Crawl Stone Soup'
+    Select-Control "Linley's Dungeon Crawl Dungeon Crawl Stone Soup. Setup available. View port"
     Select-Control 'Review installation'
     $null = Wait-Control '0.34.1'
     Select-Control 'Install · 25.3 MiB'
