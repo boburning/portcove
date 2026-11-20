@@ -1963,6 +1963,16 @@ that exhaust that budget refuse complete review and remain held. The transport
 fixture exercises a 2 MiB current directory and retained prior copy; it supplies
 no actual semantic-review acceptance or production qualification.
 
+### Optional original-file recognition
+
+An indexed projection with `variant_list_recognition_only` binds that
+observation to the selected definition and its exact release and artifact.
+Libultraship portable version 7 and N64 recomp portable version 9 read the
+flag. Existing engine versions retain their original behavior. A definition
+that carries the flag declares the applicable capability floor. Older readers
+can then decline the definition before using the projection, while supported
+readers keep ordinary original-file admission and execution checks.
+
 ### Reviewed mod provider bindings
 
 An indexed definition can carry one exact GameBanana game ID and one

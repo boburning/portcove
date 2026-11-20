@@ -388,9 +388,38 @@ impl DefinitionContentIndex {
             ));
         }
         let mut catalog = document.validated_catalog()?;
+        let port = catalog.port(stable_id)?;
+        if let Some(sources) = catalog.source_catalog() {
+            for contract in sources
+                .contracts
+                .iter()
+                .filter(|contract| contract.variant_list_recognition_only)
+            {
+                if contract.port_id != stable_id {
+                    return Err(PortcoveError::verification(
+                        "optional original recognition must belong to the selected definition",
+                    ));
+                }
+                let (template, minimum) =
+                    crate::definition_capabilities::original_recognition_capability(port.adapter)
+                        .ok_or_else(|| {
+                        PortcoveError::unsupported(
+                            "the selected adapter has no optional original recognition capability",
+                        )
+                    })?;
+                if !entry.capabilities().checks.iter().any(|check| {
+                    check.requirement.template == template
+                        && check.requirement.minimum_version >= minimum
+                }) {
+                    return Err(PortcoveError::verification(format!(
+                        "optional original recognition requires {template} capability version {minimum}",
+                    )));
+                }
+            }
+        }
         // Track counts live in the source profile, so only the projection can
         // tell that the entry's disc set needs a reader that keeps every track.
-        if catalog.requires_psx_multi_track_set(catalog.port(stable_id)?)
+        if catalog.requires_psx_multi_track_set(port)
             && !entry.capabilities().checks.iter().any(|check| {
                 check.requirement.template == "psx-recomp-managed"
                     && check.requirement.minimum_version
@@ -404,8 +433,7 @@ impl DefinitionContentIndex {
         }
         // The representation kind lives in the source catalog, so only the
         // projection can tell that its admission needs the copier-header reader.
-        if catalog.snes_copier_header_profile(catalog.port(stable_id)?)
-            != crate::catalog::SnesCopierHeaderUse::None
+        if catalog.snes_copier_header_profile(port) != crate::catalog::SnesCopierHeaderUse::None
             && !entry.capabilities().checks.iter().any(|check| {
                 check.requirement.template == "staged-source-portable"
                     && check.requirement.minimum_version
@@ -421,7 +449,7 @@ impl DefinitionContentIndex {
                 "catalog projection contains unsupported or incomplete semantics",
             ));
         }
-        if serde_json::to_value(catalog.port(stable_id)?)? != serde_json::to_value(entry.port())? {
+        if serde_json::to_value(port)? != serde_json::to_value(entry.port())? {
             return Err(PortcoveError::verification(
                 "indexed port differs from its catalog projection contract",
             ));

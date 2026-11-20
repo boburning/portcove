@@ -10,6 +10,21 @@ const REQUIREMENT_FORMAT: u32 = 1;
 const MAX_REQUIREMENT_BYTES: u64 = 64 * 1024;
 const MAX_REQUIREMENTS: usize = 64;
 
+const LIBULTRASHIP_ORIGINAL_RECOGNITION: u32 = 7;
+const N64_RECOMP_ORIGINAL_RECOGNITION: u32 = 9;
+
+pub(crate) fn original_recognition_capability(adapter: AdapterKind) -> Option<(&'static str, u32)> {
+    match adapter {
+        AdapterKind::LibultrashipPortable => {
+            Some(("libultraship-portable", LIBULTRASHIP_ORIGINAL_RECOGNITION))
+        }
+        AdapterKind::N64RecompPortable => {
+            Some(("n64-recomp-portable", N64_RECOMP_ORIGINAL_RECOGNITION))
+        }
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EngineTemplateCapability {
@@ -363,6 +378,14 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: LIBULTRASHIP_ORIGINAL_RECOGNITION,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_ORIGINAL_RECOGNITION,
         });
         supported
     }
@@ -869,6 +892,35 @@ mod tests {
                 .unwrap()
                 .compatible
         );
+    }
+
+    #[test]
+    fn optional_original_recognition_keeps_old_loader_readers_and_requires_its_own_version() {
+        for adapter in [
+            AdapterKind::LibultrashipPortable,
+            AdapterKind::N64RecompPortable,
+        ] {
+            let (template, version) = original_recognition_capability(adapter).unwrap();
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| entry.template != adapter || entry.contract_version < version)
+                .collect();
+            assert!(
+                !check_with_inventory(&request(template, version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version, version))
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version - 1, version - 1))
+                    .unwrap()
+                    .compatible
+            );
+        }
     }
 
     #[test]
