@@ -43,6 +43,24 @@ CLIENTS = {
     ),
 }
 MACH_CPU_TYPES = {"x86_64": 0x01000007, "arm64": 0x0100000C}
+CLI_ERROR_CODES = {
+    2: "usage", 3: "unsupported", 4: "not_found", 5: "source_invalid",
+    10: "network", 11: "verification", 12: "install", 13: "state",
+    14: "conflict", 125: "launch", 130: "cancelled",
+}
+INSTALL_ERROR_REASONS = {
+    "download size does not match release metadata": "download_size_mismatch",
+    "download exceeded its declared release size": "download_size_mismatch",
+    "downloaded asset failed SHA-256 verification": "download_sha256_mismatch",
+    "archive paths must be ASCII to avoid cross-platform Unicode aliases": "archive_path_encoding",
+    "ZIP contains an unsupported entry type": "archive_unsupported_entry_type",
+    "ZIP links and special files are not allowed": "archive_unsupported_entry_type",
+    "archive links and special files are not allowed": "archive_unsupported_entry_type",
+    "none of the declared executable hints for MacosX86_64 were found": "declared_executable_missing",
+    "none of the declared executable hints for MacosAarch64 were found": "declared_executable_missing",
+    "the Mac bundle executable has no matching Mach-O architecture": "executable_architecture_mismatch",
+    "installation inputs changed; review installation again": "reviewed_plan_changed",
+}
 
 
 class VerificationError(RuntimeError):
@@ -139,6 +157,75 @@ def command_json(base, env, command, *args, seconds=30):
     result = json.loads(output([*base, "--json", *args], env=env, seconds=seconds))
     require(result.get("ok") is True and result.get("command") == command, f"Unexpected {command} result")
     return result["data"]
+
+
+def install_evidence(transcript, exit_status):
+    """Retain only fixed identifiers from Preview.9's result and progress schemas."""
+    evidence = {"command": "installation.run", "exit_status": exit_status, "last_progress_phase": None}
+    if len(transcript) > 256 * 1024:
+        return False, {**evidence, "reason": "cli_transcript_limit"}
+    try:
+        events = [json.loads(line) for line in transcript.splitlines() if line.strip()]
+    except (UnicodeDecodeError, ValueError):
+        return False, {**evidence, "reason": "invalid_cli_transcript"}
+    if not events or not all(isinstance(event, dict) for event in events):
+        return False, {**evidence, "reason": "invalid_cli_transcript"}
+    saw_started = False
+    for event in events[:-1]:
+        if (event.get("schema_version"), event.get("operation"), event.get("target")) != (
+            3, "install", {"kind": "port", "id": PORT},
+        ):
+            continue
+        if event.get("type") == "started":
+            saw_started = True
+        if event.get("type") == "message" and event.get("level") == "info" and event.get("message") == f"Download checksum matches: {TUX_NAME}":
+            evidence["selected_asset_checksum_verified"] = True
+        if event.get("type") == "finished" and event.get("result") in ("failed", "cancelled", "succeeded"):
+            evidence["operation_result"] = event["result"]
+        if event.get("type") == "progress" and event.get("phase_id") == "download":
+            evidence["last_progress_phase"] = "download"
+            count = event.get("completed")
+            if type(count) is int and 0 <= count <= 11843880:
+                evidence["download_bytes_observed"] = count
+    evidence["operation_started"] = saw_started
+    result = events[-1]
+    if (result.get("schema_version"), result.get("type"), result.get("command")) != (100, "result", "installation.run"):
+        return False, {**evidence, "reason": "missing_install_result"}
+    if exit_status == 0 and result.get("ok") is True and isinstance(result.get("data"), dict):
+        return True, evidence
+    error = result.get("error")
+    code = CLI_ERROR_CODES.get(exit_status)
+    if code is None or result.get("ok") is not False or not isinstance(error, dict) or error.get("code") != code:
+        return False, {**evidence, "reason": "invalid_install_error"}
+    evidence["code"] = code
+    message = error.get("message")
+    evidence["reason"] = INSTALL_ERROR_REASONS.get(message, "unclassified_cli_error") if isinstance(message, str) else "unclassified_cli_error"
+    presentation = error.get("presentation")
+    if isinstance(presentation, dict):
+        state = presentation.get("mutation_state")
+        if state in ("not_started", "no_changes", "committed", "recovery_required", "unknown"):
+            evidence["mutation_state"] = state
+        phase = presentation.get("phase")
+        if phase in ("preparation.review", "preparation.copy", "preparation.extract", "preparation.setup",
+                     "preparation.verify", "preparation.publish", "preparation.cleanup", "preparation.cleanup.review",
+                     "preparation.interrupted"):
+            evidence["failure_phase"] = phase
+    return False, evidence
+
+
+def install_reviewed(base, env, plan_sha256):
+    with tempfile.TemporaryFile() as transcript:
+        try:
+            result = subprocess.run([
+                *base, "--jsonl", "installation", "run", PORT, "--expected-plan", plan_sha256, "--yes",
+            ], env=env, stdin=subprocess.DEVNULL, stdout=transcript, stderr=subprocess.DEVNULL, timeout=150)
+        except subprocess.TimeoutExpired:
+            report("install-failed", {"command": "installation.run", "reason": "command_deadline"})
+            raise VerificationError("Reviewed installation exceeded its command deadline") from None
+        transcript.seek(0)
+        success, evidence = install_evidence(transcript.read(256 * 1024 + 1), result.returncode)
+    report("install-result" if success else "install-failed", evidence)
+    require(success, "Reviewed installation did not succeed")
 
 
 def public_launch(session):
@@ -345,7 +432,7 @@ def main():
     )
     report("plan", {"platform": platform_id, "plan_sha256": proposal["plan_sha256"],
                     "version": TUX_TAG, "asset_sha256": TUX_DIGEST})
-    read("installation.run", "installation", "run", PORT, "--expected-plan", proposal["plan_sha256"], "--yes", seconds=150)
+    install_reviewed(base, env, proposal["plan_sha256"])
     active = read("status", "status", PORT)["active"]
     require(active and active["version"] == TUX_TAG and active["artifact"] == {
         "asset_name": TUX_NAME, "size": 11843880, "sha256": TUX_DIGEST,
