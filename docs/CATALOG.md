@@ -3587,14 +3587,16 @@ The Ruby and Sapphire example shows when explicit variant and fallback paths
 can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
-Optional authoring-only `n64_recomp_persistence_v1: true` expands the reviewed
-root-level N64Recomp persistence layout for managed GitHub packages. It supplies
-the shared mod, save and settings paths and includes the explicit
-`runtime_source_filename`. Keep the source profile, ROM filename, repository,
-asset selectors and executable hints in the integration. A nested layout,
-different provider, optional settings declaration or different writer set uses
-an explicit integration. URL preparation proposes the family form when its
-expanded integration reproduces the reviewed explicit bytes.
+Optional authoring-only `n64_recomp_persistence_v1` expands the reviewed
+root-level N64Recomp persistence layout for managed GitHub packages. Use `true`
+for the shared mod, save and settings paths with the declared
+`runtime_source_filename`. Dinosaur Planet's `config-directory` adds `config`
+after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
+`technical.json.bak` before the original file. Keep the source profile, ROM
+filename, repository, asset selectors and executable hints in the integration.
+A nested layout, different provider, optional settings declaration or different
+writer set uses an explicit integration. URL preparation proposes the family
+form when its expanded integration reproduces the reviewed explicit bytes.
 
 Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
 shared portable-root persistence list for the reviewed ReflectionHLE route.

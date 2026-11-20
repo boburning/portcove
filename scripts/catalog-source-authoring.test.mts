@@ -1743,7 +1743,11 @@ void test("N64 recomp persistence compacts exact layouts and preserves explicit 
     differentWrites.integration!.persistent_paths = ["custom-saves"];
     assert.equal(compactN64RecompPersistence(differentWrites), differentWrites);
     assert.throws(
-      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      () =>
+        checkedAuthoredPort({
+          ...explicit,
+          n64_recomp_persistence_v1: record.n64_recomp_persistence_v1,
+        }),
       /already own persistent_paths/u,
     );
   }
@@ -1761,6 +1765,46 @@ void test("N64 recomp persistence compacts exact layouts and preserves explicit 
   const unsafe = structuredClone(consumers[0]!);
   unsafe.integration!.runtime_source_filename = "../alias.z64";
   assert.throws(() => checkedAuthoredPort(unsafe), /reviewed root-level GitHub recomp layout/u);
+});
+
+void test("N64 persistence additions preserve the reviewed writer order and refuse other owners", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const dinosaur = records.find((record) => record.listing.id === "dinosaur-planet")!;
+  const donkeyKong = records.find((record) => record.listing.id === "donkey-kong-64-recompiled")!;
+  assert.equal(dinosaur.n64_recomp_persistence_v1, "config-directory");
+  assert.equal(donkeyKong.n64_recomp_persistence_v1, "technical-settings");
+  const dinosaurPaths = projectAuthoredPort(dinosaur)?.persistent_paths;
+  const donkeyKongPaths = projectAuthoredPort(donkeyKong)?.persistent_paths;
+  assert.ok(Array.isArray(dinosaurPaths) && Array.isArray(donkeyKongPaths));
+  assert.deepEqual(dinosaurPaths.slice(0, 5), [
+    "mods",
+    "mod_config",
+    "saves",
+    "config",
+    "mods.json",
+  ]);
+  assert.deepEqual(donkeyKongPaths.slice(-4), [
+    "sound.json.bak",
+    "technical.json",
+    "technical.json.bak",
+    "DK64.z64",
+  ]);
+  assert.throws(
+    () => checkedAuthoredPort({ ...dinosaur, n64_recomp_persistence_v1: "technical-settings" }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
+  assert.throws(
+    () => checkedAuthoredPort({ ...donkeyKong, n64_recomp_persistence_v1: ["technical-settings"] }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...donkeyKong,
+        integration: { ...donkeyKong.integration, source_profile: "different-original" },
+      }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
 });
 
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {
