@@ -10,6 +10,7 @@ import platform
 import re
 import shutil
 import signal
+import struct
 import subprocess
 import tarfile
 import tempfile
@@ -41,6 +42,7 @@ CLIENTS = {
         "5140566730af9ab394005161f98a8755e81f5bb13682ce8cd550fc7c3d6de393",
     ),
 }
+MACH_CPU_TYPES = {"x86_64": 0x01000007, "arm64": 0x0100000C}
 
 
 class VerificationError(RuntimeError):
@@ -65,6 +67,47 @@ def output(args, *, seconds=30, env=None):
 def digest(path):
     with path.open("rb") as payload:
         return hashlib.file_digest(payload, "sha256").hexdigest()
+
+
+def verify_macho_executable(path, expected, subject):
+    """Read the bounded Mach-O headers of the already digest-verified input."""
+    reason = f"{subject} has an unexpected Mach-O executable architecture"
+
+    def header_at(payload, offset):
+        payload.seek(offset)
+        header = payload.read(32)
+        require(len(header) == 32, reason)
+        return header
+
+    def executable_cpu(header):
+        require(header[:4] == b"\xcf\xfa\xed\xfe", reason)
+        cpu, _, file_type = struct.unpack_from("<III", header, 4)
+        require(file_type == 2, reason)  # MH_EXECUTE
+        return cpu
+
+    with path.open("rb") as payload:
+        header = header_at(payload, 0)
+        cpus = set()
+        if header[:4] == b"\xca\xfe\xba\xbe":
+            count = struct.unpack_from(">I", header, 4)[0]
+            require(1 <= count <= len(MACH_CPU_TYPES), reason)
+            table_end = 8 + count * 20
+            payload.seek(8)
+            table = payload.read(count * 20)
+            require(len(table) == count * 20, reason)
+            file_size = os.fstat(payload.fileno()).st_size
+            ranges = []
+            for cpu, _, offset, size, _ in struct.iter_unpack(">IIIII", table):
+                end = offset + size
+                require(table_end <= offset and size >= 32 and end <= file_size and cpu not in cpus, reason)
+                require(all(end <= start or offset >= stop for start, stop in ranges), reason)
+                require(executable_cpu(header_at(payload, offset)) == cpu, reason)
+                ranges.append((offset, end))
+                cpus.add(cpu)
+        else:
+            cpus.add(executable_cpu(header))
+    require(cpus == {MACH_CPU_TYPES[arch] for arch in expected}, reason)
+    return sorted(expected)
 
 
 def api(resource):
@@ -281,7 +324,8 @@ def main():
             shutil.copyfileobj(binary, target_file)
     require(digest(cli) == executable_sha, "Extracted Mac CLI bytes differ")
     cli.chmod(0o700)
-    output(["/usr/bin/lipo", "-verify_arch", arch, str(cli)])
+    architectures = verify_macho_executable(cli, [arch], "Published Portcove CLI")
+    report("client-executable", {"architectures": architectures, "sha256": executable_sha})
     base = [str(cli), "--library", str(library), "--non-interactive"]
     read = lambda command, *args, **kwargs: command_json(base, env, command, *args, **kwargs)
     require(read("about", "about")["version"] == "0.1.0-preview.9", "Released CLI About version differs")
@@ -311,9 +355,10 @@ def main():
     course = local_path(runtime, runtime / TUX_COURSE)
     require(digest(game) == TUX_EXE_DIGEST and digest(course) == TUX_COURSE_DIGEST,
             "Installed executable or included course differs")
-    output(["/usr/bin/lipo", "-verify_arch", arch, str(game)])
+    architectures = verify_macho_executable(game, MACH_CPU_TYPES, "Installed Tux Racer")
     report("installed", {"install_id": active["id"], "manifest": active["manifest_sha256"],
-                         "game_sha256": TUX_EXE_DIGEST, "course_sha256": TUX_COURSE_DIGEST})
+                         "game_sha256": TUX_EXE_DIGEST, "course_sha256": TUX_COURSE_DIGEST,
+                         "game_architectures": architectures})
 
     first = supervised_play(base, env, active, game, workspace)
     profile_probe = profile / "portcove-verification-marker.txt"
