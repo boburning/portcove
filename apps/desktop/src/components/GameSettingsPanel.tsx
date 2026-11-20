@@ -35,14 +35,14 @@ export function GameSettingsPanel({
   actions,
   changed,
   disabled = false,
-  readRevision = 0,
+  fileReadRevisions,
 }: {
   view: GameSettingsChangeSetView;
   generation: number;
   actions: GameSettingsActions;
   changed: (view: GameSettingsView) => void;
   disabled?: boolean;
-  readRevision?: number;
+  fileReadRevisions?: ReadonlyMap<string, number>;
 }) {
   const { t } = useAppTranslation("gameSettings");
   const heading = useRef<HTMLHeadingElement>(null);
@@ -74,7 +74,7 @@ export function GameSettingsPanel({
           changed={changed}
           disabled={disabled || !settings.available}
           heading={heading}
-          readRevision={readRevision}
+          readRevision={fileReadRevisions?.get(file.id) ?? 0}
         />
       ))}
     </section>

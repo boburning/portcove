@@ -28,6 +28,7 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
   const { t } = useAppTranslation("gameSettings");
   const [request, setRequest] = useState(0);
   const [complete, setComplete] = useState(0);
+  const [fileReadRevisions, setFileReadRevisions] = useState(() => new Map<string, number>());
   const loading = complete !== request;
 
   useEffect(() => {
@@ -46,6 +47,15 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
         ) {
           setError({ kind: "changed" });
           return;
+        }
+        if (next.settings.available) {
+          setFileReadRevisions((previous) => {
+            const revisions = new Map(previous);
+            for (const file of next.settings.files) {
+              if (file.available && file.configuration_sha256) revisions.set(file.id, request);
+            }
+            return revisions;
+          });
         }
         // Keep file drafts mounted while a refresh cannot read their source.
         setView((previous) => {
@@ -109,7 +119,7 @@ function BoundGameSettingsControl({ portId, installId, generation, busy }: Props
         <GameSettingsPanel
           view={view}
           generation={generation}
-          readRevision={complete}
+          fileReadRevisions={fileReadRevisions}
           disabled={busy || loading || !!error}
           actions={{
             review: (fileId, edits) =>

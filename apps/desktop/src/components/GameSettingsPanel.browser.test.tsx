@@ -706,6 +706,21 @@ it("keeps a committed write confirmed through failed readback and refreshes the 
   updated.files[0]!.settings[0]!.value = 40;
   vi.spyOn(desktopApi, "gameSettingsChangeSetView")
     .mockResolvedValueOnce(observed(settings()))
+    .mockRejectedValueOnce(new Error("Failed to read settings again"))
+    .mockResolvedValueOnce(
+      observed({
+        ...settings(),
+        files: [
+          {
+            ...settings().files[0]!,
+            available: false,
+            configuration_sha256: null,
+            reason: "This file is unavailable",
+            settings: [],
+          },
+        ],
+      }),
+    )
     .mockResolvedValueOnce(observed(updated));
   vi.spyOn(desktopApi, "reviewGameSettingsChangeSet").mockResolvedValue(
     reviewed({ action: "reset" }),
@@ -742,6 +757,12 @@ it("keeps a committed write confirmed through failed readback and refreshes the 
   await click("Cancel");
   expect(host.textContent).toContain("Changes saved. Read the settings again");
   expect(button("Review changes").matches(":disabled")).toBe(true);
+  await click("Read settings again");
+  expect(host.textContent).toContain("Failed to read settings again");
+  expect(host.textContent).toContain("Changes saved. Read the settings again");
+  await click("Read settings again");
+  expect(host.textContent).toContain("This file is unavailable");
+  expect(host.textContent).toContain("Changes saved. Read the settings again");
   await click("Read settings again");
   expect(host.textContent).not.toContain("Read the settings again to see the current values.");
   expect(host.querySelector("input")?.value).toBe("40");
