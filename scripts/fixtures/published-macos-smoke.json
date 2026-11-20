@@ -1,4 +1,28 @@
 {
   "schema_version": 1,
-  "release": null
+  "release": {
+    "version": "0.1.0-preview.11",
+    "source": "85743cbc0947bfb9838ff311297d5cc29e635cfb",
+    "release_id": 452656701,
+    "updater_key_sha256": "02e65e0c41e7a794842d422a10e1b73e9cd43b2155b9d03970cf47e354b5ee5a",
+    "archive": {
+      "id": 771718088,
+      "bytes": 61085721,
+      "sha256": "4fc3ca77f6aaf3ce5e115b7127636b4ef5d63a153c68aa4af21b07984fb03a1d"
+    },
+    "signature": {
+      "id": 771718315,
+      "bytes": 440,
+      "sha256": "e1681ea4c6ccbea1b0673cf87eab8ef0b866885fa37042bc372278bdc0a264c1"
+    },
+    "checksums": {
+      "id": 771718625,
+      "bytes": 1234,
+      "sha256": "090cf40fa9fa8fe915b6e7b6f0f0772e568b49ede86dba20aa5dcfbce892380e"
+    },
+    "desktop_executable": {
+      "bytes": 175357200,
+      "sha256": "db7eb07fb1653a875c09f957b15353ebd857fd7b328be6ecf001442d4cd9d67e"
+    }
+  }
 }
