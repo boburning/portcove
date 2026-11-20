@@ -357,8 +357,17 @@ The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
 the existing collection allowance with the configured Shipwright source and
 preserve the regular rotation and checkpoint handling. A due appointed GitHub source takes its bounded provider refresh even if a Core
 binding change also permits offline reprojection of earlier facts. An incomplete
-refresh retains the prior observation and freshness clock. Manual dispatch uses
-the ordinary rotation.
+refresh retains the prior observation and freshness clock. Manual dispatch has
+no scheduled appointments.
+
+Each hosted batch offers at most one early turn to the oldest eligible
+listing-only source with missing or expired provider freshness. Its turn follows
+the appointed scopes and healthy managed sources whose provider receipt is
+missing or will expire by the batch deadline. The remaining sources retain
+their usual order. The listing turn uses the ordinary source quantum and the
+same request, runtime, and byte limits. If the prior turns use the batch
+capacity, the listing waits in its existing durable position. The priority
+changes neither freshness evidence nor continuation rules.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
