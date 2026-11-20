@@ -1,0 +1,27 @@
+{
+  "policy_schema": 3,
+  "namespace": "official",
+  "stable_id": "doom-3-classic-dude-doom-3-unified-development-engine",
+  "policy_revision": 5,
+  "grant_id": "managed-github-v1-doom-3-classic-dude-doom-3-unified-development-engine",
+  "decision": {
+    "status": "managed_github",
+    "definition_revision": 1,
+    "index_sha256": "5e5ed7e3638ac76559c032c667bd15b6cabc1b3eeadf6693f87d9e1946367212",
+    "definition_sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28",
+    "template": "native-portable",
+    "repository_id": 1339409147,
+    "artifact_hosts": [
+      "github.com",
+      "release-assets.githubusercontent.com"
+    ],
+    "max_redirects": 1,
+    "operations": [
+      "install",
+      "update",
+      "prepare",
+      "launch"
+    ],
+    "scoped_launch_checks": 1
+  }
+}
