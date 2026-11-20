@@ -20,6 +20,22 @@ export interface ObservationRun {
   run_attempt: string;
 }
 
+const inspectionTriggers = {
+  schedule: "the schedule",
+  workflow_dispatch: "a manual dispatch",
+  push: "a push to main",
+} as const;
+
+type InspectionTrigger = keyof typeof inspectionTriggers;
+interface DriftReportRun extends ObservationRun {
+  event_name: InspectionTrigger;
+}
+
+function inspectionTrigger(value: string | undefined): InspectionTrigger {
+  if (value === "schedule" || value === "workflow_dispatch" || value === "push") return value;
+  throw new Error("An exact observer workflow trigger is required");
+}
+
 export interface DriftTarget {
   portId: string;
   issue?: number;
@@ -497,7 +513,12 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   if (!source_commit || !/^[a-f0-9]{40}$/.test(source_commit) || !run_id || !run_attempt) {
     throw new Error("An exact observer run and attempt are required");
   }
-  const run = { source_commit, run_id, run_attempt };
+  const run = {
+    source_commit,
+    run_id,
+    run_attempt,
+    event_name: inspectionTrigger(process.env.GITHUB_EVENT_NAME),
+  };
   const catalogRoot = path.resolve("crates/portcove-core/catalog");
   const inspector = path.resolve(cli);
   const fileHash = createHash("sha256");
@@ -571,7 +592,7 @@ interface DriftNotice {
 export function driftNotices(
   report: unknown,
   listings: unknown,
-  run: ObservationRun,
+  run: DriftReportRun,
 ): DriftNotice[] {
   if (
     !isRecord(report) ||
@@ -582,7 +603,7 @@ export function driftNotices(
     ) ||
     !isRecord(listings)
   )
-    throw new Error("The exact scheduled package inspection report is required");
+    throw new Error("The exact observer package inspection report is required");
   const issues = new Map(records(listings.listings).map((entry) => [entry.id, entry.issue_number]));
   const eligible = new Map<number, { key: string; line: string }[]>();
   for (const observation of records(report.observations)) {
@@ -628,7 +649,7 @@ export function driftNotices(
         noticeMarker,
         `<!-- observation:${identity} run:${run.run_id} attempt:${run.run_attempt} -->`,
         "",
-        "Core found a changed package shape during a scheduled archive inspection.",
+        `Core found a changed package shape during an archive inspection started by ${inspectionTriggers[run.event_name]}.`,
         "",
         ...rows.map((row) => row.line),
         "",
@@ -670,7 +691,12 @@ async function publishNotices(reportPath: string) {
     !/^\d+$/.test(GITHUB_RUN_ATTEMPT)
   )
     throw new Error("Notices require the approved workflow on Portcove main");
-  const run = { source_commit: GITHUB_SHA, run_id: GITHUB_RUN_ID, run_attempt: GITHUB_RUN_ATTEMPT };
+  const run = {
+    source_commit: GITHUB_SHA,
+    run_id: GITHUB_RUN_ID,
+    run_attempt: GITHUB_RUN_ATTEMPT,
+    event_name: inspectionTrigger(process.env.GITHUB_EVENT_NAME),
+  };
   const report = await readBoundedJson(reportPath, 8 * 1024 * 1024);
   const listing = await readBoundedJson(
     "crates/portcove-core/catalog/listings.json",
