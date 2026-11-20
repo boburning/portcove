@@ -3724,6 +3724,12 @@ needs the explicit form and applicable qualification.
 expanded integration matches the explicit declaration byte for byte. A
 different layout, selector or setting stays explicit.
 
+The stock Diablo Windows v0.1.6 kit enumerates bundled mod manifests using
+legacy Windows paths. Core checks the longest bundled manifest at the proposed
+installation or relocation destination and again before launch. The rule follows
+the reviewed archive digest into retained installations. The same stock player
+reached the game on a shorter managed path. [Windows path receipt](https://github.com/boburning/portcove/issues/435#issuecomment-6899919050)
+
 Core's managed PS1 builder runs with `--no-toolchain-download` and with
 `HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
 `7192402` stages an overlay toolchain on every rebuild by downloading Python
