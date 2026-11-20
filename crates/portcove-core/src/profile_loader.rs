@@ -31,7 +31,7 @@ impl ModEngine {
         }
     }
 
-    fn reference(self) -> LoaderContractRef {
+    pub(crate) fn reference(self) -> LoaderContractRef {
         LoaderContractRef {
             id: match self {
                 Self::Libultraship => "libultraship",
