@@ -2885,4 +2885,30 @@ void test("N64 job evidence joins successful checkout and upload steps without p
     readLog,
   );
   assert.equal(subsequent.matches[0]?.artifact_id, 9);
+  for (const unavailable of [
+    new GitHubApiError("invalid_response", "fixture invalid metadata"),
+    new GitHubApiError("request_failed", "fixture unexpected delivery status", { status: 302 }),
+  ]) {
+    const rotated = await advanceN64BuildJobObservation(
+      twoOutputsAtTheSameClock,
+      undefined,
+      unavailable.code === "invalid_response"
+        ? async () => {
+            throw unavailable;
+          }
+        : read,
+      async () => {
+        throw unavailable;
+      },
+    );
+    assert.equal(rotated.last_artifact, 8);
+    assert.deepEqual(rotated.matches, []);
+    const found = await advanceN64BuildJobObservation(
+      twoOutputsAtTheSameClock,
+      rotated,
+      read,
+      readLog,
+    );
+    assert.equal(found.matches[0]?.artifact_id, 9);
+  }
 });

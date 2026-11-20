@@ -42,6 +42,15 @@ const uploadName =
 const checkoutGroup = /^##\[group\]Run actions\/checkout@(?:v[4-9]\d*|[a-f0-9]{40})$/u;
 const uploadGroup = /^##\[group\]Run actions\/upload-artifact@(?:v[4-9]\d*|[a-f0-9]{40})$/u;
 const timestampLine = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z (.*)$/u;
+const sharedGitHubStops = new Set([
+  "rate_limited",
+  "deadline_exceeded",
+  "cancelled",
+  "budget",
+  "credential_unavailable",
+  "invalid_configuration",
+  "request_refused",
+]);
 
 const positive = (value: unknown): value is number =>
   typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -277,16 +286,9 @@ export async function advanceN64BuildJobObservation(
     try {
       return await readOne();
     } catch (error) {
-      if (
-        error instanceof GitHubApiError &&
-        error.code !== "rate_limited" &&
-        (error.code === "response_limit" ||
-          error.code === "redirect_refused" ||
-          error.status === 403 ||
-          error.status === 404 ||
-          error.status === 410)
-      )
-        return null;
+      // An unreadable response is unknown for this artifact. Revisit it after
+      // the other pending artifacts. Shared limits still stop the current turn.
+      if (error instanceof GitHubApiError && !sharedGitHubStops.has(error.code)) return null;
       throw error;
     }
   };
