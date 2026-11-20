@@ -12,6 +12,29 @@ if ($env:GITHUB_ACTIONS -cne 'true' -or $env:GITHUB_REPOSITORY -cne 'boburning/p
 function Write-Receipt([string]$Phase, [object]$Evidence) {
     @{phase=$Phase; evidence=$Evidence} | ConvertTo-Json -Depth 8 -Compress
 }
+function Read-RuntimeSignal([string]$Text) {
+    if ($Text -match 'Portcove cannot start with WebView runtime (\d{1,10}(?:\.\d{1,10}){3})\. Install or update the WebView2 Evergreen production Runtime to (\d{1,10}(?:\.\d{1,10}){3}) or later') {
+        return @{ result='below-published-floor'; selected=$Matches[1]; minimum=$Matches[2] }
+    }
+    if ($Text.Contains('Portcove could not find its required WebView runtime:')) {
+        return @{ result='runtime-lookup-failed' }
+    }
+    if ($Text.Contains('This Portcove build lacks a valid WebView2 runtime minimum.')) {
+        return @{ result='invalid-embedded-floor' }
+    }
+    if ($Text -match 'Portcove WebView runtime version: (\d{1,10}(?:\.\d{1,10}){3})(?:\r?\n|$)') {
+        return @{ result='runtime-selected'; selected=$Matches[1] }
+    }
+}
+
+$minimum = '155.0.4283.62' # Frozen f4256f256 Portcove bundle.windows.minimumWebview2Version.
+Import-Module (Join-Path $PSScriptRoot 'windows-webview-driver-policy.psm1') -ErrorAction Stop
+$registeredRuntime = try { Get-WebViewRuntimeVersion } catch { $null }
+Write-Receipt 'runtime-prerequisite' @{
+    observation=$Observation; published_minimum=$minimum; registered_evergreen=$registeredRuntime
+    registered_meets_floor=$(if ($registeredRuntime) { [version]$registeredRuntime -ge [version]$minimum } else { $null })
+    scope='registered prerequisite only'
+}
 Write-Receipt 'host' @{ os=[Environment]::OSVersion.VersionString; image=$env:ImageOS
     image_version=$env:ImageVersion; observation=$Observation; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT }
 
@@ -88,12 +111,17 @@ function Read-InstallerSummary([string]$Receipt, [int]$ExitStatus) {
         $ownedRun = Join-Path $root $relative
         $database = Get-Item -LiteralPath (Join-Path $ownedRun 'library\portcove.sqlite3') -ErrorAction SilentlyContinue
         $summary.initialized_database_observed = $database -and $database.Length -gt 0
-        $stderr = Get-Item -LiteralPath (Join-Path $ownedRun 'candidate_smoke.stderr.log') -ErrorAction SilentlyContinue
+        $declaredStderr = if ($smokes.Count -eq 1) { $smokes[0].PSObject.Properties['error_relative'] }
+        $stderr = if ($declaredStderr -and $declaredStderr.Value -ceq 'candidate-smoke.stderr.log') {
+            Get-Item -LiteralPath (Join-Path $ownedRun $declaredStderr.Value) -ErrorAction SilentlyContinue
+        }
+        $summary.stderr_journal_bound = [bool]$stderr
         if ($stderr) {
             $summary.stderr_bytes = $stderr.Length
             $summary.stderr_sha256 = (Get-FileHash -LiteralPath $stderr.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($stderr.Length -le 65536) {
                 $text = Get-Content -LiteralPath $stderr.FullName -Raw
+                $summary.runtime = Read-RuntimeSignal ([string]$text)
                 $startupCodes = [regex]::Matches([string]$text, '(?im)Portcove could not (open its library|open host preferences|open its runtime lease)[^\r\n]{0,200}\[([a-z_]{1,32})\]')
                 $summary.startup_error_codes = @($startupCodes | ForEach-Object {
                     @{ failure=$_.Groups[1].Value; code=$_.Groups[2].Value }
@@ -192,18 +220,47 @@ Write-Receipt 'cli-seed' @{ install_id=$active.id; package_sha256=$asset; defini
 $app = $desktop
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
-$process = Start-Process -FilePath $app -WorkingDirectory $root -PassThru
+$stdout = Join-Path $root 'crawl-desktop.stdout.log'
+$stderr = Join-Path $root 'crawl-desktop.stderr.log'
+$process = Start-Process -FilePath $app -WorkingDirectory $root -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 $null = $process.Handle
 $created = $process.StartTime.ToUniversalTime()
 $observedFailure = $false
 $browserProcesses = @()
+$windowsObserved = @{}
 try {
     function Read-OwnedWindow {
         $process.Refresh()
         if ($process.HasExited -or $process.StartTime.ToUniversalTime() -ne $created -or
             $process.Path -ne $app) { throw 'Owned Desktop process identity changed' }
         if ($process.MainWindowHandle -eq [IntPtr]::Zero) { return }
-        [Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+        $handle = $process.MainWindowHandle
+        $window = [Windows.Automation.AutomationElement]::FromHandle($handle)
+        if ($window.Current.ProcessId -ne $process.Id) { throw 'Desktop window belongs to another process' }
+        $runtimeModal = $window.Current.ClassName -ceq '#32770' -and
+            $window.Current.Name -ceq 'Portcove runtime required'
+        $windowKind = if ($runtimeModal) { 'runtime-required' }
+            elseif ($window.Current.ClassName -ceq '#32770') { 'other-native-dialog' }
+            else { 'other-owned-window' }
+        $windowKey = "$($handle.ToInt64())/$windowKind"
+        if ($windowsObserved.Count -lt 8 -and -not $windowsObserved.ContainsKey($windowKey)) {
+            $windowsObserved[$windowKey] = $true
+            $runtime = $null
+            if ($runtimeModal) {
+                $textCondition = [Windows.Automation.PropertyCondition]::new(
+                    [Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::Text)
+                $labels = @($window.FindAll([Windows.Automation.TreeScope]::Children, $textCondition) |
+                    Select-Object -First 8 | ForEach-Object { $_.Current.Name } |
+                    Where-Object { $_.Length -le 2048 })
+                $runtime = Read-RuntimeSignal ($labels -join "`n")
+            }
+            Write-Host (Write-Receipt 'owned-startup-window' @{
+                kind=$windowKind; pid=$process.Id; start_filetime=$created.ToFileTimeUtc()
+                hwnd=$handle.ToInt64(); runtime=$runtime
+            })
+        }
+        if ($runtimeModal) { throw 'The owned Desktop displayed its fixed WebView2 runtime-required prompt' }
+        $window
     }
     function Read-Controls([string]$Name, [switch]$Invokable) {
         $window = Read-OwnedWindow
@@ -277,6 +334,16 @@ try {
         if (-not $process.HasExited -and $process.StartTime.ToUniversalTime() -eq $created -and $process.Path -eq $app) {
             $closed = $process.CloseMainWindow() -and $process.WaitForExit(10000)
             if ($closed) { $exitCode = $process.ExitCode }
+        }
+        if (Test-Path -LiteralPath $stderr -PathType Leaf) {
+            $capture = Get-Item -LiteralPath $stderr
+            $runtime = if ($capture.Length -le 65536) {
+                Read-RuntimeSignal ([string](Get-Content -LiteralPath $stderr -Raw))
+            }
+            Write-Receipt 'desktop-startup-stderr' @{
+                bytes=$capture.Length; sha256=(Get-FileHash -LiteralPath $stderr -Algorithm SHA256).Hash.ToLowerInvariant()
+                runtime=$runtime
+            }
         }
         $webviewExit = @($browserProcesses | ForEach-Object { @{ pid=$_.Id; exited=$_.WaitForExit(10000) } })
         Write-Receipt 'desktop-close' @{ pid=$process.Id; closed=$closed; exit_code=$exitCode
