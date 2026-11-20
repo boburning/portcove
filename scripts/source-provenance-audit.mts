@@ -23,6 +23,7 @@ import {
   validatePortStageSemantics,
 } from "./roadmap.mts";
 import type { RoadmapRequestScope } from "./roadmap.mts";
+import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import { sourceProvenancePortIdentity, sourceProvenancePortIssues } from "./roadmap-issue.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -207,6 +208,7 @@ function collection(value: unknown): RoadmapIssueItem[] {
 
 interface AuditInput {
   catalogText: string;
+  listingDirectory?: unknown;
   issues: unknown;
   projectItems?: unknown;
   pullRequests?: readonly RoadmapIssueItem[];
@@ -599,6 +601,7 @@ function catalogDuplicateObservations(catalog: AuditCatalog) {
 
 export function buildSourceProvenanceAudit({
   catalogText,
+  listingDirectory,
   issues,
   projectItems = [],
   pullRequests = [],
@@ -717,7 +720,13 @@ export function buildSourceProvenanceAudit({
       projectItems,
     ),
     ...catalogDuplicateObservations(catalog),
-    ...validatePortIssueCoverage(catalog, repositoryProjectIssues, repository, allIssues),
+    ...validatePortIssueCoverage(
+      catalog,
+      repositoryProjectIssues,
+      repository,
+      allIssues,
+      listingDirectory === undefined ? undefined : issueFreeCatalogIds(catalog, listingDirectory),
+    ),
     ...validatePortStageSemantics(catalog, repositoryProjectIssues).errors,
     ...missingEvidence.map((id) => `Missing source evidence reference: ${diagnosticText(id)}`),
   ];
@@ -983,6 +992,13 @@ export async function runSourceProvenanceAudit(
   const catalogText = await readFile(catalogPath, "utf8");
   const audit = buildSourceProvenanceAudit({
     catalogText,
+    ...(catalogPath === defaultCatalogPath
+      ? {
+          listingDirectory: JSON.parse(
+            await readFile(path.join(path.dirname(catalogPath), "listings.json"), "utf8"),
+          ) as unknown,
+        }
+      : {}),
     ...input,
     generatedAt: options["generated-at"],
     baseCommit: options["base-commit"],
