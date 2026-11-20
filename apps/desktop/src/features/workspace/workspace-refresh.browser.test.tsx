@@ -190,6 +190,29 @@ afterEach(async () => {
 });
 
 describe("workspace refresh recovery", () => {
+  it("accepts a new full-read receipt only after a successful authoritative snapshot", async () => {
+    await render();
+    const first = data.workspaceReadRevision;
+    expect(first).toBeGreaterThan(0);
+    const pending = deferred<WorkspaceSnapshot>();
+    vi.mocked(desktopApi.workspaceSnapshot).mockReturnValueOnce(pending.promise);
+    let retry!: Promise<void>;
+    await act(async () => {
+      retry = data.retryRefresh();
+    });
+    const started = data.startedWorkspaceReadRevision();
+    expect(started).toBeGreaterThan(first!);
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => {
+      pending.reject(failureReport());
+      await retry;
+    });
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => data.refreshActivities());
+    expect(data.workspaceReadRevision).toBe(first);
+    await act(async () => data.retryRefresh());
+    expect(data.workspaceReadRevision).toBeGreaterThan(started);
+  });
   it("does not miss a library event while registration settles or duplicate the initial read", async () => {
     const registration = deferred<() => void>();
     const fresh = structuredClone(snapshot);
