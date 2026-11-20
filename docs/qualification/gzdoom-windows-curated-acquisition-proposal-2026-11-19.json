@@ -3,11 +3,7 @@
   "kind": "curated-exact-byte-acquisition-proposal",
   "admission_status": "prepared-pending-independent-artifact-review-and-protected-input-acceptance",
   "authority": "none",
-  "owner_issues": [
-    315,
-    1824,
-    246
-  ],
+  "owner_issues": [315, 1824, 246],
   "namespace": "official",
   "port_id": "zdoom-gzdoom",
   "repository_id": 10879376,
@@ -18,36 +14,21 @@
     "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
     "adapter": "native-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {
       "repository": "ZDoom/gzdoom",
       "asset_hints": {
-        "windows-x86-64": [
-          "gzdoom-",
-          "-windows.zip"
-        ]
+        "windows-x86-64": ["gzdoom-", "-windows.zip"]
       }
     },
     "executable_hints": {
-      "windows-x86-64": [
-        "gzdoom.exe"
-      ]
+      "windows-x86-64": ["gzdoom.exe"]
     },
-    "persistent_paths": [
-      "gzdoom_portable.ini",
-      "Save",
-      "Screenshots",
-      "Demos",
-      "autoexec.cfg"
-    ],
+    "persistent_paths": ["gzdoom_portable.ini", "Save", "Screenshots", "Demos", "autoexec.cfg"],
     "portable_marker_file": "gzdoom_portable.ini",
     "presentation": {
       "installation_method": "portable-package",
@@ -92,13 +73,8 @@
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {
-        "directories": [
-          "fm_banks",
-          "soundfonts"
-        ],
-        "executables": [
-          "gzdoom.exe"
-        ]
+        "directories": ["fm_banks", "soundfonts"],
+        "executables": ["gzdoom.exe"]
       }
     }
   },
@@ -136,17 +112,9 @@
       "status": "managed_github",
       "template": "native-portable",
       "repository_id": 10879376,
-      "artifact_hosts": [
-        "github.com",
-        "release-assets.githubusercontent.com"
-      ],
+      "artifact_hosts": ["github.com", "release-assets.githubusercontent.com"],
       "max_redirects": 1,
-      "operations": [
-        "install",
-        "update",
-        "prepare",
-        "launch"
-      ],
+      "operations": ["install", "update", "prepare", "launch"],
       "scoped_launch_checks": 1,
       "curated_acquisition_checks": 1
     },
