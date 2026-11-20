@@ -1661,7 +1661,10 @@ void test("GitHub starter rows survive scoped continuation but cannot nominate p
   const complete = await advanceObservation(scoped, partial.checkpoint, options);
   assert.equal(complete.report.transition, "initial-baseline");
   const first = requiredFixture(complete.checkpoint.last_complete);
-  assert.deepEqual(first.observation.facts.releases[0]?.assets, [windows]);
+  const firstRelease = objectFixture(
+    arrayFixture(objectFixture(first.observation.facts).releases)[0],
+  );
+  assert.deepEqual(firstRelease.assets, [windows]);
   assert.ok(seen.every((ids) => !ids.includes(starter.id)));
   assert.deepEqual(
     reusableProviderObservation(scoped, first.observation, first.cache, undefined, Date.now())
@@ -1679,13 +1682,14 @@ void test("GitHub starter rows survive scoped continuation but cannot nominate p
   const recovered = await advanceObservation(scoped, late.checkpoint, options);
   assert.equal(recovered.report.transition, "changed");
   const next = requiredFixture(recovered.checkpoint.last_complete);
-  assert.equal(next.observation.facts.releases[0]?.id, first.observation.facts.releases[0]?.id);
-  assert.equal(
-    next.observation.facts.releases[0]?.tag_name,
-    first.observation.facts.releases[0]?.tag_name,
+  const nextRelease = objectFixture(
+    arrayFixture(objectFixture(next.observation.facts).releases)[0],
   );
-  assert.deepEqual(next.observation.facts.releases[0]?.assets, [linux, windows]);
-  assert.equal(next.cache.pages[page]?.representation, "observer-facts-v1");
+  const nextPage = objectFixture(objectFixture(objectFixture(next.cache).pages)[page]);
+  assert.equal(nextRelease.id, firstRelease.id);
+  assert.equal(nextRelease.tag_name, firstRelease.tag_name);
+  assert.deepEqual(nextRelease.assets, [linux, windows]);
+  assert.equal(nextPage.representation, "observer-facts-v1");
   assert.notEqual(next.observation.facts_sha256, first.observation.facts_sha256);
   assert.ok(seen.some((ids) => ids.includes(linux.id)));
 });
