@@ -12,6 +12,8 @@ use crate::{
     ArtworkThumbnail, Library, OriginalGameIdentity, PortcoveError, PortcoveService, Result,
 };
 
+pub(crate) const IGDB_SCENE_LISTING_FORMAT: u32 = 13;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogMediaRole {

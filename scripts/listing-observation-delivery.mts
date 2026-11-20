@@ -36,7 +36,7 @@ function directory(value: unknown): Directory {
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 12 ||
+    Number(value.format_version) > 13 ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )

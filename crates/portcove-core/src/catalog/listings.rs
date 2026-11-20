@@ -1,6 +1,7 @@
 //! The broad directory is descriptive. Strict managed definitions retain their
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
+use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
 use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
 
@@ -81,8 +82,6 @@ fn has_extended_media(listing: &PortListing) -> bool {
         > 1
 }
 
-const IGDB_SCENE_FORMAT: u32 = 13;
-
 fn has_typed_igdb_scene(listing: &PortListing) -> bool {
     listing
         .media
@@ -109,14 +108,14 @@ fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=IGDB_SCENE_FORMAT) {
+        if !matches!(format_version, 5..=IGDB_SCENE_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
                 "listing export supports formats 5 through 13",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
-        if format_version < IGDB_SCENE_FORMAT {
+        if format_version < IGDB_SCENE_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.media.retain(|asset| !asset.is_typed_igdb_scene());
             }
@@ -164,7 +163,7 @@ impl CatalogListingDocument {
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
         if self.listings.iter().any(has_typed_igdb_scene) {
-            self.format_version = self.format_version.max(IGDB_SCENE_FORMAT);
+            self.format_version = self.format_version.max(IGDB_SCENE_LISTING_FORMAT);
         }
         if self
             .listings
@@ -276,13 +275,14 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=IGDB_SCENE_FORMAT) {
+        if !matches!(self.format_version, 1..=IGDB_SCENE_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
         }
-        if self.format_version < IGDB_SCENE_FORMAT && self.listings.iter().any(has_typed_igdb_scene)
+        if self.format_version < IGDB_SCENE_LISTING_FORMAT
+            && self.listings.iter().any(has_typed_igdb_scene)
         {
             return Err(PortcoveError::unsupported(
                 "IGDB backgrounds and screenshots require listing format 13",
