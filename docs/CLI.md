@@ -558,6 +558,13 @@ since can differ.
   `listing_download_refusal: "managed-route"`: a fresh library offers Install
   there instead of the upstream listing download. A library's own
   registration, pending setup or definition hold can keep the download.
+- Each listing and operational definition also has a `content_capabilities`
+  row for each requested platform. The row reports reviewed provider coordinates,
+  loader-dependent mod operations, declared original-file profiles and any
+  upstream setup guidance. `requires_reviewed_runtime` means the catalog
+  matches a loader contract for that platform. Package review, installed
+  state and exact-runtime checks still apply. A declared source profile names
+  the recognition route and supplies no compatibility result for local files.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
