@@ -3973,6 +3973,63 @@ void test("managed observation coverage keeps stale or unverified membership out
     { port_key: "port:fixed", platform: "windows-x86-64", evidence: "fixed" },
     { port_key: "port:old", platform: "windows-x86-64", evidence: "gap", reason: "scope-changed" },
   ]);
+  // Older target fixtures omit one of the two operation rows. Absence is unknown.
+  assert.equal(coverage.catalog_operation_offers_by_platform, null);
+  const withDecisions = structuredClone(ports);
+  for (const input of withDecisions) {
+    for (const target of input.targets!.targets) {
+      for (const action of ["install", "register_external"]) {
+        if (target.routes.some((route) => route.action === action)) continue;
+        const offered = action === "register_external" && input.port_key === "port:covered";
+        target.routes.push({ action, offered, reason: offered ? null : "route_not_offered" });
+      }
+    }
+  }
+  const held = structuredClone(withDecisions[0]!.targets!.targets[0]!);
+  held.platform = "macos-aarch64";
+  for (const route of held.routes) {
+    route.offered = false;
+    route.reason = "route_not_offered";
+  }
+  withDecisions[0]!.targets!.targets.push(held);
+  withDecisions[0]!.targets!.declared_platforms.push(held.platform);
+  const operations = managedRouteObservationCoverage(
+    withDecisions,
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.deepEqual(operations.catalog_operation_offers_by_platform, [
+    {
+      platform: "linux-x86-64",
+      managed_install_only: 0,
+      external_registration_only: 1,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 2,
+    },
+    {
+      platform: "macos-aarch64",
+      managed_install_only: 0,
+      external_registration_only: 0,
+      both_operations: 0,
+      neither_operation: 1,
+      distinct_offered_pairs: 0,
+    },
+    {
+      platform: "windows-x86-64",
+      managed_install_only: 2,
+      external_registration_only: 0,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 3,
+    },
+  ]);
+  withDecisions[0]!.targets!.declared_platforms.push("unobserved-platform");
+  assert.equal(
+    managedRouteObservationCoverage(withDecisions, [catalog, targets, upstream], members)
+      .catalog_operation_offers_by_platform,
+    null,
+  );
   const withoutChannel = managedRouteObservationCoverage(
     [
       port("covered", [["linux-x86-64"]], [{ platform: "linux-x86-64", state: "eligible" }]),
@@ -4031,6 +4088,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     members,
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
+  assert.equal(oldProjection.catalog_operation_offers_by_platform, null);
   assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
   assert.equal(oldProjection.routes, null);
 });
