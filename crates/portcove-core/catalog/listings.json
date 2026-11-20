@@ -44013,7 +44013,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. A GTA III download needs a verified source from the re3 project and a reviewed GTA III package. You can register your own permitted re3 copy with its original PC game files.",
+      "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. The archived project explicitly declines to license its code. Downloads can resume after review identifies the re3 project’s own GTA III package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted re3 copy with its original PC game files.",
       "artwork": {
         "game_id": 730,
         "cover_id": 120932,
@@ -44064,7 +44064,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Downloads are paused. The archived mirror carries both Vice City and GTA III. A Vice City download needs a verified source from the reVC project and a reviewed Vice City package. You can register your own permitted reVC copy with its original PC game files.",
+      "download_block_reason": "Downloads are paused. The archived mirror carries both Vice City and GTA III. The archived project explicitly declines to license its code. Downloads can resume after review identifies the reVC project’s own Vice City package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted reVC copy with its original PC game files.",
       "artwork": {
         "game_id": 733,
         "cover_id": 120935,
