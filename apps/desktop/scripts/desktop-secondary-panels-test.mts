@@ -506,6 +506,10 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await openMods();
         await click(button("Browse mods"));
         await click(button(fixtures.providerProject.project.name));
+        if (theme === "light") {
+          await text("Pending addition");
+          await clickVisible(browser, await findButton("Undo"));
+        }
         await click(button(`Add ${fixtures.providerPlan.file.file_name}`));
         await click(button("Review changes"));
         await click(button("Check files"));
