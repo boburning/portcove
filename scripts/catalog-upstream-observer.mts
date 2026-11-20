@@ -609,6 +609,15 @@ export async function advanceCatalogObservations(
   let remaining: number | null = null;
   let resetAt: number | null = null;
   let providerLimit: number | null = null;
+  const extendProviderDeferral = (retryAt: string | null) => {
+    if (
+      retryAt !== null &&
+      (state.provider_retry_at === null ||
+        Date.parse(retryAt) > Date.parse(state.provider_retry_at))
+    )
+      state.provider_retry_at = retryAt;
+    return state.provider_retry_at;
+  };
   const consumeResponseBytes = (bytes: number | null) => {
     if (bytes !== null && (!Number.isSafeInteger(bytes) || bytes < 0))
       throw new ObservationFailure("invalid-metadata", "Provider response size is invalid");
@@ -717,13 +726,14 @@ export async function advanceCatalogObservations(
     const providerDepleted =
       remaining !== null &&
       remaining <= Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05));
-    if (providerDepleted && resetAt !== null)
-      state.provider_retry_at = new Date(resetAt).toISOString();
+    const retryAt = providerDepleted
+      ? extendProviderDeferral(resetAt === null ? null : new Date(resetAt).toISOString())
+      : null;
     if (now() >= deadline || capacity() < 1)
       throw new ObservationFailure(
         "budget",
         "Shared provider reserve or runtime exhausted",
-        providerDepleted && resetAt !== null ? new Date(resetAt).toISOString() : null,
+        retryAt,
       );
     requestStartedAt = now();
     requests++;
@@ -1415,7 +1425,7 @@ export async function advanceCatalogObservations(
                   error instanceof ObservationFailure ? error.rule : "source-metadata-unavailable";
                 if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                   remaining = 0;
-                  state.provider_retry_at = error.retryAt;
+                  extendProviderDeferral(error.retryAt);
                 }
               }
             }
@@ -1445,7 +1455,7 @@ export async function advanceCatalogObservations(
         progress.retry_at = result.report.exception.retry_at;
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
-          state.provider_retry_at = result.report.exception.retry_at;
+          extendProviderDeferral(result.report.exception.retry_at);
         }
         failures.push({
           source: source.key,
@@ -1537,7 +1547,7 @@ export async function advanceCatalogObservations(
       progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
       if (error instanceof ObservationFailure && error.rule === "rate-limit") {
         remaining = 0;
-        state.provider_retry_at = error.retryAt;
+        extendProviderDeferral(error.retryAt);
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
       const key = exceptionKey(source, rule);

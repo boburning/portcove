@@ -1049,10 +1049,16 @@ void test("reviewed declarations share provider collection while keeping port-sp
 void test("scheduled original recognition retains the exact table across refresh and optional failure", async () => {
   const h = harness();
   Object.assign(h.input.ports[0]!, { adapter: "libultraship-portable", source_profile: "example" });
+  h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
   const baseProject = h.options.project;
+  let unavailable: "budget" | "rate-limit" | null = null;
   h.options.project = async (portId, repositoryId, observation) => {
     const policy = await baseProject(portId, repositoryId, observation);
-    if (portId !== "stable-port") return policy;
+    if (
+      portId !== "stable-port" &&
+      !(portId === "stable-port-second" && unavailable === "rate-limit")
+    )
+      return policy;
     const release = observation.facts.releases.find((release) => release.id === 1);
     assert.ok(release);
     return {
@@ -1072,7 +1078,6 @@ void test("scheduled original recognition retains the exact table across refresh
   };
   const raw = Buffer.from(JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]));
   const requests: string[] = [];
-  let unavailable: "budget" | "rate-limit" | null = null;
   let tagSha = "c".repeat(40);
   let retryAt: string | null = null;
   h.options.readOriginalRecognition = async (repository, endpoint, account) => {
@@ -1138,11 +1143,22 @@ void test("scheduled original recognition retains the exact table across refresh
 
   h.advanceClock(48 * 3600_000);
   unavailable = "rate-limit";
+  h.setQuota(100);
   retryAt = new Date(h.options.now!() + 100_000).toISOString();
   const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
   assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
   assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
   assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+  const secondPolicy = Object.values(limited.checkpoint.sources)
+    .find((source) => source.repository === "owner/shared")
+    ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
+  assert.equal(
+    readOriginalRecognitionProgress(secondPolicy?.original_recognition, {
+      repository: "owner/shared",
+      repository_id: 7,
+    })?.state,
+    "budget",
+  );
   const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
     "port:stable-port",
   );
