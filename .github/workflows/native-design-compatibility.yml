@@ -507,11 +507,11 @@ jobs:
     if: ${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     name: native-presentation (${{ matrix.selection }})
     runs-on: windows-2022
-    timeout-minutes: 60
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        selection: [presentation, interface-size]
+        selection: [artwork-timing]
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}
@@ -596,6 +596,119 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Interface-size plan failed.' }
           just desktop-verify --scenario native-interface-size --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Native interface sizing failed; retain original evidence.' }
+      - name: Compare reviewed native artwork sources on this Windows runner
+        if: matrix.selection == 'artwork-timing'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = $env:PORTCOVE_OUTPUT_DIR
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          $hostInfo = [ordered]@{
+            processor = (Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name)
+            logical_processors = [Environment]::ProcessorCount
+            platform = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            runner_image = $env:ImageVersion
+            output_scope = 'Windows WebView2 development builds with the same recorded catalog and screen'
+          }
+          $hostInfo | ConvertTo-Json | Set-Content (Join-Path $root 'artwork-host.json')
+          $sources = @(
+            @{ name = 'baseline'; commit = 'adc3e990c5cddf4cc87e37ece7ed1c5fef00ffd7'; tree = '8a2380f8ed857477ce8ab720205a3b2862142199' },
+            @{ name = 'candidate'; commit = '1dd308d585619348153815696d0003508d782093'; tree = '77e74e462b9889d1d4fef10f6d40086eb6de238e' }
+          )
+          $coverArgs = @('--cover-port-id', 'dkr-r', '--cover-port-id', 'shipwright',
+            '--cover-port-id', 'spaghetti-kart', '--cover-port-id', 'banjo-recomp')
+          $failures = @()
+          foreach ($source in $sources) {
+            git cat-file -e "$($source.commit)^{commit}"
+            if ($LASTEXITCODE -ne 0) {
+              git fetch origin $source.commit
+              if ($LASTEXITCODE -ne 0) { throw "Could not fetch reviewed $($source.name) source." }
+            }
+            git switch --detach $source.commit
+            if ($LASTEXITCODE -ne 0) { throw "Unable to switch to reviewed $($source.name) source." }
+            $actual = (git rev-parse HEAD).Trim()
+            $tree = (git rev-parse 'HEAD^{tree}').Trim()
+            if ($LASTEXITCODE -ne 0 -or $actual -cne $source.commit -or $tree -cne $source.tree) {
+              throw "Source identity differs for $($source.name)."
+            }
+            $env:PORTCOVE_OUTPUT_DIR = Join-Path $root $source.name
+            New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR -Force | Out-Null
+            $plan = @('desktop-verify', '--scenario', 'native-default-cover-cache-conditions', '--require-clean')
+            Write-Host "Observed source $($source.name) $actual $tree"
+            just @plan @coverArgs --plan
+            if ($LASTEXITCODE -ne 0) {
+              $failures += "$($source.name) plan"
+              continue
+            }
+            just @plan @coverArgs
+            if ($LASTEXITCODE -ne 0) { $failures += $source.name }
+            $measurements = @(
+              'Effective catalog resolution', 'Artwork catalog snapshot reused', 'Artwork state read',
+              'Artwork thumbnail worker admission', 'Artwork thumbnail encoding', 'Artwork image conversion',
+              'Cover original disk lookup', 'Cover original verification', 'Cover download',
+              'Catalog image original disk lookup', 'Catalog image original verification',
+              'Catalog image download', 'Remote artwork derivative lookup'
+            )
+            $runRoot = Join-Path $env:PORTCOVE_OUTPUT_DIR 'desktop-verify'
+            if (Test-Path -LiteralPath $runRoot -PathType Container) {
+              foreach ($run in Get-ChildItem -LiteralPath $runRoot -Directory) {
+                $native = Join-Path $run.FullName 'native'
+                $diagnostics = Join-Path $native 'diagnostics'
+                if (-not (Test-Path -LiteralPath $diagnostics -PathType Container)) { continue }
+                $logs = @(Get-ChildItem -LiteralPath $diagnostics -Recurse -File |
+                  Where-Object { $_.Name -cmatch '^portcove-desktop\.jsonl(?:\.[0-9]+)?$' } |
+                  Sort-Object FullName)
+                $records = [System.Collections.Generic.List[string]]::new()
+                $truncated = $logs.Count -gt 16
+                foreach ($log in ($logs | Select-Object -First 16)) {
+                  if ($log.Length -gt 4MB) { $truncated = $true; continue }
+                  foreach ($line in Get-Content -LiteralPath $log.FullName) {
+                    $event = try { $line | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+                    if (!$event.fields -or $event.fields.message -cnotin $measurements) { continue }
+                    if ($records.Count -ge 4096) { $truncated = $true; break }
+                    $record = [ordered]@{ message = $event.fields.message }
+                    foreach ($field in @('elapsed_us', 'input_bytes', 'output_bytes', 'success', 'remote')) {
+                      if ($null -ne $event.fields.$field) { $record[$field] = $event.fields.$field }
+                    }
+                    $record.timestamp_ms = $event.timestamp_ms
+                    $record.process_id = $event.process_id
+                    $records.Add(($record | ConvertTo-Json -Compress))
+                  }
+                }
+                $records | Set-Content -LiteralPath (Join-Path $native 'artwork-stage-observations.jsonl')
+                [ordered]@{ logs = $logs.Count; event_count = $records.Count; truncated = $truncated } |
+                  ConvertTo-Json | Set-Content -LiteralPath (Join-Path $native 'artwork-stage-observation-status.json')
+              }
+            }
+            Get-ChildItem -LiteralPath $env:PORTCOVE_OUTPUT_DIR -Recurse -File -Filter 'default-cover-discover-timing.jsonl' |
+              ForEach-Object {
+                Write-Host "Discover browser-frame observations [$($source.name)]"
+                Get-Content -LiteralPath $_.FullName
+              }
+          }
+          if ($failures.Count) { throw "Artwork observation failed in $($failures -join ', ')." }
+      - name: Retain bounded Windows artwork baseline evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $sourceOutput = Join-Path $env:PORTCOVE_OUTPUT_DIR 'baseline'
+          if (Test-Path -LiteralPath $sourceOutput -PathType Container) {
+            node scripts/native-backup-evidence.mts emit "$sourceOutput"
+            if ($LASTEXITCODE -ne 0) { throw 'Artwork baseline evidence retention failed.' }
+          } else {
+            Write-Host 'Artwork baseline produced no evidence directory.'
+          }
+      - name: Retain bounded Windows artwork candidate evidence
+        if: always()
+        shell: pwsh
+        run: |
+          $sourceOutput = Join-Path $env:PORTCOVE_OUTPUT_DIR 'candidate'
+          if (Test-Path -LiteralPath $sourceOutput -PathType Container) {
+            node scripts/native-backup-evidence.mts emit "$sourceOutput"
+            if ($LASTEXITCODE -ne 0) { throw 'Artwork candidate evidence retention failed.' }
+          } else {
+            Write-Host 'Artwork candidate produced no evidence directory.'
+          }
       - name: Retain bounded lossless native evidence in ordinary job logs
         if: always()
         shell: pwsh
