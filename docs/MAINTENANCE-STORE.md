@@ -1150,6 +1150,22 @@ subjects it did observe.
 - Unlike source subjects, a handoff's first transition is a pending notification,
   because a handoff appearing is itself the change.
 
+**Hosted intake receipts.** An owner-authored #177 request can finish an existing
+hosted-intake handoff through the ordinary worker, including audit-only recovery.
+The intake workflow reads back the authenticated bot receipt and records its
+comment URL and exact body digest against the original planned operation. The
+daily inventory repeats that reconciliation before collecting new handoff
+conditions. An owner can use the intake workflow's `receipts` mode after an
+interruption. These paths make no new intake or Project mutation. They require
+a complete request with every slot resolved, its applicable full audit, the
+original request and receipt identity, and an exact current operation, assessment
+and source-generation fence. For recorded checkpoints the database must agree
+with the published receipt. Each previously held slot must match the original
+or authorized amended identity and a delivered or pre-existing issue. Replays
+leave the same operation and receipt in place. Partial or held requests,
+withdrawals, restored inactive stores and unrelated executor handoffs retain
+their existing state.
+
 **Operations.** No migration was added; handoffs use the existing `operations`
 table and its guard.
 
@@ -1180,7 +1196,7 @@ node scripts/maintenance-inventory.mts handoffs --record
   - It moves each planned handoff operation whose subject has moved on (cleared,
     a newer condition, or a newer applicable assessment) from `planned` to
     `abandoned` at revision + 1, and plans its replacement in the same pass.
-  - It never dispatches or completes an operation, and receipt columns stay
+  - The planning command never dispatches or completes an operation. Separate native intake reconciliation can record a matching execution receipt. Other receipt columns stay
     empty. The guard refuses a plan at a stale fence and any revival of an
     abandoned plan, so a restored or stale worker cannot replay side effects or
     overwrite newer state.

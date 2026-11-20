@@ -1389,6 +1389,24 @@ export class HostedIntakeBridge {
       full_doctor_required: proposal.candidates.length > 10,
       ...(receipt?.audit_pending ? { audit_pending: true } : {}),
       doctor: receipt?.doctor ?? null,
+      ...(receipt?.status === "complete" && found[0]
+        ? {
+            executor_receipt: {
+              run: receipt.run,
+              attempt: receipt.attempt,
+              head: receipt.head,
+              request_sha256: receipt.request_sha256,
+              body_sha256: createHash("sha256").update(found[0].body).digest("hex"),
+              published_at: found[0].updated_at,
+              checkpoint_required:
+                proposal.schema_version === 2 || receipt.plan.some((entry) => entry.amendment),
+              original_slots: proposal.candidates.map(({ port_key, repository_id }) => ({
+                port_key,
+                repository_id,
+              })),
+            },
+          }
+        : {}),
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
       slots: candidateSlots(

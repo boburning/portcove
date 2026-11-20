@@ -756,7 +756,7 @@ ${
      WHERE NOT EXISTS (SELECT 1 FROM portcove_maintenance.operations o
                         WHERE o.subject_key = v.subject_key
                           AND (o.state IN ('dispatched', 'ambiguous')
-                               OR (o.state = 'planned' AND o.fence_sequence = v.fence
+                               OR ((o.state = 'planned' OR (o.state = 'completed' AND v.kind IN ('handoff.hosted-intake-holds','handoff.hosted-intake-blocked'))) AND o.fence_sequence = v.fence
                                    AND o.fence_assessment_id = v.assessment)))
   ON CONFLICT (operation_id) DO NOTHING
   RETURNING 1)

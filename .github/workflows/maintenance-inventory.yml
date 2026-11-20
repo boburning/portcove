@@ -116,6 +116,11 @@ jobs:
           started=$EPOCHSECONDS
           node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json
           printf 'migrate\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Recover original intake receipts before refreshing their maintenance handoffs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+        run: node scripts/maintenance-inventory.mts handoffs --reconcile-intake
       - name: Collect every declared source in one transaction
         id: collect
         timeout-minutes: 40
