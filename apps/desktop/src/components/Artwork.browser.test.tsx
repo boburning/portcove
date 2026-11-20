@@ -262,7 +262,9 @@ describe("local artwork controls", () => {
     await chooseAndApplyLocal("cover");
 
     const review = page.getByRole("form", { name: "Review Cover image", exact: true });
-    await expect.element(review.getByRole("alert")).toHaveTextContent(/^The image changed\./);
+    await expect
+      .element(review.getByRole("alert"))
+      .toHaveTextContent("The image changed. Cancel and choose it again to review the new image.");
     await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
     const cancel = review.getByRole("button", { name: "Cancel", exact: true });
     await expect.element(cancel).toHaveFocus();

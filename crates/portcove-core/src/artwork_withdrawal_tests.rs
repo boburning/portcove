@@ -57,7 +57,11 @@ fn colliding_logo_cannot_republish_an_evicted_grid() {
     let original = crate::artwork::original_path(service.library(), sha256).unwrap();
     assert!(original.is_file());
     let removal = absent(&service, Source::Gone);
-    assert_eq!(image(&removal, 7).effect, Effect::Removed);
+    let [removed] = removal.images.as_slice() else {
+        panic!("expected exactly one withdrawal observation");
+    };
+    assert_eq!(removed.attribution.asset_id, 7);
+    assert_eq!(removed.effect, Effect::Removed);
     assert!(!original.exists());
     let old_cover = cover(&service);
 
@@ -753,7 +757,7 @@ fn a_copy_republished_before_its_choice_was_written_is_removed_again() {
         service
             .destination_artwork_bytes(
                 "zelda64-recomp",
-                Role::PortraitCover,
+                crate::DestinationArtworkRole::PortraitCover,
                 &service.library().identity_record().unwrap().id,
                 chosen.choice.revision,
                 &sha,

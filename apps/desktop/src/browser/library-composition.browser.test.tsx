@@ -1378,7 +1378,7 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
 
 it("opens the Cover editor from the game card and returns focus to the same More actions button", async () => {
   await page.viewport(430, 740);
-  await mount("light", "collection", 3);
+  await mount("light", "collection");
   const opener = page.elementLocator(
     document.querySelector<HTMLButtonElement>(
       '[data-detail-origin="library:card-more:collection-0"]',
