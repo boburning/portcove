@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Crawl revision 2 uses the existing schema-2 single-port compatibility form for Preview.9 clients where the stable ID is absent. The canonical generated Crawl row, source graph, Stable selector, executable, persistence and acquisition policy remain exact. The current signed revision-31 prior and Chameleon definition stay in publication history; both existing policies and launch records rebind to the revised index within their reviewed scopes."
+    "notes": "Crawl revision 3 adds the reviewed Windows Tiles package layout to the exact accepted 0.34.1 route. It preserves schema-2 single-port compatibility for released Preview.9, keeps the ordinary Stable selector and existing persistence, and rebinds both existing policies and launch records to the revised index. The prior definitions remain in immutable publication history."
   }
 }

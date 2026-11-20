@@ -2,12 +2,12 @@
   "definition_schema": 1,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "revision": 2,
+  "revision": 3,
   "required_capabilities": [
     {
       "template": "native-portable",
-      "minimum_version": 1,
-      "maximum_version": 1
+      "minimum_version": 18,
+      "maximum_version": 18
     }
   ],
   "port": {
@@ -98,13 +98,25 @@
     "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
     "support_tier": "beta",
     "upstream_status": "active",
-    "user_data_environment": null
+    "user_data_environment": null,
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [
+          "dat",
+          "docs",
+          "settings"
+        ],
+        "executables": [
+          "crawl.exe"
+        ]
+      }
+    }
   },
   "source_contracts": [
-    "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json"
+    "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json"
   ],
-  "execution_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
-  "persistence_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
+  "execution_contract": "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json",
+  "persistence_contract": "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json",
   "artifact_bindings": [],
   "evidence_references": []
 }
