@@ -219,6 +219,12 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
     });
+  } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope: "Reviewed MediEvil and Mortal Kombat 4 split-mods and diagnostic location paths.",
+      next: "Keep each exact kit selector, generated executable, disc, retail BIOS and managed platform explicit. Keep the separate Mac setup for MediEvil and the existing qualification limits for Mortal Kombat 4.",
+    });
   } else if (record.psx_managed_windows_v1) {
     projections.push({
       field: "psx_managed_windows_v1",

@@ -3666,6 +3666,12 @@ with the same title prefix and the platform-specific `-windows-x64.zip` and
 `-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
 single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
 `psx_crash.txt`. Their remaining split-mods fields are the same.
+Use `"split-mods-diagnostics"` for the reviewed MediEvil and Mortal Kombat 4
+kits. It retains `diagnostics-location.txt` alongside the standard split-mods
+paths. Keep the exact selectors, executables, discs and retail SCPH-1001 BIOS
+explicit. MediEvil keeps managed Windows and Linux routes with separate Mac
+setup. Mortal Kombat 4 keeps its two declared managed Mac routes and existing
+qualification limits.
 `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.

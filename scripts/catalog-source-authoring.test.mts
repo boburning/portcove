@@ -1463,6 +1463,7 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     const duplicate = structuredClone(record);
     duplicate.integration!.runtime_subdirectory = "setup-host";
     assert.throws(() => checkedAuthoredPort(duplicate), /already owns runtime_subdirectory/u);
+    if (record.psx_managed_windows_v1 === "split-mods-diagnostics") continue;
     const otherBios = structuredClone(record);
     otherBios.integration!.bios_source_profile = "psx-scph-5501-bios";
     assert.throws(() => checkedAuthoredPort(otherBios), /retail SCPH-1001/u);
@@ -1613,6 +1614,57 @@ void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () 
   assert.throws(() => projectPsxManagedWindows(otherBios), /retail SCPH-1001 BIOS/u);
 });
 
+void test("PSX split-mods diagnostics preserves the two exact accepted routes", () => {
+  const family = readCatalogSource(catalogRoot).records.filter(
+    (record) => record.psx_managed_windows_v1 === "split-mods-diagnostics",
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "alexbeav-medievil-recomp",
+    "mortal-kombat-4-recompiled",
+  ]);
+  const accepted = new Map(fixtureCatalog(schema3Fixture).ports.map((port) => [port.id, port]));
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    assert.deepEqual(compactPsxManagedWindows(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    requiredFixture(alternate.integration).runtime_subdirectory = "other-runtime";
+    assert.equal(compactPsxManagedWindows(alternate), alternate);
+    const otherBios = structuredClone(record);
+    requiredFixture(otherBios.integration).bios_source_profile = "psx-scph-5552-bios";
+    assert.throws(() => projectPsxManagedWindows(otherBios), /exact reviewed MediEvil/u);
+    const otherPlayer = structuredClone(record);
+    fixtureRecord(requiredFixture(otherPlayer.integration).executable_hints)["linux-x86-64"] = [
+      "setup-host",
+    ];
+    assert.throws(() => projectPsxManagedWindows(otherPlayer), /exact reviewed MediEvil/u);
+    const missingSelector = structuredClone(record);
+    delete fixtureRecord(fixtureRecord(missingSelector.integration?.release).asset_hints)[
+      "linux-x86-64"
+    ];
+    assert.throws(() => projectPsxManagedWindows(missingSelector), /exact reviewed MediEvil/u);
+  }
+  const mortalKombat = requiredFixture(
+    family.find((record) => record.listing.id === "mortal-kombat-4-recompiled"),
+  );
+  const extraTarget = structuredClone(mortalKombat);
+  requiredFixture(extraTarget.integration).platforms = [
+    "windows-x86-64",
+    "linux-x86-64",
+    "macos-x86-64",
+    "macos-aarch64",
+    "linux-aarch64",
+  ];
+  assert.throws(() => projectPsxManagedWindows(extraTarget), /exact reviewed MediEvil/u);
+  const alternateMac = structuredClone(mortalKombat);
+  const release = fixtureRecord(alternateMac.integration?.release);
+  fixtureRecord(release.asset_hints)["macos-aarch64"] = ["alternate-mac"];
+  assert.throws(() => projectPsxManagedWindows(alternateMac), /exact reviewed MediEvil/u);
+});
+
 void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {
   const { records } = readCatalogSource(catalogRoot);
   const record = records.find((entry) => entry.listing.id === "alexbeav-alundra-recomp");
@@ -1652,13 +1704,6 @@ void test("PSX split mods keep the reviewed overlay directory layout distinct", 
     runtime_source_materialization: "psx-raw-set",
   });
   assert.throws(() => checkedAuthoredPort(multidisc), /multidisc/u);
-
-  const explicitException = records.find(
-    (entry) => entry.listing.id === "alexbeav-medievil-recomp",
-  );
-  assert.ok(explicitException);
-  assert.equal(explicitException.psx_managed_windows_v1, undefined);
-  assert.equal(compactPsxManagedWindows(explicitException), explicitException);
 });
 
 void test("GBA preparation compacts exact layouts and retains explicit writer differences", () => {
