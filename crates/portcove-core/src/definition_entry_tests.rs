@@ -1642,6 +1642,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(6);
     entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(7);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
