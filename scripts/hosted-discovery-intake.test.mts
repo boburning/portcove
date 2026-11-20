@@ -2158,6 +2158,11 @@ async function verifyAuditRecovery(schema: 1 | 2) {
     },
   };
   const f = await fixture(candidates, schema, schema === 2 ? store : undefined);
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { auditOnly: true }),
+    /full audit pending/u,
+  );
+  assert.equal(f.creations, 0);
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = async (cache, full) => {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
@@ -2213,14 +2218,21 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
       return await publish(...args);
     };
-    await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true }),
+      /Worker interrupted/u,
+    );
     f.bridge.persist = publish;
     f.bridge.inventory = async () => {
       throw new Error("Already verified audit must not repeat");
     };
   }
-  const completed = await f.bridge.process(f.request, f.all());
+  const completed = await f.bridge.process(f.request, f.all(), { auditOnly: schema === 2 });
   assert.equal(completed.status, "complete");
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,
+    "complete",
+  );
   assert.equal(audits, 1);
   assert.equal(f.creations, candidates.length);
   assert.equal(f.writes, writes);
