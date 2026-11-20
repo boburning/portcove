@@ -3619,7 +3619,10 @@ are `mods/installed`, `mods/packages`, `mods/.staging`, `mods/state.toml`,
 its other build-provided files. The existing whole-`mods` forms keep their
 original persistence scope. The split-mods form requires explicit selectors
 with the same title prefix and the platform-specific `-windows-x64.zip` and
-`-linux-x64.zip` suffixes. `"split-mods-openbios"` combines those split mod
+`-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
+single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
+`psx_crash.txt`. Their remaining split-mods fields are the same.
+`"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
 Use `"split-mods-overlay-directory"` for the reviewed single-disc retail kits
