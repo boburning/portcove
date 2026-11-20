@@ -766,7 +766,11 @@ publication has been verified.
   `held` (no observation source serves the port), `unobserved`
   (its source never completed), or `scope-changed` (its source's completion was
   reset, or does not cover the port). Gaps carry the source's exception key and
-  rule. The current-scope binding includes Core's policy identity and definition
+  rule. For a port with more than one source in the checkpoint, the gap also
+  carries the retained facts for each completed source and names every incomplete
+  source. The port remains outside complete coverage. This preserves descriptive
+  evidence for a successor repository while an older managed origin is unavailable.
+  The current-scope binding includes Core's policy identity and definition
   digests, which the snapshot does not carry, so a completion that predates a
   catalog or Core change is not detected here; the observer's own scope checks
   still apply.

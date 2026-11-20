@@ -46,6 +46,22 @@ export interface UpstreamGap {
   message: string;
   exception_key?: string | null;
   exception_rule?: string | null;
+  source_coverage?: {
+    retained: (UpstreamSourceFact & { scope: SourceScope })[];
+    incomplete: UpstreamSourceGap[];
+  };
+}
+
+type SourceScope = "listing" | "operational" | "operational-and-listing";
+
+interface UpstreamSourceGap {
+  source_key: string;
+  provider: string;
+  repository: string;
+  scope: SourceScope;
+  code: string;
+  exception_key: string | null;
+  exception_rule: string | null;
 }
 
 export interface UpstreamObservation {
@@ -306,8 +322,9 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   for (const { port_id, reason } of held)
     heldReasons.set(port_id, [...new Set([...(heldReasons.get(port_id) ?? []), reason])].sort());
   const served = new Set(sources.flatMap((source) => source.ports.map((port) => port.id)));
-  const entries = new Map<string, UpstreamSourceFact[]>();
+  const entries = new Map<string, (UpstreamSourceFact & { scope: SourceScope })[]>();
   const gaps = new Map<string, UpstreamGap>();
+  const incomplete = new Map<string, UpstreamSourceGap[]>();
   const gap = (id: string, value: Omit<UpstreamGap, "subject_key">) => {
     // One gap per port: unserved `held` first, then the first incomplete source in catalog order.
     if (!gaps.has(`port:${id}`)) gaps.set(`port:${id}`, { subject_key: `port:${id}`, ...value });
@@ -321,6 +338,12 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   for (const source of sources) {
     const progress = state.sources[source.key];
     for (const port of source.ports) {
+      const scope: SourceScope =
+        port.kind === "listing"
+          ? "listing"
+          : port.listing
+            ? "operational-and-listing"
+            : "operational";
       const policy = progress?.last_complete_policies.find(
         (candidate) => candidate.port_id === port.id,
       );
@@ -328,25 +351,31 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         exception_key: progress?.exception_key ?? null,
         exception_rule: progress?.exception_key ? (progress.exception_rule ?? null) : null,
       };
-      if (!progress || (progress.completed_scope_sha256 === null && !policy)) {
+      if (!progress || progress.completed_scope_sha256 === null || !policy) {
+        const neverCompleted = !progress || (progress.completed_scope_sha256 === null && !policy);
+        const code =
+          neverCompleted &&
+          !progress?.last_complete_facts_sha256 &&
+          !progress?.last_complete_policies.length
+            ? "unobserved"
+            : "scope-changed";
         gap(port.id, {
-          code:
-            progress?.last_complete_facts_sha256 || progress?.last_complete_policies.length
-              ? "scope-changed"
-              : "unobserved",
-          message:
-            "The observer has not completed this port's source for its current scope; prior facts stay current.",
+          code,
+          message: neverCompleted
+            ? "The observer has not completed this port's source for its current scope; prior facts stay current."
+            : "The observer's last completion does not cover this port's current source scope; prior facts stay current.",
           ...exception,
         });
-        continue;
-      }
-      if (progress.completed_scope_sha256 === null || !policy) {
-        gap(port.id, {
-          code: "scope-changed",
-          message:
-            "The observer's last completion does not cover this port's current source scope; prior facts stay current.",
+        const sourcesForPort = incomplete.get(port.id) ?? [];
+        sourcesForPort.push({
+          source_key: source.key,
+          provider: source.provider ?? "github",
+          repository: source.repository,
+          scope,
+          code,
           ...exception,
         });
+        incomplete.set(port.id, sourcesForPort);
         continue;
       }
       // A routine partial-progress stop keeps the completed scope; storing it would churn.
@@ -368,6 +397,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         ...(entries.get(port.id) ?? []),
         {
           source_key: source.key,
+          scope,
           provider: progress.provider ?? "github",
           repository: progress.repository,
           repository_id: progress.repository_id,
@@ -386,14 +416,23 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
     }
   }
   const facts = new Map<string, unknown>();
-  for (const id of [...portIds].sort())
-    if (!gaps.has(`port:${id}`) && entries.has(id))
-      facts.set(`port:${id}`, {
+  for (const id of [...portIds].sort()) {
+    const subject = `port:${id}`;
+    const retained = entries.get(id) ?? [];
+    const missing = incomplete.get(id) ?? [];
+    const currentGap = gaps.get(subject);
+    if (currentGap && retained.length + missing.length > 1) {
+      currentGap.source_coverage = {
+        retained: retained.sort(bySourceKey),
+        incomplete: missing.sort(bySourceKey),
+      };
+    }
+    if (!currentGap && retained.length)
+      facts.set(subject, {
         ...(heldReasons.has(id) ? { held_reasons: heldReasons.get(id) } : {}),
-        sources: entries
-          .get(id)!
-          .sort((left, right) => (left.source_key < right.source_key ? -1 : 1)),
+        sources: retained.sort(bySourceKey).map(({ scope: _scope, ...source }) => source),
       });
+  }
   // The observer's catalog mapping partitions every port into a fact or a gap.
   if (facts.size + gaps.size !== portIds.length)
     throw new MaintenanceStoreError("Unsupported observer catalog mapping");
@@ -402,6 +441,10 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
     facts,
     gaps: [...gaps.values()].sort((left, right) => (left.subject_key < right.subject_key ? -1 : 1)),
   };
+}
+
+function bySourceKey(left: { source_key: string }, right: { source_key: string }) {
+  return left.source_key.localeCompare(right.source_key);
 }
 
 /**
@@ -670,6 +713,14 @@ export interface UpstreamSourceFact {
 const storedSources = (payload: unknown) =>
   (payload as { sources?: UpstreamSourceFact[] } | null)?.sources ?? [];
 
+function sourcesForReport(payload: unknown, gap?: UpstreamGap | null) {
+  const sources = new Map<string, UpstreamSourceFact & { scope?: SourceScope }>(
+    storedSources(payload).map((source) => [source.source_key, source]),
+  );
+  for (const source of gap?.source_coverage?.retained ?? []) sources.set(source.source_key, source);
+  return sources;
+}
+
 /**
  * Observer exceptions recorded for a port's sources, as the report shows them:
  * from its stored facts, or from the latest run's coverage gap when the
@@ -678,21 +729,30 @@ const storedSources = (payload: unknown) =>
  * and stay quiet; an exception without a recorded rule stays visible.
  */
 export function upstreamAttention(payload: unknown, gap?: unknown) {
-  return upstreamExceptions(payload, gap).map(
-    (source) =>
-      `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${"repository" in source ? ` (${source.repository})` : ""}`,
-  );
+  return upstreamExceptions(payload, gap).map((source) => {
+    const name =
+      "scope" in source
+        ? `${source.provider} ${source.repository}`
+        : "repository" in source
+          ? source.repository
+          : null;
+    return `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${name ? ` (${name})` : ""}`;
+  });
 }
 
 /** The excepted sources and gap behind {@link upstreamAttention}, structured. */
 export function upstreamExceptions(
   payload: unknown,
   gap?: unknown,
-): (UpstreamSourceFact | UpstreamGap)[] {
+): (UpstreamSourceFact | UpstreamSourceGap | UpstreamGap)[] {
   const latestGap = gap as UpstreamGap | null | undefined;
+  const coverage = latestGap?.source_coverage;
+  const sources = coverage
+    ? [...coverage.retained, ...coverage.incomplete]
+    : storedSources(payload);
   return [
-    ...storedSources(payload).filter((source) => source.exception_key !== null),
-    ...(typeof latestGap?.exception_key === "string" ? [latestGap] : []),
+    ...sources.filter((source) => source.exception_key !== null),
+    ...(!coverage && typeof latestGap?.exception_key === "string" ? [latestGap] : []),
   ].filter(
     (source) =>
       source.exception_rule === null ||
@@ -707,15 +767,31 @@ export function upstreamExceptions(
  * names its source-level gap and `gap` comes from the run before it.
  */
 export function upstreamSummary(payload: unknown, gap: unknown, attempt?: string | null) {
-  const code = (gap as UpstreamGap | null | undefined)?.code;
+  const latestGap = gap as UpstreamGap | null | undefined;
+  const coverage = latestGap?.source_coverage;
+  const checkpointState = coverage
+    ? coverage.retained.length
+      ? "partial source coverage"
+      : "incomplete source coverage"
+    : latestGap?.code;
+  const sources = sourcesForReport(payload, latestGap);
   return (
     [
-      ...storedSources(payload).map(
-        (source) =>
-          `${source.repository}: facts ${(source.last_complete_facts_sha256 ?? "unknown").slice(0, 12)}, last change ${source.last_change_at ?? "not recorded"}`,
-      ),
+      ...[...sources.values()].map((source) => {
+        const context = source.scope
+          ? `${source.provider} ${source.repository} (${source.scope})`
+          : coverage
+            ? `${source.provider} ${source.repository} (previous observation)`
+            : source.repository;
+        return `${context}: facts ${(source.last_complete_facts_sha256 ?? "unknown").slice(0, 12)}, last change ${source.last_change_at ?? "not recorded"}`;
+      }),
       attempt ? `latest attempt failed: ${attempt}` : "",
-      code ? `${attempt ? "previous checkpoint" : "latest checkpoint"}: ${code}` : "",
+      checkpointState
+        ? `${attempt ? "previous checkpoint" : "latest checkpoint"}: ${checkpointState}`
+        : "",
+      ...(coverage?.incomplete ?? []).map(
+        (source) => `${source.provider} ${source.repository} (${source.scope}): ${source.code}`,
+      ),
     ]
       .filter(Boolean)
       .join("; ") || null
