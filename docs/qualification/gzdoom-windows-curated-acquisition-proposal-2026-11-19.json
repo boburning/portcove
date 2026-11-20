@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "kind": "curated-exact-byte-acquisition-proposal",
+  "admission_status": "prepared-pending-independent-artifact-review-and-protected-input-acceptance",
+  "authority": "none",
+  "owner_issues": [
+    315,
+    1824,
+    246
+  ],
+  "namespace": "official",
+  "port_id": "zdoom-gzdoom",
+  "repository_id": 10879376,
+  "channel": "stable",
+  "existing_definition": {
+    "id": "zdoom-gzdoom",
+    "name": "Doom / GZDoom (ZDoom)",
+    "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
+    "project_url": "https://github.com/ZDoom/gzdoom",
+    "support_tier": "beta",
+    "channels": [
+      "stable"
+    ],
+    "platforms": [
+      "windows-x86-64"
+    ],
+    "adapter": "native-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "repository": "ZDoom/gzdoom",
+      "asset_hints": {
+        "windows-x86-64": [
+          "gzdoom-",
+          "-windows.zip"
+        ]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": [
+        "gzdoom.exe"
+      ]
+    },
+    "persistent_paths": [
+      "gzdoom_portable.ini",
+      "Save",
+      "Screenshots",
+      "Demos",
+      "autoexec.cfg"
+    ],
+    "portable_marker_file": "gzdoom_portable.ini",
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Choose Install, then Play. In GZDoom, choose a detected game IWAD, or add the folder holding your own original game files to its IWAD search paths. Keep your originals where they are. The managed Windows player keeps its configuration (gzdoom_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. GZDoom keeps some caches under your Windows local application data folder outside Portcove.",
+      "original_game_title": "Doom",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the Windows player",
+            "instruction": "Choose Install, then Play explicitly. Portcove downloads and verifies the official Windows ZIP, keeps the player folder together, and creates GZDoom’s portable configuration marker so its configuration, saves, screenshots and demos stay beside the managed player, where Portcove preserves them across updates. Keep your original game files and mods outside the managed player folder, which Portcove verifies."
+          },
+          {
+            "title": "Use the upstream Linux or Mac package",
+            "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
+          },
+          {
+            "title": "Choose your original game",
+            "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
+          }
+        ],
+        "warnings": [
+          "Keep the locations you use, original files and mods backed up when updating the upstream runtime."
+        ],
+        "help_url": "https://github.com/ZDoom/gzdoom#readme",
+        "references": [
+          {
+            "title": "Keep your profile and saved games",
+            "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
+          }
+        ]
+      },
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      }
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [
+          "fm_banks",
+          "soundfonts"
+        ],
+        "executables": [
+          "gzdoom.exe"
+        ]
+      }
+    }
+  },
+  "proposed_record": {
+    "record_version": 1,
+    "repository": "ZDoom/gzdoom",
+    "upstream_url": "https://github.com/ZDoom/gzdoom",
+    "acquisition_host": "github.com",
+    "acquisition_url": "https://github.com/ZDoom/gzdoom/releases/download/g4.14.2/gzdoom-4-14-2-windows.zip",
+    "release_id": 216296130,
+    "tag": "g4.14.2",
+    "commit_sha1": "99aa489d09015a95bb78df2b30ede29f328cc874",
+    "asset_id": 251530238,
+    "platform": "windows-x86-64",
+    "route": "github-release-asset",
+    "filename": "gzdoom-4-14-2-windows.zip",
+    "size": 21879627,
+    "sha256": "6d01c5bb48610cebfa9dfd0b7705a1e20bfd56032a74484ac256d8c4e3c51bee",
+    "acquisition_evidence": null,
+    "distribution_basis": "Direct acquisition of the publisher’s Windows archive. The pinned GZDoom source LICENSE states GPL version 3. Use the engine with an IWAD supplied separately by the player. The evidence concerns original upstream acquisition only.",
+    "distribution_evidence": {
+      "url": "https://github.com/ZDoom/gzdoom/blob/99aa489d09015a95bb78df2b30ede29f328cc874/LICENSE",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+    },
+    "independent_review": null,
+    "protected_acceptance": null
+  },
+  "acquisition_evidence_preimage": {
+    "path": "docs/qualification/gzdoom-windows-curated-acquisition-evidence-2026-11-19.json",
+    "sha256": "999966fe3acd38378ca4be11aa8a73e00a889b8df75036bda9776bb253408c30"
+  },
+  "proposed_policy_scope": {
+    "policy_schema": 4,
+    "decision": {
+      "status": "managed_github",
+      "template": "native-portable",
+      "repository_id": 10879376,
+      "artifact_hosts": [
+        "github.com",
+        "release-assets.githubusercontent.com"
+      ],
+      "max_redirects": 1,
+      "operations": [
+        "install",
+        "update",
+        "prepare",
+        "launch"
+      ],
+      "scoped_launch_checks": 1,
+      "curated_acquisition_checks": 1
+    },
+    "minimum_native_portable_capability": 19,
+    "scope_note": "The exact definition and index hashes, policy and launch revisions, and approval reference are resolved only in the accepted publication input."
+  }
+}
