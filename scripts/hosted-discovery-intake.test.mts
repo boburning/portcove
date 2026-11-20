@@ -502,20 +502,20 @@ void test("an existing canonical implementation is retained while unrelated new 
   const f = await fixture([candidate, other]);
   const body = hostedBody({ ...candidate, port_key: "original-owner-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Original owner",
     body,
     state: "CLOSED",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   const execution = f.client.executionIssue.bind(f.client);
   f.client.executionIssue = async (number) => {
     const value = await execution(number);
-    if (number === 150) value.item.Status = "Done";
+    if (number === 1000150) value.item.Status = "Done";
     return value;
   };
   const result = await f.bridge.process(f.request, f.all());
@@ -526,7 +526,7 @@ void test("an existing canonical implementation is retained while unrelated new 
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(result.delivery[0]!.created_issue, undefined);
   assert.equal(result.delivery[0]!.existing, true);
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
   assert.equal((await f.bridge.status(f.request, f.all())).delivered, 1);
   const before = f.comments.size;
@@ -537,14 +537,14 @@ async function existingOwnerFixture(candidates = [candidate], schemaVersion = 1)
   const f = await fixture(candidates, schemaVersion);
   const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Existing owner",
     body,
     state: "OPEN",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   return f;
@@ -568,14 +568,14 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
           99,
         );
         f.issues.push({
-          id: "I150",
-          node_id: "I150",
-          number: 150,
+          id: "I1000150",
+          node_id: "I1000150",
+          number: 1000150,
           title: "[Port] Earlier implementation name",
           body,
           state: "OPEN",
-          url: "https://github.com/boburning/portcove/issues/150",
-          html_url: "https://github.com/boburning/portcove/issues/150",
+          url: "https://github.com/boburning/portcove/issues/1000150",
+          html_url: "https://github.com/boburning/portcove/issues/1000150",
           updatedAt: "2026-10-28T00:00:00Z",
         });
       }
@@ -583,7 +583,7 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
     return inventory(cache, full);
   };
   const result = await f.bridge.process(f.request, f.all());
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(f.creations, 0);
 });
@@ -658,7 +658,7 @@ void test("existing observations deduplicate across proposals and preserve non-n
   f.comments.set(101, request);
   const second = await f.bridge.process(request, f.all());
   assert.equal(second.delivery[0]!.status, "existing");
-  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/150")).length, 1);
+  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/1000150")).length, 1);
   assert.equal(f.fields.Status, "Deferred");
   assert.equal(f.fields.Priority, "High");
   assert.equal(f.normalizations, 0);
@@ -702,7 +702,7 @@ void test("uncertain observation POSTs recover only a confirmed marker and never
     let posts = 0,
       active = true;
     f.sdk.hook.wrap("request", async (request, options) => {
-      if (active && options.method === "POST" && options.url.endsWith("/150/comments")) {
+      if (active && options.method === "POST" && options.url.endsWith("/1000150/comments")) {
         posts++;
         if (confirmed) await request(options);
         throw new GitHubApiError("budget_exhausted", "Observation POST response unknown");
@@ -2089,7 +2089,7 @@ void test("explicit observations match exactly one immutable owner and never cre
   const observation = {
     ...candidate,
     port_key: "existing-key",
-    intent: { kind: "observe-existing", issue: 150 },
+    intent: { kind: "observe-existing", issue: 1000150 },
   };
   const independent = {
     ...candidate,
@@ -2106,8 +2106,8 @@ void test("explicit observations match exactly one immutable owner and never cre
   const verified = await f.bridge.process(f.request, f.all());
   assert.equal(f.creations, 0);
   assert.equal(verified.delivery[0]?.status, "existing");
-  assert.equal(verified.delivery[0]?.canonical_issue, 150);
-  assert.equal(verified.delivery[0]?.item_id, "PVTI150");
+  assert.equal(verified.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(verified.delivery[0]?.item_id, "PVTI1000150");
 
   const held = await existingOwnerFixture([observation, independent], 2);
   held.issues[0]!.body = held.issues[0]!.body.replace(String(candidate.repository_id), "9001");
@@ -2126,20 +2126,20 @@ void test("explicit observations match exactly one immutable owner and never cre
   );
   assert.equal(mustCreate.creations, 0);
   assert.equal(
-    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/150")),
+    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/1000150")),
     false,
   );
 });
 
-void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", async () => {
-  const candidates = Array.from({ length: 18 }, (_, i) => ({
+async function verifyAuditRecovery(schema: 1 | 2) {
+  const candidates = Array.from({ length: 11 }, (_, i) => ({
     ...candidate,
     title: `Intake game ${i}`,
     game: `Intake game ${i}`,
     upstream: `${candidate.upstream}-${i}`,
     repository_id: candidate.repository_id + i,
     port_key: `intake-game-${i}`,
-    intent: { kind: "create" },
+    ...(schema === 2 ? { intent: { kind: "create" } } : {}),
   }));
   let retained: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
   const store: HostedIntakeCheckpointStore = {
@@ -2157,7 +2157,7 @@ void test("an audit interruption preserves delivered candidates across upstream 
       return revision + 1;
     },
   };
-  const f = await fixture(candidates, 2, store);
+  const f = await fixture(candidates, schema, schema === 2 ? store : undefined);
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = async (cache, full) => {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
@@ -2168,6 +2168,13 @@ void test("an audit interruption preserves delivered candidates across upstream 
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
   const writes = f.writes;
+  if (schema === 1) {
+    const comment = f.comments.get(status.receipt_comment!)!;
+    // Old schema-1 receipts predate the explicit audit checkpoint.
+    comment.body = comment.body.replace(/^  "audit_pending": true,\n/mu, "");
+    assert.equal((await f.bridge.status(f.request, f.all())).audit_pending, undefined);
+    f.fields.Status = "Ready";
+  }
 
   f.changePrimary();
   f.bridge.primary = async () => {
@@ -2199,17 +2206,19 @@ void test("an audit interruption preserves delivered candidates across upstream 
       projectInventorySource: "discovery-inventory",
     };
   };
-  // Lose the response after the exact final receipt was persisted in PostgreSQL.
-  const publish = f.bridge.persist.bind(f.bridge);
-  f.bridge.persist = async (...args) => {
-    if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
-    return await publish(...args);
-  };
-  await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
-  f.bridge.persist = publish;
-  f.bridge.inventory = async () => {
-    throw new Error("Already verified audit must not repeat");
-  };
+  if (schema === 2) {
+    // Lose the response after the exact final receipt was persisted in PostgreSQL.
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
+      return await publish(...args);
+    };
+    await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
+    f.bridge.persist = publish;
+    f.bridge.inventory = async () => {
+      throw new Error("Already verified audit must not repeat");
+    };
+  }
   const completed = await f.bridge.process(f.request, f.all());
   assert.equal(completed.status, "complete");
   assert.equal(audits, 1);
@@ -2220,7 +2229,11 @@ void test("an audit interruption preserves delivered candidates across upstream 
     completed.delivery.map((d) => d.created_issue),
     f.issues.map((issue) => issue.number),
   );
-});
+}
+void test("legacy audit recovery preserves delivered candidates without reopening owner planning", () =>
+  verifyAuditRecovery(1));
+void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", () =>
+  verifyAuditRecovery(2));
 
 function amendmentFor(
   f: Awaited<ReturnType<typeof fixture>>,
@@ -2263,6 +2276,84 @@ function amendmentFor(
   f.comments.set(comment.id, comment);
   return { comment, value, receipt };
 }
+
+void test("an exact amendment corrects only the game label of a held explicit observation", async () => {
+  const observation = {
+    ...candidate,
+    game: `${candidate.game} (USA original edition)`,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 1000150 },
+  };
+  const f = await existingOwnerFixture([observation], 2);
+  const ownerBefore = structuredClone(f.issues[0]);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  amendmentFor(f, 0, { game: candidate.game });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.game, candidate.game);
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a game label correction cannot rebind candidate creation", async () => {
+  const f = await fixture();
+  await f.prepare();
+  amendmentFor(f, 0, { game: "Different game" });
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Game label correction requires an explicit existing-owner observation/u,
+  );
+  assert.equal(f.creations, 0);
+});
+
+void test("a legacy unattempted slot observes an established owner with a different key", async () => {
+  const f = await existingOwnerFixture();
+  const owner = f.issues.pop()!;
+  await f.prepare();
+  f.issues.push(owner);
+  const ownerBefore = structuredClone(f.issues[0]);
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "existing-key" },
+  });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.port_key, "existing-key");
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a legacy owner amendment refuses an original creation marker", async () => {
+  const f = await fixture();
+  await f.prepare();
+  const body = hostedBody(candidate, f.request.id);
+  const issueUrl = "https://github.com/boburning/portcove/issues/1000150";
+  f.issues.push({
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
+    title: "[Port] Prior creation",
+    body,
+    state: "OPEN",
+    url: issueUrl,
+    html_url: issueUrl,
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "different-key" },
+  });
+  await assert.rejects(f.bridge.process(f.request, f.all()), /retained creation marker/u);
+  assert.equal(f.creations, 0);
+  assert(!f.all().some((comment) => comment.issue_url.endsWith("/1000150")));
+});
 
 void test("candidate amendments finish a legacy partial batch while preserving four delivered owners", async () => {
   const f = await partialFixture(8, 4);

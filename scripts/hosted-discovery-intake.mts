@@ -4,6 +4,7 @@ import {
   parseHostedAmendment,
   readHostedAmendment,
   type AmendmentReference,
+  type HostedAmendment,
 } from "./hosted-discovery-amendment.mts";
 import {
   resolveDiscoveryRepository,
@@ -403,6 +404,25 @@ export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
     })),
   });
 }
+function applyHostedAmendment(candidate: Candidate, amendment: HostedAmendment): Candidate {
+  const { canonical_owner, ...replacement } = amendment.replacement;
+  if (canonical_owner) {
+    if (candidate.intent)
+      throw new Error(
+        "Canonical owner binding requires a legacy candidate without explicit intent",
+      );
+    return {
+      ...candidate,
+      ...replacement,
+      port_key: canonical_owner.port_key,
+      intent: { kind: "observe-existing", issue: canonical_owner.issue },
+    };
+  }
+  if (replacement.game !== undefined && candidate.intent?.kind !== "observe-existing")
+    throw new Error("Game label correction requires an explicit existing-owner observation");
+  return { ...candidate, ...replacement };
+}
+
 function readHostedReceipt(
   comment: Comment,
   request: Comment,
@@ -442,7 +462,7 @@ function readHostedReceipt(
       const amendment = readHostedAmendment(rows[0]!, owner, repository, request);
       if (amendment.candidate_index !== index || amendment.port_key !== candidate.port_key)
         throw new Error("Candidate amendment identity differs");
-      candidate = { ...candidate, ...amendment.replacement };
+      candidate = applyHostedAmendment(candidate, amendment);
     }
     if (binding.location !== undefined) {
       const location = object(binding.location);
@@ -1694,7 +1714,8 @@ export class HostedIntakeBridge {
       }
       if (
         receipt.audit_pending ||
-        (proposal.schema_version === 2 && receipt.delivery.every((d) => !missingDeliveryProof(d)))
+        ((proposal.schema_version === 2 || (!lineage && receipt.delivery.length > 10)) &&
+          receipt.delivery.every((d) => !missingDeliveryProof(d)))
       ) {
         const audit = receipt;
         const persist = async () => {
@@ -1777,7 +1798,7 @@ export class HostedIntakeBridge {
           this.client.config.repository,
           request,
         );
-        candidate = { ...original, ...value.replacement };
+        candidate = applyHostedAmendment(original, value);
         ownerHold = value.hold === true;
       }
       if (previous && ((d.hold && !resumeHolds && !amended) || (!lineage && isDelivered(d)))) {
@@ -1958,6 +1979,18 @@ export class HostedIntakeBridge {
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
+        if (p.candidate.intent?.kind === "observe-existing") {
+          const originalKey = proposal.candidates[index]!.port_key;
+          const originalMarker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${originalKey} -->`;
+          if (
+            recovered.length ||
+            (originalKey !== p.candidate.port_key &&
+              inventory.issues.some((issue) => issue.body?.includes(originalMarker)))
+          )
+            throw new Error(
+              "Explicit observation has a retained creation marker; reconcile it first",
+            );
+        }
         if (d.created_issue && recovered[0]?.number !== d.created_issue)
           throw new Error("Created issue identity is unavailable");
         if (!d.created_issue && recovered.length) {
