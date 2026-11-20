@@ -1470,8 +1470,11 @@ portcove --json artwork unused
 portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
 ```
 
-Slots are `cover` (default), `detail` and `landscape`; their selections are independent. `landscape` is a wide cover, separate from the detail image, that Steam uses as its library capsule; it has no catalog default. Read the
-current choice revision before changing it. Omitted `--expected-revision` captures
+Slots are `cover` (default), `detail`, `landscape` and `logo`. Each slot has
+its own selection. Steam uses the separate `landscape` wide cover as its library
+capsule. Use `--slot logo` to import or reset a local logo. A library export with
+a logo choice or reset revision requires metadata schema 13.
+Read the current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
 reviewed revision so stale selections fail explicitly. Reset increments the
 revision and returns to fallback, retaining copied originals. Removal requires an

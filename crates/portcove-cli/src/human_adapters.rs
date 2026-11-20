@@ -217,6 +217,7 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         ArtworkSlot::Cover => "Cover",
         ArtworkSlot::Detail => "Detail image",
         ArtworkSlot::Landscape => "Landscape image",
+        ArtworkSlot::Logo => "Logo",
     };
     let availability = match state.availability {
         ArtworkAvailability::Fallback => "Generated fallback",

@@ -567,6 +567,7 @@ pub(crate) enum ArtworkSlotArg {
     Cover,
     Detail,
     Landscape,
+    Logo,
 }
 
 impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
@@ -575,6 +576,7 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
             ArtworkSlotArg::Cover => Self::Cover,
             ArtworkSlotArg::Detail => Self::Detail,
             ArtworkSlotArg::Landscape => Self::Landscape,
+            ArtworkSlotArg::Logo => Self::Logo,
         }
     }
 }

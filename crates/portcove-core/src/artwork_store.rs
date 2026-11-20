@@ -72,28 +72,39 @@ pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
-const LANDSCAPE_CHOICES_TABLE: &str = "CREATE TABLE artwork_choices (
-        port_id TEXT NOT NULL, slot TEXT NOT NULL CHECK(slot IN ('cover','detail','landscape')),
-        revision INTEGER NOT NULL CHECK(revision>0), asset_sha256 TEXT REFERENCES artwork_assets(sha256),
-        PRIMARY KEY(port_id,slot)
-    )";
+const LANDSCAPE_CHOICES: &str = "CHECK(slot IN ('cover','detail','landscape'))";
+const LOGO_CHOICES: &str = "CHECK(slot IN ('cover','detail','landscape','logo'))";
 
-/// Library migration 57: the same choice table with the landscape slot admitted.
-/// Nothing references `artwork_choices`, so the rename keeps every constraint.
-pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()> {
+fn widen_slots(
+    transaction: &Transaction<'_>,
+    previous_table: &str,
+    slot_constraint: &str,
+) -> Result<()> {
     transaction.execute_batch(&format!(
-        "ALTER TABLE artwork_choices RENAME TO artwork_choices_v56;
-        {LANDSCAPE_CHOICES_TABLE};
+        "ALTER TABLE artwork_choices RENAME TO {previous_table};
+        CREATE TABLE artwork_choices (
+            port_id TEXT NOT NULL, slot TEXT NOT NULL {slot_constraint},
+            revision INTEGER NOT NULL CHECK(revision>0), asset_sha256 TEXT REFERENCES artwork_assets(sha256),
+            PRIMARY KEY(port_id,slot)
+        );
         INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256)
-            SELECT port_id,slot,revision,asset_sha256 FROM artwork_choices_v56;
-        DROP TABLE artwork_choices_v56;"
+            SELECT port_id,slot,revision,asset_sha256 FROM {previous_table};
+        DROP TABLE {previous_table};"
     ))?;
     Ok(())
 }
 
-/// Checked on migration and every later open: the stored definition admits the
-/// landscape slot and no intermediate table remains.
-pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
+/// Library migration 57 admits the landscape slot and retains every revision.
+pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()> {
+    widen_slots(transaction, "artwork_choices_v56", LANDSCAPE_CHOICES)
+}
+
+/// Library migration 73 admits Logo without changing the existing asset store.
+pub(crate) fn migrate_logo_slot(transaction: &Transaction<'_>) -> Result<()> {
+    widen_slots(transaction, "artwork_choices_v72", LOGO_CHOICES)
+}
+
+fn verify_slots(connection: &Connection, previous_table: &str, accepted: &[&str]) -> Result<()> {
     let definition: Option<String> = connection
         .query_row(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
@@ -102,19 +113,28 @@ pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
         )
         .optional()?;
     let leftover: bool = connection.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='artwork_choices_v56')",
-        [],
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?1)",
+        [previous_table],
         |row| row.get(0),
     )?;
-    if leftover
-        || !definition
-            .is_some_and(|sql| sql.contains("CHECK(slot IN ('cover','detail','landscape'))"))
-    {
+    if leftover || !definition.is_some_and(|sql| accepted.iter().any(|value| sql.contains(value))) {
         return Err(PortcoveError::state(
-            "artwork choices do not admit the landscape slot",
+            "artwork choice slots do not match the library schema",
         ));
     }
     Ok(())
+}
+
+pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
+    verify_slots(
+        connection,
+        "artwork_choices_v56",
+        &[LANDSCAPE_CHOICES, LOGO_CHOICES],
+    )
+}
+
+pub(crate) fn verify_logo_slot(connection: &Connection) -> Result<()> {
+    verify_slots(connection, "artwork_choices_v72", &[LOGO_CHOICES])
 }
 
 /// Library migration 58: listing-check evidence beside each provider record. It

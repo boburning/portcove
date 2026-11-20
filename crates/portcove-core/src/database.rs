@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 72;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 73;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -456,6 +456,12 @@ const MIGRATIONS: &[Migration] = &[
         name: "per-subject signed definition selection",
         apply: crate::definition_candidate::selection::migrate_subject_selection,
         verify: verify_migration_72,
+    },
+    Migration {
+        version: 73,
+        name: "local logo artwork slot",
+        apply: crate::artwork_store::migrate_logo_slot,
+        verify: crate::artwork_store::verify_logo_slot,
     },
 ];
 
@@ -4055,6 +4061,51 @@ mod tests {
     }
 
     #[test]
+    fn logo_slot_migration_preserves_all_existing_artwork_choices() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 72).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES
+                 ('shipwright','cover',3),('shipwright','detail',5),('shipwright','landscape',8);",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_logo_slot(&connection).is_err());
+        assert!(connection.execute(
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','logo',1)",
+            [],
+        ).is_err());
+        drop(connection);
+
+        migrate_to(root, 73).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_landscape_slot(&connection).unwrap();
+        crate::artwork_store::verify_logo_slot(&connection).unwrap();
+        for (slot, revision) in [
+            (crate::ArtworkSlot::Cover, 3),
+            (crate::ArtworkSlot::Detail, 5),
+            (crate::ArtworkSlot::Landscape, 8),
+        ] {
+            let retained = crate::artwork_store::choice(&connection, "shipwright", slot).unwrap();
+            assert_eq!(retained.revision, revision);
+            assert!(retained.asset_sha256.is_none());
+        }
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','logo',1)",
+                [],
+            )
+            .unwrap();
+        assert!(connection.execute(
+            "INSERT INTO artwork_choices(port_id,slot,revision) VALUES ('shipwright','icon',1)",
+            [],
+        ).is_err());
+    }
+
+    #[test]
     fn landscape_slot_migration_keeps_every_choice_and_constraint() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -4352,6 +4403,7 @@ mod tests {
         schema_69: 69,
         schema_70: 70,
         schema_71: 71,
+        schema_72: 72,
     }
 
     #[test]

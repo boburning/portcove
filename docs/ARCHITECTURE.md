@@ -755,6 +755,11 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
+Local Logo is an independent choice in library schema 73. It uses the same
+bounded static image ingest, content store, revision checks and read-only
+thumbnail path as the existing Cover, Detail and Landscape choices. Library
+metadata records a Logo selection or reset revision under schema 13.
+
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
 choice revision. Any explicit local choice suppresses the collection. Tauri delegates

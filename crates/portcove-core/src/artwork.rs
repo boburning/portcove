@@ -37,10 +37,11 @@ pub enum ArtworkSlot {
     Detail,
     /// A wide cover, separate from the detail image; Steam's library capsule.
     Landscape,
+    Logo,
 }
 
 impl ArtworkSlot {
-    pub(crate) const ALL: [Self; 3] = [Self::Cover, Self::Detail, Self::Landscape];
+    pub(crate) const ALL: [Self; 4] = [Self::Cover, Self::Detail, Self::Landscape, Self::Logo];
 
     /// The single stored key for each slot; `from_key` is its exact inverse.
     pub(crate) fn key(self) -> &'static str {
@@ -48,6 +49,7 @@ impl ArtworkSlot {
             Self::Cover => "cover",
             Self::Detail => "detail",
             Self::Landscape => "landscape",
+            Self::Logo => "logo",
         }
     }
 
@@ -306,11 +308,12 @@ pub(crate) const EVICTED_LISTED_AGAIN_REASON: &str =
     "SteamGridDB lists this image again. Choose it again to restore Portcove's copy.";
 
 /// The destination role a provider image is chosen for in each local slot.
-pub(crate) fn provider_role(slot: ArtworkSlot) -> DestinationArtworkRole {
+fn provider_role(slot: ArtworkSlot) -> Option<DestinationArtworkRole> {
     match slot {
-        ArtworkSlot::Cover => DestinationArtworkRole::PortraitCover,
-        ArtworkSlot::Detail => DestinationArtworkRole::HeroBanner,
-        ArtworkSlot::Landscape => DestinationArtworkRole::LandscapeCover,
+        ArtworkSlot::Cover => Some(DestinationArtworkRole::PortraitCover),
+        ArtworkSlot::Detail => Some(DestinationArtworkRole::HeroBanner),
+        ArtworkSlot::Landscape => Some(DestinationArtworkRole::LandscapeCover),
+        ArtworkSlot::Logo => None,
     }
 }
 
@@ -619,8 +622,10 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
-        let fetched =
-            steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
+        let role = provider_role(slot).ok_or_else(|| {
+            PortcoveError::unsupported("SteamGridDB is unavailable for Logo. Choose a local image.")
+        })?;
+        let fetched = steamgriddb::fetch_chosen_candidate(game_id, role, candidate_id)?;
         self.choose_fetched_artwork(&port, slot, game_id, fetched, expected_revision)
     }
 
@@ -947,7 +952,7 @@ impl PortcoveService {
         expected_revision: u64,
     ) -> Result<ArtworkState> {
         let steamgriddb::FetchedCandidate { candidate, bytes } = fetched;
-        if candidate.role != provider_role(slot) {
+        if Some(candidate.role) != provider_role(slot) {
             return Err(PortcoveError::verification(
                 "the SteamGridDB image was listed for a different artwork role",
             ));
@@ -1260,7 +1265,7 @@ impl PortcoveService {
         let mapped_cover = match slot {
             ArtworkSlot::Cover => port.artwork.as_ref(),
             // Catalog defaults are portrait covers; other slots fall back.
-            ArtworkSlot::Detail | ArtworkSlot::Landscape => None,
+            ArtworkSlot::Detail | ArtworkSlot::Landscape | ArtworkSlot::Logo => None,
         };
         if let Some(artwork) = mapped_cover {
             let connection = self.library().connection()?;

@@ -4008,5 +4008,82 @@ fn landscape_choices_require_metadata_schema_nine_and_round_trip() {
     assert_eq!(state.availability, ArtworkAvailability::Available);
 }
 
+#[test]
+fn local_logo_round_trips_without_changing_other_artwork_roles() {
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let cover_image = image_file(temporary.path(), "cover.png", image::ImageFormat::Png);
+    let logo_image = temporary.path().join("logo.png");
+    image::RgbaImage::from_pixel(32, 14, image::Rgba([40, 80, 190, 140]))
+        .save(&logo_image)
+        .unwrap();
+    let cover = service
+        .import_artwork(PORT, ArtworkSlot::Cover, &cover_image, 0)
+        .unwrap();
+    assert!(service.export_library_metadata().unwrap().schema_version < 13);
+
+    let logo = service
+        .import_artwork(PORT, ArtworkSlot::Logo, &logo_image, 0)
+        .unwrap();
+    let logo_hash = logo.choice.asset_sha256.as_ref().unwrap();
+    assert_eq!(logo.choice.revision, 1);
+    assert_eq!(logo.availability, ArtworkAvailability::Available);
+    let handoff =
+        serde_json::to_value(schemars::schema_for!(crate::DestinationArtworkHandoff)).unwrap();
+    assert_eq!(
+        handoff["$defs"]["DestinationArtworkSlot"]["enum"],
+        serde_json::json!(["cover", "detail", "landscape"]),
+    );
+    assert_eq!(
+        &service
+            .artwork_thumbnail(PORT, ArtworkSlot::Logo, 1)
+            .unwrap()
+            .asset_sha256,
+        logo_hash,
+    );
+    assert!(service.reset_artwork(PORT, ArtworkSlot::Logo, 0).is_err());
+    assert!(
+        service
+            .choose_steamgriddb_artwork(PORT, ArtworkSlot::Logo, 1, 1, 1)
+            .is_err()
+    );
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 13);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut downgraded = metadata;
+    downgraded.schema_version = 12;
+    assert!(crate::library_import::validate_metadata(&downgraded, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Logo).unwrap().choice,
+        logo.choice
+    );
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+    let reset = restored.reset_artwork(PORT, ArtworkSlot::Logo, 1).unwrap();
+    assert_eq!(reset.choice.revision, 2);
+    assert!(reset.choice.asset_sha256.is_none());
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+    assert_eq!(
+        restored.export_library_metadata().unwrap().schema_version,
+        13
+    );
+}
+
 #[path = "artwork_withdrawal_tests.rs"]
 mod withdrawal;

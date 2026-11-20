@@ -53,6 +53,33 @@ pub enum DestinationArtworkContent {
     },
 }
 
+// The version-4 export only carries the three destination choices. Keep its
+// emitted schema independent of later local artwork slots.
+#[derive(JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[allow(
+    dead_code,
+    reason = "schema projection for the existing destination choice"
+)]
+struct DestinationArtworkChoice {
+    port_id: String,
+    slot: DestinationArtworkSlot,
+    revision: u64,
+    asset_sha256: Option<String>,
+}
+
+#[derive(JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[allow(
+    dead_code,
+    reason = "schema projection of the version-4 destination slots"
+)]
+enum DestinationArtworkSlot {
+    Cover,
+    Detail,
+    Landscape,
+}
+
 /// An observation, never provider permission, destination ownership or write consent.
 /// Portrait exposes the validated local cover original; hero banner and landscape
 /// cover expose the validated local detail or landscape original only when it is
@@ -66,6 +93,7 @@ pub struct DestinationArtworkHandoff {
     pub library: LibraryIdentity,
     pub port_id: String,
     pub role: DestinationArtworkRole,
+    #[schemars(with = "Option<DestinationArtworkChoice>")]
     pub choice: Option<ArtworkChoice>,
     pub source: DestinationArtworkSource,
     pub selected_asset_sha256: Option<String>,
