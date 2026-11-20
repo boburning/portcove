@@ -64,14 +64,14 @@ export function WorkspaceRefreshNotice({
       ? String(recoveryFailure.error.code)
       : undefined;
   const recoveryNotice = recoveryFailure && (
-    <Notice intent="danger" className="" role="alert" aria-busy={recoveryBusy}>
+    <Notice intent="danger" role="alert" aria-busy={recoveryBusy}>
       <span
         data-slot="notice-icon"
         className="error-icon grid h-[2rem] w-[2rem] place-items-center"
       >
         <Icon glyph={AlertTriangle} />
       </span>
-      <div data-slot="notice-body">
+      <div data-slot="notice-body" className="grid justify-items-start gap-1">
         <strong>{t("recovery.heading")}</strong>
         <p>{hasSnapshot ? t("recovery.snapshot") : t("notLoaded")}</p>
         <p>{errorText(recoveryFailure.error)}</p>
@@ -79,6 +79,7 @@ export function WorkspaceRefreshNotice({
           <FailureDetails presentation={recoveryPresentation} code={recoveryCode} />
         )}
         <Button
+          className="mt-1"
           ref={recoveryRetryButton}
           variant="outline"
           data-focusable
@@ -94,17 +95,18 @@ export function WorkspaceRefreshNotice({
   if (!failure && recoveryFailure) return recoveryNotice;
   if (!failure)
     return (
-      <Notice intent="neutral" className="" role="status" aria-busy={refreshing}>
+      <Notice intent="neutral" role="status" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"
         >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div data-slot="notice-body">
+        <div data-slot="notice-body" className="grid justify-items-start gap-1">
           <strong>{t("live.heading")}</strong>
           <p>{t("live.body")}</p>
           <Button
+            className="mt-1"
             ref={retryButton}
             variant="outline"
             data-focusable
@@ -131,14 +133,14 @@ export function WorkspaceRefreshNotice({
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
     <>
-      <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+      <Notice intent="danger" role="alert" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"
         >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div data-slot="notice-body">
+        <div data-slot="notice-body" className="grid justify-items-start gap-1">
           <strong>
             {hasSnapshot ? t("refresh.headingSnapshot") : t("refresh.headingInitial")}
           </strong>
@@ -153,6 +155,7 @@ export function WorkspaceRefreshNotice({
           )}
           <p>{hasSnapshot ? t("refresh.effectSnapshot") : t("refresh.effectInitial")}</p>
           <Button
+            className="mt-1"
             ref={retryButton}
             variant="outline"
             data-focusable
