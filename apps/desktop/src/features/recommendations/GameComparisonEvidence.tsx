@@ -328,7 +328,10 @@ export function GameComparisonEvidence({
   const recommended =
     recommendationAssessment?.status === "recommended-starting-point" &&
     recommendationAssessment.recommended?.port_id === portId;
+  const retainedVersion =
+    port.freshness.state === "definition-changed" || port.freshness.state === "collection-failed";
   const featureResults =
+    retainedVersion ||
     !candidate ||
     candidate.scope.game_id !== report.game_id ||
     candidate.scope.edition_id !== report.edition_id ||
@@ -339,8 +342,6 @@ export function GameComparisonEvidence({
   const requiredFeatures = comparisonFeatures.filter(({ id }) =>
     report.required_capabilities.includes(id),
   );
-  const retainedVersion =
-    port.freshness.state === "definition-changed" || port.freshness.state === "collection-failed";
   const followed = organization?.snapshot?.followed_port_ids.includes(portId) ?? false;
   return (
     <section

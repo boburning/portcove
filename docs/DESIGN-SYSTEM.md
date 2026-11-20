@@ -798,7 +798,9 @@ Comparison separates original system, target platform, release channels and obse
 update ownership. Show the selected edition, platform and required features before
 the alternatives. Name a suggested port when Core identifies one. Show each
 port’s selected feature results beside the port. Evidence for a different edition
-or environment leaves support unconfirmed for the selected options.
+or environment leaves support unconfirmed for the selected options. A failed
+version check or changed definition leaves the retained release’s feature support
+unconfirmed in the current comparison.
 The report disclosure retains assessment dimensions, freshness and provenance.
 Core supplies the feature claims and their scope.
 

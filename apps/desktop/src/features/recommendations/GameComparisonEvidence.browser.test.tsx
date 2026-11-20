@@ -205,57 +205,68 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   await expect.element(trigger).toHaveFocus();
 }, 45_000);
 
-it("shows scoped feature results beside each port with the reports closed", async () => {
-  vi.mocked(desktopApi.compareGamePorts).mockImplementation(async (request) => {
-    const report = comparisonFixture();
-    const candidate = report.assessment!.candidates[0]!;
-    const sample = report.ports[0]!;
-    report.required_capabilities = request.required_capabilities ?? [];
-    candidate.required_capabilities = { multiplayer: "satisfied", controller: "unsupported" };
-    const sibling = { ...sample, port_id: "sibling", name: "Sibling project" };
-    report.ports.push(sibling);
-    report.assessment!.candidates.push({
-      ...candidate,
-      scope: { ...candidate.scope, port_id: sibling.port_id, edition_id: "another-edition" },
-      reasons: ["different-game-or-edition"],
+it.each(["different edition", "retained offer"] as const)(
+  "shows scoped feature results beside each port with the reports closed for a %s",
+  async (scenario) => {
+    const stale = scenario === "retained offer";
+    vi.mocked(desktopApi.compareGamePorts).mockImplementation(async (request) => {
+      const report = comparisonFixture();
+      const candidate = report.assessment!.candidates[0]!;
+      const sample = report.ports[0]!;
+      report.required_capabilities = request.required_capabilities ?? [];
+      candidate.required_capabilities = { multiplayer: "satisfied", controller: "unsupported" };
+      const sibling = { ...sample, port_id: "sibling", name: "Sibling project" };
+      if (stale) sibling.freshness = { ...sample.freshness, state: "collection-failed" };
+      report.ports.push(sibling);
+      report.assessment!.candidates.push({
+        ...candidate,
+        scope: {
+          ...candidate.scope,
+          port_id: sibling.port_id,
+          edition_id: stale ? candidate.scope.edition_id : "another-edition",
+        },
+        reasons: stale ? ["operation-unknown"] : ["different-game-or-edition"],
+      });
+      if (!report.required_capabilities.length) {
+        report.assessment!.status = "recommended-starting-point";
+        report.assessment!.recommended = candidate.scope;
+      } else {
+        report.assessment!.status = "insufficient-evidence";
+      }
+      return report;
     });
-    if (!report.required_capabilities.length) {
-      report.assessment!.status = "recommended-starting-point";
-      report.assessment!.recommended = candidate.scope;
-    } else {
-      report.assessment!.status = "insufficient-evidence";
-    }
-    return report;
-  });
-  await page.viewport(390, 844);
-  await render(<Fixture siblings />);
-  await page.getByRole("button", { name: "Compare projects", exact: true }).click();
-  const options = page.getByRole("region", { name: "Comparison options", exact: true });
-  const result = options.getByRole("status");
-  await expect.element(result).toHaveTextContent("Suggested starting point · Fixture project");
-  await expect.element(options.getByText(/Comparing Fixture original on Windows/)).toBeVisible();
-  await page.getByText("Comparison settings", { exact: true }).click();
-  await page.getByRole("checkbox", { name: "Multiplayer", exact: true }).click();
-  await page.getByRole("checkbox", { name: "Controller support", exact: true }).click();
-  await page.getByText("Comparison settings", { exact: true }).click();
-  await expect
-    .element(result)
-    .toHaveTextContent("We don’t have enough information to suggest a port.");
-  const first = page.getByRole("region", { name: "Reports and updates for Fixture project" });
-  const second = page.getByRole("region", { name: "Reports and updates for Sibling project" });
-  await expect
-    .element(first.getByText("Supported for these options", { exact: true }))
-    .toBeVisible();
-  await expect
-    .element(first.getByText("Unsupported for these options", { exact: true }))
-    .toBeVisible();
-  expect(second.getByText("Support unconfirmed", { exact: true }).elements()).toHaveLength(2);
-  expect(second.getByText("Supported for these options", { exact: true }).query()).toBeNull();
-  expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
-  await expect
-    .element(first.getByText("Synthetic assertion for presentation tests, not real gameplay."))
-    .not.toBeVisible();
-});
+    await page.viewport(390, 844);
+    await render(<Fixture siblings />);
+    await page.getByRole("button", { name: "Compare projects", exact: true }).click();
+    const options = page.getByRole("region", { name: "Comparison options", exact: true });
+    const result = options.getByRole("status");
+    await expect.element(result).toHaveTextContent("Suggested starting point · Fixture project");
+    await expect.element(options.getByText(/Comparing Fixture original on Windows/)).toBeVisible();
+    await page.getByText("Comparison settings", { exact: true }).click();
+    await page.getByRole("checkbox", { name: "Multiplayer", exact: true }).click();
+    await page.getByRole("checkbox", { name: "Controller support", exact: true }).click();
+    await page.getByText("Comparison settings", { exact: true }).click();
+    await expect
+      .element(result)
+      .toHaveTextContent("We don’t have enough information to suggest a port.");
+    const first = page.getByRole("region", { name: "Reports and updates for Fixture project" });
+    const second = page.getByRole("region", { name: "Reports and updates for Sibling project" });
+    await expect
+      .element(first.getByText("Supported for these options", { exact: true }))
+      .toBeVisible();
+    await expect
+      .element(first.getByText("Unsupported for these options", { exact: true }))
+      .toBeVisible();
+    const version = stale ? "Last recorded version 1.0" : "Offered version 1.0";
+    await expect.element(second.getByText(version, { exact: true })).toBeVisible();
+    expect(second.getByText("Support unconfirmed", { exact: true }).elements()).toHaveLength(2);
+    expect(second.getByText("Supported for these options", { exact: true }).query()).toBeNull();
+    expect(desktopApi.changeOrganization).not.toHaveBeenCalled();
+    await expect
+      .element(first.getByText("Synthetic assertion for presentation tests, not real gameplay."))
+      .not.toBeVisible();
+  },
+);
 
 it("does not describe a project declaration as a test result", async () => {
   const report = comparisonFixture();
