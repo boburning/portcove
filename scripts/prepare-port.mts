@@ -25,6 +25,7 @@ import {
   readCatalogSource,
   reviewCompatibilityFixture,
   parseCatalogSource,
+  projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
@@ -35,6 +36,10 @@ import {
   projectRazeWindowsProfile,
 } from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
+import {
+  compactOpenMohaaPortable,
+  projectOpenMohaaPortable,
+} from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
@@ -98,7 +103,9 @@ type PackageFacts = Pick<
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
 export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
-  const record = projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input));
+  const record = projectOpenMohaaPortable(
+    projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input)),
+  );
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -211,6 +218,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "n64_recomp_persistence_v1",
       scope: "Managed N64Recomp player data and original-file paths in the installation root.",
       next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
+    });
+  }
+  if (record.openmohaa_portable_v1) {
+    projections.push({
+      field: "openmohaa_portable_v1",
+      scope: "Official stable OpenMoHAA archives and the reviewed edition launcher and data paths.",
+      next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
     });
   }
   if (record.raze_windows_profile_v1) {
@@ -700,8 +714,8 @@ export async function preparePort(options: PrepareOptions) {
     if (originalGame !== undefined && explicit) {
       if (!previous && explicit.listing.issue_number !== undefined)
         throw new Error("A new issue-free record cannot supply an unverified issue association.");
-      const release = explicit.integration?.release;
-      const retainedRelease = previous?.integration?.release;
+      const release = projectAuthoredPort(explicit)?.release;
+      const retainedRelease = previous && projectAuthoredPort(previous)?.release;
       const provider = isRecord(release) ? (release.provider ?? "github") : null;
       const retainedProvider = isRecord(retainedRelease)
         ? (retainedRelease.provider ?? "github")
@@ -769,7 +783,7 @@ export async function preparePort(options: PrepareOptions) {
       resolveReleaseUrl: ({ projectUrl, issuePortId }) => {
         const { base } = resolveIdentity(projectUrl, issuePortId);
         if (!base?.integration) return base?.listing.release_url;
-        const release = base.integration.release;
+        const release = projectAuthoredPort(base)?.release;
         return isRecord(release) &&
           (release.provider === undefined || release.provider === "github") &&
           typeof release.repository === "string"
@@ -1055,6 +1069,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
     if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
+    const compactOpenMohaa = compactOpenMohaaPortable(record);
+    if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
