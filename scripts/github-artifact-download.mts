@@ -27,20 +27,24 @@ type ArtifactDownloadOptions = {
     };
 };
 
-async function transferGitHubArtifactArchive(
+async function transferGitHubActionsObject(
   endpoint: string,
   options: ArtifactDownloadOptions,
   maximum: number,
   receive: (chunk: Uint8Array) => void | Promise<void>,
   maximumDuration = 120000,
+  kind: "artifact" | "step-log" = "artifact",
+  charge?: (bytes: number) => void,
 ) {
   const { credential, deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
+  const endpointPattern =
+    kind === "artifact"
+      ? /^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u
+      : /^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/jobs\/[1-9][0-9]{0,15}\/steps\/[1-9][0-9]{0,4}\/logs$/u;
   if (
-    !/^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(
-      endpoint,
-    ) ||
+    !endpointPattern.test(endpoint) ||
     !Number.isSafeInteger(maxBytes) ||
-    maxBytes < 22 ||
+    maxBytes < (kind === "artifact" ? 22 : 1) ||
     maxBytes > maximum ||
     !Number.isFinite(deadline) ||
     deadline - performance.now() > maximumDuration
@@ -69,10 +73,11 @@ async function transferGitHubArtifactArchive(
   if (
     !delivery ||
     !/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/u.test(delivery.hostname) ||
-    !delivery.pathname.startsWith("/actions-results/")
+    !delivery.pathname.startsWith("/actions-results/") ||
+    (kind === "step-log" && !delivery.searchParams.has("sig"))
   )
     throw new GitHubApiError("redirect_refused", "GitHub artifact delivery address refused");
-  return transferSignedDelivery(delivery, { ...options, fetch: fetcher }, receive);
+  return transferSignedDelivery(delivery, { ...options, fetch: fetcher }, receive, charge);
 }
 
 function downloadRequestPolicy(options: ArtifactDownloadOptions): GitHubRequestPolicy {
@@ -126,6 +131,7 @@ async function transferSignedDelivery(
   delivery: URL,
   options: ArtifactDownloadOptions,
   receive: (chunk: Uint8Array) => void | Promise<void>,
+  charge?: (bytes: number) => void,
 ) {
   const { deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
   const remaining = Math.ceil(deadline - performance.now());
@@ -143,7 +149,11 @@ async function transferSignedDelivery(
     });
     if (response.status !== 200 || !response.body) {
       await response.body?.cancel();
-      throw new GitHubApiError("request_failed", "GitHub artifact delivery unavailable");
+      throw new GitHubApiError(
+        "request_failed",
+        "GitHub artifact delivery unavailable",
+        charge ? { status: response.status } : {},
+      );
     }
     const reader = response.body.getReader();
     const cancel = () => {
@@ -162,6 +172,7 @@ async function transferSignedDelivery(
             "GitHub artifact body contains invalid bytes",
           );
         bytes += payload.byteLength;
+        charge?.(payload.byteLength);
         if (bytes > maxBytes)
           throw new GitHubApiError("response_limit", "GitHub artifact exceeds its byte limit");
         await receive(payload);
@@ -192,10 +203,31 @@ export async function downloadGitHubArtifactArchive(
     options.bufferAllowance === "observer-checkpoint"
       ? observerCheckpointArchiveLimit
       : (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
-  const bytes = await transferGitHubArtifactArchive(endpoint, options, maximum, (chunk) => {
+  const bytes = await transferGitHubActionsObject(endpoint, options, maximum, (chunk) => {
     chunks.push(chunk);
   });
   return Buffer.concat(chunks, bytes);
+}
+
+/** Fixed GitHub Actions step logs, read without forwarding credentials to the signed blob. */
+export async function downloadGitHubWorkflowStepLog(
+  endpoint: string,
+  options: ArtifactDownloadOptions,
+  consumeBytes: (amount: number) => void,
+) {
+  const chunks: Uint8Array[] = [];
+  const length = await transferGitHubActionsObject(
+    endpoint,
+    options,
+    512 * 1024,
+    (chunk) => {
+      chunks.push(chunk);
+    },
+    20_000,
+    "step-log",
+    consumeBytes,
+  );
+  return Buffer.concat(chunks, length);
 }
 
 async function transferGitHubReleaseAsset(
@@ -300,11 +332,8 @@ export async function downloadGitHubArtifactArchiveFile(
   options: ArtifactDownloadOptions,
 ) {
   return writeExclusiveDownload(filename, async (file) => {
-    const bytes = await transferGitHubArtifactArchive(
-      endpoint,
-      options,
-      512 * 1024 * 1024,
-      (chunk) => file.writeFile(chunk),
+    const bytes = await transferGitHubActionsObject(endpoint, options, 512 * 1024 * 1024, (chunk) =>
+      file.writeFile(chunk),
     );
     if (bytes !== options.maxBytes)
       throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
@@ -322,7 +351,7 @@ export async function downloadRetainedRebootArtifactFile(
     filename,
     async (file) => {
       const digest = createHash("sha256");
-      const bytes = await transferGitHubArtifactArchive(
+      const bytes = await transferGitHubActionsObject(
         endpoint,
         options,
         640 * 1024 * 1024,

@@ -1,5 +1,11 @@
 import { GitHubApiError } from "./github-operation.mts";
 import {
+  advanceN64BuildJobObservation,
+  matchesN64BuildCheckout,
+  matchesN64BuildUpload,
+  readN64BuildJobObservation,
+} from "./upstream-n64-build-job.mts";
+import {
   advanceUpstreamArtifactBuildObservation,
   isUpstreamBuildMetadataUrl,
   readUpstreamBuildObservation,
@@ -2729,4 +2735,126 @@ void test("upstream build observation holds fork outputs, stale runs and short i
     ),
     false,
   );
+});
+
+void test("N64 job evidence joins successful checkout and upload steps without persisting their logs", async () => {
+  const { target, run, windows, mac } = upstreamBuildFixture();
+  const created = "2026-11-20T12:02:00Z";
+  const output = {
+    sha256: mac,
+    artifact_id: 9,
+    artifact_created_at: created,
+    size: 125,
+    run_id: run.id,
+    run_attempt: 1 as const,
+    workflow_id: run.workflow_id,
+    workflow_path: run.path,
+    observed_at: "2026-11-20T15:00:00Z",
+  };
+  const observed = {
+    ...target,
+    outputs: [
+      { ...output, sha256: windows, artifact_id: 8, artifact_created_at: undefined },
+      output,
+    ],
+    runtime_revision: "a".repeat(40),
+    hash_revision: "b".repeat(40),
+  };
+  const encodeLog = (...lines: string[]) =>
+    Buffer.from("\uFEFF" + lines.map((line) => created + " " + line).join("\r\n"));
+  const checkout = encodeLog(
+    "##[group]Run actions/checkout@v4",
+    "Syncing repository: " + target.repository,
+    "Submodule path 'lib/N64ModernRuntime': checked out '" + observed.runtime_revision + "'",
+    "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+      observed.hash_revision +
+      "'",
+    target.source_commit,
+  );
+  const finalized = "Artifact Build.zip successfully finalized. Artifact ID 9";
+  const uploaded =
+    "Artifact Build has been successfully uploaded! Final size is 125 bytes. Artifact ID is 9";
+  const upload = encodeLog(
+    "##[group]Run actions/upload-artifact@v4",
+    "SHA256 digest of uploaded artifact zip is " + mac,
+    finalized,
+    uploaded,
+  );
+  assert.ok(matchesN64BuildUpload(upload, output));
+  assert.equal(matchesN64BuildUpload(upload, { ...output, size: 124 }), false);
+  assert.equal(
+    matchesN64BuildUpload(
+      encodeLog(
+        "##[group]Run echo",
+        "SHA256 digest of uploaded artifact zip is " + mac,
+        finalized,
+        uploaded,
+      ),
+      output,
+    ),
+    false,
+  );
+  assert.ok(matchesN64BuildCheckout(checkout, observed));
+  assert.equal(
+    matchesN64BuildCheckout(checkout, { ...observed, hash_revision: "d".repeat(40) }),
+    false,
+  );
+
+  let expire = true;
+  const calls: [number, number][] = [];
+  const job = {
+    id: 45,
+    run_id: run.id,
+    run_attempt: 1,
+    head_sha: run.head_sha,
+    status: "completed",
+    conclusion: "success",
+    steps: [
+      { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+      {
+        number: 12,
+        name: "Archive game",
+        status: "completed",
+        conclusion: "success",
+        started_at: "2026-11-20T12:01:50Z",
+        completed_at: created,
+      },
+    ],
+  };
+  const read = async (endpoint: string) => {
+    assert.ok(isUpstreamBuildMetadataUrl(new URL("https://api.github.com" + endpoint)));
+    if (endpoint.endsWith("/artifacts/8"))
+      throw new GitHubApiError("request_failed", "expired fixture", { status: 410 });
+    return { total_count: 2, jobs: [{ ...job, id: 44, run_attempt: 2 }, job] };
+  };
+  const readLog = async (id: number, number: number) => {
+    calls.push([id, number]);
+    if (expire) throw new GitHubApiError("request_failed", "expired fixture", { status: 404 });
+    return number === 2 ? checkout : upload;
+  };
+  const noArtifact = await advanceN64BuildJobObservation(observed, undefined, read, readLog);
+  assert.equal(noArtifact.last_artifact, 8);
+  assert.deepEqual(calls, []);
+  const expiredLog = await advanceN64BuildJobObservation(observed, noArtifact, read, readLog);
+  assert.equal(expiredLog.last_artifact, 9);
+  assert.deepEqual(expiredLog.matches, []);
+  expire = false;
+  const visited = await advanceN64BuildJobObservation(observed, expiredLog, read, readLog);
+  const kept = await advanceN64BuildJobObservation(observed, visited, read, readLog);
+  assert.deepEqual(calls, [
+    [45, 12],
+    [45, 12],
+    [45, 2],
+  ]);
+  assert.equal(kept.matches[0]?.artifact_id, 9);
+  assert.equal(
+    kept.matches[0]?.checkout_log_sha256,
+    createHash("sha256").update(checkout).digest("hex"),
+  );
+  assert.deepEqual(readN64BuildJobObservation(kept, observed), kept);
+  assert.equal(
+    readN64BuildJobObservation(kept, { ...observed, runtime_revision: "f".repeat(40) }),
+    undefined,
+  );
+  assert.ok(!JSON.stringify(kept).includes("successfully finalized"));
 });
