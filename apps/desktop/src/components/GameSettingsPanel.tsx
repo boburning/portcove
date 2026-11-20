@@ -51,6 +51,7 @@ export function GameSettingsPanel({
     generation,
     settings.port_id,
     settings.install_id,
+    settings.available,
     setup?.id,
     setup?.revision,
   ]);
