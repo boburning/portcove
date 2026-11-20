@@ -1335,6 +1335,20 @@ it at once with the last published writer's operation, which is advisory because
 inventory probes publish no record. Probes never wait. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
+Core settings change-sets review up to 16 declared keys in one logical
+configuration file. The retained declaration determines the order and each
+key's reset value. The review binds the durable library, exact installation,
+materialized setup when present, original bytes, file custody and the entire
+postimage. Core recomputes that binding under the port lock before writing.
+The canonical file and its optional runtime projection use the existing
+journaled publication and recovery path. A pending setup switch holds review.
+Settings changes leave Mods revisions and selection under the Mods owner.
+Legacy single-setting requests still emit and recover version-one journals.
+Pending version-two journals require a change-set-capable client for recovery.
+When apply has begun, an error carries the operation ID and the observed
+outcome. A verified write with failed readback reports an applied outcome.
+If journal state is unavailable, Core reports an unknown outcome.
+
 ## Steam shortcut compatibility boundary
 
 The Tauri host owns the operating-system-facing adapter for a deliberately

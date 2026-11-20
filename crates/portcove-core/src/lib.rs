@@ -286,8 +286,10 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
-    GameSettingsFormat, GameSettingsRelease, GameSettingsView, inspect_game_settings_qualification,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
+    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
+    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
