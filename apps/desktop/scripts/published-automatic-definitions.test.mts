@@ -11,21 +11,43 @@ import {
 } from "./published-automatic-definitions.mts";
 
 const indexJson = '{"test_only":"retained index bytes"}';
+const requestedEntry = '{"test_only":"requested entry bytes"}';
+const coexistingEntry = '{"test_only":"coexisting entry bytes"}';
 const fixture = {
-  schema_version: 1,
+  schema_version: 2,
   expectation: {
     release_version: "0.1.0-preview.909",
     root_sha256: "a".repeat(64),
     index_sha256: createHash("sha256").update(indexJson).digest("hex"),
-    requested: { stable_id: "fixture-requested", definition_revision: 3 },
-    coexisting: { stable_id: "fixture-coexisting", definition_revision: 7 },
+    requested: {
+      stable_id: "fixture-requested",
+      definition_revision: 3,
+      entry_sha256: createHash("sha256").update(requestedEntry).digest("hex"),
+    },
+    coexisting: {
+      stable_id: "fixture-coexisting",
+      definition_revision: 7,
+      entry_sha256: createHash("sha256").update(coexistingEntry).digest("hex"),
+    },
   },
 };
 
 test("published automatic definition expectations are disabled until bound", () => {
-  assert.equal(automaticDefinitionExpectation({ schema_version: 1, expectation: null }), null);
+  assert.equal(automaticDefinitionExpectation({ schema_version: 2, expectation: null }), null);
   assert.deepEqual(automaticDefinitionExpectation(fixture), fixture.expectation);
+  assert.throws(() => automaticDefinitionExpectation({ schema_version: 2 }));
   assert.throws(() => automaticDefinitionExpectation({ schema_version: 1 }));
+  assert.throws(
+    () =>
+      automaticDefinitionExpectation({
+        ...fixture,
+        expectation: {
+          ...fixture.expectation,
+          requested: { stable_id: fixture.expectation.requested.stable_id, definition_revision: 3 },
+        },
+      }),
+    /exact signed entry digest/u,
+  );
   assert.throws(
     () =>
       automaticDefinitionExpectation({
@@ -36,25 +58,29 @@ test("published automatic definition expectations are disabled until bound", () 
   );
 });
 
-function syntheticSelection(subject: typeof fixture.expectation.requested) {
+function syntheticSelection(
+  { stable_id, definition_revision }: typeof fixture.expectation.requested,
+  entry_json: string,
+) {
   return {
     namespace: "official",
-    ...subject,
+    stable_id,
+    definition_revision,
     repository_root_sha256: fixture.expectation.root_sha256,
     provenance: {
       root_sha256: fixture.expectation.root_sha256,
       index_sha256: fixture.expectation.index_sha256,
     },
-    snapshot: { namespace: "official", stable_id: subject.stable_id, index_json: indexJson },
+    snapshot: { namespace: "official", stable_id, index_json: indexJson, entry_json },
   };
 }
 
-test("post-close read requires both active selections from the exact retained official index", async (t) => {
+test("post-close read requires both active selections from the exact retained official index and entries", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-automatic-definition-test-"));
   t.after(() => rm(root, { recursive: true }));
   const file = path.join(root, "fixture.sqlite3");
-  const requested = syntheticSelection(fixture.expectation.requested);
-  const coexisting = syntheticSelection(fixture.expectation.coexisting);
+  const requested = syntheticSelection(fixture.expectation.requested, requestedEntry);
+  const coexisting = syntheticSelection(fixture.expectation.coexisting, coexistingEntry);
   const create = new DatabaseSync(file);
   try {
     create.exec(`CREATE TABLE definition_subject_selection (
@@ -104,6 +130,11 @@ test("post-close read requires both active selections from the exact retained of
   assert.throws(verify, /provenance index/u);
   setCoexisting({ ...coexisting, snapshot: { ...coexisting.snapshot, index_json: "{}" } }, 0);
   assert.throws(verify, /retained index digest/u);
+  setCoexisting(
+    { ...coexisting, snapshot: { ...coexisting.snapshot, entry_json: requestedEntry } },
+    0,
+  );
+  assert.throws(verify, /retained entry digest/u);
   setCoexisting(coexisting, 1);
   assert.throws(verify, /must be active/u);
   setCoexisting(coexisting, 0, "unrelated");

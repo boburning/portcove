@@ -7,18 +7,22 @@ const digest = /^[0-9a-f]{64}$/u;
 
 function subject(value: unknown) {
   assert.ok(isRecord(value), "Expected an exact signed definition subject");
-  const { stable_id, definition_revision } = value;
+  const { stable_id, definition_revision, entry_sha256 } = value;
   assert.ok(typeof stable_id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(stable_id));
   assert.ok(
     typeof definition_revision === "number" &&
       Number.isSafeInteger(definition_revision) &&
       definition_revision > 0,
   );
-  return { stable_id, definition_revision };
+  assert.ok(
+    typeof entry_sha256 === "string" && digest.test(entry_sha256),
+    "Expected the exact signed entry digest",
+  );
+  return { stable_id, definition_revision, entry_sha256 };
 }
 
 export function automaticDefinitionExpectation(fixture: unknown) {
-  assert.ok(isRecord(fixture) && fixture.schema_version === 1);
+  assert.ok(isRecord(fixture) && fixture.schema_version === 2);
   const value = fixture.expectation;
   if (value === null) return null;
   assert.ok(isRecord(value), "Expected a bound automatic definition fixture or explicit null");
@@ -41,7 +45,7 @@ export function verifyRetainedAutomaticDefinitions(file: string, expected: Expec
   try {
     const read = database.prepare(`SELECT active_json, historical_only
       FROM definition_subject_selection WHERE namespace = 'official' AND stable_id = ?`);
-    const verify = ({ stable_id, definition_revision }: Expectation["requested"]) => {
+    const verify = ({ stable_id, definition_revision, entry_sha256 }: Expectation["requested"]) => {
       const row = read.get(stable_id);
       assert.ok(
         row && typeof row.active_json === "string",
@@ -84,7 +88,19 @@ export function verifyRetainedAutomaticDefinitions(file: string, expected: Expec
       );
       const retainedIndex = createHash("sha256").update(stored.snapshot.index_json).digest("hex");
       assert.equal(retainedIndex, expected.index_sha256, `${stable_id} retained index digest`);
-      return { namespace: "official", stable_id, definition_revision, index_sha256: retainedIndex };
+      assert.ok(
+        typeof stored.snapshot.entry_json === "string",
+        `${stable_id} retained entry bytes`,
+      );
+      const retainedEntry = createHash("sha256").update(stored.snapshot.entry_json).digest("hex");
+      assert.equal(retainedEntry, entry_sha256, `${stable_id} retained entry digest`);
+      return {
+        namespace: "official",
+        stable_id,
+        definition_revision,
+        index_sha256: retainedIndex,
+        entry_sha256: retainedEntry,
+      };
     };
     return { requested: verify(expected.requested), coexisting: verify(expected.coexisting) };
   } finally {
