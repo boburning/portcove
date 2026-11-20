@@ -59,21 +59,21 @@ function reviewedLayout(record: AuthoredPort) {
   const addition = Object.hasOwn(reviewedAdditions, id)
     ? reviewedAdditions[id as keyof typeof reviewedAdditions]
     : undefined;
-  const variant =
+  if (
     addition &&
-    addition.repository === integration.release.repository &&
-    addition.sourceProfile === integration.source_profile &&
-    record.listing.project_url === `https://github.com/${addition.repository}`
-      ? addition.variant
-      : undefined;
-  return { integration, source, variant };
+    (addition.repository !== integration.release.repository ||
+      addition.sourceProfile !== integration.source_profile ||
+      record.listing.project_url !== `https://github.com/${addition.repository}`)
+  )
+    return undefined;
+  return { integration, source, variant: addition?.variant ?? (true as const) };
 }
 
 export function projectN64RecompPersistence(record: AuthoredPort): AuthoredPort {
   const variant = record.n64_recomp_persistence_v1;
   if (variant === undefined) return record;
   const layout = reviewedLayout(record);
-  if (!layout || (variant !== true && variant !== layout.variant))
+  if (!layout || variant !== layout.variant)
     throw new Error("N64 persistence facts require the reviewed root-level GitHub recomp layout.");
   if (Object.hasOwn(layout.integration, "persistent_paths"))
     throw new Error("N64 persistence facts already own persistent_paths.");
@@ -101,15 +101,13 @@ export function compactN64RecompPersistence(record: AuthoredPort): AuthoredPort 
   if (!layout) return record;
   const integration = { ...layout.integration };
   delete integration.persistent_paths;
-  const variants =
-    layout.variant === undefined ? ([true] as const) : ([true, layout.variant] as const);
-  for (const variant of variants) {
-    const candidate: AuthoredPort = { ...record, n64_recomp_persistence_v1: variant, integration };
-    if (
-      JSON.stringify(projectN64RecompPersistence(candidate).integration) ===
-      JSON.stringify(layout.integration)
-    )
-      return candidate;
-  }
-  return record;
+  const candidate: AuthoredPort = {
+    ...record,
+    n64_recomp_persistence_v1: layout.variant,
+    integration,
+  };
+  return JSON.stringify(projectN64RecompPersistence(candidate).integration) ===
+    JSON.stringify(layout.integration)
+    ? candidate
+    : record;
 }

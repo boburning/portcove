@@ -1789,6 +1789,23 @@ void test("N64 persistence additions preserve the reviewed writer order and refu
     "technical.json.bak",
     "DK64.z64",
   ]);
+  for (const [record, additions] of [
+    [dinosaur, ["config"]],
+    [donkeyKong, ["technical.json", "technical.json.bak"]],
+  ] as const) {
+    assert.throws(
+      () => checkedAuthoredPort({ ...record, n64_recomp_persistence_v1: true }),
+      /reviewed root-level GitHub recomp layout/u,
+    );
+    const changed = projectN64RecompPersistence(record);
+    delete changed.n64_recomp_persistence_v1;
+    const paths = changed.integration!.persistent_paths;
+    assert.ok(Array.isArray(paths));
+    changed.integration!.persistent_paths = paths.filter(
+      (path) => !additions.some((addition) => addition === path),
+    );
+    assert.equal(compactN64RecompPersistence(changed), changed);
+  }
   assert.throws(
     () => checkedAuthoredPort({ ...dinosaur, n64_recomp_persistence_v1: "technical-settings" }),
     /reviewed root-level GitHub recomp layout/u,

@@ -3594,9 +3594,10 @@ for the shared mod, save and settings paths with the declared
 after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
 `technical.json.bak` before the original file. Keep the source profile, ROM
 filename, repository, asset selectors and executable hints in the integration.
-A nested layout, different provider, optional settings declaration or different
-writer set uses an explicit integration. URL preparation proposes the family
-form when its expanded integration reproduces the reviewed explicit bytes.
+Dinosaur Planet and Donkey Kong 64 require their named variants when using the
+recipe. A nested layout, different provider, optional settings declaration or
+different writer set uses an explicit integration. URL preparation proposes the
+family form when its expanded integration reproduces the reviewed explicit bytes.
 
 Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
 shared portable-root persistence list for the reviewed ReflectionHLE route.
