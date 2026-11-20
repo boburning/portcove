@@ -2588,7 +2588,8 @@ export class RoadmapClient {
             "inventory_changed",
             "Selected Project items changed identity, membership or archive state",
           );
-        nodes.push(...result);
+        const selected: unknown[] = result;
+        nodes.push(...selected);
       }
     } else {
       const query = `query($id: ID!, $after: String) { node(id: $id) { ... on ProjectV2 { items(first: ${pageSize}, ${archive} after: $after) { totalCount nodes { ${selection} } pageInfo { hasNextPage endCursor } } } } }`;
