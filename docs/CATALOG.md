@@ -4051,8 +4051,12 @@ prepare an already-reviewed operational contract. If the record has initial
 lineage, its GitHub repository ID must match the observed repository. Existing
 lineage and issue assignments stay bound to their catalog records. A new
 GitHub-managed route starts from its official project repository.
-Use the existing `--id` if the upstream project names several implementations
-or the existing listing has no reviewed game identity.
+For an issue-free project URL, a unique reviewed game ID and exact set of
+source edition IDs selects the existing listing. Its full reviewed identity
+and evidence must still match. Use `--id` to disambiguate identical siblings,
+unbound legacy listings, or overlapping or unspecified editions of the same game.
+A distinct game or disjoint, specified editions of the same game can start a
+separate listing at the same upstream URL with a deterministic ID.
 For a non-GitHub project, supply `--name` if the game identity has no single
 source edition to name the listing. Resolving a different previously reviewed
 game or edition requires a reviewed record edit. The observed release window
