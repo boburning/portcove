@@ -18,7 +18,7 @@ import {
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
-import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
+import type { LiveMods, ModSetupRevision, ModSetupView, ModSetupsView } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -94,19 +94,45 @@ function nativeListMessage(
   }
 }
 
+function confirmsAppliedSetup(view: ModSetupsView, receipt: ModSetupRevision) {
+  const profile = view.inventory?.profiles.find(({ profile }) => profile.id === receipt.profile_id);
+  if (
+    !profile ||
+    profile.revision.revision !== profile.profile.current_revision ||
+    profile.revision.revision < receipt.revision ||
+    (profile.revision.revision === receipt.revision && profile.revision.digest !== receipt.digest)
+  )
+    return false;
+  const selected = view.inventory?.profiles.find(
+    ({ profile }) => profile.id === view.live?.profile_id,
+  );
+  return (
+    selected !== undefined &&
+    selected.profile.current_revision === selected.revision.revision &&
+    view.live?.revision === selected.revision.revision &&
+    view.applied_package_count === (selected.revision.packages?.length ?? 0)
+  );
+}
+
 function useModSetupInventory(portId: string, generation: number, busy: boolean) {
   const { t } = useAppTranslation("gameSettings");
   const [view, setView] = useState<ModSetupsView>();
   // The app-owned mismatch is a code translated at render; Core failure text stays verbatim.
   const [failure, setFailure] = useState<
-    "gameChanged" | { text: string; cleanSetupKey?: string | undefined }
+    "gameChanged" | "applyReadback" | { text: string; cleanSetupKey?: string | undefined }
   >();
   const error =
-    failure === "gameChanged" ? t("mods.gameChanged") : failure ? failure.text : undefined;
+    failure === "gameChanged"
+      ? t("mods.gameChanged")
+      : failure === "applyReadback"
+        ? t("mods.workspace.applyReadback")
+        : failure?.text;
   const [outcome, setOutcome] = useState<string>();
   const [working, setWorking] = useState(false);
   const [request, setRequest] = useState(0);
   const applyingProviderDraft = useRef(false);
+  const appliedReceipt = useRef<ModSetupRevision | undefined>(undefined);
+  const [waitingForAppliedSetup, setWaitingForAppliedSetup] = useState(false);
   // False from a change until the view is read again, so no control acts on a
   // revision the change has replaced.
   const [fresh, setFresh] = useState(true);
@@ -119,6 +145,15 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
         if (next.port_id !== portId) {
           setFailure("gameChanged");
           return;
+        }
+        if (appliedReceipt.current) {
+          if (!confirmsAppliedSetup(next, appliedReceipt.current)) {
+            setFailure("applyReadback");
+            return;
+          }
+          appliedReceipt.current = undefined;
+          setWaitingForAppliedSetup(false);
+          setFailure(undefined);
         }
         setView(next);
         setFresh(true);
@@ -168,9 +203,14 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     return succeeded;
   };
 
-  const refreshAfterProviderInstall = (message: string) => {
+  const refreshAfterProviderInstall = (message: string, revision?: ModSetupRevision) => {
     setOutcome(message);
     setFresh(false);
+    if (revision?.profile_id) {
+      appliedReceipt.current = revision;
+      setWaitingForAppliedSetup(true);
+      setFailure(undefined);
+    }
     requestStandingSetup();
     setRequest((value) => value + 1);
   };
@@ -184,6 +224,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     outcome,
     working,
     fresh,
+    waitingForAppliedSetup,
     reread,
     perform,
     setWorking,
@@ -213,6 +254,7 @@ function BoundModSetupsControl({
     outcome,
     working,
     fresh,
+    waitingForAppliedSetup,
     reread,
     perform,
     setWorking,
@@ -232,6 +274,9 @@ function BoundModSetupsControl({
     review: OutputLocalModPackagePlan;
   }>();
   const setupHeading = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    if (waitingForAppliedSetup && active && !busy) setupHeading.current?.focus();
+  }, [active, busy, waitingForAppliedSetup]);
   const focusDisplacedCleanSetupError = useCallback((notice: HTMLElement | null) => {
     if (notice && document.activeElement === document.body) notice.focus();
   }, []);
@@ -290,7 +335,7 @@ function BoundModSetupsControl({
           (other) => entry.provider === other.provider && entry.project === other.project,
         ),
     ) ?? [];
-  const appliedName = setup?.selected?.profile.display_name;
+  const appliedName = waitingForAppliedSetup ? undefined : setup?.selected?.profile.display_name;
   const pendingCount = draftSize(draft);
   useEffect(() => {
     onPlayState?.(
@@ -363,24 +408,8 @@ function BoundModSetupsControl({
     defaultInstallId && view.current_install_id && defaultInstallId !== view.current_install_id,
   );
 
-  return (
-    <section aria-labelledby={headingId} className="mod-workspace grid min-w-0 gap-3" inert={busy}>
-      <h3
-        ref={setupHeading}
-        id={headingId}
-        tabIndex={-1}
-        className="scroll-mt-2 text-base font-semibold"
-      >
-        {t("mods.heading")}
-      </h3>
-      <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
-      <ModSetupFeedback
-        error={failedCleanSetupKey ? undefined : error}
-        fresh={fresh}
-        working={working}
-        outcome={outcome}
-        reread={reread}
-      />
+  const inventory = (
+    <>
       {failedCleanSetupKey && failedCleanSetupKey !== cleanSetupKey && (
         <Notice
           ref={focusDisplacedCleanSetupError}
@@ -879,6 +908,37 @@ function BoundModSetupsControl({
           onBusyChange={setRecipeBusy}
           onImported={refreshAfterProviderInstall}
         />
+      </div>
+    </>
+  );
+
+  return (
+    <section aria-labelledby={headingId} className="mod-workspace grid min-w-0 gap-3" inert={busy}>
+      <h3
+        ref={setupHeading}
+        id={headingId}
+        tabIndex={-1}
+        className="scroll-mt-2 text-base font-semibold"
+      >
+        {t("mods.heading")}
+      </h3>
+      <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
+      <ModSetupFeedback
+        error={failedCleanSetupKey ? undefined : error}
+        fresh={fresh}
+        working={working}
+        outcome={outcome}
+        reread={() => {
+          if (waitingForAppliedSetup) setupHeading.current?.focus();
+          reread();
+        }}
+      />
+      {waitingForAppliedSetup && !error && <p>{t("mods.workspace.readingAppliedSetup")}</p>}
+      <div
+        className={waitingForAppliedSetup ? "hidden" : "contents"}
+        hidden={waitingForAppliedSetup}
+      >
+        {inventory}
       </div>
     </section>
   );
