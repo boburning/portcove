@@ -207,7 +207,7 @@ fn validate_public_paths(files: &Files) -> Result<()> {
     Ok(())
 }
 pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Files> {
-    let files = io::tree(path, 65536, 128 * 1024 * 1024)?;
+    let files = public_tree(path)?;
     validate_public_paths(&files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -265,6 +265,50 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
     }
     historical_revision_floors(&files, &context.targets)?;
     Ok(files)
+}
+
+fn public_tree(path: &Path) -> Result<Files> {
+    io::tree(
+        path,
+        PUBLIC_REPOSITORY_MAX_FILES,
+        PUBLIC_REPOSITORY_MAX_BYTES,
+    )
+}
+
+fn public_target_path(name: &str, bytes: &[u8]) -> Result<String> {
+    let target = TargetName::new(name.to_owned())?;
+    Ok(format!("targets/{}.{}", sha(bytes), target.raw()))
+}
+
+fn check_public_capacity(count: usize, bytes: u64) -> Result<()> {
+    if count > PUBLIC_REPOSITORY_MAX_FILES || bytes > PUBLIC_REPOSITORY_MAX_BYTES {
+        return invalid("catalog retained public repository bound exceeded");
+    }
+    Ok(())
+}
+
+fn proposed_target_floor(prior: &Files, proposed: &Files) -> Result<(usize, u64)> {
+    let (mut count, mut bytes) = (0, 0);
+    // Timestamp is the only mutable repository path. The signed replacement
+    // and any new versioned roles are accounted for during exact assembly.
+    for (name, content) in prior {
+        if name != "metadata/timestamp.json" {
+            count += 1;
+            bytes += content.len() as u64;
+        }
+    }
+    for (name, content) in proposed {
+        if !prior.contains_key(&public_target_path(name, content)?) {
+            count += 1;
+            bytes += content.len() as u64;
+        }
+    }
+    Ok((count, bytes))
+}
+
+pub(super) fn check_proposed_target_capacity(prior: &Files, proposed: &Files) -> Result<()> {
+    let (count, bytes) = proposed_target_floor(prior, proposed)?;
+    check_public_capacity(count, bytes)
 }
 fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json::Value>> {
     let index: serde_json::Value = serde_json::from_slice(bytes)?;
@@ -490,19 +534,13 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         files.insert(name, bytes.clone());
     }
     for (name, bytes) in &context.targets {
-        let target = TargetName::new(name.clone())?;
-        let prefix = format!("targets/{}.", sha(bytes));
-        let file = format!("{prefix}{}", target.raw());
+        let file = public_target_path(name, bytes)?;
         if files.get(&file).is_some_and(|v| v != bytes) {
             return invalid("catalog immutable target replacement");
         }
         files.insert(file, bytes.clone());
     }
-    if files.len() > 65536
-        || files.values().map(|v| v.len() as u64).sum::<u64>() > 128 * 1024 * 1024
-    {
-        return invalid("catalog retained public repository bound exceeded");
-    }
+    check_public_capacity(files.len(), files.values().map(|v| v.len() as u64).sum())?;
     verify_history(&context, &files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -518,7 +556,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         return invalid("catalog signed inputs changed during assembly");
     }
     let changed = if output.try_exists()? {
-        if io::tree(&output, 65536, 128 * 1024 * 1024)? != files {
+        if public_tree(&output)? != files {
             return invalid("catalog assembly output exists with different bytes; retain original");
         }
         false
@@ -543,7 +581,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
             fs::create_dir_all(destination.parent().unwrap())?;
             io::write_new(&destination, bytes)?;
         }
-        if io::tree(&output, 65536, 128 * 1024 * 1024)? != files {
+        if public_tree(&output)? != files {
             return invalid("catalog complete assembly retained readback differs");
         }
         true
@@ -648,7 +686,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     let now = Timestamp::now();
     policy::root(&root, now, config.initial_root_profile)?;
     policy::top(&root.signed, &top, now)?;
-    let files = io::tree(&repository_path, 65536, 128 * 1024 * 1024)?;
+    let files = public_tree(&repository_path)?;
     validate_public_paths(&files)?;
     if at(
         &files,
@@ -666,7 +704,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if io::read(path, CONFIG_MAX)? != config_raw
         || io::read(&root_path, ROOT_MAX)? != root_bytes
         || io::read(&top_path, ROLE_MAX)? != top_bytes
-        || io::tree(&repository_path, 65536, 128 * 1024 * 1024)? != files
+        || public_tree(&repository_path)? != files
     {
         return invalid("catalog public verification inputs changed during readback");
     }
@@ -756,4 +794,44 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod capacity_tests {
+    use super::*;
+
+    #[test]
+    fn retained_bound_allows_the_observed_release_and_remains_finite() {
+        // The retained public files and new descriptive target from
+        // publisher run 44643025884, excluding its new signed roles.
+        assert!(check_public_capacity(109, 139_099_484).is_ok());
+        assert!(
+            check_public_capacity(PUBLIC_REPOSITORY_MAX_FILES, PUBLIC_REPOSITORY_MAX_BYTES).is_ok()
+        );
+        assert!(check_public_capacity(109, PUBLIC_REPOSITORY_MAX_BYTES + 1).is_err());
+        assert!(check_public_capacity(PUBLIC_REPOSITORY_MAX_FILES + 1, 139_099_484).is_err());
+    }
+
+    #[test]
+    fn proposed_floor_reuses_identical_hash_addressed_bytes() {
+        let name = "policy/official/catalog.listings.json";
+        let existing = b"retained directory".to_vec();
+        let prior = Files::from([
+            ("metadata/timestamp.json".into(), vec![1; 10]),
+            ("metadata/1.root.json".into(), vec![2; 12]),
+            (
+                public_target_path(name, &existing).unwrap(),
+                existing.clone(),
+            ),
+        ]);
+        assert_eq!(
+            proposed_target_floor(&prior, &Files::from([(name.into(), existing.clone())])).unwrap(),
+            (2, 12 + existing.len() as u64),
+        );
+        let new = b"updated directory".to_vec();
+        assert_eq!(
+            proposed_target_floor(&prior, &Files::from([(name.into(), new.clone())])).unwrap(),
+            (3, 12 + existing.len() as u64 + new.len() as u64),
+        );
+    }
 }

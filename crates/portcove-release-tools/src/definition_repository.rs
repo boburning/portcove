@@ -37,6 +37,15 @@ const DEFINITION_INDEX_MAX: u64 = 4 * 1024 * 1024;
 const DEFINITION_CONTENT_MAX: u64 = 16 * 1024 * 1024;
 const BUNDLE_MAX: u64 = 32 * 1024 * 1024;
 const BUNDLE_FILES: usize = 16385;
+const PUBLIC_REPOSITORY_MAX_BYTES: u64 = 256 * 1024 * 1024;
+const PUBLIC_REPOSITORY_MAX_FILES: usize = 65536;
+
+/// Authenticate prepared public inputs and check that their retained targets fit.
+pub async fn check_definition_publication_context(path: &Path) -> Result<()> {
+    load_context(path).await?;
+    Ok(())
+}
+
 fn invalid<T>(message: &str) -> Result<T> {
     Err(TufRepositoryError::Invalid(message.into()))
 }
@@ -280,10 +289,11 @@ async fn load_context(path: &Path) -> Result<Context> {
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
         context.prior = repository::inspect_prior(&context, &previous).await?;
+        repository::check_proposed_target_capacity(&context.prior, &context.targets)?;
         trees.push((
             previous.clone(),
-            65536,
-            128 * 1024 * 1024,
+            PUBLIC_REPOSITORY_MAX_FILES,
+            PUBLIC_REPOSITORY_MAX_BYTES,
             sha(&serde_json::to_vec(&bundle::identities(&context.prior))?),
         ));
         inputs.push(previous);

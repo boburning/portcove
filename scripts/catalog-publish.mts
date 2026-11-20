@@ -316,6 +316,7 @@ async function main(argv: string[]) {
       cpSync(path.join(site!, "browse"), path.join(work, "prior-browse"), { recursive: true });
     const plan = planPublication(versions, new Date());
     write(path.join(work, "plan.json"), plan);
+    write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
   } else if (command === "sign-config") {
