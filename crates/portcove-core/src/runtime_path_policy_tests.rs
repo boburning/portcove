@@ -7,7 +7,7 @@ fn diablo_windows_kit_checks_its_bundled_manifest_at_the_proposed_destination() 
     let windows = Some(Platform::WindowsX86_64);
     // The two managed runtime directory lengths in the native #435 receipt
     // include the separator and build-portcove. Longest member adds 69 units.
-    let runtime_component = "/build-portcove".len();
+    let runtime_component = "build-portcove".len() + 1;
     let short = "x".repeat(131 - runtime_component);
     let long = "x".repeat(226 - runtime_component);
     check_artifact_destination(port, artifact, windows, Path::new(&short)).unwrap();

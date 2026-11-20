@@ -7189,7 +7189,7 @@ mod tests {
         let (installer, install) =
             create_test_install_with_artifact(&root, &qualification, "v0.1.6", artifact);
         assert!(check_retained_launch_destination(&install, &root).is_err());
-        check_retained_launch_destination(&install, Path::new("C:/Games/short")).unwrap();
+        check_retained_launch_destination(&install, &temporary.path().join("short")).unwrap();
         installer
             .verify_critical_for_replacement(&install, &qualification)
             .unwrap();
