@@ -1,0 +1,215 @@
+//! Recovery bundle planning is independent of library move and activation.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::{
+    LibraryContentKind, LibraryMetadata, LibraryTreePlan, PortcoveError, PortcoveService, Result,
+    library_import::{PortabilityCatalogs, validate_metadata},
+    library_transfer::{LibraryTransferPurpose, plan_portable_content, require_transfer_idle},
+};
+
+/// Content in one verified managed root. This count does not claim that an
+/// unmanaged game writes its saves into the library.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryRecoveryCoverage {
+    pub kind: LibraryContentKind,
+    pub relative_path: String,
+    pub directories: usize,
+    pub files: usize,
+    pub bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryRecoveryExclusion {
+    ExternalInstallations,
+    ExternalOriginalsAndBios,
+    ExternalSaves,
+    UnknownSaveLocations,
+    HostCredentials,
+}
+
+/// A read-only observation. A creator must acquire the exclusive source lease
+/// and recompute this binding before copying the identified trees.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct LibraryRecoveryBundlePlan {
+    pub source_root: PathBuf,
+    pub destination_root: PathBuf,
+    pub source_library_id: String,
+    pub coverage: Vec<LibraryRecoveryCoverage>,
+    pub exclusions: Vec<LibraryRecoveryExclusion>,
+    pub required_bytes: u64,
+    pub available_bytes: u64,
+    pub plan_sha256: String,
+}
+
+impl PortcoveService {
+    /// Preview a new bundle destination. No authority moves to the destination.
+    pub fn plan_library_recovery_bundle(
+        &self,
+        destination: &Path,
+    ) -> Result<LibraryRecoveryBundlePlan> {
+        let source_root = fs::canonicalize(self.library().root())?;
+        let destination_root =
+            crate::library_transfer::transfer_destination(&source_root, destination)?;
+        require_transfer_idle(self.library(), LibraryTransferPurpose::RecoveryBundle)?;
+        let source_library_id = self.library().identity()?;
+        let metadata = self.export_library_metadata()?;
+        let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
+        validate_metadata(&metadata, &catalogs)?;
+        let content = plan_portable_content(&metadata, &source_root)?;
+        let coverage = content
+            .iter()
+            .map(|tree| LibraryRecoveryCoverage {
+                kind: tree.kind,
+                relative_path: tree.relative_path.clone(),
+                directories: tree.copy.directories.len(),
+                files: tree.copy.files.len(),
+                bytes: tree.copy.total_bytes,
+            })
+            .collect::<Vec<_>>();
+        let exclusions = vec![
+            LibraryRecoveryExclusion::ExternalInstallations,
+            LibraryRecoveryExclusion::ExternalOriginalsAndBios,
+            LibraryRecoveryExclusion::ExternalSaves,
+            LibraryRecoveryExclusion::UnknownSaveLocations,
+            LibraryRecoveryExclusion::HostCredentials,
+        ];
+        let metadata_bytes = serde_json::to_vec_pretty(&metadata)?.len() as u64;
+        let required_bytes = coverage
+            .iter()
+            .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))
+            .and_then(|bytes| bytes.checked_add(64 * 1024 * 1024))
+            .ok_or_else(|| PortcoveError::state("recovery bundle capacity estimate overflowed"))?;
+        let parent = destination_root
+            .parent()
+            .ok_or_else(|| PortcoveError::usage("recovery bundle destination needs a parent"))?;
+        let available_bytes = fs4::available_space(parent)?;
+        if available_bytes < required_bytes {
+            return Err(PortcoveError::state(
+                "destination has insufficient free space for a verified recovery bundle",
+            )
+            .detail("required_bytes", required_bytes.to_string())
+            .detail("available_bytes", available_bytes.to_string()));
+        }
+        let mut plan = LibraryRecoveryBundlePlan {
+            source_root,
+            destination_root,
+            source_library_id,
+            coverage,
+            exclusions,
+            required_bytes,
+            available_bytes,
+            plan_sha256: String::new(),
+        };
+        plan.plan_sha256 = plan_sha256(&plan, metadata, &content)?;
+        Ok(plan)
+    }
+}
+
+fn plan_sha256(
+    plan: &LibraryRecoveryBundlePlan,
+    mut metadata: LibraryMetadata,
+    content: &[LibraryTreePlan],
+) -> Result<String> {
+    // Time of observation and measured free space can change without touching
+    // the data or the reviewed destination. Apply still checks capacity anew.
+    metadata.exported_at = 0;
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        "portcove-library-recovery-bundle-plan-v1",
+        &plan.source_root,
+        &plan.destination_root,
+        &plan.source_library_id,
+        metadata,
+        content,
+        &plan.exclusions,
+    ))?)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn review_binds_managed_content_and_destination_without_opening_a_destination() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("recovery-copy");
+        let service = PortcoveService::new(crate::Library::open(&source).unwrap()).unwrap();
+        let user = source.join("user");
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("progress.bin"), b"first").unwrap();
+
+        let plan = service.plan_library_recovery_bundle(&destination).unwrap();
+        assert_eq!(
+            plan.source_library_id,
+            service.library().identity().unwrap()
+        );
+        assert!(
+            plan.exclusions
+                .contains(&LibraryRecoveryExclusion::HostCredentials)
+        );
+        let root = plan
+            .coverage
+            .iter()
+            .find(|root| root.kind == LibraryContentKind::UserData)
+            .unwrap();
+        assert_eq!((root.files, root.bytes), (1, 5));
+        assert!(!destination.exists());
+        assert_eq!(
+            plan.plan_sha256,
+            service
+                .plan_library_recovery_bundle(&destination)
+                .unwrap()
+                .plan_sha256
+        );
+        let other_destination = workspace.path().join("another-recovery-copy");
+        assert_ne!(
+            plan.plan_sha256,
+            service
+                .plan_library_recovery_bundle(&other_destination)
+                .unwrap()
+                .plan_sha256
+        );
+
+        fs::write(user.join("progress.bin"), b"later").unwrap();
+        assert_ne!(
+            plan.plan_sha256,
+            service
+                .plan_library_recovery_bundle(&destination)
+                .unwrap()
+                .plan_sha256
+        );
+        assert!(
+            service
+                .plan_library_recovery_bundle(&source.join("nested-copy"))
+                .is_err()
+        );
+        assert!(!destination.exists());
+    }
+
+    #[test]
+    fn refuses_a_credential_inside_the_managed_inventory() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("recovery-copy");
+        let service = PortcoveService::new(crate::Library::open(&source).unwrap()).unwrap();
+        let user = source.join("user");
+        fs::create_dir_all(&user).unwrap();
+        let credential = user.join("retroachievements.credentials");
+        fs::write(&credential, b"synthetic fixture").unwrap();
+
+        assert!(service.plan_library_recovery_bundle(&destination).is_err());
+        assert!(credential.is_file());
+        assert!(!destination.exists());
+    }
+}

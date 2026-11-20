@@ -69,6 +69,7 @@ mod library_authority;
 mod library_import;
 mod library_membership;
 mod library_move;
+mod library_recovery_bundle;
 mod library_transfer;
 mod managed_chocolate;
 mod managed_initialization;
@@ -317,6 +318,9 @@ pub use library_membership::{
     LibraryMembershipSource, MAX_LIBRARY_MEMBERSHIP_BATCH,
 };
 pub use library_move::LibraryMoveResult;
+pub use library_recovery_bundle::{
+    LibraryRecoveryBundlePlan, LibraryRecoveryCoverage, LibraryRecoveryExclusion,
+};
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
     AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
