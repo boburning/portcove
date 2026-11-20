@@ -247,7 +247,10 @@ export function DetailLayout({
               )}
             </p>
           )}
-          {(overview || sourceSystems.length > 0 || Boolean(channels?.length)) && (
+          {(sourceSystems.length > 0 ||
+            setupIdentities.size > 0 ||
+            upstreamIdentities.size > 0 ||
+            Boolean(channels?.length)) && (
             <div
               className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
               role="group"
@@ -265,24 +268,22 @@ export function DetailLayout({
                     : identityLabel(system)}
                 </Chip>
               ))}
-              {overview &&
-                [...setupIdentities].map(([label, system]) => (
-                  <Chip
-                    key={`platform:${label}`}
-                    style={identityStyle(system)}
-                    title={t("identity.runsOn")}
-                  >
-                    <IdentityIcon name={system} />
-                    {label}
-                  </Chip>
-                ))}
-              {overview &&
-                [...upstreamIdentities].map(([label, system]) => (
-                  <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
-                    <IdentityIcon name={system} />
-                    {t("identity.upstreamPlatform", { platform: label })}
-                  </Chip>
-                ))}
+              {[...setupIdentities].map(([label, system]) => (
+                <Chip
+                  key={`platform:${label}`}
+                  style={identityStyle(system)}
+                  title={t("identity.runsOn")}
+                >
+                  <IdentityIcon name={system} />
+                  {label}
+                </Chip>
+              ))}
+              {[...upstreamIdentities].map(([label, system]) => (
+                <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+                  <IdentityIcon name={system} />
+                  {t("identity.upstreamPlatform", { platform: label })}
+                </Chip>
+              ))}
               {channels?.map((channel) => (
                 <Chip
                   key={`channel:${channel}`}
