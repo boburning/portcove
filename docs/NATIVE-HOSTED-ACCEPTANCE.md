@@ -263,8 +263,8 @@ For #6511, a temporary **unmerged** controller follows the #6841 qualification
 pattern. Its ordinary verification PR requires the normal five exact-head checks
 and independent source/composition review before dispatch. The Linux setup job binds
 the exact App checkout tested by CI, commit
-`fcc11e303a8c405c9f738fbeb63b8e38ae8a29e2`, and tree
-`977fe24fb54e5ffa5c464e3401c2095a8d5bcd15` separately from the controller commit.
+`f4efdd4c52c8afe5c746d4a6de8dffb3f127666f`, and tree
+`8a4901ed0129feabe4277e955717f884b79ac42d` separately from the controller commit.
 The prerequisite report includes the AT-SPI package used by the GTK folder chooser.
 The Windows rows bind application commit
 `8fae27ea0bae1fa188c8292bc2f03f0238b72752` and tree
