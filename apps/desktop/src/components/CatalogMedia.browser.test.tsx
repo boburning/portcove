@@ -105,6 +105,96 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+it("lets players browse reviewed releases without an applicable installed edition", async () => {
+  const release = (id: string, title: string) => ({
+    id,
+    title,
+    evidence_urls: ["https://example.com/original"],
+  });
+  const screenshot = (id: string, editionId: string, caption: string, gameId = "original") => ({
+    ...image(id),
+    caption,
+    subject: { kind: "original" as const, game_id: gameId, source_edition_id: editionId },
+  });
+  const usTitle = "Original game · Nintendo 64, North America 1.0";
+  const euTitle = "Original game · Nintendo 64, Europe";
+  const us = screenshot("us-scene", "us", "North American scene");
+  const eu = { ...screenshot("eu-scene", "eu", "European scene"), sha256: "b".repeat(64) };
+  const foreign = screenshot("foreign-scene", "foreign", "Other game scene", "another-game");
+  const media = [us, eu, foreign];
+  const base = portDefinition();
+  const port = {
+    ...base,
+    presentation: {
+      ...base.presentation!,
+      original_game: {
+        format_version: 1,
+        id: "original",
+        evidence_urls: ["https://example.com/original"],
+        source_editions: [
+          release("us", usTitle),
+          release("eu", euTitle),
+          release("foreign", "Another game"),
+          release("missing", "Release with no images"),
+        ],
+      },
+      media,
+    },
+  };
+  const read = vi
+    .spyOn(desktopApi, "catalogMediaThumbnail")
+    .mockImplementation(async (_port, _id, sha256) => ({
+      asset_sha256: sha256,
+      choice_revision: 0,
+      png_base64: png,
+    }));
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  await page.viewport(390, 844);
+  try {
+    const galleryView = await render(
+      <ArtworkProvider generation={7} listings={directory(media)}>
+        <CatalogMediaGallery port={port} />
+      </ArtworkProvider>,
+    );
+    const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
+    const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
+    await expect.element(picker).toHaveTextContent("Choose an original release");
+    expect(read).not.toHaveBeenCalled();
+    await picker.click();
+    await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
+    await page.getByRole("option", { name: usTitle, exact: true }).click();
+    const thumbnail = gallery.getByRole("button", { name: /Enlarge screenshot 1: North American/ });
+    await expect.element(thumbnail).toBeEnabled();
+    await expect
+      .poll(() => gallery.element().querySelector("figcaption bdi")?.textContent)
+      .toBe(usTitle);
+    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene"]);
+    await thumbnail.click();
+    const viewer = page.getByRole("dialog", { name: "North American scene" });
+    await expect.element(viewer.getByText(usTitle, { exact: true })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(thumbnail).toHaveFocus();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect
+      .element(gallery.getByRole("button", { name: /Enlarge screenshot 1: European/ }))
+      .toBeEnabled();
+    await expect.element(thumbnail).not.toBeInTheDocument();
+    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+
+    await galleryView.rerender(
+      <ArtworkProvider generation={7} listings={directory(media)}>
+        <CatalogMediaGallery port={{ ...port, id: "another-port" }} />
+      </ArtworkProvider>,
+    );
+    await expect.element(picker).toHaveTextContent("Choose an original release");
+    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+  } finally {
+    await page.viewport(viewport.width, viewport.height);
+  }
+});
+
 for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {
     it(`keeps three mixed-aspect screenshots contained in ${theme} at ${width}px`, async () => {

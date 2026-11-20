@@ -140,8 +140,10 @@
     "unavailable": "نتائج التصفية هذه غير متاحة. عد إلى المرشحات لتحديث اختياراتك أو للفحص مرة أخرى."
   },
   "media": {
+    "availableScreenshots": "لقطات الشاشة المتاحة",
     "captionUnavailable": "<caption/> · الصورة غير متاحة",
     "choose": "اختر لقطة شاشة",
+    "chooseRelease": "اختر إصدارًا أصليًا",
     "creditOriginal": "الإصدار الأصلي · <edition/> · <credit/>",
     "creditPort": "صورة المنفذ · <credit/>",
     "enlarge": "تكبير لقطة الشاشة {{number, number}}: {{caption}}",
@@ -157,6 +159,7 @@
     "retry": "إعادة محاولة الصورة",
     "retryScreenshot": "إعادة محاولة لقطة الشاشة {{number, number}}",
     "screenshots": "لقطات الشاشة",
+    "screenshotSource": "مصدر لقطات الشاشة",
     "show": "عرض لقطة الشاشة {{number, number}}: {{caption}}",
     "source": "المصدر",
     "unavailable": "الصورة غير متاحة"

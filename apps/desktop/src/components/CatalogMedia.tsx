@@ -3,8 +3,14 @@ import { useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useArtworkVisibility, useCatalogMedia } from "../artwork";
 import { useAppTranslation } from "../localization";
-import { heroMediaCandidates, type HeroMediaPort, type HeroMediaContext } from "../hero-media";
+import {
+  heroMediaCandidates,
+  screenshotEditions,
+  type HeroMediaPort,
+  type HeroMediaContext,
+} from "../hero-media";
 import type { CatalogMediaAsset } from "../types";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -81,16 +87,17 @@ function MediaPreview({
 }
 
 function Screenshot({
-  portId,
+  port,
   media,
   index,
   onOpen,
 }: {
-  portId: string;
+  port: HeroMediaPort;
   media: CatalogMediaAsset;
   index: number;
   onOpen: (element: HTMLButtonElement) => void;
 }) {
+  const portId = port.id;
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const { display, retry } = useCatalogMedia(portId, media, visible);
@@ -140,7 +147,7 @@ function Screenshot({
       )}
       <figcaption className="mt-2 grid gap-1 text-xs">
         <span>{media.caption}</span>
-        <MediaCredit media={media} />
+        <MediaCredit media={media} port={port} />
       </figcaption>
     </figure>
   );
@@ -185,15 +192,35 @@ export function CatalogMediaGallery({
   port: HeroMediaPort;
   context?: HeroMediaContext;
 }) {
+  return (
+    <ScreenshotGallery
+      key={JSON.stringify([port.id, port.presentation?.original_game?.id])}
+      port={port}
+      context={context}
+    />
+  );
+}
+
+const defaultScreenshotSource = "available";
+
+function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: HeroMediaContext }) {
   const { t } = useAppTranslation("browsing");
   const portId = port.id;
-  const shots = heroMediaCandidates(port, context).screenshots;
+  const defaultShots = heroMediaCandidates(port, context).screenshots;
+  const editions = screenshotEditions(port);
+  const [source, setSource] = useState(defaultScreenshotSource);
+  const edition = editions.find(({ id }) => source === `edition:${id}`);
+  const shots = edition
+    ? heroMediaCandidates(port, { originalEditionId: edition.id }).screenshots.filter(
+        ({ subject }) => subject.kind === "original" && subject.source_edition_id === edition.id,
+      )
+    : defaultShots;
   const [selected, setSelected] = useState<string>();
   const origin = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const index = shots.findIndex((asset) => asset.id === selected);
   const active = shots[index];
-  if (!shots.length) return null;
+  if (!shots.length && !editions.length) return null;
   const change = (delta: number) =>
     setSelected(shots[(index + delta + shots.length) % shots.length]!.id);
   return (
@@ -202,11 +229,29 @@ export function CatalogMediaGallery({
       aria-label={t("media.screenshots")}
     >
       <h3 className="mb-4 text-base">{t("media.screenshots")}</h3>
+      {editions.length > 0 && (
+        <div className="mb-4">
+          <ChoiceSelect
+            label={t("media.screenshotSource")}
+            value={edition ? source : defaultScreenshotSource}
+            options={[
+              {
+                value: defaultScreenshotSource,
+                label: defaultShots.length
+                  ? t("media.availableScreenshots")
+                  : t("media.chooseRelease"),
+              },
+              ...editions.map(({ id, title }) => ({ value: `edition:${id}`, label: title })),
+            ]}
+            onChange={setSource}
+          />
+        </div>
+      )}
       <div className="media-gallery-grid grid gap-4">
         {shots.map((asset, position) => (
           <Screenshot
             key={`${asset.id}:${asset.sha256}`}
-            portId={portId}
+            port={port}
             media={asset}
             index={position}
             onOpen={(element) => {
@@ -265,7 +310,7 @@ export function CatalogMediaGallery({
                 ))}
               </div>
               <div className="mt-4">
-                <MediaCredit media={active} />
+                <MediaCredit media={active} port={port} />
               </div>
               <p className="mt-3 text-xs text-pc-muted-foreground">
                 {active.subject.kind === "original"

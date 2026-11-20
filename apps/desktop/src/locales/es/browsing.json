@@ -128,8 +128,10 @@
     "unavailable": "Estos resultados de filtro no están disponibles. Vuelve a Filtros para actualizar tus elecciones o comprobar de nuevo."
   },
   "media": {
+    "availableScreenshots": "Capturas disponibles",
     "captionUnavailable": "<caption/> · Imagen no disponible",
     "choose": "Elige una captura",
+    "chooseRelease": "Elige una versión original",
     "creditOriginal": "Versión original · <edition/> · <credit/>",
     "creditPort": "Imagen de la adaptación · <credit/>",
     "enlarge": "Ampliar la captura {{number, number}}: {{caption}}",
@@ -145,6 +147,7 @@
     "retry": "Reintentar imagen",
     "retryScreenshot": "Reintentar captura {{number, number}}",
     "screenshots": "Capturas de pantalla",
+    "screenshotSource": "Origen de las capturas",
     "show": "Mostrar la captura {{number, number}}: {{caption}}",
     "source": "Fuente",
     "unavailable": "Imagen no disponible"
