@@ -14,6 +14,7 @@ import {
   upstreamAttention,
   upstreamFacts,
   upstreamObservation,
+  upstreamSummary,
   type UpstreamTransport,
 } from "./maintenance-upstream.mts";
 import { newCatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
@@ -451,6 +452,83 @@ void test("a port added after its source completed is a scope change, not a fact
   );
   assert.deepEqual(result.facts.size, 0);
   assert.equal(result.gaps[0]?.code, "scope-changed");
+});
+
+void test("a held managed source preserves completed successor listing evidence in its gap", () => {
+  const historical = "owner/alpha";
+  const successor = "new-owner/alpha";
+  const catalogWithSuccessor = {
+    ports: [catalog.ports[0]],
+    listings: [{ id: "alpha", project_url: `https://github.com/${successor}` }],
+  };
+  const invalidOrigin = progress(historical, [], {
+    repository_id: null,
+    completed_scope_sha256: null,
+    last_complete_facts_sha256: null,
+    exception_key: exception,
+    exception_rule: "repository-unavailable",
+  });
+  const successorListing = progress(successor, ["alpha"], {
+    last_complete_policies: [
+      {
+        ...progress(successor, ["alpha"]).last_complete_policies[0],
+        catalog_definition_sha256: null,
+      },
+    ],
+  });
+  const partial = upstreamFacts(
+    checkpoint({ [keyOf(historical)]: invalidOrigin, [keyOf(successor)]: successorListing }),
+    catalogWithSuccessor,
+    now,
+  );
+
+  assert.equal(partial.expected, 1);
+  assert.equal(partial.facts.size, 0);
+  assert.equal(partial.gaps.length, 1);
+  const gap = partial.gaps[0]!;
+  assert.deepEqual(
+    gap.source_coverage?.retained.map((source) => source.repository),
+    [successor],
+  );
+  assert.equal(gap.source_coverage?.retained[0]?.scope, "listing");
+  assert.deepEqual(
+    gap.source_coverage?.incomplete.map(({ repository, exception_rule }) => [
+      repository,
+      exception_rule,
+    ]),
+    [[historical, "repository-unavailable"]],
+  );
+  const summary = upstreamSummary(null, gap)!;
+  assert.match(summary, /new-owner\/alpha \(listing\): facts f{12}/u);
+  assert.match(
+    summary,
+    /latest checkpoint: partial source coverage; github owner\/alpha \(operational\): unobserved/u,
+  );
+  assert.deepEqual(upstreamAttention(null, gap), [
+    "upstream observer exception: repository-unavailable (github owner/alpha)",
+  ]);
+
+  const restored = upstreamFacts(
+    checkpoint({
+      [keyOf(historical)]: progress(historical, ["alpha"]),
+      [keyOf(successor)]: successorListing,
+    }),
+    catalogWithSuccessor,
+    now,
+  );
+  assert.equal(restored.facts.size, 1);
+  assert.equal(restored.gaps.length, 0);
+
+  const failedBoth = upstreamFacts(
+    checkpoint({ [keyOf(historical)]: invalidOrigin }),
+    catalogWithSuccessor,
+    now,
+  );
+  const previous = restored.facts.get("port:alpha");
+  const incompleteSummary = upstreamSummary(previous, failedBoth.gaps[0])!;
+  assert.match(incompleteSummary, /new-owner\/alpha \(previous observation\)/u);
+  assert.match(incompleteSummary, /latest checkpoint: incomplete source coverage/u);
+  assert.match(incompleteSummary, /new-owner\/alpha \(listing\): unobserved/u);
 });
 
 void test("retained managed candidates keep their identity from pending to eligible under one tag", () => {
