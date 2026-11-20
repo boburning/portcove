@@ -233,7 +233,23 @@ it("checks shortly after startup and then daily, quietly reporting an unpublishe
   await advance(60 * 60 * 1000);
   expect(automaticCalls()).toHaveLength(2);
   expect(changed).toHaveBeenCalledOnce();
-  expect(host.textContent).toContain("Your catalog is up to date.");
+  expect(host.textContent).toContain("Catalog information verified.");
+});
+
+it("reports verified catalog information after a definition-only check", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  vi.mocked(desktopApi.refreshOfficialCatalogAutomatically).mockResolvedValue({
+    outcome: "refreshed",
+    serving: null,
+    status: null,
+  });
+
+  await renderScheduled();
+  await advance(16_000);
+
+  expect(changed).toHaveBeenCalledOnce();
+  expect(host.textContent).toContain("Catalog information verified.");
+  expect(host.textContent).not.toContain("Your catalog is up to date.");
 });
 
 it("never overlaps checks and waits while another task is using the library", async () => {
@@ -273,7 +289,7 @@ it("shows a player's successful refresh as the latest check", async () => {
   );
   expect(desktopApi.refreshOfficialCatalog).toHaveBeenCalledOnce();
   expect(host.textContent).toContain("Official catalog refreshed.");
-  expect(host.textContent).toContain("Your catalog is up to date.");
+  expect(host.textContent).toContain("Catalog information verified.");
   expect(host.textContent).not.toContain("No catalog updates have been published yet.");
 });
 
