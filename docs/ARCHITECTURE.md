@@ -768,6 +768,12 @@ require library metadata schema 14 and restore it against the same admitted
 choice. The destination handoff carries the original asset and its choice
 revision and omits these presentation points.
 
+A local or SteamGridDB Background preview uses a bounded, orientation-corrected
+derivative and identifies the original by SHA-256. Applying a new selection with
+framing re-reads the original, verifies that digest and the expected choice
+revision, and commits the choice and its framing together. Preview creates no
+library choice or stored asset.
+
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
 choice revision. Any explicit local choice suppresses the collection. Tauri delegates
