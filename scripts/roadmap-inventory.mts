@@ -33,15 +33,15 @@ export interface RoadmapInventory extends InventoryCache {
   archivedItems: RoadmapIssueItem[];
   body_reads: number;
 }
-export async function collectRoadmapInventoryWithRecollection(
-  client: RoadmapInventoryClient,
-  collect: () => Promise<RoadmapInventory>,
+export async function collectRoadmapInventoryWithRecollection<T>(
+  client: Pick<RoadmapInventoryClient, "_completeProjectContext" | "_projectContext">,
+  collect: () => Promise<T>,
   state: { inventoryRecollections: number },
   hooks: {
     before: (error: GitHubApiError) => void | Promise<void>;
     after: (status: "complete" | "failed", error: unknown) => void | Promise<void>;
   },
-): Promise<RoadmapInventory> {
+): Promise<T> {
   try {
     return await collect();
   } catch (error) {
