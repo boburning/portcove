@@ -1138,19 +1138,26 @@ impl PortcoveService {
             )?;
         }
         let transaction = connection.transaction()?;
-        crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
+        let current =
+            crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
         if restoring {
             // The marker goes first, because it requires the provider-only marker
             // that a local import removes.
             crate::artwork_store::clear_eviction(&transaction, &proposed.sha256)?;
             self.record_ingested_origin(&transaction, &proposed.sha256, &origin, existed)?;
         }
-        crate::artwork_store::write_choice(
+        let framing = if current.asset_sha256.as_deref() == Some(proposed.sha256.as_str()) {
+            current.framing
+        } else {
+            None
+        };
+        crate::artwork_store::write_framed_choice(
             &transaction,
             port_id,
             slot,
             expected_revision,
             Some(&proposed.sha256),
+            framing,
         )?;
         // Choices publish only after validated originals. The accepted decode
         // also produced the thumbnail, but its disposable cache cannot make a

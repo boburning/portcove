@@ -4263,20 +4263,30 @@ fn background_framing_follows_the_selected_revision_through_portable_restore() {
         restored.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
         framed.choice
     );
+    let reselected = restored
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 2)
+        .unwrap();
+    assert_eq!(reselected.choice.revision, 3);
+    assert_eq!(reselected.choice.framing, Some(framing));
+    assert_eq!(reselected.choice.asset_sha256, framed.choice.asset_sha256);
+    assert_eq!(
+        restored.export_library_metadata().unwrap().schema_version,
+        14
+    );
     let replacement = image_file(temporary.path(), "replacement.png", image::ImageFormat::Png);
     let replaced = restored
-        .import_artwork(PORT, ArtworkSlot::Detail, &replacement, 2)
+        .import_artwork(PORT, ArtworkSlot::Detail, &replacement, 3)
         .unwrap();
-    assert_eq!(replaced.choice.revision, 3);
+    assert_eq!(replaced.choice.revision, 4);
     assert!(replaced.choice.framing.is_none());
     assert!(restored.export_library_metadata().unwrap().schema_version < 14);
     restored
-        .set_background_artwork_framing(PORT, 3, Some(framing))
+        .set_background_artwork_framing(PORT, 4, Some(framing))
         .unwrap();
     let reset = restored
-        .reset_artwork(PORT, ArtworkSlot::Detail, 4)
+        .reset_artwork(PORT, ArtworkSlot::Detail, 5)
         .unwrap();
-    assert_eq!(reset.choice.revision, 5);
+    assert_eq!(reset.choice.revision, 6);
     assert!(reset.choice.framing.is_none());
     assert!(reset.choice.asset_sha256.is_none());
 }
