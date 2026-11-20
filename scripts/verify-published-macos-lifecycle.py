@@ -14,6 +14,8 @@ import tempfile
 import time
 
 CPU = {"macos-15": ("arm64", 0x0100000C), "macos-15-intel": ("x86_64", 0x01000007)}
+PREVIEW_11_LIBRARY_SCHEMA = 72
+LIBRARY_TABLES = {"installs", "activity_history", "definition_subject_selection"}
 
 
 def require(condition, message):
@@ -48,14 +50,21 @@ def unpack(archive, root):
             bundle.extract(item, root, filter="data")
 
 
-def library_ready(database):
+def library_status(database):
     if not database.is_file():
-        return False
+        return {"ready": False, "reason": "database_absent"}
     try:
         with sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=1) as db:
-            return db.execute("PRAGMA user_version").fetchone()[0] > 0
-    except sqlite3.OperationalError:
-        return False
+            db.execute("BEGIN")
+            tables = {name for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            if "schema_migrations" not in tables:
+                return {"ready": False, "reason": "schema_migration_ledger_absent"}
+            versions = [version for (version,) in db.execute("SELECT version FROM schema_migrations ORDER BY version")]
+    except sqlite3.OperationalError as error:
+        return {"ready": False, "reason": type(error).__name__}
+    missing = sorted(LIBRARY_TABLES - tables)
+    ready = versions == list(range(1, PREVIEW_11_LIBRARY_SCHEMA + 1)) and not missing
+    return {"ready": ready, "schema_version": max(versions, default=0), "missing_core_tables": missing}
 
 
 def observe(executable, helper, run_dir, evidence, architecture, cpu, env, stage):
@@ -71,13 +80,18 @@ def observe(executable, helper, run_dir, evidence, architecture, cpu, env, stage
                 proof = subprocess.run(
                     (str(helper), "window", *args, "-"), capture_output=True, text=True, timeout=5
                 )
-                if proof.returncode == 0 and library_ready(Path(env["PORTCOVE_LIBRARY"]) / "portcove.sqlite3"):
+                observed["last_native_probe_exit"] = proof.returncode
+                observed["library"] = library_status(Path(env["PORTCOVE_LIBRARY"]) / "portcove.sqlite3")
+                require(proof.returncode in (0, 2, 3), f"Native window probe failed ({stage})")
+                if proof.returncode == 0:
                     count, reported_cpu, birth = proof.stdout.split()
                     require(int(reported_cpu) == cpu and int(count) > 0, "Native executable architecture or window differs")
-                    observed.update(owned_windows=int(count), cocoa_launch_date=birth, library_opened=True)
-                    break
+                    observed.update(owned_windows=int(count), cocoa_launch_date=birth)
+                    if observed["library"]["ready"]:
+                        break
                 time.sleep(0.3)
-            require("owned_windows" in observed, f"Did not observe the exact native window and private library ({stage})")
+            require("owned_windows" in observed and observed["library"]["ready"],
+                    f"Did not observe the exact native window and private library ({stage})")
             require(app.poll() is None, f"Application exited before the Cocoa quit ({stage})")
             checked(str(helper), "quit", *args, observed["cocoa_launch_date"], timeout=10)
             require(app.wait(timeout=20) == 0, f"Application exited unsuccessfully after Cocoa quit ({stage})")
@@ -91,6 +105,7 @@ def observe(executable, helper, run_dir, evidence, architecture, cpu, env, stage
                 except subprocess.TimeoutExpired:
                     app.kill()
                     app.wait(timeout=5)
+            observed["exit_code"] = app.returncode
             (evidence / f"{stage}.json").write_text(json.dumps(observed, indent=2) + "\n", encoding="utf8")
 
 
