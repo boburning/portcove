@@ -3617,6 +3617,13 @@ and Crystal routes. Each original profile, release selector, executable and
 edition launch value stays explicit. URL preparation uses the recipe when
 expansion reproduces the existing integration byte for byte.
 
+The authoring-only `rsdkv4_portable_data_v1: true` supplies the reviewed
+portable data paths for Sonic the Hedgehog and Sonic the Hedgehog 2 (2013).
+Each game keeps its own identity, original-file instructions, official package
+selector, executable and installed data. URL preparation uses the recipe when
+its expansion reproduces the reviewed integration byte for byte. A different
+writer layout uses explicit paths.
+
 Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
 Jak trilogy setup. The generator supplies the extractor, launcher, and setup
 and portable data paths from the matching game identity. Keep the reviewed

@@ -19,6 +19,7 @@ import test from "node:test";
 import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
@@ -2307,6 +2308,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.openmohaa_portable_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
   assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
+  assert.ok(records.some((record) => record.rsdkv4_portable_data_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
@@ -2327,6 +2329,7 @@ void test("preparation reports all declared route projections across the current
       expected.push("chocolate_family_windows_persistence_v1");
     if (record.gen2recomp_windows_persistence_v1)
       expected.push("gen2recomp_windows_persistence_v1");
+    if (record.rsdkv4_portable_data_v1) expected.push("rsdkv4_portable_data_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2725,6 +2728,50 @@ void test("official URL preparation emits the exact Gen2Recomped Windows edition
     assert.deepEqual(prepared.report.changed_records, [id]);
     assert.equal(prepared.report.operational_changed, false);
     assert.equal(candidate.gen2recomp_windows_persistence_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation emits the reviewed RSDKv4 portable data recipe", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectRsdkv4PortableData(selected);
+    delete explicit.rsdkv4_portable_data_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 321543928,
+                full_name: "RSDKModding/RSDKv4-Decompilation",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.rsdkv4_portable_data_v1, true);
     assert.deepEqual(candidate.listing, selected.listing);
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {

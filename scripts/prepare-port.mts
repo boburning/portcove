@@ -43,6 +43,7 @@ import {
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import { compactRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
 import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import {
@@ -270,6 +271,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "gen2recomp_windows_persistence_v1",
       scope: "Reviewed Gen2Recomped Windows player data and local generated import paths.",
       next: "Keep each original edition, source selector, executable and selected game explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  if (record.rsdkv4_portable_data_v1) {
+    projections.push({
+      field: "rsdkv4_portable_data_v1",
+      scope: "Reviewed RSDKv4 originals, settings, saves and mods in each portable game root.",
+      next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
   return {
@@ -1108,6 +1116,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
     const compactOpenGoal = compactOpenGoalSetup(record);
     if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
+    const compactRsdkv4 = compactRsdkv4PortableData(record);
+    if (compactRsdkv4 !== record) record = checkedAuthoredPort(compactRsdkv4);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
