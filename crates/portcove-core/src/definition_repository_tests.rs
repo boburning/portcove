@@ -1742,6 +1742,10 @@ async fn embedded_crawl_accepts_a_schema_three_successor_with_a_retained_schema_
     let absent = Catalog::from_document(absent).unwrap();
     let mut legacy = baseline.export_document(2).unwrap();
     legacy.ports.retain(|port| port.id == port_id);
+    // Model the earlier legacy predecessor before the publisher carried a
+    // reviewed layout. The layout-only bridge must not admit this projection
+    // for an already embedded subject.
+    legacy.ports[0].reviewed_package_layouts.clear();
     legacy.source_profiles.clear();
     legacy.source_catalog = Some(crate::SourceCatalog {
         evidence: Vec::new(),
