@@ -1,0 +1,8 @@
+{
+  "assessment_schema": 1,
+  "namespace": "official",
+  "stable_id": "chameleon-twist-jp-recompiled",
+  "policy_sha256": "27baa416c4bf7fca583b063e9c8166cf72ba3436ed06e80e4d360580f2292782",
+  "revision": 8,
+  "assessments": []
+}
