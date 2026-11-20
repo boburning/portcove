@@ -73,6 +73,21 @@ export function parseSupportedOriginalHashes(contents: unknown) {
   };
 }
 
+async function readRecognitionTag(target: OriginalRecognitionTarget, read: ReadGitHub) {
+  const path = `/repos/${target.repository}/git/ref/tags/${encodeURIComponent(target.release_tag)}`;
+  const value = await read(path);
+  if (
+    !isRecord(value) ||
+    value.ref !== `refs/tags/${target.release_tag}` ||
+    !isRecord(value.object) ||
+    (value.object.type !== "tag" && value.object.type !== "commit") ||
+    typeof value.object.sha !== "string" ||
+    !gitSha.test(value.object.sha)
+  )
+    throw new Error("Provider returned a different original recognition release tag");
+  return { type: value.object.type, sha: value.object.sha };
+}
+
 /** Observe a family table at the selected tag's exact Git commit. No admission is derived here. */
 export async function observeOriginalRecognition(
   target: OriginalRecognitionTarget,
@@ -95,19 +110,8 @@ export async function observeOriginalRecognition(
       "Original recognition observation needs an exact repository, release and artifact",
     );
   const repository = `/repos/${target.repository}`;
-  const tagPath = `${repository}/git/ref/tags/${encodeURIComponent(target.release_tag)}`;
-  const readTag = async () => {
-    const value = await read(tagPath);
-    if (
-      !isRecord(value) ||
-      value.ref !== `refs/tags/${target.release_tag}` ||
-      !isRecord(value.object)
-    )
-      throw new Error("Provider returned a different original recognition release tag");
-    return value.object;
-  };
-  const tag = await readTag();
-  let commit = tag;
+  const tag = await readRecognitionTag(target, read);
+  let commit: Record<string, unknown> = tag;
   for (let depth = 0; commit.type === "tag" && depth < 4; depth++) {
     if (typeof commit.sha !== "string" || !gitSha.test(commit.sha))
       throw new Error("Original recognition tag object has an invalid identity");
@@ -121,7 +125,7 @@ export async function observeOriginalRecognition(
   const document = parseSupportedOriginalHashes(
     await read(`${repository}/contents/${tablePath}?ref=${commit.sha}`),
   );
-  const confirmed = await readTag();
+  const confirmed = await readRecognitionTag(target, read);
   if (confirmed.sha !== tag.sha || confirmed.type !== tag.type)
     throw new Error("Original recognition release tag changed during observation");
   const identity = await read(repository);
@@ -136,6 +140,8 @@ export async function observeOriginalRecognition(
     parser: "libultraship-supported-hashes-v1",
     coverage: "recognition-only",
     ...target,
+    source_tag_sha1: tag.sha,
+    source_tag_type: tag.type,
     source_commit: commit.sha,
     ...document,
   } as const;
@@ -195,6 +201,15 @@ export function selectOriginalRecognitionTarget(
 
 type ObservedOriginalRecognition = Awaited<ReturnType<typeof observeOriginalRecognition>>;
 
+/** On a due refresh, verify the ref before reusing the immutable table. */
+export async function revalidateOriginalRecognition(
+  fact: ObservedOriginalRecognition,
+  read: ReadGitHub,
+): Promise<boolean> {
+  const current = await readRecognitionTag(fact, read);
+  return current.sha === fact.source_tag_sha1 && current.type === fact.source_tag_type;
+}
+
 export interface OriginalRecognitionProgress {
   state: string;
   last_complete: {
@@ -238,6 +253,9 @@ export function readOriginalRecognitionProgress(
     !fact.release_tag.length ||
     fact.release_tag.length > 256 ||
     /\p{Cc}/u.test(fact.release_tag) ||
+    typeof fact.source_tag_sha1 !== "string" ||
+    !gitSha.test(fact.source_tag_sha1) ||
+    (fact.source_tag_type !== "commit" && fact.source_tag_type !== "tag") ||
     typeof fact.source_commit !== "string" ||
     !gitSha.test(fact.source_commit) ||
     fact.source_path !== tablePath ||
@@ -301,6 +319,8 @@ export function readOriginalRecognitionProgress(
         parser: "libultraship-supported-hashes-v1",
         coverage: "recognition-only",
         ...target,
+        source_tag_sha1: fact.source_tag_sha1,
+        source_tag_type: fact.source_tag_type,
         source_commit: fact.source_commit,
         source_path: tablePath,
         source_blob_sha1: fact.source_blob_sha1,

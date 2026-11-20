@@ -426,6 +426,13 @@ export async function runCatalogUpstreams(
           return response.body;
         } catch (error) {
           if (error instanceof GitHubApiError) account.consumeResponseBytes(error.responseBytes);
+          if (error instanceof GitHubApiError && error.code === "rate_limited") {
+            throw new ObservationFailure(
+              "rate-limit",
+              "Original recognition lookup is provider-deferred",
+              error.rateLimit?.resetAt ?? null,
+            );
+          }
           throw error;
         }
       },

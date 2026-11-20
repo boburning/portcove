@@ -1,3 +1,4 @@
+import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
 import { readOriginalRecognitionProgress } from "./upstream-original-recognition.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
@@ -1071,16 +1072,19 @@ void test("scheduled original recognition retains the exact table across refresh
   };
   const raw = Buffer.from(JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]));
   const requests: string[] = [];
-  let unavailable = false;
+  let unavailable: "budget" | "rate-limit" | null = null;
+  let tagSha = "c".repeat(40);
+  let retryAt: string | null = null;
   h.options.readOriginalRecognition = async (repository, endpoint, account) => {
     account.admitRequest();
     requests.push(endpoint);
-    if (unavailable) throw new ObservationFailure("budget", "fixture metadata deferred");
+    if (unavailable)
+      throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
     const ref = endpoint.split("/git/ref/tags/")[1];
     if (ref !== undefined)
       return {
         ref: `refs/tags/${ref}`,
-        object: { type: "commit", sha: "c".repeat(40) },
+        object: { type: "commit", sha: tagSha },
       };
     if (endpoint.includes("/contents/"))
       return {
@@ -1114,16 +1118,40 @@ void test("scheduled original recognition retains the exact table across refresh
   h.advanceClock(48 * 3600_000);
   const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
   assert.deepEqual(retained(refreshed.checkpoint), observation);
-  assert.equal(requests.length, 4);
+  assert.equal(requests.length, 5);
+
+  h.advanceClock(48 * 3600_000);
+  tagSha = "d".repeat(40);
+  const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+  assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
+  assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
+  assert.equal(requests.length, 6);
 
   h.advanceClock(48 * 3600_000);
   h.bumpRelease();
-  unavailable = true;
-  const deferred = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+  unavailable = "budget";
+  const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
   assert.equal(retained(deferred.checkpoint)?.state, "budget");
   assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
   assert.equal(deferred.report.completed_source_keys.length, 2);
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 7);
+
+  h.advanceClock(48 * 3600_000);
+  unavailable = "rate-limit";
+  retryAt = new Date(h.options.now!() + 100_000).toISOString();
+  const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
+  assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
+  assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
+  assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+  const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
+    "port:stable-port",
+  );
+  assert.ok(isRecord(projected) && Array.isArray(projected.sources));
+  const source = projected.sources.find(
+    (value: unknown) => isRecord(value) && value.repository === "owner/shared",
+  );
+  assert.ok(isRecord(source));
+  assert.deepEqual(source.original_recognition, retained(limited.checkpoint));
 });
 
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {

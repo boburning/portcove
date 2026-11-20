@@ -30,6 +30,7 @@ import { advanceObservation } from "./observe-configured-upstream.mts";
 import {
   observeOriginalRecognition,
   readOriginalRecognitionProgress,
+  revalidateOriginalRecognition,
   selectOriginalRecognitionTarget,
 } from "./upstream-original-recognition.mts";
 
@@ -1273,6 +1274,9 @@ export async function advanceCatalogObservations(
             string,
             Awaited<ReturnType<typeof observeOriginalRecognition>>
           >();
+          const tagMatches = new Map<string, boolean>();
+          const read = (endpoint: string) =>
+            readOriginalRecognition(source.repository, endpoint, account);
           for (const policy of policies) {
             if (!isRecord(policy)) continue;
             const port = source.ports.find((port) => port.id === policy.port_id);
@@ -1287,16 +1291,26 @@ export async function advanceCatalogObservations(
               { repository: source.repository, repository_id: config.repository_id },
             );
             const retained = previous?.last_complete ?? null;
-            let state: string;
+            let recognitionState: string;
             let complete = retained;
             if (!target) {
-              state = "exact-artifact-unavailable";
+              recognitionState = "exact-artifact-unavailable";
             } else {
               const binding = observationHash(target);
-              if (retained?.binding === binding) {
-                state = "observed";
-              } else {
-                try {
+              try {
+                if (retained?.binding === binding) {
+                  const key = JSON.stringify([
+                    target.release_id,
+                    target.release_tag,
+                    retained.fact.source_tag_sha1,
+                  ]);
+                  let matches = tagMatches.get(key);
+                  if (matches === undefined) {
+                    matches = await revalidateOriginalRecognition(retained.fact, read);
+                    tagMatches.set(key, matches);
+                  }
+                  recognitionState = matches ? "observed" : "source-tag-changed";
+                } else {
                   const release = JSON.stringify([
                     target.repository_id,
                     target.release_id,
@@ -1305,21 +1319,21 @@ export async function advanceCatalogObservations(
                   const fresh = freshByRelease.get(release);
                   const fact = fresh
                     ? { ...fresh, ...target }
-                    : await observeOriginalRecognition(target, (endpoint) =>
-                        readOriginalRecognition(source.repository, endpoint, account),
-                      );
+                    : await observeOriginalRecognition(target, read);
                   if (!fresh) freshByRelease.set(release, fact);
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
-                  state = "observed";
-                } catch (error) {
-                  state =
-                    error instanceof ObservationFailure
-                      ? error.rule
-                      : "source-metadata-unavailable";
+                  recognitionState = "observed";
+                }
+              } catch (error) {
+                recognitionState =
+                  error instanceof ObservationFailure ? error.rule : "source-metadata-unavailable";
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  state.provider_retry_at = error.retryAt;
                 }
               }
             }
-            policy.original_recognition = { state, last_complete: complete };
+            policy.original_recognition = { state: recognitionState, last_complete: complete };
           }
         }
         await options.export(source, config, result, result.report.exception ? fallback : policies);

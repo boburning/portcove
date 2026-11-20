@@ -223,7 +223,9 @@ object and SHA-256, and the SHA-1 values the upstream table declares.
 
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
-when current evidence is unavailable. A release fallback never supplies a
+when current evidence is unavailable. A due refresh checks the release tag
+before reusing the immutable table. A moved tag leaves the stored artifact
+observation intact while reporting the change. A release fallback never supplies a
 current observation. Recognition-only observations carry no verdict about a
 player's files or the runtime's acceptance, and confer no setup, acquisition
 or publication authority.
