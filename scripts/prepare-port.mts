@@ -220,6 +220,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
     });
   }
+  if (record.external_registration_v1) {
+    projections.push({
+      field: "external_registration_v1",
+      scope: "Register a player-selected external runtime on the declared platforms.",
+      next: "Keep original-file instructions and upstream or player ownership explicit. An exact prepared package or per-platform exception needs an explicit integration.",
+    });
+  }
   if (record.openmohaa_portable_v1) {
     projections.push({
       field: "openmohaa_portable_v1",
