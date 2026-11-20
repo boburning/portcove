@@ -4083,7 +4083,7 @@ export async function preparationScenarios({
         };
         observations.failure_cleanup = cleanup;
         try {
-          if (ownershipIssue !== undefined) throw new Error(ownershipIssue);
+          assert.equal(ownershipIssue, undefined, ownershipIssue);
           assert.ok(
             activity,
             "The attempted preparation has no captured owned operation ID; stop the run",
@@ -4140,14 +4140,18 @@ export async function preparationScenarios({
     }
     if (evidenceFailure) rethrowFailure(evidenceFailure.error);
   };
+  const requirePreparationJoined = () => {
+    const unjoined = preparationSession.unjoined;
+    if (unjoined) rethrowFailure(unjoined.error);
+  };
   await scenario("native-preparation-cancellation", () => livePreparationCancellation());
-  if (preparationSession.unjoined) rethrowFailure(preparationSession.unjoined.error);
+  requirePreparationJoined();
   await scenario("native-late-listener-disposal", () => livePreparationCancellation("late"));
-  if (preparationSession.unjoined) rethrowFailure(preparationSession.unjoined.error);
+  requirePreparationJoined();
   await scenario("native-rejected-listener-registration", () =>
     livePreparationCancellation("reject"),
   );
-  if (preparationSession.unjoined) rethrowFailure(preparationSession.unjoined.error);
+  requirePreparationJoined();
   browser = await interruptedPreparationScenario({
     browser,
     invoke,

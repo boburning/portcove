@@ -193,9 +193,7 @@ void test("source-intake caller searches its player label before exact port sele
 
 void test("unjoined held preparation exits outside the recorded scenario before later cases", async () => {
   const source = await readFile(new URL("./desktop-preparation-test.mts", import.meta.url), "utf8");
-  const start = source.indexOf(
-    'await scenario("native-preparation-cancellation", () => livePreparationCancellation());',
-  );
+  const start = source.indexOf("const requirePreparationJoined = () => {");
   const end = source.indexOf("browser = await interruptedPreparationScenario", start);
   assert(start >= 0 && end > start);
   const primary = new Error("Original card assertion");
