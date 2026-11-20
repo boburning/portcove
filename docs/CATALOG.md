@@ -3617,6 +3617,13 @@ and Crystal routes. Each original profile, release selector, executable and
 edition launch value stays explicit. URL preparation uses the recipe when
 expansion reproduces the existing integration byte for byte.
 
+Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
+Jak trilogy setup. The generator supplies the extractor, launcher, and setup
+and portable data paths from the matching game identity. Keep the reviewed
+disc profile, release authority, support and presentation in each record.
+URL preparation compacts an exact match. A reviewed setup that differs uses
+the explicit integration fields.
+
 The authoring-only `openmohaa_portable_v1` generates the official stable
 OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
 It supplies the four platform selectors, shared Windows archive layout,
