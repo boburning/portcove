@@ -405,6 +405,19 @@ export async function artworkScenario({
               '//form[.//h3[normalize-space(.)="Review Background"]]//button[normalize-space(.)="Apply"]',
             ),
           );
+        } else {
+          await browser.wait(
+            until.elementLocated(
+              By.xpath('//form[.//h4[normalize-space(.)="Review Cover image"]]'),
+            ),
+            10_000,
+          );
+          assert.deepEqual(await state(slot), previous);
+          await click(
+            By.xpath(
+              '//form[.//h4[normalize-space(.)="Review Cover image"]]//button[normalize-space(.)="Apply"]',
+            ),
+          );
         }
         await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
         const picker = await browser.findElement(control(slot, "Choose local image"));

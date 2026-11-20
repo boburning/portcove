@@ -736,9 +736,13 @@ export default interface Resources {
     "artwork": {
       "apply": "Apply",
       "cancel": "Cancel",
+      "previewFailed": "The preview could not open. Cancel and choose an image again.",
       "reviewAutomatic": "Use the default artwork for this role when available.",
       "reviewChange": "Review artwork change",
       "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
+      "reviewImage": "Review {{role}}",
+      "reviewLocalImage": "Local image",
+      "reviewProviderImage": "SteamGridDB image by {{author}}",
       "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
       "scopeCurrentPort": "Artwork changes apply only to this port."
     },
