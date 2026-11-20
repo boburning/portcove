@@ -198,6 +198,10 @@ fn settings_fixture_packages(
     let [old, staged]: [InstallRecord; 2] = installs.try_into().unwrap();
     let canonical = library.user_dir(PORT);
     fs::create_dir_all(&canonical).unwrap();
+    if partitioned {
+        // Establish the creating policy while this is still a fresh workspace.
+        crate::archive_data::initialize(catalog.port(PORT).unwrap(), &canonical).unwrap();
+    }
     if seed_settings {
         fs::write(canonical.join(FILE), OLD).unwrap();
     }
@@ -354,7 +358,6 @@ fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
     )
     .unwrap();
     service.replace_catalog_for_test(fixture.catalog.clone());
-    crate::archive_data::initialize(fixture.catalog.port(PORT).unwrap(), &canonical).unwrap();
     fs::remove_file(&player).unwrap();
     fs::remove_file(&active).unwrap();
     let backup = service.create_backup(PORT).unwrap();
@@ -409,6 +412,14 @@ fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
     assert!(!pending);
     let evidence: serde_json::Value = serde_json::from_slice(&evidence).unwrap();
     assert_eq!(evidence["file_id"], "preferences");
+    assert_eq!(
+        evidence["scope"],
+        serde_json::json!({
+            "kind": if partitioned { "partitioned" } else { "native" },
+            "policy_sha256": crate::archive_data::policy_sha256(fixture.catalog.port(PORT).unwrap())
+                .unwrap(),
+        })
+    );
     assert_eq!(
         evidence["install_manifest_sha256"],
         fixture.old.manifest_sha256
