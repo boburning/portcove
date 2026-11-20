@@ -281,8 +281,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     env:
-      SOURCE_HEAD: 03ac3d4a3af57a348b55b7e6249ebe8207ecb34f
-      SOURCE_TREE: c3f806d866d2e7287e36ea9511f875a207983c46
+      SOURCE_HEAD: 21c17bbe5f6e53fa28bd4a96b68431932b40e996
+      SOURCE_TREE: b1d7d6fa9d652919fd295586da96973557c38c24
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -350,7 +350,7 @@ jobs:
           cargo install --list --root "$RUNNER_TEMP/slice3-native-driver" \
             > work/linux-selected-setup-completion/driver-installation.txt
           dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
-            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
+            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils at-spi2-core \
             > work/linux-selected-setup-completion/native-packages.txt
       - run: pnpm install --frozen-lockfile
       - name: Verify the exact selected setup plan before building
