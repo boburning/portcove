@@ -9,7 +9,7 @@ import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context
 import { fixtureSuccess, requiredFixtureValue as required } from "./desktop-scenario-state.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
-import { observeVisibleTarget } from "./browser-readiness.mts";
+import { observeCollectionLayoutReady, observeVisibleTarget } from "./browser-readiness.mts";
 import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 import { prepareCaptureTarget, requireCompleteCaptureTarget } from "../test/capture-target.ts";
 import {
@@ -492,6 +492,7 @@ export async function captureGameFirstTarget<Semantic extends { ready: boolean }
     await prepareCaptureTarget({
       target,
       label: name,
+      ready: () => executeBrowserScript(browser, observeCollectionLayoutReady),
       scroll: () =>
         executeBrowserScript(
           browser,

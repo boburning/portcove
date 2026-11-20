@@ -548,7 +548,8 @@ test("game-first capture settles later complete geometry and still refuses movem
   const { mkdtemp, readFile, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
   const path = await import("node:path");
-  const { observeVisibleTarget } = await import("./browser-readiness.mts");
+  const { observeCollectionLayoutReady, observeVisibleTarget } =
+    await import("./browser-readiness.mts");
   type Driver = import("selenium-webdriver").WebDriver;
   type ElementHandle = import("selenium-webdriver").WebElement;
   const output = await mkdtemp(path.join(tmpdir(), "pcv-game-first-capture-"));
@@ -559,6 +560,7 @@ test("game-first capture settles later complete geometry and still refuses movem
       const element = {} as ElementHandle;
       const browser = {
         executeScript: async (script: unknown, ...args: unknown[]) => {
+          if (script === observeCollectionLayoutReady) return true;
           if (script !== observeVisibleTarget) {
             assert.equal(args[0], element, "Only the explicit preflight scroll is permitted");
             return;
@@ -638,7 +640,9 @@ test("game-first capture retains the rejected preflight target without taking a 
   let screenshots = 0;
   const browser = {
     executeScript: async (script: unknown) => {
-      const { observeVisibleTarget } = await import("./browser-readiness.mts");
+      const { observeCollectionLayoutReady, observeVisibleTarget } =
+        await import("./browser-readiness.mts");
+      if (script === observeCollectionLayoutReady) return true;
       return script === observeVisibleTarget ? observed : undefined;
     },
     takeScreenshot: async () => {
@@ -670,6 +674,48 @@ test("game-first capture retains the rejected preflight target without taking a 
   } finally {
     await rm(output, { recursive: true, force: true });
   }
+});
+
+test("capture waits for the layout owner before one reveal and refuses an unsettled owner", async () => {
+  const { prepareCaptureTarget } = await import("../test/capture-target.ts");
+  let pending = true,
+    settles = 0,
+    scrolls = 0;
+  const state = {
+    target: "#choice",
+    target_count: 1,
+    visible: true,
+    rect: { x: 20, y: 100, width: 100, height: 40 },
+    viewport: { width: 480, height: 320 },
+  };
+  await prepareCaptureTarget({
+    target: "#choice",
+    label: "responsive-choice",
+    ready: () => !pending,
+    settle: async () => {
+      if (++settles === 2) pending = false;
+    },
+    scroll: () => {
+      assert.equal(pending, false);
+      scrolls++;
+    },
+    observe: () => state,
+  });
+  assert.equal(scrolls, 1);
+  await assert.rejects(
+    prepareCaptureTarget({
+      target: "#choice",
+      label: "unfinished-choice",
+      ready: () => false,
+      settle: async () => {},
+      scroll: () => {
+        scrolls++;
+      },
+      observe: () => state,
+    }),
+    /Capture layout did not settle within 20 samples/,
+  );
+  assert.equal(scrolls, 1, "Never reveal or capture while the owner remains unsettled");
 });
 
 test("capture waits for pending optional comparison but permits its failed result", async () => {
@@ -748,7 +794,18 @@ test(
       await tooLarge.close();
       await assert.rejects(userDataInventory(root, ["assets"]));
       await rm(path.join(root, "assets", "large.dat"));
-      await symlink(path.join(root, "tmc_pc.exe"), path.join(root, "assets", "linked.dat"));
+      // Windows junctions exercise the same no-follow guard without requiring
+      // the host privilege needed to create a file symlink.
+      const linkTarget = path.join(
+        root,
+        process.platform === "win32" ? "linked-target" : "tmc_pc.exe",
+      );
+      if (process.platform === "win32") await mkdir(linkTarget);
+      await symlink(
+        linkTarget,
+        path.join(root, "assets", "linked.dat"),
+        process.platform === "win32" ? "junction" : "file",
+      );
       await assert.rejects(userDataInventory(root, ["assets"]));
     } finally {
       await rm(root, { recursive: true, force: true });

@@ -15,6 +15,11 @@ import { useOperationState } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
+import { prepareCaptureTarget } from "../../../test/capture-target";
+import {
+  observeCollectionLayoutReady,
+  observeVisibleTarget,
+} from "../../../scripts/browser-readiness.mts";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -42,6 +47,73 @@ afterEach(async () => {
   await i18n.changeLanguage("en");
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("reveals one complete game identity after resize restoration finishes", async () => {
+  await page.viewport(1280, 900);
+  host.style.cssText = "position:fixed;inset:0 auto 0 224px;width:1056px";
+  const ports = ["2ship2harkinian", "zelda64-recomp"].map((id) => ({
+    ...portDefinition(),
+    id,
+    presentation: {
+      ...portDefinition().presentation,
+      original_game_title: "The Legend of Zelda: Majora's Mask",
+      original_game: {
+        format_version: 1 as const,
+        id: "the-legend-of-zelda-majoras-mask",
+        evidence_urls: [],
+        source_editions: [],
+      },
+    },
+  }));
+  await act(async () =>
+    root.render(
+      <OperationPresentationProvider generation={7} pending={new Map()}>
+        <main
+          data-focus-region="workspace"
+          className="workspace-main"
+          style={{ height: "100%", overflow: "auto" }}
+        >
+          <div style={{ height: 259.5 }} />
+          <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />
+        </main>
+      </OperationPresentationProvider>,
+    ),
+  );
+  const frames = async () => {
+    await act(async () => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+  };
+  await frames();
+  const target =
+    '.discover-game[data-detail-return-group="game:the-legend-of-zelda-majoras-mask"] .discover-game-identity';
+  const identity = host.querySelector<HTMLElement>(target)!;
+  await act(async () => identity.focus({ preventScroll: true }));
+  await frames();
+  await page.viewport(960, 640);
+  await act(async () => {
+    // The real ResizeObserver/virtualizer must finish preserving the reading
+    // anchor before capture makes its single intentional reveal.
+    host.style.width = "736px";
+  });
+  const prepared = prepareCaptureTarget({
+    target,
+    label: "resized-game-identity",
+    ready: observeCollectionLayoutReady,
+    scroll: () =>
+      identity.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
+    observe: () => observeVisibleTarget(target, "visual"),
+    settle: frames,
+  });
+  const result = await prepared;
+  expect(result.observation.visible).toBe(true);
+  expect(document.activeElement).toBe(identity);
+  for (let frame = 0; frame < 3; frame++) {
+    await frames();
+    expect(observeVisibleTarget(target, "visual")).toEqual(result.observation);
+  }
 });
 
 it("updates shared card translations and pending actions without remounting the card", async () => {
