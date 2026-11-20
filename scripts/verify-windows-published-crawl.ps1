@@ -1,5 +1,5 @@
 # One public packaged Desktop and signed retained Crawl setup on a disposable hosted VM.
-param([Parameter(Mandatory=$true)][ValidateSet('installer','crawl')][string]$Observation)
+param([Parameter(Mandatory=$true)][ValidateSet('binding','installer','crawl')][string]$Observation)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -27,7 +27,100 @@ function Read-RuntimeSignal([string]$Text) {
     }
 }
 
-$minimum = '155.0.4283.62' # Frozen f4256f256 Portcove bundle.windows.minimumWebview2Version.
+$sourceRoot = Split-Path -Parent $PSScriptRoot
+$bindingPath = Join-Path $PSScriptRoot 'fixtures/published-windows-crawl-release.json'
+$fixture = Get-Content -LiteralPath $bindingPath -Raw | ConvertFrom-Json
+if ($fixture.schema_version -ne 1 -or $null -eq $fixture.release) {
+    throw 'Exact normally published Windows release binding is pending'
+}
+$bound = $fixture.release
+if ($bound.version -cnotmatch '^\d+\.\d+\.\d+-preview\.[1-9]\d*$' -or
+    $bound.source -cnotmatch '^[a-f0-9]{40}$' -or $bound.release_id -le 0 -or
+    $bound.minimum_webview2 -cnotmatch '^\d{1,10}(?:\.\d{1,10}){3}$' -or
+    $bound.updater_key_sha256 -cnotmatch '^[a-f0-9]{64}$') {
+    throw 'Invalid immutable Preview identity'
+}
+function Assert-ReviewedFilePin($Pin, [long]$Cap, [switch]$PublicAsset) {
+    if ($Pin.bytes -le 0 -or $Pin.bytes -gt $Cap -or $Pin.sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        ($PublicAsset -and $Pin.id -le 0)) { throw 'Invalid reviewed published file pin' }
+}
+Assert-ReviewedFilePin $bound.installer 150MB -PublicAsset
+Assert-ReviewedFilePin $bound.signature 16KB -PublicAsset
+Assert-ReviewedFilePin $bound.cli_archive 150MB -PublicAsset
+Assert-ReviewedFilePin $bound.desktop_executable 150MB
+Assert-ReviewedFilePin $bound.cli_executable 150MB
+if (@($bound.installer.id, $bound.signature.id, $bound.cli_archive.id | Sort-Object -Unique).Count -ne 3) {
+    throw 'Published asset identities must be distinct'
+}
+$version = [string]$bound.version
+$tag = "nightly-$version"
+$setupName = "Portcove_${version}_x64-setup.exe"
+$cliName = "portcove-cli-$version-windows-x86_64.zip"
+$minimum = [string]$bound.minimum_webview2
+$repair = '63c2bb76e4430ca684bf14724f3c5de20d83b3fb'
+& git -C $sourceRoot merge-base --is-ancestor $repair $bound.source
+if ($LASTEXITCODE -ne 0) { throw 'Publication source does not include the reviewed embedded-floor repair' }
+$tagCommit = (& git -C $sourceRoot rev-parse "refs/tags/$tag^{commit}" | Out-String).Trim()
+if ($LASTEXITCODE -ne 0 -or $tagCommit -cne $bound.source) { throw 'Local immutable tag source differs' }
+function Read-PublishedObject([string]$Relative) {
+    $body = (& git -C $sourceRoot show "$($bound.source):$Relative" | Out-String)
+    if ($LASTEXITCODE -ne 0) { throw "Required publication input unavailable ($Relative)" }
+    $body
+}
+$sourceConfig = Read-PublishedObject 'apps/desktop/src-tauri/tauri.conf.json' | ConvertFrom-Json
+# A different release recipe may change the effective Windows startup policy.
+# The reviewed ordinary Preview recipe only adds updater and macOS settings.
+$recipe = Read-PublishedObject '.github/workflows/app-release-build.yml'
+$configurationOptions = @($recipe -split '\r?\n' | Where-Object { $_ -match '(?:^|\s)--config\b' })
+$ordinaryOverlay = '--config ''{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'''
+if ($configurationOptions.Count -ne 1 -or $configurationOptions[0].Trim() -cne $ordinaryOverlay -or
+    $recipe -match 'TAURI_CONFIG') { throw 'Ordinary Preview Tauri overlay differs from the reviewed build path' }
+$windowsConfig = Read-PublishedObject 'apps/desktop/src-tauri/tauri.windows.conf.json' | ConvertFrom-Json
+$windows = $windowsConfig.bundle.windows
+$overlayMinimum = $windows.PSObject.Properties['minimumWebview2Version']
+$overlayPlugins = $windowsConfig.PSObject.Properties['plugins']
+if ($overlayPlugins -or ($overlayMinimum -and $overlayMinimum.Value -cne $minimum)) {
+    throw 'Published Windows overlay changes reviewed minimum or updater policy'
+}
+$runnerConfig = Get-Content -LiteralPath (Join-Path $sourceRoot 'apps/desktop/src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
+if ($sourceConfig.bundle.windows.minimumWebview2Version -cne $minimum -or
+    $runnerConfig.bundle.windows.minimumWebview2Version -cne $minimum) {
+    throw 'Published effective WebView2 floor differs from the approved hosted prerequisite floor'
+}
+$key = [Convert]::FromBase64String($sourceConfig.plugins.updater.pubkey)
+$hasher = [Security.Cryptography.SHA256]::Create()
+try { $keyHash = [BitConverter]::ToString($hasher.ComputeHash($key)).Replace('-', '').ToLowerInvariant() }
+finally { $hasher.Dispose() }
+if ($keyHash -cne $bound.updater_key_sha256) { throw 'Published signature verification key differs' }
+
+if ($Observation -ceq 'binding') {
+    $headers = @{ Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28' }
+    $publication = Invoke-RestMethod -Uri "https://api.github.com/repos/boburning/portcove/releases/tags/$tag" -TimeoutSec 45 -Headers $headers
+    if ($publication.id -ne $bound.release_id -or $publication.tag_name -cne $tag -or
+        $publication.target_commitish -cne $bound.source -or $publication.immutable -ne $true -or
+        $publication.draft -ne $false -or $publication.prerelease -ne $true) {
+        throw 'Actual immutable Preview publication differs'
+    }
+    function Assert-PublishedAsset([string]$Name, $Pin) {
+        $rows = @($publication.assets | Where-Object { $_.id -eq $Pin.id })
+        if ($rows.Count -ne 1 -or $rows[0].name -cne $Name -or $rows[0].size -ne $Pin.bytes -or
+            $rows[0].digest -cne "sha256:$($Pin.sha256)") { throw "Actual public asset differs ($Name)" }
+    }
+    Assert-PublishedAsset $setupName $bound.installer
+    Assert-PublishedAsset "$setupName.sig" $bound.signature
+    Assert-PublishedAsset $cliName $bound.cli_archive
+    $receipt = @{ binding_sha256=(Get-FileHash -LiteralPath $bindingPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        source=$bound.source; release_id=$bound.release_id; version=$version; minimum_webview2=$minimum }
+    $receipt | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $env:PORTCOVE_OUTPUT_DIR 'published-release.json')
+    Write-Receipt 'binding' $receipt
+    return
+}
+$admitted = Get-Content -LiteralPath (Join-Path $env:PORTCOVE_OUTPUT_DIR 'published-release.json') -Raw | ConvertFrom-Json
+if ($admitted.binding_sha256 -cne (Get-FileHash -LiteralPath $bindingPath -Algorithm SHA256).Hash.ToLowerInvariant() -or
+    $admitted.source -cne $bound.source -or $admitted.release_id -ne $bound.release_id -or
+    $admitted.version -cne $version -or $admitted.minimum_webview2 -cne $minimum) {
+    throw 'Hosted preparation did not follow the exact release binding'
+}
 Import-Module (Join-Path $PSScriptRoot 'windows-webview-driver-policy.psm1') -ErrorAction Stop
 $registeredRuntime = try { Get-WebViewRuntimeVersion } catch { $null }
 Write-Receipt 'runtime-prerequisite' @{
@@ -38,12 +131,14 @@ Write-Receipt 'runtime-prerequisite' @{
 Write-Receipt 'host' @{ os=[Environment]::OSVersion.VersionString; image=$env:ImageOS
     image_version=$env:ImageVersion; observation=$Observation; run_id=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT }
 
-$root = Join-Path $env:RUNNER_TEMP ("preview9-crawl-" + [Guid]::NewGuid().ToString('N'))
+$serviced = Get-Content -LiteralPath (Join-Path $env:PORTCOVE_OUTPUT_DIR 'webview2-runtime.json') -Raw | ConvertFrom-Json
+if ($serviced.minimum -cne $minimum -or $registeredRuntime -cne $serviced.after -or
+    [version]$registeredRuntime -lt [version]$minimum) { throw 'Maintained WebView2 preparation did not establish the binding floor' }
+$root = Join-Path $env:RUNNER_TEMP ("published-crawl-" + [Guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $root
-$tag = 'nightly-0.1.0-preview.9'
 $release = "https://github.com/boburning/portcove/releases/download/$tag"
-$desktopDigest = 'fae5ac4dfa597547d3ecb7c052589e6427a7577c516fcc3d06c8b022a6074b2a'
-$cliDigest = 'bf579694dafefd2d119cbd2f7b889c6eef926c6b0f47821a884a942c36d6df59'
+$desktopDigest = $bound.desktop_executable.sha256
+$cliDigest = $bound.cli_executable.sha256
 $port = 'dungeon-crawl-stone-soup'
 $asset = 'a772f22db9dde5dfa85bcc1652dbf16e3d62ecd1173f27c39387403532507979'
 $reviewedIndexes = @{
@@ -66,11 +161,12 @@ function Get-Artifact([string]$Name, [long]$Bytes, [string]$Digest) {
     Assert-File $path $Bytes $Digest
     $path
 }
-$setupName = 'Portcove_0.1.0-preview.9_x64-setup.exe'
-$setup = Get-Artifact $setupName 20547701 'da133337b4b0e0e08bde940fe81fc6ffb20921b466dc83ece804588cd8e54132'
-$null = Get-Artifact "$setupName.sig" 464 '47be86fa8d7db3a6c59bf92268c826b91b8e771451463ecc4a08ea2f615bd1f3'
-Write-Receipt 'frozen-release' @{ source='f4256f25615d75acc081afb984ab4195288db881'; release_id=451546466
-    installer_asset_id=768235484; signed_sidecar_asset_id=768235603; cli_asset_id=768236038 }
+$setup = Get-Artifact $setupName $bound.installer.bytes $bound.installer.sha256
+$null = Get-Artifact "$setupName.sig" $bound.signature.bytes $bound.signature.sha256
+Write-Receipt 'frozen-release' @{
+    source=$bound.source; release_id=$bound.release_id; version=$version
+    installer_asset_id=$bound.installer.id; signed_sidecar_asset_id=$bound.signature.id; cli_asset_id=$bound.cli_archive.id
+}
 
 # A single named extraction from the authenticated package gives the known
 # executable. The installer cell independently checks the installed bytes.
@@ -80,7 +176,7 @@ $package = Join-Path $root 'package'
 & $sevenZip x "-o$package" -y $setup 'portcove-desktop.exe' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Could not extract the known NSIS executable' }
 $desktop = Join-Path $package 'portcove-desktop.exe'
-Assert-File $desktop 82359808 $desktopDigest
+Assert-File $desktop $bound.desktop_executable.bytes $desktopDigest
 
 function Read-InstallerSummary([string]$Receipt, [int]$ExitStatus) {
     $journal = Get-Content -LiteralPath $Receipt -Raw | ConvertFrom-Json
@@ -141,30 +237,29 @@ if ($Observation -ceq 'installer') {
     $pwsh = (Get-Command pwsh -CommandType Application).Source
     & $pwsh -NoProfile -NonInteractive -File (Join-Path $PSScriptRoot 'test-windows-installer.ps1') `
         -InstallerPath $setup -ExpectedExecutablePath $desktop -ExpectedExecutableSha256 $desktopDigest `
-        -ExpectedVersion '0.1.0-preview.9' -TestBase $root `
+        -ExpectedVersion $version -TestBase $root `
         -RetainExecutablePath $app -EvidencePath $installerReceipt
     $installerExit = $LASTEXITCODE
     if (Test-Path -LiteralPath $installerReceipt -PathType Leaf) { Read-InstallerSummary $installerReceipt $installerExit }
     if ($installerExit -ne 0) { throw 'Owned installer smoke or removal failed' }
-    Assert-File $app 82359808 $desktopDigest
+    Assert-File $app $bound.desktop_executable.bytes $desktopDigest
     return
 }
 
 # Seed a new library using the exact published CLI and its ordinary fixed-anchor
 # approval, signed refresh and reviewed install. No retained machine data enters.
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$zip = Get-Artifact 'portcove-cli-0.1.0-preview.9-windows-x86_64.zip' 20008110 'a2a4930636b24765f6ffde88e92b2a5541ee2bb3973153cb20a4f6082cc3ccaf'
+$zip = Get-Artifact $cliName $bound.cli_archive.bytes $bound.cli_archive.sha256
 $cli = Join-Path $root 'portcove.exe'
 $cliArchive = [IO.Compression.ZipFile]::OpenRead($zip)
 try {
     if ($cliArchive.Entries.Count -ne 1 -or $cliArchive.Entries[0].FullName -cne 'portcove.exe' -or
-        $cliArchive.Entries[0].Length -lt 1 -or $cliArchive.Entries[0].Length -gt 120MB) {
+        $cliArchive.Entries[0].Length -ne $bound.cli_executable.bytes) {
         throw 'Unexpected published CLI archive layout'
     }
-    $cliBytes = $cliArchive.Entries[0].Length
     [IO.Compression.ZipFileExtensions]::ExtractToFile($cliArchive.Entries[0], $cli, $false)
 } finally { $cliArchive.Dispose() }
-Assert-File $cli $cliBytes $cliDigest
+Assert-File $cli $bound.cli_executable.bytes $cliDigest
 $library = Join-Path $root 'crawl-library'
 $env:PORTCOVE_LIBRARY = $library
 $env:PORTCOVE_PREFERENCES = Join-Path $root 'crawl-host-preferences.json'
@@ -178,6 +273,7 @@ function Read-Cli([string[]]$Command) {
     if (-not $result.ok) { throw 'Published CLI did not return a success receipt' }
     $result.data
 }
+if ((Read-Cli @('about')).version -cne $version) { throw 'Published CLI About version differs' }
 $authority = Read-Cli @('catalog','definition-authority')
 if (-not $authority.configured -or $authority.installed -or
     $authority.compiled_anchor_sha256 -cne $anchor -or $authority.expected_plan -cnotmatch '^[a-f0-9]{64}$') {
@@ -220,6 +316,7 @@ Write-Receipt 'cli-seed' @{ install_id=$active.id; package_sha256=$asset; defini
 $app = $desktop
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
+. (Join-Path $sourceRoot 'apps/desktop/scripts/native-window-discovery.ps1')
 $stdout = Join-Path $root 'crawl-desktop.stdout.log'
 $stderr = Join-Path $root 'crawl-desktop.stderr.log'
 $process = Start-Process -FilePath $app -WorkingDirectory $root -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
@@ -235,10 +332,12 @@ try {
             $process.Path -ne $app) { throw 'Owned Desktop process identity changed' }
         if ($process.MainWindowHandle -eq [IntPtr]::Zero) { return }
         $handle = $process.MainWindowHandle
+        if (-not [PortcoveNativeWindows]::IsOwnedWindow($handle, $process.Id)) {
+            throw 'Win32 top-level HWND does not belong to the held Desktop process'
+        }
         $window = [Windows.Automation.AutomationElement]::FromHandle($handle)
-        if ($window.Current.ProcessId -ne $process.Id) { throw 'Desktop window belongs to another process' }
         $runtimeModal = $window.Current.ClassName -ceq '#32770' -and
-            $window.Current.Name -ceq 'Portcove runtime required'
+            [PortcoveNativeWindows]::Matches($handle, $process.Id, 'Portcove runtime required')
         $windowKind = if ($runtimeModal) { 'runtime-required' }
             elseif ($window.Current.ClassName -ceq '#32770') { 'other-native-dialog' }
             else { 'other-owned-window' }
@@ -260,21 +359,24 @@ try {
             })
         }
         if ($runtimeModal) { throw 'The owned Desktop displayed its fixed WebView2 runtime-required prompt' }
-        $window
+        if (-not [PortcoveNativeWindows]::IsOwnedWindow($handle, $process.Id)) {
+            throw 'Win32 HWND ownership changed during startup observation'
+        }
+        @{ hwnd=$handle; element=$window }
     }
     function Read-Controls([string]$Name, [switch]$Invokable) {
-        $window = Read-OwnedWindow
-        if ($null -eq $window) { return }
+        $owned = Read-OwnedWindow
+        if ($null -eq $owned) { return }
         $nameCondition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, $Name)
-        foreach ($control in $window.FindAll([Windows.Automation.TreeScope]::Descendants, $nameCondition)) {
+        foreach ($control in $owned.element.FindAll([Windows.Automation.TreeScope]::Descendants, $nameCondition)) {
             if ($control.Current.IsOffscreen -or $control.Current.BoundingRectangle.IsEmpty) { continue }
             if ($Invokable) {
                 $pattern = $null
                 if (-not $control.Current.IsEnabled) { continue }
                 if ($control.TryGetCurrentPattern([Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) {
-                    $pattern
+                    @{ hwnd=$owned.hwnd; pattern=$pattern }
                 } elseif ($control.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
-                    $pattern
+                    @{ hwnd=$owned.hwnd; pattern=$pattern }
                 }
             } else { $control }
         }
@@ -289,9 +391,13 @@ try {
         throw "No unique visible owned control ($Name)"
     }
     function Select-Control([string]$Name) {
-        $pattern = Wait-Control $Name -Invokable
-        if ($pattern -is [Windows.Automation.SelectionItemPattern]) { $pattern.Select() }
-        else { $pattern.Invoke() }
+        $selected = Wait-Control $Name -Invokable
+        # The accessibility provider may be a WebView child. Require the exact
+        # app-owned native boundary immediately before invoking a scoped control.
+        $owned = Read-OwnedWindow
+        if (-not $owned -or $owned.hwnd -ne $selected.hwnd) { throw 'Native HWND changed before control invocation' }
+        if ($selected.pattern -is [Windows.Automation.SelectionItemPattern]) { $selected.pattern.Select() }
+        else { $selected.pattern.Invoke() }
     }
     Select-Control 'Library'
     Select-Control 'Dungeon Crawl Stone Soup'
@@ -331,10 +437,12 @@ try {
     $exitCode = $null
     try {
         $process.Refresh()
-        if (-not $process.HasExited -and $process.StartTime.ToUniversalTime() -eq $created -and $process.Path -eq $app) {
+        if (-not $process.HasExited -and $process.StartTime.ToUniversalTime() -eq $created -and
+            $process.Path -eq $app -and [PortcoveNativeWindows]::IsOwnedWindow($process.MainWindowHandle, $process.Id)) {
             $closed = $process.CloseMainWindow() -and $process.WaitForExit(10000)
             if ($closed) { $exitCode = $process.ExitCode }
         }
+        $runtime = $null
         if (Test-Path -LiteralPath $stderr -PathType Leaf) {
             $capture = Get-Item -LiteralPath $stderr
             $runtime = if ($capture.Length -le 65536) {
@@ -348,9 +456,13 @@ try {
         $webviewExit = @($browserProcesses | ForEach-Object { @{ pid=$_.Id; exited=$_.WaitForExit(10000) } })
         Write-Receipt 'desktop-close' @{ pid=$process.Id; closed=$closed; exit_code=$exitCode
             owned_webview_exit=$webviewExit; forced=$false }
-        if ((-not $closed -or $exitCode -ne 0 -or @($webviewExit | Where-Object { -not $_.exited }).Count -gt 0) -and
-            -not $observedFailure) {
-            throw 'Normal closure of the owned Desktop process was not proved'
+        if (-not $observedFailure) {
+            if (-not $closed -or $exitCode -ne 0 -or @($webviewExit | Where-Object { -not $_.exited }).Count -gt 0) {
+                throw 'Normal closure of the owned Desktop process was not proved'
+            }
+            if (-not $runtime -or $runtime.result -cne 'runtime-selected' -or [version]$runtime.selected -lt [version]$minimum) {
+                throw 'Packaged Desktop selected WebView2 at or above the reviewed floor was not observed'
+            }
         }
     } finally {
         foreach ($browser in $browserProcesses) { $browser.Dispose() }
