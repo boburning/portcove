@@ -344,7 +344,7 @@ void test("sourceable prerequisite planning preserves packages, budgets and call
       "ubuntu",
       "24.04",
       ["--include-rpm", "--include-dialog-tests", "--include-webdriver"],
-      ["rpm", "xvfb", "xauth", "webkit2gtk-driver", "xvfb", "dbus-x11"],
+      ["rpm", "xvfb", "xauth", "webkit2gtk-driver", "xvfb", "dbus-x11", "at-spi2-core"],
     ],
   ] as const) {
     const result = prerequisiteOperations(
