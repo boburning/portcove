@@ -426,7 +426,7 @@ fn thumbnail_with_fetch(
             elapsed_us = started.elapsed().as_micros() as u64,
             input_bytes = cached.as_ref().map_or(0, |bytes| bytes.len() as u64),
             success = cached.is_ok(),
-            "Catalog image original disk lookup"
+            message = "Catalog image original disk lookup"
         );
         if let Ok(original) = cached
             && verify_original(asset, &original).is_ok()
@@ -459,7 +459,7 @@ fn thumbnail_with_fetch(
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes = fetched.as_ref().map_or(0, |bytes| bytes.len() as u64),
         success = fetched.is_ok(),
-        "Catalog image download"
+        message = "Catalog image download"
     );
     let original = fetched.map_err(|error| {
         if error.details.contains_key(crate::artwork::ARTWORK_RETRY) {
@@ -484,7 +484,7 @@ fn verify_original(asset: &CatalogMediaAsset, bytes: &[u8]) -> Result<()> {
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes = bytes.len() as u64,
         success = valid,
-        "Catalog image original verification"
+        message = "Catalog image original verification"
     );
     if !valid {
         return Err(PortcoveError::verification(

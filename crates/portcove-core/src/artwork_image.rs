@@ -113,7 +113,7 @@ pub(crate) fn decode_with_thumbnail_bounds(
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes = bytes.len() as u64,
         output_bytes = thumbnail.len() as u64,
-        "Artwork image conversion"
+        message = "Artwork image conversion"
     );
     Ok(DecodedArtwork {
         format,

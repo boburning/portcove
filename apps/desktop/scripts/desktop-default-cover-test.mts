@@ -705,7 +705,13 @@ async function inspectCoverPass({
     let detailImage = null;
     if (detailIds.has(id)) {
       await selectCatalogPort(browser, id);
-      await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
+      await revealDetailSection(browser, "Overview");
+      const hero = await browser.findElement(By.css(".game-hero-detail"));
+      await executeBrowserScript(
+        browser,
+        (element) => element.scrollIntoView({ block: "start" }),
+        hero,
+      );
       detailImage = await image(
         '.game-hero-detail[data-hero-identity="cover"] .game-hero-foreground',
       );

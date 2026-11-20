@@ -48,7 +48,7 @@ where
         tracing::debug!(
             elapsed_us = queued.elapsed().as_micros() as u64,
             remote,
-            "Artwork thumbnail worker admission"
+            message = "Artwork thumbnail worker admission"
         );
         operation()
     })
@@ -70,7 +70,7 @@ fn display_thumbnail(thumbnail: ArtworkThumbnail) -> DesktopArtworkThumbnail {
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes,
         output_bytes = png_base64.len() as u64,
-        "Artwork thumbnail encoding"
+        message = "Artwork thumbnail encoding"
     );
     DesktopArtworkThumbnail {
         asset_sha256: thumbnail.asset_sha256,
@@ -269,7 +269,7 @@ pub(crate) async fn get_artwork(
         tracing::debug!(
             elapsed_us = started.elapsed().as_micros() as u64,
             success = artwork.is_ok(),
-            "Artwork state read"
+            message = "Artwork state read"
         );
         artwork.map_err(Into::into)
     })

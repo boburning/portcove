@@ -391,7 +391,7 @@ impl Library {
         tracing::debug!(
             elapsed_us = started.elapsed().as_micros() as u64,
             success = result.is_ok(),
-            "Effective catalog resolution"
+            message = "Effective catalog resolution"
         );
         let result = result?;
         transaction.commit()?;
@@ -426,7 +426,7 @@ impl Library {
             && observation.version == version
             && (observation.observed_at..observation.resolved.reusable_until).contains(&now)
         {
-            tracing::debug!("Artwork catalog snapshot reused");
+            tracing::debug!(message = "Artwork catalog snapshot reused");
             return Ok((
                 observation.resolved.catalog.clone(),
                 observation.resolved.provenance.clone(),
@@ -439,7 +439,7 @@ impl Library {
         tracing::debug!(
             elapsed_us = started.elapsed().as_micros() as u64,
             success = resolved.is_ok(),
-            "Effective catalog resolution"
+            message = "Effective catalog resolution"
         );
         let resolved = resolved?;
         transaction.commit()?;

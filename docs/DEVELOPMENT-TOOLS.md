@@ -3609,6 +3609,16 @@ has a null completion time and lists the ready IDs. Individual timing rows
 are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
 matching catalog, viewport, visible IDs, and cache and network conditions.
 
+The [first Windows comparison](https://github.com/boburning/portcove/actions/runs/44766606843)
+observed one visible DKR-R cover per run at 1280×800 and 1× pixel ratio. The
+instrumented baseline `e3c9c7d34fd3` and candidate `32659bd8ff44` used
+development builds and WebView2 158.0.4370.33 on the same Windows Server 2022
+runner. Cold Discover readiness was 1,020 ms and 662 ms respectively. The
+same-session revisit took 79 ms and 80 ms. Both runs stopped at the Detail
+assertion before the offline restart. These are single observations. The next
+run needs the Overview tab and structured stage records for the restart and
+work-count evidence.
+
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mts --app <retained-installed-executable> --output

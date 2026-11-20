@@ -98,6 +98,7 @@ pub fn field(name: &str, value: &Value) -> Option<Value> {
         "stdout_bytes" | "stderr_bytes" => value.as_u64().map(|value| json!(value)),
         "exit_code" => value.as_i64().map(|value| json!(value)),
         "success"
+        | "remote"
         | "truncated"
         | "activity_recorded"
         | "capture_recorded"

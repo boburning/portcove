@@ -62,7 +62,7 @@ impl RemoteDerivative {
             elapsed_us = started.elapsed().as_micros() as u64,
             input_bytes = result.as_ref().map_or(0, |bytes| bytes.len() as u64),
             success = result.is_some(),
-            "Remote artwork derivative lookup"
+            message = "Remote artwork derivative lookup"
         );
         result
     }

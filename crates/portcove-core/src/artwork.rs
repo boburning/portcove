@@ -1909,7 +1909,7 @@ fn cached_igdb_thumbnail(
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes = read.as_ref().map_or(0, |bytes| bytes.len() as u64),
         success = read.is_ok(),
-        "Cover original disk lookup"
+        message = "Cover original disk lookup"
     );
     if let Ok(original) = read
         && verify_igdb_original(&original, artwork).is_ok()
@@ -1990,7 +1990,7 @@ pub(super) fn igdb_thumbnail_with_fetch(
         elapsed_us = fetch_started.elapsed().as_micros() as u64,
         input_bytes = fetched.as_ref().map_or(0, |bytes| bytes.len() as u64),
         success = fetched.is_ok(),
-        "Cover download"
+        message = "Cover download"
     );
     let original = match fetched {
         Ok(original) => original,
@@ -2121,7 +2121,7 @@ fn verify_igdb_original(original: &[u8], artwork: &crate::IgdbArtwork) -> Result
         elapsed_us = started.elapsed().as_micros() as u64,
         input_bytes = original.len() as u64,
         success = valid,
-        "Cover original verification"
+        message = "Cover original verification"
     );
     if !valid {
         return Err(PortcoveError::verification(
