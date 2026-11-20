@@ -1,0 +1,67 @@
+{
+  "origin": {
+    "full_name": "ja2-stracciatella/ja2-stracciatella",
+    "html_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
+    "id": 51711866,
+    "license": null
+  },
+  "release": {
+    "id": 252247060,
+    "tag": "v0.22.1",
+    "commit": "11e9430b67d788b73f7a57d22166e8b500c23dab"
+  },
+  "packages": {
+    "msvc64": {
+      "archive": {
+        "id": 300989599,
+        "name": "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142.zip",
+        "size": 19629518,
+        "digest": "sha256:a05cdf23d01adb752d0db57b065778f3f27274ed6a952c17d87d98634d7e9b43",
+        "browser_download_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/releases/download/v0.22.1/ja2-stracciatella_0.22.1-git%2B11e9430_win-msvc64-142.zip"
+      },
+      "files": {
+        "ja2.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142/ja2.exe",
+          "bytes": 10091520,
+          "sha256": "b485c7447fa119c97b63083e5d97b2fe82e79462938ab4f27edc6daff3a6fa13"
+        },
+        "ja2-launcher.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142/ja2-launcher.exe",
+          "bytes": 2381312,
+          "sha256": "798c09f251c385eee25ad18668d333273c4d32748585b6f2dabdfe00dbd58a66"
+        },
+        "ja2-resource-pack.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142/ja2-resource-pack.exe",
+          "bytes": 952832,
+          "sha256": "24847b0185ccd95f04ab7926bb1d1d21fd930403f03e1fbc8c7d2993463271f3"
+        }
+      }
+    },
+    "mingw64": {
+      "archive": {
+        "id": 300989551,
+        "name": "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross.zip",
+        "size": 41420888,
+        "digest": "sha256:ec61d1a4ab9530cec450f8a831d634878f4eed775ed2d64c82d0741fd26e6db0",
+        "browser_download_url": "https://github.com/ja2-stracciatella/ja2-stracciatella/releases/download/v0.22.1/ja2-stracciatella_0.22.1-git%2B11e9430_win-mingw64-cross.zip"
+      },
+      "files": {
+        "ja2.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross/ja2.exe",
+          "bytes": 55879366,
+          "sha256": "f5422c3b924696a1569f9cfddcbab875d46ec50402d095e1b3a1510b0e310e98"
+        },
+        "ja2-launcher.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross/ja2-launcher.exe",
+          "bytes": 19359802,
+          "sha256": "e31a2edaeaff05c538ff594e466331412777c0828135d985f8c139d952da133a"
+        },
+        "ja2-resource-pack.exe": {
+          "package_member": "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross/ja2-resource-pack.exe",
+          "bytes": 12984361,
+          "sha256": "8e2fc1c430646173d569d2da52cabbc211ea2d8941fce307816f20a75fa7cab1"
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,7 @@ on:
             compiled,
             qualification-history,
             candidate-consumer,
+            ja2-native-witness,
             slice3-windows-recovery,
           ]
       execution_binding:
@@ -63,6 +64,39 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  ja2_native_witness:
+    if: ${{ inputs.operation == 'ja2-native-witness' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' && github.ref == 'refs/heads/feature/2583-ja2-native-witness' }}
+    name: JA2 native known-folders (${{ matrix.flavor }})
+    runs-on: windows-2022
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        flavor: [msvc64, mingw64]
+    env:
+      PORTCOVE_JA2_VARIANT: ${{ matrix.flavor }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Exercise the exact official package in the disposable Windows account
+        shell: pwsh
+        run: ./scripts/ja2-native-witness.ps1 -Variant $env:PORTCOVE_JA2_VARIANT
+      - name: Retain bounded evidence in this job log
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $evidence = Join-Path $env:RUNNER_TEMP "portcove-ja2-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-$env:PORTCOVE_JA2_VARIANT/evidence"
+          if (Test-Path -LiteralPath $evidence -PathType Container) {
+            node scripts/native-backup-evidence.mts emit "$evidence"
+            if ($LASTEXITCODE -ne 0) { throw 'Required native evidence retention failed' }
+          }
+
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
