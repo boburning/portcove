@@ -11748,6 +11748,7 @@
           }
         ]
       },
+      "variant_label": "Prebuilt player",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11845,7 +11846,8 @@
             ]
           }
         ]
-      }
+      },
+      "variant_label": "Build from setup kit"
     },
     {
       "id": "alexbeav-medievil-recomp",
@@ -35616,7 +35618,7 @@
       "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
       "listed_at": "2026-11-19",
       "release_url": "https://github.com/crawl/crawl/releases/tag/0.34.1",
-      "original_game_title": "Linley's Dungeon Crawl",
+      "original_game_title": "Dungeon Crawl Stone Soup",
       "setup_url": "https://crawl.develz.org/wordpress/about",
       "availability": "packages",
       "manual_setup": {
@@ -60697,12 +60699,12 @@
       "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
       "original_game_title": "Hot Shots Tennis: Get a Grip",
       "summary": "Experimental project. The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/Jstar269/nakagawa-recomp",
+      "project_url": "https://github.com/Jstar269/Nakagawa-Recomp",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/Jstar269/nakagawa-recomp",
+      "setup_url": "https://github.com/Jstar269/Nakagawa-Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -60718,7 +60720,7 @@
           "The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/Jstar269/nakagawa-recomp"
+        "help_url": "https://github.com/Jstar269/Nakagawa-Recomp"
       },
       "issue_number": 3010,
       "listed_at": "2026-10-25",
@@ -100796,15 +100798,19 @@
         "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
         "steps": [
           {
-            "title": "Open the upstream launcher",
-            "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+            "title": "Open the upstream Windows launcher",
+            "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together."
+          },
+          {
+            "title": "Select the Linux AppImage",
+            "instruction": "Use the official Linux x64 AppImage on a host with glibc 2.38 or later. Make the file executable. In Portcove, select the AppImage and use its containing folder as the working directory. If FUSE is unavailable, enter --appimage-extract-and-run as one argument."
           },
           {
             "title": "Choose your original game",
             "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
           },
           {
-            "title": "Select the prepared player",
+            "title": "Select the prepared Windows player",
             "instruction": "Select wl4-launcher.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],

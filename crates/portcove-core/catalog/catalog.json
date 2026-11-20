@@ -17241,6 +17241,10 @@
           {
             "upstream_ref": "v1.2.2",
             "artifact_sha256": "de8b19cdb4e3ad0c10fd6d8127f7a6cc2a9eba106d89c753439178b718887c42"
+          },
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689"
           }
         ],
         "aliases": [],
@@ -48316,6 +48320,7 @@
             }
           ]
         },
+        "variant_label": "Prebuilt player",
         "manual_setup": {
           "steps": [
             {
@@ -48458,6 +48463,7 @@
             }
           ]
         },
+        "variant_label": "Build from setup kit",
         "manual_setup": {
           "steps": [
             {
@@ -64100,7 +64106,7 @@
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes.",
-        "original_game_title": "Linley's Dungeon Crawl",
+        "original_game_title": "Dungeon Crawl Stone Soup",
         "original_game": {
           "format_version": 1,
           "id": "linleys-dungeon-crawl",
@@ -82782,15 +82788,19 @@
           "help_url": "https://github.com/BioRhythmicStudios/warioland4/blob/linux-v0.1.0-beta/port/appimage/README_APPIMAGE.md",
           "steps": [
             {
-              "title": "Open the upstream launcher",
-              "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together. On Linux x64, select the separate Linux AppImage release. Make the AppImage executable and open it with glibc 2.38 or later. Follow the Linux guide if the host cannot use FUSE."
+              "title": "Open the upstream Windows launcher",
+              "instruction": "On Windows, select the Windows x64 release, extract the entire ZIP into a folder you own, and open wl4-launcher.exe. Keep both EXEs, SDL3.dll, and the notices together."
+            },
+            {
+              "title": "Select the Linux AppImage",
+              "instruction": "Use the official Linux x64 AppImage on a host with glibc 2.38 or later. Make the file executable. In Portcove, select the AppImage and use its containing folder as the working directory. If FUSE is unavailable, enter --appimage-extract-and-run as one argument."
             },
             {
               "title": "Choose your original game",
               "instruction": "In the launcher, choose Browse and select your own unmodified US Game Boy Advance ROM. The launcher checks for an 8 MiB file with game code AWAE and MD5 5fe47355a33e3fabec2a1607af88a404. Choose Launch Game."
             },
             {
-              "title": "Select the prepared player",
+              "title": "Select the prepared Windows player",
               "instruction": "Select wl4-launcher.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
             }
           ],

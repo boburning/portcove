@@ -46,7 +46,8 @@
           ]
         }
       ]
-    }
+    },
+    "variant_label": "Prebuilt player"
   },
   "integration": {
     "support_tier": "beta",

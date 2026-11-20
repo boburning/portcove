@@ -1,3 +1,4 @@
+import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -1229,6 +1230,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
+      original_game_grouping: originalGamePreparationFeedback(record, authored.records),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
         ? {}

@@ -819,10 +819,14 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
     }
     let installable = !project.obsolete
         && project.status_unknown.is_none()
-        && project
-            .files
-            .iter()
-            .any(|file| !file.archived && file.status_unknown.is_none());
+        && project.files.iter().any(|file| {
+            !file.archived
+                && file.status_unknown.is_none()
+                && view
+                    .eligible_file_ids
+                    .as_ref()
+                    .is_none_or(|ids| ids.contains(&file.file_id))
+        });
     if stale.is_some() {
         lines.push(format!(
             "Try again when {provider} can be reached before reviewing a {noun}."
@@ -1752,6 +1756,17 @@ mod provider_text_tests {
         assert!(!text.contains("GameBanana"));
         let text = provider_project_text(&view(thunderstore, ProviderFreshness::Fresh));
         assert!(text.contains("provider-plan shipwright PROFILE_ID Owner-Timer VERSION"));
+    }
+
+    #[test]
+    fn project_text_keeps_file_details_when_core_holds_review() {
+        let mut view = view(project(false, 0, false), ProviderFreshness::Fresh);
+        view.eligible_file_ids = Some(Vec::new());
+        let text = provider_project_text(&view);
+        assert!(text.contains(&view.project.files[0].file_name));
+        assert!(!text.contains("provider-plan"));
+        view.eligible_file_ids = Some(vec![view.project.files[0].file_id.clone()]);
+        assert!(provider_project_text(&view).contains("provider-plan"));
     }
 
     #[test]

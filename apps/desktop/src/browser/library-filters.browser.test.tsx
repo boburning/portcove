@@ -581,16 +581,16 @@ it("selects one quick view at a time with counts from the shared search and filt
   await closeFilters();
   const all = quickView("All");
   await expect.element(all).toHaveAttribute("aria-checked", "true");
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await quickView("Favorites 1 game").click();
   await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
   await expect.element(all).toHaveAttribute("aria-checked", "false");
   // Other views keep counting the shared base rather than the Favorites result.
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await quickView("Updates").click();
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
   await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "false");
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await expect.element(button("Remove Runs on: Windows filter")).toBeVisible();
   // The view itself is the visible selection; it adds no engineering filter chips.
   await expect.element(button("Filters (1)")).toBeInTheDocument();

@@ -1124,3 +1124,35 @@ for (const claim of listingClaimCases) {
     assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
   });
 }
+
+void test("direct port intake retains reviewed source-title ownership after original-game display cleanup", () => {
+  const upstream = "https://github.com/example/portable";
+  const existing = {
+    number: 17,
+    title: "[Port] Super Mario Advance 2 / Portable Project",
+    state: "CLOSED",
+    body: `Underlying game: **Super Mario Advance 2**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-port-key: portable-old -->\n<!-- portcove-upstream: ${upstream} -->`,
+  };
+  const records = [
+    {
+      format_version: 1 as const,
+      listing: {
+        id: "portable-old",
+        name: "Portable Project",
+        summary: "Retained source edition.",
+        project_url: upstream,
+        issue_number: 17,
+        original_game_title: "Super Mario World",
+      },
+    },
+  ];
+  const matches = findPortIssueDuplicates([existing], {
+    title: existing.title,
+    upstream,
+    portKey: "portable-new",
+    repositoryIdentity: { id: 42, game: "Super Mario Advance 2" },
+    catalogRecords: records,
+  });
+  assert.equal(matches.length, 1);
+  assert.ok(matches[0]!.reasons.some((reason) => reason.startsWith("normalized title")));
+});

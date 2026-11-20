@@ -43,7 +43,10 @@ impl PortcoveService {
                 "install this game before reviewing an update",
             ));
         }
-        let mut plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let (mut plan, resolution) = self
+            .plan_install_resolution(port_id, Some(status.channel), None, None)
+            .await?;
+        let explicit_package_proof_sha256 = resolution.explicit_package_proof_sha256()?;
         let transition = if review_data {
             self.archive_data_transition_review(port_id, &plan.release)?
         } else {
@@ -69,7 +72,15 @@ impl PortcoveService {
                 acquisition,
             ))?);
         }
-        let acquisition = self.acquisition_for_review(&status, &plan)?;
+        let acquisition =
+            self.acquisition_for_review(&status, &plan, explicit_package_proof_sha256.as_deref())?;
+        if let Some(proof) = &explicit_package_proof_sha256 {
+            plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove reviewed update explicit package v2",
+                plan_sha256,
+                proof,
+            ))?);
+        }
         // Informational and outside the digest: edited upstream notes never
         // invalidate a reviewed update. Read from cached metadata only.
         let release_notes = self.update_release_notes(port_id, &plan, &status)?;
@@ -82,6 +93,7 @@ impl PortcoveService {
             ))?);
         }
         let reviewed = GameUpdatePlan {
+            explicit_package_proof_sha256,
             acquisition,
             data_transition,
             assessment: game_update_plan_assessment(&plan),
@@ -285,6 +297,7 @@ impl PortcoveService {
                 ReleaseIntent {
                     activate,
                     acquired,
+                    explicit_package_proof_sha256: reviewed.explicit_package_proof_sha256,
                     shared_preferences: reviewed
                         .plan
                         .shared_preferences

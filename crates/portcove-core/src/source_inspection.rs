@@ -2222,11 +2222,15 @@ pub(crate) fn registered_launch_assessment(
     let [contract] = contracts.as_slice() else {
         return assessment;
     };
-    assessment.contract = if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
+    let release_is_bound =
+        release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash));
+    assessment.contract = if contract.variant_list_recognition_only && !release_is_bound {
+        SourceContractResult::UnreviewedForRelease
+    } else if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
         SourceContractResult::Informational {
             contract_id: contract.id.clone(),
         }
-    } else if !release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash)) {
+    } else if !release_is_bound {
         SourceContractResult::UnreviewedForRelease
     } else if let SourceClassification::Recognized { identity } = &assessment.classification {
         if contract

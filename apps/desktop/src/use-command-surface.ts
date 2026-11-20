@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { gameIdentityLabel } from "./port-identity";
+import { gameIdentityLabel, gameTitle } from "./port-identity";
 import {
   Boxes,
   Download,
@@ -12,12 +12,19 @@ import {
 } from "lucide-react";
 import type { PaletteCommand } from "./components/CommandPalette";
 import { commandShortcut, useGlobalShortcuts } from "./keyboard-shortcuts";
+import {
+  groupCatalog,
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  originalGame,
+} from "./features/browsing/original-game";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type { RecentPort, View } from "./view-model";
 
 interface CommandSurfaceOptions {
   recent?: RecentPort | undefined;
   games?: readonly SearchableGame[];
+  preferredPortByGame?: Readonly<Record<string, string>> | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -49,6 +56,7 @@ export function withLibraryVisibility(
 export function commandSurfaceCommands({
   recent,
   games = [],
+  preferredPortByGame,
   installedCount,
   busy,
   setView,
@@ -162,21 +170,83 @@ export function commandSurfaceCommands({
       disabled: !recent,
       action: () => recent && setSelectedId(recent.port.id),
     },
-    // Library games first so each group renders under one contiguous heading.
-    ...[...games.filter((game) => game.inLibrary), ...games.filter((game) => !game.inLibrary)].map(
-      ({ port, inLibrary }): PaletteCommand => ({
-        id: `game:${port.id}`,
-        group: inLibrary ? "Games in your library" : "Games in Discover",
-        label: gameIdentityLabel(port),
-        description: "Open game details",
+    ...gameSearchCommands(games, setSelectedId, preferredPortByGame),
+  ];
+}
+
+/** A title query shows one game; a project query retains its exact detail target. */
+function gameSearchCommands(
+  games: readonly SearchableGame[],
+  setSelectedId: (portId: string) => void,
+  preferences: Readonly<Record<string, string>> | undefined,
+): PaletteCommand[] {
+  const library = new Set(games.filter((game) => game.inLibrary).map(({ port }) => port.id));
+  return groupCatalog(games.map(({ port }) => port))
+    .map((group): PaletteCommand => {
+      const identified = group.id.startsWith("game:");
+      const installed = group.ports.filter((port) => library.has(port.id));
+      // Opening details grants no choice or action; all alternatives stay visible there.
+      const gameId = originalGame(group.ports[0]!)?.id;
+      const preferred =
+        gameId && preferences && Object.hasOwn(preferences, gameId)
+          ? group.ports.find((port) => port.id === preferences[gameId])
+          : undefined;
+      const representative =
+        preferred ?? (installed.length === 1 ? installed[0]! : gameGroupPresentationPort(group));
+      const inLibrary = installed.length > 0;
+      return {
+        id: group.id,
+        ...(identified ? {} : { exactQueries: [representative.id] }),
+        group: identified
+          ? inLibrary
+            ? "Games in your library"
+            : "Games in Discover"
+          : inLibrary
+            ? "Projects in your library"
+            : "Projects in Discover",
+        label: identified ? gameGroupTitle(group) : gameIdentityLabel(representative),
+        description:
+          group.ports.length > 1
+            ? `${group.ports.length} options · Open game details and options`
+            : "Open details",
         icon: Gamepad2,
-        keywords: `${port.id} ${port.name}`,
+        keywords: identified
+          ? group.ports
+              .flatMap((port) => [
+                gameTitle(port),
+                ...(originalGame(port)?.source_editions.map((edition) => edition.title) ?? []),
+              ])
+              .join(" ")
+          : `${representative.id} ${representative.name}`,
         searchOnly: true,
         matchDescription: false,
-        action: () => setSelectedId(port.id),
-      }),
-    ),
-  ];
+        action: () => setSelectedId(representative.id),
+        ...(identified
+          ? {
+              searchAlternatives: group.ports.map((port): PaletteCommand => ({
+                id: `option:${port.id}`,
+                exactQueries: [port.id],
+                group: library.has(port.id)
+                  ? "Port options in your library"
+                  : "Port options in Discover",
+                label: gameIdentityLabel(port),
+                description: "Open this port’s details and setup options",
+                icon: Gamepad2,
+                keywords: `${port.id} ${port.name}`,
+                searchOnly: true,
+                matchDescription: false,
+                action: () => setSelectedId(port.id),
+              })),
+            }
+          : {}),
+      };
+    })
+    .sort(
+      (left, right) =>
+        Number(!left.group?.includes("your library")) -
+          Number(!right.group?.includes("your library")) ||
+        (left.group ?? "").localeCompare(right.group ?? ""),
+    );
 }
 
 function activeModSearch() {
@@ -187,6 +257,7 @@ export function useCommandSurface({
   view,
   recent,
   games,
+  preferredPortByGame,
   installedCount,
   busy,
   setView,
@@ -198,6 +269,7 @@ export function useCommandSurface({
   view: View;
   recent?: RecentPort | undefined;
   games?: readonly SearchableGame[];
+  preferredPortByGame?: Readonly<Record<string, string>> | undefined;
   installedCount: number;
   busy: boolean;
   setView: (view: View) => void;
@@ -230,6 +302,7 @@ export function useCommandSurface({
       commandSurfaceCommands({
         recent,
         ...(games ? { games } : {}),
+        preferredPortByGame,
         installedCount,
         busy,
         setView,
@@ -246,6 +319,7 @@ export function useCommandSurface({
       focusLibrarySearch,
       focusSearch,
       games,
+      preferredPortByGame,
       installedCount,
       openUpdates,
       recent,

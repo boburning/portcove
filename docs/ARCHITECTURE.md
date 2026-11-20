@@ -58,6 +58,22 @@ installation lock or host scheduler is created for interface scaling. See
 
 Core owns game release-channel selection and its stored values. See the [CLI release-channel contract](CLI.md#release-channels).
 
+Game-group presentation uses the complete explicitly identified family, with a
+stable authored-title/stable-port-ID representative independent of filters and
+implementation choice. The representative supplies the game title and accepted
+cover only; Core assessments and exact port/install identities still govern
+actions. Global command search returns one game for an original-title query and
+exact port options for project queries. Its game detail destination respects an
+explicit preferred implementation or the sole visible installed implementation;
+opening details never persists an implementation choice.
+
+Native grouped file drops retain their paths in ephemeral React state while an
+ambiguous group asks for a specific implementation. The continuation binds the
+library generation and accepted definition/listing snapshots. Selection then
+uses the exact current port's source profile and existing Core source-review
+route. Sharing an original-game ID grants no original-file or save compatibility.
+A resolved eligible implementation keeps its exact direct drop target.
+
 ## Current ownership and deliverables
 
 Game integrations use the [upstream-first ownership contract](CATALOG.md#integration-ownership).
@@ -2855,6 +2871,37 @@ the separate checked destination and historical-admission contract.
 `library_transfer`, `transfer_copy`, and `library_move` own move planning, copy verification, and authority transitions respectively. An exclusive source lease excludes every current client and launch supervisor. The reviewed plan binds metadata and each managed file's hash, detects portable-path collisions and unsupported entries, and budgets destination space. A versioned journal precedes its identified activity, so interruption before activity creation is recoverable. The original library receives a pending authority marker before copying. A newly created destination holds an exclusive lease and a pending marker while files are individually published without overwrite and SQLite is snapshotted with `VACUUM INTO`. Copied paths are rebased; active, previous, and staged identities remain unchanged. Source and destination inventories, logical metadata, database integrity, and all immutable install manifests are verified before a destination receipt is written.
 
 Publication records the source as moved before clearing the destination's pending marker. Normal library opens follow only matching receipts, stop at pending transfers, and bound relocation chains. Recovery after activation only finalizes bookkeeping; it never copies old data over a destination that could have received new saves. Abort before publication removes the original's gate and retains the incomplete destination under its gate. Neither operation deletes either data tree. Pending transfer activity remains running with an explicit recovery journal, then becomes succeeded or failed on completion or abort. Flushed files and directory synchronization support Linux process/power-loss recovery; Windows/macOS retain process interruption recovery without a directory power-loss guarantee. Tauri owns only the temporary handoff of its cached library/provider handles and reopens the root selected by core. This changes no durable domain ownership or crate dependency rule.
+
+## Library recovery bundles
+
+Core previews a bundle from one existing library and a separate destination.
+The review binds the library identity, exact metadata and managed file inventory.
+It accounts for managed versions, library user data, source inbox, backups, toolchains
+and local artwork. External runtimes and save locations, external original or BIOS
+files, unknown save locations and host credentials are excluded. Recorded external
+source references can remain in metadata as locations to verify or relink later.
+An installation managed by Portcove outside the library root holds the bundle
+review because its installation record and runtime could not be restored together.
+
+Creation takes the same exclusive source lease as a library move and rechecks the
+review. It writes an authenticated intent in a private sibling directory and copies
+into that directory. The destination filesystem must enforce private owner access
+for the staging and payload directories. The original library keeps its existing
+authority and active preference.
+Core verifies the copied inventory and metadata, rechecks the source and publishes
+the bundle with an atomic no-replace rename. Staging remains separate from completed
+bundles. Recovery reads the exact intent and either completes the staged copy against
+the unchanged source or verifies the already-published bundle. A changed source needs
+a new review and the old staged files remain available.
+
+Bundle inspection validates the format, installed-contract authority, exact content
+and host-authenticated receipt without opening a library. The receipt uses a separate
+proof domain from historical installation admissions. A different host cannot use
+that receipt to establish local verification or publisher authority. Restore binds
+the verified receipt and checked import plan to a new or empty destination outside
+both the bundle and its source library. The import journal owns the restore and its
+recovery. The player opens the recovered library through the separate library
+selection operation.
 
 ## Library imports
 

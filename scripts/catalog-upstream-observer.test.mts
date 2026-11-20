@@ -1,3 +1,8 @@
+import { upstreamFacts } from "./maintenance-upstream.mts";
+import { createHash } from "node:crypto";
+import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
+import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -1042,6 +1047,244 @@ void test("reviewed declarations share provider collection while keeping port-sp
     ),
   );
 });
+
+const gameEntryFixture = `std::vector<recomp::GameEntry> supported_games = {
+  { .rom_hash = 0x0123456789ABCDEFULL, .game_id = u8"fixture.us", .mod_game_id = "fixture",
+    .ignored = callback(1, 2) },
+  { .rom_hash = 0x1234ULL, .game_id = u8"fixture.eu" },
+};`;
+
+void test("N64 game entries require a single unconditional table and literal identities", () => {
+  assert.deepEqual(parseN64GameTable("/* unused declaration */\n" + gameEntryFixture), [
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
+    { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
+  ]);
+  for (const invalid of [
+    `#if ENABLED
+${gameEntryFixture}
+#endif`,
+    `/* marker */ #if 0
+${gameEntryFixture}
+/* marker */ #endif`,
+    `#/**/if 0
+${gameEntryFixture}
+#/**/endif`,
+    `%:if 0
+${gameEntryFixture}
+%:endif`,
+    ["// hidden " + String.fromCharCode(92) + "   ", gameEntryFixture.replace(/\n/gu, " ")].join(
+      "\n",
+    ),
+    ["// hidden " + String.fromCharCode(92), gameEntryFixture.replace(/\n/gu, " ")].join("\r"),
+    `/* ${gameEntryFixture} */`,
+    `/* missing terminator
+${gameEntryFixture}`,
+    `auto s = R"(
+${gameEntryFixture}
+)";`,
+    `${gameEntryFixture}
+${gameEntryFixture}`,
+    gameEntryFixture.replace("0x1234ULL", "PLATFORM_HASH"),
+    gameEntryFixture.replace("fixture.eu", "fixture.us"),
+    gameEntryFixture.replace('.mod_game_id = "fixture",', '.mod_game_id = "fi" "xture",'),
+    gameEntryFixture.replace(
+      ".ignored = callback(1, 2)",
+      `
+#if ENABLED
+.ignored = callback(1, 2)
+#endif
+`,
+    ),
+  ])
+    assert.throws(() => parseN64GameTable(invalid), /unsupported or ambiguous/u);
+});
+
+for (const family of ["libultraship", "n64-recomp"] as const) {
+  void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
+    const h = harness();
+    Object.assign(h.input.ports[0]!, { adapter: `${family}-portable`, source_profile: "example" });
+    h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
+    const baseProject = h.options.project;
+    let unavailable: "budget" | "rate-limit" | null = null;
+    h.options.project = async (portId, repositoryId, observation) => {
+      const policy = await baseProject(portId, repositoryId, observation);
+      if (
+        portId !== "stable-port" &&
+        !(portId === "stable-port-second" && unavailable === "rate-limit")
+      )
+        return policy;
+      const release = observation.facts.releases.find((release) => release.id === 1);
+      assert.ok(release);
+      return {
+        ...(policy as Record<string, unknown>),
+        projections: [
+          {
+            channel: "stable",
+            platform: "linux-x86-64",
+            channel_candidate: { id: 1, tag: release.tag_name },
+            latest_eligible: {
+              release_id: 1,
+              release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
+            },
+          },
+        ],
+      };
+    };
+    const raw = Buffer.from(
+      family === "n64-recomp"
+        ? gameEntryFixture
+        : JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]),
+    );
+    const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
+    const requests: string[] = [];
+    const runtimeRequests: string[] = [];
+    h.options.observeN64Runtime = family === "n64-recomp";
+    let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
+    let tagSha = "c".repeat(40);
+    let retryAt: string | null = null;
+    h.options.readOriginalRecognition = async (repository, endpoint, account) => {
+      account.admitRequest();
+      if (endpoint.includes(`/contents/${n64RuntimeLinkPath}`)) {
+        runtimeRequests.push(endpoint);
+        if (gitlinkResponse === "deferred")
+          throw new ObservationFailure("budget", "fixture runtime metadata deferred");
+        return gitlinkResponse === "incomplete"
+          ? { path: n64RuntimeLinkPath, type: "submodule" }
+          : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
+      }
+      requests.push(endpoint);
+      if (unavailable)
+        throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
+      const ref = endpoint.split("/git/ref/tags/")[1];
+      if (ref !== undefined)
+        return {
+          ref: `refs/tags/${ref}`,
+          object: { type: "commit", sha: tagSha },
+        };
+      if (endpoint.includes("/contents/"))
+        return {
+          type: "file",
+          path: sourcePath,
+          encoding: "base64",
+          size: raw.length,
+          content: raw.toString("base64"),
+          sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+        };
+      return { id: 7, full_name: repository };
+    };
+    const retained = (checkpoint: CatalogObserverCheckpoint) => {
+      const source = Object.values(checkpoint.sources).find(
+        (source) => source.repository === "owner/shared",
+      );
+      const policy = source?.last_complete_policies.find(
+        (policy) => policy.port_id === "stable-port",
+      );
+      return readOriginalSourceProgress(
+        policy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      );
+    };
+    const initial = await advanceCatalogObservations(h.input, null, h.options);
+    let observation = retained(initial.checkpoint);
+    assert.equal(observation?.state, "observed");
+    const fact = observation?.last_complete?.fact;
+    assert.equal(fact?.release_tag, "v1.0.0");
+    assert.equal(
+      fact?.coverage,
+      family === "n64-recomp" ? "source-declaration" : "recognition-only",
+    );
+    assert.ok(
+      requests.some((endpoint) => endpoint.endsWith(`/contents/${sourcePath}?ref=${tagSha}`)),
+    );
+    const stored = upstreamFacts(initial.checkpoint, h.input, h.options.now!()).facts;
+    const port = stored.get("port:stable-port");
+    assert.ok(isRecord(port) && Array.isArray(port.sources) && isRecord(port.sources[0]));
+    assert.deepEqual(port.sources[0][inputEvidenceKey(family)], observation);
+    assert.equal(requests.length, 4);
+
+    h.advanceClock(48 * 3600_000);
+    gitlinkResponse = "incomplete";
+    let refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    let extraTagReads = 0;
+    if (family === "n64-recomp") {
+      assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(fact.runtime_source, { state: "unavailable" });
+      assert.deepEqual(retained(refreshed.checkpoint)?.last_complete, observation?.last_complete);
+      h.advanceClock(48 * 3600_000);
+      gitlinkResponse = "unsupported";
+      refreshed = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+      extraTagReads++;
+      assert.deepEqual(runtimeRequests, [
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+      ]);
+      const refreshedObservation = retained(refreshed.checkpoint);
+      const refreshedFact = refreshedObservation?.last_complete?.fact;
+      assert.deepEqual(refreshedFact, {
+        ...fact,
+        runtime_source: { state: "unsupported-gitlink" },
+      });
+      observation = refreshedObservation;
+    } else {
+      assert.deepEqual(retained(refreshed.checkpoint), observation);
+      assert.equal(runtimeRequests.length, 0);
+    }
+    assert.equal(requests.length, 5 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    tagSha = "d".repeat(40);
+    const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+    assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
+    assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(requests.length, 6 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    unavailable = "budget";
+    const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
+    assert.equal(retained(deferred.checkpoint)?.state, "budget");
+    assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(deferred.report.completed_source_keys.length, 2);
+    assert.equal(requests.length, 7 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    unavailable = "rate-limit";
+    h.setQuota(100);
+    retryAt = new Date(h.options.now!() + 100_000).toISOString();
+    const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
+    assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
+    assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+    const secondPolicy = Object.values(limited.checkpoint.sources)
+      .find((source) => source.repository === "owner/shared")
+      ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
+    assert.equal(
+      readOriginalSourceProgress(
+        secondPolicy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      )?.state,
+      "budget",
+    );
+    const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
+      "port:stable-port",
+    );
+    assert.ok(isRecord(projected) && Array.isArray(projected.sources));
+    const source: unknown = projected.sources.find(
+      (value: unknown) => isRecord(value) && value.repository === "owner/shared",
+    );
+    assert.ok(isRecord(source));
+    assert.deepEqual(source[inputEvidenceKey(family)], retained(limited.checkpoint));
+  });
+}
 
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {
   const h = harness(2);
@@ -3062,6 +3305,131 @@ void test("descriptive consumers share one repository collection without managed
   assert.equal(h.network.filter((url) => url === "identity:owner/shared").length, 1);
 });
 
+void test("Core rebuilds retain pure listing completion and invalidate exact managed and mixed scopes", async () => {
+  const h = harness();
+  const catalog = {
+    ...h.input,
+    listings: [
+      { id: "pure-description", project_url: "https://github.com/owner/pure" },
+      { id: "mixed-description", project_url: "https://github.com/owner/shared" },
+    ],
+  };
+  const sources = catalogObservationSources(catalog).sources;
+  const pure = sources.find((source) => source.repository === "owner/pure")!;
+  const managed = sources.filter((source) => source.key !== pure.key);
+  const originalFetch = h.options.fetch!;
+  h.options.fetch = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith("/owner/pure")) {
+      return Response.json({ id: 8, full_name: "owner/pure", archived: false });
+    }
+    return originalFetch(input, init);
+  };
+  const previousBinding = (source: (typeof sources)[number], policy = h.options.policyIdentity) =>
+    observationHash({
+      contract: "normalized-current-catalog-core-policy-v1",
+      policy,
+      scope: source.scope_sha256,
+      definitions: source.ports.map((port) => [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : h.options.definitionHash(port.id),
+      ]),
+    });
+  const first = await advanceCatalogObservations(catalog, null, h.options);
+  assert.deepEqual(first.report.failures, []);
+  for (const source of managed) {
+    assert.equal(
+      first.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source),
+    );
+  }
+  const pureProgress = first.checkpoint.sources[pure.key]!;
+  assert.ok(pureProgress.completed_scope_sha256);
+  assert.equal(
+    pureProgress.last_complete_policies[0]!.authority,
+    "descriptive-listing-observation-only",
+  );
+  assert.deepEqual(pureProgress.last_complete_policies[0]!.projections, []);
+
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    requestLimit: 0,
+  });
+  assert.deepEqual(rebuilt.report.failures, []);
+  assert.equal(rebuilt.report.requests, 0);
+  assert.deepEqual(
+    rebuilt.report.attempted_source_keys.toSorted(),
+    managed.map(({ key }) => key).toSorted(),
+  );
+  assert.deepEqual(rebuilt.checkpoint.sources[pure.key], pureProgress);
+  for (const source of managed) {
+    assert.equal(
+      rebuilt.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source, "b".repeat(64)),
+    );
+  }
+
+  const legacy = structuredClone(first.checkpoint);
+  const priorPure = legacy.sources[pure.key]!;
+  priorPure.completed_scope_sha256 = previousBinding(pure);
+  priorPure.change_intervals = 2;
+  priorPure.mean_change_interval_ms = 20 * 3600000;
+  priorPure.next_due_at = new Date(h.options.now!() + 8 * 3600000).toISOString();
+  const deferred = await advanceCatalogObservations(catalog, legacy, {
+    ...h.options,
+    excludedSources: new Set(sources.map(({ key }) => key)),
+  });
+  assert.equal(
+    deferred.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+  const reprojected = await advanceCatalogObservations(catalog, deferred.checkpoint, {
+    ...h.options,
+    requestLimit: 0,
+  });
+  assert.deepEqual(reprojected.report.failures, []);
+  assert.deepEqual(reprojected.report.completed_source_keys, [pure.key]);
+  assert.equal(reprojected.report.requests, 0);
+  const currentPure = reprojected.checkpoint.sources[pure.key]!;
+  assert.equal(currentPure.completed_scope_sha256, pureProgress.completed_scope_sha256);
+  for (const key of [
+    "last_complete_facts_sha256",
+    "freshness_observed_at",
+    "completed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(currentPure[key], priorPure[key], key);
+
+  const revised = await advanceCatalogObservations(catalog, reprojected.checkpoint, {
+    ...h.options,
+    config: { ...h.options.config, stale_after_hours: 24 },
+    excludedSources: new Set([pure.key]),
+  });
+  assert.equal(
+    revised.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+
+  priorPure.next_due_at = new Date(h.options.now!()).toISOString();
+  const due = await advanceCatalogObservations(catalog, legacy, { ...h.options, requestLimit: 0 });
+  assert.ok(!due.report.attempted_source_keys.includes(pure.key));
+  assert.equal(due.checkpoint.sources[pure.key]!.completed_scope_sha256, previousBinding(pure));
+  const refreshed = await advanceCatalogObservations(catalog, due.checkpoint, h.options);
+  assert.ok(refreshed.report.requests > 0);
+  assert.ok(refreshed.report.completed_source_keys.includes(pure.key));
+  assert.equal(
+    refreshed.checkpoint.sources[pure.key]!.freshness_observed_at,
+    new Date(h.options.now!()).toISOString(),
+  );
+});
+
 void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
   const { projectListingObservation, listingDeclarationHash } =
     await import("./listing-upstream-observation.mts");
@@ -3348,7 +3716,8 @@ void test("GitLab descriptive listings reuse the provider collector and export n
   const catalog = { ports: [], listings: [listing] };
   const calls: string[] = [];
   let exported: unknown[] = [];
-  const result = await advanceCatalogObservations(catalog, null, {
+  let providerObservations: Record<string, unknown>[] = [];
+  const options: CatalogObservationOptions = {
     ...h.options,
     projectProvider: async () => {
       throw new Error("Descriptive listing must never enter managed Core policy");
@@ -3389,10 +3758,12 @@ void test("GitLab descriptive listings reuse the provider collector and export n
         headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
       });
     },
-    exportProvider: async (_source, _observations, policies) => {
+    exportProvider: async (_source, observations, policies) => {
       exported = policies;
+      providerObservations = observations;
     },
-  });
+  };
+  const result = await advanceCatalogObservations(catalog, null, options);
   assert.deepEqual(result.report.failures, []);
   assert.equal(result.report.completed_source_keys.length, 1);
   assert.equal(calls.length, 4);
@@ -3420,6 +3791,86 @@ void test("GitLab descriptive listings reuse the provider collector and export n
       url: "https://gitlab.com/api/v4/projects/27/packages/generic/game/1.2.0/game-windows-x64.zip",
     },
   ]);
+  const key = result.report.completed_source_keys[0]!;
+  let registryRequests = 0;
+  let gitLabRequests = 0;
+  const bounded = await advanceCatalogObservations(catalog, null, {
+    ...options,
+    requestLimit: 2,
+    exportProvider: async () => {},
+    modProviderRegistryFetch: async () => {
+      registryRequests++;
+      return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    },
+    providerFetch: async () => {
+      gitLabRequests++;
+      return Response.json({ id: 27, path_with_namespace: "owner/subgroup/lab", archived: false });
+    },
+  });
+  assert.equal(registryRequests, 1);
+  assert.equal(gitLabRequests, 1);
+  assert.equal(bounded.report.requests, 2);
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, result.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.equal(calls.length, 4);
+  assert.deepEqual(rebuilt.report.attempted_source_keys, []);
+  assert.deepEqual(rebuilt.checkpoint.sources[key], result.checkpoint.sources[key]);
+  assert.equal(rebuilt.report.source_statuses[0]!.current_scope_complete, true);
+
+  const legacy = structuredClone(result.checkpoint);
+  const prior = legacy.sources[key]!;
+  prior.completed_scope_sha256 = "f".repeat(64);
+  const providerCompletion = providerObservations[0]?.completed_at;
+  assert.equal(typeof providerCompletion, "string");
+  prior.completed_at = new Date(Date.parse(prior.completed_at!) + 250).toISOString();
+  prior.change_intervals = 2;
+  prior.mean_change_interval_ms = 16 * 3600000;
+  const migrated = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(migrated.report.failures, []);
+  assert.deepEqual(migrated.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 4);
+  const migratedSource = migrated.checkpoint.sources[key]!;
+  for (const field of [
+    "last_complete_facts_sha256",
+    "completed_at",
+    "freshness_observed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(migratedSource[field], prior[field], field);
+  assert.equal(providerObservations[0]?.completed_at, providerCompletion);
+
+  const tightenedConfig = { ...options.config, stale_after_hours: 6 };
+  const tightened = await advanceCatalogObservations(catalog, legacy, {
+    ...options,
+    config: tightenedConfig,
+  });
+  assert.equal(calls.length, 4);
+  assert.equal(
+    tightened.checkpoint.sources[key]!.next_due_at,
+    new Date(
+      Date.parse(prior.freshness_observed_at!) +
+        tightenedConfig.stale_after_hours * 3600000 -
+        tightenedConfig.budget.duration_ms,
+    ).toISOString(),
+  );
+  assert.equal(tightened.checkpoint.sources[key]!.completed_at, prior.completed_at);
+
+  prior.next_due_at = new Date(h.options.now!()).toISOString();
+  const refreshed = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(refreshed.report.failures, []);
+  assert.deepEqual(refreshed.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 8);
+  assert.equal(
+    refreshed.checkpoint.sources[key]!.completed_at,
+    new Date(h.options.now!()).toISOString(),
+  );
+  assert.equal(providerObservations[0]?.completed_at, new Date(h.options.now!()).toISOString());
 });
 
 void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
@@ -3572,4 +4023,156 @@ void test("GitLab provider failures export a descriptive failure candidate witho
   const state = Object.values(result.checkpoint.sources)[0]!;
   assert.equal(state.freshness_observed_at, null);
   assert.equal(state.last_complete_facts_sha256, null);
+});
+
+void test("the mod-provider registry keeps exact discovery evidence across observer restart and incomplete reads", async () => {
+  const h = harness();
+  const { upstreamFacts } = await import("./maintenance-upstream.mts");
+  const { thunderstoreRegistrySubject, thunderstoreRegistryUrl } =
+    await import("./upstream-mod-provider-registry.mts");
+  const ship = {
+    uuid: "9fb26233-032a-43e3-bbe7-6e058f5daf15",
+    label: "ship-of-harkinian",
+    thunderstore: { listed: true, wikiUrl: "https://gamebanana.com/games/16121" },
+  };
+  const twoShip = {
+    uuid: "245724c1-1b08-4fd5-b827-1e9816bda1e1",
+    label: "2-ship-2-harkinian",
+    thunderstore: { listed: false, wikiUrl: "https://gamebanana.com/games/20371" },
+  };
+  const registry = (...games: (typeof ship)[]) => ({
+    schemaVersion: "0.3.0",
+    games: Object.fromEntries(games.map((game) => [game.label, game])),
+    communities: Object.fromEntries(games.map((game) => [game.label, game.thunderstore])),
+  });
+  let response = () => Response.json(registry(ship, twoShip));
+  let requests = 0;
+  h.options.modProviderRegistryFetch = async (url, init) => {
+    assert.equal(
+      url instanceof URL ? url.href : typeof url === "string" ? url : url.url,
+      thunderstoreRegistryUrl,
+    );
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("Authorization"), null);
+    requests++;
+    return response();
+  };
+  const observe = (prior: CatalogObserverCheckpoint | null) =>
+    advanceCatalogObservations(h.input, prior, h.options);
+  const first = await observe(null);
+  const complete = first.checkpoint.mod_provider_registry?.last_complete;
+  assert.ok(complete);
+  assert.equal(requests, 1);
+  assert.deepEqual(complete.communities, [
+    {
+      community: twoShip.label,
+      game_uuid: twoShip.uuid,
+      listed: false,
+      gamebanana_game: 20371,
+    },
+    {
+      community: ship.label,
+      game_uuid: ship.uuid,
+      listed: true,
+      gamebanana_game: 16121,
+    },
+  ]);
+  const published = upstreamFacts(first.checkpoint, h.input, h.options.now!());
+  assert.equal(published.expected, h.input.ports.length + 1);
+  assert.ok(published.facts.has(thunderstoreRegistrySubject));
+  assert.ok(first.report.completed_source_keys.length > 0);
+
+  const saved: unknown = JSON.parse(JSON.stringify(h.snapshots.at(-1)));
+  const restarted = await observe(validateCatalogObserverCheckpoint(saved, h.options.now!()));
+  assert.equal(requests, 1);
+  assert.deepEqual(restarted.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    new Response(Buffer.alloc(h.options.config.budget.response_bytes + 1), {
+      status: 429,
+      headers: { "retry-after": new Date(h.options.now!() + 120000).toUTCString() },
+    });
+  const limited = await observe(restarted.checkpoint);
+  assert.equal(limited.checkpoint.mod_provider_registry?.exception, "rate-limit");
+  assert.deepEqual(limited.checkpoint.mod_provider_registry?.last_complete, complete);
+  assert.equal(limited.checkpoint.provider_retry_at, null);
+  assert.ok(limited.report.completed_source_keys.length > 0);
+  const held = upstreamFacts(limited.checkpoint, h.input, h.options.now!());
+  assert.equal(held.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(held.gaps.some((gap) => gap.subject_key === thunderstoreRegistrySubject));
+  await observe(limited.checkpoint);
+  assert.equal(requests, 2);
+  const controller = new AbortController();
+  let beforeSource: CatalogObserverCheckpoint | undefined;
+  await advanceCatalogObservations(h.input, restarted.checkpoint, {
+    ...h.options,
+    signal: controller.signal,
+    commit: async (checkpoint) => {
+      beforeSource ??= structuredClone(checkpoint);
+    },
+    withSourceLock: async () => {
+      controller.abort();
+      throw new ObservationFailure("cancelled", "fixture cancelled the source turn");
+    },
+  });
+  assert.equal(controller.signal.aborted, true);
+  assert.ok(beforeSource);
+  assert.deepEqual(beforeSource.mod_provider_registry, limited.checkpoint.mod_provider_registry);
+  await observe(beforeSource);
+  assert.equal(requests, 3);
+
+  h.advanceClock(120000);
+  response = () => Response.json(registry(ship));
+  const incomplete = await observe(limited.checkpoint);
+  assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    Response.json(
+      registry(ship, {
+        ...twoShip,
+        thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
+      }),
+    );
+  const recovered = await observe(incomplete.checkpoint);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
+    null,
+  );
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.game_uuid,
+    twoShip.uuid,
+  );
+  assert.ok(
+    upstreamFacts(recovered.checkpoint, h.input, h.options.now!()).facts.has(
+      thunderstoreRegistrySubject,
+    ),
+  );
+  h.advanceClock(h.options.config.stale_after_hours * 3600000);
+  const expired = upstreamFacts(recovered.checkpoint, h.input, h.options.now!());
+  assert.equal(expired.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(
+    expired.gaps.some(
+      (gap) => gap.subject_key === thunderstoreRegistrySubject && gap.code === "stale",
+    ),
+  ); // Ordinary source growth must not replace a readable recovered controller
+  // with a checkpoint that cannot be read on the next scheduled run.
+  const retainedRegistry = recovered.checkpoint.mod_provider_registry;
+  assert.ok(retainedRegistry);
+  const large = {
+    ...newCatalogObserverCheckpoint(),
+    mod_provider_registry: retainedRegistry,
+    fixture_padding: "",
+  };
+  large.fixture_padding = "x".repeat(
+    32 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(large)) - 8,
+  );
+  const written = h.snapshots.length;
+  const registryRequestsBeforeHold = requests;
+  await assert.rejects(observe(large), /exceed the checkpoint envelope/u);
+  assert.equal(h.snapshots.length, written);
+  assert.equal(requests, registryRequestsBeforeHold);
 });
