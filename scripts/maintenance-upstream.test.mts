@@ -138,6 +138,56 @@ void test("intervention assertions preserve distinct client and disjoint time sc
   assert.equal(report.verified_human_interventions, null);
 });
 
+void test("a complete zero contradicts actions inside its interval for the same client and definition", () => {
+  const zero = witness("a");
+  const claimed = {
+    ...zero,
+    start: "2026-11-02T12:00:00.000Z",
+    end: "2026-11-03T12:00:00.000Z",
+    observer_revision: zero.observer_revision.replace(":42-1@", ":43-1@"),
+    coverage: "partial",
+    actions: [action],
+  };
+  const zeroObservation = witnessObservation(zero);
+  const actionObservation = witnessObservation(claimed);
+  const summarize = (sequence: typeof claimed, observations: readonly unknown[]) => {
+    const { bytes, sha256 } = encodeManagedInterventionEvidence([zero, sequence]);
+    const result = scopedManagedInterventions(
+      readManagedInterventionEvidence(bytes, sha256),
+      observations,
+      zero.start,
+      claimed.end,
+    );
+    return {
+      states: result.sequences.map(({ state }) => state),
+      actions: result.distinct_reported_actions,
+      zeroes: result.reported_zero_sequences,
+    };
+  };
+  assert.deepEqual(summarize(claimed, [zeroObservation, actionObservation]), {
+    states: ["conflicting-evidence", "conflicting-evidence"],
+    actions: null,
+    zeroes: 0,
+  });
+  assert.deepEqual(summarize(claimed, [zeroObservation]), {
+    states: ["zero-reported", "scope-unverified"],
+    actions: null,
+    zeroes: 1,
+  });
+  for (const independent of [
+    { ...claimed, client_sha256: "5".repeat(64) },
+    { ...claimed, definition_sha256: "6".repeat(64) },
+    { ...claimed, actions: [{ ...action, witnessed_at: "2026-11-03T06:00:00.000Z" }] },
+  ]) {
+    const result = summarize(independent, [zeroObservation, witnessObservation(independent)]);
+    assert.deepEqual(result, {
+      states: ["zero-reported", "action-reported"],
+      actions: 1,
+      zeroes: 1,
+    });
+  }
+});
+
 void test("conflicting reviewed intervention facts cannot supply a count", () => {
   const zero = witness("a");
   const positive = witness("a", "complete", [action]);

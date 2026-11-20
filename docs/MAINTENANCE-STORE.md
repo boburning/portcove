@@ -801,7 +801,8 @@ with milliseconds. `coverage` is `complete` or `partial`. `actions` lists up to
 `witnessed_at`. Reuse the same action ID when one action affects several routes.
 The report counts duplicates of the same digest and timestamp once, even if
 their IDs differ. Distinct clients and time intervals for the same candidate
-remain separate. An actor name, workflow trigger, poll, retry, or absence of an
+remain separate. An action inside a complete zero interval conflicts with that
+zero when both claims refer to the same candidate, client and definition. An actor name, workflow trigger, poll, retry, or absence of an
 event cannot witness a human action or a zero-intervention interval.
 
 The report checks the supplied file digest and joins each sequence to exact

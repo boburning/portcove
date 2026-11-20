@@ -202,6 +202,26 @@ export function scopedManagedInterventions(
   for (const action of actionIds.values())
     if (action.proofs.size > 1) for (const key of action.scopes) conflicts.add(key);
 
+  // Compare a fixed set so a conflict found for one interval cannot hide
+  // another contradiction later in the input.
+  const comparable = new Set([...bound.keys()].filter((key) => !conflicts.has(key)));
+  for (const zeroKey of comparable) {
+    const zero = scopes.get(zeroKey)!;
+    if (zero.coverage !== "complete" || zero.actions.length !== 0) continue;
+    for (const actionKey of candidateScopes.get(zero.candidate_key) ?? []) {
+      if (!comparable.has(actionKey)) continue;
+      const claimed = scopes.get(actionKey)!;
+      if (
+        claimed.client_sha256 === zero.client_sha256 &&
+        claimed.definition_sha256 === zero.definition_sha256 &&
+        claimed.actions.some(({ witnessed_at }) => within(witnessed_at, zero.start, zero.end))
+      ) {
+        conflicts.add(zeroKey);
+        conflicts.add(actionKey);
+      }
+    }
+  }
+
   let zeroReported = 0;
   const reportedActions = new Set<string>();
   const rows = [...scopes]
