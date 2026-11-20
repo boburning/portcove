@@ -98,7 +98,7 @@ pub(crate) async fn preview_steamgriddb_artwork(
     game_id: u64,
     candidate_id: u64,
     generation: u64,
-) -> DesktopResult<crate::artwork::DesktopArtworkSelectionPreview> {
+) -> DesktopResult<crate::desktop_contract::DesktopArtworkSelectionPreview> {
     let state = state.inner().clone();
     crate::artwork::thumbnail_worker(
         crate::artwork::remote_thumbnail_workers(),

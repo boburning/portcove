@@ -1,7 +1,7 @@
 //! Native adapter for core-owned local artwork; no image or selection policy.
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, initialization_snapshot, library_at_generation,
-    service_at_generation, state_generation,
+    DesktopResult, DesktopState, blocking_worker, desktop_contract::DesktopArtworkSelectionPreview,
+    initialization_snapshot, library_at_generation, service_at_generation, state_generation,
 };
 use base64::Engine as _;
 use portcove_core::{
@@ -428,12 +428,6 @@ pub(crate) async fn get_catalog_media_thumbnail(
         move |service| service.catalog_media_thumbnail(&port_id, &media_id, &expected_sha256),
     )
     .await
-}
-
-#[derive(Serialize, schemars::JsonSchema)]
-pub(crate) struct DesktopArtworkSelectionPreview {
-    original_sha256: String,
-    png_base64: String,
 }
 
 impl From<ArtworkSelectionPreview> for DesktopArtworkSelectionPreview {
