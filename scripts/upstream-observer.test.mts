@@ -1636,6 +1636,28 @@ void test("GitHub starter rows survive scoped continuation but cannot nominate p
     () => validateObservationContinuation(mislabeled, scoped),
     /page facts or schema differ/,
   );
+  const malformed = structuredClone(partial.checkpoint.continuation);
+  const malformedPage = requiredFixture(malformed?.pages[page]);
+  objectFixture(arrayFixture(malformedPage.body)[0]).size = -1;
+  const matchesRule = (rule: string) => (error: unknown) =>
+    error instanceof ObservationFailure && error.rule === rule;
+  // Refuse the mismatched retained digest before parsing the malformed row.
+  assert.throws(
+    () => validateObservationContinuation(malformed, scoped),
+    matchesRule("invalid-checkpoint"),
+  );
+  malformedPage.facts_sha256 = observationHash(malformedPage.body);
+  const unknownHeader = structuredClone(malformed);
+  objectFixture(unknownHeader?.pages[page]).representation = "observer-facts-v99";
+  assert.throws(
+    () => validateObservationContinuation(unknownHeader, scoped),
+    matchesRule("invalid-checkpoint"),
+  );
+  // Valid headers and a matching digest still require a valid typed row.
+  assert.throws(
+    () => validateObservationContinuation(malformed, scoped),
+    matchesRule("invalid-metadata"),
+  );
   const complete = await advanceObservation(scoped, partial.checkpoint, options);
   assert.equal(complete.report.transition, "initial-baseline");
   const first = requiredFixture(complete.checkpoint.last_complete);

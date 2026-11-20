@@ -838,10 +838,16 @@ function validatedPage(
     "cached response fields differ",
   );
   if (projected) {
+    requireFact(
+      (page.representation === "observer-facts-v1" ||
+        page.representation === "observer-facts-v2") &&
+        page.facts_sha256 === observationHash(page.body),
+      "invalid-checkpoint",
+      "projected page facts or schema differ",
+    );
     const facts = observerPageFacts(address, page.body, config, pages);
     requireFact(
       page.representation === observerPageRepresentation(facts) &&
-        page.facts_sha256 === observationHash(page.body) &&
         page.facts_sha256 === observationHash(facts),
       "invalid-checkpoint",
       "projected page facts or schema differ",
