@@ -810,6 +810,11 @@ publication has been verified.
   the inventory by its SHA-256. It records the event type, checkpoint bytes, executed job durations and the number of jobs
   with missing times. Skipped jobs contribute no duration. Each report covers
   one imported attempt. Billed cost remains unknown without billing evidence.
+- The hosted report artifact retains the rendered aggregate as
+  `managed-release-summary.md`. A successful append submits the same bytes to
+  the Actions summary. Check the aggregate outcome and file digest in
+  `evidence.json` alongside the separate collection outcome. A successful
+  aggregate can describe retained data after collection fails.
 
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.

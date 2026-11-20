@@ -494,6 +494,8 @@ The inspection checkpoint also tracks where each baseline group ran out of
 time or download budget. The next run continues from that route in stable
 port, platform and channel order, even when new inspector bytes invalidate
 previous results. Generated baselines keep priority over reviewed layouts.
+If a handoff omits the saved route and the group has no new budget deferral,
+its checkpoint retains that position for a later handoff.
 Oversized archives stay unassessed and do not set the next route. A failed
 download or inspection remains eligible on a later pass. The continuation
 changes only the order of work within existing limits.
@@ -1009,6 +1011,15 @@ from the existing bounded page proofs, verifies their identities/digests against
 the complete observation, and retains the original oldest validation clock.
 Reprojection never makes an old provider fact fresh. Normal cadence/expiry still
 requires provider checks.
+
+When every consumer of a source is a descriptive listing, its private
+checkpoint scope binds the source, provider, listing declarations, exact
+descriptive projector and freshness policy. A Core rebuild alone leaves that
+scope current. Mixed sources and managed sources keep their exact Core and
+definition bindings. Earlier listing checkpoints use the same bounded
+reprojection path. Offline success retains the original validation, completion
+and change clocks without postponing a due provider check. A tighter freshness
+limit can move the next provider check earlier.
 
 Current Core must select candidates from the complete header universe, and every
 selected release must have complete validated asset coverage. Missing coverage

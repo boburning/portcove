@@ -2,7 +2,7 @@
   "definition_schema": 1,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "revision": 3,
+  "revision": 4,
   "required_capabilities": [
     {
       "template": "native-portable",
@@ -65,7 +65,7 @@
         "id": "linleys-dungeon-crawl",
         "source_editions": []
       },
-      "original_game_title": "Linley's Dungeon Crawl",
+      "original_game_title": "Dungeon Crawl Stone Soup",
       "saves_and_settings": "portcove-managed",
       "source_requirements": []
     },
@@ -83,6 +83,18 @@
       "rolling_tag": null,
       "user_prepared": {}
     },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [
+          "dat",
+          "docs",
+          "settings"
+        ],
+        "executables": [
+          "crawl.exe"
+        ]
+      }
+    },
     "runtime_mutable_paths": [],
     "runtime_source_filename": null,
     "runtime_source_hashes": {},
@@ -98,25 +110,13 @@
     "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
     "support_tier": "beta",
     "upstream_status": "active",
-    "user_data_environment": null,
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [
-          "dat",
-          "docs",
-          "settings"
-        ],
-        "executables": [
-          "crawl.exe"
-        ]
-      }
-    }
+    "user_data_environment": null
   },
   "source_contracts": [
-    "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json"
+    "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json"
   ],
-  "execution_contract": "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json",
-  "persistence_contract": "sha256/ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f.json",
+  "execution_contract": "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json",
+  "persistence_contract": "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json",
   "artifact_bindings": [],
   "evidence_references": []
 }

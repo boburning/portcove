@@ -17241,6 +17241,10 @@
           {
             "upstream_ref": "v1.2.2",
             "artifact_sha256": "de8b19cdb4e3ad0c10fd6d8127f7a6cc2a9eba106d89c753439178b718887c42"
+          },
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689"
           }
         ],
         "aliases": [],
@@ -64100,7 +64104,7 @@
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes.",
-        "original_game_title": "Linley's Dungeon Crawl",
+        "original_game_title": "Dungeon Crawl Stone Soup",
         "original_game": {
           "format_version": 1,
           "id": "linleys-dungeon-crawl",

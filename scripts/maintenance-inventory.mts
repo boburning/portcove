@@ -765,19 +765,28 @@ export interface PublicationObservation {
   inspection: { index_sha256?: unknown; definitions?: unknown };
 }
 
-const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+/** Mirrors Core's definition index identity components, which are bounded ASCII. */
+function validDefinitionIdentity(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 1 &&
+    value.length <= 255 &&
+    !/[^a-z0-9-]/u.test(value)
+  );
+}
 
 function definitionKey(definition: Record<string, unknown>, origin: string) {
   const namespace = definition.namespace;
   const id = definition.stable_id;
-  if (
-    typeof namespace !== "string" ||
-    typeof id !== "string" ||
-    !definitionIdentity.test(namespace) ||
-    !definitionIdentity.test(id)
-  )
+  if (!validDefinitionIdentity(namespace) || !validDefinitionIdentity(id))
     throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
-  return `definition:${namespace}/${id}`;
+  const key = `definition:${namespace}/${id}`;
+  // The store's subject key bound includes the kind and component separator.
+  if (key.length > 300)
+    throw new MaintenanceStoreError(
+      `Definition identity exceeds the maintenance key bound in the ${origin}`,
+    );
+  return key;
 }
 
 /**
@@ -2074,12 +2083,12 @@ export async function collect(options: {
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
-    ? await sourceOutcome(() =>
-        (typeof options.publication === "function" ? options.publication : readPublication)(
-          options.cli,
-          revision,
-        ),
-      )
+    ? await sourceOutcome(async () => {
+        const observation = await (
+          typeof options.publication === "function" ? options.publication : readPublication
+        )(options.cli, revision);
+        return publicationFacts(observation);
+      })
     : undefined;
   if (options.delivery && !options.all)
     throw new MaintenanceStoreError("Definition-delivery collection requires --all");
@@ -2171,7 +2180,7 @@ export async function collect(options: {
             publication: publicationRead.ok
               ? {
                   revision,
-                  ...publicationFacts(publicationRead.value),
+                  ...publicationRead.value,
                 }
               : {
                   revision: `${revision}+inspection:unavailable`,

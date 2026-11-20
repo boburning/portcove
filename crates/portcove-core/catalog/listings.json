@@ -35616,7 +35616,7 @@
       "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
       "listed_at": "2026-11-19",
       "release_url": "https://github.com/crawl/crawl/releases/tag/0.34.1",
-      "original_game_title": "Linley's Dungeon Crawl",
+      "original_game_title": "Dungeon Crawl Stone Soup",
       "setup_url": "https://crawl.develz.org/wordpress/about",
       "availability": "packages",
       "manual_setup": {
@@ -60697,12 +60697,12 @@
       "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
       "original_game_title": "Hot Shots Tennis: Get a Grip",
       "summary": "Experimental project. The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/Jstar269/nakagawa-recomp",
+      "project_url": "https://github.com/Jstar269/Nakagawa-Recomp",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/Jstar269/nakagawa-recomp",
+      "setup_url": "https://github.com/Jstar269/Nakagawa-Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -60718,7 +60718,7 @@
           "The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/Jstar269/nakagawa-recomp"
+        "help_url": "https://github.com/Jstar269/Nakagawa-Recomp"
       },
       "issue_number": 3010,
       "listed_at": "2026-10-25",

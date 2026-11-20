@@ -1523,6 +1523,7 @@
           "cases": [
             "research progress retains precise history, quiet repeats, failures and project opt-outs",
             "declared records flow through Core assessment, the store and a static report",
+            "unsupported publication facts retain the last good facts and other source updates",
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
