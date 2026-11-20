@@ -279,14 +279,21 @@ export function ModProviderBrowser({
       );
       if (!alive.current || id !== requestId.current.generation) return;
       if (
+        read.port_id !== portId ||
         read.project.provider !== item.provider ||
         read.project.project_id !== item.project_id ||
-        (read.project.game_id !== null && read.project.game_id !== item.game_id)
+        read.project.game_id !== item.game_id
       ) {
         throw new Error(t("mods.gameChanged"));
       }
       const candidates = eligible(read);
-      if (add && candidates.length === 1 && !read.project.unreadable_files) {
+      if (
+        add &&
+        candidates.length === 1 &&
+        read.eligible_file_ids?.length === 1 &&
+        read.project.unreadable_files === 0 &&
+        read.project.files.every((file) => !file.status_unknown)
+      ) {
         queue(item, candidates[0]!);
         return;
       }
