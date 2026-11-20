@@ -109,7 +109,7 @@ export function GameHero({
       ref={element}
       className={cn("game-hero", `game-hero-${variant}`, className)}
       data-hero-compact={compact || undefined}
-      data-hero-identity={compact ? undefined : kind}
+      data-hero-identity={compact ? "text" : kind}
       data-hero-layout={compact ? undefined : layout}
       data-successful-launches={successfulLaunches}
       aria-label={

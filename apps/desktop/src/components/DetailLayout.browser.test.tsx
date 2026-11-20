@@ -175,12 +175,45 @@ it("reveals an internal backup destination before focusing it", async () => {
 
 it("keeps every label and control within 320 CSS pixels", async () => {
   await page.viewport(320, 720);
-  await render(<Fixture initial="files" />);
-  for (const tab of document.querySelectorAll<HTMLElement>("[role=tab]")) {
-    const rect = tab.getBoundingClientRect();
-    expect(rect.left).toBeGreaterThanOrEqual(0);
-    expect(rect.right).toBeLessThanOrEqual(320);
-  }
+  await render(
+    <DetailLayout
+      port={portDefinition()}
+      initialSection="files"
+      readiness="Ready"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+    >
+      {() => ({
+        overview: null,
+        files: null,
+        mods: <p>Installed mods</p>,
+        saves: null,
+        versions: null,
+        configuration: <p>Game configuration</p>,
+        manage: <p>Manage installation</p>,
+      })}
+    </DetailLayout>,
+  );
+  const picker = page.getByRole("combobox", { name: "Game detail sections" });
+  await expect.element(picker).toHaveValue("files");
+  expect([...picker.element().querySelectorAll("option")].map((option) => option.text)).toEqual([
+    "Overview",
+    "Game files",
+    "Mods",
+    "Saves & backups",
+    "Versions & updates",
+    "Game settings",
+    "Manage",
+  ]);
+  const rect = picker.element().getBoundingClientRect();
+  expect(rect.left).toBeGreaterThanOrEqual(0);
+  expect(rect.right).toBeLessThanOrEqual(320);
+  expect(rect.height).toBeGreaterThanOrEqual(48);
+  await picker.selectOptions("mods");
+  await expect.element(page.getByText("Installed mods")).toBeVisible();
+  await picker.selectOptions("configuration");
+  await expect.element(page.getByText("Game configuration")).toBeVisible();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
 });
 

@@ -166,8 +166,9 @@ atomic 64 KiB host preference boundary.
 Game Detail keeps the original game, selected port, installation, version,
 readiness and primary play or setup action in its header. Overview shows the
 game artwork and credits. The other sections use a compact header with the
-same identity and actions. Game files shows current requirements and file
-controls directly. Mods and Game settings each use the active managed
+same identity and actions. A labeled section selector replaces the tab row in
+narrow detail panes and uses the same destinations. Game files shows current
+requirements and file controls directly. Mods and Game settings each use the active managed
 installation. The detail sections stay mounted while the player switches
 between tasks. Saves & backups puts effective coverage and current actions
 before the history.

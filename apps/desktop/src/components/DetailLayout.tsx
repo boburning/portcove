@@ -2,7 +2,7 @@ import { Tabs } from "@base-ui/react/tabs";
 import { Menu } from "@base-ui/react/menu";
 import { ArrowLeft, ArrowRight, ArrowUpRight, FileText, MoreHorizontal } from "lucide-react";
 import type { TFunction } from "i18next";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useAppTranslation } from "../localization";
 import {
   detailSections,
@@ -200,6 +200,13 @@ export function DetailLayout({
     ),
   ];
   if (!sourceSystems.length) sourceSystems.push("not-specified");
+  const sectionPickerId = useId();
+  const selectSection = (value: unknown) => {
+    if (detailSections.includes(value as DetailSection)) {
+      setPending(undefined);
+      setSelection({ identity, section: value as DetailSection });
+    }
+  };
   return (
     <section
       ref={root}
@@ -244,7 +251,7 @@ export function DetailLayout({
             </p>
           )}
           <div
-            className="detail-identity-chips mt-3 flex flex-wrap gap-2"
+            className={`detail-identity-chips mt-3 flex-wrap gap-2 ${selected === "overview" ? "flex" : "hidden"}`}
             role="group"
             aria-label={t("identity.label")}
           >
@@ -358,20 +365,26 @@ export function DetailLayout({
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
-      <Tabs.Root
-        value={selected}
-        onValueChange={(value: unknown) => {
-          if (detailSections.includes(value as DetailSection)) {
-            setPending(undefined);
-            setSelection({ identity, section: value as DetailSection });
-          }
-        }}
-        className="detail-tabs"
-      >
+      <Tabs.Root value={selected} onValueChange={selectSection} className="detail-tabs">
+        <div className="detail-section-picker">
+          <label htmlFor={sectionPickerId}>{t("section.label")}</label>
+          <select
+            id={sectionPickerId}
+            data-focusable
+            value={selected}
+            onChange={(event) => selectSection(event.currentTarget.value)}
+          >
+            {sections.map((section) => (
+              <option key={section} value={section}>
+                {sectionLabel(t, section)}
+              </option>
+            ))}
+          </select>
+        </div>
         <Tabs.List
           activateOnFocus={false}
           aria-label={t("section.label")}
-          className="detail-tab-list flex flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
             <Tabs.Tab

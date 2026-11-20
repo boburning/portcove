@@ -225,6 +225,28 @@
   .detail-tabs {
     margin-block-start: var(--space-5);
   }
+  .detail-tab-list {
+    display: flex;
+  }
+  .detail-section-picker {
+    display: none;
+  }
+  @container detail (width <= 21rem) {
+    .detail-tab-list {
+      display: none;
+    }
+    .detail-section-picker {
+      display: grid;
+      gap: var(--space-1);
+      font-size: var(--text-sm);
+    }
+    .detail-section-picker select {
+      min-inline-size: 0;
+      inline-size: 100%;
+      min-block-size: 3rem;
+      font-size: var(--text-md);
+    }
+  }
   .detail-tab {
     min-block-size: 2.75rem;
   }
