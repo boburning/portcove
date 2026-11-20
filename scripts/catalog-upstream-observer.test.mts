@@ -1106,6 +1106,8 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
     const baseProject = h.options.project;
     let unavailable: "budget" | "rate-limit" | null = null;
+    let additionalPlatform = false;
+    let outputExpired = false;
     h.options.project = async (portId, repositoryId, observation) => {
       const policy = await baseProject(portId, repositoryId, observation);
       if (
@@ -1127,6 +1129,19 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
               release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
             },
           },
+          ...(additionalPlatform
+            ? [
+                {
+                  channel: "stable",
+                  platform: "windows-x86-64",
+                  channel_candidate: { id: 1, tag: release.tag_name },
+                  latest_eligible: {
+                    release_id: 1,
+                    release: { version: release.tag_name, asset: { sha256: "b".repeat(64) } },
+                  },
+                },
+              ]
+            : []),
         ],
       };
     };
@@ -1177,7 +1192,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
             {
               id: 72,
               digest: "sha256:" + "a".repeat(64),
-              expired: false,
+              expired: outputExpired,
               size_in_bytes: 1024,
               created_at: "2026-10-26T12:04:00Z",
               workflow_run: {
@@ -1340,6 +1355,18 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         isRecord(projected) && Array.isArray(projected.sources) && isRecord(projected.sources[0]),
       );
       assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
+
+      additionalPlatform = true;
+      outputExpired = true;
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads += 4;
+      observation = retained(previous);
+      const expanded = observation?.last_complete?.fact;
+      assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.notEqual(expanded.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 5);
     }
 
     h.advanceClock(48 * 3600_000);
@@ -1348,7 +1375,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
-    assert.equal(buildRequests.length, family === "n64-recomp" ? 3 : 0);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 5 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();

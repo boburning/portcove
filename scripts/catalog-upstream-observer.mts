@@ -44,7 +44,10 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
-import { advanceUpstreamArtifactBuildObservation } from "./upstream-github-build-output.mts";
+import {
+  advanceUpstreamArtifactBuildObservation,
+  rebindUpstreamBuildObservation,
+} from "./upstream-github-build-output.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
@@ -1509,10 +1512,26 @@ export async function advanceCatalogObservations(
                     target.release_tag,
                   ]);
                   const fresh = freshByRelease.get(release);
-                  const fact = fresh
+                  let fact = fresh
                     ? { ...fresh, ...target }
                     : await observeOriginalSource(target, read, family);
                   if (!fresh) freshByRelease.set(release, fact);
+                  if (
+                    fact.parser === "n64-recomp-game-entry-v1" &&
+                    retained?.fact.parser === fact.parser &&
+                    retained.fact.source_commit === fact.source_commit
+                  ) {
+                    const runtime = retained.fact.runtime_source;
+                    const builds = rebindUpstreamBuildObservation(
+                      retained.fact.build_outputs,
+                      fact,
+                    );
+                    fact = {
+                      ...fact,
+                      ...(runtime ? { runtime_source: runtime } : {}),
+                      ...(builds ? { build_outputs: builds } : {}),
+                    };
+                  }
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
                   recognitionState = "observed";
                 }

@@ -121,6 +121,23 @@ export function readUpstreamBuildObservation(
   };
 }
 
+/** Keep exact byte matches when a release selects a different platform cohort. */
+export function rebindUpstreamBuildObservation(
+  retained: UpstreamBuildObservation | undefined,
+  target: BuildTarget,
+): UpstreamBuildObservation | undefined {
+  if (
+    !retained ||
+    retained.repository_id !== target.repository_id ||
+    retained.source_commit !== target.source_commit
+  )
+    return;
+  const remaining = new Set(target.artifacts.map((entry) => entry.sha256));
+  const matches = retained.matches.filter((match) => remaining.delete(match.sha256));
+  if (!matches.length) return;
+  return { ...retained, matches, search: remaining.size ? firstPage : null };
+}
+
 function readPage(value: unknown, key: "workflow_runs" | "artifacts", page: number) {
   if (
     !isRecord(value) ||
