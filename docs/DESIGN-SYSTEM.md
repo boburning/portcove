@@ -794,10 +794,13 @@ arrows require both known installed and offered versions. Task records retain th
 operation identity and diagnostics, with exact-operation recovery cross-links; no
 records are grouped by game name or inferred installation identity.
 
-Comparison separates original system, runtime targets and release channels, and
-reports observed ownership. Feature comparison remains unavailable until the shared
-catalog contract carries revalidated, sourced and dated claims. Presentation code
-must not supply project-specific feature maps.
+Comparison separates original system, target platform, release channels and observed
+update ownership. Show the selected edition, platform and required features before
+the alternatives. Name a suggested port when Core identifies one. Show each
+port’s selected feature results beside the port. Evidence for a different edition
+or environment leaves support unconfirmed for the selected options.
+The report disclosure retains assessment dimensions, freshness and provenance.
+Core supplies the feature claims and their scope.
 
 At enlarged text sizes the full application shell must reflow as well as the
 cards. Header search and command controls may wrap onto separate rows; neither
