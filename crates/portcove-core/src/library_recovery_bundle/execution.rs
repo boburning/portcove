@@ -51,7 +51,9 @@ pub struct LibraryRecoveryBundle {
 #[serde(deny_unknown_fields)]
 pub struct LibraryRecoveryRestorePlan {
     pub bundle: LibraryRecoveryBundle,
-    pub import: LibraryImportPlan,
+    pub destination_root: PathBuf,
+    pub required_bytes: u64,
+    pub available_bytes: u64,
     pub plan_sha256: String,
 }
 
@@ -131,41 +133,7 @@ impl PortcoveService {
         path: &Path,
         destination: &Path,
     ) -> Result<LibraryRecoveryRestorePlan> {
-        let (bundle, manifest) = inspect(path)?;
-        let import = Self::plan_library_import(
-            &bundle.path.join(METADATA_FILE),
-            &bundle.path.join(CONTENT_DIR),
-            destination,
-        )?;
-        if [&bundle.path, &import.metadata.original_root]
-            .iter()
-            .any(|root| {
-                import.destination_root.starts_with(root)
-                    || root.starts_with(&import.destination_root)
-            })
-        {
-            return Err(PortcoveError::usage(
-                "recovery destination must be separate from the bundle and its source library",
-            ));
-        }
-        if import.metadata_file.sha256 != manifest.metadata_sha256
-            || serde_json::to_value(&import.content)? != serde_json::to_value(&manifest.content)?
-        {
-            return Err(PortcoveError::verification(
-                "bundle content changed while reviewing recovery",
-            ));
-        }
-        let plan_sha256 = sha256(&serde_json::to_vec(&(
-            "portcove-library-recovery-restore-v1",
-            &bundle.path,
-            &bundle.receipt_sha256,
-            &import.plan_sha256,
-        ))?);
-        Ok(LibraryRecoveryRestorePlan {
-            bundle,
-            import,
-            plan_sha256,
-        })
+        prepare_restore(path, destination).map(|(review, _)| review)
     }
 
     pub fn restore_library_recovery_bundle(
@@ -173,7 +141,7 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryImportResult> {
-        let review = Self::plan_library_recovery_restore(path, destination)?;
+        let (review, import) = prepare_restore(path, destination)?;
         if review.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
                 "recovery bundle or restore destination changed; review recovery again",
@@ -182,12 +150,55 @@ impl PortcoveService {
         // Import owns all mutation, recovery, and publication of the restored
         // root. Its content-bound journal can be resumed without a second owner.
         Self::import_library(
-            &review.import.metadata_file.path,
-            &review.import.content_root,
-            &review.import.destination_root,
-            &review.import.plan_sha256,
+            &import.metadata_file.path,
+            &import.content_root,
+            &import.destination_root,
+            &import.plan_sha256,
         )
     }
+}
+
+fn prepare_restore(
+    path: &Path,
+    destination: &Path,
+) -> Result<(LibraryRecoveryRestorePlan, LibraryImportPlan)> {
+    let (bundle, manifest) = inspect(path)?;
+    let import = PortcoveService::plan_library_import(
+        &bundle.path.join(METADATA_FILE),
+        &bundle.path.join(CONTENT_DIR),
+        destination,
+    )?;
+    if [&bundle.path, &import.metadata.original_root]
+        .iter()
+        .any(|root| {
+            import.destination_root.starts_with(root) || root.starts_with(&import.destination_root)
+        })
+    {
+        return Err(PortcoveError::usage(
+            "recovery destination must be separate from the bundle and its source library",
+        ));
+    }
+    if import.metadata_file.sha256 != manifest.metadata_sha256
+        || serde_json::to_value(&import.content)? != serde_json::to_value(&manifest.content)?
+    {
+        return Err(PortcoveError::verification(
+            "bundle content changed while reviewing recovery",
+        ));
+    }
+    let plan_sha256 = sha256(&serde_json::to_vec(&(
+        "portcove-library-recovery-restore-v1",
+        &bundle.path,
+        &bundle.receipt_sha256,
+        &import.plan_sha256,
+    ))?);
+    let review = LibraryRecoveryRestorePlan {
+        bundle,
+        destination_root: import.destination_root.clone(),
+        required_bytes: import.required_bytes,
+        available_bytes: import.available_bytes,
+        plan_sha256,
+    };
+    Ok((review, import))
 }
 
 fn start_creation(

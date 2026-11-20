@@ -1,7 +1,8 @@
 //! Native handle handoff; copy, verification, and authority remain in core.
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_service, blocking_worker,
-    initialize_desktop_at, require_no_library_handoff,
+    initialize_desktop_at, require_library_generation, require_no_library_handoff,
+    state_generation,
 };
 use portcove_core::{PortcoveError, PortcoveService};
 use std::path::{Path, PathBuf};
@@ -147,11 +148,36 @@ fn transfer_desktop_library<T, F>(
 where
     F: FnOnce(&Path) -> portcove_core::Result<T>,
 {
+    handoff_desktop_library(state, recovery_root, None, operation, |result, _| {
+        active_root(result)
+    })
+}
+
+pub(crate) fn transfer_preserving_current_library<T>(
+    state: &DesktopState,
+    generation: u64,
+    operation: impl FnOnce(&Path) -> portcove_core::Result<T>,
+) -> DesktopResult<T> {
+    handoff_desktop_library(state, None, Some(generation), operation, |_, root| {
+        root.to_owned()
+    })
+}
+
+fn handoff_desktop_library<T>(
+    state: &DesktopState,
+    recovery_root: Option<PathBuf>,
+    generation: Option<u64>,
+    operation: impl FnOnce(&Path) -> portcove_core::Result<T>,
+    active_root: impl FnOnce(&T, &Path) -> PathBuf,
+) -> DesktopResult<T> {
     let (root, outgoing_root) = {
         let mut initialization = state.initialization.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
         })?;
         require_no_library_handoff(&initialization)?;
+        if let Some(expected) = generation {
+            require_library_generation(state_generation(state), expected)?;
+        }
         let outgoing_root = initialization
             .as_ref()
             .ok()
@@ -182,7 +208,9 @@ where
     let result = drained
         .and_then(|()| operation(&root))
         .map_err(DesktopError::from);
-    let active_root = result.as_ref().map_or_else(|_| root.clone(), active_root);
+    let active_root = result
+        .as_ref()
+        .map_or_else(|_| root.clone(), |value| active_root(value, &root));
     let reopened = initialize_desktop_at(Some(active_root)).map_err(|mut error| {
         if !error.details.contains_key("import_destination") {
             error
@@ -301,6 +329,49 @@ mod tests {
             fs::canonicalize(destination).unwrap()
         );
     }
+    #[test]
+    fn reviewed_copy_reopens_the_same_library_and_rejects_stale_generation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let bundle = temporary.path().join("new-bundle");
+        let preferences = temporary.path().join("preferences.json");
+        let store = portcove_core::HostPreferenceStore::new(preferences.clone()).unwrap();
+        std::fs::create_dir(&source).unwrap();
+        store.set_library(&source).unwrap();
+        let contents = fs::read(preferences).unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
+                Some(source.clone()),
+            ))),
+            preferences: Ok(store),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        let original = bootstrap_status(&state).library_root.unwrap();
+        assert!(
+            transfer_preserving_current_library::<()>(&state, 0, |_| {
+                panic!("a stale review must not enter the transfer")
+            })
+            .is_err()
+        );
+        assert_eq!(bootstrap_status(&state).generation, 1);
+        let published = transfer_preserving_current_library(&state, 1, |root| {
+            assert_eq!(fs::canonicalize(root)?, fs::canonicalize(source)?);
+            portcove_core::Library::confirm_idle_for_switch(root)?;
+            fs::create_dir(&bundle)?;
+            Ok(bundle.clone())
+        })
+        .unwrap();
+        assert_eq!(published, bundle);
+        let status = bootstrap_status(&state);
+        assert_eq!(status.generation, 2);
+        assert_eq!(status.library_root.unwrap(), original);
+        assert_eq!(
+            fs::read(temporary.path().join("preferences.json")).unwrap(),
+            contents
+        );
+    }
+
     #[test]
     fn transfer_waits_for_a_previously_dispatched_read_to_finish() {
         let temporary = tempfile::tempdir().unwrap();

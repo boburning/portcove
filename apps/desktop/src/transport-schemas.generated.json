@@ -27450,6 +27450,367 @@
     "title": "LibraryMoveResult",
     "type": "object"
   },
+  "library_recovery_bundle": {
+    "$defs": {
+      "LibraryContentKind": {
+        "enum": [
+          "application_versions",
+          "user_data",
+          "source_inbox",
+          "backups",
+          "toolchains",
+          "local_artwork"
+        ],
+        "type": "string"
+      },
+      "LibraryRecoveryCoverage": {
+        "additionalProperties": false,
+        "description": "Content in one verified managed root. This count does not claim that an\nunmanaged game writes its saves into the library.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "directories": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/$defs/LibraryContentKind"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "relative_path",
+          "directories",
+          "files",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "LibraryRecoveryExclusion": {
+        "enum": [
+          "external_installations",
+          "external_originals_and_bios",
+          "external_saves",
+          "unknown_save_locations",
+          "host_credentials"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "bundle_id": {
+        "type": "string"
+      },
+      "coverage": {
+        "items": {
+          "$ref": "#/$defs/LibraryRecoveryCoverage"
+        },
+        "type": "array"
+      },
+      "created_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "exclusions": {
+        "items": {
+          "$ref": "#/$defs/LibraryRecoveryExclusion"
+        },
+        "type": "array"
+      },
+      "format_version": {
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "path": {
+        "type": "string"
+      },
+      "receipt_sha256": {
+        "type": "string"
+      },
+      "source_library_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "format_version",
+      "bundle_id",
+      "source_library_id",
+      "path",
+      "created_at",
+      "coverage",
+      "exclusions",
+      "receipt_sha256"
+    ],
+    "title": "LibraryRecoveryBundle",
+    "type": "object"
+  },
+  "library_recovery_bundle_plan": {
+    "$defs": {
+      "LibraryContentKind": {
+        "enum": [
+          "application_versions",
+          "user_data",
+          "source_inbox",
+          "backups",
+          "toolchains",
+          "local_artwork"
+        ],
+        "type": "string"
+      },
+      "LibraryRecoveryCoverage": {
+        "additionalProperties": false,
+        "description": "Content in one verified managed root. This count does not claim that an\nunmanaged game writes its saves into the library.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "directories": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/$defs/LibraryContentKind"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "relative_path",
+          "directories",
+          "files",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "LibraryRecoveryExclusion": {
+        "enum": [
+          "external_installations",
+          "external_originals_and_bios",
+          "external_saves",
+          "unknown_save_locations",
+          "host_credentials"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "A read-only observation. A creator must acquire the exclusive source lease\nand recompute this binding before copying the identified trees.",
+    "properties": {
+      "available_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "coverage": {
+        "items": {
+          "$ref": "#/$defs/LibraryRecoveryCoverage"
+        },
+        "type": "array"
+      },
+      "destination_root": {
+        "type": "string"
+      },
+      "exclusions": {
+        "items": {
+          "$ref": "#/$defs/LibraryRecoveryExclusion"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "required_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "source_library_id": {
+        "type": "string"
+      },
+      "source_root": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "source_root",
+      "destination_root",
+      "source_library_id",
+      "coverage",
+      "exclusions",
+      "required_bytes",
+      "available_bytes",
+      "plan_sha256"
+    ],
+    "title": "LibraryRecoveryBundlePlan",
+    "type": "object"
+  },
+  "library_recovery_restore_plan": {
+    "$defs": {
+      "LibraryContentKind": {
+        "enum": [
+          "application_versions",
+          "user_data",
+          "source_inbox",
+          "backups",
+          "toolchains",
+          "local_artwork"
+        ],
+        "type": "string"
+      },
+      "LibraryRecoveryBundle": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "type": "string"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/$defs/LibraryRecoveryCoverage"
+            },
+            "type": "array"
+          },
+          "created_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "exclusions": {
+            "items": {
+              "$ref": "#/$defs/LibraryRecoveryExclusion"
+            },
+            "type": "array"
+          },
+          "format_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "receipt_sha256": {
+            "type": "string"
+          },
+          "source_library_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format_version",
+          "bundle_id",
+          "source_library_id",
+          "path",
+          "created_at",
+          "coverage",
+          "exclusions",
+          "receipt_sha256"
+        ],
+        "type": "object"
+      },
+      "LibraryRecoveryCoverage": {
+        "additionalProperties": false,
+        "description": "Content in one verified managed root. This count does not claim that an\nunmanaged game writes its saves into the library.",
+        "properties": {
+          "bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "directories": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "$ref": "#/$defs/LibraryContentKind"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "relative_path",
+          "directories",
+          "files",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "LibraryRecoveryExclusion": {
+        "enum": [
+          "external_installations",
+          "external_originals_and_bios",
+          "external_saves",
+          "unknown_save_locations",
+          "host_credentials"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "available_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "bundle": {
+        "$ref": "#/$defs/LibraryRecoveryBundle"
+      },
+      "destination_root": {
+        "type": "string"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "required_bytes": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "bundle",
+      "destination_root",
+      "required_bytes",
+      "available_bytes",
+      "plan_sha256"
+    ],
+    "title": "LibraryRecoveryRestorePlan",
+    "type": "object"
+  },
   "library_selection": {
     "$defs": {
       "LibrarySelectionSource": {
