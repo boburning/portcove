@@ -89,8 +89,8 @@ void test("managed platform warnings are checked and stay outside definition pro
 });
 
 void test("external runtime registration reproduces all reviewed CPS2Recomp routes", () => {
-  const ports = fixtureRecords(schema3Fixture.ports).filter(
-    (port) => typeof port.id === "string" && port.id.startsWith("cps2recomp-"),
+  const ports = fixtureCatalog(schema3Fixture).ports.filter((port) =>
+    port.id.startsWith("cps2recomp-"),
   );
   assert.equal(ports.length, 12);
   for (const port of ports) {
