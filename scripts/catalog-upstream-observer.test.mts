@@ -1479,6 +1479,19 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         const plan = projectedBinding.sources[0].n64_original_binding_plan;
         assert.ok(isRecord(plan));
         assert.equal(plan.authority, "authoring-input-only");
+        assert.deepEqual(
+          plan.n64_recomp_inputs_v1,
+          admission_mode === "enforced"
+            ? []
+            : [
+                {
+                  upstream_ref: "v1.0.0",
+                  artifact_sha256: "a".repeat(64),
+                  game_id: "fixture.us",
+                  rom_xxh3_64: "0123456789abcdef",
+                },
+              ],
+        );
         assert.deepEqual(plan.platforms, [
           {
             platform: "linux-x86-64",

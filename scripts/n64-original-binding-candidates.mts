@@ -105,6 +105,7 @@ export function planN64OriginalBindings(
   }
 
   const platforms: PlatformCandidate[] = [];
+  const bindings = new Map<string, BindingCandidate>();
   for (const { platform, sha256 } of fact.artifacts) {
     const identity = { platform, artifact_sha256: sha256 };
     if (!game) {
@@ -128,16 +129,18 @@ export function planN64OriginalBindings(
       platforms.push({ ...identity, state: "unbound-executable" });
       continue;
     }
+    const binding = {
+      upstream_ref: fact.release_tag,
+      artifact_sha256: sha256,
+      game_id: game.game_id,
+      rom_xxh3_64: game.rom_hash_u64,
+    };
+    if (!contractState) bindings.set(sha256, binding);
     platforms.push({
       ...identity,
       state: contractState ?? "candidate",
       build_job_id: job.job_id,
-      binding: {
-        upstream_ref: fact.release_tag,
-        artifact_sha256: sha256,
-        game_id: game.game_id,
-        rom_xxh3_64: game.rom_hash_u64,
-      },
+      binding,
     });
   }
   return {
@@ -148,6 +151,7 @@ export function planN64OriginalBindings(
     release_id: fact.release_id,
     source_commit: fact.source_commit,
     source_blob_sha1: fact.source_blob_sha1,
+    n64_recomp_inputs_v1: [...bindings.values()],
     platforms,
   } as const;
 }
