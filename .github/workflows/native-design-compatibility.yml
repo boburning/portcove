@@ -10,6 +10,7 @@ on:
         options:
           [
             compatibility,
+            released-windows-crawl-management,
             presentation,
             product-workflows,
             linux-namespace-preflight,
@@ -63,6 +64,57 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  released-windows-crawl-management:
+    if: ${{ inputs.operation == 'released-windows-crawl-management' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: windows-2022
+    name: released-windows-crawl-management (${{ matrix.observation }})
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        observation: [installer, crawl]
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/published-windows-crawl-${{ matrix.observation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Bind the exact normally published release before runtime preparation
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native diagnostic source differs.' }
+          New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
+          & ./scripts/verify-windows-published-crawl.ps1 -Observation binding
+      - uses: ./.github/actions/prepare-hosted-webview
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: matrix.observation == 'crawl'
+        with:
+          python-version: '3.13'
+      - name: Observe one exact published Windows package boundary
+        shell: powershell
+        env:
+          PORTCOVE_NATIVE_OBSERVATION: ${{ matrix.observation }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native diagnostic source differs.' }
+          (Get-FileHash scripts/verify-windows-published-crawl.ps1 -Algorithm SHA256).Hash
+          & ./scripts/verify-windows-published-crawl.ps1 -Observation $env:PORTCOVE_NATIVE_OBSERVATION
+
+      - name: Retain the Windows package and definition witness
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: released-windows-crawl-${{ matrix.observation }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.PORTCOVE_OUTPUT_DIR }}/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
