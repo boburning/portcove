@@ -11,6 +11,7 @@ on:
           [
             compatibility,
             released-preview7-macos-startup,
+            released-preview9-macos-tux-lifecycle,
             presentation,
             product-workflows,
             linux-namespace-preflight,
@@ -105,6 +106,25 @@ jobs:
         shell: pwsh
         run: |
           ./scripts/verify-macos-release.ps1 -DmgPath (Join-Path $env:RUNNER_TEMP 'Portcove_0.1.0-preview.7_universal.dmg') -Version 0.1.0-preview.7 -Architecture ((& /usr/bin/uname -m).Trim())
+
+  released-preview9-macos-tux-lifecycle:
+    if: ${{ inputs.operation == 'released-preview9-macos-tux-lifecycle' && !inputs.edge_driver_proof && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the exact published Preview.9 Tux Racer managed lifecycle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MACOS_RUNNER: ${{ inputs.runner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          shasum -a 256 scripts/verify-macos-tux-lifecycle.py
+          python3 scripts/verify-macos-tux-lifecycle.py
 
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
