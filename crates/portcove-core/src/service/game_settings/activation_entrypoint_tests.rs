@@ -360,7 +360,19 @@ fn check_reviewed_full_snapshot_deletion(partitioned: bool) {
     service.replace_catalog_for_test(fixture.catalog.clone());
     fs::remove_file(&player).unwrap();
     fs::remove_file(&active).unwrap();
+    if partitioned {
+        // Project the retained data before taking a backup of this ready archive.
+        // Independently seeded files have different timestamps before first projection.
+        fs::remove_file(fixture.old.path.join("progress.sav")).unwrap();
+        service.restore_retained_user_data_to(&fixture.old).unwrap();
+        assert!(crate::service::psx_mod_data::initialized(&fixture.old).unwrap());
+        assert!(!fixture.old.path.join(LAUNCH_MARKER).exists());
+    }
     let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/progress.sav")).unwrap(),
+        b"owned saved progress"
+    );
     fs::write(&player, PLAYER).unwrap();
     fs::write(&active, PLAYER).unwrap();
     let preview = service
