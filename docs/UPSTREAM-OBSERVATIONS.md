@@ -1263,6 +1263,9 @@ the repository, hints, restrictions, setup or operational route invalidate reuse
 Core exports the exact supplied directory to format 11 before enrichment; this
 preserves its original guide and current strict-reader compatibility, while the
 authored directory and public browse projection retain format 12 metadata.
+Delivery encodes slash-containing GitHub tags as single URL segments after
+checking the exact observed repository, tag and asset name. The observer
+checkpoint keeps the provider's original URL and observation clock.
 Newer clients retain their existing implementation descriptions when a format-11
 row has the same project URL and exact original-game identity. The older delivery
 cannot express that field; a format-12 delivery can explicitly clear it. Changed
