@@ -1,4 +1,4 @@
-import type { CatalogMediaAsset } from "./types";
+import type { CatalogMediaAsset, PortListing, SourceInspectionReport, SourceRecord } from "./types";
 import type { PortIdentity } from "./port-identity";
 
 export type HeroMediaPort = PortIdentity & { id: string };
@@ -7,8 +7,74 @@ export interface HeroMediaContext {
   originalEditionId?: string | undefined;
 }
 
-function subjectMatches(port: HeroMediaPort, asset: CatalogMediaAsset) {
-  const subject = asset.subject;
+export function canCheckEditionArtwork(
+  port: HeroMediaPort,
+  reviewedGame: PortListing["original_game"] = port.presentation?.original_game,
+) {
+  if (reviewedGame?.id !== port.presentation?.original_game?.id) return false;
+  const editions = reviewedGame?.source_editions ?? [];
+  return (port.presentation?.media ?? []).some(
+    ({ subject, edition_neutral, role }) =>
+      subject.kind === "original" &&
+      edition_neutral !== true &&
+      role !== "key_art" &&
+      subjectMatches(port, { subject }) &&
+      editions.some(
+        (edition) =>
+          edition.id === subject.source_edition_id &&
+          "verified_sources" in edition &&
+          Array.isArray(edition.verified_sources) &&
+          edition.verified_sources.length > 0,
+      ),
+  );
+}
+
+/** Use only the current registered observation for this port and catalog identity. */
+export function verifiedHeroMediaContext(
+  port: HeroMediaPort,
+  source: SourceRecord | null | undefined,
+  report: SourceInspectionReport | undefined,
+): HeroMediaContext {
+  const original = port.presentation?.original_game;
+  const registered = report?.registered;
+  if (
+    !original ||
+    !source ||
+    !registered ||
+    report?.health !== "current" ||
+    report.profile_id !== source.profile_id ||
+    registered.profile_id !== source.profile_id ||
+    registered.path !== source.path ||
+    registered.updated_at !== source.updated_at ||
+    registered.sha256 !== source.sha256 ||
+    registered.storage_sha256 !== source.storage_sha256 ||
+    registered.size !== source.size ||
+    registered.storage_size !== source.storage_size ||
+    !("original_editions" in report) ||
+    !Array.isArray(report.original_editions)
+  )
+    return {};
+
+  const matches = report.original_editions.filter(
+    (
+      entry: unknown,
+    ): entry is {
+      source_edition_id: string;
+    } =>
+      typeof entry === "object" &&
+      entry !== null &&
+      "port_id" in entry &&
+      entry.port_id === port.id &&
+      "original_game_id" in entry &&
+      entry.original_game_id === original.id &&
+      "source_edition_id" in entry &&
+      typeof entry.source_edition_id === "string" &&
+      original.source_editions.some(({ id }) => id === entry.source_edition_id),
+  );
+  return matches.length === 1 ? { originalEditionId: matches[0]!.source_edition_id } : {};
+}
+
+function subjectMatches(port: HeroMediaPort, { subject }: Pick<CatalogMediaAsset, "subject">) {
   if (subject.kind === "port") return subject.port_id === port.id;
   const original = port.presentation?.original_game;
   return (

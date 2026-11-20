@@ -67,6 +67,8 @@ import {
   Wrench,
 } from "lucide-react";
 import { CliContinuity } from "./CliContinuity";
+import type { HeroMediaContext } from "../hero-media";
+import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import type {
   ActivityRecord,
   BackupInventory,
@@ -185,6 +187,13 @@ interface DetailPanelProps {
   retryBackupRead?: (() => Promise<void>) | undefined;
   source?: SourceRecord | undefined;
   sourceInspection?: SourceInspectionReport | undefined;
+  mediaContext?: HeroMediaContext | undefined;
+  savedSourceCheck?:
+    | {
+        status: SourceInspectionReadState["status"];
+        run: () => Promise<void>;
+      }
+    | undefined;
   sourceProfile?: SourceProfile | undefined;
   sourcePath: string;
   setSourcePath: (path: string) => void;
@@ -321,6 +330,7 @@ export function DetailPanel(props: DetailPanelProps) {
     openSourceEvidence: props.openSourceEvidence,
     openHostTool: props.openHostTool,
     inspectSource: props.inspectSource,
+    savedSourceCheck: props.savedSourceCheck,
     sourceHealth: status?.readiness?.source,
     biosHealth: status?.readiness?.bios,
   };
@@ -403,6 +413,7 @@ export function DetailPanel(props: DetailPanelProps) {
       perform={props.perform}
       prepare={props.prepare}
       displayPort={props.displayPort}
+      mediaContext={props.mediaContext}
       port={port}
       status={status}
       stagedVersion={status?.staged?.version}
@@ -515,6 +526,7 @@ function DetailBody(model: {
   prepare?: RunPreparation | undefined;
   port: PortDefinition;
   displayPort?: CatalogEntry | undefined;
+  mediaContext?: HeroMediaContext | undefined;
   status?: PortStatus | undefined;
   stagedVersion?: string | undefined;
   sources: SourceControls;
@@ -604,6 +616,7 @@ function DetailBody(model: {
       // Before installation, checking setup availability belongs with setup in Game files.
       supplementSection={model.installed || external ? undefined : "files"}
       port={model.displayPort ?? model.port}
+      mediaContext={model.mediaContext}
       platforms={requirements.platforms}
       upstreamPlatforms={requirements.upstreamPlatforms}
       projectUrl={model.port.project_url}
@@ -1887,6 +1900,7 @@ type SourceControls = Pick<
   | "port"
   | "source"
   | "sourceInspection"
+  | "savedSourceCheck"
   | "sourceProfile"
   | "sourcePath"
   | "setSourcePath"
@@ -1919,14 +1933,43 @@ function SourceFields({ controls }: { controls: SourceControls }) {
 }
 
 function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
-  if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
+  const { t } = useAppTranslation("gameFiles");
+  const savedCheck = controls.savedSourceCheck;
+  const savedCheckStatus =
+    savedCheck?.status === "pending"
+      ? t("query.checking")
+      : savedCheck?.status === "failed"
+        ? t("summary.failed")
+        : savedCheck?.status === "cancelled"
+          ? t("summary.cancelled")
+          : "";
+  if (
+    !savedCheck &&
+    (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile))
+  )
+    return null;
   return (
     <div
       className="source-intake-shortcuts m-[var(--space-4)_0] flex flex-wrap gap-2"
       role="group"
       aria-label="Check game files"
     >
-      {controls.sourceProfile && (
+      {savedCheck && (
+        <Button
+          data-focusable
+          variant="outline"
+          type="button"
+          disabled={busy}
+          aria-disabled={savedCheck.status === "pending" || undefined}
+          onClick={() => {
+            if (savedCheck.status !== "pending") void savedCheck.run();
+          }}
+        >
+          <Icon glyph={FileSearch} />
+          {t("reuse.check")}
+        </Button>
+      )}
+      {controls.inspectSource && controls.sourceProfile && (
         <Button
           data-focusable
           variant="outline"
@@ -1938,7 +1981,7 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
           Check game files
         </Button>
       )}
-      {controls.biosProfile && (
+      {controls.inspectSource && controls.biosProfile && (
         <Button
           data-focusable
           variant="outline"
@@ -1949,6 +1992,14 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
           <Icon glyph={FileSearch} />
           Check required BIOS
         </Button>
+      )}
+      {savedCheck && (
+        <span
+          role="status"
+          className={savedCheckStatus ? "basis-full text-sm text-pc-muted-foreground" : "sr-only"}
+        >
+          {savedCheckStatus}
+        </span>
       )}
     </div>
   );

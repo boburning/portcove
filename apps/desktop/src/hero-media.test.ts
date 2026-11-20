@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { heroMediaCandidates } from "./hero-media";
-import { portDefinition } from "./test-fixtures";
+import {
+  canCheckEditionArtwork,
+  heroMediaCandidates,
+  verifiedHeroMediaContext,
+} from "./hero-media";
+import { portDefinition, sourceInspectionIdentityFixture } from "./test-fixtures";
 import type { CatalogMediaAsset } from "./types";
 
 function asset(id: string, role: CatalogMediaAsset["role"], original = false): CatalogMediaAsset {
@@ -51,6 +55,46 @@ function port(media: CatalogMediaAsset[]) {
     },
   };
 }
+it("requires a current registered game, port and edition before displaying matched art", () => {
+  const image = { ...asset("header", "header", true), edition_neutral: false };
+  const p = port([image]);
+  const report = sourceInspectionIdentityFixture();
+  const source = report.registered!;
+  const match = { port_id: p.id, original_game_id: "original", source_edition_id: "edition" };
+  const checked = { ...report, original_editions: [match] };
+
+  expect(canCheckEditionArtwork(p)).toBe(false);
+  const bound = {
+    ...p,
+    presentation: {
+      ...p.presentation,
+      original_game: {
+        ...p.presentation.original_game,
+        source_editions: p.presentation.original_game.source_editions.map((edition) => ({
+          ...edition,
+          verified_sources: [{ game_id: "game", variant_id: "edition", representation_id: "raw" }],
+        })),
+      },
+    },
+  };
+  expect(canCheckEditionArtwork(bound)).toBe(true);
+  const context = verifiedHeroMediaContext(bound, source, checked);
+  expect(heroMediaCandidates(bound, context).backgrounds).toEqual([image]);
+  expect(verifiedHeroMediaContext(bound, source, report)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, { ...source, updated_at: 2 }, checked)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, source, { ...checked, health: "changed" })).toEqual({});
+  for (const wrong of [
+    { ...match, port_id: "other-port" },
+    { ...match, original_game_id: "other-game" },
+    { ...match, source_edition_id: "other-edition" },
+  ]) {
+    const outOfScope = { ...checked, original_editions: [wrong] };
+    expect(verifiedHeroMediaContext(bound, source, outOfScope)).toEqual({});
+  }
+  const conflicting = { ...checked, original_editions: [match, match] };
+  expect(verifiedHeroMediaContext(bound, source, conflicting)).toEqual({});
+});
+
 describe("shared hero media roles", () => {
   it("prefers exact-port logos then applicable original logos, leaving cover fallback to the hero", () => {
     const media = [

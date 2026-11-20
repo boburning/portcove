@@ -191,7 +191,7 @@ export function CatalogMediaGallery({
   fallbackFocus,
 }: {
   port: HeroMediaPort;
-  context?: HeroMediaContext;
+  context?: HeroMediaContext | undefined;
   fallbackFocus?: () => HTMLElement | null | undefined;
 }) {
   return (

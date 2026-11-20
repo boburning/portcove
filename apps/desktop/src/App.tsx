@@ -165,6 +165,7 @@ import {
 import { gameIdentityLabel, gameTitle } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { referenceIdentity } from "./shared/reference-identity";
+import { canCheckEditionArtwork, verifiedHeroMediaContext } from "./hero-media";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
@@ -594,7 +595,7 @@ function useWorkspace(props: WorkspaceProps) {
     operations.perform,
     data.sources,
     inspectionProfiles,
-    `${bootstrap.generation}|${referenceIdentity(data.catalog?.source_catalog ?? null)}`,
+    `${bootstrap.generation}|${referenceIdentity(data.catalog?.source_catalog ?? null)}|${referenceIdentity(data.listingCatalog ?? null)}`,
     data.queryClient,
   );
   const appearance = useThemePreference();
@@ -2156,6 +2157,15 @@ function SelectedPortPanel({
     : undefined;
   const port = model.port;
   const status = model.status;
+  const inspectionProfile = port.source_profile ?? undefined;
+  const inspectionRead = inspectionProfile
+    ? sourceHealth.inspectionReads.get(inspectionProfile)
+    : undefined;
+  const inspection = inspectionProfile
+    ? sourceHealth.inspections.get(inspectionProfile)
+    : undefined;
+  const displayPort = model.entry ?? port;
+
   const managedSetup =
     status &&
     !installReadbackPending &&
@@ -2286,9 +2296,20 @@ function SelectedPortPanel({
       backupReadState={backups.readState}
       retryBackupRead={backups.refresh}
       source={model.source}
-      sourceInspection={
-        model.port.source_profile
-          ? sourceHealth.inspections.get(model.port.source_profile)
+      mediaContext={verifiedHeroMediaContext(
+        displayPort,
+        model.source,
+        inspectionRead?.status === "current" ? inspection : undefined,
+      )}
+      sourceInspection={inspection}
+      savedSourceCheck={
+        inspectionProfile &&
+        model.source &&
+        canCheckEditionArtwork(displayPort, model.entry?.listing?.original_game)
+          ? {
+              status: inspectionRead?.status ?? "idle",
+              run: () => sourceHealth.inspectSource(inspectionProfile),
+            }
           : undefined
       }
       sourceProfile={model.sourceProfile}

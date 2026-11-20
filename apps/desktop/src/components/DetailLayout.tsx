@@ -17,6 +17,7 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { GameHero } from "./GameHero";
+import type { HeroMediaContext } from "../hero-media";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
@@ -82,6 +83,7 @@ export function DetailLayout({
   managementSupplement,
   supplementSection,
   port,
+  mediaContext,
   platforms = port.platforms ?? [],
   upstreamPlatforms = [],
   projectUrl,
@@ -107,6 +109,7 @@ export function DetailLayout({
   /** Where the supplement opens; defaults to the management section. */
   supplementSection?: DetailSection | undefined;
   port: Identity;
+  mediaContext?: HeroMediaContext | undefined;
   /** Targets of the setup or retained installation shown in this detail. */
   platforms?: readonly PortDefinition["platforms"][number][];
   upstreamPlatforms?: readonly PortDefinition["platforms"][number][];
@@ -230,7 +233,13 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero" compact={!overview}>
+      <GameHero
+        port={port}
+        variant="detail"
+        className="detail-hero"
+        compact={!overview}
+        mediaContext={mediaContext}
+      >
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -421,6 +430,7 @@ export function DetailLayout({
                   {panels.overview}
                   <CatalogMediaGallery
                     port={port}
+                    context={mediaContext}
                     fallbackFocus={() =>
                       root.current?.querySelector<HTMLElement>("[data-detail-back]")
                     }

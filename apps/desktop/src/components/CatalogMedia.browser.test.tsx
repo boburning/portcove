@@ -151,13 +151,14 @@ it("lets players browse reviewed releases without an applicable installed editio
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 844);
   try {
-    const view = (images: CatalogMediaAsset[], id = port.id) => (
+    const view = (images: CatalogMediaAsset[], id = port.id, originalEditionId?: string) => (
       <ArtworkProvider generation={7} listings={directory(images)}>
         <button type="button" id="gallery-detail-back">
           Back to game details
         </button>
         <CatalogMediaGallery
           port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+          context={{ originalEditionId }}
           fallbackFocus={() => document.getElementById("gallery-detail-back")}
         />
       </ArtworkProvider>
@@ -169,6 +170,14 @@ it("lets players browse reviewed releases without an applicable installed editio
       .element(picker)
       .toHaveAccessibleName("Screenshot source Choose an original release");
     expect(read).not.toHaveBeenCalled();
+    await galleryView.rerender(view(media, port.id, "us"));
+    const automaticallyMatched = gallery.getByRole("button", {
+      name: /Enlarge screenshot 1: North American/,
+    });
+    await expect.element(automaticallyMatched).toBeEnabled();
+    await expect.element(picker).toHaveTextContent("Available screenshots");
+    await galleryView.rerender(view(media));
+    await expect.element(automaticallyMatched).not.toBeInTheDocument();
     await picker.click();
     await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
     await page.getByRole("option", { name: usTitle, exact: true }).click();
