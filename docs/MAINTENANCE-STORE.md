@@ -498,6 +498,20 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
   static-publication stage, which must compare generations again at its own
   guarded replacement. Hosted runs today keep each report as its own run
   artifact, so no report replaces another.
+- The existing Maintenance inventory job summary includes a public aggregate
+  of fleet and route counts, upstream coverage and gaps, the rolling window,
+  pending ages and release-to-recorded-eligibility lag. The maintenance
+  collection time is distinct from the actual observer execution age, which
+  is unknown when the usage receipt has no execution timestamp. Pending
+  reasons appear as distinct candidate counts in fixed categories. One
+  candidate can appear in multiple categories, and other reasons are counted
+  once per candidate. The summary includes runner time and checkpoint size
+  for the imported observer attempt when the usage
+  receipt matches the exact inventory bytes and observer revision. The summary
+  keeps fleet interventions, automatic repairs, released-client availability
+  and billed cost unknown without measured evidence. The full report remains
+  in its usual run artifact. The summary has no effect on collection,
+  retention, or Pages publishing.
 
 Observed cost (2026-11-11, cloud session, debug CLI, Linux x86-64, PostgreSQL 16):
 
