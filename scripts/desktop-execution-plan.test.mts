@@ -405,8 +405,8 @@ void test("execution planning preserves the independently reviewed pre-change or
       ...row.options,
       platform: baselinePlatform(row.platform),
     });
-    // Preserve the frozen oracle. This new opt-in scenario was absent from its
-    // inventory and remains excluded from every historical execution.
+    // Preserve the frozen oracle. New opt-in scenarios were absent from its
+    // inventory and remain excluded from every historical execution.
     const historicalSelection = <Value extends { excluded_scenarios: readonly string[] }>(
       value: Value,
     ) => ({
@@ -426,6 +426,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-host-publication-recovery",
+            "native-library-recovery-bundle",
+            "native-library-recovery-interruption",
             "native-real-prepared-runtime",
             "native-registered-source-reuse",
             "native-linux-interrupted-preparation",
@@ -456,6 +458,11 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
     assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
     assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
+    for (const id of ["native-library-recovery-bundle", "native-library-recovery-interruption"]) {
+      assert.ok(!selection.selected_scenarios.includes(id));
+      assert.ok(!selection.setup_scenarios.includes(id));
+      if (row.platform === "win32") assert.ok(selection.excluded_scenarios.includes(id));
+    }
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =
