@@ -22,7 +22,10 @@ import {
   releaseContentFindings,
   releaseContentUnscannable,
 } from "./maintenance-release-content.mts";
-import { originalLocationReasons } from "./upstream-location-reasons.mts";
+import {
+  originalLocationReasons,
+  reviewedEndpointClassification,
+} from "./upstream-location-reasons.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Stored as each handoff assessment's policy version. */
@@ -292,9 +295,16 @@ export function releaseHealthHandoffs(facts: ReadonlyMap<string, unknown>): Hand
       Object.fromEntries(releaseConditionFields.map((field) => [field, condition[field] ?? null])),
     );
     const relocation = visible.filter(relocates);
+    const watched = relocation.every(
+      (condition) =>
+        condition.accounted_for === true &&
+        condition.classification === reviewedEndpointClassification &&
+        typeof condition.resume_condition === "string" &&
+        condition.resume_condition.trim().length > 0,
+    );
     const other = visible.filter((condition) => !relocates(condition));
     for (const [kind, conditions] of [
-      ["release-health-relocation", relocation],
+      ["release-health-relocation", watched ? [] : relocation],
       ["release-health-condition", other],
     ] as const)
       if (conditions.length)
@@ -430,7 +440,12 @@ const digestSql = (text: string) => `encode(sha256(convert_to(${text}, 'UTF8')),
  */
 export function handoffCollectionSql(
   input:
-    | { kind: HandoffKind; run: string; conditions: readonly HandoffCondition[] }
+    | {
+        kind: HandoffKind;
+        run: string;
+        conditions: readonly HandoffCondition[];
+        assessedSources?: readonly string[];
+      }
     | { retired: true; run: string },
 ) {
   const conditions =
@@ -443,9 +458,15 @@ export function handoffCollectionSql(
           .join("\n  UNION ALL ")
       : "SELECT NULL::text AS key, NULL::text AS kind, NULL::text AS source, NULL::jsonb AS condition WHERE false";
   // The current handoff subjects this run decides.
+  const scopedKeys =
+    "kind" in input && input.assessedSources
+      ? input.assessedSources.map((source) => literal(handoffSubject(input.kind, source)))
+      : undefined;
   const decided = (column: string) =>
     "kind" in input
-      ? `starts_with(${column}, ${literal(handoffPrefix(input.kind))})`
+      ? scopedKeys
+        ? `${column} = ANY(ARRAY[${scopedKeys.join(", ")}]::text[])`
+        : `starts_with(${column}, ${literal(handoffPrefix(input.kind))})`
       : `starts_with(${column}, 'handoff:') AND split_part(${column}, ':', 2) NOT IN (${handoffRegistry
           .map(({ kind }) => literal(kind))
           .join(", ")})`;

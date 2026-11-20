@@ -1538,6 +1538,70 @@ void test(
 );
 
 void test(
+  "release-health handoffs follow freshly assessed ports across fleet coverage gaps",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("health-handoffs");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const observe = (complete: string[], stale: string[], redirects: string[]) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        environment: store.owner,
+        runner: "fixture",
+        releaseHealth: () =>
+          Promise.resolve({
+            revision: "upstream-health-run:fixture",
+            report: {
+              format_version: 1,
+              authority: "upstream-monitoring-only",
+              inventory: {
+                total_ports: complete.length + stale.length,
+                fresh_complete_port_ids: complete,
+                fresh_partial_port_ids: [],
+                stale_port_ids: stale,
+                unmonitored_port_ids: [],
+              },
+              known_conditions: redirects.map((port_id) => ({
+                key: port_id,
+                port_id,
+                provider: "github",
+                rule: "provider-redirect",
+                accounted_for: false,
+                classification: "unclassified-or-actionable",
+              })),
+            },
+          }),
+      });
+    const handoffs = () =>
+      runSql(
+        store.owner,
+        `SELECT c.subject_key || '=' || a.state || ':' || c.sequence
+         FROM portcove_maintenance.subject_current c
+         JOIN portcove_maintenance.assessments a USING (assessment_id)
+        WHERE starts_with(c.subject_key, 'handoff:release-health-relocation:')
+        ORDER BY c.subject_key`,
+      )
+        .trim()
+        .split("\n");
+    const prefix = "handoff:release-health-relocation:port:";
+    await observe(["alpha"], ["beta"], ["alpha"]);
+    assert.deepEqual(handoffs(), [prefix + "alpha=needs-attention:1"]);
+    await observe(["beta"], ["alpha"], ["beta"]);
+    await observe(["beta"], ["alpha"], []);
+    const expected = [prefix + "alpha=needs-attention:1", prefix + "beta=clear:2"];
+    assert.deepEqual(handoffs(), expected);
+    await observe([], ["alpha", "beta"], []);
+    await observe(["beta"], ["alpha"], []);
+    assert.deepEqual(handoffs(), expected);
+  },
+);
+
+void test(
   "release content shows findings from partial runs and opens handoffs only after complete runs",
   { skip: server.skip ?? false, timeout: 240_000 },
   async (context) => {
