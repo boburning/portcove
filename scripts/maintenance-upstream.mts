@@ -21,6 +21,11 @@ import {
   partialProgressRules,
 } from "./catalog-upstream-observer.mts";
 
+import {
+  type OriginalRecognitionProgress,
+  readOriginalRecognitionProgress,
+} from "./upstream-original-recognition.mts";
+
 const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
@@ -402,6 +407,13 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               release: port.release,
             })
           : undefined;
+      const recognition =
+        port.observes_original_recognition && progress.repository_id !== null
+          ? readOriginalRecognitionProgress(policy.original_recognition, {
+              repository: source.repository,
+              repository_id: progress.repository_id,
+            })
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -420,6 +432,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               ? policy.catalog_definition_sha256
               : null,
           ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
+          ...(recognition === undefined ? {} : { original_recognition: recognition }),
         },
       ]);
     }
@@ -717,6 +730,7 @@ export interface UpstreamSourceFact {
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
   managed_release_candidates?: ManagedReleaseCandidate[];
+  original_recognition?: OriginalRecognitionProgress;
 }
 
 const storedSources = (payload: unknown) =>

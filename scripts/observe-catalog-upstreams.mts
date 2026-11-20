@@ -55,7 +55,7 @@ function repositoryMetadataReader(
 ) {
   let sdk: ReturnType<typeof createGitHubClient> | undefined;
   const failed = new Map<string, GitHubRequestPolicy>();
-  return async (repository: string) => {
+  return async (repository: string, sourceEndpoint?: string) => {
     if (!sdk) {
       const credential = localDeveloperCredential({ deadline: scope.deadline });
       sdk = createGitHubClient({
@@ -68,10 +68,16 @@ function repositoryMetadataReader(
           : {}),
         headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
         allowRequest: (method, url) =>
-          method === "GET" && /^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname),
+          method === "GET" &&
+          (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+            /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
+              url.pathname,
+            ) ||
+            (/^\/repos\/[^/]+\/[^/]+\/contents\/docs\/supportedHashes\.json$/u.test(url.pathname) &&
+              /^\?ref=[a-f0-9]{40}$/u.test(url.search))),
       });
     }
-    const endpoint = `/repos/${repository}`;
+    const endpoint = sourceEndpoint ?? `/repos/${repository}`;
     const policy = failed.get(endpoint) ?? { replay: "once" as const, attempts: 0 };
     failed.set(endpoint, policy);
     const response = await readObserverMetadata(await sdk, endpoint, policy);
@@ -228,14 +234,13 @@ export async function runCatalogUpstreams(
     path.join(root, "work/upstream-observer", observationHash(config));
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
   await mkdir(path.dirname(statePath), { recursive: true });
-  const repositoryMetadata =
-    runtime.repositoryMetadata ??
-    repositoryMetadataReader(
-      config.budget.response_bytes,
-      githubScope,
-      observationToken,
-      runtime.observer?.signal,
-    );
+  const githubMetadata = repositoryMetadataReader(
+    config.budget.response_bytes,
+    githubScope,
+    observationToken,
+    runtime.observer?.signal,
+  );
+  const repositoryMetadata = runtime.repositoryMetadata ?? githubMetadata;
   let health: unknown = null;
   try {
     health = await boundedJson(
@@ -398,6 +403,29 @@ export async function runCatalogUpstreams(
                 ? "Primary repository identity transport is unavailable; retry a bounded fresh lookup without changing the retained source."
                 : `Primary repository identity returned HTTP ${error.status}; preserve the declared source and reconcile its current primary-provider availability.`,
             );
+          throw error;
+        }
+      },
+      readOriginalRecognition: async (repository, endpoint, account) => {
+        account.admitRequest();
+        try {
+          const response = await githubMetadata(repository, endpoint);
+          account.observeResponse(
+            new Response(null, { headers: Object.fromEntries(response.headers) }),
+          );
+          account.consumeResponseBytes(response.bodyBytes ?? null);
+          if (
+            response.status !== 200 ||
+            response.bodyBytes === undefined ||
+            response.bodyBytes > config.budget.response_bytes
+          )
+            throw new ObservationFailure(
+              "original-source-unavailable",
+              "Exact original recognition metadata is unavailable",
+            );
+          return response.body;
+        } catch (error) {
+          if (error instanceof GitHubApiError) account.consumeResponseBytes(error.responseBytes);
           throw error;
         }
       },

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { readOriginalRecognitionProgress } from "./upstream-original-recognition.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -1041,6 +1043,87 @@ void test("reviewed declarations share provider collection while keeping port-sp
         Object.values(value.sources).some((source) => source.completed_at === null),
     ),
   );
+});
+
+void test("scheduled original recognition retains the exact table across refresh and optional failure", async () => {
+  const h = harness();
+  Object.assign(h.input.ports[0]!, { adapter: "libultraship-portable", source_profile: "example" });
+  const baseProject = h.options.project;
+  h.options.project = async (portId, repositoryId, observation) => {
+    const policy = await baseProject(portId, repositoryId, observation);
+    if (portId !== "stable-port") return policy;
+    const release = observation.facts.releases.find((release) => release.id === 1);
+    assert.ok(release);
+    return {
+      ...(policy as Record<string, unknown>),
+      projections: [
+        {
+          channel: "stable",
+          platform: "linux-x86-64",
+          channel_candidate: { id: 1, tag: release.tag_name },
+          latest_eligible: {
+            release_id: 1,
+            release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
+          },
+        },
+      ],
+    };
+  };
+  const raw = Buffer.from(JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]));
+  const requests: string[] = [];
+  let unavailable = false;
+  h.options.readOriginalRecognition = async (repository, endpoint, account) => {
+    account.admitRequest();
+    requests.push(endpoint);
+    if (unavailable) throw new ObservationFailure("budget", "fixture metadata deferred");
+    const ref = endpoint.split("/git/ref/tags/")[1];
+    if (ref !== undefined)
+      return {
+        ref: `refs/tags/${ref}`,
+        object: { type: "commit", sha: "c".repeat(40) },
+      };
+    if (endpoint.includes("/contents/"))
+      return {
+        type: "file",
+        path: "docs/supportedHashes.json",
+        encoding: "base64",
+        size: raw.length,
+        content: raw.toString("base64"),
+        sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+      };
+    return { id: 7, full_name: repository };
+  };
+  const retained = (checkpoint: CatalogObserverCheckpoint) => {
+    const source = Object.values(checkpoint.sources).find(
+      (source) => source.repository === "owner/shared",
+    );
+    const policy = source?.last_complete_policies.find(
+      (policy) => policy.port_id === "stable-port",
+    );
+    return readOriginalRecognitionProgress(policy?.original_recognition, {
+      repository: "owner/shared",
+      repository_id: 7,
+    });
+  };
+  const initial = await advanceCatalogObservations(h.input, null, h.options);
+  const observation = retained(initial.checkpoint);
+  assert.equal(observation?.state, "observed");
+  assert.equal(observation?.last_complete?.fact.release_tag, "v1.0.0");
+  assert.equal(requests.length, 4);
+
+  h.advanceClock(48 * 3600_000);
+  const refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+  assert.deepEqual(retained(refreshed.checkpoint), observation);
+  assert.equal(requests.length, 4);
+
+  h.advanceClock(48 * 3600_000);
+  h.bumpRelease();
+  unavailable = true;
+  const deferred = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+  assert.equal(retained(deferred.checkpoint)?.state, "budget");
+  assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
+  assert.equal(deferred.report.completed_source_keys.length, 2);
+  assert.equal(requests.length, 5);
 });
 
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {

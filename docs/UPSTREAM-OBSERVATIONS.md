@@ -212,6 +212,22 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
+## Original-file recognition observations
+
+For an operational Libultraship definition with a source profile, the catalog
+observer can read an upstream `docs/supportedHashes.json` table at the exact
+commit resolved for Core's current Stable release. It binds the observation to
+the provider repository and release identities and the platform artifact
+digests returned by Core. The parser records its version, the source file's Git
+object and SHA-256, and the SHA-1 values the upstream table declares.
+
+These optional facts follow the existing request budget and checkpoint. The
+maintenance projection keeps the last complete exact observation and records
+when current evidence is unavailable. A release fallback never supplies a
+current observation. Recognition-only observations carry no verdict about a
+player's files or the runtime's acceptance, and confer no setup, acquisition
+or publication authority.
+
 ## Catalog scheduling and definition-delivery handoff
 
 `node scripts/observe-catalog-upstreams.mts --cli PATH_TO_PORTCOVE` uses the same

@@ -27,11 +27,17 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
+import {
+  observeOriginalRecognition,
+  readOriginalRecognitionProgress,
+  selectOriginalRecognitionTarget,
+} from "./upstream-original-recognition.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
   kind?: "listing";
   listing?: Record<string, unknown>;
+  observes_original_recognition?: true;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -168,6 +174,9 @@ export function catalogObservationSources(input: unknown) {
       scope_sha256: "",
     };
     source.ports.push({
+      ...(port.adapter === "libultraship-portable" && typeof port.source_profile === "string"
+        ? { observes_original_recognition: true as const }
+        : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -462,6 +471,13 @@ export interface CatalogObservationOptions extends Pick<
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  readOriginalRecognition?: (
+    repository: string,
+    endpoint: string,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<unknown>;
   repositoryId: (
     source: ObservableSource,
     transport: Required<
@@ -1129,6 +1145,16 @@ export async function advanceCatalogObservations(
             : Math.max(fairShare, Math.min(minimumTurn, available)),
         ),
       );
+      const admitSourceRequest = () => {
+        if (sourceRequests >= quantum)
+          throw new ObservationFailure(
+            "budget",
+            "Fair source batch admission exhausted; continue after other admitted source turns",
+            null,
+          );
+        admitRequest();
+        sourceRequests++;
+      };
       const selectAssetReleases = async (headers: ProviderObservation) => {
         if (
           progress.selection_progress?.binding !== binding ||
@@ -1215,16 +1241,7 @@ export async function advanceCatalogObservations(
           now,
           catalogIds,
           reprojectFreshFacts,
-          admitRequest: () => {
-            if (sourceRequests >= quantum)
-              throw new ObservationFailure(
-                "budget",
-                "Fair source batch admission exhausted; continue after other admitted source turns",
-                null,
-              );
-            admitRequest();
-            sourceRequests++;
-          },
+          admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,
           selectAssetReleases,
@@ -1245,6 +1262,66 @@ export async function advanceCatalogObservations(
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
         const fallback = progress.last_complete_policies;
+        const readOriginalRecognition = options.readOriginalRecognition;
+        if (!result.report.exception && readOriginalRecognition) {
+          const account = {
+            admitRequest: admitSourceRequest,
+            observeResponse,
+            consumeResponseBytes,
+          };
+          const freshByRelease = new Map<
+            string,
+            Awaited<ReturnType<typeof observeOriginalRecognition>>
+          >();
+          for (const policy of policies) {
+            if (!isRecord(policy)) continue;
+            const port = source.ports.find((port) => port.id === policy.port_id);
+            if (!port?.observes_original_recognition) continue;
+            const target = selectOriginalRecognitionTarget(
+              policy,
+              source.repository,
+              config.repository_id,
+            );
+            const previous = readOriginalRecognitionProgress(
+              fallback.find((prior) => prior.port_id === port.id)?.original_recognition,
+              { repository: source.repository, repository_id: config.repository_id },
+            );
+            const retained = previous?.last_complete ?? null;
+            let state: string;
+            let complete = retained;
+            if (!target) {
+              state = "exact-artifact-unavailable";
+            } else {
+              const binding = observationHash(target);
+              if (retained?.binding === binding) {
+                state = "observed";
+              } else {
+                try {
+                  const release = JSON.stringify([
+                    target.repository_id,
+                    target.release_id,
+                    target.release_tag,
+                  ]);
+                  const fresh = freshByRelease.get(release);
+                  const fact = fresh
+                    ? { ...fresh, ...target }
+                    : await observeOriginalRecognition(target, (endpoint) =>
+                        readOriginalRecognition(source.repository, endpoint, account),
+                      );
+                  if (!fresh) freshByRelease.set(release, fact);
+                  complete = { binding, observed_at: new Date(now()).toISOString(), fact };
+                  state = "observed";
+                } catch (error) {
+                  state =
+                    error instanceof ObservationFailure
+                      ? error.rule
+                      : "source-metadata-unavailable";
+                }
+              }
+            }
+            policy.original_recognition = { state, last_complete: complete };
+          }
+        }
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
