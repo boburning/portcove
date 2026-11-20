@@ -226,6 +226,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/bounded-summary.mts",
       "scripts/catalog-advisories.mts",
       "scripts/catalog-authoring.mts",
+      "scripts/catalog-chocolate-family-windows-persistence.mts",
       "scripts/catalog-cover-mapping.mts",
       "scripts/catalog-crispy-doom-windows-persistence.mts",
       "scripts/catalog-game-review.mts",
