@@ -476,6 +476,8 @@ The inspection checkpoint also tracks where each baseline group ran out of
 time or download budget. The next run continues from that route in stable
 port, platform and channel order, even when new inspector bytes invalidate
 previous results. Generated baselines keep priority over reviewed layouts.
+If a handoff omits the saved route and the group has no new budget deferral,
+its checkpoint retains that position for a later handoff.
 Oversized archives stay unassessed and do not set the next route. A failed
 download or inspection remains eligible on a later pass. The continuation
 changes only the order of work within existing limits.
