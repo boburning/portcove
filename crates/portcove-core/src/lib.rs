@@ -179,13 +179,14 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 #[doc(hidden)]
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
-    ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
-    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
-    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
-    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
-    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
-    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
+    ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
+    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
+    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
+    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
+    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
+    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
     SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,

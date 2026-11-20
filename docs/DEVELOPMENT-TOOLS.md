@@ -3136,9 +3136,13 @@ Default-cover display/cache observations can use repeated `--cover-port-id ID`
 arguments for at most 16 unique accepted mapped ports. Omission retains the full
 mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
 cache observations must include `dkr-r` for the existing missing-cache negative
-control. Selected ports receive detail observations as well as card observations.
-The report records the requested/observed IDs, selection scope and available
-mapped denominator. A focused result is not whole-catalog evidence. This option
+control. The control withholds the accepted original displayed by the DKR-R
+Discover card. Selected ports receive detail observations as well as card
+observations. When a whole-game card displays another port's cover, the report
+records that cover's port and mapping separately from the selected implementation.
+A card without a primary mapping leaves the card sample empty and checks the
+selected implementation in Detail. The report records the request, scope, and
+available mapped denominator. A focused result is not whole-catalog evidence. This option
 requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
 it does not change image acceptance, cache policy or the frozen cohort's fallback
 credit.
@@ -3588,6 +3592,38 @@ The exact retained cache bytes are restored while the app is stopped. This live
 CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
 native development-app display and cache behavior, not installed-package updates,
 production content publication, physical devices or human comprehension.
+
+Windows runs retain the native command trace and debug diagnostics. For an
+artwork comparison, keep the source, executable, catalog cohort, viewport and
+network condition with each observation. Count effective catalog resolutions,
+original disk lookups and verification, derivative hits and conversions,
+worker admission and base64 output bytes. Use the cached-restart control to
+distinguish retained derivatives from same-process reuse. The cover report's
+per-card timings are Selenium observations after a search request.
+
+For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
+cover mappings, including `dkr-r` for the offline control. Focused cache
+runs use the same window size and theme for the cold pass, the same-session
+Discover revisit, and the offline restart. The report records the initial
+visible primary-cover IDs from the actual artwork frames and checks them against
+the admitted listing catalog, including representative directory entries. It records
+browser-frame timings from the Discover button click to the first ready image
+and the full measured cohort. Collection and companion artwork are outside this
+timing cohort. An incomplete cohort
+has a null completion time and lists the ready IDs. Individual timing rows
+are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
+matching catalog, viewport, visible IDs, and cache and network conditions.
+
+On the same Windows Server 2022 runner, WebView2 158.0.4370.33 development builds
+at 1280×800 and 1× pixel ratio showed one visible DKR-R cover in 1,410 ms on the
+empty-cache baseline `adc3e990c5cd` and 956 ms on candidate `191faff3c8e4`.
+Revisits took 94 ms and 101 ms. After an offline restart with a populated
+cache, one visible Banjo-Recomp cover took 5,574 ms and 489 ms. The candidate's
+restarted process logged nine derivative hits, zero downloads and zero image
+conversions. The baseline logged seven conversions. These are single timing
+observations per condition. The candidate passed the four-title cover and
+Detail scenario. The baseline saved its timing rows before the later
+withheld-original traffic control timed out. [Windows evidence](https://github.com/boburning/portcove/actions/runs/44772705180)
 
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
