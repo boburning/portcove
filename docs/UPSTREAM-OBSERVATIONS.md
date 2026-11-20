@@ -310,10 +310,10 @@ start another operation within that opportunity; each operation keeps its existi
 three-minute admission budget. Request counts and refreshed clocks alone cannot
 authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
 requests, about a third of the observed hourly allowance, so upstream-health and
-other workflows sharing the token keep capacity. The ceiling is a hard total:
-each batch receives only the remaining allowance, and every GitHub request is
-admitted against it. GitLab and direct-manifest sources are counted but keep
-their own per-source bound, and checkpoint recovery, push admission and
+other workflows sharing the token keep capacity. The ceiling is a hard total.
+Each batch receives only the remaining allowance, and release and registry
+requests count against it. GitLab and direct-manifest sources also keep
+their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by
 the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from

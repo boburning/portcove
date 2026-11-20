@@ -563,7 +563,7 @@ export async function advanceCatalogObservations(
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
-  const requestCeiling = Math.min(template.budget.requests, options.requestLimit ?? Infinity);
+  const requestCeiling = options.requestLimit ?? Infinity;
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -731,7 +731,7 @@ export async function advanceCatalogObservations(
           0,
           Math.min(
             remaining === null
-              ? Infinity
+              ? template.budget.requests - requests
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
             requestCeiling - requests,
             Math.floor(
@@ -771,7 +771,7 @@ export async function advanceCatalogObservations(
     options.modProviderRegistryFetch &&
     !options.signal?.aborted &&
     deadline - now() >= 1000 &&
-    requestCeiling > 1 &&
+    Math.min(template.budget.requests, requestCeiling) > 1 &&
     (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
   ) {
     // Reserve space for Retry-After before spending the request. The longest
@@ -972,7 +972,11 @@ export async function advanceCatalogObservations(
           {
             now,
             deadline,
-            maximumRequests: Math.min(64, Math.max(0, requestCeiling - requests)),
+            maximumRequests: Math.min(
+              64,
+              template.budget.requests,
+              Math.max(0, requestCeiling - requests),
+            ),
             maximumBytes: template.budget.total_bytes,
             ...(options.signal ? { signal: options.signal } : {}),
             ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
