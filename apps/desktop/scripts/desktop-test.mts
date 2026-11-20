@@ -283,6 +283,7 @@ if (!Number.isInteger(reloadCycles) || reloadCycles < 0 || reloadCycles > 25)
   throw new Error("--reload-cycles must be 0..25");
 const selection = resolveDesktopHarnessSelection(values);
 const publishedAppImageSmoke = process.env.PORTCOVE_PUBLISHED_APPIMAGE_SMOKE === "1";
+let finishPublishedAppImage: (() => Promise<void>) | undefined;
 if (publishedAppImageSmoke) {
   assert.equal(process.platform, "linux");
   assert.deepEqual(selection.selected_scenarios, ["native-error-recovery"]);
@@ -3529,22 +3530,24 @@ try {
         { flag: "wx" },
       );
       await captureScenarioScreenshot("published-appimage-ready", true);
-      assert.ok(await historyDriverStillOwned(inventory));
-      await driverBrowser().close();
-      const exited = await waitHistorySessionExit({
-        processes: [required(inventory.application), ...inventory.webviews],
-      });
-      assert.ok(await historyDriverStillOwned(inventory));
-      await writeFile(
-        path.join(output, "published-close.json"),
-        JSON.stringify({
-          request: "WebDriver Close Window",
-          process_scope: "AppImage application and owned WebKit WebProcess",
-          driver_still_owned: true,
-          ...exited,
-        }),
-        { flag: "wx" },
-      );
+      finishPublishedAppImage = async () => {
+        assert.ok(await historyDriverStillOwned(inventory));
+        await driverBrowser().close();
+        const exited = await waitHistorySessionExit({
+          processes: [required(inventory.application), ...inventory.webviews],
+        });
+        assert.ok(await historyDriverStillOwned(inventory));
+        await writeFile(
+          path.join(output, "published-close.json"),
+          JSON.stringify({
+            request: "WebDriver Close Window",
+            process_scope: "AppImage application and owned WebKit WebProcess",
+            driver_still_owned: true,
+            ...exited,
+          }),
+          { flag: "wx" },
+        );
+      };
     }
   });
   await scenario("native-startup-network-diagnostic", async () => {
@@ -5171,6 +5174,8 @@ try {
         cycles: reloadCycles,
       });
   }
+  // The harness still reads browser capabilities after its selected scenario.
+  if (publishedAppImageSmoke) await required(finishPublishedAppImage)();
 } catch (error) {
   recordChecks({
     scenario: "harness",
