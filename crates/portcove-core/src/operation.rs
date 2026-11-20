@@ -169,6 +169,7 @@ pub(crate) struct LifecycleOperation {
     /// Exact installation identities retained through removal database deletion.
     pub removal_installs: Option<Vec<InstallRecord>>,
     pub game_settings: Option<game_settings::SettingsJournal>,
+    pub settings_activation: Option<game_settings::ActivationSettingsJournal>,
     pub original_paths: Vec<PathBuf>,
     pub activate: bool,
     pub last_error: Option<String>,
@@ -193,6 +194,7 @@ impl LifecycleOperation {
                 && !matches!(self.kind, Prepare | Install))
             || (self.removal_installs.is_some() && self.kind != Remove)
             || (self.game_settings.is_some() != (self.kind == SettingsChange))
+            || (self.settings_activation.is_some() && self.kind != Activate)
             || (matches!(self.kind, Install | Adopt | Prepare)
                 && matches!(
                     self.phase,
@@ -203,10 +205,11 @@ impl LifecycleOperation {
                 && self.install.is_none())
             || (self.kind == Activate
                 && (self.install.is_none()
-                    || !matches!(
-                        self.phase,
-                        LifecyclePhase::Preparing | LifecyclePhase::MetadataCommitted
-                    )))
+                    || (self.settings_activation.is_none()
+                        && !matches!(
+                            self.phase,
+                            LifecyclePhase::Preparing | LifecyclePhase::MetadataCommitted
+                        ))))
             || (self.kind == ArchiveDataTransition && self.install.is_none())
         {
             return Err(PortcoveError::state(
@@ -253,6 +256,7 @@ impl LifecycleOperation {
             external_registration_sha256: None,
             removal_installs: None,
             game_settings: None,
+            settings_activation: None,
             original_paths: Vec::new(),
             activate: false,
             last_error: None,
@@ -273,9 +277,20 @@ impl OperationStore {
     }
 
     pub fn put(&self, operation: &mut LifecycleOperation) -> Result<()> {
+        self.put_owned(operation, false)
+    }
+
+    fn put_owned(&self, operation: &mut LifecycleOperation, settings_owner: bool) -> Result<()> {
         operation.validate_family()?;
         acquisition::validate_journal(&self.library, operation)?;
         game_settings::validate_journal(&self.library, operation)?;
+        if operation.settings_activation.is_some() && !settings_owner {
+            // An older writer would recover this as ordinary activation. Do
+            // not emit the new envelope before the writer-protocol migration.
+            return Err(PortcoveError::unsupported(
+                "managed settings activation requires its compatible library writer protocol",
+            ));
+        }
         operation.updated_at = Library::now();
         for path in operation
             .paths
@@ -328,11 +343,14 @@ impl OperationStore {
             .as_ref()
             .map(serde_json::to_string)
             .transpose()?;
-        let game_settings_json = operation
-            .game_settings
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()?;
+        let game_settings_json = match &operation.settings_activation {
+            Some(payload) => Some(serde_json::to_string(payload)?),
+            None => operation
+                .game_settings
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()?,
+        };
         if game_settings_json
             .as_ref()
             .is_some_and(|value| value.len() > 16384)
@@ -348,7 +366,7 @@ impl OperationStore {
         if operation.kind != LifecycleOperationKind::AcquireUpdate {
             crate::ghostship_data_store::invalidate(&transaction, &operation.port_id)?;
         }
-        transaction.execute(
+        let changed = transaction.execute(
             "INSERT INTO lifecycle_operations(
                id, kind, port_id, phase, staging_path, final_path, quarantine_path,
                install_json, relocation_json, source_import_json, original_paths_json, activate, last_error, created_at, updated_at, preparation_json,
@@ -375,7 +393,9 @@ impl OperationStore {
                game_settings_json=excluded.game_settings_json,
                activate=excluded.activate,
                last_error=excluded.last_error,
-               updated_at=excluded.updated_at",
+               updated_at=excluded.updated_at
+             WHERE NOT (lifecycle_operations.kind='activate' AND lifecycle_operations.game_settings_json IS NOT NULL)
+               AND NOT (excluded.kind='activate' AND excluded.game_settings_json IS NOT NULL)",
             params![
                 operation.id,
                 operation.kind.to_string(),
@@ -402,13 +422,34 @@ impl OperationStore {
                 game_settings_json,
             ],
         )?;
+        if changed == 0 {
+            return Err(PortcoveError::conflict(
+                "managed settings activation custody cannot be overwritten by an ordinary operation",
+            ));
+        }
         transaction.commit()?;
         Ok(())
     }
 
     pub fn remove(&self, id: &str) -> Result<()> {
-        database::connect(self.library.root())?
-            .execute("DELETE FROM lifecycle_operations WHERE id=?1", [id])?;
+        let connection = database::connect(self.library.root())?;
+        let removed = connection.execute(
+            "DELETE FROM lifecycle_operations WHERE id=?1
+             AND NOT (kind='activate' AND game_settings_json IS NOT NULL)",
+            [id],
+        )?;
+        if removed == 0
+            && connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1
+             AND kind='activate' AND game_settings_json IS NOT NULL)",
+                [id],
+                |row| row.get::<_, bool>(0),
+            )?
+        {
+            return Err(PortcoveError::conflict(
+                "managed settings activation custody requires its recovery owner to retire it",
+            ));
+        }
         Ok(())
     }
 
@@ -666,6 +707,19 @@ impl StoredLifecycleRow {
         let phase = phase
             .parse()
             .map_err(|e| RowFailure::at(crate::JournalValidationStage::Phase, e))?;
+        let (game_settings, settings_activation) = if kind == LifecycleOperationKind::Activate {
+            (
+                None,
+                game_settings::decode_activation(game_settings_json.as_deref())
+                    .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
+            )
+        } else {
+            (
+                game_settings::decode_journal(game_settings_json.as_deref())
+                    .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
+                None,
+            )
+        };
 
         let operation = LifecycleOperation {
             id,
@@ -701,8 +755,8 @@ impl StoredLifecycleRow {
                 .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e.into()))?,
             preparation_process_quiesced: preparation_process_quiesced.map(|value| value != 0),
             external_registration_sha256,
-            game_settings: game_settings::decode_journal(game_settings_json.as_deref())
-                .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
+            game_settings,
+            settings_activation,
             update_acquisition: acquisition::decode_journal(update_acquisition_json.as_deref())
                 .map_err(|e| RowFailure::at(crate::JournalValidationStage::Payload, e))?,
             ghostship_recovery: ghostship_recovery_json

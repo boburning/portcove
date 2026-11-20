@@ -580,6 +580,12 @@ pub(crate) fn recover_restore(
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
+        service.finish_restore_settings_deletion(
+            operation,
+            &previous,
+            &user_root,
+            restore.input_manifest.as_deref(),
+        )?;
         restore.advance(RestorePhase::Committed, operation, store)?;
     }
     service.finish_restore_cleanup(store, operation)?;
@@ -715,6 +721,7 @@ impl ActivationOperation {
     ) -> Result<Self> {
         if operation.kind != LifecycleOperationKind::Activate
             || operation.activate
+            || operation.settings_activation.is_some()
             || operation.relocation.is_some()
             || operation.source_import.is_some()
             || operation.preparation.is_some()
@@ -819,7 +826,7 @@ impl ActivationCommit<'_> {
     }
 }
 
-fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
+pub(crate) fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
     // verified/staged are mutable read-model flags, not durable install identity.
     left.id == right.id
         && left.port_id == right.port_id

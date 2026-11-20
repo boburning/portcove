@@ -3190,12 +3190,12 @@ fn z2rs_automatic_snapshot_preserves_the_owned_fallback_only() {
     let _lock = library.try_lock_port(&port.id, "snapshot-test").unwrap();
     service
         .snapshot_before_version_change(
-            &port.id,
             VersionChangeKind::Update,
             &installed,
             Some("v0.5.2"),
             "v0.6.0",
             false,
+            None,
         )
         .unwrap();
     let snapshots = service.list_backups(&port.id).unwrap().backups;
@@ -3363,12 +3363,12 @@ fn retention_keeps_the_newest_automatic_snapshots_and_never_removes_a_manual_one
     for step in 2..=8 {
         service
             .snapshot_before_version_change(
-                ZELDA,
                 VersionChangeKind::Update,
                 &active,
                 Some("v1"),
                 &format!("v{step}"),
                 false,
+                None,
             )
             .unwrap();
     }
@@ -3489,12 +3489,12 @@ fn a_pending_retention_deletion_is_finished_instead_of_blocking_the_snapshot() {
 
     service
         .snapshot_before_version_change(
-            ZELDA,
             VersionChangeKind::Update,
             &active,
             Some("v1"),
             "v2",
             false,
+            None,
         )
         .expect("the leftover prune no longer blocks the version change");
 

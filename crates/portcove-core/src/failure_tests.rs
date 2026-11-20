@@ -85,6 +85,50 @@ fn portable_refusals_explain_recovery_without_rewriting_mutation_facts() {
 }
 
 #[test]
+fn held_settings_activation_guidance_preserves_machine_fields_and_hides_paths() {
+    for (cause, key, reason, safety) in [
+        (
+            KnownFailureCause::SettingsDefaultsConflict,
+            "settings_defaults_conflict",
+            "player-and-default-diverged",
+            "kept your settings and the new defaults",
+        ),
+        (
+            KnownFailureCause::SettingsDefaultsUnverified,
+            "settings_defaults_unverified",
+            "missing-verified-default",
+            "verify the settings defaults for both versions",
+        ),
+    ] {
+        let error = PortcoveError::conflict("settings activation held")
+            .detail("settings_file", "private/settings.ini")
+            .detail("settings_reason", reason);
+        let before = error.report();
+        let report = error.with_known_cause(cause).report();
+        assert_eq!(report.code, before.code);
+        assert_eq!(report.message, before.message);
+        assert_eq!(report.details, before.details);
+        assert_eq!(
+            report.presentation.mutation_state,
+            before.presentation.mutation_state
+        );
+        assert_eq!(
+            report.presentation.recovery_actions,
+            before.presentation.recovery_actions
+        );
+        assert_eq!(report.presentation.presentation_key, key);
+        assert!(report.presentation.summary.contains(safety));
+        assert!(
+            report
+                .presentation
+                .summary
+                .contains("using the installed version")
+        );
+        assert!(!report.presentation.summary.contains("private"));
+    }
+}
+
+#[test]
 fn diverged_appended_settings_name_the_file_and_both_copies_before_details() {
     for (other_is_saved, label) in [(true, "Saved copy"), (false, "New version's copy")] {
         let installed = std::path::PathBuf::from("games/sonic/v0.8.3/sonic1-sound.ini");

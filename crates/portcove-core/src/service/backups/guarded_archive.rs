@@ -140,10 +140,12 @@ impl PortcoveService {
         &self,
         operation: &mut LifecycleOperation,
         bytes: &[u8],
+        settings_deletion: bool,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
-        let guarded = crate::native_mod_list::loader_list(&operation.port_id).is_some()
+        let guarded = settings_deletion
+            || crate::native_mod_list::loader_list(&operation.port_id).is_some()
             || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
