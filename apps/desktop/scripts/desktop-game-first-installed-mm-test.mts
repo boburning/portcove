@@ -19,6 +19,7 @@ import { transportValue } from "./transport-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import {
   readGameFirstObservation,
+  readGameFirstCatalogObservation,
   observeGameFirstCaptureReadiness,
   captureGameFirstTarget,
 } from "./desktop-game-first-test.mts";
@@ -209,6 +210,18 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       const value = await readGameFirstObservation(invoke, readbacks);
       assert.ok(samePath(required(value.bootstrap.library_root), library));
       return value;
+    };
+    const readCatalog = async (phase: string) => {
+      const value = await readGameFirstCatalogObservation(invoke, readbacks);
+      assert.ok(samePath(required(value.bootstrap.library_root), library));
+      readbacks.push({
+        phase,
+        generation: value.bootstrap.generation,
+        library_root: value.bootstrap.library_root,
+        catalog_digest: value.catalog_digest,
+        catalog_status: value.catalog_status,
+        listing_delivery_status: value.listing_delivery_status,
+      });
     };
     const row = async (id: string) =>
       required((await read()).statuses.find((item) => item.port_id === id));
@@ -682,15 +695,25 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.deepEqual(await favorites(), prePlay.favorites);
       const saved = await baseline();
       report.before_restart = saved;
+      await readCatalog("mm-before-restart-catalog");
       browser = await context.restartApplication("mm-installed-choice-restart");
       await libraryView();
       assert.deepEqual(await baseline(), saved);
       assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+      await readCatalog("mm-restarted-catalog");
       await inputBaseline.verify();
       report.outcome = "bounded-mm-installed-choice-journey-complete";
     } catch (error) {
       failure = retainedError(error);
       report.failure = errorMessage(error);
+      try {
+        await readCatalog("mm-failed-catalog");
+      } catch (readbackError) {
+        readbacks.push({
+          phase: "mm-failed-catalog-readback",
+          failure: errorMessage(readbackError),
+        });
+      }
     } finally {
       try {
         const file = path.join(output, "game-first-installed-mm.json");

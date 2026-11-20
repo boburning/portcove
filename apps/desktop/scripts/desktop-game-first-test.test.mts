@@ -9,6 +9,7 @@ import {
   observeGameFirstCaptureReadiness,
   readGameFirstObservation,
   readGameFirstCatalogProvenance,
+  readGameFirstCatalogObservation,
 } from "./desktop-game-first-test.mts";
 import { failureReport, portStatus, installedLaunchStatus } from "../src/test-fixtures.ts";
 import { transportValue } from "./transport-values.mts";
@@ -23,6 +24,7 @@ import type {
   OutputDesktopBootstrapStatus,
   OutputDesktopLibraryOrganization,
   OutputDesktopWorkspaceSnapshot,
+  ListingDeliveryStatus,
 } from "../src/transport-types.generated.d.ts";
 
 const bootstrap: OutputDesktopBootstrapStatus = {
@@ -177,6 +179,134 @@ test("catalog provenance reads both actual definition and independently selected
       }),
     );
     assert.deepEqual(attempts, ["get_catalog_status", "get_listing_delivery_status"]);
+  }
+});
+
+function catalogWitnessFixture() {
+  const catalog = {
+    provenance: {
+      origin: "embedded",
+      catalog_sha256: "a".repeat(64),
+      expires_at: null,
+      fallback_reasons: [],
+      key_id: null,
+      sequence: null,
+    },
+    trusted_keys: [],
+    highest_sequence: 0,
+    updates_enabled: false,
+    can_rollback: false,
+    can_use_cached: false,
+    state_sha256: "b".repeat(64),
+  };
+  const listing: ListingDeliveryStatus = {
+    delivery_schema: 1,
+    revision: 17,
+    selected: true,
+    anchor_sha256: "c".repeat(64),
+    repository_root_sha256: "d".repeat(64),
+    target_sha256: "e".repeat(64),
+    expires_at: "2026-12-01T00:00:00Z",
+    listing_count: 1500,
+    withdrawn_ids: [],
+    fallback_reason: null,
+  };
+  const catalogs: [typeof catalog, typeof catalog] = [catalog, structuredClone(catalog)];
+  const listings: [ListingDeliveryStatus, ListingDeliveryStatus] = [
+    listing,
+    structuredClone(listing),
+  ];
+  const bootstraps: [
+    OutputDesktopBootstrapStatus,
+    OutputDesktopBootstrapStatus,
+    OutputDesktopBootstrapStatus,
+    OutputDesktopBootstrapStatus,
+  ] = [{ ...bootstrap }, { ...bootstrap }, { ...bootstrap }, { ...bootstrap }];
+  const snapshot = { ...workspace, catalog_digest: "f".repeat(64) };
+  const fixture = reads([success(snapshot)], bootstraps);
+  const calls: string[] = [];
+  let catalogReads = 0;
+  let listingReads = 0;
+  const invoke: ScenarioInvoke = async (command, args) => {
+    calls.push(command);
+    if (command === "get_catalog_status") return success(catalogs[catalogReads++]);
+    if (command === "get_listing_delivery_status") return success(listings[listingReads++]);
+    return fixture.invoke(command, args);
+  };
+  return { invoke, calls, catalogs, listings, bootstraps, snapshot };
+}
+
+test("live catalog readback binds selected or embedded data without requiring a network update", async () => {
+  for (const selected of [false, true]) {
+    const fixture = catalogWitnessFixture();
+    for (const listing of fixture.listings) {
+      listing.selected = selected;
+      if (!selected) {
+        listing.revision = null;
+        listing.target_sha256 = null;
+        listing.listing_count = 0;
+      }
+    }
+    const readbacks: unknown[] = [];
+    const observed = await readGameFirstCatalogObservation(fixture.invoke, readbacks);
+    assert.equal(observed.catalog_digest, fixture.snapshot.catalog_digest);
+    assert.equal(observed.listing_delivery_status.selected, selected);
+    assert.equal(observed.listing_delivery_status.target_sha256, selected ? "e".repeat(64) : null);
+    assert.equal(observed.bootstrap.library_root, bootstrap.library_root);
+    const bracket = readbacks.find(
+      (value) => isRecord(value) && value.phase === "catalog-provenance-bracket",
+    );
+    assert.ok(isRecord(bracket));
+    assert.equal(bracket.coherent, true);
+    assert.deepEqual(bracket.snapshot, {
+      generation: bootstrap.generation,
+      library_root: bootstrap.library_root,
+      catalog_digest: fixture.snapshot.catalog_digest,
+    });
+    assert.ok(fixture.calls.every((command) => command.startsWith("get_")));
+  }
+});
+
+test("a refused live catalog bracket retains both observed target identities", async () => {
+  const fixture = catalogWitnessFixture();
+  fixture.listings[1].target_sha256 = "0".repeat(64);
+  const readbacks: unknown[] = [];
+  await assert.rejects(() => readGameFirstCatalogObservation(fixture.invoke, readbacks));
+  const bracket = readbacks.find(
+    (value) => isRecord(value) && value.phase === "catalog-provenance-bracket",
+  );
+  assert.ok(isRecord(bracket));
+  assert.equal(bracket.coherent, false);
+  assert.ok(isRecord(bracket.before) && isRecord(bracket.after));
+  assert.ok(isRecord(bracket.before.listing_delivery_status));
+  assert.ok(isRecord(bracket.after.listing_delivery_status));
+  assert.equal(bracket.before.listing_delivery_status.target_sha256, "e".repeat(64));
+  assert.equal(bracket.after.listing_delivery_status.target_sha256, "0".repeat(64));
+});
+
+test("live catalog readback refuses changed selection, library scope or a missing digest", async () => {
+  const mutations = [
+    (fixture: ReturnType<typeof catalogWitnessFixture>) => {
+      fixture.listings[1].target_sha256 = "0".repeat(64);
+    },
+    (fixture: ReturnType<typeof catalogWitnessFixture>) => {
+      fixture.catalogs[1].provenance.catalog_sha256 = "0".repeat(64);
+    },
+    (fixture: ReturnType<typeof catalogWitnessFixture>) => {
+      fixture.bootstraps[1].generation++;
+    },
+    (fixture: ReturnType<typeof catalogWitnessFixture>) => {
+      fixture.bootstraps[3].library_root = "E:/other-library";
+    },
+    (fixture: ReturnType<typeof catalogWitnessFixture>) => {
+      fixture.snapshot.catalog_digest = "";
+    },
+  ];
+  for (const mutate of mutations) {
+    const fixture = catalogWitnessFixture();
+    mutate(fixture);
+    await assert.rejects(() => readGameFirstCatalogObservation(fixture.invoke, []));
+    assert.ok(fixture.calls.every((command) => command.startsWith("get_")));
   }
 });
 

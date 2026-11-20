@@ -233,6 +233,61 @@ export async function readGameFirstCatalogProvenance(invoke: ScenarioInvoke) {
   return { catalog_status, listing_delivery_status };
 }
 
+/** Bind live catalog selection to a full snapshot in one unchanged library scope. */
+export async function readGameFirstCatalogObservation(
+  invoke: ScenarioInvoke,
+  readbacks: unknown[],
+) {
+  const initial = transportValue(
+    "desktop_bootstrap_status",
+    fixtureSuccess(await invoke("get_bootstrap_status")),
+  );
+  assert.equal(initial.ready, true);
+  const before = await readGameFirstCatalogProvenance(invoke);
+  const observation = await readGameFirstObservation(invoke, readbacks);
+  const after = await readGameFirstCatalogProvenance(invoke);
+  const bootstrap = transportValue(
+    "desktop_bootstrap_status",
+    fixtureSuccess(await invoke("get_bootstrap_status")),
+  );
+  const bracket = {
+    phase: "catalog-provenance-bracket",
+    coherent: false,
+    initial: { generation: initial.generation, library_root: initial.library_root },
+    snapshot: {
+      generation: observation.bootstrap.generation,
+      library_root: observation.bootstrap.library_root,
+      catalog_digest: observation.workspace.catalog_digest ?? null,
+    },
+    final: { generation: bootstrap.generation, library_root: bootstrap.library_root },
+    before,
+    after,
+  };
+  readbacks.push(bracket);
+  assert.equal(bootstrap.ready, true);
+  assert.equal(observation.bootstrap.generation, initial.generation);
+  assert.equal(observation.bootstrap.library_root, initial.library_root);
+  assert.equal(bootstrap.generation, initial.generation);
+  assert.equal(bootstrap.library_root, initial.library_root);
+  assert.deepEqual(
+    after.catalog_status.provenance,
+    before.catalog_status.provenance,
+    "Definition selection changed during live catalog readback",
+  );
+  assert.deepEqual(
+    after.listing_delivery_status,
+    before.listing_delivery_status,
+    "Listing selection changed during live catalog readback",
+  );
+  const catalog_digest = observation.workspace.catalog_digest;
+  assert.ok(
+    typeof catalog_digest === "string" && catalog_digest.length > 0,
+    "Live catalog readback requires the workspace catalog digest",
+  );
+  bracket.coherent = true;
+  return { ...observation, ...after, catalog_digest };
+}
+
 /** Repeat only explicitly stale reads or independently confirmed transitions; never replay an action. */
 export async function readGameFirstObservation(invoke: ScenarioInvoke, readbacks: unknown[]) {
   let initial: { generation: number; library_root: string | null } | undefined;
@@ -489,20 +544,34 @@ export async function gameFirstScenarios({
     const captures: unknown[] = [];
     const readbacks: unknown[] = [];
     const read = () => readGameFirstObservation(invoke, readbacks);
-    const before = await read();
     const relationships = await readGameFirstRelationships();
-    const production = inspectGameFirstRelationships(before.workspace, relationships.expected);
+    const readCatalog = async (phase: string) => {
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
+      const retained: Record<string, unknown> = {
+        phase,
+        expected_baseline_sha256: relationships.sha256,
+        audited_revision: relationships.expected.audited_revision,
+        generation: observation.bootstrap.generation,
+        library_root: observation.bootstrap.library_root,
+        catalog_digest: observation.catalog_digest,
+        catalog_status: observation.catalog_status,
+        listing_delivery_status: observation.listing_delivery_status,
+      };
+      readbacks.push(retained);
+      const production = inspectGameFirstRelationships(
+        observation.workspace,
+        relationships.expected,
+      );
+      Object.assign(retained, {
+        families: Object.keys(relationships.expected.families).length,
+        audited_records: production.provenance.length,
+        provenance: production.provenance,
+      });
+      return { ...observation, production };
+    };
+    const before = await readCatalog("production-catalog-relationships");
+    const production = before.production;
     const family = required(relationships.expected.families[gameId]);
-    readbacks.push({
-      phase: "production-catalog-relationships",
-      expected_baseline_sha256: relationships.sha256,
-      audited_revision: relationships.expected.audited_revision,
-      families: Object.keys(relationships.expected.families).length,
-      audited_records: production.provenance.length,
-      catalog_digest: before.workspace.catalog_digest ?? null,
-      ...(await readGameFirstCatalogProvenance(invoke)),
-      provenance: production.provenance,
-    });
     readbacks.push({
       phase: "before",
       generation: before.bootstrap.generation,
@@ -909,6 +978,7 @@ export async function gameFirstScenarios({
       ).sendKeys(Key.ENTER);
       await detail(gzdoom.id);
       await back();
+      await readCatalog("after-browsing-catalog-relationships");
       await searchGame();
       await openComparison();
       const chosen = required(
@@ -1016,7 +1086,7 @@ export async function gameFirstScenarios({
       await resetSize();
       browser = await restartApplication(scenarioId);
       await browser.manage().window().setRect({ width: 1280, height: 900 });
-      const restarted = await read();
+      const restarted = await readCatalog("restarted-catalog-relationships");
       readbacks.push({
         phase: "restarted",
         generation: restarted.bootstrap.generation,
@@ -1060,6 +1130,11 @@ export async function gameFirstScenarios({
       failed = false;
     } catch (error) {
       failure = error;
+      try {
+        await readCatalog("failed-catalog-relationships");
+      } catch (readbackError) {
+        readbacks.push({ phase: "failed-catalog-readback", failure: errorMessage(readbackError) });
+      }
       throw error;
     } finally {
       await retainResultAndRestoreAppearance();
