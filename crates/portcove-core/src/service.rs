@@ -4022,8 +4022,12 @@ impl PortcoveService {
         if !settings_activation {
             self.collect_active_user_data_if_launched(&port.id)?;
         }
-        let source =
-            self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
+        let source = self.validate_and_remember_source(
+            port,
+            overrides.source,
+            (&release.version, &release.asset.sha256),
+            reporter.operation,
+        )?;
         reporter.operation.checkpoint()?;
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
@@ -4225,6 +4229,7 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         source_override: Option<&Path>,
+        release: (&str, &str),
         operation: &OperationCoordinator,
     ) -> Result<Option<SourceRecord>> {
         let Some(profile_id) = &port.source_profile else {
@@ -4236,6 +4241,13 @@ impl PortcoveService {
             let classification = inspection.assessment.classification.clone();
             let source = inspection.require_admitted_record()?;
             self.require_original_setup_compatibility(port, &classification)?;
+            crate::source_inspection::require_n64_release_input(
+                &self.catalog,
+                &port.id,
+                &source,
+                release,
+                &|| operation.checkpoint(),
+            )?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
@@ -4250,9 +4262,16 @@ impl PortcoveService {
             return Ok(None);
         }
         match self.verified_original_for_setup(port) {
-            Ok(source) => Ok(Some(source)),
+            Ok(source) => {
+                crate::source_inspection::require_n64_release_input(
+                    &self.catalog, &port.id, &source, release, &|| operation.checkpoint(),
+                )?;
+                Ok(Some(source))
+            }
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), Some(port), operation)
+                .resolve_and_register_inbox_source(
+                    profile_id, Some(&port.id), Some(port), Some(release), operation,
+                )
                 .map(Some)
                 .or_else(|error| {
                     if port.optional_game_source && error.code == crate::ErrorCode::NotFound {
@@ -4307,7 +4326,7 @@ impl PortcoveService {
         match self.verified_source_record(profile_id) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, operation)
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, None, operation)
                 .map(Some)
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
@@ -4330,6 +4349,7 @@ impl PortcoveService {
         profile_id: &str,
         already_locked: Option<&str>,
         setup_port: Option<&PortDefinition>,
+        setup_release: Option<(&str, &str)>,
         operation: &OperationCoordinator,
     ) -> Result<SourceRecord> {
         if setup_port.is_some_and(|port| port.source_profile.as_deref() != Some(profile_id)) {
@@ -4340,7 +4360,17 @@ impl PortcoveService {
         let _guards = self.lock_source_dependents(profile_id, already_locked)?;
         if let Some(registered) = self.library.source(profile_id)? {
             if let Some(port) = setup_port {
-                return self.verified_original_for_setup(port);
+                let source = self.verified_original_for_setup(port)?;
+                if let Some(release) = setup_release {
+                    crate::source_inspection::require_n64_release_input(
+                        &self.catalog,
+                        &port.id,
+                        &source,
+                        release,
+                        &|| operation.checkpoint(),
+                    )?;
+                }
+                return Ok(source);
             }
             self.verify_source_record(&registered)?;
             return Ok(registered);
@@ -4372,6 +4402,15 @@ impl PortcoveService {
                 let source = inspection.require_admitted_record()?;
                 if let Some(port) = setup_port {
                     self.require_original_setup_compatibility(port, &classification)?;
+                    if let Some(release) = setup_release {
+                        crate::source_inspection::require_n64_release_input(
+                            &self.catalog,
+                            &port.id,
+                            &source,
+                            release,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                 }
                 self.library.register_source(&source)?;
                 Ok(source)

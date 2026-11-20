@@ -1973,6 +1973,23 @@ that carries the flag declares the applicable capability floor. Older readers
 can then decline the definition before using the projection, while supported
 readers keep ordinary original-file admission and execution checks.
 
+### Exact N64 Recomp original input
+
+A game source contract can carry `n64_recomp_inputs_v1` for an upstream
+N64 Recomp runtime that uses the supported normalized ROM check. Each binding
+names the release ref, artifact SHA-256, native game ID and expected XXH3-64.
+The native game ID must name the definition's normalized runtime file. The
+contract cites upstream support evidence. Indexed projections carrying these
+bindings require N64 recomp portable version 10 for the selected definition.
+
+The matching release and artifact select the requirement during managed
+installation and launch. Core checks the original's saved storage and content
+identities and compares the upstream digest after N64 padding and byte-order
+normalization. The XXH3-64 check leaves the saved identity and its SHA-256
+unchanged. A binding for a different release or artifact supplies no
+compatibility verdict. A literal value in upstream source needs evidence of
+the applicable runtime check before it can become a required binding.
+
 ### Reviewed mod provider bindings
 
 An indexed definition can carry one exact GameBanana game ID and one

@@ -619,6 +619,57 @@ fn original_recognition_projection_requires_the_explicit_reader_capability() {
     );
 }
 
+#[test]
+fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
+    let mut document = generic_projection();
+    let port = &mut document["catalog"]["ports"][0];
+    port["adapter"] = json!("n64-recomp-portable");
+    port["runtime_source_filename"] = json!("fixture.us.z64");
+    let sources = &mut document["catalog"]["source_catalog"];
+    sources["evidence"].as_array_mut().unwrap().push(json!({
+        "id": "fixture-upstream-input",
+        "role": "upstream_support",
+        "authority": "Synthetic runtime input fixture",
+        "authority_ref": "test-release",
+        "reviewed_at": "2026-09-30",
+        "claim": "Synthetic upstream input requirement",
+        "immutable_url": "https://example.invalid/fixtures/runtime-v1"
+    }));
+    let source = &mut sources["contracts"][0];
+    source["evidence_ids"] = json!(["fixture-upstream-input"]);
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Requires the upstream release input check.");
+    source["supported_variant_ids"] = json!([]);
+    source["n64_recomp_inputs_v1"] = json!([{
+        "upstream_ref": "test-release",
+        "artifact_sha256": "a".repeat(64),
+        "game_id": "fixture.us",
+        "rom_xxh3_64": "0123456789abcdef"
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 9, "maximum_version": 9
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }

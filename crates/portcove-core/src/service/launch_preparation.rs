@@ -163,6 +163,15 @@ impl PortcoveService {
             (bios.as_ref(), crate::PortSourceRole::Bios),
         ] {
             if let Some(source) = source {
+                if role == crate::PortSourceRole::Game {
+                    crate::source_inspection::require_n64_release_input(
+                        &catalog,
+                        &port.id,
+                        source,
+                        (&active.version, &active.artifact.sha256),
+                        &checkpoint,
+                    )?;
+                }
                 crate::source_inspection::require_launch_source_compatibility(
                     &catalog,
                     &port.id,

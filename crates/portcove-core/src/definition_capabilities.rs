@@ -12,6 +12,7 @@ const MAX_REQUIREMENTS: usize = 64;
 
 const LIBULTRASHIP_ORIGINAL_RECOGNITION: u32 = 7;
 const N64_RECOMP_ORIGINAL_RECOGNITION: u32 = 9;
+pub(crate) const N64_RECOMP_RELEASE_INPUT_CAPABILITY: u32 = 10;
 
 pub(crate) fn original_recognition_capability(adapter: AdapterKind) -> Option<(&'static str, u32)> {
     match adapter {
@@ -386,6 +387,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: N64_RECOMP_ORIGINAL_RECOGNITION,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_RELEASE_INPUT_CAPABILITY,
         });
         supported
     }
