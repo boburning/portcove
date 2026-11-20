@@ -11,6 +11,7 @@ import { ArtworkProvider } from "../artwork";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import type { Perform } from "../features/operations/use-operation-state";
 import * as picker from "../file-picker";
+import { dismissActiveDialog, navigationScope } from "../focus";
 import { artworkState, portDefinition } from "../test-fixtures";
 import type {
   ArtworkState,
@@ -75,11 +76,14 @@ async function render(portId = "sample", generation = 7, imageId = "") {
 }
 
 async function open() {
-  await act(async () => {
-    const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-    details.open = true;
-    details.dispatchEvent(new Event("toggle"));
-  });
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
+}
+
+async function closeArtwork() {
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await expect.element(sheet).not.toBeVisible();
+  await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
 }
 
 const slotLabels = {
@@ -132,13 +136,10 @@ function expectCandidateFrameRatio(author: string, ratio: number) {
 }
 
 function expectArtworkDisclosureAlignment() {
-  const summaries = [
-    ...container.querySelectorAll<HTMLElement>(
-      ".artwork-controls > summary, .artwork-source > summary",
-    ),
-  ];
-  const visible = summaries.filter((summary) => !summary.closest("[hidden]"));
-  expect(visible).toHaveLength(2);
+  const visible = Array.from(
+    container.querySelectorAll<HTMLElement>(".artwork-source > summary"),
+  ).filter((summary) => !summary.closest("[hidden]"));
+  expect(visible).toHaveLength(1);
   for (const summary of visible) expectDisclosureAlignment(summary);
 }
 
@@ -191,6 +192,21 @@ afterEach(async () => {
 });
 
 describe("local artwork controls", () => {
+  it("keeps controller Back in the artwork sheet and returns focus to Change artwork", async () => {
+    await render();
+    await open();
+    const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+    expect(navigationScope()).toBe(sheet.element());
+    await act(async () => {
+      expect(dismissActiveDialog()).toBe(true);
+    });
+    await expect.element(sheet).not.toBeVisible();
+    await expect
+      .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+      .toHaveFocus();
+    expect(navigationScope()).toBe(document);
+  });
+
   it("keeps a listing's independent artwork slots and one detail preview inside Change artwork", async () => {
     const listing: PortListing = {
       id: "listing-only",
@@ -230,7 +246,7 @@ describe("local artwork controls", () => {
     expect(container.querySelector('[aria-label="Background"]')).toBeNull();
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
-    container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
+    container.querySelector<HTMLElement>(".artwork-sheet")!.scrollIntoView({ block: "start" });
     const coverControls = button("cover", "Choose local image").getBoundingClientRect();
     expect(coverControls.top).toBeGreaterThanOrEqual(0);
     expect(coverControls.bottom).toBeLessThanOrEqual(innerHeight);
@@ -626,11 +642,7 @@ describe("local artwork controls", () => {
       await click("cover", "Choose local image");
       expect(change).toHaveBeenCalledTimes(1);
       if (kind === "close") {
-        await act(async () => {
-          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-          details.open = false;
-          details.dispatchEvent(new Event("toggle"));
-        });
+        await closeArtwork();
       } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
       await expect.poll(() => container.querySelector('[aria-label="Cover image"]')).toBeNull();
       const reads = vi.mocked(desktopApi.artwork).mock.calls.length;
@@ -827,7 +839,7 @@ describe("local artwork controls", () => {
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
       expect(button("detail", "Use automatic").disabled).toBe(false);
-      container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
+      container.querySelector<HTMLElement>(".artwork-sheet")!.scrollIntoView({ block: "start" });
       expect(button("cover", "Use automatic").disabled).toBe(true);
       const resetControls = button("cover", "Use automatic").getBoundingClientRect();
       expect(resetControls.top).toBeGreaterThanOrEqual(0);
@@ -861,11 +873,7 @@ describe("local artwork controls", () => {
       await open();
       await click("cover", "Choose local image");
       if (kind === "close") {
-        await act(async () => {
-          const details = container.querySelector<HTMLDetailsElement>(".artwork-controls")!;
-          details.open = false;
-          details.dispatchEvent(new Event("toggle"));
-        });
+        await closeArtwork();
       } else await render(kind === "port" ? "another" : "sample", kind === "library" ? 8 : 7);
       await act(async () => finish("E:/stale.png"));
       expect(change).not.toHaveBeenCalled();

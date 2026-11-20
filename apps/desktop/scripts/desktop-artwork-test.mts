@@ -154,6 +154,26 @@ export async function artworkScenario({
       await writeFile(source, bytes, { flag: "wx" });
       const digest = createHash("sha256").update(bytes).digest("hex");
       const { click } = reviewControls(browser);
+      const editorTrigger = By.css("[data-artwork-editor-trigger]");
+      const editor = By.css(".artwork-sheet[open]");
+      const openEditor = async () => {
+        await click(editorTrigger);
+        await browser.wait(until.elementLocated(editor), 10_000);
+      };
+      const closeEditor = async () => {
+        await click(By.css(".artwork-sheet[open] [data-artwork-editor-close]"));
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () =>
+                !document.querySelector(".artwork-sheet[open]") &&
+                document.activeElement?.matches("[data-artwork-editor-trigger]") === true,
+            ),
+          10_000,
+          "Closing artwork must return focus to Change artwork",
+        );
+      };
       const slotLabel = (slot: "cover" | "detail") =>
         slot === "cover" ? "Cover image" : "Background";
       const activateSlot = (slot: "cover" | "detail") =>
@@ -286,17 +306,8 @@ export async function artworkScenario({
         await clearCatalogFilters(browser);
         await selectCatalogPort(browser, port.id);
         await revealDetailSection(browser, "Manage");
-        const summary = await browser.findElement(
-          By.xpath('//summary[normalize-space(.)="Change artwork"]'),
-        );
-        await executeBrowserScript(
-          browser,
-          'arguments[0].focus(); arguments[0].scrollIntoView({ block: "center" });',
-          summary,
-        );
-        await summary.sendKeys(Key.ENTER);
-        // The slot controls mount on the disclosure's toggle event; locate before
-        // requiring the control to be enabled.
+        await openEditor();
+        // The slot controls mount inside the modal; locate before requiring a choice.
         await browser.wait(
           until.elementIsEnabled(
             await browser.wait(
@@ -407,6 +418,13 @@ export async function artworkScenario({
         );
       }
       await waitForArtworkImage(browser, ".wide-artwork img");
+      const sheetScreenshot = path.join(output, "native-change-artwork-sheet.png");
+      await writeFile(sheetScreenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(sheetScreenshot);
+      await closeEditor();
       // Reveal the always-mounted hero before waiting for its lazy foreground.
       await waitForArtworkImage(
         browser,
@@ -482,6 +500,7 @@ export async function artworkScenario({
         }
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
+      await openEditor();
       await activateSlot("cover");
       await click(control("cover", "Hide artwork"));
       await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
@@ -513,7 +532,7 @@ export async function artworkScenario({
         await click(control("detail", "Refresh artwork"));
         await browser.wait(
           async () =>
-            (await browser.findElement(By.css(".artwork-controls")))
+            (await browser.findElement(editor))
               .getText()
               .then((text) => text.includes("choice has been retained")),
           10_000,

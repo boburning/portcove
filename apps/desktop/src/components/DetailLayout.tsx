@@ -78,7 +78,7 @@ function platformIdentities(
 /** Presentation only: all eligibility and stateful workflow owners stay with the caller. */
 const artworkTarget = {
   targetId: "detail-artwork",
-  control: ".artwork-controls > summary",
+  control: "[data-artwork-editor-trigger]",
 };
 
 export function DetailLayout({

@@ -549,7 +549,7 @@ it("returns to the admitted catalog logo after resetting the explicit Logo choic
   const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
   await expect.poll(foreground).toBe(`data:image/png;base64,${chosenLogoBytes}`);
   expect(catalog).not.toHaveBeenCalled();
-  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
   await page.getByRole("tab", { name: "Logo", exact: true }).click();
   await page.getByRole("button", { name: "Use automatic", exact: true }).click();
   expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 5, 7);
@@ -596,7 +596,7 @@ it("hides a cached catalog logo without hiding the background and restores it on
     document.querySelector<HTMLImageElement>(".game-hero-background img")?.src;
   await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
   await expect.poll(background).toBe(`data:image/png;base64,${png}`);
-  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("button", { name: "Change artwork", exact: true }).click();
   await page.getByRole("tab", { name: "Logo", exact: true }).click();
   const hideControl = page.getByRole("button", { name: "Hide artwork", exact: true });
   const automatic = page.getByRole("button", { name: "Use automatic", exact: true });

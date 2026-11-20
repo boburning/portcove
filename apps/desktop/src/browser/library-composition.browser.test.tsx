@@ -1299,16 +1299,23 @@ it("opens the Cover editor from the game card and returns focus to the same More
   await expect.element(menu).toBeVisible();
   await menu.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
 
-  const disclosure = page
-    .getByRole("region", { name: "Artwork", exact: true })
-    .getByText("Change artwork", { exact: true });
-  await expect.element(disclosure).toHaveFocus();
-  expect(disclosure.element().closest("details")?.open).toBe(true);
-  await expect
-    .element(page.getByRole("tab", { name: "Cover image", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  const close = sheet.getByRole("button", { name: "Close", exact: true });
+  const coverTab = sheet.getByRole("tab", { name: "Cover image", exact: true });
+  await expect.element(close).toHaveFocus();
+  await expect.element(coverTab).toHaveAttribute("aria-selected", "true");
+  const bounds = sheet.element().getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
   await userEvent.keyboard("{Tab}");
-  await expect.element(page.getByRole("tab", { name: "Cover image", exact: true })).toHaveFocus();
+  await expect.element(coverTab).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(sheet).not.toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+    .toHaveFocus();
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect
     .poll(() => (document.activeElement as HTMLElement | null)?.dataset.detailOrigin)

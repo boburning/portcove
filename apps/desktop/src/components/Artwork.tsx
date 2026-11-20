@@ -1,10 +1,12 @@
 import { cn } from "cn";
 import { useAppTranslation } from "../localization";
+import { gameIdentityLabel } from "../port-identity";
 import { Tabs } from "@base-ui/react/tabs";
 import styles from "./Artwork.module.css";
 import {
   useEffect,
   useLayoutEffect,
+  useId,
   useRef,
   useState,
   type ComponentType,
@@ -222,79 +224,136 @@ const slotCopy: Record<ArtworkSlot, { label: string; description: string }> = {
 
 const artworkSlots = Object.keys(slotCopy) as ArtworkSlot[];
 
-export function ArtworkControls({
-  port,
-  previewPort,
-  Preview,
-  previewActions,
-}: {
+type ArtworkControlsProps = {
   port: BackgroundPreviewProps["port"];
   previewPort?: BackgroundPreviewProps["port"] | undefined;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
-}) {
+};
+
+export function ArtworkControls(props: ArtworkControlsProps) {
   const { t } = useAppTranslation("detail");
+  const { t: common } = useAppTranslation("common");
+  const sheet = useRef<HTMLDialogElement>(null);
+  const id = useId();
   const [open, setOpen] = useState(false);
+  const identity = props.previewPort?.id === props.port.id ? props.previewPort : props.port;
+  return (
+    <div className="artwork-controls">
+      <Button
+        type="button"
+        data-focusable
+        data-artwork-editor-trigger
+        aria-haspopup="dialog"
+        aria-controls={id}
+        variant="outline"
+        onClick={(event) => {
+          const target = sheet.current;
+          if (!target || target.open) return;
+          event.currentTarget.focus({ preventScroll: true });
+          target.showModal();
+          setOpen(true);
+        }}
+      >
+        {t("actions.artwork")}
+      </Button>
+      <dialog
+        ref={sheet}
+        id={id}
+        data-portcove-native-modal
+        className={cn(styles.sheet, "artwork-sheet")}
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-identity ${id}-scope`}
+        onClose={(event) => {
+          if (!event.currentTarget.open) setOpen(false);
+        }}
+      >
+        <header className={styles.sheetHeader}>
+          <div className="min-w-0 wrap-anywhere">
+            <h2 id={`${id}-title`} className="m-0 text-xl font-semibold">
+              {t("actions.artwork")}
+            </h2>
+            <p id={`${id}-identity`} className="m-0 text-sm text-pc-muted-foreground">
+              {gameIdentityLabel(identity)}
+            </p>
+            <p id={`${id}-scope`} className="m-0 text-sm text-pc-muted-foreground">
+              {t("artwork.scopeCurrentPort")}
+            </p>
+          </div>
+          <form method="dialog" className="m-0">
+            <Button type="submit" data-focusable data-artwork-editor-close variant="outline">
+              {common("close")}
+            </Button>
+          </form>
+        </header>
+        {open && (
+          <div className={styles.sheetBody}>
+            <ArtworkSheetContents {...props} />
+          </div>
+        )}
+      </dialog>
+    </div>
+  );
+}
+
+function ArtworkSheetContents({
+  port,
+  previewPort,
+  Preview,
+  previewActions,
+}: ArtworkControlsProps) {
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
   const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
-    <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
-        {t("actions.artwork")}
-      </summary>
-      {open && (
-        <Tabs.Root
-          value={selected}
-          onValueChange={(value) => {
-            const next = artworkSlots.find((slot) => value === slot);
-            if (!next) return;
-            setSelected(next);
-            setVisited((current) => (current.includes(next) ? current : [...current, next]));
-          }}
-          className="artwork-slots grid min-w-0 gap-5"
-        >
-          <p className="m-0 text-sm text-pc-muted-foreground">{t("artwork.scopeCurrentPort")}</p>
-          <Tabs.List
-            activateOnFocus={false}
-            aria-label="Artwork slot"
-            className="flex gap-2 overflow-x-auto px-1 py-1"
+    <Tabs.Root
+      value={selected}
+      onValueChange={(value) => {
+        const next = artworkSlots.find((slot) => value === slot);
+        if (!next) return;
+        setSelected(next);
+        setVisited((current) => (current.includes(next) ? current : [...current, next]));
+      }}
+      className="artwork-slots grid min-w-0 gap-5"
+    >
+      <Tabs.List
+        activateOnFocus={false}
+        aria-label="Artwork slot"
+        className="flex gap-2 overflow-x-auto px-1 py-1"
+      >
+        {artworkSlots.map((slot) => (
+          <Tabs.Tab
+            key={slot}
+            value={slot}
+            type="button"
+            data-focusable
+            className={`${controlFocus} hover:bg-pc-subtle shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-semibold whitespace-nowrap text-pc-muted-foreground data-active:border-current data-active:text-pc-selection-foreground`}
           >
-            {artworkSlots.map((slot) => (
-              <Tabs.Tab
-                key={slot}
-                value={slot}
-                type="button"
-                data-focusable
-                className={`${controlFocus} hover:bg-pc-subtle shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-semibold whitespace-nowrap text-pc-muted-foreground data-active:border-current data-active:text-pc-selection-foreground`}
-              >
-                {slotCopy[slot].label}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-          {artworkSlots.map((slot) => (
-            <Tabs.Panel
-              key={slot}
-              value={slot}
-              keepMounted
-              className="min-w-0"
-              hidden={selected !== slot}
-              inert={selected !== slot}
-            >
-              {visited.includes(slot) && (
-                <ArtworkSlotControl
-                  port={port}
-                  previewPort={previewPort?.id === port.id ? previewPort : port}
-                  slot={slot}
-                  Preview={Preview}
-                  previewActions={previewActions}
-                />
-              )}
-            </Tabs.Panel>
-          ))}
-          <DetailArtwork port={port} />
-        </Tabs.Root>
-      )}
-    </details>
+            {slotCopy[slot].label}
+          </Tabs.Tab>
+        ))}
+      </Tabs.List>
+      {artworkSlots.map((slot) => (
+        <Tabs.Panel
+          key={slot}
+          value={slot}
+          keepMounted
+          className="min-w-0"
+          hidden={selected !== slot}
+          inert={selected !== slot}
+        >
+          {visited.includes(slot) && (
+            <ArtworkSlotControl
+              port={port}
+              previewPort={previewPort?.id === port.id ? previewPort : port}
+              slot={slot}
+              Preview={Preview}
+              previewActions={previewActions}
+            />
+          )}
+        </Tabs.Panel>
+      ))}
+      <DetailArtwork port={port} />
+    </Tabs.Root>
   );
 }
 
@@ -371,13 +430,13 @@ function ArtworkSlotControl({
       [target, pickerButton.current, refreshButton.current].find(
         (control) =>
           control?.isConnected && !control.disabled && !control.closest("[hidden], [inert]"),
-      ) ??
-      panel.closest("details.artwork-controls")?.querySelector<HTMLElement>(":scope > summary");
+      ) ?? panel.closest("dialog")?.querySelector<HTMLElement>("[data-artwork-editor-close]");
     focus?.focus();
   }, [draft, pending]);
 
   const stillInView = () =>
     mounted.current &&
+    slotPanel.current?.closest("dialog")?.open === true &&
     currentIdentity.current.portId === port.id &&
     currentIdentity.current.slot === slot &&
     currentIdentity.current.cache?.generation === cache?.generation;
