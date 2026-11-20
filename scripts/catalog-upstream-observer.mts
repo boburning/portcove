@@ -35,6 +35,7 @@ import {
 import {
   inputEvidenceKey,
   n64RuntimeSourceCache,
+  observeN64RuntimeHashSource,
   observeN64RuntimeSource,
   observeOriginalSource,
   type OriginalSourceFamily,
@@ -42,6 +43,7 @@ import {
   revalidateOriginalSource,
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
+import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
@@ -1544,6 +1546,43 @@ export async function advanceCatalogObservations(
                   remaining = 0;
                   state.provider_retry_at = error.retryAt;
                 }
+              }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              complete.fact.runtime_source?.state === "observed"
+            ) {
+              const fact = complete.fact;
+              const runtime = complete.fact.runtime_source.source;
+              if (
+                runtime.matched_input_blocks &&
+                (!runtime.hash_source || runtime.hash_source.state === "unavailable")
+              ) {
+                let hashSource: N64RuntimeHashSourceObservation = { state: "unavailable" };
+                try {
+                  hashSource = await observeN64RuntimeHashSource(
+                    runtime.revision,
+                    read,
+                    n64RuntimeCache,
+                  );
+                } catch (error) {
+                  if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                    remaining = 0;
+                    state.provider_retry_at = error.retryAt;
+                  }
+                }
+                complete = {
+                  ...complete,
+                  fact: {
+                    ...fact,
+                    runtime_source: {
+                      state: "observed",
+                      source: { ...runtime, hash_source: hashSource },
+                    },
+                  },
+                };
               }
             }
             policy[evidenceKey] = { state: recognitionState, last_complete: complete };

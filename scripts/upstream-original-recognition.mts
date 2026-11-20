@@ -8,12 +8,18 @@ import {
 } from "./upstream-n64-game-entry.mts";
 
 import {
+  n64RuntimeHashHeaderPaths,
+  n64RuntimeHashLinkPath,
+  n64RuntimeHashLinkRevision,
+  n64RuntimeHashRepository,
+  n64RuntimeHashRepositoryId,
   n64RuntimeInputPath,
   n64RuntimeLinkPath,
   n64RuntimeLinkRevision,
   n64RuntimeRepository,
   n64RuntimeRepositoryId,
   readN64RuntimeSourceObservation,
+  type N64RuntimeHashSourceObservation,
   type N64RuntimeSourceObservation,
   inspectN64RuntimeSource,
 } from "./upstream-n64-runtime-input.mts";
@@ -36,7 +42,7 @@ export interface OriginalSourceTarget {
   artifacts: { platform: string; sha256: string }[];
 }
 
-function readReleaseSourceFile(contents: unknown, path: string) {
+function readReleaseSourceFile(contents: unknown, path: string, maximumBytes = maximumTableBytes) {
   if (
     !isRecord(contents) ||
     contents.type !== "file" ||
@@ -45,11 +51,11 @@ function readReleaseSourceFile(contents: unknown, path: string) {
     typeof contents.sha !== "string" ||
     !gitSha.test(contents.sha) ||
     typeof contents.content !== "string" ||
-    contents.content.length > maximumTableBytes * 2 ||
+    contents.content.length > maximumBytes * 2 ||
     typeof contents.size !== "number" ||
     !Number.isSafeInteger(contents.size) ||
     contents.size < 1 ||
-    contents.size > maximumTableBytes
+    contents.size > maximumBytes
   )
     throw new Error("Upstream original recognition metadata is incomplete or exceeds its limit");
   const encoded = contents.content.replaceAll("\n", "");
@@ -233,6 +239,12 @@ export function n64RuntimeSourceCache() {
     links: new Map<string, string | null>(),
     sources: new Map<string, ReturnType<typeof inspectN64RuntimeSource>>(),
     identity_verified: false,
+    hash_links: new Map<string, string | null>(),
+    hash_sources: new Map<
+      string,
+      Extract<N64RuntimeHashSourceObservation, { state: "observed" }>
+    >(),
+    hash_identity_verified: false,
   };
 }
 
@@ -276,6 +288,52 @@ export async function observeN64RuntimeSource(
     cache.sources.set(revision, source);
   }
   return { state: "observed", source };
+}
+
+export async function observeN64RuntimeHashSource(
+  runtimeRevision: string,
+  read: ReadGitHub,
+  cache: ReturnType<typeof n64RuntimeSourceCache>,
+): Promise<N64RuntimeHashSourceObservation> {
+  let revision = cache.hash_links.get(runtimeRevision);
+  if (revision === undefined) {
+    revision = n64RuntimeHashLinkRevision(
+      await read(
+        `/repos/${n64RuntimeRepository}/contents/${n64RuntimeHashLinkPath}?ref=${runtimeRevision}`,
+      ),
+    );
+    if (revision === undefined) return { state: "unavailable" };
+    cache.hash_links.set(runtimeRevision, revision);
+  }
+  if (revision === null) return { state: "unsupported-gitlink" };
+  const retained = cache.hash_sources.get(revision);
+  if (retained) return retained;
+
+  const repository = `/repos/${n64RuntimeHashRepository}`;
+  if (!cache.hash_identity_verified) {
+    const identity = await read(repository);
+    if (
+      !isRecord(identity) ||
+      identity.id !== n64RuntimeHashRepositoryId ||
+      identity.full_name !== n64RuntimeHashRepository
+    )
+      throw new Error("N64 runtime hash dependency repository identity is unavailable");
+    cache.hash_identity_verified = true;
+  }
+  const observed: Extract<N64RuntimeHashSourceObservation, { state: "observed" }> = {
+    state: "observed",
+    repository: n64RuntimeHashRepository,
+    repository_id: n64RuntimeHashRepositoryId,
+    revision,
+    headers: [],
+  };
+  for (const path of n64RuntimeHashHeaderPaths) {
+    const file = await read(`${repository}/contents/${path}?ref=${revision}`);
+    const { source_blob_sha1, source_sha256 } = readReleaseSourceFile(file, path, 512 * 1024);
+    observed.headers.push({ source_path: path, source_blob_sha1, source_sha256 });
+  }
+  cache.hash_sources.set(revision, observed);
+  return observed;
 }
 
 /** Reuse Core's current artifact selection. A fallback release supplies no new recognition target. */
