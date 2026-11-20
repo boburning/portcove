@@ -13,6 +13,13 @@ export function exactButtonXPath(label: string) {
   return `//button[normalize-space(.)=${value} or normalize-space(@aria-label)=${value} or (not(normalize-space(@aria-label)) and not(normalize-space(@aria-labelledby)) and ${primary})]`;
 }
 
+export function addGamesRouteXPath(label: "Browse games" | "Scan a folder") {
+  return (
+    '//section[@aria-label="Add games workspace" and not(@hidden)]//*[@role="group" and @aria-label="Ways to add games"]' +
+    exactButtonXPath(label)
+  );
+}
+
 // WebDriver encodes local element handles as DOM elements in script arguments.
 type BrowserArgument<Value> = Value extends WebElement
   ? Element
