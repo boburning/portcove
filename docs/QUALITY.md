@@ -459,6 +459,13 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+The macOS contributor frontend check in run `44772676894`, attempt 1, reached
+the final **Back to Library** click in the combined mod setup, version, backup,
+and settings-draft journey with about one second left in its 15-second test
+budget. The trace resolved the button and the screenshot showed it. This case
+has a 30-second budget. Its assertions, fixture cleanup, and automatic retry
+policy remain in place.
+
 The November 18 Native27 Windows run at `eaae775d` (output
 `2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
 15-second timeout waiting for the backup review's “Review again” control after

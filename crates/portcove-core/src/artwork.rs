@@ -486,7 +486,7 @@ impl PortcoveService {
     }
 
     /// Publishes a verified remote original under the artwork lock and retires
-    /// cached remote originals that no resolvable port references any more,
+    /// cached remote originals and their derivatives that no resolvable port references any more,
     /// such as a cover replaced or withdrawn by a signed catalog correction.
     /// When references cannot be established, every existing entry is retained.
     pub(crate) fn publish_remote_original(
@@ -1597,6 +1597,54 @@ fn publish_thumbnail_file(library: &Library, id: &str, bytes: &[u8]) -> Result<(
     )
 }
 
+fn cached_remote_original_digest(path: &Path) -> Option<&str> {
+    match path.extension()?.to_str()? {
+        "jpg" | "image" => path.file_stem()?.to_str(),
+        _ => None,
+    }
+}
+
+fn retire_unreferenced_remote_cache_files(
+    files: &mut Vec<(PathBuf, u64)>,
+    destination: &Path,
+    referenced: &BTreeSet<String>,
+) {
+    let retiring: BTreeSet<_> = files
+        .iter()
+        .filter(|(path, _)| path != destination)
+        .filter_map(|(path, _)| cached_remote_original_digest(path))
+        .filter(|source| !referenced.contains(*source))
+        .map(str::to_owned)
+        .collect();
+    if retiring.is_empty() {
+        return;
+    }
+
+    // Read source bindings only when the existing inventory found an original
+    // to retire. Remove its derivatives first so a lock or interrupted sweep
+    // leaves the original available to find on the next publication.
+    let mut blocked = BTreeSet::new();
+    files.retain(|(path, size)| {
+        let Some(source) = RemoteDerivative::retained_source(path, *size) else {
+            return true;
+        };
+        if !retiring.contains(&source) {
+            return true;
+        }
+        if fs::remove_file(path).is_ok() {
+            return false;
+        }
+        blocked.insert(source);
+        true
+    });
+    files.retain(|(path, _)| {
+        path == destination
+            || !cached_remote_original_digest(path)
+                .is_some_and(|source| retiring.contains(source) && !blocked.contains(source))
+            || fs::remove_file(path).is_err()
+    });
+}
+
 pub(crate) fn publish_cache_file(
     library: &Library,
     path: &Path,
@@ -1613,29 +1661,7 @@ pub(crate) fn publish_cache_file(
     }
     let mut files = cache_files(library)?;
     if let Some(referenced) = referenced_remote {
-        // Remote originals are digest-named. Local-import thumbnails and
-        // interrupted staging keep their own repair paths.
-        let mut kept = Vec::with_capacity(files.len());
-        for (existing, size) in files {
-            let remote = matches!(
-                existing
-                    .extension()
-                    .and_then(|extension| extension.to_str()),
-                Some("jpg" | "image")
-            );
-            let unreferenced = existing
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .is_some_and(|stem| !referenced.contains(stem));
-            // A stale entry that cannot be removed now (for example, held open
-            // by another process) stays for a later publication or the size
-            // bound; it never fails this verified publication.
-            if !(remote && unreferenced && existing != path) || fs::remove_file(&existing).is_err()
-            {
-                kept.push((existing, size));
-            }
-        }
-        files = kept;
+        retire_unreferenced_remote_cache_files(&mut files, path, referenced);
     }
     let mut total = files
         .iter()

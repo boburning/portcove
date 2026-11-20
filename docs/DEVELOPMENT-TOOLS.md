@@ -3609,15 +3609,16 @@ has a null completion time and lists the ready IDs. Individual timing rows
 are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
 matching catalog, viewport, visible IDs, and cache and network conditions.
 
-The [first Windows comparison](https://github.com/boburning/portcove/actions/runs/44766606843)
-observed one visible DKR-R cover per run at 1280×800 and 1× pixel ratio. The
-instrumented baseline `e3c9c7d34fd3` and candidate `32659bd8ff44` used
-development builds and WebView2 158.0.4370.33 on the same Windows Server 2022
-runner. Cold Discover readiness was 1,020 ms and 662 ms respectively. The
-same-session revisit took 79 ms and 80 ms. Both runs stopped at the Detail
-assertion before the offline restart. These are single observations. The next
-run needs the Overview tab and structured stage records for the restart and
-work-count evidence.
+On the same Windows Server 2022 runner, WebView2 158.0.4370.33 development builds
+at 1280×800 and 1× pixel ratio showed one visible DKR-R cover in 1,410 ms on the
+empty-cache baseline `adc3e990c5cd` and 956 ms on candidate `191faff3c8e4`.
+Revisits took 94 ms and 101 ms. After an offline restart with a populated
+cache, one visible Banjo-Recomp cover took 5,574 ms and 489 ms. The candidate's
+restarted process logged nine derivative hits, zero downloads and zero image
+conversions. The baseline logged seven conversions. These are single timing
+observations per condition. The candidate passed the four-title cover and
+Detail scenario. The baseline saved its timing rows before the later
+withheld-original traffic control timed out. [Windows evidence](https://github.com/boburning/portcove/actions/runs/44772705180)
 
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.

@@ -961,8 +961,12 @@ failures are not retained.
 Remote cover and catalog media derivatives are retained on disk and reused
 after restart. The cache key includes the admitted original digest, role, fit
 bounds, PNG format and orientation recipe version. Media keys also bind the
-admitted original dimensions. The cache file carries a checksum tied to the key
-and PNG bytes to detect damage and misplaced entries. It does not confer
+admitted original dimensions. The cache file carries a source binding and a
+checksum tied to the key and PNG bytes to detect damage and misplaced entries.
+When a verified publication finds an unreferenced cached original, Core uses
+the source bindings to remove its derivatives before removing the original.
+A derivative without a readable source binding ages out under the cache budget
+or is replaced the next time its rendition is requested. The binding does not confer
 admission. Core still resolves the current artwork and verifies the original
 digest before reading a derivative. It regenerates a missing or damaged
 derivative with the same bounded decoder and atomically replaces the cache
@@ -1060,7 +1064,8 @@ catalog update can correct it without changing the installed app. An absent
 mapping retains the generated fallback. Cached remote originals are named by
 their catalog content digest, so a corrected or withdrawn mapping is never
 resolved from its earlier bytes. Each remote-original publication, under the
-artwork lock, also removes cached IGDB and catalog-media originals that no
+artwork lock, also removes cached IGDB and catalog-media originals and their
+identified derivatives when no
 currently resolvable port references: the current catalog plus retained
 installed, registered and unfinished-setup identities. Local-import thumbnails
 and interrupted staging keep their own repair paths. If those references cannot

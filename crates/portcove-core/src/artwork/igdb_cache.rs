@@ -1,5 +1,6 @@
 //! Disposable remote artwork derivatives and blocking work admission.
 use std::{
+    io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::{Condvar, Mutex},
     time::{Duration, Instant},
@@ -12,11 +13,15 @@ use crate::{Library, PortcoveError, Result, artwork_image, signed_catalog::diges
 /// Maximum simultaneous remote original retrievals.
 pub const IGDB_ARTWORK_WORK_LIMIT: usize = 6;
 const DIGEST_BYTES: usize = 64;
+const DERIVATIVE_MARKER: &[u8; 8] = b"PCDERIV1";
+const SOURCE_BINDING_BYTES: usize = DERIVATIVE_MARKER.len() + DIGEST_BYTES;
+const TRAILER_BYTES: usize = SOURCE_BINDING_BYTES + DIGEST_BYTES;
 
 /// The path keys only reusable bytes. The caller still has to resolve the
 /// current listing and choice and verify the admitted original before use.
 pub(crate) struct RemoteDerivative {
     key: String,
+    source: String,
     path: PathBuf,
 }
 
@@ -27,7 +32,11 @@ impl RemoteDerivative {
         // static PNG encoding recipe changes.
         let key = digest(format!("oriented-png-v1:{source}:{recipe}").as_bytes());
         let path = super::thumbnail_path(library, &key)?;
-        Ok(Self { key, path })
+        Ok(Self {
+            key,
+            source: source.into(),
+            path,
+        })
     }
 
     pub(crate) fn key(&self) -> &str {
@@ -41,6 +50,28 @@ impl RemoteDerivative {
         hex::encode(hash.finalize())
     }
 
+    /// Read just the source binding when an original is retired. Ordinary
+    /// local thumbnails have no binding and keep their existing cache path.
+    pub(super) fn retained_source(path: &Path, size: u64) -> Option<String> {
+        if path.extension().and_then(|extension| extension.to_str()) != Some("png")
+            || !(TRAILER_BYTES as u64..=artwork_image::MAX_THUMBNAIL_BYTES).contains(&size)
+        {
+            return None;
+        }
+        crate::path::refuse_symlink_ancestors(path).ok()?;
+        let mut file = crate::external_runtime::open_identity_handle(path).ok()?;
+        let metadata = file.metadata().ok()?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() != size {
+            return None;
+        }
+        file.seek(SeekFrom::End(-(TRAILER_BYTES as i64))).ok()?;
+        let mut binding = [0_u8; SOURCE_BINDING_BYTES];
+        file.read_exact(&mut binding).ok()?;
+        let source = std::str::from_utf8(binding.strip_prefix(DERIVATIVE_MARKER)?).ok()?;
+        crate::artwork_store::validate_hash(source).ok()?;
+        Some(source.into())
+    }
+
     /// Check the recipe-bound digest trailer as well as the existing byte bound.
     pub(crate) fn read(&self) -> Option<Vec<u8>> {
         let started = Instant::now();
@@ -48,10 +79,12 @@ impl RemoteDerivative {
             crate::path::read_bounded_regular(&self.path, artwork_image::MAX_THUMBNAIL_BYTES)
                 .ok()
                 .and_then(|mut bytes| {
-                    let size = bytes.len().checked_sub(DIGEST_BYTES)?;
+                    let size = bytes.len().checked_sub(TRAILER_BYTES)?;
                     let (png, trailer) = bytes.split_at(size);
+                    let (binding, checksum) = trailer.split_at(SOURCE_BINDING_BYTES);
                     if !png.starts_with(b"\x89PNG\r\n\x1a\n")
-                        || trailer != self.checksum(png).as_bytes()
+                        || binding.strip_prefix(DERIVATIVE_MARKER) != Some(self.source.as_bytes())
+                        || checksum != self.checksum(png).as_bytes()
                     {
                         return None;
                     }
@@ -70,11 +103,22 @@ impl RemoteDerivative {
     /// The caller holds the library artwork lock. Cache failure cannot hide
     /// artwork that was already accepted and converted for this request.
     pub(crate) fn retain(&self, library: &Library, source: &Path, png: &[u8]) {
-        if png.len() + DIGEST_BYTES > artwork_image::MAX_THUMBNAIL_BYTES as usize {
+        if png.len() + TRAILER_BYTES > artwork_image::MAX_THUMBNAIL_BYTES as usize {
             return;
         }
-        let mut bytes = Vec::with_capacity(png.len() + DIGEST_BYTES);
+        // Another publication can retire this original while a cached image
+        // is converting outside the lock. Keep the computed result in memory.
+        if !std::fs::symlink_metadata(source).is_ok_and(|metadata| {
+            metadata.is_file()
+                && !metadata.file_type().is_symlink()
+                && metadata.len() <= artwork_image::MAX_ORIGINAL_BYTES
+        }) {
+            return;
+        }
+        let mut bytes = Vec::with_capacity(png.len() + TRAILER_BYTES);
         bytes.extend_from_slice(png);
+        bytes.extend_from_slice(DERIVATIVE_MARKER);
+        bytes.extend_from_slice(self.source.as_bytes());
         bytes.extend_from_slice(self.checksum(png).as_bytes());
         if let Err(error) = super::publish_cache_file(
             library,
@@ -194,8 +238,15 @@ mod tests {
             .join("artwork-cache")
             .join(format!("{source}.image"));
         let lock = library.try_lock_artwork().unwrap();
+        std::fs::create_dir_all(original.parent().unwrap()).unwrap();
+        std::fs::write(&original, b"source bytes").unwrap();
         first.retain(&library, &original, png);
         assert_eq!(first.read().unwrap(), png);
+        let size = std::fs::metadata(&first.path).unwrap().len();
+        assert_eq!(
+            RemoteDerivative::retained_source(&first.path, size).as_deref(),
+            Some(source.as_str())
+        );
 
         std::fs::copy(&first.path, &other.path).unwrap();
         assert!(other.read().is_none());
@@ -209,6 +260,12 @@ mod tests {
 
         let reopened = RemoteDerivative::new(&library, &source, "header:1280x720").unwrap();
         assert_eq!(reopened.read().unwrap(), png);
+
+        let _lock = library.try_lock_artwork().unwrap();
+        std::fs::remove_file(&original).unwrap();
+        std::fs::remove_file(&first.path).unwrap();
+        first.retain(&library, &original, png);
+        assert!(!first.path.exists());
     }
 
     #[test]

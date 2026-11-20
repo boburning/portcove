@@ -3018,6 +3018,7 @@ fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals()
     );
     assert!(cached_original(&service, &unrelated));
     assert!(cached_original(&service, &fresh));
+    assert_eq!(fs::read_dir(&cache).unwrap().count(), before);
     assert_eq!(
         service.artwork(other, ArtworkSlot::Detail).unwrap().choice,
         chosen.choice
