@@ -240,14 +240,14 @@
     font-size: var(--text-md);
   }
   /* A resize switches controls after focus leaves the current navigation. */
-  @container detail (width > 21rem) {
+  @container detail (width > 20rem) {
     .detail-section-picker:not(:focus-within, :has([aria-expanded="true"])),
     .detail-tabs:has(> .detail-section-picker :is(:focus, [aria-expanded="true"]))
       > .detail-tab-list {
       display: none;
     }
   }
-  @container detail (width <= 21rem) {
+  @container detail (width <= 20rem) {
     .detail-tab-list:not(:focus-within),
     .detail-tabs:has(> .detail-tab-list:focus-within) > .detail-section-picker {
       display: none;

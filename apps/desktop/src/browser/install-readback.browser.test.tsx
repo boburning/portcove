@@ -24,6 +24,16 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+async function chooseDetailSection(label: string) {
+  const picker = page.getByRole("combobox", { name: /^Game detail sections/ });
+  if (picker.elements().length) {
+    await picker.click();
+    await page.getByRole("option", { name: label, exact: true }).click();
+  } else {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+  }
+}
+
 it.each([
   ["light", 960, 640],
   ["dark", 430, 780],
@@ -229,14 +239,14 @@ it.each([
           page.getByRole("button", { name: "Install: Install readback fixture", exact: true }),
         )
         .not.toBeInTheDocument();
-      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      await chooseDetailSection("Game files");
       await expect
         .element(page.getByRole("button", { name: "Review installation", exact: true }))
         .not.toBeInTheDocument();
       await expect
         .element(page.getByText("Not installed", { exact: true }))
         .not.toBeInTheDocument();
-      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      await chooseDetailSection("Manage");
       await expect
         .element(page.getByText("No active installation", { exact: true }))
         .not.toBeInTheDocument();
@@ -250,7 +260,7 @@ it.each([
         .element(page.getByText("Recorded check identities", { exact: true }))
         .toBeVisible();
       expect(container.querySelector(".cli-continuity")).toBeNull();
-      await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+      await chooseDetailSection("Versions & updates");
       await expect
         .element(page.getByText("Not installed", { exact: true }))
         .not.toBeInTheDocument();
@@ -261,7 +271,7 @@ it.each([
           }),
         )
         .toBeVisible();
-      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      await chooseDetailSection("Game files");
       const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
       scrollWorkspaceTo(main, 0);
       await expect.element(retry).toBeVisible();
