@@ -236,6 +236,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-native-managed-profile.mts",
       "scripts/catalog-opengoal-setup.mts",
       "scripts/catalog-openmohaa-portable.mts",
+      "scripts/catalog-openx-portable.mts",
       "scripts/catalog-portable-reflectionhle.mts",
       "scripts/catalog-psx-managed-windows.mts",
       "scripts/catalog-raze-windows-profile.mts",
