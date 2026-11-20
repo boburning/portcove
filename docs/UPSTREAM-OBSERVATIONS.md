@@ -266,13 +266,14 @@ turn, a matched job can retain the ordered CMake/Ninja runtime compile, static
 library, and executable link evidence from a successful step between checkout
 and upload. An unavailable compile log keeps the previously checked steps.
 
-Maintenance projects an original-file binding plan for each exactly
-selected N64 package. It uses the native game ID from the configured runtime
-filename, the reviewed hash-header bytes, and the linked executable's name
-against the port's platform hints. Existing enforced original-file contracts
-surface a migration hold. The plan supplies input for authoring. Effective
-runtime qualification, native acceptance and signed definition delivery
-continue through their existing owners.
+Maintenance projects a provisional original-file binding for the exact port
+definition, source contracts, and package selection evaluated by the observer.
+It uses the native game ID from the configured runtime filename, the reviewed
+hash-header bytes, and the linked executable's name against the port's platform
+hints. The proposal remains held until the packaged executable and its effective
+hash behavior are verified. An existing enforced original-file contract also
+requires a compatibility migration. Effective runtime qualification, native
+acceptance and signed definition delivery continue through their existing owners.
 
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records

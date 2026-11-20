@@ -1,4 +1,5 @@
 import { isRecord } from "./runtime-values.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
 import type { OriginalSourceProgress } from "./upstream-original-recognition.mts";
 
 // The checked upstream xxh3.h wrapper and inline implementation used by the
@@ -19,7 +20,7 @@ interface PlatformCandidate {
   platform: string;
   artifact_sha256: string;
   state:
-    | "candidate"
+    | "awaiting-effective-build-proof"
     | "legacy-contract-migration-required"
     | "unsupported-source-contract"
     | "unsupported-runtime-hash"
@@ -27,8 +28,30 @@ interface PlatformCandidate {
     | "unbound-native-game"
     | "awaiting-build"
     | "unbound-executable";
-  binding?: BindingCandidate;
+  proposed_input?: BindingCandidate;
   build_job_id?: number;
+}
+
+export function n64AuthoringScope(port: unknown, sourceCatalog: unknown) {
+  if (
+    !isRecord(port) ||
+    port.adapter !== "n64-recomp-portable" ||
+    typeof port.id !== "string" ||
+    typeof port.source_profile !== "string" ||
+    !isRecord(sourceCatalog) ||
+    !Array.isArray(sourceCatalog.contracts) ||
+    !Array.isArray(sourceCatalog.identities)
+  )
+    return;
+  return orderedJsonSha256({
+    port,
+    contracts: (sourceCatalog.contracts as unknown[]).filter(
+      (contract) => isRecord(contract) && contract.port_id === port.id,
+    ),
+    identities: (sourceCatalog.identities as unknown[]).filter(
+      (profile) => isRecord(profile) && profile.id === port.source_profile,
+    ),
+  });
 }
 
 /** Derive the Core binding shape from existing observer facts. Placement in a
@@ -39,9 +62,12 @@ export function planN64OriginalBindings(
   evidence: OriginalSourceProgress,
 ) {
   const fact = evidence.last_complete?.fact;
+  const scope = n64AuthoringScope(port, sourceCatalog);
   if (
     evidence.state !== "observed" ||
+    !scope ||
     fact?.parser !== "n64-recomp-game-entry-v1" ||
+    fact.authoring_scope_sha256 !== scope ||
     !isRecord(port) ||
     typeof port.id !== "string" ||
     port.adapter !== "n64-recomp-portable" ||
@@ -105,7 +131,6 @@ export function planN64OriginalBindings(
   }
 
   const platforms: PlatformCandidate[] = [];
-  const bindings = new Map<string, BindingCandidate>();
   for (const { platform, sha256 } of fact.artifacts) {
     const identity = { platform, artifact_sha256: sha256 };
     if (!game) {
@@ -135,12 +160,11 @@ export function planN64OriginalBindings(
       game_id: game.game_id,
       rom_xxh3_64: game.rom_hash_u64,
     };
-    if (!contractState) bindings.set(sha256, binding);
     platforms.push({
       ...identity,
-      state: contractState ?? "candidate",
+      state: contractState ?? "awaiting-effective-build-proof",
       build_job_id: job.job_id,
-      binding,
+      proposed_input: binding,
     });
   }
   return {
@@ -151,7 +175,6 @@ export function planN64OriginalBindings(
     release_id: fact.release_id,
     source_commit: fact.source_commit,
     source_blob_sha1: fact.source_blob_sha1,
-    n64_recomp_inputs_v1: [...bindings.values()],
     platforms,
   } as const;
 }

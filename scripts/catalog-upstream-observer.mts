@@ -45,6 +45,7 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
+import { n64AuthoringScope } from "./n64-original-binding-candidates.mts";
 import {
   advanceUpstreamArtifactBuildObservation,
   rebindUpstreamBuildObservation,
@@ -59,6 +60,7 @@ export interface ObservablePort {
   kind?: "listing";
   listing?: Record<string, unknown>;
   original_source_family?: OriginalSourceFamily;
+  n64_authoring_scope_sha256?: string;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -233,8 +235,13 @@ export function catalogObservationSources(input: unknown) {
             ? "n64-recomp"
             : undefined
         : undefined;
+    const authoringScope =
+      originalSourceFamily === "n64-recomp"
+        ? n64AuthoringScope(port, input.source_catalog)
+        : undefined;
     source.ports.push({
       ...(originalSourceFamily ? { original_source_family: originalSourceFamily } : {}),
+      ...(authoringScope ? { n64_authoring_scope_sha256: authoringScope } : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -298,6 +305,9 @@ export function catalogObservationSources(input: unknown) {
           .map((port) => ({
             id: port.id,
             definition_sha256: port.definition_sha256,
+            ...(port.n64_authoring_scope_sha256
+              ? { n64_authoring_scope_sha256: port.n64_authoring_scope_sha256 }
+              : {}),
             ...(port.listing
               ? {
                   kind: port.kind ?? "managed-with-listing",
@@ -1704,6 +1714,16 @@ export async function advanceCatalogObservations(
                   }
                 }
               }
+            }
+            if (
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              port?.n64_authoring_scope_sha256
+            ) {
+              complete = {
+                ...complete,
+                fact: { ...complete.fact, authoring_scope_sha256: port.n64_authoring_scope_sha256 },
+              };
             }
             policy[evidenceKey] = { state: recognitionState, last_complete: complete };
           }
