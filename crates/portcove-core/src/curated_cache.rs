@@ -144,21 +144,29 @@ fn regular(path: &Path) -> Result<Option<fs::Metadata>> {
     }
 }
 
-fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
+fn integrity_error(path: &Path, worker: &CacheWorker) -> Result<Option<PortcoveError>> {
     let asset = &worker.asset;
     let operation = &worker.operation;
     let metadata = regular(path)?
         .ok_or_else(|| PortcoveError::verification("curated cache bytes disappeared"))?;
-    crate::archive::validate_download_size(metadata.len(), asset.size)?;
+    if let Err(error) = crate::archive::validate_download_size(metadata.len(), asset.size) {
+        return Ok(Some(error));
+    }
     let (hash, size) = crate::adapter::hash_file_bounded_with_checkpoint(path, asset.size, || {
         operation.checkpoint()
     })?;
-    crate::archive::validate_download_size(size, asset.size)?;
-    if hash != asset.sha256 {
-        return Err(
-            PortcoveError::verification("curated cache bytes failed SHA-256 verification")
-                .detail("path", path.display().to_string()),
-        );
+    if let Err(error) = crate::archive::validate_download_size(size, asset.size) {
+        return Ok(Some(error));
+    }
+    Ok((hash != asset.sha256).then(|| {
+        PortcoveError::verification("curated cache bytes failed SHA-256 verification")
+            .detail("path", path.display().to_string())
+    }))
+}
+
+fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
+    if let Some(error) = integrity_error(path, worker)? {
+        return Err(error);
     }
     #[cfg(test)]
     if let Some(hook) = worker
@@ -166,7 +174,7 @@ fn verify(path: &Path, worker: &CacheWorker) -> Result<()> {
         .as_ref()
         .and_then(|hook| hook.after_verify.as_ref())
     {
-        hook(path, size)?;
+        hook(path, worker.asset.size)?;
     }
     Ok(())
 }
@@ -206,6 +214,50 @@ fn copy_checked(
     verify(destination, worker)
 }
 
+/// Diagnose the canonical object under the existing cache lock. A private
+/// copy can fail for unrelated reasons, including a change after it was copied.
+fn quarantine_invalid_cache(
+    path: &Path,
+    worker: &CacheWorker,
+    original_error: PortcoveError,
+) -> Result<bool> {
+    if original_error.code != ErrorCode::Verification {
+        return Err(original_error);
+    }
+    // Only the independently rechecked canonical bytes can be quarantined.
+    // Reparse points, I/O failures and cancellation never identify bad bytes.
+    regular(path)?.ok_or_else(|| PortcoveError::conflict("curated cache entry disappeared"))?;
+    let original = same_file::Handle::from_path(path)?;
+    if integrity_error(path, worker)?.is_none() {
+        return Err(original_error);
+    }
+    entry(&worker.scope, &worker.asset)?;
+    worker.operation.checkpoint()?;
+    if same_file::Handle::from_path(path)? != original {
+        return Err(PortcoveError::conflict(
+            "curated cache entry changed during verification",
+        ));
+    }
+    // This reserved inactive name is already understood by earlier readers.
+    // It counts towards the same storage limits and is never a cache hit.
+    let quarantine = path.with_file_name(format!(".partial-{}", uuid::Uuid::new_v4()));
+    crate::durability::rename_noreplace(path, &quarantine)?;
+    crate::durability::sync_publication(path.parent().expect("cache entry has parent"))?;
+    if regular(&quarantine)?.is_none()
+        || same_file::Handle::from_path(&quarantine)? != original
+        || integrity_error(&quarantine, worker)?.is_none()
+    {
+        crate::durability::rename_noreplace(&quarantine, path)?;
+        crate::durability::sync_publication(path.parent().expect("cache entry has parent"))?;
+        return Err(PortcoveError::conflict(
+            "curated cache entry changed during quarantine",
+        ));
+    }
+    Err(original_error
+        .detail("quarantine_path", quarantine.display().to_string())
+        .detail("expected_sha256", &worker.asset.sha256))
+}
+
 fn restore_inner(worker: &CacheWorker, destination: &Path) -> Result<bool> {
     let scope = &worker.scope;
     let asset = &worker.asset;
@@ -218,10 +270,13 @@ fn restore_inner(worker: &CacheWorker, destination: &Path) -> Result<bool> {
     let Some(metadata) = regular(&path)? else {
         return Ok(false);
     };
-    crate::archive::validate_download_size(metadata.len(), asset.size)?;
     // Verify the private copy, so a concurrent source substitution cannot bless
     // bytes that differ from the independently accepted expected digest.
-    copy_checked(&path, destination, asset, worker)?;
+    let copied = crate::archive::validate_download_size(metadata.len(), asset.size)
+        .and_then(|()| copy_checked(&path, destination, asset, worker));
+    if let Err(error) = copied {
+        return quarantine_invalid_cache(&path, worker, error);
+    }
     entry(scope, asset)?;
     Ok(true)
 }
@@ -237,7 +292,9 @@ fn retain_inner(worker: &CacheWorker, source: &Path) -> Result<bool> {
         Err(error) => return Err(error),
     };
     if regular(&path)?.is_some() {
-        verify(&path, worker)?;
+        if let Err(error) = verify(&path, worker) {
+            return quarantine_invalid_cache(&path, worker, error);
+        }
         entry(scope, asset)?;
         return Ok(true);
     }
