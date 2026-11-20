@@ -1229,7 +1229,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(
             n64.checks[0].installed_version,
-            Some(crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY)
+            Some(N64_RECOMP_ORIGINAL_RECOGNITION)
         );
         let future =
             check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
