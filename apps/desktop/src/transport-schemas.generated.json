@@ -6276,7 +6276,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -6328,11 +6328,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
+        "type": "string",
         "enum": [
           "logo",
-          "artwork"
-        ],
-        "type": "string"
+          "artwork",
+          "screenshot"
+        ]
       },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
@@ -9893,7 +9894,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -9945,11 +9946,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
+        "type": "string",
         "enum": [
           "logo",
-          "artwork"
-        ],
-        "type": "string"
+          "artwork",
+          "screenshot"
+        ]
       },
       "ListingAvailability": {
         "description": "A dated discovery fact, not a managed support or artifact admission decision.",
@@ -35781,7 +35783,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -35833,11 +35835,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
+        "type": "string",
         "enum": [
           "logo",
-          "artwork"
-        ],
-        "type": "string"
+          "artwork",
+          "screenshot"
+        ]
       },
       "ListingAvailability": {
         "description": "A dated discovery fact, not a managed support or artifact admission decision.",
@@ -37245,7 +37248,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -37297,11 +37300,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
+        "type": "string",
         "enum": [
           "logo",
-          "artwork"
-        ],
-        "type": "string"
+          "artwork",
+          "screenshot"
+        ]
       },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",
@@ -55975,7 +55979,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -56027,11 +56031,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
+        "type": "string",
         "enum": [
           "logo",
-          "artwork"
-        ],
-        "type": "string"
+          "artwork",
+          "screenshot"
+        ]
       },
       "InstallationMethod": {
         "description": "User-facing installation behavior supplied by the catalog. Adapters remain an\nimplementation detail and must not be translated into product copy by clients.",

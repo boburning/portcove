@@ -163,6 +163,14 @@ const listingPresentationFields = [
   "collection_covers",
   "media",
 ] as const;
+
+function typedIgdbScene(asset: unknown) {
+  return (
+    isRecord(asset) &&
+    (asset.role === "header" || asset.role === "screenshot") &&
+    asset.igdb != null
+  );
+}
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
   "compatibility",
@@ -880,7 +888,16 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       presentation[field] = managedGuide;
       integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
-      presentation[field] = structuredClone(record.listing[field]);
+      const value = record.listing[field];
+      if (field === "media" && Array.isArray(value) && value.some(typedIgdbScene)) {
+        const legacy = value.filter((asset) => !typedIgdbScene(asset));
+        // An absent legacy array allows directory media. An authored empty
+        // array continues to clear directory media on the strict route.
+        if (legacy.length === 0) continue;
+        presentation[field] = structuredClone(legacy);
+      } else {
+        presentation[field] = structuredClone(value);
+      }
       integration.presentation = presentation;
     }
   }
@@ -979,38 +996,43 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
   const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
   const coverCollections = listings.some((listing) => listing.collection_covers !== undefined);
-  const format_version = listings.some((listing) => listing.implementation !== undefined)
-    ? 12
-    : coverCollections
-      ? 11
-      : fundingLinks
-        ? 10
-        : listedDates
-          ? 9
-          : gitlabObservations
-            ? 8
-            : listings.some((listing) => listing.compatibility !== undefined)
-              ? 7
-              : guideReferences
-                ? 6
-                : extendedMedia
-                  ? 5
-                  : listings.some(
-                        (listing) =>
-                          listing.upstream_observation !== undefined ||
-                          listing.availability_override_reason !== undefined ||
-                          "release_maintenance" in listing,
-                      )
-                    ? 4
+  const hasIgdbScenes = listings.some(
+    ({ media }) => Array.isArray(media) && media.some(typedIgdbScene),
+  );
+  const format_version = hasIgdbScenes
+    ? 13
+    : listings.some((listing) => listing.implementation !== undefined)
+      ? 12
+      : coverCollections
+        ? 11
+        : fundingLinks
+          ? 10
+          : listedDates
+            ? 9
+            : gitlabObservations
+              ? 8
+              : listings.some((listing) => listing.compatibility !== undefined)
+                ? 7
+                : guideReferences
+                  ? 6
+                  : extendedMedia
+                    ? 5
                     : listings.some(
                           (listing) =>
-                            listing.original_game !== undefined ||
-                            (Array.isArray(listing.media) && listing.media.length > 0),
+                            listing.upstream_observation !== undefined ||
+                            listing.availability_override_reason !== undefined ||
+                            "release_maintenance" in listing,
                         )
-                      ? 3
-                      : listings.some((listing) => listing.download_block_reason !== undefined)
-                        ? 2
-                        : 1;
+                      ? 4
+                      : listings.some(
+                            (listing) =>
+                              listing.original_game !== undefined ||
+                              (Array.isArray(listing.media) && listing.media.length > 0),
+                          )
+                        ? 3
+                        : listings.some((listing) => listing.download_block_reason !== undefined)
+                          ? 2
+                          : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

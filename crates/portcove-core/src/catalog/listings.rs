@@ -81,16 +81,46 @@ fn has_extended_media(listing: &PortListing) -> bool {
         > 1
 }
 
+const IGDB_SCENE_FORMAT: u32 = 13;
+
+fn has_typed_igdb_scene(listing: &PortListing) -> bool {
+    listing
+        .media
+        .iter()
+        .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+}
+
+fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool {
+    port.project_url == listing.project_url
+        && port
+            .presentation
+            .as_ref()
+            .and_then(|presentation| presentation.media.as_ref())
+            .is_none_or(|strict| {
+                !strict.is_empty()
+                    && listing
+                        .media
+                        .iter()
+                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .eq(strict)
+            })
+}
+
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=12) {
+        if !matches!(format_version, 5..=IGDB_SCENE_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5, 6, 7, 8, 9, 10, 11 and 12",
+                "listing export supports formats 5 through 13",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < IGDB_SCENE_FORMAT {
+            for listing in &mut document.listings {
+                listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+            }
+        }
         if format_version < 12 {
             for listing in &mut document.listings {
                 listing.implementation = None;
@@ -133,6 +163,9 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_typed_igdb_scene) {
+            self.format_version = self.format_version.max(IGDB_SCENE_FORMAT);
+        }
         if self
             .listings
             .iter()
@@ -243,11 +276,17 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=12) {
+        if !matches!(self.format_version, 1..=IGDB_SCENE_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < IGDB_SCENE_FORMAT && self.listings.iter().any(has_typed_igdb_scene)
+        {
+            return Err(PortcoveError::unsupported(
+                "IGDB backgrounds and screenshots require listing format 13",
+            ));
         }
         if self.format_version < 12
             && self
@@ -837,6 +876,30 @@ impl Catalog {
     ) -> Result<Self> {
         document.promote_projected_format();
         document.validate_identity_set()?;
+        for listing in document
+            .listings
+            .iter_mut()
+            .filter(|listing| has_typed_igdb_scene(listing))
+        {
+            if let Ok(port) = self.port(&listing.id) {
+                let same_authority = retain_directory_scenes(port, listing);
+                let original = port
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.original_game.as_ref())
+                    .or(listing.original_game.as_ref());
+                listing.media.retain(|asset| {
+                    !asset.is_typed_igdb_scene()
+                        || (same_authority
+                            && crate::catalog_media::validate_catalog_media(
+                                &port.id,
+                                original,
+                                std::slice::from_ref(asset),
+                            )
+                            .is_ok())
+                });
+            }
+        }
         for port in self.ports() {
             if !document
                 .listings
@@ -884,26 +947,47 @@ impl Catalog {
                     .original_game
                     .clone()
                     .or(listing.original_game.clone());
-                let media = port
+                let strict_media = port
                     .presentation
                     .as_ref()
-                    .and_then(|value| value.media.clone())
-                    .unwrap_or_else(|| {
-                        // A corrected strict identity cannot inherit another edition's images.
+                    .and_then(|value| value.media.as_ref());
+                // The authored directory owns typed IGDB backgrounds and screenshots.
+                // A corrected strict identity or explicit replacement still wins.
+                let can_append_typed_media = retain_directory_scenes(port, listing);
+                let mut media = strict_media.cloned().unwrap_or_else(|| {
+                    // A corrected strict identity cannot inherit another edition's images.
+                    listing
+                        .media
+                        .iter()
+                        .filter(|asset| !asset.is_typed_igdb_scene())
+                        .filter(|asset| {
+                            crate::catalog_media::validate_catalog_media(
+                                &port.id,
+                                original_game.as_ref(),
+                                std::slice::from_ref(*asset),
+                            )
+                            .is_ok()
+                        })
+                        .cloned()
+                        .collect()
+                });
+                if can_append_typed_media {
+                    media.extend(
                         listing
                             .media
                             .iter()
                             .filter(|asset| {
-                                crate::catalog_media::validate_catalog_media(
-                                    &port.id,
-                                    original_game.as_ref(),
-                                    std::slice::from_ref(*asset),
-                                )
-                                .is_ok()
+                                asset.is_typed_igdb_scene()
+                                    && crate::catalog_media::validate_catalog_media(
+                                        &port.id,
+                                        original_game.as_ref(),
+                                        std::slice::from_ref(*asset),
+                                    )
+                                    .is_ok()
                             })
-                            .cloned()
-                            .collect()
-                    });
+                            .cloned(),
+                    );
+                }
                 let previously_managed = embedded_managed
                     .get(&port.id)
                     .map_or(&[][..], Vec::as_slice);
@@ -1558,6 +1642,93 @@ mod tests {
         let restored: PortDefinition = serde_json::from_value(serialized).unwrap();
         assert_eq!(restored.presentation.as_ref().unwrap().media, Some(vec![]));
         assert!(PortListing::from(&restored).media.is_empty());
+    }
+
+    #[test]
+    fn listing_format_13_preserves_typed_scenes_and_legacy_exports_omit_only_them() {
+        let mut row = listing();
+        row["media"] = json!([{
+            "id":"legacy","role":"screenshot",
+            "subject":{"kind":"port","port_id":row["id"]},
+            "caption":"Legacy shot",
+            "url":format!("https://raw.githubusercontent.com/owner/project/{}/shot.png", "a".repeat(40)),
+            "sha256":"a".repeat(64),"width":400,"height":200,
+            "attribution":"Fixture author","source_url":"https://example.com/source",
+            "license":"CC0-1.0","rights_url":"https://example.com/rights"
+        },{
+            "id":"igdb-screen","role":"screenshot",
+            "subject":{"kind":"port","port_id":row["id"]},
+            "caption":"IGDB shot",
+            "url":"https://images.igdb.com/igdb/image/upload/t_720p/fixture.png",
+            "sha256":"b".repeat(64),"width":1280,"height":720,
+            "attribution":"Fixture author","source_url":"https://www.igdb.com/games/fixture",
+            "license":"LicenseRef-IGDB-Terms","rights_url":"https://www.twitch.tv/p/en/legal/developer-agreement/",
+            "igdb":{"game_id":11,"record_id":21,"kind":"screenshot","image_id":"fixture","game_slug":"fixture"}
+        }]);
+        let raw =
+            |version| json!({"format_version": version, "listings": [row.clone()]}).to_string();
+        assert!(CatalogListingDocument::from_json(&raw(12)).is_err());
+        let current = CatalogListingDocument::from_json(&raw(13)).unwrap();
+        for version in 5..13 {
+            let older = current.export_format(version).unwrap();
+            assert_eq!(older.listings[0].media, current.listings[0].media[..1]);
+        }
+        assert_eq!(
+            current.export_format(13).unwrap().listings[0].media,
+            current.listings[0].media
+        );
+        let embedded = Catalog::embedded().unwrap();
+        let mut authored = embedded.authoritative_document();
+        let mut directory = embedded.listing_document().clone();
+        directory.format_version = 13;
+        let port = authored
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "beetle-recomp")
+            .unwrap();
+        let listed = directory
+            .listings
+            .iter_mut()
+            .find(|listing| listing.id == port.id)
+            .unwrap();
+        listed.project_url = port.project_url.clone();
+        listed.media = current.listings[0].media.clone();
+        for asset in &mut listed.media {
+            asset.subject = crate::CatalogMediaSubject::Port {
+                port_id: port.id.clone(),
+            };
+        }
+        let scene = listed.media[1].clone();
+        let strict_media = port.presentation.as_mut().unwrap();
+        strict_media.media = Some(vec![listed.media[0].clone()]);
+        let matched = Catalog::from_document(authored.clone())
+            .unwrap()
+            .with_listing_document(directory.clone())
+            .unwrap();
+        assert!(
+            matched
+                .listing("beetle-recomp")
+                .unwrap()
+                .media
+                .contains(&scene)
+        );
+        let port = authored
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "beetle-recomp")
+            .unwrap();
+        port.presentation.as_mut().unwrap().media = Some(vec![]);
+        let cleared = Catalog::from_document(authored)
+            .unwrap()
+            .with_listing_document(directory)
+            .unwrap();
+        assert!(
+            !cleared
+                .listing("beetle-recomp")
+                .unwrap()
+                .media
+                .contains(&scene)
+        );
     }
 
     #[test]
