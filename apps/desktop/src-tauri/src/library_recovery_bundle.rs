@@ -212,12 +212,13 @@ mod tests {
         let temporary = tempfile::tempdir().unwrap();
         let destination = temporary.path().join("restore");
         std::fs::create_dir(&destination).unwrap();
-        let failure = PortcoveError::conflict("bundle restore needs recovery")
+        let failure: DesktopError = PortcoveError::conflict("bundle restore needs recovery")
             .detail("import_destination", destination.display().to_string())
             .detail("recovery_action", "resume_library_recovery_restore")
-            .detail("transfer_id", "fixture-transfer");
+            .detail("transfer_id", "fixture-transfer")
+            .into();
         let state = DesktopState {
-            initialization: Arc::new(Mutex::new(Err(failure.clone().into()))),
+            initialization: Arc::new(Mutex::new(Err(failure.clone()))),
             preferences: Ok(portcove_core::HostPreferenceStore::new(
                 temporary.path().join("preferences.json"),
             )
