@@ -1024,6 +1024,7 @@ pub fn inspect_package_shape_archive(
     if port.release.grant_declared_executable {
         crate::install::grant_declared_executable(&payload, &qualification)?;
     }
+    crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
     let (verdict, provenance) = evaluate(port, platform, expected_sha256, &shape, None);
