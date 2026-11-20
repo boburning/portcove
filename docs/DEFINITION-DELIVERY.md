@@ -817,11 +817,11 @@ their storage accounting. A later normal request can fetch the same approved
 identity through its still-current policy and verify the result. This recovery
 preserves the older installed runtime and existing player data.
 
-The Core verifier, GitHub provider integration, accepted record and scoped
-transition handling are implemented. The #315 production canary, verified cache
-reuse, scoped refusals and recovery, and repeated eligible progression still
-need evidence through the protected route. Proposal-producing runners
-cannot approve their own authority changes or hold signing credentials.
+The protected route requires a production canary, verified cache reuse, scoped
+refusals and recovery, and repeated eligible progression. The
+[acquisition issue](https://github.com/boburning/portcove/issues/315) records the
+released Windows evidence and the remaining final 0.1.0 acceptance. Proposal
+runners cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
@@ -1471,10 +1471,11 @@ acquisition holds; adoption and preparation recovery apply local-use holds
 alongside their existing publisher and freshness guards. A refusal retains the
 payload and operation journal without activating or registering the target.
 
-These capability and fixture paths do not establish production acceptance.
-[#315](https://github.com/boburning/portcove/issues/315) still requires complete
-cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
-qualification and a lawful exact canary before its complete route is delivered.
+[#315](https://github.com/boburning/portcove/issues/315) tracks production
+acceptance for the lawful exact canary, cache qualification, scoped holds,
+interruption and recovery, and the applicable transitions. It identifies which
+operations have released-client receipts. Capability and fixture results retain
+their tested scope.
 
 ### Exact managed Launch assessment format
 
