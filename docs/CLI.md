@@ -1533,24 +1533,28 @@ fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 `configured`; the key is never shown.
 
 `search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
-or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
-its CDN URL, size, style and author attribution. Both are suggestions: they choose
+or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`. Use
+`--role logo` for static PNG logos. Each result includes its CDN URL, size, style
+and artist credit. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
 key or a rejected key is a usage error, and a missing game is not-found. Rate
 limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
 unavailable service is a network error. Malformed responses fail verification.
 `choose` copies one listed image into your library for a port's `cover` (portrait
-images), `detail` (hero images) or `landscape` (wide grid images) slot and returns `artwork_state`. Core looks the image
+images), `detail` (hero images), `landscape` (wide grid images) or `logo` slot
+and returns `artwork_state`. Core looks the image
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
-and the destination handoff. An image no longer on the game's first listing page is
+and in the destination handoff for its supported artwork. Logo stays in the
+library. An image no longer on the game's first listing page is
 not-found, and a changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
-check has confirmed a withdrawal.
+check has confirmed a withdrawal. Exports with Logo choices or provider records
+use metadata schema 13.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 `check-listings` checks, with your key, whether SteamGridDB still lists each

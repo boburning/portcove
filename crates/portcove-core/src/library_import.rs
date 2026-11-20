@@ -444,14 +444,9 @@ pub(crate) fn validate_metadata(
     };
     match (&metadata.artwork, metadata.schema_version) {
         (Some(artwork), 3..=13) => {
-            if metadata.schema_version < 13
-                && artwork
-                    .choices
-                    .iter()
-                    .any(|choice| choice.slot == crate::ArtworkSlot::Logo)
-            {
+            if metadata.schema_version < 13 && artwork.contains_logo_records() {
                 return Err(PortcoveError::verification(
-                    "a logo artwork choice requires library metadata schema 13",
+                    "logo artwork requires library metadata schema 13",
                 ));
             }
             if metadata.schema_version < 10

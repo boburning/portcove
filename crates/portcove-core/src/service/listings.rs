@@ -62,6 +62,7 @@ impl PortcoveService {
         let Some(id) = url
             .strip_prefix("https://www.steamgriddb.com/grid/")
             .or_else(|| url.strip_prefix("https://www.steamgriddb.com/hero/"))
+            .or_else(|| url.strip_prefix("https://www.steamgriddb.com/logo/"))
             .and_then(|id| id.parse::<u64>().ok())
             .filter(|id| *id > 0)
         else {

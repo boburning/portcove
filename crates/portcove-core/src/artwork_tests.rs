@@ -1640,7 +1640,7 @@ fn legacy_metadata_imports_execute_without_manufacturing_artwork() {
 #[test]
 fn listing_check_evidence_moves_with_the_library_and_import_starts_without_it() {
     use crate::artwork_store::listing_checks;
-    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    use crate::{ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role};
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("source");
     let destination = temp.path().join("destination");
@@ -3188,7 +3188,7 @@ fn encoded(width: u32, height: u32, format: image::ImageFormat) -> Vec<u8> {
 
 fn provider_candidate(
     id: u64,
-    role: crate::DestinationArtworkRole,
+    role: crate::SteamGridDbArtworkRole,
     width: u32,
     height: u32,
     mime: &str,
@@ -3248,7 +3248,7 @@ fn prepared_report(
 
 #[test]
 fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
-    use crate::{DestinationArtworkRole as Role, SteamGridDbListingResult as Listing};
+    use crate::{SteamGridDbArtworkRole as Role, SteamGridDbListingResult as Listing};
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3411,7 +3411,7 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
 #[test]
 fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record() {
     use crate::artwork_store::{ListingObservation, apply_listing_check, listing_checks};
-    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    use crate::{ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role};
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3544,7 +3544,7 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
 
 #[test]
 fn listing_check_subjects_carry_the_stored_image_facts() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let port = service.artwork_port("zelda64-recomp").unwrap();
@@ -3617,7 +3617,7 @@ fn listing_check_subjects_carry_the_stored_image_facts() {
 
 #[test]
 fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3658,7 +3658,10 @@ fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
 
     // The destination handoff carries the same credit under schema 3.
     let handoff = service
-        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .destination_artwork(
+            "zelda64-recomp",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
         .unwrap();
     assert_eq!(handoff.handoff_schema, 4);
     assert_eq!(handoff.attribution, chosen.attribution);
@@ -3668,7 +3671,7 @@ fn chosen_provider_images_keep_attribution_through_identical_local_imports() {
 
 #[test]
 fn provider_images_that_differ_from_their_listing_never_replace_current_art() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3727,7 +3730,7 @@ fn provider_images_that_differ_from_their_listing_never_replace_current_art() {
 
 #[test]
 fn provider_provenance_requires_metadata_schema_eight_and_valid_records() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3791,7 +3794,7 @@ fn provider_provenance_requires_metadata_schema_eight_and_valid_records() {
 
 #[test]
 fn schema_eight_library_import_restores_provider_attribution_and_origins() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -3834,7 +3837,7 @@ fn schema_eight_library_import_restores_provider_attribution_and_origins() {
 
 #[test]
 fn only_stored_steamgriddb_credits_and_the_key_page_are_reviewed_links() {
-    use crate::DestinationArtworkRole as Role;
+    use crate::SteamGridDbArtworkRole as Role;
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("library");
     let service = open_service(&root);
@@ -4009,6 +4012,87 @@ fn landscape_choices_require_metadata_schema_nine_and_round_trip() {
 }
 
 #[test]
+fn provider_logo_keeps_credit_and_does_not_feed_destination_artwork() {
+    use crate::{DestinationArtworkRole, SteamGridDbArtworkRole};
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let bytes = encoded(28, 12, image::ImageFormat::Png);
+    let candidate = |role| provider_candidate(17, role, 28, 12, "image/png", bytes.clone());
+    assert!(
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                candidate(SteamGridDbArtworkRole::Logo),
+                0
+            )
+            .is_err()
+    );
+    let logo = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Logo,
+            42,
+            candidate(SteamGridDbArtworkRole::Logo),
+            0,
+        )
+        .unwrap();
+    let credit = crate::steamgriddb_credit_url(&logo.attribution[0]);
+    assert_eq!(credit, "https://www.steamgriddb.com/logo/17");
+    assert!(service.is_reviewed_resource_url(&credit).unwrap());
+    assert!(
+        !service
+            .is_reviewed_resource_url("https://www.steamgriddb.com/grid/17")
+            .unwrap()
+    );
+
+    // Same bytes and ID cannot redirect the saved Logo credit to a grid record.
+    assert!(
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                candidate(SteamGridDbArtworkRole::PortraitCover),
+                0
+            )
+            .is_err()
+    );
+    let cover = temporary.path().join("cover.png");
+    fs::write(&cover, &bytes).unwrap();
+    service
+        .import_artwork(&port.id, ArtworkSlot::Cover, &cover, 0)
+        .unwrap();
+    let destination = service
+        .destination_artwork(&port.id, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(destination.attribution.is_empty());
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let mut metadata = service.export_library_metadata().unwrap();
+    metadata
+        .artwork
+        .as_mut()
+        .unwrap()
+        .choices
+        .retain(|choice| choice.slot != ArtworkSlot::Logo);
+    crate::portability_authority::seal(&mut metadata, Vec::new()).unwrap();
+    assert_eq!(metadata.schema_version, 13);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    metadata.schema_version = 12;
+    assert!(crate::library_import::validate_metadata(&metadata, &catalogs).is_err());
+    assert!(
+        service
+            .artwork(&port.id, ArtworkSlot::Logo)
+            .unwrap()
+            .attribution
+            .contains(&logo.attribution[0])
+    );
+}
+
+#[test]
 fn local_logo_round_trips_without_changing_other_artwork_roles() {
     const PORT: &str = "zelda64-recomp";
     let temporary = tempfile::tempdir().unwrap();
@@ -4046,11 +4130,6 @@ fn local_logo_round_trips_without_changing_other_artwork_roles() {
         logo_hash,
     );
     assert!(service.reset_artwork(PORT, ArtworkSlot::Logo, 0).is_err());
-    assert!(
-        service
-            .choose_steamgriddb_artwork(PORT, ArtworkSlot::Logo, 1, 1, 1)
-            .is_err()
-    );
     let metadata = service.export_library_metadata().unwrap();
     assert_eq!(metadata.schema_version, 13);
     crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();

@@ -582,6 +582,25 @@ impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub(crate) enum SteamGridDbArtworkRoleArg {
+    PortraitCover,
+    LandscapeCover,
+    HeroBanner,
+    Logo,
+}
+
+impl From<SteamGridDbArtworkRoleArg> for portcove_core::SteamGridDbArtworkRole {
+    fn from(role: SteamGridDbArtworkRoleArg) -> Self {
+        match role {
+            SteamGridDbArtworkRoleArg::PortraitCover => Self::PortraitCover,
+            SteamGridDbArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
+            SteamGridDbArtworkRoleArg::HeroBanner => Self::HeroBanner,
+            SteamGridDbArtworkRoleArg::Logo => Self::Logo,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub(crate) enum DestinationArtworkRoleArg {
     PortraitCover,
     LandscapeCover,
@@ -645,13 +664,13 @@ pub(crate) enum SteamGridDbCommand {
         after_help = "Uses your own API key. Portcove records what it finds beside each image's credit. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. When SteamGridDB's image server also says the file is gone, or a check at least a day later still finds it missing, Portcove removes its copy of an image you didn't import yourself; your choice and the credit are kept, choosing the image again restores it, and nothing changes in Steam. Each run starts with the images checked longest ago and stops after three minutes."
     )]
     CheckListings,
-    /// List proposed static images for one SteamGridDB game and destination role.
+    /// List proposed static images for a SteamGridDB game and artwork role.
     Candidates {
         /// SteamGridDB game ID from `artwork steamgriddb search`.
         game_id: u64,
-        /// Destination image role to propose images for.
+        /// Artwork role to propose images for.
         #[arg(long, value_enum)]
-        role: DestinationArtworkRoleArg,
+        role: SteamGridDbArtworkRoleArg,
     },
 }
 

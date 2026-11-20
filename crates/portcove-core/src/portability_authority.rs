@@ -65,12 +65,11 @@ impl PortabilityAuthority {
 
 /// Oldest reader contract that can carry this metadata without dropping state.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
-    if metadata.artwork.as_ref().is_some_and(|artwork| {
-        artwork
-            .choices
-            .iter()
-            .any(|choice| choice.slot == crate::ArtworkSlot::Logo)
-    }) {
+    if metadata
+        .artwork
+        .as_ref()
+        .is_some_and(crate::ArtworkMetadata::contains_logo_records)
+    {
         13
     } else if !metadata.source_instances.is_empty()
         || metadata.source_references.iter().any(|source| {

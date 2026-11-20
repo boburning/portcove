@@ -922,6 +922,34 @@ pub(crate) fn write_provider(
             "artwork provider attribution is dated in the future",
         ));
     }
+    // A provider's collections may reuse a numeric ID. Existing storage keys
+    // know the asset and provider ID, so refuse an ambiguous Logo collision
+    // before recording listing or withdrawal evidence for either collection.
+    let existing: Option<String> = connection
+        .query_row(
+            "SELECT record_json FROM artwork_asset_providers
+             WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
+            params![
+                record.asset_sha256,
+                record.attribution.provider.key(),
+                record.attribution.asset_id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(existing) = existing {
+        let existing: ArtworkAttribution = serde_json::from_str(&existing)?;
+        let logo = crate::SteamGridDbArtworkRole::Logo;
+        let involves_logo = existing.role == logo || record.attribution.role == logo;
+        if involves_logo
+            && (existing.role != record.attribution.role
+                || existing.game_id != record.attribution.game_id)
+        {
+            return Err(PortcoveError::conflict(
+                "This image shares a SteamGridDB identifier with a different artwork listing.",
+            ));
+        }
+    }
     let (recorded, total): (u64, u64) = connection.query_row(
         "SELECT (SELECT COUNT(*) FROM artwork_asset_providers WHERE asset_sha256=?1 AND NOT (provider=?2 AND asset_id=?3)),
                 (SELECT COUNT(*) FROM artwork_asset_providers)",

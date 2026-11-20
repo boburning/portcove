@@ -5,7 +5,7 @@
 use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation};
 use base64::Engine as _;
 use portcove_core::{
-    ArtworkSlot, ArtworkState, DestinationArtworkRole, SteamGridDbCandidate, SteamGridDbGame,
+    ArtworkSlot, ArtworkState, SteamGridDbArtworkRole, SteamGridDbCandidate, SteamGridDbGame,
     SteamGridDbKeyStatus, SteamGridDbListingReport,
 };
 use serde::Serialize;
@@ -34,7 +34,7 @@ pub(crate) async fn search_steamgriddb_games(term: String) -> DesktopResult<Vec<
 #[tauri::command]
 pub(crate) async fn get_steamgriddb_candidates(
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
 ) -> DesktopResult<Vec<SteamGridDbCandidate>> {
     blocking_worker(move || {
         portcove_core::steamgriddb_candidates(game_id, role).map_err(Into::into)

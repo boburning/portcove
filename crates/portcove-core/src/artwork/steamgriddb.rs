@@ -12,7 +12,7 @@ use std::{sync::OnceLock, time::Duration};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::DestinationArtworkRole;
+use super::SteamGridDbArtworkRole;
 use crate::{PortcoveError, Result};
 
 /// Where a player creates their own key; the only fixed SteamGridDB page Desktop opens.
@@ -22,8 +22,9 @@ pub const STEAMGRIDDB_KEY_PREFERENCES_URL: &str =
 /// The public SteamGridDB page that credits a stored provider image.
 pub fn steamgriddb_credit_url(attribution: &crate::ArtworkAttribution) -> String {
     let collection = match attribution.role {
-        DestinationArtworkRole::HeroBanner => "hero",
-        DestinationArtworkRole::PortraitCover | DestinationArtworkRole::LandscapeCover => "grid",
+        SteamGridDbArtworkRole::HeroBanner => "hero",
+        SteamGridDbArtworkRole::Logo => "logo",
+        SteamGridDbArtworkRole::PortraitCover | SteamGridDbArtworkRole::LandscapeCover => "grid",
     };
     format!(
         "https://www.steamgriddb.com/{collection}/{}",
@@ -65,7 +66,7 @@ pub struct SteamGridDbAuthor {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct SteamGridDbCandidate {
     pub id: u64,
-    pub role: DestinationArtworkRole,
+    pub role: SteamGridDbArtworkRole,
     pub url: String,
     pub thumb: String,
     pub mime: String,
@@ -140,7 +141,7 @@ pub(crate) fn fetch_candidate(
     transport: &impl SteamGridDbTransport,
     key: &str,
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
     candidate_id: u64,
 ) -> Result<FetchedCandidate> {
     // Only the first listing page is consulted; an image that moved off it is
@@ -191,7 +192,7 @@ pub(crate) fn fetch_candidate(
 /// Fetches a chosen candidate with the player's stored key.
 pub(crate) fn fetch_chosen_candidate(
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
     candidate_id: u64,
 ) -> Result<FetchedCandidate> {
     with_key(|key| fetch_candidate(&HttpTransport, key, game_id, role, candidate_id))
@@ -293,7 +294,7 @@ pub fn search_steamgriddb_games(term: &str) -> Result<Vec<SteamGridDbGame>> {
 /// Static candidates for one role of an explicitly chosen SteamGridDB game.
 pub fn steamgriddb_candidates(
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
 ) -> Result<Vec<SteamGridDbCandidate>> {
     with_key(|key| role_candidates(&HttpTransport, key, game_id, role))
 }
@@ -341,11 +342,12 @@ pub(crate) fn search_games(
 }
 
 /// The provider collection and the documented sizes Portcove offers for a role.
-fn role_listing(role: DestinationArtworkRole) -> (&'static str, &'static str) {
+fn role_listing(role: SteamGridDbArtworkRole) -> (&'static str, Option<&'static str>) {
     match role {
-        DestinationArtworkRole::PortraitCover => ("grids", "600x900,342x482,660x930"),
-        DestinationArtworkRole::LandscapeCover => ("grids", "460x215,920x430"),
-        DestinationArtworkRole::HeroBanner => ("heroes", "1920x620,3840x1240,1600x650"),
+        SteamGridDbArtworkRole::PortraitCover => ("grids", Some("600x900,342x482,660x930")),
+        SteamGridDbArtworkRole::LandscapeCover => ("grids", Some("460x215,920x430")),
+        SteamGridDbArtworkRole::HeroBanner => ("heroes", Some("1920x620,3840x1240,1600x650")),
+        SteamGridDbArtworkRole::Logo => ("logos", None),
     }
 }
 
@@ -353,14 +355,20 @@ pub(crate) fn role_candidates(
     transport: &impl SteamGridDbTransport,
     key: &str,
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
 ) -> Result<Vec<SteamGridDbCandidate>> {
     if game_id == 0 {
         return Err(PortcoveError::usage("choose a SteamGridDB game first"));
     }
     let (collection, dimensions) = role_listing(role);
+    let dimensions = dimensions.map_or_else(String::new, |sizes| format!("dimensions={sizes}&"));
+    let mimes = if role == SteamGridDbArtworkRole::Logo {
+        "image/png"
+    } else {
+        "image/png,image/jpeg"
+    };
     let path = format!(
-        "/{collection}/game/{game_id}?dimensions={dimensions}&mimes=image/png,image/jpeg\
+        "/{collection}/game/{game_id}?{dimensions}mimes={mimes}\
          &types=static&nsfw=false&humor=false&epilepsy=false&limit={MAX_RESULTS}&page=0"
     );
     #[derive(Deserialize)]
@@ -399,7 +407,8 @@ pub(crate) fn role_candidates(
                 && !image.nsfw
                 && !image.humor
                 && !image.epilepsy
-                && matches!(image.mime.as_str(), "image/png" | "image/jpeg")
+                && (image.mime == "image/png"
+                    || (role != SteamGridDbArtworkRole::Logo && image.mime == "image/jpeg"))
                 && (1..=MAX_IMAGE_DIMENSION).contains(&image.width)
                 && (1..=MAX_IMAGE_DIMENSION).contains(&image.height)
                 && is_image_url(&image.url)

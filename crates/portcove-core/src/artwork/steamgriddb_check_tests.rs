@@ -99,7 +99,7 @@ fn page(page: u64, total: u64, ids: &[u64]) -> (u16, String) {
 fn subject(
     asset_id: u64,
     game_id: u64,
-    role: DestinationArtworkRole,
+    role: SteamGridDbArtworkRole,
     size: (u32, u32),
 ) -> CheckSubject {
     CheckSubject {
@@ -123,7 +123,7 @@ fn portrait(asset_id: u64, game_id: u64) -> CheckSubject {
     subject(
         asset_id,
         game_id,
-        DestinationArtworkRole::PortraitCover,
+        SteamGridDbArtworkRole::PortraitCover,
         (600, 900),
     )
 }
@@ -382,9 +382,9 @@ fn the_request_budget_bounds_a_whole_check() {
 fn roles_map_to_their_collection_and_undocumented_sizes_list_the_whole_collection() {
     // Groups are read in a fixed order: grids before heroes.
     let transport = Scripted::new(vec![page(0, 1, &[2]), page(0, 1, &[1])], 404);
-    let mut jpeg_hero = subject(1, 7, DestinationArtworkRole::HeroBanner, (1920, 620));
+    let mut jpeg_hero = subject(1, 7, SteamGridDbArtworkRole::HeroBanner, (1920, 620));
     jpeg_hero.image = Some((1920, 620, ArtworkImageFormat::Jpeg));
-    let odd_landscape = subject(2, 7, DestinationArtworkRole::LandscapeCover, (500, 250));
+    let odd_landscape = subject(2, 7, SteamGridDbArtworkRole::LandscapeCover, (500, 250));
     let report = run(&transport, vec![jpeg_hero, odd_landscape]);
     assert!(
         report
@@ -399,6 +399,21 @@ fn roles_map_to_their_collection_and_undocumented_sizes_list_the_whole_collectio
     assert!(paths.contains(
         &"/grids/game/7?mimes=image/png&types=static&nsfw=any&humor=any&epilepsy=any&limit=50&page=0".to_owned()
     ));
+}
+
+#[test]
+fn saved_logo_is_checked_against_its_own_listing() {
+    let transport = Scripted::new(vec![page(0, 1, &[17])], 404);
+    let logo = subject(17, 42, SteamGridDbArtworkRole::Logo, (700, 233));
+    let report = run(&transport, vec![logo]);
+    assert_eq!(report.images[0].listing, SteamGridDbListingResult::Listed);
+    assert_eq!(
+        transport.paths.borrow().as_slice(),
+        [
+            "/logos/game/42?mimes=image/png&types=static&nsfw=any&humor=any&epilepsy=any&limit=50&page=0"
+        ],
+    );
+    assert!(transport.images.borrow().is_empty());
 }
 
 #[test]
@@ -770,8 +785,8 @@ fn steamgriddb_live_listing_check() {
     let game = games[0].id;
     let mut subjects = Vec::new();
     for role in [
-        DestinationArtworkRole::PortraitCover,
-        DestinationArtworkRole::HeroBanner,
+        SteamGridDbArtworkRole::PortraitCover,
+        SteamGridDbArtworkRole::HeroBanner,
     ] {
         let candidate = role_candidates(&HttpTransport, key, game, role)
             .unwrap()
@@ -790,7 +805,7 @@ fn steamgriddb_live_listing_check() {
     let mut absent = subject(
         u64::MAX / 2,
         game,
-        DestinationArtworkRole::PortraitCover,
+        SteamGridDbArtworkRole::PortraitCover,
         (600, 900),
     );
     absent.attribution.source_url =

@@ -7,7 +7,7 @@ use crate::artwork_store::{
     apply_listing_check, listing_checks,
 };
 use crate::{
-    ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role, SteamGridDbCheckEffect as Effect,
+    ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role, SteamGridDbCheckEffect as Effect,
     SteamGridDbListingResult as Listing, SteamGridDbSourceStatus as Source,
 };
 
@@ -268,7 +268,10 @@ fn a_confirmed_withdrawal_removes_a_provider_only_copy_and_keeps_the_choice() {
     );
     // Steam and thumbnails see the same: nothing is handed out.
     let handoff = service
-        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .destination_artwork(
+            "zelda64-recomp",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
         .unwrap();
     assert_eq!(
         handoff.content,

@@ -1,7 +1,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{ArtworkAttribution, ArtworkChoice, ArtworkSlot, LocalArtworkAsset, original_bytes};
+use super::{
+    ArtworkAttribution, ArtworkChoice, ArtworkSlot, LocalArtworkAsset, SteamGridDbArtworkRole,
+    original_bytes,
+};
 use crate::{LibraryIdentity, PortcoveError, PortcoveService, Result};
 
 /// This optional handoff evolves independently of API envelopes and events.
@@ -80,6 +83,23 @@ enum DestinationArtworkSlot {
     Landscape,
 }
 
+#[derive(JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[allow(
+    dead_code,
+    reason = "schema projection of the version-4 destination attribution"
+)]
+struct DestinationArtworkAttribution {
+    provider: super::ArtworkProvider,
+    asset_id: u64,
+    game_id: u64,
+    role: DestinationArtworkRole,
+    author_name: String,
+    author_steam64: Option<String>,
+    source_url: String,
+    fetched_at: i64,
+}
+
 /// An observation, never provider permission, destination ownership or write consent.
 /// Portrait exposes the validated local cover original; hero banner and landscape
 /// cover expose the validated local detail or landscape original only when it is
@@ -100,6 +120,7 @@ pub struct DestinationArtworkHandoff {
     pub content: DestinationArtworkContent,
     /// Provider credits for the selected local image, shown by a destination that
     /// presents the image; empty for a purely local import and every other source.
+    #[schemars(with = "Vec<DestinationArtworkAttribution>")]
     pub attribution: Vec<ArtworkAttribution>,
 }
 
@@ -117,6 +138,9 @@ impl DestinationArtworkHandoff {
             return Err(invalid());
         }
         for attribution in &self.attribution {
+            if attribution.role == SteamGridDbArtworkRole::Logo {
+                return Err(invalid());
+            }
             crate::artwork_store::validate_attribution(attribution)?;
         }
         if let Some(id) = &self.selected_asset_sha256 {
@@ -425,7 +449,10 @@ impl PortcoveService {
             let choice = crate::artwork_store::choice(&connection, port_id, slot)?;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
-                handoff.attribution = crate::artwork_store::attributions(&connection, id)?;
+                handoff.attribution = crate::artwork_store::attributions(&connection, id)?
+                    .into_iter()
+                    .filter(|record| record.role != SteamGridDbArtworkRole::Logo)
+                    .collect();
                 handoff.source = DestinationArtworkSource::LocalImport {
                     asset: asset.clone(),
                 };
