@@ -425,10 +425,11 @@ function ArtworkSlotControl({
     });
   };
 
-  const finishChange = (target: HTMLButtonElement | null, restoreFocus = true) => {
+  const finishChange = (target: HTMLButtonElement | null, restoreFocus = true, owner = cache) => {
     busy.current = false;
     if (!mounted.current) return;
-    if (restoreFocus && stillCurrent()) returnFocus.current = { target, cache };
+    if (restoreFocus && stillInView() && currentIdentity.current.cache === owner)
+      returnFocus.current = { target, cache: owner };
     setPending(false);
   };
 
@@ -438,6 +439,7 @@ function ArtworkSlotControl({
     const revision = display.state.choice.revision;
     let changeRequested = false;
     let staged = false;
+    let focusOwner = cache;
     let focusTarget = pick
       ? pickerButton.current
       : action === "hide"
@@ -466,6 +468,7 @@ function ArtworkSlotControl({
       if (result && stillInView()) {
         if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
         if (!stillInView()) return;
+        focusOwner = currentIdentity.current.cache ?? cache;
         if (action === "hide") {
           focusTarget = resetButton.current;
           setMessage("Artwork hidden for this port.");
@@ -482,7 +485,7 @@ function ArtworkSlotControl({
         await refreshCurrent();
       }
     } finally {
-      finishChange(focusTarget, !staged);
+      finishChange(focusTarget, !staged, focusOwner);
     }
   };
 

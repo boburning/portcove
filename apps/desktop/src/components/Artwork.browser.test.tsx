@@ -387,6 +387,29 @@ describe("local artwork controls", () => {
     },
   );
 
+  it("restores focus to Use automatic after Hide commits during a catalog refresh", async () => {
+    let state = artworkState("sample", "cover");
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "cover" ? state : artworkState(port, slot),
+    );
+    let finish!: (value: ArtworkState) => void;
+    const hide = vi
+      .spyOn(desktopApi, "suppressArtwork")
+      .mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    await render("sample", 7, "old-cover");
+    await open();
+    await page.elementLocator(button("cover", "Hide artwork")).click();
+    expect(hide).toHaveBeenCalledExactlyOnceWith("sample", "cover", 0, 7);
+    await render("sample", 7, "corrected-cover");
+    await expect.element(page.elementLocator(button("cover", "Use automatic"))).toBeDisabled();
+    state = artworkState("sample", "cover", 1);
+    state.choice.suppressed = true;
+    await act(async () => finish(state));
+    await expect.element(page.elementLocator(button("cover", "Use automatic"))).toHaveFocus();
+    expect(button("cover", "Hide artwork").disabled).toBe(true);
+    expect(hide).toHaveBeenCalledTimes(1);
+  });
+
   it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {
     const showArtwork = controlledArtworkVisibility();
     let state = artworkState("sample", "cover");
