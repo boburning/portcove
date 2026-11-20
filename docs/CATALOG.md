@@ -3611,6 +3611,26 @@ and treats the two engine logs as runtime output. Keep each official package
 selector, executable, original IWAD profile and launch arguments explicit.
 Preparation compacts a route only when expansion reproduces its exact bytes.
 
+The authoring-only `gen2recomp_windows_persistence_v1: true` expands the
+reviewed Windows player data and generated import paths for the Gold, Silver
+and Crystal routes. Each original profile, release selector, executable and
+edition launch value stays explicit. URL preparation uses the recipe when
+expansion reproduces the existing integration byte for byte.
+
+The authoring-only `rsdkv4_portable_data_v1: true` supplies the reviewed
+portable data paths for Sonic the Hedgehog and Sonic the Hedgehog 2 (2013).
+Each game keeps its own identity, original-file instructions, official package
+selector, executable and installed data. URL preparation uses the recipe when
+its expansion reproduces the reviewed integration byte for byte. A different
+writer layout uses explicit paths.
+
+Use the authoring-only `opengoal_setup_v1: true` for the reviewed OpenGOAL
+Jak trilogy setup. The generator supplies the extractor, launcher, and setup
+and portable data paths from the matching game identity. Keep the reviewed
+disc profile, release authority, support and presentation in each record.
+URL preparation compacts an exact match. A reviewed setup that differs uses
+the explicit integration fields.
+
 The authoring-only `openmohaa_portable_v1` generates the official stable
 OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
 It supplies the four platform selectors, shared Windows archive layout,
@@ -3938,6 +3958,29 @@ requests do not establish absence or withdrawal. Preparation proposes remote URL
 provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
+
+For registration-only routes, use `external_registration_v1: true` with the
+`user-prepared` provider, the `staged-source-portable` adapter and the declared
+platforms. The generator creates the user-selected registration contract for each
+platform. Keep the original-file instructions, package preparation, working
+folder, and player or upstream ownership in the authored record. Use explicit
+`user_prepared` entries for accepted packages and per-platform distinctions.
+The CPS2Recomp routes use this shared registration form.
+
+The `alephone_pinned_windows_v1` recipe supplies the reviewed bundled-scenario
+launch arguments, environment, Windows path policy and external profile
+ownership for Marathon, Marathon 2 and Marathon Infinity. Each integration
+keeps its exact Direct archive pin and scenario executable. Each listing keeps
+its game, setup instructions and release-maintenance conditions.
+`prepare-port.mts` compacts only an exact match. The pins offer no automatic
+updates, and Portcove backups exclude the upstream profiles.
+
+The `native_managed_profile_v1` recipe supplies the managed `profile`
+directory, Windows temporary directory and relative-file path policy for the
+reviewed BStone and DevilutionX routes. The official selector, original-file
+contract, launch arguments and package-layout review remain explicit.
+`prepare-port.mts` compacts an exact match. Use the explicit integration when
+the title uses a different writer path or a player-owned profile.
 
 ### Regenerate catalog projections
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
-import { derivationInputsDigest } from "./package-shape-baselines.mts";
+import { derivationInputs, derivationInputsDigest } from "./package-shape-baselines.mts";
 import {
   collectDriftTargets,
   completedInspections,
@@ -12,7 +12,12 @@ import {
   type DriftTarget,
 } from "./scheduled-package-drift.mts";
 
-const source = { source_commit: "d".repeat(40), run_id: "42", run_attempt: "1" };
+const source = {
+  source_commit: "d".repeat(40),
+  run_id: "42",
+  run_attempt: "1",
+  event_name: "schedule",
+} as const;
 const now = Date.parse("2026-11-16T09:00:00Z");
 const platform = "windows-x86-64";
 const catalog = {
@@ -30,6 +35,21 @@ const table = {
     },
   ],
 };
+
+void test("only OpenMoHAA Unix shape identities include the prepared programs rule", () => {
+  const openmohaa = { external_profile_policy: "openmohaa-unix-v1" };
+  for (const platform of ["linux-x86-64", "macos-x86-64", "macos-aarch64"]) {
+    assert.equal(derivationInputs(openmohaa, platform).openmohaa_prepared_programs, true);
+  }
+  assert.equal(
+    derivationInputs(openmohaa, "windows-x86-64").openmohaa_prepared_programs,
+    undefined,
+  );
+  assert.equal(
+    derivationInputs(catalog.ports[0], "linux-x86-64").openmohaa_prepared_programs,
+    undefined,
+  );
+});
 
 function observation(portId = "example") {
   return {
@@ -392,13 +412,29 @@ void test("publishes one scoped notice per issue from current drift evidence onl
   assert.equal((notices[0]?.body.match(/asset 3/g) ?? []).length, 1);
   assert.throws(
     () => driftNotices(report, listings, { ...source, run_attempt: "2" }),
-    /exact scheduled/,
+    /exact observer package inspection/,
   );
-  const nextRun = { ...source, run_id: "43" };
-  assert.equal(
-    driftNotices({ ...report, run: nextRun }, listings, nextRun)[0]?.identity,
-    notices[0]?.identity,
+  assert.match(notices[0]?.body ?? "", /started by the schedule/u);
+  const { event_name: _event, ...legacyReportRun } = source;
+  assert.throws(
+    () => driftNotices({ ...report, run: legacyReportRun }, listings, source),
+    /exact observer package inspection/u,
   );
+  for (const [event_name, name] of [
+    ["workflow_dispatch", "a manual dispatch"],
+    ["push", "a push to main"],
+  ] as const) {
+    const nextRun = { ...source, run_id: "43", event_name };
+    assert.throws(
+      () =>
+        driftNotices({ ...report, run: nextRun }, listings, { ...nextRun, event_name: "schedule" }),
+      /exact observer package inspection/u,
+    );
+    const [notice] = driftNotices({ ...report, run: nextRun }, listings, nextRun);
+    assert.ok(notice);
+    assert.ok(notice.body.includes(`started by ${name}.`));
+    assert.equal(notice.identity, notices[0]?.identity);
+  }
 });
 
 void test("a changed inspector binary invalidates otherwise exact cached results", () => {

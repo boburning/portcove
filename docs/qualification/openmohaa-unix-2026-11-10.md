@@ -14,8 +14,10 @@ non-owning external registrations retain their creating contracts.
 Both ZIPs passed CRC inspection and contain ten regular root files. They contain
 no original game files. The ZIPs store the launchers and engine without
 execute bits. Portcove sets execution permission on the exact selected launcher
-and `openmohaa` after checking their native headers and layout. Linux amd64
-requires glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The Mac
+and `openmohaa` after checking their native headers. Managed installation
+and read-only package inspection compare shape after that permission grant,
+before adapter data is added. A raw-mode observation from an older build
+allows the package to be checked again. Linux amd64 requires glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The Mac
 executables and SDL2 dependency contain Intel and Apple Silicon slices, with
 minimum systems 10.15 and 11 respectively. The Mac engine finds the included
 SDL2 through `@executable_path`. Both packages include the game modules,

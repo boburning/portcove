@@ -192,6 +192,120 @@ fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
 }
 
 #[test]
+fn legacy_crawl_layout_correction_preserves_historical_and_current_presentation() {
+    let contract = include_bytes!(
+        "../tests/fixtures/definition-projection/crawl-reviewed-layout-contract.json.txt"
+    );
+    assert_eq!(
+        hex::encode(Sha256::digest(contract)),
+        "ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f",
+    );
+    let legacy: Value = serde_json::from_slice(contract).unwrap();
+    let selected = "dungeon-crawl-stone-soup";
+    let select = |legacy: &Value, baseline: &Catalog| {
+        let bytes = serde_json::to_vec(legacy).unwrap();
+        inspect(&entry(legacy, &bytes, 0), &bytes)?.catalog_for_selection(baseline)
+    };
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let previous = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == selected)
+        .unwrap();
+    previous.reviewed_package_layouts.clear();
+    let current_baseline = Catalog::from_document(document.clone()).unwrap();
+    let current_title = current_baseline
+        .port(selected)
+        .unwrap()
+        .presentation
+        .as_ref()
+        .unwrap()
+        .original_game_title
+        .as_deref()
+        .unwrap();
+    assert_eq!(current_title, "Dungeon Crawl Stone Soup");
+    // The immutable legacy contract describes the historical title. Its layout
+    // correction must not gain authority to replace newer presentation.
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == selected)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .original_game_title = Some(
+        legacy["catalog"]["ports"][0]["presentation"]["original_game_title"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
+    );
+    let baseline = Catalog::from_document(document).unwrap();
+    let effective = inspect(&entry(&legacy, contract, 0), contract)
+        .unwrap()
+        .catalog_for_selection(&baseline)
+        .unwrap();
+    assert_eq!(effective.source_catalog(), baseline.source_catalog());
+    assert_eq!(effective.ports().len(), baseline.ports().len());
+    assert_eq!(
+        effective.port(selected).unwrap().reviewed_package_layouts[&crate::Platform::WindowsX86_64]
+            .executables,
+        ["crawl.exe"],
+    );
+    for (before, after) in baseline.ports().iter().zip(effective.ports()) {
+        if before.id != selected {
+            assert_eq!(
+                serde_json::to_value(before).unwrap(),
+                serde_json::to_value(after).unwrap()
+            );
+        }
+    }
+    let mut changed = legacy.clone();
+    changed["catalog"]["ports"][0]["summary"] = json!("Different valid description");
+    let changed_bytes = serde_json::to_vec(&changed).unwrap();
+    let changed_projection = inspect(&entry(&changed, &changed_bytes, 0), &changed_bytes).unwrap();
+    assert!(changed_projection.catalog_for_selection(&baseline).is_err());
+    changed = legacy.clone();
+    changed["catalog"]["ports"][0]["reviewed_package_layouts"] = json!({});
+    assert!(select(&changed, &effective).is_err());
+
+    assert!(select(&legacy, &current_baseline).is_err());
+    let mut corrected = legacy.clone();
+    corrected["catalog"]["ports"][0]["presentation"]["original_game_title"] = json!(current_title);
+    let corrected_effective = select(&corrected, &current_baseline).unwrap();
+    assert_eq!(
+        corrected_effective.source_catalog(),
+        current_baseline.source_catalog()
+    );
+    assert_eq!(
+        corrected_effective.ports().len(),
+        current_baseline.ports().len()
+    );
+    let mut expected_port = current_baseline.port(selected).unwrap().clone();
+    expected_port.reviewed_package_layouts = effective
+        .port(selected)
+        .unwrap()
+        .reviewed_package_layouts
+        .clone();
+    assert_eq!(
+        serde_json::to_value(corrected_effective.port(selected).unwrap()).unwrap(),
+        serde_json::to_value(expected_port).unwrap()
+    );
+    for (before, after) in current_baseline
+        .ports()
+        .iter()
+        .zip(corrected_effective.ports())
+    {
+        if before.id != selected {
+            assert_eq!(
+                serde_json::to_value(before).unwrap(),
+                serde_json::to_value(after).unwrap()
+            );
+        }
+    }
+}
+
+#[test]
 fn sparse_schema_three_reuses_exact_shared_source_records_and_rejects_conflicts() {
     let mut full = generic_projection();
     full["catalog"]["schema_version"] = json!(3);
@@ -732,7 +846,14 @@ fn current_projection_routes_keep_distinct_capability_floors() {
             "doom-3-resurrection-of-evil-classic-dhewm3",
             crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
         ),
-        ("doom-3-classic-dude-doom-3-unified-development-engine", 23),
+        (
+            "doom-3-classic-dude-doom-3-unified-development-engine",
+            crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
+        ),
+        (
+            "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+            23,
+        ),
     ] {
         let position = document["catalog"]["ports"]
             .as_array()

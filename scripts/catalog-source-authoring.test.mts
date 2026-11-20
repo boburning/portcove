@@ -1,4 +1,8 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  compactAlephOnePinnedWindows,
+  projectAlephOnePinnedWindows,
+} from "./catalog-alephone-pinned-windows.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -35,6 +39,18 @@ import {
   compactOpenMohaaPortable,
   projectOpenMohaaPortable,
 } from "./catalog-openmohaa-portable.mts";
+import {
+  compactGen2RecompWindowsPersistence,
+  projectGen2RecompWindowsPersistence,
+} from "./catalog-gen2recomp-windows-persistence.mts";
+import {
+  compactNativeManagedProfile,
+  projectNativeManagedProfile,
+} from "./catalog-native-managed-profile.mts";
+import {
+  compactRsdkv4PortableData,
+  projectRsdkv4PortableData,
+} from "./catalog-rsdkv4-portable-data.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
@@ -85,6 +101,124 @@ void test("managed platform warnings are checked and stay outside definition pro
       () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
       /managed_setup_platform_warnings/u,
     );
+  }
+});
+
+void test("native managed profiles reproduce four independently reviewed games", () => {
+  const { records, catalog } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.native_managed_profile_v1);
+  assert.equal(family.length, 4);
+  for (const record of family) {
+    const explicit = projectNativeManagedProfile(record);
+    assert.deepEqual(compactNativeManagedProfile(explicit), record);
+    assert.deepEqual(
+      projectAuthoredPort(record),
+      catalog.ports.find((port) => port.id === record.listing.id),
+    );
+    const override = {
+      ...explicit,
+      integration: { ...explicit.integration, windows_temp_directory: "different-profile" },
+    };
+    assert.equal(compactNativeManagedProfile(override), override);
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          ...record,
+          integration: {
+            ...record.integration,
+            presentation: {
+              saves_and_settings: "external-user-owned",
+            },
+          },
+        }),
+      /managed profile requires/u,
+    );
+  }
+});
+
+void test("external runtime registration reproduces all reviewed CPS2Recomp routes", () => {
+  const ports = fixtureCatalog(schema3Fixture).ports.filter((port) =>
+    port.id.startsWith("cps2recomp-"),
+  );
+  assert.equal(ports.length, 12);
+  for (const port of ports) {
+    const authored = checkedAuthoredPort(
+      fixtureJson(readFileSync(join(catalogRoot, "ports", `${port.id}.json`))),
+    );
+    assert.equal(authored.external_registration_v1, true);
+    const release = fixtureRecord(authored.integration?.release);
+    assert.equal(release.user_prepared, undefined);
+    assert.deepEqual(projectAuthoredPort(authored), port);
+    const integration = requiredFixture(authored.integration);
+    const explicit = {
+      ...authored,
+      integration: { ...integration, release: port.release },
+    };
+    assert.throws(() => checkedAuthoredPort(explicit), /exclusively user-selected/u);
+    delete explicit.external_registration_v1;
+    assert.deepEqual(projectAuthoredPort(checkedAuthoredPort(explicit)), port);
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          ...authored,
+          integration: { ...integration, platforms: ["windows-x86-64", "windows-x86-64"] },
+        }),
+      /exclusively user-selected/u,
+    );
+  }
+});
+
+void test("Aleph One launch settings preserve all three reviewed pinned scenario routes", () => {
+  const accepted = new Map(fixtureCatalog(schema3Fixture).ports.map((port) => [port.id, port]));
+  const family = readCatalogSource(catalogRoot).records.filter(
+    (record) => record.alephone_pinned_windows_v1,
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "marathon-2-durandal-aleph-one",
+    "marathon-aleph-one",
+    "marathon-infinity-aleph-one",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectAlephOnePinnedWindows(record);
+    assert.deepEqual(explicit.integration?.release, record.integration?.release);
+    assert.deepEqual(explicit.integration?.executable_hints, record.integration?.executable_hints);
+    assert.deepEqual(compactAlephOnePinnedWindows(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    requiredFixture(alternate.integration).launch_arguments = ["Scenario"];
+    assert.equal(compactAlephOnePinnedWindows(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, alephone_pinned_windows_v1: true }),
+      /already supplies the launch and external profile/u,
+    );
+  }
+});
+
+void test("Aleph One launch settings require the canonical official release URL", () => {
+  const record = requiredFixture(
+    readCatalogSource(catalogRoot).records.find((item) => item.listing.id === "marathon-aleph-one"),
+  );
+  const prefix = `${record.listing.project_url}/releases/download/`;
+  const pin = `${prefix}release-20260930/Marathon-20260930-Win.zip`;
+  for (const url of [
+    "https://github.com/example/other/archive.zip",
+    `${prefix}../../archive.zip`,
+    `${prefix}transient/%2e%2e/release-20260930/Marathon-20260930-Win.zip`,
+    `${prefix}release%2F20260930/Marathon-20260930-Win.zip`,
+    `${prefix}release-20260930/nested/Marathon-20260930-Win.zip`,
+    `${prefix}/Marathon-20260930-Win.zip`,
+    `${prefix}release-20260930/`,
+    `${pin}?download=1`,
+    `${pin}#archive`,
+    `${pin}?`,
+    `${pin}#`,
+  ]) {
+    const otherPackage = structuredClone(record);
+    const direct = fixtureRecord(fixtureRecord(otherPackage.integration?.release).direct);
+    fixtureRecord(direct["windows-x86-64"]).url = url;
+    assert.throws(() => checkedAuthoredPort(otherPackage), /reviewed pinned Windows scenario/u);
   }
 });
 
@@ -194,6 +328,66 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Gen2Recomped persistence preserves all three exact Windows edition routes", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.gen2recomp_windows_persistence_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "gen2recomp-crystal",
+    "gen2recomp-gold",
+    "gen2recomp-silver",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectGen2RecompWindowsPersistence(record);
+    delete explicit.gen2recomp_windows_persistence_v1;
+    assert.deepEqual(compactGen2RecompWindowsPersistence(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = ["options.lua"];
+    assert.equal(compactGen2RecompWindowsPersistence(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, gen2recomp_windows_persistence_v1: true }),
+      /already owns the persistent and mutable paths/u,
+    );
+    const wrongEdition = structuredClone(record);
+    wrongEdition.integration!.source_profile = "pokemon-red";
+    assert.throws(() => checkedAuthoredPort(wrongEdition), /reviewed Windows package and edition/u);
+  }
+});
+
+void test("RSDKv4 portable data preserves both reviewed Sonic definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.rsdkv4_portable_data_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation",
+    "sonic-the-hedgehog-2013-mobile-edition-rsdkv4-decompilation",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectRsdkv4PortableData(record);
+    delete explicit.rsdkv4_portable_data_v1;
+    assert.deepEqual(compactRsdkv4PortableData(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = ["Data.rsdk", "other-profile"];
+    assert.equal(compactRsdkv4PortableData(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, rsdkv4_portable_data_v1: true }),
+      /already owns the persistent paths/u,
+    );
+    const otherProject = structuredClone(record);
+    otherProject.listing.project_url = "https://github.com/RSDKModding/RSDKv3-Decompilation";
+    assert.throws(
+      () => checkedAuthoredPort(otherProject),
+      /reviewed Sonic route and package source/u,
+    );
+  }
 });
 
 void test("Chocolate persistence preserves the three reviewed Windows definitions", () => {

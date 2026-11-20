@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Build on the accepted Japanese Chameleon Twist revision 1 and Crawl revision 3 definitions. Correct the reviewed JP original-game identity and Stone Soup display title in both strict entry and projection. Preserve the accepted Preview.9-compatible catalog-schema-2 projections, Crawl Windows package layout, Japanese source checks, grants, acquisition checks and all operational declarations. Changed index, policy and launch bindings advance through normal metadata preparation; no runtime or player-data migration is introduced."
+    "notes": "Build on the accepted Japanese Chameleon Twist revision 1, Crawl revision 3 and DUDE revision 1 definitions. Correct the reviewed JP original-game identity and Stone Soup display title in both strict entry and projection. Preserve their accepted catalog-schema-2 source/runtime graphs, the Crawl Windows layout, Japanese source checks and the exact DUDE Linux native-program format rule and release-specific layout. All retained grants, launch assessments and acquisition boundaries remain unchanged. Index, policy and launch bindings advance through ordinary metadata preparation; no runtime/player-data migration or signing/publication authority is introduced."
   }
 }

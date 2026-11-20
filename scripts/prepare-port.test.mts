@@ -16,8 +16,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
+import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
@@ -42,6 +45,7 @@ import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
+import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -2286,6 +2290,7 @@ void test("prepared observations bind the accepted observation preimage and cann
 
 void test("preparation reports all declared route projections across the current catalog", () => {
   const { records } = readCatalogSource(catalogRoot);
+  assert.ok(records.some((record) => record.alephone_pinned_windows_v1));
   const routeRecords = records.filter((record) => record.route_facts_v1);
   const gbaRecords = records.filter((record) => record.gba_staged_archive_v1);
   assert.ok(routeRecords.some((record) => record.route_facts_v1?.managed_native));
@@ -2301,23 +2306,35 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
   assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
   assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
+  assert.ok(records.some((record) => record.opengoal_setup_v1));
   assert.ok(records.some((record) => record.openmohaa_portable_v1));
+  assert.ok(records.some((record) => record.native_managed_profile_v1));
+  assert.ok(records.some((record) => record.external_registration_v1));
+  assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
+  assert.ok(records.some((record) => record.rsdkv4_portable_data_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
+    if (record.alephone_pinned_windows_v1) expected.push("alephone_pinned_windows_v1");
     if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
     if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
+    if (record.native_managed_profile_v1) expected.push("native_managed_profile_v1");
+    if (record.external_registration_v1) expected.push("external_registration_v1");
+    if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
     if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
     if (record.chocolate_family_windows_persistence_v1)
       expected.push("chocolate_family_windows_persistence_v1");
+    if (record.gen2recomp_windows_persistence_v1)
+      expected.push("gen2recomp_windows_persistence_v1");
+    if (record.rsdkv4_portable_data_v1) expected.push("rsdkv4_portable_data_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2371,6 +2388,56 @@ void test("official URL preparation retains ReflectionHLE portability observatio
     );
     assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
     assert.equal(candidate.reflectionhle_portable_paths_v1, true);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation retains the exact Aleph One pin and compacts its launch settings", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "marathon-2-durandal-aleph-one";
+    const accepted = readCatalogSource(root);
+    const selected = accepted.records.find((record) => record.listing.id === id)!;
+    const explicit = projectAlephOnePinnedWindows(selected);
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 39701264,
+                full_name: "Aleph-One-Marathon/alephone",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.alephone_pinned_windows_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.deepEqual(candidate.integration, selected.integration);
+    assert.deepEqual(candidate.release_maintenance, selected.release_maintenance);
+    assert.deepEqual(
+      JSON.parse(readFileSync(prepared.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();
@@ -2684,6 +2751,89 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
   }
 });
 
+void test("official URL preparation emits the exact Gen2Recomped Windows edition persistence recipe", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "gen2recomp-gold";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectGen2RecompWindowsPersistence(selected);
+    delete explicit.gen2recomp_windows_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, full_name: "UNDERdecoded/Gen2Recomped", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.gen2recomp_windows_persistence_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation emits the reviewed RSDKv4 portable data recipe", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "sonic-the-hedgehog-2-2013-mobile-edition-rsdkv4-decompilation";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectRsdkv4PortableData(selected);
+    delete explicit.rsdkv4_portable_data_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 321543928,
+                full_name: "RSDKModding/RSDKv4-Decompilation",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.rsdkv4_portable_data_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("official URL preparation emits the exact Chocolate Windows persistence recipe", async () => {
   const f = fixture();
   try {
@@ -2765,6 +2915,83 @@ void test("official URL preparation compacts only the exact Crispy Doom persiste
     );
     assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
     assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("OpenGOAL setup keeps each disc, launcher and portable profile separate", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  for (const token of ["jak1", "jak2", "jak3"]) {
+    const record = records.find(({ listing }) => listing.id === `opengoal-${token}`)!;
+    assert.equal(record.opengoal_setup_v1, true);
+    const explicit = projectOpenGoalSetup(record);
+    assert.equal(explicit.integration?.source_profile, `opengoal-${token}-disc`);
+    assert.equal(explicit.integration?.setup_marker, `data/out/${token}/iso/0COMMON.TXT`);
+    assert.deepEqual(explicit.integration?.launch_arguments, ["--game", token, "--portable"]);
+    assert.deepEqual(explicit.integration?.persistent_paths, [`OpenGOAL/${token}`]);
+    assert.deepEqual(compactOpenGoalSetup(explicit), record);
+
+    const override = {
+      ...explicit,
+      integration: { ...explicit.integration, launch_arguments: ["--game", token] },
+    };
+    assert.equal(compactOpenGoalSetup(override), override);
+    assert.throws(
+      () => projectOpenGoalSetup({ ...override, opengoal_setup_v1: true }),
+      /already supplies the extractor/u,
+    );
+    assert.throws(
+      () =>
+        projectOpenGoalSetup({
+          ...record,
+          integration: { ...record.integration, source_profile: "unrelated-disc" },
+        }),
+      /reviewed project, game, and disc profile/u,
+    );
+  }
+});
+
+void test("official URL preparation compacts the reviewed OpenGOAL setup", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "opengoal-jak2";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectOpenGoalSetup(selected);
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 289585720,
+                full_name: "open-goal/jak-project",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.opengoal_setup_v1, true);
+    assert.equal(candidate.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(projectOpenGoalSetup(candidate).integration, explicit.integration);
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();

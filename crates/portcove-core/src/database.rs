@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 71;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 72;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -451,7 +451,28 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_71,
         verify: verify_migration_71,
     },
+    Migration {
+        version: 72,
+        name: "per-subject signed definition selection",
+        apply: crate::definition_candidate::selection::migrate_subject_selection,
+        verify: verify_migration_72,
+    },
 ];
+
+fn verify_migration_72(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "definition_subject_selection",
+        &[
+            "namespace",
+            "stable_id",
+            "selected_revision",
+            "active_json",
+            "previous_json",
+            "historical_only",
+        ],
+    )
+}
 
 fn migration_71(transaction: &Transaction<'_>) -> Result<()> {
     // Older writers cannot enforce the per-install settings custody fence.
@@ -1597,6 +1618,25 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
             .prepare(&format!("PRAGMA fixture_source.table_info({quoted_table})"))?
             .query_map([], |row| row.get::<_, String>(1))?
             .collect::<std::result::Result<Vec<_>, _>>()?;
+        if table == "definition_subject_selection" {
+            let compatible: bool = transaction.query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM fixture_source.definition_subject_selection) <= 1
+                   AND NOT EXISTS(SELECT 1 FROM fixture_source.definition_subject_selection WHERE historical_only=1)
+                   AND NOT EXISTS(
+                     SELECT 1 FROM fixture_source.definition_selection_state
+                     WHERE active_json IS NOT NULL OR previous_json IS NOT NULL
+                   )",
+                [],
+                |row| row.get(0),
+            )?;
+            if !compatible {
+                return Err(PortcoveError::state(
+                    "schema-33 fixture cannot discard independent definition selections",
+                ));
+            }
+            continue;
+        }
         let Some((_, historical_columns)) = TABLES.iter().find(|(name, _)| *name == table) else {
             // Migration 36 installs this empty-history sentinel on every fresh
             // database. Nonzero counters are meaningful unsupported state.
@@ -1676,10 +1716,21 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                 "schema-33 fixture column declaration differs for {table}"
             )));
         }
-        transaction.execute_batch(&format!(
-            "DELETE FROM main.{table};
-             INSERT INTO main.{table}({columns}) SELECT {columns} FROM fixture_source.{table};"
-        ))?;
+        if *table == "definition_selection_state" {
+            transaction.execute_batch(
+                "DELETE FROM main.definition_selection_state;
+                 INSERT INTO main.definition_selection_state
+                 SELECT state.singleton,state.revision,state.replay_floor_json,
+                        subject.active_json,subject.previous_json
+                 FROM fixture_source.definition_selection_state AS state
+                 LEFT JOIN fixture_source.definition_subject_selection AS subject ON TRUE;",
+            )?;
+        } else {
+            transaction.execute_batch(&format!(
+                "DELETE FROM main.{table};
+                 INSERT INTO main.{table}({columns}) SELECT {columns} FROM fixture_source.{table};"
+            ))?;
+        }
     }
     let invalid_foreign_keys: bool = transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM pragma_foreign_key_check)",
@@ -3164,10 +3215,8 @@ mod tests {
         let library = crate::Library::open(root).unwrap();
         let connection = library.connection().unwrap();
         let versions = recorded_versions(&connection).unwrap();
-        assert_eq!(
-            versions.last(),
-            Some(&SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION)
-        );
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION));
         assert!(validate_recorded_versions(&versions, 70).is_err());
         let retained = connection
             .query_row(
@@ -4302,6 +4351,7 @@ mod tests {
         schema_68: 68,
         schema_69: 69,
         schema_70: 70,
+        schema_71: 71,
     }
 
     #[test]

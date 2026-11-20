@@ -2,15 +2,23 @@
 
 use schemars::JsonSchema;
 use serde::Serialize;
-use tough::Transport;
+use std::{collections::BTreeSet, time::Duration};
+use tokio::time::Instant;
+use tough::{Repository, Transport};
 
 use crate::{
-    ActivityOperation, ActivityTargetKind, DefinitionEligibility, DefinitionRepositorySource,
-    DefinitionSelectionStatus, OperationEvent, OperationResult, PortcoveError, PortcoveService,
-    Result,
+    ActivityOperation, ActivityTargetKind, AuthenticatedDefinitionCandidate, DefinitionEligibility,
+    DefinitionRepositorySource, DefinitionSelectionStatus, Library, OperationEvent,
+    OperationResult, PortcoveError, PortcoveService, Result,
 };
 
-use super::{PolicyDecision, launch_assessment, provisioning};
+use super::{
+    AuthenticatedDefinitionPublisherPolicy, PolicyDecision, launch_assessment, provisioning,
+    stored_admission,
+};
+
+const SCHEDULED_SUBJECT_LIMIT: usize = 32;
+const SCHEDULED_SUBJECT_TIMEOUT: Duration = Duration::from_secs(25);
 
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -87,7 +95,6 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
         None,
     )?;
     emit(operation.started());
-    let library = service.library();
     let mut progress = Progress {
         phase: "metadata",
         policy_changed: false,
@@ -148,48 +155,15 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
                     .await?,
             )
         };
-        // The existing SQLite cancellation seal decides whether cancellation or
-        // admission won. Every mutation below is synchronous; all HTTP is done.
         operation.begin_publication()?;
-        progress.phase = "policy_admission";
-        progress.policy_changed =
-            library.apply_definition_publisher_policy(&policy, candidate.as_ref())?;
-        let mut eligibility = None;
-        let disposition = if revoked {
-            DefinitionRefreshDisposition::Revoked
-        } else {
-            if let Some(launch) = launch {
-                progress.phase = "launch_assessment";
-                progress.launch_assessment_changed =
-                    library.apply_definition_launch_assessment(&launch?)?;
-            }
-            progress.phase = "availability";
-            let availability = library.assess_definition_candidate(
-                candidate
-                    .as_ref()
-                    .expect("positive policy requires candidate"),
-                "official",
-                stable_id,
-            )?;
-            eligibility = Some(availability.eligibility());
-            if let Some(eligible) = availability.into_eligible() {
-                progress.phase = "selection";
-                library.select_definition_catalog(eligible)?;
-                DefinitionRefreshDisposition::Selected
-            } else {
-                DefinitionRefreshDisposition::Ineligible
-            }
-        };
-        Ok(DefinitionRefresh {
-            refresh_schema: 1,
-            namespace: "official".into(),
-            stable_id: stable_id.into(),
-            disposition,
-            policy_changed: progress.policy_changed,
-            launch_assessment_changed: progress.launch_assessment_changed,
-            eligibility,
-            selection: library.definition_selection_status()?,
-        })
+        admit(
+            service.library(),
+            stable_id,
+            &policy,
+            launch,
+            candidate.as_ref(),
+            &mut progress,
+        )
     })
     .await
     .unwrap_or_else(|_| {
@@ -201,6 +175,320 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
     let result = service.finish_activity(activity, result);
     emit(operation.finished(OperationResult::from_result(&result)));
     result
+}
+
+fn admit(
+    library: &Library,
+    stable_id: &str,
+    policy: &AuthenticatedDefinitionPublisherPolicy,
+    launch: Option<Result<launch_assessment::AuthenticatedDefinitionLaunchAssessment>>,
+    candidate: Option<&AuthenticatedDefinitionCandidate>,
+    progress: &mut Progress,
+) -> Result<DefinitionRefresh> {
+    let revoked = matches!(policy.document.decision, PolicyDecision::Revoked);
+    progress.phase = "policy_admission";
+    progress.policy_changed = library.apply_definition_publisher_policy(policy, candidate)?;
+    let mut eligibility = None;
+    let mut selected = None;
+    let disposition = if revoked {
+        DefinitionRefreshDisposition::Revoked
+    } else {
+        if let Some(launch) = launch {
+            progress.phase = "launch_assessment";
+            progress.launch_assessment_changed =
+                library.apply_definition_launch_assessment(&launch?)?;
+        }
+        progress.phase = "availability";
+        let availability = library.assess_definition_candidate(
+            candidate.ok_or_else(|| {
+                PortcoveError::state("availability policy lost its authenticated candidate")
+            })?,
+            "official",
+            stable_id,
+        )?;
+        eligibility = Some(availability.eligibility());
+        if let Some(eligible) = availability.into_eligible() {
+            progress.phase = "selection";
+            selected = Some(library.select_definition_catalog(eligible)?);
+            DefinitionRefreshDisposition::Selected
+        } else {
+            DefinitionRefreshDisposition::Ineligible
+        }
+    };
+    Ok(DefinitionRefresh {
+        refresh_schema: 1,
+        namespace: "official".into(),
+        stable_id: stable_id.into(),
+        disposition,
+        policy_changed: progress.policy_changed,
+        launch_assessment_changed: progress.launch_assessment_changed,
+        eligibility,
+        selection: match selected {
+            Some(status) => status,
+            None => library.definition_selection_status_for("official", stable_id)?,
+        },
+    })
+}
+
+/// Consume only exact known authorities named by this snapshot's independent
+/// policy role. Missing targets are never interpreted as withdrawals.
+pub(super) async fn refresh_known_official_definitions(
+    service: &PortcoveService,
+    repository: &Repository,
+    root: &[u8],
+    deadline: Instant,
+    emit: &mut impl FnMut(OperationEvent),
+) -> Result<bool> {
+    let role = super::policy_role(repository)?;
+    let metadata = role
+        .targets
+        .as_ref()
+        .ok_or_else(|| PortcoveError::verification("publisher policy delegation was not loaded"))?;
+    let library = service.library();
+    let (catalog, _) = library.load_catalog()?;
+    let retained = library.retained_official_definition_subjects()?;
+    let mut known = BTreeSet::new();
+    for target in metadata.signed.targets.keys() {
+        let Some(id) = target
+            .raw()
+            .strip_prefix("policy/official/")
+            .and_then(|path| path.strip_suffix(".json"))
+            .filter(|id| super::valid_identity(id))
+        else {
+            continue;
+        };
+        // A launch companion or listing target cannot validate as a stable
+        // definition ID. Previously admitted subjects remain known even if a
+        // later directory omits their descriptive listing.
+        if provisioning::official_catalog::official_definition_id(&catalog, id)
+            .is_ok_and(|known| known == id)
+            || retained.contains(id)
+        {
+            known.insert(id);
+        }
+    }
+    if known.is_empty() {
+        return Ok(false);
+    }
+
+    let known: Vec<_> = known.into_iter().collect();
+    let day = Library::now().div_euclid(86_400).unsigned_abs();
+
+    // Read the index once. A missing or unreadable index cannot undo an
+    // independently authenticated explicit withdrawal.
+    let index = tokio::time::timeout_at(
+        deadline.min(Instant::now() + SCHEDULED_SUBJECT_TIMEOUT),
+        super::super::acquire_index(repository),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "definition index acquisition timed out",
+        ))
+    });
+    let mut verified_or_updated = false;
+    for &stable_id in scheduled_subjects(&known, day) {
+        if Instant::now() >= deadline {
+            break;
+        }
+        let acquired = tokio::time::timeout_at(
+            deadline.min(Instant::now() + SCHEDULED_SUBJECT_TIMEOUT),
+            async {
+                let policy =
+                    super::acquire_from_repository(repository, root, "official", stable_id).await?;
+                let revoked = matches!(policy.document.decision, PolicyDecision::Revoked);
+                let needs_launch = matches!(
+                    policy.document.decision,
+                    PolicyDecision::ManagedGithub {
+                        launch_checks: Some(1),
+                        ..
+                    }
+                );
+                let launch = if needs_launch {
+                    Some(
+                        launch_assessment::acquire_from_repository(
+                            repository, root, "official", stable_id,
+                        )
+                        .await,
+                    )
+                } else {
+                    None
+                };
+                let launch_current = launch.as_ref().and_then(|launch| launch.as_ref().ok());
+                if (!needs_launch || launch_current.is_some())
+                    && exact_scheduled_replay(
+                        library,
+                        &policy,
+                        index.as_ref().ok(),
+                        launch_current,
+                    )?
+                {
+                    return Ok(None);
+                }
+                let candidate = if revoked {
+                    None
+                } else {
+                    Some(
+                        index
+                            .as_ref()
+                            .map_err(|error| PortcoveError::new(error.code, error.message.clone()))?
+                            .acquire_subject(repository, "official", stable_id)
+                            .await?,
+                    )
+                };
+                Ok::<_, PortcoveError>(Some((policy, launch, candidate)))
+            },
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Err(PortcoveError::network(
+                "scheduled definition acquisition timed out",
+            ))
+        });
+        let (policy, launch, candidate) = match acquired {
+            Ok(Some(acquired)) => acquired,
+            Ok(None) => {
+                verified_or_updated = true;
+                continue;
+            }
+            Err(error) => {
+                tracing::info!(stable_id, error = %error.message, "scheduled definition could not be acquired");
+                continue;
+            }
+        };
+        let (activity, operation) = match service.begin_cancellable_activity(
+            ActivityOperation::UpdateCatalog,
+            ActivityTargetKind::Library,
+            None,
+        ) {
+            Ok(activity) => activity,
+            Err(error) => {
+                tracing::info!(stable_id, error = %error.message, "scheduled definition activity could not start");
+                break;
+            }
+        };
+        emit(operation.started());
+        let mut progress = Progress {
+            phase: "publication",
+            policy_changed: false,
+            launch_assessment_changed: false,
+        };
+        let result = operation
+            .begin_publication()
+            .and_then(|()| {
+                admit(
+                    library,
+                    stable_id,
+                    &policy,
+                    launch,
+                    candidate.as_ref(),
+                    &mut progress,
+                )
+            })
+            .map_err(|error| progress.error(error));
+        verified_or_updated |=
+            progress.policy_changed || progress.launch_assessment_changed || result.is_ok();
+        let result = service.finish_activity(activity, result);
+        emit(operation.finished(OperationResult::from_result(&result)));
+        if let Err(error) = result {
+            tracing::info!(stable_id, error = %error.message, "scheduled definition was not selected");
+            if error.code == crate::ErrorCode::Cancelled {
+                break;
+            }
+        }
+    }
+    Ok(verified_or_updated)
+}
+
+/// An exact local retry is successful only while the current repository floors
+/// and effective selection still authorize it in the same read transaction.
+fn exact_scheduled_replay(
+    library: &Library,
+    policy: &AuthenticatedDefinitionPublisherPolicy,
+    index: Option<&super::super::AuthenticatedDefinitionIndex>,
+    launch: Option<&launch_assessment::AuthenticatedDefinitionLaunchAssessment>,
+) -> Result<bool> {
+    let connection = library.connection()?;
+    let transaction = connection.unchecked_transaction()?;
+    let exact_policy = stored_admission(&transaction, "official", &policy.document.stable_id)?
+        .is_some_and(|(document, provenance, _)| {
+            document == policy.document && provenance == policy.provenance
+        });
+    if !exact_policy {
+        return Ok(false);
+    }
+    let floor = super::installed_authority_floor(&transaction, &policy.provenance.anchor_sha256)?
+        .ok_or_else(|| PortcoveError::state("publisher policy lost its replay floor"))?;
+    policy.provenance.check_advance(&floor)?;
+    policy.provenance.require_fresh()?;
+    if matches!(policy.document.decision, PolicyDecision::Revoked) {
+        return Ok(true);
+    }
+    let Some(index) = index else {
+        return Ok(false);
+    };
+    let stable_id = &policy.document.stable_id;
+    let now = Library::now();
+    let status = Library::definition_selection_status_from(&transaction, "official", stable_id)?;
+    if let Some(floor) = &status.replay_floor {
+        floor.evaluate(&index.provenance)?;
+    }
+    crate::definition_candidate::selection::require_fresh(&index.provenance, now)?;
+    let Some(selection) = status
+        .selected
+        .filter(|selected| selected.provenance == index.provenance)
+    else {
+        return Ok(false);
+    };
+    let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, now)?;
+    if catalog.definition_selection(stable_id) != Some(&selection) {
+        return Ok(false);
+    }
+    if let Some(launch) = launch {
+        return launch.already_admitted(&transaction);
+    }
+    Ok(true)
+}
+
+/// Start one subject later each day, including within the bounded window.
+/// Even when the deadline always cuts the window short, every stable
+/// subject eventually gets the first slot. The split visits each at most once.
+fn scheduled_subjects<T>(known: &[T], day: u64) -> impl Iterator<Item = &T> {
+    let start = day.checked_rem(known.len() as u64).unwrap_or(0) as usize;
+    let (early, late) = known.split_at(start);
+    late.iter().chain(early).take(SCHEDULED_SUBJECT_LIMIT)
+}
+
+#[cfg(test)]
+mod scheduled_subject_tests {
+    use super::*;
+
+    #[test]
+    fn short_daily_budget_eventually_visits_each_subject() {
+        for count in [1, 6, 32, 33, 64, 81] {
+            let subjects: Vec<_> = (0..count).collect();
+            for budget in [1, 4] {
+                let visited: BTreeSet<_> = (0..count as u64)
+                    .flat_map(|day| scheduled_subjects(&subjects, day).take(budget).copied())
+                    .collect();
+                assert_eq!(
+                    visited,
+                    subjects.iter().copied().collect(),
+                    "{count}/{budget}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn daily_window_wraps_within_the_bound_without_duplicates_or_overflow() {
+        let subjects: Vec<_> = (0..40).collect();
+        let selected: Vec<_> = scheduled_subjects(&subjects, u64::MAX).copied().collect();
+        assert_eq!(selected, (15..40).chain(0..7).collect::<Vec<_>>());
+        assert_eq!(selected.len(), SCHEDULED_SUBJECT_LIMIT);
+        let none = scheduled_subjects::<u32>(&[], u64::MAX).count();
+        assert_eq!(none, 0);
+    }
 }
 
 #[cfg(test)]

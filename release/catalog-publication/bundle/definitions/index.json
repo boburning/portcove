@@ -9,6 +9,12 @@
     },
     {
       "namespace": "official",
+      "stable_id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "revision": 1,
+      "target": "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json"
+    },
+    {
+      "namespace": "official",
       "stable_id": "dungeon-crawl-stone-soup",
       "revision": 4,
       "target": "sha256/2f166ac4d9360df0cb8e26a9f402bfc0323bb11b01c056bb9c5ed6d687bd608e.json"
@@ -34,6 +40,16 @@
       "target": "sha256/666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570.json",
       "sha256": "666c9756a9b05934953ea974e9b7f4325b5b690b05670ac952dead5805ada570",
       "length": 3615
+    },
+    {
+      "target": "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json",
+      "sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28",
+      "length": 11074
+    },
+    {
+      "target": "sha256/f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0.json",
+      "sha256": "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0",
+      "length": 11363
     }
   ]
 }

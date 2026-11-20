@@ -42,7 +42,12 @@ import {
   projectOpenMohaaPortable,
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactNativeManagedProfile } from "./catalog-native-managed-profile.mts";
+import { compactAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
+import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import { compactRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
+import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import {
   compactReflectionHlePortablePaths,
@@ -170,6 +175,13 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
+  if (record.alephone_pinned_windows_v1) {
+    projections.push({
+      field: "alephone_pinned_windows_v1",
+      scope: "Reviewed Windows launch of the bundled Aleph One scenario with upstream profiles.",
+      next: "Keep each exact Direct archive pin, scenario executable, platform and setup instructions explicit. A different launch layout or profile owner uses an explicit integration.",
+    });
+  }
   if (record.reviewed_flat_package_layout_v1) {
     projections.push({
       field: "reviewed_flat_package_layout_v1",
@@ -222,6 +234,27 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
     });
   }
+  if (record.native_managed_profile_v1) {
+    projections.push({
+      field: "native_managed_profile_v1",
+      scope: "Reviewed Portcove-managed BStone or DevilutionX profile and Windows path policy.",
+      next: "Keep the original files, selector and launch arguments explicit. Use an explicit integration for a different profile.",
+    });
+  }
+  if (record.external_registration_v1) {
+    projections.push({
+      field: "external_registration_v1",
+      scope: "Register a player-selected external runtime on the declared platforms.",
+      next: "Keep original-file instructions and upstream or player ownership explicit. An exact prepared package or per-platform exception needs an explicit integration.",
+    });
+  }
+  if (record.opengoal_setup_v1) {
+    projections.push({
+      field: "opengoal_setup_v1",
+      scope: "Reviewed OpenGOAL extractor, launcher and per-game portable data paths.",
+      next: "Keep the official release selector, reviewed disc profile and support evidence explicit. A different setup command or writer path needs an explicit integration.",
+    });
+  }
   if (record.openmohaa_portable_v1) {
     projections.push({
       field: "openmohaa_portable_v1",
@@ -248,6 +281,20 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "chocolate_family_windows_persistence_v1",
       scope: "Reviewed Chocolate Windows persistent paths, screenshots and runtime logs.",
       next: "Keep each original IWAD profile, package selector, executable and local game arguments explicit. A different runtime layout needs explicit paths.",
+    });
+  }
+  if (record.gen2recomp_windows_persistence_v1) {
+    projections.push({
+      field: "gen2recomp_windows_persistence_v1",
+      scope: "Reviewed Gen2Recomped Windows player data and local generated import paths.",
+      next: "Keep each original edition, source selector, executable and selected game explicit. A different writer layout needs explicit paths.",
+    });
+  }
+  if (record.rsdkv4_portable_data_v1) {
+    projections.push({
+      field: "rsdkv4_portable_data_v1",
+      scope: "Reviewed RSDKv4 originals, settings, saves and mods in each portable game root.",
+      next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
   return {
@@ -1074,14 +1121,24 @@ export async function preparePort(options: PrepareOptions) {
       ),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
+    const compactNativeProfile = compactNativeManagedProfile(record);
+    if (compactNativeProfile !== record) record = checkedAuthoredPort(compactNativeProfile);
+    const compactAlephOne = compactAlephOnePinnedWindows(record);
+    if (compactAlephOne !== record) record = checkedAuthoredPort(compactAlephOne);
     const compactReflection = compactReflectionHlePortablePaths(record);
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
     if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
     const compactChocolate = compactChocolateFamilyWindowsPersistence(record);
     if (compactChocolate !== record) record = checkedAuthoredPort(compactChocolate);
+    const compactGen2 = compactGen2RecompWindowsPersistence(record);
+    if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenGoal = compactOpenGoalSetup(record);
+    if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
+    const compactRsdkv4 = compactRsdkv4PortableData(record);
+    if (compactRsdkv4 !== record) record = checkedAuthoredPort(compactRsdkv4);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

@@ -13,7 +13,7 @@
     "refreshed": "Catálogo oficial actualizado.",
     "reload": "Volver a cargar los ajustes del catálogo",
     "status": {
-      "current": "Última comprobación: {{time}}. Tu catálogo está actualizado.",
+      "current": "Última comprobación: {{time}}. Se verificó información del catálogo.",
       "notPublished": "Última comprobación: {{time}}. Todavía no se ha publicado ninguna actualización del catálogo.",
       "off": "Las actualizaciones automáticas están desactivadas. Elige Actualizar el catálogo oficial para comprobarlo ahora.",
       "pending": "Portcove busca actualizaciones del catálogo poco después de abrirse.",

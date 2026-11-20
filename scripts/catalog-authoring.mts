@@ -21,9 +21,14 @@ import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mt
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
+import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
+import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
+import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
+import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
@@ -85,7 +90,13 @@ export interface AuthoredListing extends NamedRecord {
 export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
+  /** Shared Portcove-owned profile directory and Windows path policy. */
+  native_managed_profile_v1?: true;
   route_facts_v1?: RouteFactsV1;
+  /** Reviewed bundled scenario launch and externally owned player profiles. */
+  alephone_pinned_windows_v1?: true;
+  /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
+  opengoal_setup_v1?: true;
   /** Shared official Raze Windows package and portable-profile layout. */
   raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
@@ -109,8 +120,14 @@ export interface AuthoredPort extends Record<string, unknown> {
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */
   crispy_doom_windows_persistence_v1?: true;
+  /** Registration-only user-selected runtime on the declared platforms. */
+  external_registration_v1?: true;
   /** Shared persistent and mutable paths for the reviewed Chocolate Windows players. */
   chocolate_family_windows_persistence_v1?: true;
+  /** Shared Windows player data paths for the reviewed Gen2Recomped editions. */
+  gen2recomp_windows_persistence_v1?: true;
+  /** Reviewed portable data paths for the two distinct RSDKv4 game routes. */
+  rsdkv4_portable_data_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
   package_observation_v1?: PackagePlayerObservationV1;
@@ -471,6 +488,49 @@ function validListingAssetHints(hints: unknown): hints is string[] {
   );
 }
 
+function projectExternalRegistration(record: AuthoredPort): AuthoredPort {
+  if (record.external_registration_v1 === undefined) return record;
+  const { integration } = record;
+  const release = integration?.release;
+  const presentation = integration?.presentation;
+  if (
+    record.external_registration_v1 !== true ||
+    integration?.adapter !== "staged-source-portable" ||
+    !isRecord(release) ||
+    release.provider !== "user-prepared" ||
+    Object.hasOwn(release, "user_prepared") ||
+    !isRecord(presentation) ||
+    presentation.installation_method !== "user-prepared-runtime" ||
+    presentation.saves_and_settings !== "external-user-owned" ||
+    !Array.isArray(integration.platforms) ||
+    integration.platforms.length === 0 ||
+    !integration.platforms.every(
+      (platform) => typeof platform === "string" && platform.length > 0,
+    ) ||
+    new Set(integration.platforms).size !== integration.platforms.length
+  ) {
+    throw new Error(
+      "external_registration_v1 requires an exclusively user-selected external route.",
+    );
+  }
+  const user_prepared = Object.fromEntries(
+    integration.platforms.map((platform: string) => [
+      platform,
+      {
+        trust: "user-selected",
+        version: "user-managed",
+        archive_name: "",
+        archive_size: 0,
+        archive_sha256: "",
+        immutable_tree_sha256: "",
+        executable: "",
+        mutable_paths: [],
+      },
+    ]),
+  );
+  return { ...record, integration: { ...integration, release: { ...release, user_prepared } } };
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
@@ -675,7 +735,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     );
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
-  const integration = projectOpenMohaaPortable(value as AuthoredPort).integration;
+  const integration = projectExternalRegistration(
+    projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
+  ).integration;
   if (integration !== undefined) {
     if (
       integration.upstream_active_reviewed !== undefined &&
@@ -735,7 +797,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectNativeManagedProfile(record);
   projectReviewedFlatPackageLayout(record);
+  projectOpenGoalSetup(record);
   projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
@@ -743,6 +807,8 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   projectReflectionHlePortablePaths(record);
   projectCrispyDoomWindowsPersistence(record);
   projectChocolateFamilyWindowsPersistence(record);
+  projectGen2RecompWindowsPersistence(record);
+  projectRsdkv4PortableData(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -781,7 +847,11 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectReviewedFlatPackageLayout(projectRazeWindowsProfile(input));
+  const declared = projectReviewedFlatPackageLayout(
+    projectRazeWindowsProfile(
+      projectOpenGoalSetup(projectNativeManagedProfile(projectAlephOnePinnedWindows(input))),
+    ),
+  );
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(
@@ -792,7 +862,11 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   const portable = projectChocolateFamilyWindowsPersistence(
     projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
   );
-  const operational = projectOpenMohaaPortable(portable).integration;
+  const operational = projectExternalRegistration(
+    projectGen2RecompWindowsPersistence(
+      projectOpenMohaaPortable(projectRsdkv4PortableData(portable)),
+    ),
+  ).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};

@@ -744,6 +744,125 @@ fn archive_inspection_derives_the_installer_shape() {
 
 #[cfg(unix)]
 #[test]
+fn reviewed_openmohaa_shape_uses_prepared_title_programs() {
+    use std::io::Write as _;
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    let mut universal = [0_u8; 112];
+    universal[..8].copy_from_slice(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2]);
+    for (entry, offset, cpu) in [(8, 48, 7), (28, 80, 12)] {
+        universal[entry..entry + 4].copy_from_slice(&[1, 0, 0, cpu]);
+        universal[entry + 8..entry + 16].copy_from_slice(&[0, 0, 0, offset as u8, 0, 0, 0, 32]);
+        universal[offset..offset + 8].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe, cpu, 0, 0, 1]);
+        universal[offset + 12] = 2; // MH_EXECUTE
+    }
+    let launchers = [
+        (
+            "medal-of-honor-allied-assault-openmohaa",
+            "launch_openmohaa_base",
+        ),
+        (
+            "medal-of-honor-allied-assault-spearhead-openmohaa",
+            "launch_openmohaa_spearhead",
+        ),
+        (
+            "medal-of-honor-allied-assault-breakthrough-openmohaa",
+            "launch_openmohaa_breakthrough",
+        ),
+    ];
+    for (filename, platforms, program, companions) in [
+        (
+            "openmohaa-v0.82.1-linux-amd64.zip",
+            &[Platform::LinuxX86_64][..],
+            &elf[..],
+            [
+                "cgame.so",
+                "game.so",
+                "libSDL2-2.0.so.0",
+                "libopenal.so.1",
+                "libcurl.so.4",
+            ],
+        ),
+        (
+            "openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip",
+            &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+            &universal[..],
+            [
+                "cgame.dylib",
+                "game.dylib",
+                "libSDL2-2.0.0.dylib",
+                "libopenal.1.dylib",
+                "libcurl.4.dylib",
+            ],
+        ),
+    ] {
+        let path = temporary.path().join(filename);
+        for dedicated_mode in [0o644, 0o755] {
+            let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            // The official ZIPs contain all three launchers and the dedicated
+            // server. All ten members have mode 0644. An executable dedicated
+            // server is the control that must still be reported as drift.
+            for name in launchers
+                .iter()
+                .map(|(_, launcher)| *launcher)
+                .chain(["openmohaa", "omohaaded"])
+                .chain(companions)
+            {
+                let mode = if name == "omohaaded" {
+                    dedicated_mode
+                } else {
+                    0o644
+                };
+                archive
+                    .start_file(
+                        name,
+                        zip::write::SimpleFileOptions::default().unix_permissions(mode),
+                    )
+                    .unwrap();
+                archive.write_all(program).unwrap();
+            }
+            archive.finish().unwrap();
+            let size = fs::metadata(&path).unwrap().len();
+            let sha = crate::service::sha256_file(&path).unwrap();
+
+            for &platform in platforms {
+                for (port_id, launcher) in launchers {
+                    let port = catalog.port(port_id).unwrap();
+                    let inspection =
+                        inspect_package_shape_archive(&path, port, platform, size, &sha).unwrap();
+                    let observed = inspection.shape.programs.as_deref().unwrap();
+                    if dedicated_mode == 0o644 {
+                        assert_eq!(observed, [launcher, "openmohaa"]);
+                        assert!(matches!(
+                            inspection.verdict,
+                            ShapeVerdict::Unknown {
+                                baseline: Some(ShapeBaseline::ReviewedLayout),
+                                reason: ShapeUnknownReason::IncompleteComparison,
+                                ..
+                            }
+                        ));
+                    } else {
+                        assert_eq!(observed, [launcher, "omohaaded", "openmohaa"]);
+                        assert!(matches!(
+                            inspection.verdict,
+                            ShapeVerdict::Drifted { changes, .. }
+                                if changes.len() == 1
+                                    && changes[0].component == ShapeComponent::Programs
+                                    && changes[0].added == ["omohaaded"]
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn reviewed_mac_tar_shape_uses_managed_bundle_rules() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("bio-menace-reflectionhle").unwrap();

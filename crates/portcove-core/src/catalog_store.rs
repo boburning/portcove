@@ -242,21 +242,36 @@ pub(crate) fn resolve_before_listings(
     mut provenance: CatalogProvenance,
     now: i64,
 ) -> Result<(Catalog, CatalogProvenance)> {
-    let selected = crate::definition_candidate::selection::load_selected_definition_catalog(
+    let selected = crate::definition_candidate::selection::load_definition_selections(
         connection, &baseline, now,
     );
-    let (mut catalog, provenance) = match selected {
-        Ok(Some((catalog, expires_at))) => selected_catalog(catalog, expires_at, provenance),
-        Ok(None) => Ok((baseline, provenance)),
-        Err(error) => {
-            provenance.push_fallback(
-                error
-                    .catalog_fallback()
-                    .unwrap_or(CatalogFallbackCode::SelectedDefinitionUnavailable),
-                format!("selected definition was not loaded: {}", error.message),
-            );
-            Ok((baseline, provenance))
+    let mut report = |subject: Option<String>, error: PortcoveError| {
+        let scope = subject.map_or_else(String::new, |id| format!(" for {id}"));
+        provenance.push_fallback(
+            error
+                .catalog_fallback()
+                .unwrap_or(CatalogFallbackCode::SelectedDefinitionUnavailable),
+            format!(
+                "selected definition{scope} was not loaded: {}",
+                error.message
+            ),
+        );
+    };
+    let selected = match selected {
+        Ok(selected) => {
+            for (subject, error) in selected.failures {
+                report(subject, error);
+            }
+            selected.catalog
         }
+        Err(error) => {
+            report(None, error);
+            None
+        }
+    };
+    let (mut catalog, provenance) = match selected {
+        Some((catalog, expires_at)) => selected_catalog(catalog, expires_at, provenance),
+        None => Ok((baseline, provenance)),
     }?;
     let mut statement =
         connection.prepare("SELECT port_id FROM definition_provider_scope_floor")?;
@@ -306,13 +321,19 @@ pub(crate) fn effective_catalog_status(
     Ok(status)
 }
 
+pub(crate) fn load_catalog_from(
+    connection: &Connection,
+    now: i64,
+) -> Result<(Catalog, CatalogProvenance)> {
+    let state = CatalogState::read(connection)?;
+    resolve_effective_catalog(connection, &state, now)
+}
+
 impl Library {
     pub(crate) fn load_catalog(&self) -> Result<(Catalog, CatalogProvenance)> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let now = Self::now();
-        let state = CatalogState::read(&transaction)?;
-        let result = resolve_effective_catalog(&transaction, &state, now)?;
+        let result = load_catalog_from(&transaction, Self::now())?;
         transaction.commit()?;
         Ok(result)
     }
