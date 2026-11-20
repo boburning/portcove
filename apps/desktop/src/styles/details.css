@@ -225,6 +225,28 @@
   .detail-tabs {
     margin-block-start: var(--space-5);
   }
+  .detail-tab-list {
+    display: flex;
+  }
+  .detail-section-picker {
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+  }
+  /* A resize switches controls after focus leaves the current navigation. */
+  @container detail (width > 20rem) {
+    .detail-section-picker:not(:focus-within, :has([aria-expanded="true"])),
+    .detail-tabs:has(> .detail-section-picker :is(:focus, [aria-expanded="true"]))
+      > .detail-tab-list {
+      display: none;
+    }
+  }
+  @container detail (width <= 20rem) {
+    .detail-tab-list:not(:focus-within),
+    .detail-tabs:has(> .detail-tab-list:focus-within) > .detail-section-picker {
+      display: none;
+    }
+  }
   .detail-tab {
     min-block-size: 2.75rem;
   }
@@ -672,5 +694,13 @@
     grid-row: 1;
     justify-self: end;
     color: var(--color-text-muted);
+  }
+}
+
+@layer utilities {
+  .detail-section-picker [data-slot="select-trigger"] {
+    min-inline-size: 0;
+    min-block-size: 3rem;
+    font-size: var(--text-md);
   }
 }

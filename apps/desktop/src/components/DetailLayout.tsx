@@ -28,6 +28,7 @@ import { ExternalLink } from "./ExternalLink";
 import { FundingLinks } from "./FundingLinks";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { controlFocus } from "./ui/control-style";
 
 function sectionLabel(t: TFunction<"detail">, section: DetailSection): string {
@@ -192,14 +193,22 @@ export function DetailLayout({
   const panels = children(reveal, selected);
   const sections = detailSections.filter((section) => panels[section] !== undefined);
   const managementSection = panels.manage !== undefined ? "manage" : "files";
+  const overview = selected === "overview";
+  const channels = selectedChannel ? [selectedChannel] : port.channels;
   const sourceSystems = [
     ...new Set(
       port.presentation?.original_game?.source_editions.map(
         (edition) => edition.system ?? "not-specified",
       ) ?? [],
     ),
-  ];
-  if (!sourceSystems.length) sourceSystems.push("not-specified");
+  ].filter((system) => overview || system !== "not-specified");
+  if (overview && !sourceSystems.length) sourceSystems.push("not-specified");
+  const selectSection = (value: unknown) => {
+    if (detailSections.includes(value as DetailSection)) {
+      setPending(undefined);
+      setSelection({ identity, section: value as DetailSection });
+    }
+  };
   return (
     <section
       ref={root}
@@ -221,7 +230,7 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero">
+      <GameHero port={port} variant="detail" className="detail-hero" compact={!overview}>
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -238,52 +247,57 @@ export function DetailLayout({
               )}
             </p>
           )}
-          <div
-            className="detail-identity-chips mt-3 flex flex-wrap gap-2"
-            role="group"
-            aria-label={t("identity.label")}
-          >
-            {sourceSystems.map((system) => (
-              <Chip
-                key={`system:${system}`}
-                style={identityStyle(system)}
-                title={t("identity.originalSystem")}
-              >
-                <IdentityIcon name={system} />
-                {system === "not-specified"
-                  ? t("identity.originalSystemUnspecified")
-                  : identityLabel(system)}
-              </Chip>
-            ))}
-            {[...setupIdentities].map(([label, system]) => (
-              <Chip
-                key={`platform:${label}`}
-                style={identityStyle(system)}
-                title={t("identity.runsOn")}
-              >
-                <IdentityIcon name={system} />
-                {label}
-              </Chip>
-            ))}
-            {[...upstreamIdentities].map(([label, system]) => (
-              <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
-                <IdentityIcon name={system} />
-                {t("identity.upstreamPlatform", { platform: label })}
-              </Chip>
-            ))}
-            {(selectedChannel ? [selectedChannel] : port.channels)?.map((channel) => (
-              <Chip
-                key={`channel:${channel}`}
-                style={identityStyle(channel, true)}
-                title={
-                  selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
-                }
-              >
-                <IdentityIcon name={channel} channel />
-                {releaseChannelPresentation(channel).label}
-              </Chip>
-            ))}
-          </div>
+          {(sourceSystems.length > 0 ||
+            setupIdentities.size > 0 ||
+            upstreamIdentities.size > 0 ||
+            Boolean(channels?.length)) && (
+            <div
+              className={`detail-identity-chips flex flex-wrap gap-2 ${overview ? "mt-3" : "mt-2"}`}
+              role="group"
+              aria-label={t("identity.label")}
+            >
+              {sourceSystems.map((system) => (
+                <Chip
+                  key={`system:${system}`}
+                  style={identityStyle(system)}
+                  title={t("identity.originalSystem")}
+                >
+                  <IdentityIcon name={system} />
+                  {system === "not-specified"
+                    ? t("identity.originalSystemUnspecified")
+                    : identityLabel(system)}
+                </Chip>
+              ))}
+              {[...setupIdentities].map(([label, system]) => (
+                <Chip
+                  key={`platform:${label}`}
+                  style={identityStyle(system)}
+                  title={t("identity.runsOn")}
+                >
+                  <IdentityIcon name={system} />
+                  {label}
+                </Chip>
+              ))}
+              {[...upstreamIdentities].map(([label, system]) => (
+                <Chip key={`upstream-platform:${label}`} style={identityStyle(system)}>
+                  <IdentityIcon name={system} />
+                  {t("identity.upstreamPlatform", { platform: label })}
+                </Chip>
+              ))}
+              {channels?.map((channel) => (
+                <Chip
+                  key={`channel:${channel}`}
+                  style={identityStyle(channel, true)}
+                  title={
+                    selectedChannel ? t("identity.selectedChannel") : t("identity.offeredChannel")
+                  }
+                >
+                  <IdentityIcon name={channel} channel />
+                  {releaseChannelPresentation(channel).label}
+                </Chip>
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">
               {readiness}
@@ -353,20 +367,22 @@ export function DetailLayout({
         </div>
       </GameHero>
       {attention && <div className="detail-attention my-3 text-sm">{attention(reveal)}</div>}
-      <Tabs.Root
-        value={selected}
-        onValueChange={(value: unknown) => {
-          if (detailSections.includes(value as DetailSection)) {
-            setPending(undefined);
-            setSelection({ identity, section: value as DetailSection });
-          }
-        }}
-        className="detail-tabs"
-      >
+      <Tabs.Root value={selected} onValueChange={selectSection} className="detail-tabs">
+        <div className="detail-section-picker">
+          <ChoiceSelect
+            label={t("section.label")}
+            value={selected}
+            options={sections.map((section) => ({
+              value: section,
+              label: sectionLabel(t, section),
+            }))}
+            onChange={selectSection}
+          />
+        </div>
         <Tabs.List
           activateOnFocus={false}
           aria-label={t("section.label")}
-          className="detail-tab-list flex flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
             <Tabs.Tab

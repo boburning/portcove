@@ -264,9 +264,7 @@ it("opens Manage from the Activity recovery row and restores focus to that row",
   const action = page.getByRole("button", { name: "Review game installation", exact: true });
   await action.click();
   await expect.element(page.getByRole("heading", { name: "Manage", exact: true })).toHaveFocus();
-  await expect
-    .element(page.getByRole("tab", { name: "Manage", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
+  await expect.element(page.getByRole("tabpanel", { name: "Manage", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back to Activity", exact: true }).click();
   await expect.element(action).toHaveFocus();
 });

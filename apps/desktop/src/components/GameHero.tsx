@@ -33,6 +33,7 @@ export function GameHero({
   label,
   children,
   successfulLaunches,
+  compact = false,
 }: {
   port: HeroMediaPort;
   variant: "detail" | "continue";
@@ -40,11 +41,13 @@ export function GameHero({
   label?: string | undefined;
   children: ReactNode;
   successfulLaunches?: number | undefined;
+  compact?: boolean;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
-  const { foreground, cover, background } = useGameHeroArtwork(port, visible);
-  const collection = useCollectionCovers(port.id, cover, visible);
+  const artworkVisible = visible && !compact;
+  const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
+  const collection = useCollectionCovers(port.id, cover, artworkVisible);
   const collectionElement = useRef<HTMLDivElement>(null);
   const showCollection = collection.length > 0 && !foreground.display.image;
   const [surface, setSurface] = useState<HeroLogoSurface & { image: string }>();
@@ -87,21 +90,27 @@ export function GameHero({
   );
   useEffect(() => {
     const image = imageElement.current;
-    if ((kind !== "logo" && kind !== "key_art") || !image || typeof ResizeObserver === "undefined")
+    if (
+      compact ||
+      (kind !== "logo" && kind !== "key_art") ||
+      !image ||
+      typeof ResizeObserver === "undefined"
+    )
       return;
     const observer = new ResizeObserver(() => {
       if (image.complete && image.naturalWidth) inspect(image);
     });
     observer.observe(image);
     return () => observer.disconnect();
-  }, [identity, kind, inspect]);
+  }, [compact, identity, kind, inspect]);
 
   return (
     <section
       ref={element}
       className={cn("game-hero", `game-hero-${variant}`, className)}
-      data-hero-identity={kind}
-      data-hero-layout={layout}
+      data-hero-compact={compact || undefined}
+      data-hero-identity={compact ? "text" : kind}
+      data-hero-layout={compact ? undefined : layout}
       data-successful-launches={successfulLaunches}
       aria-label={
         label ??
@@ -111,7 +120,7 @@ export function GameHero({
       }
       data-focus-group
     >
-      {background.display.image && (
+      {!compact && background.display.image && (
         <div className="game-hero-background" aria-hidden="true">
           <img
             src={background.display.image}
@@ -125,7 +134,7 @@ export function GameHero({
         </div>
       )}
       <div className="game-hero-body">
-        {(image || showCollection || foreground.display.loading || cover.loading) && (
+        {!compact && (image || showCollection || foreground.display.loading || cover.loading) && (
           <div
             className="game-hero-foreground"
             data-artwork-source={kind === "cover" ? cover.state?.resolved_source.kind : undefined}
@@ -174,13 +183,15 @@ export function GameHero({
         )}
         <div className="game-hero-content">{children}</div>
       </div>
-      <HeroCredits
-        port={port}
-        artwork={{ foreground, cover, background }}
-        coverVisible={kind === "cover" && Boolean(image)}
-        collectionActive={showCollection}
-        collectionLoaded={collection.some((member) => member.image)}
-      />
+      {!compact && (
+        <HeroCredits
+          port={port}
+          artwork={{ foreground, cover, background }}
+          coverVisible={kind === "cover" && Boolean(image)}
+          collectionActive={showCollection}
+          collectionLoaded={collection.some((member) => member.image)}
+        />
+      )}
     </section>
   );
 }

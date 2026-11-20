@@ -273,6 +273,27 @@
       padding-block: 0.25rem;
     }
   }
+  .game-hero-detail[data-hero-compact] .game-hero-body {
+    min-block-size: 0;
+    padding: var(--space-4);
+  }
+  .game-hero-detail[data-hero-compact] .game-hero-content {
+    padding-block: 0;
+  }
+  .game-hero-detail[data-hero-compact] .detail-title {
+    max-inline-size: none;
+    font-size: var(--text-xl);
+  }
+  .game-hero-detail[data-hero-compact] .detail-project {
+    margin-block-start: var(--space-1);
+  }
+  @container detail (width <= 20rem) {
+    .game-hero-detail[data-hero-compact] .detail-header-actions > [data-variant="primary"],
+    .game-hero-detail[data-hero-compact] .detail-hero-primary,
+    .game-hero-detail[data-hero-compact] .detail-hero-action {
+      min-inline-size: 0;
+    }
+  }
 }
 
 @layer utilities {
