@@ -45,16 +45,19 @@ impl PortcoveService {
     }
 
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, false, false)
+        recover_import(destination, false, false, None)
     }
 
-    pub fn resume_library_recovery_restore(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, false, true)
+    pub fn resume_library_recovery_restore(
+        destination: &Path,
+        expected_transfer_id: Option<&str>,
+    ) -> Result<LibraryImportResult> {
+        recover_import(destination, false, true, expected_transfer_id)
     }
 
     /// Retain and gate incomplete copies. This never deletes input or destination data.
     pub fn abort_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, true, false)
+        recover_import(destination, true, false, None)
     }
 }
 
@@ -122,7 +125,12 @@ pub(crate) fn start_reviewed_import(
     continue_import(&target, &mut journal, checkpoint).map_err(|error| journal.error(error))
 }
 
-fn recover_import(destination: &Path, abort: bool, bundle: bool) -> Result<LibraryImportResult> {
+fn recover_import(
+    destination: &Path,
+    abort: bool,
+    bundle: bool,
+    expected_transfer_id: Option<&str>,
+) -> Result<LibraryImportResult> {
     let destination = fs::canonicalize(destination)?;
     if crate::library_authority::authority(&destination)?.is_some() {
         return Err(PortcoveError::conflict(
@@ -134,7 +142,7 @@ fn recover_import(destination: &Path, abort: bool, bundle: bool) -> Result<Libra
         .ok_or_else(|| {
             PortcoveError::state("no library import journal exists at this destination")
         })?
-        .require_recovery_kind(bundle)?;
+        .require_recovery_kind(bundle, expected_transfer_id)?;
     let lease = Arc::new(LibraryLease::with_access(
         &destination,
         LibraryAccess::Exclusive,
@@ -142,7 +150,7 @@ fn recover_import(destination: &Path, abort: bool, bundle: bool) -> Result<Libra
     let mut journal = ImportJournal::read_recovery(&destination)?.ok_or_else(|| {
         PortcoveError::state("no library import journal exists at this destination")
     })?;
-    journal.require_recovery_kind(bundle)?;
+    journal.require_recovery_kind(bundle, expected_transfer_id)?;
     if journal.phase == TransferPhase::Aborted {
         return if abort {
             Ok(result(&journal, false))

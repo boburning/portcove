@@ -128,7 +128,7 @@ pub(crate) async fn resume_library_recovery_restore(
         transfer_preserving_current_library(&state, generation, |active| {
             let destination = std::fs::canonicalize(&destination)?;
             require_separate_destination(active, &destination)?;
-            PortcoveService::resume_library_recovery_restore(&destination)
+            PortcoveService::resume_library_recovery_restore(&destination, None)
         })
     })
     .await
@@ -142,7 +142,7 @@ fn resume_bundle_restore_blocking_startup(
     destination: &Path,
 ) -> DesktopResult<Option<LibraryImportResult>> {
     let lock_error = || DesktopError::from(PortcoveError::state("desktop state lock was poisoned"));
-    let pending = {
+    let (pending, transfer_id) = {
         let mut startup = state.initialization.lock().map_err(|_| lock_error())?;
         require_no_library_handoff(&startup)?;
         require_library_generation(state_generation(state), generation)?;
@@ -159,14 +159,23 @@ fn resume_bundle_restore_blocking_startup(
         {
             return Err(failure.clone());
         }
+        let transfer_id = failure
+            .details
+            .get("transfer_id")
+            .ok_or_else(|| {
+                DesktopError::from(PortcoveError::verification(
+                    "startup recovery has no recorded restore identity",
+                ))
+            })?
+            .clone();
         let failure = failure.clone();
         *startup = Err(PortcoveError::conflict("library transfer is in progress")
             .detail("transfer_in_progress", "true")
             .into());
-        failure
+        (failure, transfer_id)
     };
 
-    let result = PortcoveService::resume_library_recovery_restore(destination);
+    let result = PortcoveService::resume_library_recovery_restore(destination, Some(&transfer_id));
     // A later explicit open retries normal startup. Until then the blocked
     // startup view owns the result rather than treating it as an open library.
     *state.initialization.lock().map_err(|_| lock_error())? = Err(pending);
@@ -205,7 +214,8 @@ mod tests {
         std::fs::create_dir(&destination).unwrap();
         let failure = PortcoveError::conflict("bundle restore needs recovery")
             .detail("import_destination", destination.display().to_string())
-            .detail("recovery_action", "resume_library_recovery_restore");
+            .detail("recovery_action", "resume_library_recovery_restore")
+            .detail("transfer_id", "fixture-transfer");
         let state = DesktopState {
             initialization: Arc::new(Mutex::new(Err(failure.clone().into()))),
             preferences: Ok(portcove_core::HostPreferenceStore::new(

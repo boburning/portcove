@@ -767,19 +767,24 @@ mod tests {
             Ok(())
         };
         crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
-        assert!(PortcoveService::resume_library_recovery_restore(&manual_root).is_err());
+        assert!(PortcoveService::resume_library_recovery_restore(&manual_root, None).is_err());
 
         let (_, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
         crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
             .unwrap_err();
         assert!(PortcoveService::resume_library_import(&restore_root).is_err());
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&restore_root, Some("other-restore"))
+                .is_err()
+        );
         let manifest = bundle.path.join(MANIFEST_FILE);
         let original = fs::read(&manifest).unwrap();
         fs::write(&manifest, b"tampered receipt").unwrap();
-        assert!(PortcoveService::resume_library_recovery_restore(&restore_root).is_err());
+        assert!(PortcoveService::resume_library_recovery_restore(&restore_root, None).is_err());
         assert!(Library::open(&restore_root).is_err());
         fs::write(&manifest, original).unwrap();
-        let restored = PortcoveService::resume_library_recovery_restore(&restore_root).unwrap();
+        let restored =
+            PortcoveService::resume_library_recovery_restore(&restore_root, None).unwrap();
         assert!(restored.completed);
 
         let published_root = workspace.path().join("published-restore");
@@ -795,12 +800,12 @@ mod tests {
         .unwrap_err();
         fs::rename(&bundle.path, workspace.path().join("offline-bundle")).unwrap();
         assert!(
-            PortcoveService::resume_library_recovery_restore(&published_root)
+            PortcoveService::resume_library_recovery_restore(&published_root, None)
                 .unwrap()
                 .completed
         );
         assert!(
-            PortcoveService::resume_library_recovery_restore(&restore_root)
+            PortcoveService::resume_library_recovery_restore(&restore_root, None)
                 .unwrap()
                 .completed
         );

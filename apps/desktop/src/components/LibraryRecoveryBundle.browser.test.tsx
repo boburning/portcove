@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { desktopApi } from "../api";
+import { BootstrapRecovery } from "../App";
 import type { LibraryRecoveryBundle, LibraryRecoveryBundlePlan } from "../types";
 import { LibraryRecoveryBundleControls } from "./LibraryRecoveryBundle";
 import "../styles/index.css";
@@ -159,4 +160,45 @@ it("resumes only the reported staging folder after reading the current generatio
   ]);
   expect(create).toHaveBeenCalledOnce();
   await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
+});
+
+it("opens a restored startup library only after an explicit selection review", async () => {
+  vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
+    ready: false,
+    library_root: null,
+    generation: 8,
+    error: null,
+    selection: null,
+  });
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryRestore").mockResolvedValue({
+    completed: true,
+    destination_root: restoreDestination,
+    input_retained: true,
+    transfer_id: "restore-1",
+  });
+  const switchLibrary = vi.fn(async () => {});
+  await render(
+    <BootstrapRecovery
+      error={{
+        code: "conflict",
+        message: "Restore needs recovery",
+        details: {
+          import_destination: restoreDestination,
+          recovery_action: "resume_library_recovery_restore",
+          transfer_id: "restore-1",
+        },
+      }}
+      switchLibrary={switchLibrary}
+    />,
+  );
+  await page.getByRole("button", { name: "Resume bundle restore", exact: true }).click();
+  expect(resume).toHaveBeenCalledExactlyOnceWith(restoreDestination, 8);
+  await expect
+    .element(page.getByText("The library has been restored.", { exact: false }))
+    .toBeVisible();
+  expect(switchLibrary).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Open restored library", exact: true }).click();
+  expect(switchLibrary).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
+  expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(restoreDestination);
 });

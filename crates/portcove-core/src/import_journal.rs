@@ -208,7 +208,16 @@ impl ImportJournal {
         Ok(())
     }
 
-    pub fn require_recovery_kind(&self, bundle: bool) -> Result<()> {
+    pub fn require_recovery_kind(
+        &self,
+        bundle: bool,
+        expected_transfer_id: Option<&str>,
+    ) -> Result<()> {
+        if expected_transfer_id.is_some_and(|expected| expected != self.transfer_id) {
+            return Err(PortcoveError::conflict(
+                "the interrupted restore changed; review the current recovery",
+            ));
+        }
         if self.bundle.is_some() != bundle {
             return Err(if bundle {
                 PortcoveError::conflict("this destination belongs to a manual library import")

@@ -236,11 +236,13 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
 export function LibraryImportRecovery({
   destination,
   bundle = false,
+  onOpenRestored,
   onBusyChange,
   disabled = false,
 }: {
   destination: string;
   bundle?: boolean;
+  onOpenRestored?: (() => void) | undefined;
   onBusyChange?: (active: boolean) => void;
   disabled?: boolean;
 }) {
@@ -287,19 +289,21 @@ export function LibraryImportRecovery({
       </p>
       <p>{t(bundle ? "libraryRestore.recovery.bundleIntro" : "libraryRestore.recovery.intro")}</p>
       {restored && <p role="status">{t("libraryRestore.recovery.bundleRestored")}</p>}
-      <Button
-        data-focusable
-        variant="primary"
-        disabled={busy || disabled}
-        onClick={() => {
-          if (restored) reloadWorkspace();
-          else void recover();
-        }}
-      >
-        {restored
-          ? t("libraryRestore.recovery.open")
-          : t(bundle ? "libraryRestore.recovery.bundleResume" : "libraryRestore.recovery.resume")}
-      </Button>
+      {(!restored || onOpenRestored) && (
+        <Button
+          data-focusable
+          variant="primary"
+          disabled={busy || disabled}
+          onClick={() => {
+            if (restored) onOpenRestored?.();
+            else void recover();
+          }}
+        >
+          {restored
+            ? t("libraryRestore.recovery.open")
+            : t(bundle ? "libraryRestore.recovery.bundleResume" : "libraryRestore.recovery.resume")}
+        </Button>
+      )}
       {busy && <p role="status">{t("libraryRestore.recovery.busy")}</p>}
       {error && <p role="alert">{error}</p>}
     </section>
