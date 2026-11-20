@@ -225,6 +225,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
       "scripts/catalog-advisories.mts",
+      "scripts/catalog-alephone-pinned-windows.mts",
       "scripts/catalog-authoring.mts",
       "scripts/catalog-chocolate-family-windows-persistence.mts",
       "scripts/catalog-cover-mapping.mts",

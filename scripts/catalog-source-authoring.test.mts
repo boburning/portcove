@@ -1,4 +1,8 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  compactAlephOnePinnedWindows,
+  projectAlephOnePinnedWindows,
+} from "./catalog-alephone-pinned-windows.mts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -157,6 +161,39 @@ void test("external runtime registration reproduces all reviewed CPS2Recomp rout
         }),
       /exclusively user-selected/u,
     );
+  }
+});
+
+void test("Aleph One launch settings preserve all three reviewed pinned scenario routes", () => {
+  const accepted = new Map(fixtureCatalog(schema3Fixture).ports.map((port) => [port.id, port]));
+  const family = readCatalogSource(catalogRoot).records.filter(
+    (record) => record.alephone_pinned_windows_v1,
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "marathon-2-durandal-aleph-one",
+    "marathon-aleph-one",
+    "marathon-infinity-aleph-one",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectAlephOnePinnedWindows(record);
+    assert.deepEqual(explicit.integration?.release, record.integration?.release);
+    assert.deepEqual(explicit.integration?.executable_hints, record.integration?.executable_hints);
+    assert.deepEqual(compactAlephOnePinnedWindows(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    requiredFixture(alternate.integration).launch_arguments = ["Scenario"];
+    assert.equal(compactAlephOnePinnedWindows(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, alephone_pinned_windows_v1: true }),
+      /already supplies the launch and external profile/u,
+    );
+
+    const otherPackage = structuredClone(record);
+    const direct = fixtureRecord(fixtureRecord(otherPackage.integration?.release).direct);
+    fixtureRecord(direct["windows-x86-64"]).url = "https://github.com/example/other/archive.zip";
+    assert.throws(() => checkedAuthoredPort(otherPackage), /reviewed pinned Windows scenario/u);
   }
 });
 

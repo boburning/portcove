@@ -44,6 +44,7 @@ import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
+import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -2288,6 +2289,7 @@ void test("prepared observations bind the accepted observation preimage and cann
 
 void test("preparation reports all declared route projections across the current catalog", () => {
   const { records } = readCatalogSource(catalogRoot);
+  assert.ok(records.some((record) => record.alephone_pinned_windows_v1));
   const routeRecords = records.filter((record) => record.route_facts_v1);
   const gbaRecords = records.filter((record) => record.gba_staged_archive_v1);
   assert.ok(routeRecords.some((record) => record.route_facts_v1?.managed_native));
@@ -2312,6 +2314,7 @@ void test("preparation reports all declared route projections across the current
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
+    if (record.alephone_pinned_windows_v1) expected.push("alephone_pinned_windows_v1");
     if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
@@ -2382,6 +2385,56 @@ void test("official URL preparation retains ReflectionHLE portability observatio
     );
     assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
     assert.equal(candidate.reflectionhle_portable_paths_v1, true);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation retains the exact Aleph One pin and compacts its launch settings", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "marathon-2-durandal-aleph-one";
+    const accepted = readCatalogSource(root);
+    const selected = accepted.records.find((record) => record.listing.id === id)!;
+    const explicit = projectAlephOnePinnedWindows(selected);
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 39701264,
+                full_name: "Aleph-One-Marathon/alephone",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.alephone_pinned_windows_v1, true);
+    assert.deepEqual(candidate.listing, selected.listing);
+    assert.deepEqual(candidate.integration, selected.integration);
+    assert.deepEqual(candidate.release_maintenance, selected.release_maintenance);
+    assert.deepEqual(
+      JSON.parse(readFileSync(prepared.report.files.catalog, "utf8")),
+      accepted.catalog,
+    );
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();
