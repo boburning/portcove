@@ -5,8 +5,8 @@
 use crate::{DesktopResult, DesktopState, blocking_worker, service_at_generation};
 use base64::Engine as _;
 use portcove_core::{
-    ArtworkSlot, ArtworkState, SteamGridDbArtworkRole, SteamGridDbCandidate, SteamGridDbGame,
-    SteamGridDbKeyStatus, SteamGridDbListingReport,
+    ArtworkSelectionFraming, ArtworkSlot, ArtworkState, SteamGridDbArtworkRole,
+    SteamGridDbCandidate, SteamGridDbGame, SteamGridDbKeyStatus, SteamGridDbListingReport,
 };
 use serde::Serialize;
 
@@ -91,6 +91,28 @@ pub(crate) async fn check_steamgriddb_listings(
 }
 
 #[tauri::command]
+pub(crate) async fn preview_steamgriddb_background(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    game_id: u64,
+    candidate_id: u64,
+    generation: u64,
+) -> DesktopResult<crate::artwork::DesktopArtworkSelectionPreview> {
+    let state = state.inner().clone();
+    crate::artwork::thumbnail_worker(
+        crate::artwork::remote_thumbnail_workers(),
+        true,
+        move || {
+            let preview = service_at_generation(&state, generation)?
+                .preview_steamgriddb_background(&port_id, game_id, candidate_id)?;
+            crate::require_library_generation(crate::state_generation(&state), generation)?;
+            Ok(preview.into())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn choose_steamgriddb_artwork(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -99,11 +121,19 @@ pub(crate) async fn choose_steamgriddb_artwork(
     candidate_id: u64,
     expected_revision: u64,
     generation: u64,
+    framing: Option<ArtworkSelectionFraming>,
 ) -> DesktopResult<ArtworkState> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        service_at_generation(&state, generation)?
-            .choose_steamgriddb_artwork(&port_id, slot, game_id, candidate_id, expected_revision)
+        let prepared = service_at_generation(&state, generation)?.prepare_steamgriddb_artwork(
+            &port_id,
+            slot,
+            game_id,
+            candidate_id,
+        )?;
+        let service = service_at_generation(&state, generation)?;
+        prepared
+            .apply(&service, expected_revision, framing)
             .map_err(Into::into)
     })
     .await

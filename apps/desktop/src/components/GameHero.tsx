@@ -19,7 +19,7 @@ import {
   type HeroLogoSurface,
 } from "../hero-image-suitability";
 import { gameTitle } from "../port-identity";
-import type { HeroMediaPort } from "../hero-media";
+import { backgroundObjectPosition, type HeroMediaPort } from "../hero-media";
 import { ArtworkSource, ArtworkFrame } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
@@ -55,8 +55,8 @@ export function GameHero({
   const backgroundPosition =
     framing?.version === "v1"
       ? ({
-          "--hero-background-wide-position": `${framing.wide.x / 100}% ${framing.wide.y / 100}%`,
-          "--hero-background-narrow-position": `${framing.narrow.x / 100}% ${framing.narrow.y / 100}%`,
+          "--hero-background-wide-position": backgroundObjectPosition(framing.wide),
+          "--hero-background-narrow-position": backgroundObjectPosition(framing.narrow),
         } as CSSProperties)
       : undefined;
   const collection = useCollectionCovers(port.id, cover, artworkVisible);

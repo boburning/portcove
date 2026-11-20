@@ -145,3 +145,61 @@
     }
   }
 }
+
+.framingEditor {
+  display: grid;
+  gap: var(--space-4);
+  margin-block-start: var(--space-4);
+}
+
+.framingEditor h3,
+.framingEditor p {
+  margin: 0;
+}
+
+.framingPreviews {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+}
+
+.framingPreview {
+  display: grid;
+  min-inline-size: 0;
+}
+
+.framingPreview legend {
+  padding-block-end: var(--space-2);
+  font-weight: 600;
+}
+
+.framingImage {
+  overflow: hidden;
+  aspect-ratio: 16 / 5;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.framingImage[data-layout="narrow"] {
+  aspect-ratio: 4 / 3;
+  max-inline-size: 12rem;
+}
+
+.framingImage img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.framingAxis {
+  display: grid;
+  grid-template-columns: minmax(5rem, max-content) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.framingAxis input {
+  accent-color: var(--color-primary);
+  min-inline-size: 0;
+  min-block-size: 2.75rem;
+}

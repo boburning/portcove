@@ -52,6 +52,10 @@ export type OrganizationChange = Requests.TransportInputs["desktop_organization_
 export type ArtworkState = Generated.TransportOutputs["artwork_state"];
 export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
+export type ArtworkFraming = NonNullable<ArtworkState["choice"]["framing"]>;
+export type ArtworkSelectionFraming = Requests.TransportInputs["desktop_artwork_selection_framing"];
+export type ArtworkSelectionPreview =
+  Generated.TransportOutputs["desktop_artwork_selection_preview"];
 export type ArtworkAttribution = ArtworkState["attribution"][number];
 export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
 export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];

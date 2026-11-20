@@ -78,8 +78,8 @@ async function open() {
 
 const slotLabels = {
   cover: "Cover image",
-  detail: "Detail image",
-  landscape: "Landscape image",
+  detail: "Background",
+  landscape: "Wide cover",
   logo: "Logo",
 } as const;
 
@@ -221,7 +221,7 @@ describe("local artwork controls", () => {
     await expect.poll(() => container.querySelectorAll(".detail-artwork").length).toBe(1);
     expect(container.querySelector(".artwork-controls .detail-artwork")).not.toBeNull();
     expect(button("cover", "Choose local image")).toBeDefined();
-    expect(container.querySelector('[aria-label="Detail image"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Background"]')).toBeNull();
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "cover", 7);
     expect(desktopApi.artwork).toHaveBeenCalledWith(listing.id, "detail", 7);
     container.querySelector<HTMLElement>(".artwork-controls")!.scrollIntoView({ block: "start" });
@@ -229,7 +229,7 @@ describe("local artwork controls", () => {
     expect(coverControls.top).toBeGreaterThanOrEqual(0);
     expect(coverControls.bottom).toBeLessThanOrEqual(innerHeight);
     await page.viewport(420, 740);
-    const detailSlot = page.getByRole("tab", { name: "Detail image", exact: true });
+    const detailSlot = page.getByRole("tab", { name: "Background", exact: true });
     await detailSlot.click();
     await expect.element(detailSlot).toHaveAttribute("aria-selected", "true");
     expect(button("detail", "Choose local image")).toBeDefined();
@@ -687,6 +687,10 @@ describe("local artwork controls", () => {
         return state;
       };
       const choose = vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+      const preview = vi.spyOn(desktopApi, "previewLocalBackground").mockResolvedValue({
+        original_sha256: "a".repeat(64),
+        png_base64: pixel,
+      });
       const change = vi
         .spyOn(desktopApi, "importArtwork")
         .mockImplementation(async (port, slot, _path, revision) =>
@@ -727,7 +731,36 @@ describe("local artwork controls", () => {
       expect(document.activeElement).toBe(button("cover", "Choose local image"));
       await captureParityState("artwork-cover-local-selected-fixture");
       await click("detail", "Choose local image");
-      expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7);
+      expect(preview).toHaveBeenCalledExactlyOnceWith("sample", "E:/owned.png", 7);
+      expect(change).toHaveBeenCalledTimes(1);
+      const review = page.getByRole("form", { name: "Review Background", exact: true });
+      await expect
+        .element(review.getByRole("heading", { name: "Review Background" }))
+        .toHaveFocus();
+      const horizontal = review
+        .getByRole("group", { name: "Narrow preview" })
+        .getByRole("slider", { name: "Horizontal" });
+      (horizontal.element() as HTMLInputElement).focus();
+      await userEvent.keyboard("{End}");
+      await expect.element(horizontal).toHaveAttribute("aria-valuetext", "100%");
+      await review.getByRole("button", { name: "Cancel", exact: true }).click();
+      await expect.element(review).not.toBeInTheDocument();
+      expect(change).toHaveBeenCalledTimes(1);
+      await expect
+        .element(page.elementLocator(button("detail", "Choose local image")))
+        .toHaveFocus();
+      await click("detail", "Choose local image");
+      await expect.element(horizontal).toBeVisible();
+      (horizontal.element() as HTMLInputElement).focus();
+      await userEvent.keyboard("{End}");
+      await review.getByRole("button", { name: "Apply", exact: true }).click();
+      await vi.waitFor(() =>
+        expect(change).toHaveBeenLastCalledWith("sample", "detail", "E:/owned.png", 0, 7, {
+          preview_sha256: "a".repeat(64),
+          framing: { version: "v1", wide: { x: 5000, y: 3500 }, narrow: { x: 10000, y: 3500 } },
+        }),
+      );
+      await expect.element(review).not.toBeInTheDocument();
       await click("cover", "Reset to default");
       expect(reset).toHaveBeenCalledWith("sample", "cover", 1, 7);
       expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
@@ -740,7 +773,7 @@ describe("local artwork controls", () => {
       );
       expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
       expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
-      expect(choose).toHaveBeenCalledTimes(2);
+      expect(choose).toHaveBeenCalledTimes(3);
       container.querySelector<HTMLElement>(".detail-artwork")!.scrollIntoView();
       await expect.poll(() => container.querySelector(".detail-artwork img")).not.toBeNull();
       expect(button("detail", "Reset to default").disabled).toBe(false);
@@ -1350,7 +1383,7 @@ describe("SteamGridDB picker", () => {
       expect(container.querySelector(`[aria-label="${slotLabels[slot]}"]`)?.textContent).toContain(
         slot === "landscape"
           ? "Steam uses it for the game's library capsule"
-          : "Optional wide image for this game's details",
+          : "Optional background for Overview and Continue",
       );
       await click(slot, "Find on SteamGridDB");
       await vi.waitFor(() =>
@@ -1372,6 +1405,24 @@ describe("SteamGridDB picker", () => {
       expectCandidateFrameRatio("Artist 701", slot === "landscape" ? 92 / 43 : 96 / 31);
       container.querySelector(".steamgriddb-picker")!.scrollIntoView({ block: "start" });
       await captureParityState(`steamgriddb-${slot}-candidates`);
+      if (slot === "detail") {
+        const preview = vi.spyOn(desktopApi, "previewSteamGridDbBackground").mockResolvedValue({
+          original_sha256: "b".repeat(64),
+          png_base64: pixel,
+        });
+        const choose = vi.spyOn(desktopApi, "chooseSteamGridDbArtwork");
+        const candidateControl = page.getByRole("button", { name: /^Use image by Artist 701/ });
+        await candidateControl.click();
+        const review = page.getByRole("form", { name: "Review Background", exact: true });
+        await expect.element(review.getByText("SteamGridDB image by Artist 701")).toBeVisible();
+        expect(preview).toHaveBeenCalledWith("sample", 55, 701, 7);
+        expect(choose).not.toHaveBeenCalled();
+        await review.getByRole("button", { name: "Cancel", exact: true }).click();
+        await expect.element(review).not.toBeInTheDocument();
+        expect(choose).not.toHaveBeenCalled();
+        await expect.element(candidateControl).toBeVisible();
+        await expect.element(candidateControl).toHaveFocus();
+      }
     },
   );
 });

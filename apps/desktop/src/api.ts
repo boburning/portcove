@@ -2,6 +2,9 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
+  ArtworkFraming,
+  ArtworkSelectionFraming,
+  ArtworkSelectionPreview,
   SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
@@ -289,6 +292,32 @@ export const desktopApi = {
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
   checkSteamGridDbListings: (generation: number) =>
     invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
+  previewLocalBackground: (portId: string, path: string, generation: number) =>
+    invoke<ArtworkSelectionPreview>("preview_local_background", { portId, path, generation }),
+  previewSteamGridDbBackground: (
+    portId: string,
+    gameId: number,
+    candidateId: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkSelectionPreview>("preview_steamgriddb_background", {
+      portId,
+      gameId,
+      candidateId,
+      generation,
+    }),
+  setBackgroundArtworkFraming: (
+    portId: string,
+    expectedRevision: number,
+    generation: number,
+    framing: ArtworkFraming | null,
+  ) =>
+    invoke<ArtworkState>("set_background_artwork_framing", {
+      portId,
+      expectedRevision,
+      generation,
+      framing,
+    }),
   chooseSteamGridDbArtwork: (
     portId: string,
     slot: ArtworkSlot,
@@ -296,6 +325,7 @@ export const desktopApi = {
     candidateId: number,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [] | [ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("choose_steamgriddb_artwork", {
       portId,
@@ -304,6 +334,7 @@ export const desktopApi = {
       candidateId,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   importArtwork: (
     portId: string,
@@ -311,6 +342,7 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [] | [ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("import_artwork", {
       portId,
@@ -318,6 +350,7 @@ export const desktopApi = {
       path,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   modSetups: (portId: string, generation: number) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),

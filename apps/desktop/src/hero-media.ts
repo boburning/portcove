@@ -1,5 +1,9 @@
-import type { CatalogMediaAsset } from "./types";
+import type { ArtworkFraming, CatalogMediaAsset } from "./types";
 import type { PortIdentity } from "./port-identity";
+
+export function backgroundObjectPosition(point: ArtworkFraming["wide"]) {
+  return `${point.x / 100}% ${point.y / 100}%`;
+}
 
 export type HeroMediaPort = PortIdentity & { id: string };
 export interface HeroMediaContext {

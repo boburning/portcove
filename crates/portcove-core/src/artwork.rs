@@ -147,6 +147,39 @@ impl ArtworkSelectionFraming {
     }
 }
 
+/// A re-resolved provider image awaiting application to the current library.
+pub struct PreparedSteamGridDbArtwork {
+    library: crate::LibraryIdentity,
+    port_id: String,
+    slot: ArtworkSlot,
+    game_id: u64,
+    fetched: steamgriddb::FetchedCandidate,
+}
+
+impl PreparedSteamGridDbArtwork {
+    pub fn apply(
+        self,
+        service: &PortcoveService,
+        expected_revision: u64,
+        framing: Option<ArtworkSelectionFraming>,
+    ) -> Result<ArtworkState> {
+        if service.library().identity_record()? != self.library {
+            return Err(PortcoveError::conflict(
+                "the open library changed; review the current selection and try again",
+            ));
+        }
+        let port = service.artwork_port(&self.port_id)?;
+        service.choose_fetched_artwork_with_framing(
+            &port,
+            self.slot,
+            self.game_id,
+            self.fetched,
+            expected_revision,
+            framing,
+        )
+    }
+}
+
 /// A bounded, orientation-corrected PNG derived from the exact reviewed bytes.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArtworkSelectionPreview {
@@ -824,17 +857,28 @@ impl PortcoveService {
         if let Some(framing) = &framing {
             framing.validate(slot)?;
         }
-        let port = self.artwork_port(port_id)?;
+        self.prepare_steamgriddb_artwork(port_id, slot, game_id, candidate_id)?
+            .apply(self, expected_revision, framing)
+    }
+
+    pub fn prepare_steamgriddb_artwork(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        game_id: u64,
+        candidate_id: u64,
+    ) -> Result<PreparedSteamGridDbArtwork> {
+        self.artwork_port(port_id)?;
+        let library = self.library().identity_record()?;
         let fetched =
             steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
-        self.choose_fetched_artwork_with_framing(
-            &port,
+        Ok(PreparedSteamGridDbArtwork {
+            library,
+            port_id: port_id.into(),
             slot,
             game_id,
             fetched,
-            expected_revision,
-            framing,
-        )
+        })
     }
 
     /// Check whether SteamGridDB still lists each stored SteamGridDB image with

@@ -494,6 +494,7 @@ pub fn export_transport_schemas() -> Value {
             "setup_launch_targets": output::<portcove_core::SetupLaunchTargets>(),
             "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
             "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
+            "artwork_selection_preview": output::<crate::artwork::DesktopArtworkSelectionPreview>(),
             "steam_entry_review": output::<SteamEntryReview>(),
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
@@ -520,6 +521,7 @@ pub fn export_transport_schemas() -> Value {
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
+            "artwork_selection_framing": schemars::schema_for!(portcove_core::ArtworkSelectionFraming),
         },
         "events": events,
     })

@@ -647,6 +647,12 @@ generated fallback states. Change artwork offers a separate Logo choice for
 Overview and Continue. When a logo cannot be read at its rendered size, the hero
 uses the Cover or title and preserves the saved choice for review.
 
+Change artwork labels Detail as **Background** and Landscape as **Wide cover**.
+A new Background opens a review with wide and narrow crop controls. **Apply**
+saves the selected image and framing together. **Cancel** discards the draft
+and returns to the source control, including SteamGridDB search results when
+they were open. An existing Background offers **Adjust framing**.
+
 Library and Catalog use responsive portrait grids. Each artwork frame is 2:3;
 metadata adds height below the frame and never participates in its aspect ratio.
 Whole-image fitting and Core fallback colors remain owned by `Artwork.module.css`.

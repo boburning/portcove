@@ -10,11 +10,20 @@ import {
   useCoverCollection,
 } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
-import type { ArtworkSlot, ArtworkState, PortDefinition, IgdbArtwork } from "../types";
+import { desktopApi } from "../api";
+import type {
+  ArtworkFraming,
+  ArtworkSelectionPreview,
+  ArtworkSlot,
+  ArtworkState,
+  PortDefinition,
+  IgdbArtwork,
+} from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
 import { controlFocus } from "./ui/control-style";
 import { ExternalLink } from "./ExternalLink";
+import { BackgroundFramingEditor } from "./BackgroundFramingEditor";
 import { SteamGridDbPicker, steamGridDbErrorText } from "./SteamGridDbPicker";
 import type { SteamGridDbCandidate } from "../types";
 
@@ -192,9 +201,9 @@ function DetailArtwork({ port }: { port: Pick<PortDefinition, "id"> }) {
 /** Every slot's player copy; a new slot must be described here to compile. */
 const slotCopy: Record<ArtworkSlot, { label: string; description: string }> = {
   cover: { label: "Cover image", description: "Portrait cover · other shapes are letterboxed." },
-  detail: { label: "Detail image", description: "Optional wide image for this game's details." },
+  detail: { label: "Background", description: "Optional background for Overview and Continue." },
   landscape: {
-    label: "Landscape image",
+    label: "Wide cover",
     description:
       "Optional wide cover. Steam uses it for the game's library capsule. Separate from the detail image.",
   },
@@ -263,6 +272,24 @@ export function ArtworkControls({
   );
 }
 
+type BackgroundDraft = {
+  portId: string;
+  generation: number;
+  revision: number;
+  originalSha256: string;
+  image: string;
+  framing: ArtworkFraming | null;
+  source:
+    | { kind: "selected" }
+    | { kind: "local"; path: string }
+    | {
+        kind: "provider";
+        gameId: number;
+        candidate: SteamGridDbCandidate;
+        trigger: HTMLButtonElement | null;
+      };
+};
+
 function ArtworkSlotControl({
   port,
   slot,
@@ -271,6 +298,9 @@ function ArtworkSlotControl({
   slot: ArtworkSlot;
 }) {
   const [findOpen, setFindOpen] = useState(false);
+  const [draft, setDraft] = useState<BackgroundDraft>();
+  const frameButton = useRef<HTMLButtonElement>(null);
+  const findButton = useRef<HTMLButtonElement>(null);
   const { cache, display } = useArtwork(port.id, slot);
   const collectionCovers = useCoverCollection(port.id);
   const collection = useCollectionCovers(slot === "cover" ? port.id : undefined, display, true);
@@ -303,7 +333,7 @@ function ArtworkSlotControl({
     if (currentIdentity.current.cache === owner && !focus?.closest("[hidden], [inert]")) {
       focus?.focus();
     }
-  }, [pending]);
+  }, [draft, pending]);
 
   const stillInView = () =>
     mounted.current &&
@@ -321,10 +351,46 @@ function ArtworkSlotControl({
       committedRevision,
     );
   };
-  const finishChange = (pick: boolean) => {
+  const focusDraftTrigger = (review: BackgroundDraft, cancelled = false) => {
+    const target =
+      review.source.kind === "selected"
+        ? frameButton.current
+        : review.source.kind === "provider"
+          ? cancelled && review.source.trigger?.isConnected
+            ? review.source.trigger
+            : findButton.current
+          : pickerButton.current;
+    returnFocus.current = { target, cache };
+  };
+  const draftIsCurrent = (review: BackgroundDraft) =>
+    review.portId === port.id &&
+    review.generation === cache?.generation &&
+    review.revision === display.state?.choice.revision &&
+    !display.stale;
+
+  const stageBackground = (
+    source: BackgroundDraft["source"],
+    revision: number,
+    preview: ArtworkSelectionPreview,
+  ) => {
+    if (!cache || !stillCurrent()) return;
+    const choice = display.state?.choice;
+    setDraft({
+      portId: port.id,
+      generation: cache.generation,
+      revision,
+      originalSha256: preview.original_sha256,
+      image: `data:image/png;base64,${preview.png_base64}`,
+      framing:
+        choice && choice.asset_sha256 === preview.original_sha256 ? (choice.framing ?? null) : null,
+      source,
+    });
+  };
+
+  const finishChange = (pick: boolean, restoreFocus = true) => {
     busy.current = false;
     if (!mounted.current) return;
-    if (stillCurrent())
+    if (restoreFocus && stillCurrent())
       returnFocus.current = { target: (pick ? pickerButton : resetButton).current, cache };
     setPending(false);
   };
@@ -333,6 +399,7 @@ function ArtworkSlotControl({
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
     let changeRequested = false;
+    let staged = false;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
@@ -341,6 +408,13 @@ function ArtworkSlotControl({
     try {
       const path = pick ? await pickArtworkPath() : null;
       if (!stillCurrent() || (pick && !path)) return;
+      if (path && slot === "detail") {
+        const preview = await desktopApi.previewLocalBackground(port.id, path, cache.generation);
+        if (!stillCurrent()) return;
+        stageBackground({ kind: "local", path }, revision, preview);
+        staged = true;
+        return;
+      }
       changeRequested = true;
       const result = await cache.change(port.id, slot, revision, path, stillCurrent);
       if (result && stillInView()) {
@@ -358,19 +432,34 @@ function ArtworkSlotControl({
         await refreshCurrent();
       }
     } finally {
-      finishChange(pick);
+      finishChange(pick, !staged);
     }
   };
 
   const chooseSteamGridDb = async (gameId: number, candidate: SteamGridDbCandidate) => {
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
+    let staged = false;
+    const trigger =
+      document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
     busy.current = true;
     returnFocus.current = null;
     setPending(true);
     setMessage(undefined);
     setError(undefined);
     try {
+      if (slot === "detail") {
+        const preview = await desktopApi.previewSteamGridDbBackground(
+          port.id,
+          gameId,
+          candidate.id,
+          cache.generation,
+        );
+        if (!stillCurrent()) return;
+        stageBackground({ kind: "provider", gameId, candidate, trigger }, revision, preview);
+        staged = true;
+        return;
+      }
       const result = await cache.chooseSteamGridDb(
         port.id,
         slot,
@@ -393,7 +482,67 @@ function ArtworkSlotControl({
         await refreshCurrent();
       }
     } finally {
-      finishChange(true);
+      finishChange(true, !staged);
+    }
+  };
+
+  const editBackground = () => {
+    if (!cache || !display.image || !display.state || !stillCurrent()) return;
+    const choice = display.state.choice;
+    if (!choice.asset_sha256 || display.state.resolved_source.kind !== "local_import") return;
+    setError(undefined);
+    setMessage(undefined);
+    setDraft({
+      portId: port.id,
+      generation: cache.generation,
+      revision: choice.revision,
+      originalSha256: choice.asset_sha256,
+      image: display.image,
+      framing: choice.framing ?? null,
+      source: { kind: "selected" },
+    });
+  };
+
+  const applyBackground = async (review: BackgroundDraft, framing: ArtworkFraming | null) => {
+    if (!cache || !stillCurrent() || !draftIsCurrent(review) || busy.current) return;
+    busy.current = true;
+    returnFocus.current = null;
+    setPending(true);
+    setError(undefined);
+    try {
+      const edit = { preview_sha256: review.originalSha256, framing };
+      const source = review.source;
+      const result =
+        source.kind === "local"
+          ? await cache.change(port.id, "detail", review.revision, source.path, stillCurrent, edit)
+          : source.kind === "provider"
+            ? await cache.chooseSteamGridDb(
+                port.id,
+                "detail",
+                review.revision,
+                source.gameId,
+                source.candidate.id,
+                stillCurrent,
+                edit,
+              )
+            : await cache.setBackgroundFraming(port.id, review.revision, framing, stillCurrent);
+      if (!result || !stillInView()) return;
+      if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
+      if (!stillInView()) return;
+      focusDraftTrigger(review);
+      setDraft(undefined);
+      setFindOpen(false);
+      setMessage("Background saved.");
+    } catch (value) {
+      if (stillInView()) {
+        setError(
+          review.source.kind === "provider" ? steamGridDbErrorText(value) : errorText(value),
+        );
+        await refreshCurrent();
+      }
+    } finally {
+      busy.current = false;
+      if (mounted.current) setPending(false);
     }
   };
 
@@ -433,7 +582,7 @@ function ArtworkSlotControl({
           ref={pickerButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state || display.stale}
+          disabled={pending || Boolean(draft) || !display.state || display.stale}
           onClick={() => void change(true)}
         >
           Choose local image
@@ -442,24 +591,38 @@ function ArtworkSlotControl({
           ref={resetButton}
           data-focusable
           variant="outline"
-          disabled={pending || !display.state?.selection || display.stale}
+          disabled={pending || Boolean(draft) || !display.state?.selection || display.stale}
           onClick={() => void change(false)}
         >
           Reset to default
         </Button>
         <Button
+          ref={findButton}
           data-focusable
           variant="outline"
-          aria-expanded={findOpen}
-          disabled={pending || !display.state || display.stale}
+          aria-expanded={findOpen && !draft}
+          disabled={pending || Boolean(draft) || !display.state || display.stale}
           onClick={() => setFindOpen((open) => !open)}
         >
           Find on SteamGridDB
         </Button>
+        {slot === "detail" &&
+          display.state?.resolved_source.kind === "local_import" &&
+          display.image && (
+            <Button
+              ref={frameButton}
+              data-focusable
+              variant="outline"
+              disabled={pending || Boolean(draft) || display.stale}
+              onClick={editBackground}
+            >
+              Adjust framing
+            </Button>
+          )}
         <Button
           data-focusable
           variant="outline"
-          disabled={pending || display.loading}
+          disabled={pending || Boolean(draft) || display.loading}
           onClick={() => {
             void cache?.load(port.id, slot, true);
           }}
@@ -467,13 +630,34 @@ function ArtworkSlotControl({
           Refresh artwork
         </Button>
       </div>
-      {findOpen && (
-        <SteamGridDbPicker
-          slot={slot}
-          initialTerm={port.name ?? ""}
-          disabled={pending || !display.state || Boolean(display.stale)}
-          choose={(gameId, candidate) => void chooseSteamGridDb(gameId, candidate)}
+      {draft && (
+        <BackgroundFramingEditor
+          image={draft.image}
+          sourceLabel={
+            draft.source.kind === "provider"
+              ? `SteamGridDB image by ${draft.source.candidate.author.name}`
+              : undefined
+          }
+          initialFraming={draft.framing}
+          pending={pending}
+          stale={!draftIsCurrent(draft)}
+          onApply={(framing) => void applyBackground(draft, framing)}
+          onCancel={() => {
+            focusDraftTrigger(draft, true);
+            setError(undefined);
+            setDraft(undefined);
+          }}
         />
+      )}
+      {findOpen && (
+        <div hidden={Boolean(draft)} inert={Boolean(draft)}>
+          <SteamGridDbPicker
+            slot={slot}
+            initialTerm={port.name ?? ""}
+            disabled={pending || !display.state || Boolean(display.stale)}
+            choose={(gameId, candidate) => void chooseSteamGridDb(gameId, candidate)}
+          />
+        </div>
       )}
       <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
         Static PNG or JPEG, up to 16 MiB. Portcove keeps a local copy.

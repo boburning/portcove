@@ -58,7 +58,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
     .toBe(1);
   await userEvent.click(page.getByText("Change artwork", { exact: true }));
   const cover = page.getByRole("region", { name: "Cover image", exact: true });
-  const detail = page.getByRole("region", { name: "Detail image", exact: true });
+  const detail = page.getByRole("region", { name: "Background", exact: true });
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeEnabled();
   const src = host.querySelector<HTMLImageElement>("img")!.src;
   const calls = vi.mocked(desktopApi.artwork).mock.calls;
@@ -76,7 +76,7 @@ it("retains a decoded cover with truthful stale feedback and read-only recovery"
   expect(host.querySelector<HTMLImageElement>("img")?.naturalWidth).toBe(1);
   await expect.element(cover.getByRole("button", { name: "Choose local image" })).toBeDisabled();
   await expect.element(cover.getByRole("button", { name: "Reset to default" })).toBeDisabled();
-  await userEvent.click(page.getByRole("tab", { name: "Detail image", exact: true }));
+  await userEvent.click(page.getByRole("tab", { name: "Background", exact: true }));
   await expect.element(detail.getByRole("button", { name: "Choose local image" })).toBeEnabled();
   await userEvent.click(page.getByRole("tab", { name: "Cover image", exact: true }));
   await expect.element(cover.getByRole("alert")).toHaveTextContent("Artwork read unavailable.");

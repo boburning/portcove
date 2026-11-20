@@ -35,7 +35,7 @@ const unsupportedByReason: Record<string, string[]> = {
     create_clean_mod_setup create_default_mod_setup
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
-    import_artwork import_library import_source install_application_update install_port logout_github
+    import_artwork set_background_artwork_framing import_library import_source install_application_update install_port logout_github
     move_library open_bug_report open_external_url open_provider_mod_project open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_pending_setup_resource
     open_catalog_download_release_notes open_source_evidence
@@ -59,7 +59,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     check_provider_mod_updates catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
-    inspect_mod_file inspect_mod_recipe inspect_source
+    inspect_mod_file inspect_mod_recipe inspect_source preview_local_background preview_steamgriddb_background
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
