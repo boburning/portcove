@@ -106,23 +106,44 @@ function Invoke-Probe([string]$Name, [string[]]$Arguments, [int]$ExpectedExit) {
     $Start.WorkingDirectory = $Runtime
     $Start.UseShellExecute = $false
     $Start.CreateNoWindow = $true
+    $Start.RedirectStandardOutput = $true
+    $Start.RedirectStandardError = $true
     foreach ($Argument in $Arguments) { $Start.ArgumentList.Add($Argument) }
-    foreach ($Key in @($Start.Environment.Keys)) {
-        if ($Key -imatch '^(TMP|TEMP|.*TOKEN.*|.*SECRET.*|ACTIONS_RUNTIME_URL)$') { $Start.Environment.Remove($Key) | Out-Null }
-    }
+    # The child receives no GitHub command files, credentials or checkout environment.
+    $SystemRoot = [Environment]::GetFolderPath([Environment+SpecialFolder]::Windows)
+    Assert-Directory $SystemRoot
+    $Start.Environment.Clear()
+    $Start.Environment['SystemRoot'] = $SystemRoot
+    $Start.Environment['WINDIR'] = $SystemRoot
+    $Start.Environment['PATH'] = (Join-Path $SystemRoot 'System32')
+    $Start.Environment['USERPROFILE'] = $AccountRoot
     $Start.Environment['TMP'] = $PhaseTemp
     $Start.Environment['TEMP'] = $PhaseTemp
+    $OutputChars = [char[]]::new(65537)
+    $ErrorChars = [char[]]::new(65537)
     $Process = $null
     try {
         $Process = [Diagnostics.Process]::Start($Start)
         if ($null -eq $Process) { throw 'JA2 did not return an owned process handle' }
+        $OutputRead = $Process.StandardOutput.ReadBlockAsync($OutputChars, 0, $OutputChars.Length)
+        $ErrorRead = $Process.StandardError.ReadBlockAsync($ErrorChars, 0, $ErrorChars.Length)
         $Details.pid = $Process.Id
         $Details.started_utc = $Process.StartTime.ToUniversalTime().ToString('o')
         $Details.observed_exit = $Process.WaitForExit(30000)
         if (-not $Details.observed_exit) {
+            $Details.descendant_cleanup = 'unknown'
             $Process.Kill()
             $Details.cleanup_observed_exit = $Process.WaitForExit(5000)
             throw 'Exact JA2 process exceeded bounded runtime'
+        }
+        if (-not $OutputRead.Wait(5000) -or -not $ErrorRead.Wait(5000)) {
+            $Details.descendant_cleanup = 'unknown'
+            throw 'JA2 output pipes did not close after the owned process exited'
+        }
+        $Details.stdout_characters = $OutputRead.GetAwaiter().GetResult()
+        $Details.stderr_characters = $ErrorRead.GetAwaiter().GetResult()
+        if ($Details.stdout_characters -ge $OutputChars.Length -or $Details.stderr_characters -ge $ErrorChars.Length) {
+            throw 'JA2 output exceeded the bounded capture'
         }
         $Details.exit_code = $Process.ExitCode
         if ($Process.ExitCode -ne $ExpectedExit) { throw 'JA2 exited with an unexpected status' }
@@ -135,15 +156,22 @@ function Invoke-Probe([string]$Name, [string[]]$Arguments, [int]$ExpectedExit) {
         if ($null -ne $Process) {
             try {
                 if (-not $Process.HasExited -and -not $Details.Contains('cleanup_observed_exit')) {
+                    $Details.descendant_cleanup = 'unknown'
                     $Process.Kill()
                     $Details.cleanup_observed_exit = $Process.WaitForExit(5000)
                 }
             } finally { $Process.Dispose() }
         }
         $Details.after = [ordered]@{ application_data = (Get-InventoryText $AppData 1MB 32 | ConvertFrom-Json -NoEnumerate); documents = (Get-InventoryText $Documents 1MB 32 | ConvertFrom-Json -NoEnumerate); scratch_logs = (Get-InventoryText $PhaseTemp 1MB 32 | ConvertFrom-Json -NoEnumerate) }
-        Write-Json (Join-Path $Evidence ($Name + '.json')) $Details
         $Log = Join-Path $PhaseTemp 'ja2.log'
-        if (Test-Path -LiteralPath $Log) { Copy-Item -LiteralPath $Log -Destination (Join-Path $Evidence ($Name + '.log')) }
+        if (Test-Path -LiteralPath $Log) {
+            $Details.upstream_log_sha256 = Get-FileSha256 $Log
+            $Details.upstream_log_bytes = (Get-Item -LiteralPath $Log).Length
+            if (Select-String -LiteralPath $Log -SimpleMatch $MissingOriginalDiagnostic) {
+                $Details.missing_original_diagnostic = $MissingOriginalDiagnostic
+            }
+        }
+        Write-Json (Join-Path $Evidence ($Name + '.json')) $Details
     }
 }
 
@@ -207,6 +235,7 @@ $EmptyGame = Join-Path $Owned 'empty-game'
 New-OwnedDirectory $EmptyGame
 $InitialRuntime = Get-InventoryText $Runtime 180MB 900
 $Help = @('-help', '-gamedir', $EmptyGame)
+$MissingOriginalDiagnostic = 'Vanilla game directory has to be set either in config file or per command line switch'
 
 Invoke-Probe 'fresh-appdata' $Help 0
 $NewConfig = Join-Path $AppData 'ja2.json'
@@ -217,7 +246,10 @@ if (-not (Test-Path -LiteralPath $FreshSaves -PathType Container) -or
     -not ([IO.File]::ReadAllText($NewConfig).Contains('"game_dir": "C:\\Program Files\\Jagged Alliance 2"'))) {
     throw 'Fresh startup did not initialize the supported AppData profile'
 }
-Move-Item -LiteralPath $AppData -Destination (Join-Path $Owned 'first-appdata')
+# The runner temp volume may differ from the Windows profile volume.
+$AppDataSibling = Join-Path ([IO.Path]::GetDirectoryName($AppData)) ('JA2-portcove-witness-' + $env:GITHUB_RUN_ID + '-' + $env:GITHUB_RUN_ATTEMPT)
+if (Test-Path -LiteralPath $AppDataSibling) { throw 'Expected an absent profile evidence sibling' }
+[IO.Directory]::Move($AppData, $AppDataSibling)
 New-OwnedDirectory $Documents
 $DocsConfig = Join-Path $Documents 'ja2.json'
 [IO.File]::WriteAllText($DocsConfig, '{"fullscreen":false}')
@@ -242,9 +274,10 @@ if ((Get-InventoryText $Documents 1MB 32) -cne $DocsInventory -or (Get-FileSha25
 }
 $AppDataInventory = Get-InventoryText $AppData 1MB 32
 Invoke-Probe 'ordinary-missing-source' @() 1
-$RefusalLog = Join-Path $Evidence 'ordinary-missing-source.log'
-if (-not (Test-Path -LiteralPath $RefusalLog) -or
-    -not (Select-String -LiteralPath $RefusalLog -SimpleMatch 'Vanilla game directory has to be set') -or
+$Refusal = Get-Content -LiteralPath (Join-Path $Evidence 'ordinary-missing-source.json') -Raw | ConvertFrom-Json -AsHashtable
+if ($Refusal.missing_original_diagnostic -cne $MissingOriginalDiagnostic -or
+    $Refusal.upstream_log_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $Refusal.upstream_log_bytes -le 0 -or
+    $Refusal.exit_code -ne 1 -or
     (Get-InventoryText $AppData 1MB 32) -cne $AppDataInventory -or (Get-InventoryText $Documents 1MB 32) -cne $DocsInventory) {
     throw 'Ordinary launch did not demonstrate the expected missing-original refusal and profile preservation'
 }
