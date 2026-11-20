@@ -318,19 +318,25 @@ if ($embedded.id -cne $port -or $embedded.adapter -cne 'native-portable' -or
     $embedded.release.repository -cne 'crawl/crawl' -or 'windows-x86-64' -cnotin $embedded.platforms) {
     throw 'Ordinary embedded Crawl Windows route differs'
 }
-$authority = Read-Cli @('catalog','definition-authority')
-if (-not $authority.configured -or $authority.installed -or
-    $authority.compiled_anchor_sha256 -cne $anchor -or $authority.expected_plan -cnotmatch '^[a-f0-9]{64}$') {
-    throw 'Fresh CLI library or compiled definition anchor differs'
+function Approve-ColdDefinitionAuthority {
+    $authority = Read-Cli @('catalog','definition-authority')
+    if (-not $authority.configured -or $authority.installed -or
+        $authority.compiled_anchor_sha256 -cne $anchor -or $authority.expected_plan -cnotmatch '^[a-f0-9]{64}$') {
+        throw 'Fresh CLI library or compiled definition anchor differs'
+    }
+    $approved = Read-Cli @('catalog','definition-authority','--apply','--expected-plan',$authority.expected_plan,'--yes')
+    if (-not $approved.changed -or -not $approved.review.installed -or $approved.review.installed_anchor_sha256 -cne $anchor) {
+        throw 'Exact ordinary definition authority provisioning did not complete'
+    }
 }
-$approved = Read-Cli @('catalog','definition-authority','--apply','--expected-plan',$authority.expected_plan,'--yes')
-if (-not $approved.changed -or -not $approved.review.installed -or $approved.review.installed_anchor_sha256 -cne $anchor) {
-    throw 'Exact ordinary definition authority provisioning did not complete'
-}
+Approve-ColdDefinitionAuthority
 
 $pages = 'https://boburning.github.io/portcove/catalog'
 $index = '59329fae59cb0018a24a3e6197ac8ea66ff17e775d858e5c6af7cb9b43c2e425'
 $chameleon = 'chameleon-twist-jp-recompiled'
+$dude = 'doom-3-classic-dude-doom-3-unified-development-engine'
+$dudeEntry = 'e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28'
+$dudeProjection = 'f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0'
 $crawlEntry = '43ccf30580b9d027274992278e4b2440707f4278db59ea7e929574af3fb27c60'
 $chameleonEntry = '7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4'
 $chameleonProjection = 'beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d'
@@ -362,6 +368,7 @@ function Read-PublicSignedSnapshot([string]$Label) {
     $indexDocument = Read-BoundJson (Save-PublicMetadata "$pages/targets/$index.definitions/index.json" 'index.json') $indexEntry
     foreach ($subject in @(
         @{ id=$port; revision=3; digest=$crawlEntry; projection=$projection },
+        @{ id=$dude; revision=1; digest=$dudeEntry; projection=$dudeProjection },
         @{ id=$chameleon; revision=1; digest=$chameleonEntry; projection=$chameleonProjection }
     )) {
         $target = "sha256/$($subject.digest).json"
@@ -394,6 +401,33 @@ if ($refresh.receipt.data.disposition -cne 'selected' -or $choice.stable_id -cne
 }
 Write-Receipt 'signed-crawl-revision' @{ revision=3; catalog_schema=2; index_sha256=$index
     contract_sha256=$projection; timestamp_sha256=$before; outcome='selected-in-cold-cli-library' }
+
+# The Chameleon publisher identity is explicitly addressable. The historical
+# directory listing uses a different ID, so this is its own cold CLI witness.
+Set-CrawlProfile 'chameleon-explicit'
+Approve-ColdDefinitionAuthority
+$chameleonBefore = Read-PublicSignedSnapshot 'chameleon-before'
+$chameleonRefresh = Read-Cli @('catalog','definition-refresh',$chameleon,'--metadata-base-url',"$pages/metadata",'--targets-base-url',"$pages/targets")
+if ((Read-PublicSignedSnapshot 'chameleon-after') -cne $chameleonBefore) {
+    throw 'Public signed snapshot changed during explicit Chameleon refresh'
+}
+$chameleonChoice = $chameleonRefresh.selection.selected
+if ($chameleonRefresh.disposition -cne 'selected' -or $chameleonChoice.stable_id -cne $chameleon -or
+    $chameleonChoice.definition_revision -ne 1 -or $chameleonChoice.provenance.index_sha256 -cne $index -or
+    $chameleonChoice.provenance.root_version -ne 1 -or $chameleonChoice.provenance.root_sha256 -cne $rootDigest) {
+    throw 'Authenticated Chameleon refresh selected a different subject'
+}
+$chameleonPlan = Read-Cli @('installation','plan',$chameleon)
+$originals = @($chameleonPlan.plan.source_requirements)
+if ($null -ne $chameleonPlan.selected_install -or $chameleonPlan.plan.port_id -cne $chameleon -or
+    $chameleonPlan.plan.release.version -cne 'v0.1' -or $chameleonPlan.plan.release.asset.size -ne 23929489 -or
+    $chameleonPlan.plan.release.asset.sha256 -cne '8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56' -or
+    $originals.Count -ne 1 -or $originals[0].profile_id -cne 'chameleon-twist-jp' -or $originals[0].registered) {
+    throw 'Explicit Chameleon install plan or private original boundary differs'
+}
+Write-Receipt 'explicit-chameleon-without-original' @{ revision=1; index_sha256=$index
+    contract_sha256=$chameleonProjection; timestamp_sha256=$chameleonBefore; planned_release='v0.1'
+    package_sha256=$chameleonPlan.plan.release.asset.sha256; original_required=$true; acquisition_attempted=$false }
 
 # Desktop owns both scheduled selections in a different untouched library.
 Set-CrawlProfile 'desktop-automatic'
@@ -523,18 +557,19 @@ try {
     }
     $current = Read-Cli @('catalog','export')
     $currentCrawl = @($current.ports | Where-Object { $_.id -ceq $port })
-    $currentChameleon = @($current.ports | Where-Object { $_.id -ceq $chameleon })
-    if ($currentCrawl.Count -ne 1 -or $currentChameleon.Count -ne 1 -or
+    $currentDude = @($current.ports | Where-Object { $_.id -ceq $dude })
+    if ($currentCrawl.Count -ne 1 -or $currentDude.Count -ne 1 -or
         $currentCrawl[0].release.repository -cne 'crawl/crawl' -or
         $currentCrawl[0].reviewed_package_layouts.PSObject.Properties['windows-x86-64'].Value.executables -cnotcontains 'crawl.exe' -or
-        $currentChameleon[0].source_profile -cne 'chameleon-twist-jp') {
+        $currentDude[0].release.repository -cne 'Inkub0/dude' -or
+        -not $currentDude[0].reviewed_package_layouts.PSObject.Properties['linux-x86-64'].Value.classify_linux_programs_by_format) {
         throw 'Stored automatic selections did not compose both effective scoped definitions'
     }
     if ($null -ne (Read-Cli @('status',$port)).active) { throw 'Unexpected pre-existing Crawl install' }
     $plan = Read-Cli @('installation','plan',$port)
     Assert-CrawlPlan $plan
     $automatic = @{ definitions=$selected; default_desktop=$true; timestamp_sha256=$desktopBefore
-        effective_subjects=@($port,$chameleon); crawl_plan_sha256=$plan.plan_sha256 }
+        effective_subjects=@($port,$dude); crawl_plan_sha256=$plan.plan_sha256 }
     Write-Receipt 'automatic-definitions' $automatic
 
     Select-Control 'Discover'
@@ -643,4 +678,4 @@ try {
     }
 }
 Write-Receipt 'completed' @{ scope='authenticated package-extracted executable, cold CLI Crawl and default Desktop two-subject pickup, Crawl acquisition and management'
-    limits='Chameleon definition only; Crawl native scope excludes gameplay, next-artifact transition and minimum Windows' }
+    limits='Chameleon explicit definition and plan only; no DUDE acquisition; Crawl native scope excludes gameplay, next-artifact transition and minimum Windows' }

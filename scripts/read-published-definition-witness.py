@@ -7,10 +7,10 @@ import sqlite3
 import sys
 
 SUBJECTS = {
-    "chameleon-twist-jp-recompiled": (
+    "doom-3-classic-dude-doom-3-unified-development-engine": (
         1,
-        "7094da5e80069bcd2ce69c6a6ac31027fce2e6d24172e0c21712ecfd4c8ef6b4",
-        "beaf84046b4bcbda4cf4ba79246faa688f643e134f35bd4a7cbfa38101624e8d",
+        "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28",
+        "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0",
     ),
     "dungeon-crawl-stone-soup": (
         3,
