@@ -64,11 +64,12 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
 export function runHostedIntakePasses(
   run: (pass: number, requests: number[] | null, remainingMs: number) => unknown,
   now = Date.now,
+  auditRequest?: number,
 ) {
   const retained = new Map<number, Outcome>();
   const stalls = new Map<number, number>();
   const deadline = now() + hostedIntakeDeadlineMs;
-  let requests: number[] | null = null;
+  let requests: number[] | null = auditRequest === undefined ? null : [auditRequest];
   let queuePending = false;
   let queueMovements = 0;
   let stopReason = "pass_limit";
@@ -187,12 +188,29 @@ export function hostedTriggerRequest(event: unknown): unknown {
     : id;
 }
 
+export function auditDispatchRequest(mode: string | undefined, id: string | undefined) {
+  if (mode !== "audit") {
+    if (id) throw new Error("An audit request requires audit mode");
+    return undefined;
+  }
+  if (!id || !/^[1-9]\d*$/u.test(id) || !Number.isSafeInteger(Number(id)))
+    throw new Error("Audit mode requires one positive proposal comment ID");
+  return Number(id);
+}
+
 function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
   mkdirSync(directory, { recursive: true });
-  const result = runHostedIntakePasses((pass, requests, remainingMs) =>
-    runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
+  const audit = auditDispatchRequest(
+    process.env.HOSTED_INTAKE_MODE,
+    process.env.HOSTED_INTAKE_AUDIT_REQUEST,
+  );
+  const result = runHostedIntakePasses(
+    (pass, requests, remainingMs) =>
+      runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
+    Date.now,
+    audit,
   );
   // A comment event reports its own proposal result. The ledger still retains
   // the outcomes of all other queue entries, including historical holds.
