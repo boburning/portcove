@@ -22,6 +22,7 @@ import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -103,6 +104,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */
   crispy_doom_windows_persistence_v1?: true;
+  /** Shared official OpenMoHAA package and per-edition portable layout. */
+  openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -403,7 +406,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
   const inherit = record.listing_inherit_asset_hints;
   if (inherit === undefined) return authored;
   const listing = record.listing;
-  const integration = record.integration;
+  const integration = projectOpenMohaaPortable(record).integration;
   const release = integration?.release;
   const invalid = () =>
     new Error(
@@ -663,9 +666,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error(
       `${listing.id} managed_setup_platform_warnings requires a managed integration.`,
     );
-  if (value.integration !== undefined) {
-    if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
-    const integration = value.integration;
+  if (value.integration !== undefined && !isRecord(value.integration))
+    throw new Error("Integration must be a strict object.");
+  const integration = projectOpenMohaaPortable(value as AuthoredPort).integration;
+  if (integration !== undefined) {
     if (
       integration.upstream_active_reviewed !== undefined &&
       (typeof integration.upstream_active_reviewed !== "boolean" ||
@@ -776,8 +780,8 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       ),
     ),
   );
-  const operational = projectCrispyDoomWindowsPersistence(
-    projectReflectionHlePortablePaths(record),
+  const operational = projectOpenMohaaPortable(
+    projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
   ).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);
@@ -832,6 +836,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   });
   const listings = records
     .map(projectRouteFacts)
+    .map(projectOpenMohaaPortable)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);

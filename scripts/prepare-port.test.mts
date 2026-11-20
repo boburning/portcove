@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
@@ -2296,6 +2297,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
   assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
+  assert.ok(records.some((record) => record.openmohaa_portable_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
@@ -2305,6 +2307,7 @@ void test("preparation reports all declared route projections across the current
     if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
+    if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
@@ -2573,6 +2576,48 @@ void test("official URL preparation compacts only the exact Crispy Doom persiste
     );
     assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
     assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL and reviewed Spearhead identity compact the exact OpenMoHAA route", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "medal-of-honor-allied-assault-spearhead-openmohaa";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(projectOpenMohaaPortable(selected));
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 29029846, full_name: "openmoh/openmohaa", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.equal(candidate.openmohaa_portable_v1, "spearhead");
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.deepEqual(prepared.report.portable_preparation?.persistence, ["main", "mainta"]);
+    assert.deepEqual(
+      prepared.report.portable_preparation?.platforms.map(({ platform }) => platform),
+      ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    );
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();

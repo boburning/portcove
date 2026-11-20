@@ -82,59 +82,14 @@
   },
   "integration": {
     "support_tier": "beta",
-    "channels": ["stable"],
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "adapter": "native-portable",
-    "reviewed_package_layouts": {
-      "linux-x86-64": {
-        "directories": [],
-        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
-      },
-      "macos-x86-64": {
-        "directories": [],
-        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
-      },
-      "macos-aarch64": {
-        "directories": [],
-        "executables": ["launch_openmohaa_spearhead", "openmohaa"]
-      },
-      "windows-x86-64": {
-        "directories": [],
-        "executables": [
-          "launch_openmohaa_base.exe",
-          "launch_openmohaa_breakthrough.exe",
-          "launch_openmohaa_spearhead.exe",
-          "omohaaded.exe",
-          "openmohaa.exe"
-        ]
-      }
-    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
-    "release": {
-      "provider": "github",
-      "repository": "openmoh/openmohaa",
-      "asset_hints": {
-        "windows-x86-64": ["openmohaa-", "-windows-x64.zip"],
-        "linux-x86-64": ["openmohaa-", "-linux-amd64.zip"],
-        "macos-x86-64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"],
-        "macos-aarch64": ["openmohaa-", "-macos-multiarch-arm64-x86_64.zip"]
-      }
-    },
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Before Play, prepare your own complete Spearhead PC data and its Allied Assault base game. Upstream recommends GOG Warchest; CD copies need the matching language patches (Allied Assault 1.11 and Spearhead 2.11 followed by 2.15). Keep the originals unchanged in a separate installation. Copy only the original PK3 files and sound/video resources into main, mainta beside the official player. Preserve the matching folder names and all required original resources; do not copy old executables, DLLs or unrelated expansion files over this runtime. Portcove does not verify original-game identity. Console editions and demos are different products. Keep the whole official runtime together. On Windows x64, install the upstream Visual C++ runtime if needed and use a short plain ASCII library path. Linux x64 needs glibc 2.34, libstdc++ with GLIBCXX_3.4.29 and system SDL2. The universal Mac package needs macOS 10.15 on Intel or macOS 11 on Apple Silicon. Back up the game’s external profile separately. The normal locations are roaming application data on Windows, ~/.openmohaa on Linux and ~/Library/Application Support/openmohaa on Mac. When FLATPAK_ID is set and nonempty on Linux, the engine uses openmohaa under XDG_DATA_HOME or ~/.local/share. The Unix managed offer checks that the selected profile is outside the managed runtime and leaves it in place. Portcove replaces its separate runtime and preserves the declared original-data folders during compatible updates and backups. A runtime backup excludes the external profile. Rollback carries current originals and leaves the external profile in place. Existing registrations and custom game paths stay with the player. Populated saves, mods and gameplay across versions remain unqualified."
-    },
-    "executable_hints": {
-      "windows-x86-64": ["launch_openmohaa_spearhead.exe"],
-      "linux-x86-64": ["launch_openmohaa_spearhead"],
-      "macos-x86-64": ["launch_openmohaa_spearhead"],
-      "macos-aarch64": ["launch_openmohaa_spearhead"]
-    },
-    "persistent_paths": ["main", "mainta"],
-    "windows_runtime_path_policy": "printable-ascii-max-path",
-    "external_profile_policy": "openmohaa-unix-v1"
-  }
+    }
+  },
+  "openmohaa_portable_v1": "spearhead"
 }
