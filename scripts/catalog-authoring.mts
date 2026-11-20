@@ -25,6 +25,7 @@ import { projectReflectionHlePortablePaths } from "./catalog-portable-reflection
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
+import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
@@ -87,6 +88,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
+  opengoal_setup_v1?: true;
   /** Shared official Raze Windows package and portable-profile layout. */
   raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
@@ -786,6 +789,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   }
   const record = value as AuthoredPort;
   projectReviewedFlatPackageLayout(record);
+  projectOpenGoalSetup(record);
   projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
@@ -832,7 +836,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectReviewedFlatPackageLayout(projectRazeWindowsProfile(input));
+  const declared = projectReviewedFlatPackageLayout(
+    projectRazeWindowsProfile(projectOpenGoalSetup(input)),
+  );
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(

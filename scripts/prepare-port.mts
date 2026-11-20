@@ -41,6 +41,7 @@ import {
   projectOpenMohaaPortable,
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
@@ -227,6 +228,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "external_registration_v1",
       scope: "Register a player-selected external runtime on the declared platforms.",
       next: "Keep original-file instructions and upstream or player ownership explicit. An exact prepared package or per-platform exception needs an explicit integration.",
+    });
+  }
+  if (record.opengoal_setup_v1) {
+    projections.push({
+      field: "opengoal_setup_v1",
+      scope: "Reviewed OpenGOAL extractor, launcher and per-game portable data paths.",
+      next: "Keep the official release selector, reviewed disc profile and support evidence explicit. A different setup command or writer path needs an explicit integration.",
     });
   }
   if (record.openmohaa_portable_v1) {
@@ -1098,6 +1106,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenGoal = compactOpenGoalSetup(record);
+    if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {
