@@ -1,0 +1,15 @@
+# GZDoom Windows exact-byte acceptance, November 20, 2026
+
+The Portcove owner approved a protected curated-acquisition input for `official/zdoom-gzdoom`. The receipt takes effect upon independent review, required checks and guarded merge to protected main. [Owner decision on #315](https://github.com/boburning/portcove/issues/315#issuecomment-7050195609) · [GZDoom integration](https://github.com/boburning/portcove/issues/1824)
+
+## Accepted publisher input
+
+Accept the original Windows x86-64 ZIP from `ZDoom/gzdoom`, numeric repository `10879376`, stable release `216296130`, tag `g4.14.2`, peeled source commit `99aa489d09015a95bb78df2b30ede29f328cc874`. The asset is `251530238`, `gzdoom-4-14-2-windows.zip`, 21,879,627 bytes, SHA-256 `6d01c5bb48610cebfa9dfd0b7705a1e20bfd56032a74484ac256d8c4e3c51bee`. Use the original HTTPS download from github.com with at most one redirect to release-assets.githubusercontent.com. [Original release asset](https://github.com/ZDoom/gzdoom/releases/download/g4.14.2/gzdoom-4-14-2-windows.zip)
+
+The schema-4 publisher scope uses `native-portable` capability 19 with `curated_acquisition_checks: 1` and `scoped_launch_checks: 1`. The operations are install, update, prepare and launch. The player supplies compatible IWADs separately. Other platforms, other assets, future replacements, mirrors, repackaging and redistribution are outside this acceptance. GitHub provided no digest or checksum sidecar. The digest here records Portcove’s independent acceptance of the identified bytes.
+
+## Evidence and production binding
+
+The prepared proposal has SHA-256 `bb669727e2001a20d0cdbfe409cf91eb49d883e2056f5cb511b7ff0cced0deab`. The acquisition evidence has SHA-256 `999966fe3acd38378ca4be11aa8a73e00a889b8df75036bda9776bb253408c30`. The independent review rechecked the upstream identities, downloaded the canonical asset, verified all 15 ZIP members and nine embedded license notices, checked the root AMD64 executable and matched the pinned source license. Its raw UTF-8 issue-comment body has SHA-256 `7256b688a49b5cdfa2b99b1c785acca153d664d6d382b64c75653a8c4981ba13`. [Prepared proposal](gzdoom-windows-curated-acquisition-proposal-2026-11-19.json) · [Acquisition evidence](gzdoom-windows-curated-acquisition-evidence-2026-11-19.json) · [Independent artifact review](https://github.com/boburning/portcove/issues/1824#issuecomment-7049982311)
+
+Populate the three empty evidence references in the proposal with the immutable acquisition-evidence blob and its digest, the independent review URL and verified body digest, and the immutable protected-main version of this receipt and its raw SHA-256. Preserve every other curated field. Bind the resulting definition, policy and launch assessment to the authenticated common index. The existing protected publisher signs and publishes this input separately. Client acceptance requires a real download on an unchanged capable released client through its normal trusted catalog path. [Definition delivery](../DEFINITION-DELIVERY.md) · [Catalog publication](../RELEASING.md#current-release-process)

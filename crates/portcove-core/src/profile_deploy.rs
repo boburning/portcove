@@ -41,15 +41,7 @@ const OVERRIDE_DOMAIN: &str = "asset-override";
 
 /// Reviewed per-game binding: which archive extensions a loader accepts in `mods`.
 pub(crate) fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
-    match port_id {
-        "shipwright" => Some(&["o2r", "otr"]),
-        // Recomp runtime packages; only asset mods until running mod code is reviewed.
-        "zelda64-recomp" => Some(&["nrm"]),
-        // The generic fixture port used by tests declares the same asset contract.
-        #[cfg(test)]
-        "starship" => Some(&["o2r", "otr"]),
-        _ => None,
-    }
+    crate::profile_loader::legacy_loader(port_id).map(|loader| loader.engine.package_extensions())
 }
 
 #[path = "profile_recovery.rs"]

@@ -2643,45 +2643,71 @@ void test("a reviewed operational record retains the verified origin on issue-fr
   }
 });
 
-void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layout", async () => {
+void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layouts", async () => {
   const f = fixture();
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
     const accepted = readCatalogSource(root);
-    const id = "bomberman-fantasy-race-recompiled";
-    const record = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectPsxManagedWindows(record);
-    delete explicit.psx_managed_windows_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const result = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: record.listing.project_url,
-      originalGame: record.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                full_name: "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(result.report.changed_records, [id]);
-    assert.equal(result.report.operational_changed, false);
-    assert.equal(candidate.psx_managed_windows_v1, "technically-computers");
-    assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
-    assert.equal(readFileSync(source, "utf8"), bytes);
+    for (const [id, repository, recipe] of [
+      [
+        "bomberman-fantasy-race-recompiled",
+        "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+        "technically-computers",
+      ],
+      [
+        "bomberman-party-edition-recompiled",
+        "TechnicallyComputers/BombermanPartyEditionRecomp",
+        "technically-computers-input-files",
+      ],
+      [
+        "final-fantasy-vii-recompiled",
+        "TechnicallyComputers/Final-Fantasy-VII",
+        "technically-computers-input-files",
+      ],
+    ] as const) {
+      const record = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectPsxManagedWindows(record);
+      delete explicit.psx_managed_windows_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({
+                  ...metadata,
+                  full_name: repository,
+                  archived: false,
+                }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      assert.equal(candidate.psx_managed_windows_v1, recipe);
+      const advice = result.report.declarative_authoring.projections.find(
+        ({ field }) => field === "psx_managed_windows_v1",
+      );
+      assert.ok(advice);
+      if (recipe === "technically-computers-input-files") {
+        assert.match(advice.scope, /Bomberman Party Edition and Final Fantasy VII/u);
+        assert.match(advice.next, /raw disc set/u);
+      }
+      assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
+      assert.deepEqual(projectPsxManagedWindows(candidate).integration, explicit.integration);
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
   } finally {
     f.clean();
   }
@@ -2791,41 +2817,49 @@ void test("official URL preparation proposes the exact reviewed N64 persistence 
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
     const accepted = readCatalogSource(root);
-    const id = "quest-64-recompiled";
-    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectN64RecompPersistence(selected);
-    delete explicit.n64_recomp_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const result = await preparePort({
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "Rainchus/Quest64-Recomp", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    assert.equal(result.report.port_id, id);
-    assert.deepEqual(result.report.changed_records, [id]);
-    assert.equal(result.report.operational_changed, false);
-    const proposed = checkedAuthoredPort(
-      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-    );
-    assert.equal(proposed.n64_recomp_persistence_v1, true);
-    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(
-      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
+    const cases = [
+      ["quest-64-recompiled", "Rainchus/Quest64-Recomp", true],
+      ["dinosaur-planet", "DinosaurPlanetRecomp/dino-recomp", "config-directory"],
+      ["donkey-kong-64-recompiled", "Rainchus/Donkey-Kong-64-Recompiled", "technical-settings"],
+    ] as const;
+    for (const [id, repository, variant] of cases) {
+      const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectN64RecompPersistence(selected);
+      delete explicit.n64_recomp_persistence_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const original = readFileSync(source);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: selected.listing.project_url,
+        originalGame: selected.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, full_name: repository, archived: false }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      assert.equal(result.report.port_id, id);
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      const proposed = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.equal(proposed.n64_recomp_persistence_v1, variant);
+      assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+      assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+      assert.deepEqual(
+        JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+        accepted.catalog,
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+      writeFileSync(source, original);
+    }
   } finally {
     f.clean();
   }

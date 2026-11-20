@@ -1012,9 +1012,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Installation {
-            command: InstallationCommand::Plan { port_id },
+            command: InstallationCommand::Plan { port_id, package },
         } => {
-            let review = service.plan_game_install(&port_id).await?;
+            let review = service
+                .plan_game_install_with_package(&port_id, package.as_deref())
+                .await?;
             let text = human::game_install_plan(&review, service.catalog());
             render_read_success(mode, "installation.plan", review, |_| text.clone())?;
         }
@@ -1022,6 +1024,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command:
                 InstallationCommand::Run {
                     port_id,
+                    package,
                     expected_plan,
                     acknowledge_shared_preferences,
                     yes,
@@ -1033,15 +1036,21 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_install_with_shared_preferences_ack(
+                .authorize_game_install_with_package(
                     &port_id,
                     &expected_plan,
                     acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                    package.as_deref(),
                 )
                 .await?;
             let mut progress = progress_renderer(mode, service.catalog());
             let installed = service
-                .apply_game_install(&port_id, &authorization.token, &mut progress)
+                .apply_game_install_with_package(
+                    &port_id,
+                    &authorization.token,
+                    package.as_deref(),
+                    &mut progress,
+                )
                 .await?;
             render_read_success(mode, "installation.run", installed, |result| {
                 format!(

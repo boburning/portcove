@@ -252,8 +252,8 @@ export default interface Resources {
   "browsing": {
     "alternatives": {
       "external": "External installation · <version/>",
-      "heading": "Other ports for this game ({{total}})",
-      "independence": "Each project keeps its own files and installation. Choosing one does not transfer saves or choose a release.",
+      "heading": "Other options for this game ({{total}})",
+      "independence": "Each option keeps its own file requirements and installation. Choosing one does not transfer saves or choose a release.",
       "managed": "Managed installation · <version/>",
       "notInstalled": "Not installed",
       "originalFiles": "Original files: <files/>",
@@ -292,23 +292,26 @@ export default interface Resources {
         "optionsIntro": "Feature details are not available for every project. Check the reports and project instructions. Your saves and mods may not work with another port.",
         "outsideFilters": "Outside the current filters.",
         "setup": "How to set it up",
-        "several": "Compare setup requirements for {{total}} ports. Check each port’s instructions for shared save locations.",
+        "several": "Compare setup requirements for {{total}} options. Check each option’s instructions for shared save locations.",
         "single": "Review this port’s setup requirements and reports.",
         "status": "Current status",
         "updates": "Who handles updates"
       },
       "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
       "drop": {
+        "checkWith": "Check files with <name/>",
+        "choose": "Choose an option to check these files. Each option checks its own file requirements.",
         "hover": "Drop to check for this game",
-        "release": "Release to check"
+        "release": "Release to check",
+        "review": "Drop to choose an option and check files"
       },
       "favorite": {
         "add": "Add to favorites",
         "label": "Favorite {{game}}",
         "remove": "Remove from favorites"
       },
-      "groupLabel_one": "{{title}}. {{count}} separate port project; {{matching}} matching.",
-      "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
+      "groupLabel_one": "{{title}}. {{count}} option; {{matching}} matching.",
+      "groupLabel_other": "{{title}}. {{count}} options; {{matching}} matching.",
       "identity": {
         "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
         "single": "{{identity}}. {{state}}. {{action}}"
@@ -322,8 +325,8 @@ export default interface Resources {
         "notInstalled": "Not installed. Follow this project’s setup instructions.",
         "unavailable": "Installation ownership is unavailable. Check the project instructions."
       },
-      "separateProjects_one": "{{count}} separate port project",
-      "separateProjects_other": "{{count}} separate port projects",
+      "separateProjects_one": "{{count}} option",
+      "separateProjects_other": "{{count}} options",
       "unavailableFor": "Not available for {{platform}}"
     },
     "hero": {

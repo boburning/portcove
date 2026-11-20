@@ -20,6 +20,7 @@ import {
   useCoverCollection,
   usesAutomaticArtwork,
 } from "../artwork";
+import type { ArtworkPriority } from "../artwork-cache";
 import { pickArtworkPath } from "../file-picker";
 import { desktopApi } from "../api";
 import type {
@@ -51,14 +52,15 @@ export function ArtworkImage({
   className?: string;
   quietFallback?: boolean;
 }) {
-  const { element, visible } = useArtworkVisibility();
-  const { display } = useArtwork(port.id, slot, visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display } = useArtwork(port.id, slot, visible, priority);
   return (
     <ArtworkFrame
       element={element}
       display={display}
       portId={slot === "cover" ? port.id : undefined}
       visible={visible}
+      priority={priority}
       className={className}
       quietFallback={quietFallback}
     />
@@ -81,6 +83,7 @@ export function ArtworkFrame({
   companion,
   portId,
   visible = true,
+  priority,
   identityArtwork = false,
   quietFallback = false,
 }: {
@@ -90,10 +93,11 @@ export function ArtworkFrame({
   companion?: ReturnType<typeof useArtwork>["display"];
   portId?: string | undefined;
   visible?: boolean;
+  priority?: ArtworkPriority;
   identityArtwork?: boolean;
   quietFallback?: boolean;
 }) {
-  const collection = useCollectionCovers(portId, display, visible);
+  const collection = useCollectionCovers(portId, display, visible, priority);
   const collectionImages = collection.filter((member) => member.image);
   const first = collectionImages[0] ?? display;
   const second = collectionImages.length === 2 ? collectionImages[1] : companion;
@@ -123,6 +127,7 @@ export function ArtworkFrame({
             ? "bg-transparent"
             : palettes[fallback?.palette_index ?? 0],
       )}
+      data-artwork-port-id={portId}
       data-artwork-source={
         collectionImages.length
           ? "igdb_cover_collection"

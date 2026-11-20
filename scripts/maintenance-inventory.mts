@@ -765,19 +765,28 @@ export interface PublicationObservation {
   inspection: { index_sha256?: unknown; definitions?: unknown };
 }
 
-const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+/** Mirrors Core's definition index identity components, which are bounded ASCII. */
+function validDefinitionIdentity(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 1 &&
+    value.length <= 255 &&
+    !/[^a-z0-9-]/u.test(value)
+  );
+}
 
 function definitionKey(definition: Record<string, unknown>, origin: string) {
   const namespace = definition.namespace;
   const id = definition.stable_id;
-  if (
-    typeof namespace !== "string" ||
-    typeof id !== "string" ||
-    !definitionIdentity.test(namespace) ||
-    !definitionIdentity.test(id)
-  )
+  if (!validDefinitionIdentity(namespace) || !validDefinitionIdentity(id))
     throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
-  return `definition:${namespace}/${id}`;
+  const key = `definition:${namespace}/${id}`;
+  // The store's subject key bound includes the kind and component separator.
+  if (key.length > 300)
+    throw new MaintenanceStoreError(
+      `Definition identity exceeds the maintenance key bound in the ${origin}`,
+    );
+  return key;
 }
 
 /**
@@ -2074,12 +2083,12 @@ export async function collect(options: {
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
-    ? await sourceOutcome(() =>
-        (typeof options.publication === "function" ? options.publication : readPublication)(
-          options.cli,
-          revision,
-        ),
-      )
+    ? await sourceOutcome(async () => {
+        const observation = await (
+          typeof options.publication === "function" ? options.publication : readPublication
+        )(options.cli, revision);
+        return publicationFacts(observation);
+      })
     : undefined;
   if (options.delivery && !options.all)
     throw new MaintenanceStoreError("Definition-delivery collection requires --all");
@@ -2171,7 +2180,7 @@ export async function collect(options: {
             publication: publicationRead.ok
               ? {
                   revision,
-                  ...publicationFacts(publicationRead.value),
+                  ...publicationRead.value,
                 }
               : {
                   revision: `${revision}+inspection:unavailable`,
@@ -3764,11 +3773,28 @@ export function renderHtml(report: InventoryReport) {
     generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
     universe: (report.universe ?? []).map(
-      ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
+      ({
+        key,
+        kind,
+        name,
+        game,
+        target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
+        port_keys,
+        relations,
+        identity_gap,
+      }) => ({
         key,
         kind,
         label: [name, game].filter(Boolean).join(" — "),
         target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
         port_keys,
         relations: relations.map(({ type, key: related }) => `${type} ${related}`),
         identity_gap,
@@ -3838,7 +3864,7 @@ ${report.progress.map((p) => `<tr><th scope="row">${escapeHtml(p.repository)} ·
 <p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
 <label for="universe-search">Search games and implementations</label>
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
-<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
+<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Original game ID</th><th>Lineage target</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
 <p>Every full run re-reads Core for every port; an opt-in selective run (marked in Sources) reuses unchanged results under the same Core semantics without re-reading them, so their "Last verified" does not move. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
@@ -3901,10 +3927,10 @@ function renderUniverse(filter) {
   universe.replaceChildren();
   const entries = report.universe ?? [];
   for (const entry of entries) {
-    const text = [entry.key, entry.label, entry.target_key, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    const text = [entry.key, entry.label, entry.original_game_id, entry.target_key, entry.grouping_gap, entry.grouping_disposition, entry.grouping_reason, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = universe.insertRow();
-    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
+    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.original_game_id || "not reviewed", entry.target_key || "not recorded", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : []), ...(entry.grouping_gap ? ["grouping review: " + entry.grouping_gap] : []), ...(entry.grouping_disposition ? [entry.grouping_disposition + (entry.grouping_reason ? ": " + entry.grouping_reason : "")] : [])].join("; ")])
       row.insertCell().textContent = value;
   }
   if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";

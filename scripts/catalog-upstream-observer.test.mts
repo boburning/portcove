@@ -1,3 +1,8 @@
+import { upstreamFacts } from "./maintenance-upstream.mts";
+import { createHash } from "node:crypto";
+import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
+import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -1042,6 +1047,244 @@ void test("reviewed declarations share provider collection while keeping port-sp
     ),
   );
 });
+
+const gameEntryFixture = `std::vector<recomp::GameEntry> supported_games = {
+  { .rom_hash = 0x0123456789ABCDEFULL, .game_id = u8"fixture.us", .mod_game_id = "fixture",
+    .ignored = callback(1, 2) },
+  { .rom_hash = 0x1234ULL, .game_id = u8"fixture.eu" },
+};`;
+
+void test("N64 game entries require a single unconditional table and literal identities", () => {
+  assert.deepEqual(parseN64GameTable("/* unused declaration */\n" + gameEntryFixture), [
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
+    { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
+  ]);
+  for (const invalid of [
+    `#if ENABLED
+${gameEntryFixture}
+#endif`,
+    `/* marker */ #if 0
+${gameEntryFixture}
+/* marker */ #endif`,
+    `#/**/if 0
+${gameEntryFixture}
+#/**/endif`,
+    `%:if 0
+${gameEntryFixture}
+%:endif`,
+    ["// hidden " + String.fromCharCode(92) + "   ", gameEntryFixture.replace(/\n/gu, " ")].join(
+      "\n",
+    ),
+    ["// hidden " + String.fromCharCode(92), gameEntryFixture.replace(/\n/gu, " ")].join("\r"),
+    `/* ${gameEntryFixture} */`,
+    `/* missing terminator
+${gameEntryFixture}`,
+    `auto s = R"(
+${gameEntryFixture}
+)";`,
+    `${gameEntryFixture}
+${gameEntryFixture}`,
+    gameEntryFixture.replace("0x1234ULL", "PLATFORM_HASH"),
+    gameEntryFixture.replace("fixture.eu", "fixture.us"),
+    gameEntryFixture.replace('.mod_game_id = "fixture",', '.mod_game_id = "fi" "xture",'),
+    gameEntryFixture.replace(
+      ".ignored = callback(1, 2)",
+      `
+#if ENABLED
+.ignored = callback(1, 2)
+#endif
+`,
+    ),
+  ])
+    assert.throws(() => parseN64GameTable(invalid), /unsupported or ambiguous/u);
+});
+
+for (const family of ["libultraship", "n64-recomp"] as const) {
+  void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
+    const h = harness();
+    Object.assign(h.input.ports[0]!, { adapter: `${family}-portable`, source_profile: "example" });
+    h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
+    const baseProject = h.options.project;
+    let unavailable: "budget" | "rate-limit" | null = null;
+    h.options.project = async (portId, repositoryId, observation) => {
+      const policy = await baseProject(portId, repositoryId, observation);
+      if (
+        portId !== "stable-port" &&
+        !(portId === "stable-port-second" && unavailable === "rate-limit")
+      )
+        return policy;
+      const release = observation.facts.releases.find((release) => release.id === 1);
+      assert.ok(release);
+      return {
+        ...(policy as Record<string, unknown>),
+        projections: [
+          {
+            channel: "stable",
+            platform: "linux-x86-64",
+            channel_candidate: { id: 1, tag: release.tag_name },
+            latest_eligible: {
+              release_id: 1,
+              release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
+            },
+          },
+        ],
+      };
+    };
+    const raw = Buffer.from(
+      family === "n64-recomp"
+        ? gameEntryFixture
+        : JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]),
+    );
+    const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
+    const requests: string[] = [];
+    const runtimeRequests: string[] = [];
+    h.options.observeN64Runtime = family === "n64-recomp";
+    let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
+    let tagSha = "c".repeat(40);
+    let retryAt: string | null = null;
+    h.options.readOriginalRecognition = async (repository, endpoint, account) => {
+      account.admitRequest();
+      if (endpoint.includes(`/contents/${n64RuntimeLinkPath}`)) {
+        runtimeRequests.push(endpoint);
+        if (gitlinkResponse === "deferred")
+          throw new ObservationFailure("budget", "fixture runtime metadata deferred");
+        return gitlinkResponse === "incomplete"
+          ? { path: n64RuntimeLinkPath, type: "submodule" }
+          : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
+      }
+      requests.push(endpoint);
+      if (unavailable)
+        throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
+      const ref = endpoint.split("/git/ref/tags/")[1];
+      if (ref !== undefined)
+        return {
+          ref: `refs/tags/${ref}`,
+          object: { type: "commit", sha: tagSha },
+        };
+      if (endpoint.includes("/contents/"))
+        return {
+          type: "file",
+          path: sourcePath,
+          encoding: "base64",
+          size: raw.length,
+          content: raw.toString("base64"),
+          sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+        };
+      return { id: 7, full_name: repository };
+    };
+    const retained = (checkpoint: CatalogObserverCheckpoint) => {
+      const source = Object.values(checkpoint.sources).find(
+        (source) => source.repository === "owner/shared",
+      );
+      const policy = source?.last_complete_policies.find(
+        (policy) => policy.port_id === "stable-port",
+      );
+      return readOriginalSourceProgress(
+        policy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      );
+    };
+    const initial = await advanceCatalogObservations(h.input, null, h.options);
+    let observation = retained(initial.checkpoint);
+    assert.equal(observation?.state, "observed");
+    const fact = observation?.last_complete?.fact;
+    assert.equal(fact?.release_tag, "v1.0.0");
+    assert.equal(
+      fact?.coverage,
+      family === "n64-recomp" ? "source-declaration" : "recognition-only",
+    );
+    assert.ok(
+      requests.some((endpoint) => endpoint.endsWith(`/contents/${sourcePath}?ref=${tagSha}`)),
+    );
+    const stored = upstreamFacts(initial.checkpoint, h.input, h.options.now!()).facts;
+    const port = stored.get("port:stable-port");
+    assert.ok(isRecord(port) && Array.isArray(port.sources) && isRecord(port.sources[0]));
+    assert.deepEqual(port.sources[0][inputEvidenceKey(family)], observation);
+    assert.equal(requests.length, 4);
+
+    h.advanceClock(48 * 3600_000);
+    gitlinkResponse = "incomplete";
+    let refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    let extraTagReads = 0;
+    if (family === "n64-recomp") {
+      assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(fact.runtime_source, { state: "unavailable" });
+      assert.deepEqual(retained(refreshed.checkpoint)?.last_complete, observation?.last_complete);
+      h.advanceClock(48 * 3600_000);
+      gitlinkResponse = "unsupported";
+      refreshed = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+      extraTagReads++;
+      assert.deepEqual(runtimeRequests, [
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+      ]);
+      const refreshedObservation = retained(refreshed.checkpoint);
+      const refreshedFact = refreshedObservation?.last_complete?.fact;
+      assert.deepEqual(refreshedFact, {
+        ...fact,
+        runtime_source: { state: "unsupported-gitlink" },
+      });
+      observation = refreshedObservation;
+    } else {
+      assert.deepEqual(retained(refreshed.checkpoint), observation);
+      assert.equal(runtimeRequests.length, 0);
+    }
+    assert.equal(requests.length, 5 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    tagSha = "d".repeat(40);
+    const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+    assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
+    assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(requests.length, 6 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    unavailable = "budget";
+    const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
+    assert.equal(retained(deferred.checkpoint)?.state, "budget");
+    assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(deferred.report.completed_source_keys.length, 2);
+    assert.equal(requests.length, 7 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    unavailable = "rate-limit";
+    h.setQuota(100);
+    retryAt = new Date(h.options.now!() + 100_000).toISOString();
+    const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
+    assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
+    assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+    const secondPolicy = Object.values(limited.checkpoint.sources)
+      .find((source) => source.repository === "owner/shared")
+      ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
+    assert.equal(
+      readOriginalSourceProgress(
+        secondPolicy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      )?.state,
+      "budget",
+    );
+    const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
+      "port:stable-port",
+    );
+    assert.ok(isRecord(projected) && Array.isArray(projected.sources));
+    const source: unknown = projected.sources.find(
+      (value: unknown) => isRecord(value) && value.repository === "owner/shared",
+    );
+    assert.ok(isRecord(source));
+    assert.deepEqual(source[inputEvidenceKey(family)], retained(limited.checkpoint));
+  });
+}
 
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {
   const h = harness(2);
@@ -3549,6 +3792,24 @@ void test("GitLab descriptive listings reuse the provider collector and export n
     },
   ]);
   const key = result.report.completed_source_keys[0]!;
+  let registryRequests = 0;
+  let gitLabRequests = 0;
+  const bounded = await advanceCatalogObservations(catalog, null, {
+    ...options,
+    requestLimit: 2,
+    exportProvider: async () => {},
+    modProviderRegistryFetch: async () => {
+      registryRequests++;
+      return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    },
+    providerFetch: async () => {
+      gitLabRequests++;
+      return Response.json({ id: 27, path_with_namespace: "owner/subgroup/lab", archived: false });
+    },
+  });
+  assert.equal(registryRequests, 1);
+  assert.equal(gitLabRequests, 1);
+  assert.equal(bounded.report.requests, 2);
   h.advanceClock(1000);
   const rebuilt = await advanceCatalogObservations(catalog, result.checkpoint, {
     ...options,
@@ -3762,4 +4023,156 @@ void test("GitLab provider failures export a descriptive failure candidate witho
   const state = Object.values(result.checkpoint.sources)[0]!;
   assert.equal(state.freshness_observed_at, null);
   assert.equal(state.last_complete_facts_sha256, null);
+});
+
+void test("the mod-provider registry keeps exact discovery evidence across observer restart and incomplete reads", async () => {
+  const h = harness();
+  const { upstreamFacts } = await import("./maintenance-upstream.mts");
+  const { thunderstoreRegistrySubject, thunderstoreRegistryUrl } =
+    await import("./upstream-mod-provider-registry.mts");
+  const ship = {
+    uuid: "9fb26233-032a-43e3-bbe7-6e058f5daf15",
+    label: "ship-of-harkinian",
+    thunderstore: { listed: true, wikiUrl: "https://gamebanana.com/games/16121" },
+  };
+  const twoShip = {
+    uuid: "245724c1-1b08-4fd5-b827-1e9816bda1e1",
+    label: "2-ship-2-harkinian",
+    thunderstore: { listed: false, wikiUrl: "https://gamebanana.com/games/20371" },
+  };
+  const registry = (...games: (typeof ship)[]) => ({
+    schemaVersion: "0.3.0",
+    games: Object.fromEntries(games.map((game) => [game.label, game])),
+    communities: Object.fromEntries(games.map((game) => [game.label, game.thunderstore])),
+  });
+  let response = () => Response.json(registry(ship, twoShip));
+  let requests = 0;
+  h.options.modProviderRegistryFetch = async (url, init) => {
+    assert.equal(
+      url instanceof URL ? url.href : typeof url === "string" ? url : url.url,
+      thunderstoreRegistryUrl,
+    );
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("Authorization"), null);
+    requests++;
+    return response();
+  };
+  const observe = (prior: CatalogObserverCheckpoint | null) =>
+    advanceCatalogObservations(h.input, prior, h.options);
+  const first = await observe(null);
+  const complete = first.checkpoint.mod_provider_registry?.last_complete;
+  assert.ok(complete);
+  assert.equal(requests, 1);
+  assert.deepEqual(complete.communities, [
+    {
+      community: twoShip.label,
+      game_uuid: twoShip.uuid,
+      listed: false,
+      gamebanana_game: 20371,
+    },
+    {
+      community: ship.label,
+      game_uuid: ship.uuid,
+      listed: true,
+      gamebanana_game: 16121,
+    },
+  ]);
+  const published = upstreamFacts(first.checkpoint, h.input, h.options.now!());
+  assert.equal(published.expected, h.input.ports.length + 1);
+  assert.ok(published.facts.has(thunderstoreRegistrySubject));
+  assert.ok(first.report.completed_source_keys.length > 0);
+
+  const saved: unknown = JSON.parse(JSON.stringify(h.snapshots.at(-1)));
+  const restarted = await observe(validateCatalogObserverCheckpoint(saved, h.options.now!()));
+  assert.equal(requests, 1);
+  assert.deepEqual(restarted.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    new Response(Buffer.alloc(h.options.config.budget.response_bytes + 1), {
+      status: 429,
+      headers: { "retry-after": new Date(h.options.now!() + 120000).toUTCString() },
+    });
+  const limited = await observe(restarted.checkpoint);
+  assert.equal(limited.checkpoint.mod_provider_registry?.exception, "rate-limit");
+  assert.deepEqual(limited.checkpoint.mod_provider_registry?.last_complete, complete);
+  assert.equal(limited.checkpoint.provider_retry_at, null);
+  assert.ok(limited.report.completed_source_keys.length > 0);
+  const held = upstreamFacts(limited.checkpoint, h.input, h.options.now!());
+  assert.equal(held.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(held.gaps.some((gap) => gap.subject_key === thunderstoreRegistrySubject));
+  await observe(limited.checkpoint);
+  assert.equal(requests, 2);
+  const controller = new AbortController();
+  let beforeSource: CatalogObserverCheckpoint | undefined;
+  await advanceCatalogObservations(h.input, restarted.checkpoint, {
+    ...h.options,
+    signal: controller.signal,
+    commit: async (checkpoint) => {
+      beforeSource ??= structuredClone(checkpoint);
+    },
+    withSourceLock: async () => {
+      controller.abort();
+      throw new ObservationFailure("cancelled", "fixture cancelled the source turn");
+    },
+  });
+  assert.equal(controller.signal.aborted, true);
+  assert.ok(beforeSource);
+  assert.deepEqual(beforeSource.mod_provider_registry, limited.checkpoint.mod_provider_registry);
+  await observe(beforeSource);
+  assert.equal(requests, 3);
+
+  h.advanceClock(120000);
+  response = () => Response.json(registry(ship));
+  const incomplete = await observe(limited.checkpoint);
+  assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    Response.json(
+      registry(ship, {
+        ...twoShip,
+        thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
+      }),
+    );
+  const recovered = await observe(incomplete.checkpoint);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
+    null,
+  );
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.game_uuid,
+    twoShip.uuid,
+  );
+  assert.ok(
+    upstreamFacts(recovered.checkpoint, h.input, h.options.now!()).facts.has(
+      thunderstoreRegistrySubject,
+    ),
+  );
+  h.advanceClock(h.options.config.stale_after_hours * 3600000);
+  const expired = upstreamFacts(recovered.checkpoint, h.input, h.options.now!());
+  assert.equal(expired.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(
+    expired.gaps.some(
+      (gap) => gap.subject_key === thunderstoreRegistrySubject && gap.code === "stale",
+    ),
+  ); // Ordinary source growth must not replace a readable recovered controller
+  // with a checkpoint that cannot be read on the next scheduled run.
+  const retainedRegistry = recovered.checkpoint.mod_provider_registry;
+  assert.ok(retainedRegistry);
+  const large = {
+    ...newCatalogObserverCheckpoint(),
+    mod_provider_registry: retainedRegistry,
+    fixture_padding: "",
+  };
+  large.fixture_padding = "x".repeat(
+    32 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(large)) - 8,
+  );
+  const written = h.snapshots.length;
+  const registryRequestsBeforeHold = requests;
+  await assert.rejects(observe(large), /exceed the checkpoint envelope/u);
+  assert.equal(h.snapshots.length, written);
+  assert.equal(requests, registryRequestsBeforeHold);
 });

@@ -11748,6 +11748,7 @@
           }
         ]
       },
+      "variant_label": "Prebuilt player",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11845,7 +11846,8 @@
             ]
           }
         ]
-      }
+      },
+      "variant_label": "Build from setup kit"
     },
     {
       "id": "alexbeav-medievil-recomp",
@@ -24074,12 +24076,6 @@
       "issue_number": 6126,
       "listed_at": "2026-11-14",
       "original_game_title": "Celeste 64: Fragments of the Mountain",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "release_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
       "download_asset_hints": {
@@ -24111,7 +24107,7 @@
           },
           {
             "title": "Extract the complete folder and start Celeste 64",
-            "instruction": "Run Celeste64.exe on Windows or Celeste64 on Linux and Mac, with its containing folder as the start folder. Keep Content/ and the adjacent libraries with the player. The official package includes the game and needs no separate Celeste installation."
+            "instruction": "Keep Content/ and the adjacent libraries with the player. The official package includes the game. In Portcove, select Celeste64.exe on Windows or Celeste64 on Linux and Mac. Choose its containing folder as the working directory. Keep any arguments you already use. Review the registration, then choose Play."
           }
         ],
         "references": [
@@ -24129,7 +24125,13 @@
           "https://github.com/EXOK/Celeste64"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "celosia-henrykun55-shadow-of-the-colossus",

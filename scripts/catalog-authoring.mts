@@ -114,9 +114,10 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
-    | "technically-computers";
+    | "technically-computers"
+    | "technically-computers-input-files";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
-  n64_recomp_persistence_v1?: true;
+  n64_recomp_persistence_v1?: true | "config-directory" | "technical-settings";
   /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */

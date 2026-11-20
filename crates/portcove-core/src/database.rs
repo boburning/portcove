@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 75;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 76;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -459,23 +459,35 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 73,
+        name: "explicit native package choice writer protocol",
+        apply: migration_73,
+        verify: verify_migration_72,
+    },
+    Migration {
+        version: 74,
         name: "local logo artwork slot",
         apply: crate::artwork_store::migrate_logo_slot,
         verify: crate::artwork_store::verify_logo_slot,
     },
     Migration {
-        version: 74,
+        version: 75,
         name: "artwork background framing",
         apply: crate::artwork_store::migrate_framing,
         verify: crate::artwork_store::verify_framing,
     },
     Migration {
-        version: 75,
+        version: 76,
         name: "explicit artwork suppression",
         apply: crate::artwork_store::migrate_suppression,
         verify: crate::artwork_store::verify_suppression,
     },
 ];
+
+fn migration_73(transaction: &Transaction<'_>) -> Result<()> {
+    // Keep readers which cannot enforce an explicit package receipt outside
+    // the library before a writer can publish one.
+    verify_migration_72(transaction)
+}
 
 fn verify_migration_72(connection: &Connection) -> Result<()> {
     require_columns(
@@ -4077,7 +4089,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 72).unwrap();
+        migrate_to(root, 73).unwrap();
         let connection = connect(root).unwrap();
         connection
             .execute_batch(
@@ -4092,7 +4104,7 @@ mod tests {
         ).is_err());
         drop(connection);
 
-        migrate_to(root, 73).unwrap();
+        migrate_to(root, 74).unwrap();
         let connection = connect(root).unwrap();
         crate::artwork_store::verify_landscape_slot(&connection).unwrap();
         crate::artwork_store::verify_logo_slot(&connection).unwrap();
@@ -4127,7 +4139,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 73).unwrap();
+        migrate_to(root, 74).unwrap();
         let connection = connect(root).unwrap();
         connection
             .execute_batch(
@@ -4139,7 +4151,7 @@ mod tests {
         assert!(crate::artwork_store::verify_framing(&connection).is_err());
         drop(connection);
 
-        migrate_to(root, 74).unwrap();
+        migrate_to(root, 75).unwrap();
         let connection = connect(root).unwrap();
         crate::artwork_store::verify_framing(&connection).unwrap();
         let rows = connection
@@ -4169,6 +4181,55 @@ mod tests {
         ] {
             assert!(connection.execute(statement, []).is_err());
         }
+    }
+
+    #[test]
+    fn artwork_suppression_migration_retains_existing_framed_choices() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 75).unwrap();
+        let connection = connect(root).unwrap();
+        let framing = serde_json::to_string(&crate::ArtworkFraming::V1 {
+            wide: crate::ArtworkFocalPoint { x: 0, y: 5000 },
+            narrow: crate::ArtworkFocalPoint { x: 10000, y: 5000 },
+        })
+        .unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('fixture','{}',1);",
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256,framing)
+                 VALUES ('shipwright','detail',5,'fixture',?1)",
+                [&framing],
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_suppression(&connection).is_err());
+        drop(connection);
+
+        migrate_to(root, 76).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_suppression(&connection).unwrap();
+        let retained: (i64, String, String, i64) = connection
+            .query_row(
+                "SELECT revision,asset_sha256,framing,suppressed FROM artwork_choices
+                 WHERE port_id='shipwright' AND slot='detail'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(retained, (5, "fixture".into(), framing, 0));
+        assert!(
+            connection
+                .execute(
+                    "UPDATE artwork_choices SET suppressed=1 WHERE slot='detail'",
+                    []
+                )
+                .is_err()
+        );
     }
 
     #[test]
@@ -4472,6 +4533,7 @@ mod tests {
         schema_72: 72,
         schema_73: 73,
         schema_74: 74,
+        schema_75: 75,
     }
 
     #[test]

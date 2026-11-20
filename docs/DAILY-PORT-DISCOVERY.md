@@ -292,6 +292,14 @@ denied responses and transport failures are not retried. A still-stale observati
 can enter the same bounded fresh-worker continuation only when no mutation is
 uncertain. Active provider backoff and ambiguous writes remain holds.
 
+To finish a retained large batch whose candidate receipts are complete and whose
+full audit is pending, the owner can dispatch `hosted-discovery-intake.yml` on
+`main` with `mode=audit` and `audit_request=<original proposal comment ID>`.
+Check the active proposal, its bound receipt, owner changes and any refusal first.
+Every admitted pass stays on that request. The executor uses the current full
+Roadmap audit and the original scoped receipts, preserving later Project edits.
+The result is an assisted audit recovery. It adds no natural scheduled sample.
+
 Hosted reporting reads the bot receipt and exact request/plan binding. Use the
 maintained read-only status route when CLI access is available:
 

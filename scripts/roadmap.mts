@@ -16,6 +16,7 @@ import {
   planPortStageReconciliation,
   validatePortIssueCoverage,
   qualificationCatalogObservation,
+  issueFreeCatalogIds,
   catalogQualificationSummary,
 } from "./roadmap-qualification.mts";
 export {
@@ -4280,6 +4281,7 @@ export function evaluateRoadmapDoctor({
   items,
   repositoryIssues,
   drift,
+  issueFreeIds,
   risk706Approval,
   now,
 }: {
@@ -4288,6 +4290,7 @@ export function evaluateRoadmapDoctor({
   items: readonly RoadmapIssueItem[];
   repositoryIssues: readonly RoadmapIssueItem[];
   drift: readonly string[];
+  issueFreeIds?: ReadonlySet<string>;
   risk706Approval: unknown;
   now: string;
 }) {
@@ -4301,7 +4304,7 @@ export function evaluateRoadmapDoctor({
     ...readiness.statusConflicts.map(
       (item) => `${itemUrl(item)} has inconsistent repository/Project status`,
     ),
-    ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues),
+    ...validatePortIssueCoverage(catalog, items, config.repository, repositoryIssues, issueFreeIds),
     ...stage.errors,
     ...validateUxAuditOriginCoverage(repositoryIssues),
     ...validatePlanOriginCoverage(repositoryIssues),
@@ -4510,6 +4513,10 @@ export async function runDoctor(
     repositories: repositoryEntries.map(linkedRepositoryObservation),
   });
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
+  const issueFreeIds = issueFreeCatalogIds(
+    catalog,
+    JSON.parse(await readFile(listingsPath, "utf8")),
+  );
   const repositoryRead = inventory
     ? undefined
     : await readDoctorRepositoryIssues(client, repositoryIssueInventoryAttempts, {
@@ -4566,6 +4573,7 @@ export async function runDoctor(
     items,
     repositoryIssues,
     drift,
+    issueFreeIds,
     risk706Approval: JSON.parse(
       await readFile(path.join(projectRoot, ".github/linux-beta-risk-706.json"), "utf8"),
     ),
@@ -4576,7 +4584,7 @@ export async function runDoctor(
     `Verified identity, PUBLIC visibility, repository linkage, ${fields.length} fields, and ${views.length} view layouts/filters/visible-field sets.`,
   );
   log(
-    `Verified ${repositoryIssues.filter((issue) => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length} canonical catalog issues, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`,
+    `Verified ${repositoryIssues.filter((issue) => itemBody(issue).includes(portMarker)).length} repository port issues, ${catalog.ports.length - issueFreeIds.size} issue-linked catalog ports and ${issueFreeIds.size} issue-free catalog ports, one supported-source plan owner, and all ${uxAuditOriginIds.length} final UX audit origins.`,
   );
   if (stage.diagnostics.length)
     log(`Supported platform scope:\n${stage.diagnostics.map((value) => `- ${value}`).join("\n")}`);

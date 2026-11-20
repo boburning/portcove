@@ -1,3 +1,4 @@
+import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -218,6 +219,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       scope:
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
+    });
+  } else if (record.psx_managed_windows_v1 === "technically-computers-input-files") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
     });
   } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
     projections.push({
@@ -1229,6 +1237,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
+      original_game_grouping: originalGamePreparationFeedback(record, authored.records),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
         ? {}

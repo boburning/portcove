@@ -58,11 +58,11 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 API 101 adds the `logo` slot to artwork choices and the `logo` role to
 SteamGridDB candidates, attribution and listing reports. Logo changes can require
-library metadata format 13 and writer schema 73. Destination artwork handoff stays
+library metadata format 13 and writer schema 74. Destination artwork handoff stays
 at schema 4 and events stay at schema 3. Optional background framing on
-`artwork_state.choice` requires library metadata format 14 and writer schema 74.
+`artwork_state.choice` requires library metadata format 14 and writer schema 75.
 `artwork suppress` records an explicit hidden choice. Its `suppressed` field is
-present when true. Writers use library schema 75 and exports that carry hidden
+present when true. Writers use library schema 76 and exports that carry hidden
 choices use metadata format 15. The managed definition publication
 inspection uses its fixed API 100 envelope for publication report schema 1.
 

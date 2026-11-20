@@ -264,6 +264,11 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   for (const source of nativeTransportReceiptSources) inputs.push({ kind: "file", path: source });
+  if (
+    normalPackageSession ||
+    selection.selected_scenarios.includes("native-game-first-choice-and-restart")
+  )
+    inputs.push({ kind: "file", path: "scripts/fixtures/game-first-catalog-relationships.json" });
   inputs.push({ kind: "file", path: "apps/desktop/test/capture-target.ts" });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });

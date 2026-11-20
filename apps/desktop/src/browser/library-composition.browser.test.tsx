@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { observeCollectionLayoutReady } from "../../scripts/browser-readiness.mts";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -12,6 +13,7 @@ import {
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
+import * as nativeSourceDrop from "../native-source-drop";
 import {
   discoverGroupForPort,
   inspectLibraryGroups,
@@ -27,6 +29,8 @@ import { catalogEntries } from "../features/browsing/catalog-entry";
 import { indexStatuses, summarizeLibrary } from "../view-model";
 import type { ExternalRuntimeRecord, PortListing, PortListingStatus } from "../types";
 import "../styles/index.css";
+
+vi.mock("../native-source-drop", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 afterEach(async () => {
@@ -317,7 +321,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   const launch = vi.spyOn(desktopApi, "launch");
   expect(document.querySelector(".library-query-tools #port-search")).not.toBeNull();
   expect(document.querySelector(".header-tools #port-search")).toBeNull();
-  expect(document.body.textContent).toContain("12 in your library");
+  expect(document.body.textContent).toContain("12 ports in your library");
   const portCard = (id: string) =>
     page.elementLocator(
       document
@@ -335,7 +339,7 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await page.getByRole("textbox", { name: "Search your library" }).fill("Super Mario 64");
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
   const summary = document.querySelector(".collection-result-summary")!;
-  expect(summary.textContent).toContain("2 of 12 in your library");
+  expect(summary.textContent).toContain("2 of 12 ports in your library");
   expect(document.querySelectorAll('[role="status"][aria-label="Search results"]')).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary")).toHaveLength(1);
   expect(document.querySelectorAll(".collection-result-summary button")).toHaveLength(1);
@@ -431,10 +435,10 @@ it.each(["dark", "light"])(
     }
     await expect
       .element(group.getByRole("radio", { name: "All", exact: true }))
-      .toHaveAccessibleDescription("Every game in this library scope. 12 games");
+      .toHaveAccessibleDescription("Every port in this library scope. 12 ports");
     await expect
       .element(group.getByRole("radio", { name: "Needs attention", exact: true }))
-      .toHaveAccessibleDescription(/Games that need setup, files or repair/);
+      .toHaveAccessibleDescription(/Ports that need setup, files or repair/);
     expect(getComputedStyle(group.element().querySelector(".browse-count")!).display).toBe("none");
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
     await page.getByRole("button", { name: "Manage collections", exact: true }).click();
@@ -471,6 +475,80 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .toBe(originId);
 });
 
+async function openGroupedFileReview(favoritesOnly = false) {
+  await page.viewport(1366, 768);
+  const snapshot = groupedCollectionSnapshot();
+  snapshot.catalog.ports[0]!.source_profile = "first-fixture-source";
+  snapshot.catalog.ports[1]!.source_profile = "second-fixture-source";
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  if (favoritesOnly) {
+    vi.spyOn(desktopApi, "favoritePorts").mockResolvedValue(["collection-1"]);
+    vi.spyOn(desktopApi, "setPortFavorite").mockResolvedValue(undefined);
+  }
+  let acceptDrop!: Parameters<typeof nativeSourceDrop.useNativeSourceDrop>[0];
+  vi.spyOn(nativeSourceDrop, "useNativeSourceDrop").mockImplementation((accept) => {
+    acceptDrop = accept;
+    return { active: true, pathCount: 1 };
+  });
+  await mount("dark", "collection", 11);
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  if (favoritesOnly)
+    await page.getByRole("button", { name: "Favorites 1 game", exact: true }).click();
+  const group = await mountDiscoverPort("collection-1");
+  const gameId = group.dataset.sourceDropGameId;
+  expect(gameId).toBe("game:fixture-super-mario-64");
+  await act(async () => acceptDrop({ gameId: gameId!, paths: ["D:/Game.z64"] }));
+  const review = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
+  await expect.element(review).toBeVisible();
+  return review;
+}
+
+async function expectEmptyDiscover() {
+  await expect.poll(() => document.querySelector("main .empty-state")).not.toBeNull();
+  await expect.poll(() => document.querySelector('[data-virtual-collection="catalog"]')).toBeNull();
+}
+
+it("retires an accepted grouped file drop after an empty search", async () => {
+  const review = await openGroupedFileReview();
+  const search = document.querySelector<HTMLInputElement>("#port-search")!;
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+  // Drive the collection query while the modal owns foreground focus.
+  await act(async () => {
+    setValue.call(search, "a query with no fixture matches");
+    search.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expectEmptyDiscover();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("textbox", { name: /Search/ }).fill("Super Mario 64");
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
+});
+
+it("retires an accepted grouped file drop after a view switch", async () => {
+  const review = await openGroupedFileReview();
+  const libraryButton = document.querySelector<HTMLButtonElement>(
+    'button[data-navigation-destination="library"]',
+  )!;
+  await act(async () => libraryButton.click());
+  await expect.element(page.getByRole("textbox", { name: "Search your library" })).toBeVisible();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Discover", exact: true }).click();
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
+});
+
+it("retires an accepted grouped file drop after removing the last favorite", async () => {
+  const review = await openGroupedFileReview(true);
+  const favorite = review.getByRole("button", { name: "Favorite Super Mario 64", exact: true });
+  await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+  await favorite.click();
+  await expectEmptyDiscover();
+  await expect.element(review).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Favorites 0 games", exact: true }).click();
+  await mountDiscoverPort("collection-1");
+  await expect.element(review).not.toBeInTheDocument();
+});
+
 it("names exact port choices from their visible identity and readiness inside grouped Discover", async () => {
   await page.viewport(1366, 768);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
@@ -481,7 +559,7 @@ it("names exact port choices from their visible identity and readiness inside gr
   expect(document.querySelectorAll("[data-discover-port-ids]")).toHaveLength(11);
   await expect
     .element(page.getByRole("status", { name: "Search results", exact: true }))
-    .toHaveTextContent("11 games");
+    .toHaveTextContent("1 game + 10 ungrouped projects");
   await userEvent.click(group.querySelector<HTMLButtonElement>(".discover-game-identity")!);
   const dialog = page.getByRole("dialog", { name: "Super Mario 64", exact: true });
   await expect.element(dialog).toBeVisible();
@@ -690,6 +768,17 @@ for (const theme of ["dark", "light"]) {
     await expect
       .element(page.getByRole("button", { name: "Clear search", exact: true }))
       .toBeVisible();
+    // The row toggle and search can still be restoring the reading anchor.
+    // Let that existing owner settle before requesting one exact destination.
+    await expect
+      .poll(async () => {
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        return observeCollectionLayoutReady();
+      })
+      .toBe(true);
     const expectedCount = Number(
       document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
     );
@@ -841,7 +930,7 @@ for (const theme of ["dark", "light"]) {
       expect(bounds.top).toBeGreaterThanOrEqual(visibleTop);
       expect(bounds.bottom).toBeLessThanOrEqual(visibleBottom);
     }
-    expect(project.textContent).toContain("2 separate port projects");
+    expect(project.textContent).toContain("2 options");
     expect(identity.textContent).toContain("Super Mario 64");
     expect(identity.querySelectorAll("button")).toHaveLength(0);
     expect(workspace.scrollWidth).toBeLessThanOrEqual(workspace.clientWidth + 1);
@@ -968,7 +1057,9 @@ it("keeps a singleton port review readable below its close control at narrow wid
     );
   }
   expect(dialog.element().scrollWidth).toBeLessThanOrEqual(dialog.element().clientWidth + 1);
-  await expect.element(dialog.getByRole("region", { name: "Comparison options" })).toBeVisible();
+  const options = dialog.getByText("Comparison options and reports", { exact: true });
+  await expect.element(options).toBeVisible();
+  expect(options.element().tagName).toBe("SUMMARY");
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())

@@ -179,6 +179,7 @@ function controlledArtworkVisibility() {
           );
         observers.set(target, showArtwork);
       }
+      unobserve() {}
       disconnect() {}
     },
   );
