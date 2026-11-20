@@ -188,15 +188,18 @@ function ScreenshotChoice({
 export function CatalogMediaGallery({
   port,
   context = {},
+  fallbackFocus,
 }: {
   port: HeroMediaPort;
   context?: HeroMediaContext;
+  fallbackFocus?: () => HTMLElement | null | undefined;
 }) {
   return (
     <ScreenshotGallery
       key={JSON.stringify([port.id, port.presentation?.original_game?.id])}
       port={port}
       context={context}
+      fallbackFocus={fallbackFocus}
     />
   );
 }
@@ -207,7 +210,15 @@ function screenshotKey({ id, sha256 }: CatalogMediaAsset) {
   return `${id}:${sha256}`;
 }
 
-function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: HeroMediaContext }) {
+function ScreenshotGallery({
+  port,
+  context,
+  fallbackFocus,
+}: {
+  port: HeroMediaPort;
+  context: HeroMediaContext;
+  fallbackFocus?: (() => HTMLElement | null | undefined) | undefined;
+}) {
   const { t } = useAppTranslation("browsing");
   const portId = port.id;
   const defaultShots = heroMediaCandidates(port, context).screenshots;
@@ -229,50 +240,55 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
   // A catalog refresh can withdraw a release or replace an image under the same ID.
   if (!edition && source !== defaultScreenshotSource) setSource(defaultScreenshotSource);
   if (selected && !active) setSelected(undefined);
-  if (!shots.length && !editions.length) return null;
-  const change = (delta: number) =>
-    setSelected(screenshotKey(shots[(index + delta + shots.length) % shots.length]!));
+  const change = (delta: number) => {
+    const next = shots[(index + delta + shots.length) % shots.length];
+    if (next) setSelected(screenshotKey(next));
+  };
   return (
-    <section
-      className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
-      aria-label={t("media.screenshots")}
-    >
-      <h3 ref={galleryHeading} tabIndex={-1} className="mb-4 text-base">
-        {t("media.screenshots")}
-      </h3>
-      {editions.length > 0 && (
-        <div className="mb-4">
-          <ChoiceSelect
-            label={t("media.screenshotSource")}
-            triggerId={pickerId}
-            value={edition ? source : defaultScreenshotSource}
-            options={[
-              {
-                value: defaultScreenshotSource,
-                label: defaultShots.length
-                  ? t("media.availableScreenshots")
-                  : t("media.chooseRelease"),
-              },
-              ...editions.map(({ id, title }) => ({ value: `edition:${id}`, label: title })),
-            ]}
-            onChange={setSource}
-          />
-        </div>
+    <>
+      {(shots.length > 0 || editions.length > 0) && (
+        <section
+          className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
+          aria-label={t("media.screenshots")}
+        >
+          <h3 ref={galleryHeading} tabIndex={-1} className="mb-4 text-base">
+            {t("media.screenshots")}
+          </h3>
+          {editions.length > 0 && (
+            <div className="mb-4">
+              <ChoiceSelect
+                label={t("media.screenshotSource")}
+                triggerId={pickerId}
+                value={edition ? source : defaultScreenshotSource}
+                options={[
+                  {
+                    value: defaultScreenshotSource,
+                    label: defaultShots.length
+                      ? t("media.availableScreenshots")
+                      : t("media.chooseRelease"),
+                  },
+                  ...editions.map(({ id, title }) => ({ value: `edition:${id}`, label: title })),
+                ]}
+                onChange={setSource}
+              />
+            </div>
+          )}
+          <div className="media-gallery-grid grid gap-4">
+            {shots.map((asset, position) => (
+              <Screenshot
+                key={screenshotKey(asset)}
+                port={port}
+                media={asset}
+                index={position}
+                onOpen={(element) => {
+                  origin.current = element;
+                  setSelected(screenshotKey(asset));
+                }}
+              />
+            ))}
+          </div>
+        </section>
       )}
-      <div className="media-gallery-grid grid gap-4">
-        {shots.map((asset, position) => (
-          <Screenshot
-            key={screenshotKey(asset)}
-            port={port}
-            media={asset}
-            index={position}
-            onOpen={(element) => {
-              origin.current = element;
-              setSelected(screenshotKey(asset));
-            }}
-          />
-        ))}
-      </div>
       <Dialog
         open={Boolean(active)}
         onOpenChange={(open) => {
@@ -283,9 +299,17 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
           reviewSize="large"
           initialFocus={heading}
           finalFocus={() =>
-            origin.current?.isConnected && !origin.current.closest("[hidden], [inert]")
-              ? origin.current
-              : (document.getElementById(pickerId) ?? galleryHeading.current ?? undefined)
+            [
+              origin.current,
+              document.getElementById(pickerId),
+              galleryHeading.current,
+              fallbackFocus?.(),
+            ].find(
+              (element) =>
+                element?.isConnected &&
+                !element.closest("[hidden], [inert]") &&
+                element.getClientRects().length > 0,
+            ) ?? undefined
           }
           onKeyDown={(event) => {
             if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
@@ -344,6 +368,6 @@ function ScreenshotGallery({ port, context }: { port: HeroMediaPort; context: He
           )}
         </DialogContent>
       </Dialog>
-    </section>
+    </>
   );
 }

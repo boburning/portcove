@@ -153,8 +153,12 @@ it("lets players browse reviewed releases without an applicable installed editio
   try {
     const view = (images: typeof media, id = port.id) => (
       <ArtworkProvider generation={7} listings={directory(images)}>
+        <button type="button" id="gallery-detail-back">
+          Back to game details
+        </button>
         <CatalogMediaGallery
           port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+          fallbackFocus={() => document.getElementById("gallery-detail-back")}
         />
       </ArtworkProvider>
     );
@@ -204,6 +208,19 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(picker).toHaveTextContent("Choose an original release");
     await expect.element(europeanViewer).not.toBeInTheDocument();
     await expect.element(european).not.toBeInTheDocument();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    await galleryView.rerender(view([]));
+    await expect.element(gallery).not.toBeInTheDocument();
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "Back to game details" })).toHaveFocus();
+    await galleryView.rerender(view(changed));
+    await expect.element(picker).toHaveTextContent("Choose an original release");
+    await expect.element(europeanViewer).not.toBeInTheDocument();
 
     await picker.click();
     await page.getByRole("option", { name: euTitle, exact: true }).click();
