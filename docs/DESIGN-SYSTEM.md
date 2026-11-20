@@ -201,7 +201,9 @@ Panels stay mounted to preserve drafts and reviews; inactive panels are hidden a
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
 compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
-coverage, unknowns, backup history, recovery and reviews, plus game settings and, for
+coverage, unknowns, backup history, recovery and reviews. Backup protection and the most
+recent completed backup appear before the saved-data actions. Installation-level paths
+and rule evidence expand through Backup check details. The workspace also supports game settings and, for
 games with reviewed mod support, setups and mods (each setup keeps its own saves and
 settings), including reviewed GameBanana installs for games with a binding. Versions & updates owns
 checks, candidate decisions, staged activation, rollback, future preferences and

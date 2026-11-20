@@ -60,15 +60,16 @@ it("renders service-authored exclusions visibly without calling candidate files 
       readState={{ status: "current", hasInventory: true }}
     />,
   );
-  for (const text of receipt.exclusions)
-    await expect.element(page.getByText(text, { exact: true })).toBeVisible();
   await expect
     .element(page.getByText("No completed backup recorded.", { exact: true }))
     .toBeVisible();
   const details = page.getByText("Backup check details", { exact: true });
+  await expect.element(page.getByText(receipt.legacy_problem, { exact: true })).not.toBeVisible();
   details.element().focus();
   await userEvent.keyboard("{Enter}");
   await expect.element(page.getByText(receipt.legacy_problem, { exact: true })).toBeVisible();
+  for (const text of receipt.exclusions)
+    await expect.element(page.getByText(text, { exact: true })).toBeVisible();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(window.innerWidth);
 });
 
@@ -132,6 +133,7 @@ it("keeps external folders excluded while listing files only as possible future 
       readState={{ status: "current", hasInventory: true }}
     />,
   );
+  await page.getByText("Backup check details", { exact: true }).click();
   await expect.element(page.getByText(receipt.external_exclusion, { exact: true })).toBeVisible();
   await expect
     .element(page.getByText("Updates handled by: the game’s launcher or you.", { exact: true }))
