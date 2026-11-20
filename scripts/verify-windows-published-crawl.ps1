@@ -1,4 +1,4 @@
-# One public packaged Desktop and signed retained Crawl setup on a disposable hosted VM.
+# Observe the published installer, signed Crawl revision, and ordinary embedded route.
 param([Parameter(Mandatory=$true)][ValidateSet('binding','installer','crawl')][string]$Observation)
 
 Set-StrictMode -Version Latest
@@ -141,10 +141,6 @@ $desktopDigest = $bound.desktop_executable.sha256
 $cliDigest = $bound.cli_executable.sha256
 $port = 'dungeon-crawl-stone-soup'
 $asset = 'a772f22db9dde5dfa85bcc1652dbf16e3d62ecd1173f27c39387403532507979'
-$reviewedIndexes = @{
-    2 = '3c1e99312a5215ab2a60387d039360b8ec5c390f739a16900c1e3555e760fa76'
-    3 = 'dc0f562b37b80767baeed3ad5a575a9a1d1a34f06641df0a8d0ebcc0dbcd91a6'
-}
 $rootDigest = '743432a536ad25ba6f9544b0ce4e62c79fd941e84c722e22a79a4b315d55d849'
 $anchor = '748bf3e9ec10a585ea62beb6228379642de3b33d0f2d94272ce0bd42d6e35e7b'
 
@@ -260,20 +256,32 @@ try {
     [IO.Compression.ZipFileExtensions]::ExtractToFile($cliArchive.Entries[0], $cli, $false)
 } finally { $cliArchive.Dispose() }
 Assert-File $cli $bound.cli_executable.bytes $cliDigest
-$library = Join-Path $root 'crawl-library'
-$env:PORTCOVE_LIBRARY = $library
-$env:PORTCOVE_PREFERENCES = Join-Path $root 'crawl-host-preferences.json'
-$env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = Join-Path $root 'crawl-update-preferences.json'
-$env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $root 'crawl-runtime.lock'
-$env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $root 'crawl-webview'
+function Set-CrawlProfile([string]$Name) {
+    $env:PORTCOVE_LIBRARY = Join-Path $root "$Name-library"
+    $env:PORTCOVE_PREFERENCES = Join-Path $root "$Name-host-preferences.json"
+    $env:PORTCOVE_APPLICATION_UPDATE_PREFERENCES = Join-Path $root "$Name-update-preferences.json"
+    $env:PORTCOVE_APPLICATION_RUNTIME_LOCK = Join-Path $root "$Name-runtime.lock"
+    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $root "$Name-webview"
+}
+Set-CrawlProfile 'crawl-signed'
+function Invoke-Cli([string[]]$Command) {
+    $json = & $cli --library $env:PORTCOVE_LIBRARY --json --non-interactive @Command
+    $cliExit = $LASTEXITCODE
+    @{ exit=$cliExit; receipt=($json | ConvertFrom-Json) }
+}
 function Read-Cli([string[]]$Command) {
-    $json = & $cli --library $library --json --non-interactive @Command
-    if ($LASTEXITCODE -ne 0) { throw "Published CLI operation failed ($($Command[0]))" }
-    $result = $json | ConvertFrom-Json
-    if (-not $result.ok) { throw 'Published CLI did not return a success receipt' }
-    $result.data
+    $result = Invoke-Cli $Command
+    if ($result.exit -ne 0 -or -not $result.receipt.ok) {
+        throw "Published CLI operation failed ($($Command[0]))"
+    }
+    $result.receipt.data
 }
 if ((Read-Cli @('about')).version -cne $version) { throw 'Published CLI About version differs' }
+$embedded = Read-Cli @('catalog','show',$port)
+if ($embedded.id -cne $port -or $embedded.adapter -cne 'native-portable' -or
+    $embedded.release.repository -cne 'crawl/crawl' -or 'windows-x86-64' -cnotin $embedded.platforms) {
+    throw 'Ordinary embedded Crawl Windows route differs'
+}
 $authority = Read-Cli @('catalog','definition-authority')
 if (-not $authority.configured -or $authority.installed -or
     $authority.compiled_anchor_sha256 -cne $anchor -or $authority.expected_plan -cnotmatch '^[a-f0-9]{64}$') {
@@ -283,16 +291,74 @@ $approved = Read-Cli @('catalog','definition-authority','--apply','--expected-pl
 if (-not $approved.changed -or -not $approved.review.installed -or $approved.review.installed_anchor_sha256 -cne $anchor) {
     throw 'Exact ordinary definition authority provisioning did not complete'
 }
+
 $pages = 'https://boburning.github.io/portcove/catalog'
-$refresh = Read-Cli @('catalog','definition-refresh',$port,'--metadata-base-url',"$pages/metadata",'--targets-base-url',"$pages/targets")
-$choice = $refresh.selection.selected
-$definitionRevision = [int]$choice.definition_revision
-$index = $reviewedIndexes[$definitionRevision]
-if ($refresh.disposition -cne 'selected' -or $choice.stable_id -cne $port -or -not $index -or
-    $choice.provenance.index_sha256 -cne $index -or
-    $choice.provenance.root_version -ne 1 -or $choice.provenance.root_sha256 -cne $rootDigest) {
-    throw 'Current signed Crawl selection differs from the reviewed public subject'
+$index = 'dc0f562b37b80767baeed3ad5a575a9a1d1a34f06641df0a8d0ebcc0dbcd91a6'
+$projection = 'ff36ac51cacb397fa1d006fecc1223fb1d2ba7b47ee9a611bf7a119a0ef7f90f'
+function Read-PublicSignedSnapshot([string]$Label) {
+    function Save-PublicMetadata([string]$Url, [string]$Name) {
+        $path = Join-Path $root "$Label-$Name"
+        & curl.exe -fsSL --proto '=https' --proto-redir '=https' --max-time 20 --max-filesize 1048576 --output $path $Url
+        if ($LASTEXITCODE -ne 0) { throw "Could not read public Crawl metadata $Name" }
+        $path
+    }
+    function Read-BoundJson([string]$Path, $Target) {
+        Assert-File $Path $Target.length $Target.hashes.sha256
+        Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    }
+    $timestamp = Save-PublicMetadata "$pages/metadata/timestamp.json" 'timestamp.json'
+    $timestampHash = (Get-FileHash -LiteralPath $timestamp -Algorithm SHA256).Hash.ToLowerInvariant()
+    $snapshotEntry = (Get-Content -LiteralPath $timestamp -Raw | ConvertFrom-Json).signed.meta.'snapshot.json'
+    if ([int]$snapshotEntry.version -le 0) { throw 'Public snapshot version is absent' }
+    $snapshot = Read-BoundJson (Save-PublicMetadata "$pages/metadata/$($snapshotEntry.version).snapshot.json" 'snapshot.json') $snapshotEntry
+    $definitionsEntry = $snapshot.signed.meta.'official-definitions.json'
+    if ([int]$definitionsEntry.version -le 0) { throw 'Public definition role version is absent' }
+    $definitions = Read-BoundJson (Save-PublicMetadata "$pages/metadata/$($definitionsEntry.version).official-definitions.json" 'definitions.json') $definitionsEntry
+    $indexEntry = $definitions.signed.targets.'definitions/index.json'
+    $contractEntry = $definitions.signed.targets."sha256/$projection.json"
+    if ($indexEntry.hashes.sha256 -cne $index -or $contractEntry.hashes.sha256 -cne $projection) {
+        throw 'Current public roles do not name the reviewed Crawl revision 3 index and contract'
+    }
+    $null = Read-BoundJson (Save-PublicMetadata "$pages/targets/$index.definitions/index.json" 'index.json') $indexEntry
+    $contract = Read-BoundJson (Save-PublicMetadata "$pages/targets/$projection.sha256/$projection.json" 'contract.json') $contractEntry
+    if ($contract.representation -cne 'catalog_projection' -or $contract.catalog.schema_version -ne 2) {
+        throw 'The exact signed Crawl contract has a different projection schema'
+    }
+    $timestampHash
 }
+$before = Read-PublicSignedSnapshot 'before'
+$refresh = Invoke-Cli @('catalog','definition-refresh',$port,'--metadata-base-url',"$pages/metadata",'--targets-base-url',"$pages/targets")
+$after = Read-PublicSignedSnapshot 'after'
+if ($after -cne $before) { throw 'Public signed snapshot changed during the isolated refresh' }
+if ($refresh.exit -eq 0 -and $refresh.receipt.ok) {
+    $choice = $refresh.receipt.data.selection.selected
+    if ($refresh.receipt.data.disposition -cne 'selected' -or $choice.stable_id -cne $port -or
+        $choice.definition_revision -ne 3 -or $choice.provenance.index_sha256 -cne $index -or
+        $choice.provenance.root_version -ne 1 -or $choice.provenance.root_sha256 -cne $rootDigest) {
+        throw 'Authenticated Crawl refresh selected a different subject'
+    }
+    $signedOutcome = 'selected'
+} else {
+    $error = $refresh.receipt.error
+    if ($refresh.exit -ne 11 -or $refresh.receipt.ok -or $error.code -cne 'verification' -or
+        $error.details.definition_refresh_phase -cne 'selection' -or
+        $error.message -cne 'selected definition changes catalog state outside its scope: catalog schema changed') {
+        throw 'The isolated signed Crawl refresh failed at an unexpected boundary'
+    }
+    $readback = Read-Cli @('catalog','show',$port)
+    if (($readback | ConvertTo-Json -Depth 40 -Compress) -cne ($embedded | ConvertTo-Json -Depth 40 -Compress) -or
+        $null -ne (Read-Cli @('status',$port)).active) {
+        throw 'Scoped selection refusal changed the ordinary embedded Crawl route or install state'
+    }
+    $signedOutcome = 'verified-revision-refused-at-legacy-schema-transition'
+}
+Write-Receipt 'signed-crawl-revision' @{ revision=3; catalog_schema=2; index_sha256=$index
+    contract_sha256=$projection; timestamp_sha256=$before; outcome=$signedOutcome }
+
+# Independent library for the ordinary embedded catalog route. No signed
+# selection or policy data is copied from the diagnostic scope.
+Set-CrawlProfile 'crawl-embedded'
+if ($null -ne (Read-Cli @('status',$port)).active) { throw 'Expected a fresh embedded library' }
 $plan = Read-Cli @('installation','plan',$port)
 if ($null -ne $plan.selected_install -or $plan.plan.port_id -cne $port -or
     $plan.plan.platform -cne 'windows-x86-64' -or $plan.plan.channel -cne 'stable' -or
@@ -301,15 +367,10 @@ if ($null -ne $plan.selected_install -or $plan.plan.port_id -cne $port -or
     $plan.plan.release.asset.name -cne 'dcss-0.34.1-win32-tiles.zip' -or
     $plan.plan.release.asset.size -ne 26551751 -or $plan.plan.release.asset.sha256 -cne $asset -or
     $plan.plan_sha256 -cnotmatch '^[a-f0-9]{64}$') {
-    throw 'Crawl reviewed installation identity differs'
+    throw 'Ordinary embedded Crawl installation identity differs'
 }
-$null = Read-Cli @('installation','run',$port,'--expected-plan',$plan.plan_sha256,'--yes')
-$active = (Read-Cli @('status',$port)).active
-$verified = Read-Cli @('verify',$port)
-if ($active.artifact.sha256 -cne $asset -or $verified.install_id -cne $active.id -or
-    -not $verified.valid -or $verified.checked_files -ne 690) { throw 'Exact managed Crawl installation did not verify' }
-Write-Receipt 'cli-seed' @{ install_id=$active.id; package_sha256=$asset; definition_index_sha256=$index
-    definition_revision=$choice.definition_revision; files=$verified.checked_files }
+Write-Receipt 'embedded-plan' @{ port_id=$port; package_sha256=$asset; plan_sha256=$plan.plan_sha256
+    source='compiled embedded catalog'; version='0.34.1' }
 
 # This independent cell observes the exact package-extracted executable.
 # Use its normal accessibility tree and real managed installation controls.
@@ -378,7 +439,7 @@ try {
                 } elseif ($control.TryGetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) {
                     @{ hwnd=$owned.hwnd; pattern=$pattern }
                 }
-            } else { $control }
+            } else { @{ hwnd=$owned.hwnd; element=$control } }
         }
     }
     function Wait-Control([string]$Name, [switch]$Invokable) {
@@ -399,9 +460,36 @@ try {
         if ($selected.pattern -is [Windows.Automation.SelectionItemPattern]) { $selected.pattern.Select() }
         else { $selected.pattern.Invoke() }
     }
-    Select-Control 'Library'
+    Select-Control 'Discover'
+    $search = Wait-Control 'Search Discover'
+    $native = Read-OwnedWindow
+    $valuePattern = $null
+    if (-not $native -or $native.hwnd -ne $search.hwnd -or
+        -not $search.element.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern, [ref]$valuePattern) -or
+        $valuePattern.Current.IsReadOnly) { throw 'Owned Discover search control is not writable' }
+    $valuePattern.SetValue('Dungeon Crawl Stone Soup')
     Select-Control 'Dungeon Crawl Stone Soup'
-    $null = Wait-Control 'Dungeon Crawl Stone Soup'
+    Select-Control 'Review installation'
+    $null = Wait-Control '0.34.1'
+    Select-Control 'Install · 25.3 MiB'
+
+    $deadline = [DateTime]::UtcNow.AddSeconds(90)
+    do {
+        $null = Read-OwnedWindow
+        $active = (Read-Cli @('status',$port)).active
+        if ($active) { break }
+        Start-Sleep -Milliseconds 600
+    } while ([DateTime]::UtcNow -lt $deadline)
+    if (-not $active -or $active.version -cne '0.34.1' -or $active.artifact.sha256 -cne $asset) {
+        throw 'Ordinary Desktop install did not activate the exact reviewed artifact'
+    }
+    $verified = Read-Cli @('verify',$port)
+    if ($verified.install_id -cne $active.id -or -not $verified.valid -or $verified.checked_files -ne 690) {
+        throw 'Desktop-installed Crawl package failed independent published CLI verification'
+    }
+    Write-Receipt 'desktop-acquisition' @{ install_id=$active.id; source='compiled embedded catalog'
+        package_sha256=$asset; verified_files=$verified.checked_files; version=$active.version }
+
     Select-Control 'Manage'
     $null = Wait-Control 'Technical details'
     Select-Control 'Versions & updates'
@@ -425,7 +513,7 @@ try {
     }
     if ($browserProcesses.Count -ne 1) { throw 'Expected one identity-bound WebView browser in its private profile' }
     Write-Receipt 'desktop-management' @{ pid=$process.Id; start_filetime=$created.ToFileTimeUtc()
-        library='fresh isolated signed setup'; definition_revision=$definitionRevision; game='Dungeon Crawl Stone Soup'; action='Manage'
+        library='fresh embedded managed setup'; install_id=$active.id; game='Dungeon Crawl Stone Soup'; action='Manage'
         visible_section='Versions & updates'; version='0.34.1'; desktop_sha256=$desktopDigest
         webview_pid=$browserProcesses[0].Id; webview_version=$browserProcesses[0].MainModule.FileVersionInfo.ProductVersion }
 } catch {
@@ -469,5 +557,5 @@ try {
         $process.Dispose()
     }
 }
-Write-Receipt 'completed' @{ scope='authenticated package-extracted executable and native visible management controls'
-    limits='no GUI acquisition, gameplay, next-artifact transition or minimum Windows claim' }
+Write-Receipt 'completed' @{ scope='authenticated package-extracted executable, ordinary embedded Desktop acquisition and management'
+    limits='no signed-route installation, gameplay, next-artifact transition or minimum Windows claim' }
