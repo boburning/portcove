@@ -1,0 +1,110 @@
+{
+  "definition_schema": 1,
+  "namespace": "official",
+  "stable_id": "dungeon-crawl-stone-soup",
+  "revision": 2,
+  "required_capabilities": [
+    {
+      "template": "native-portable",
+      "minimum_version": 1,
+      "maximum_version": 1
+    }
+  ],
+  "port": {
+    "adapter": "native-portable",
+    "automated_tested_platforms": [],
+    "bios_source_profile": null,
+    "bundled_runtime": {},
+    "channels": [
+      "stable"
+    ],
+    "executable_hints": {
+      "windows-x86-64": [
+        "crawl.exe"
+      ]
+    },
+    "id": "dungeon-crawl-stone-soup",
+    "launch_arguments": [
+      "-dir",
+      "."
+    ],
+    "launch_environment": {},
+    "launch_from_install_root": false,
+    "manually_validated_platforms": [],
+    "name": "Dungeon Crawl Stone Soup",
+    "persistent_file_patterns": [],
+    "persistent_paths": [
+      "init.txt",
+      "morgue",
+      "saves",
+      "settings/macro.txt"
+    ],
+    "platforms": [
+      "windows-x86-64"
+    ],
+    "portable_marker": false,
+    "presentation": {
+      "installation_method": "portable-package",
+      "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes.",
+      "manual_setup": {
+        "help_url": "https://crawl.develz.org/wordpress/about",
+        "steps": [
+          {
+            "instruction": "Install the official Windows package and choose Play. The package includes the game files.",
+            "title": "Start the Windows Tiles edition"
+          }
+        ],
+        "warnings": []
+      },
+      "original_game": {
+        "evidence_urls": [
+          "https://crawl.develz.org/wordpress/about",
+          "https://github.com/crawl/crawl/blob/0.34.1/README.md#license-and-history-information"
+        ],
+        "format_version": 1,
+        "id": "linleys-dungeon-crawl",
+        "source_editions": []
+      },
+      "original_game_title": "Linley's Dungeon Crawl",
+      "saves_and_settings": "portcove-managed",
+      "source_requirements": []
+    },
+    "project_url": "https://github.com/crawl/crawl",
+    "release": {
+      "asset_hints": {
+        "windows-x86-64": [
+          "dcss-",
+          "-win32-tiles.zip"
+        ]
+      },
+      "direct": {},
+      "provider": "github",
+      "repository": "crawl/crawl",
+      "rolling_tag": null,
+      "user_prepared": {}
+    },
+    "runtime_mutable_paths": [],
+    "runtime_source_filename": null,
+    "runtime_source_hashes": {},
+    "runtime_source_materialization": null,
+    "runtime_source_set": [],
+    "runtime_subdirectory": null,
+    "setup_arguments": [],
+    "setup_executable_hints": {},
+    "setup_marker": null,
+    "setup_output_paths": [],
+    "source_environment": null,
+    "source_profile": null,
+    "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
+    "support_tier": "beta",
+    "upstream_status": "active",
+    "user_data_environment": null
+  },
+  "source_contracts": [
+    "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json"
+  ],
+  "execution_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
+  "persistence_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
+  "artifact_bindings": [],
+  "evidence_references": []
+}

@@ -1,0 +1,46 @@
+{
+  "signatures": [
+    {
+      "keyid": "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5",
+      "sig": "e0b7179f813497f0fa2a049d71aace00e4e98059c9faea281767f61c0ee882f29179cb31a941154969c2c0cee2b4d923f6fe2434016d4c0837dad449dc27c702"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "expires": "2026-11-27T05:15:31.372Z",
+    "spec_version": "1.0.0",
+    "targets": {
+      "policy/official/catalog.listings.json": {
+        "hashes": {
+          "sha256": "75394f58bebaa7acdc235164f4a625fa697f255b98ed5c9608c7308a7a6d19f9"
+        },
+        "length": 8388372
+      },
+      "policy/official/chameleon-twist-jp-recompiled.json": {
+        "hashes": {
+          "sha256": "72e3dba54b22cd9e32f2d176bd66679a352491932b7f3e91ccd7ff18617a4fbc"
+        },
+        "length": 786
+      },
+      "policy/official/chameleon-twist-jp-recompiled.launch.json": {
+        "hashes": {
+          "sha256": "6272ccb96dced16391e32768b122572e77c7133c3098aa850c32e130c96dec18"
+        },
+        "length": 229
+      },
+      "policy/official/dungeon-crawl-stone-soup.json": {
+        "hashes": {
+          "sha256": "9803d9e64bceee37097df46cd24e25509327dd211bdeae7e7bfe167f47217471"
+        },
+        "length": 751
+      },
+      "policy/official/dungeon-crawl-stone-soup.launch.json": {
+        "hashes": {
+          "sha256": "76930887fc6cab00aaf514d7b187563d096179bc6827c6a93493b2f07464eae1"
+        },
+        "length": 224
+      }
+    },
+    "version": 33
+  }
+}
