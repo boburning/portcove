@@ -659,81 +659,6 @@ void test("observation publication retains applicable earlier rows before admitt
   assert.equal(capped.canonical_records, 2);
 });
 
-void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
-  const { fixtureListing, fixturePolicy } =
-    await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
-  const first = fixturePolicy().listing_update;
-  const initial = projectListingDelivery(
-    { format_version: 11, listings: [fixtureListing] },
-    [first],
-    null,
-  );
-  const registered = {
-    ...fixtureListing,
-    id: "new-reviewed",
-    download_block_reason: "External only",
-  };
-  const discovery = { ...fixtureListing, id: "other-candidate" };
-  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
-  const ids = new Set([String(fixtureListing.id), registered.id]);
-  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
-  assert.ok(typeof first.upstream_observation.fresh_until === "string");
-  const expiry = Date.parse(first.upstream_observation.fresh_until);
-  assert.ok(Number.isFinite(expiry));
-  const constrained = projectListingDelivery(
-    current,
-    [],
-    initial.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
-  );
-  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
-  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
-  assert.deepEqual(rows.map((row) => row.id).sort(), [fixtureListing.id, registered.id].sort());
-  assert.deepEqual(
-    rows.find((row) => row.id === registered.id),
-    registered,
-  );
-  assert.deepEqual(constrained.omittedObservations, [
-    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
-  ]);
-  assert.deepEqual(doc.withdrawn_ids, []);
-  assert.throws(
-    () =>
-      projectListingDelivery(
-        current,
-        [],
-        initial.bytes,
-        0,
-        base.bytes.length,
-        undefined,
-        ids,
-        expiry - 1,
-      ),
-    /unexpired prior observations/,
-  );
-  const replay = projectListingDelivery(
-    current,
-    [],
-    constrained.bytes,
-    0,
-    base.bytes.length,
-    undefined,
-    ids,
-    expiry,
-  );
-  assert.deepEqual(replay.bytes, constrained.bytes);
-  assert.equal(replay.changed, false);
-  assert.throws(
-    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
-    /without an explicit withdrawal/,
-  );
-});
-
 void test("descriptive delivery encodes an exact GitHub slash tag from a retained observation", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -890,5 +815,80 @@ void test("completed source observations stay bound to current canonical provide
     ).length,
     0,
     "an observation of a listing cannot acquire a new managed-route binding",
+  );
+});
+
+void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const first = fixturePolicy().listing_update;
+  const initial = projectListingDelivery(
+    { format_version: 11, listings: [fixtureListing] },
+    [first],
+    null,
+  );
+  const registered = {
+    ...fixtureListing,
+    id: "new-reviewed",
+    download_block_reason: "External only",
+  };
+  const discovery = { ...fixtureListing, id: "other-candidate" };
+  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
+  const ids = new Set([String(fixtureListing.id), registered.id]);
+  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
+  assert.ok(typeof first.upstream_observation.fresh_until === "string");
+  const expiry = Date.parse(first.upstream_observation.fresh_until);
+  assert.ok(Number.isFinite(expiry));
+  const constrained = projectListingDelivery(
+    current,
+    [],
+    initial.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
+  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
+  assert.deepEqual(rows.map((row) => row.id).sort(), [fixtureListing.id, registered.id].sort());
+  assert.deepEqual(
+    rows.find((row) => row.id === registered.id),
+    registered,
+  );
+  assert.deepEqual(constrained.omittedObservations, [
+    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
+  ]);
+  assert.deepEqual(doc.withdrawn_ids, []);
+  assert.throws(
+    () =>
+      projectListingDelivery(
+        current,
+        [],
+        initial.bytes,
+        0,
+        base.bytes.length,
+        undefined,
+        ids,
+        expiry - 1,
+      ),
+    /unexpired prior observations/,
+  );
+  const replay = projectListingDelivery(
+    current,
+    [],
+    constrained.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  assert.deepEqual(replay.bytes, constrained.bytes);
+  assert.equal(replay.changed, false);
+  assert.throws(
+    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
+    /without an explicit withdrawal/,
   );
 });
