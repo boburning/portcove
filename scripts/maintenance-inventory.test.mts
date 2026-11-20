@@ -4024,6 +4024,15 @@ void test("managed observation coverage keeps stale or unverified membership out
       distinct_offered_pairs: 3,
     },
   ]);
+  for (const malformed of [undefined, "false"]) {
+    const corrupted = structuredClone(withDecisions);
+    Object.assign(corrupted[0]!.targets!.targets[0]!.routes[0]!, { offered: malformed });
+    assert.equal(
+      managedRouteObservationCoverage(corrupted, [catalog, targets, upstream], members)
+        .catalog_operation_offers_by_platform,
+      null,
+    );
+  }
   withDecisions[0]!.targets!.declared_platforms.push("unobserved-platform");
   assert.equal(
     managedRouteObservationCoverage(withDecisions, [catalog, targets, upstream], members)

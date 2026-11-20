@@ -2934,6 +2934,7 @@ function catalogOperationOffers(ports: readonly ManagedRouteCoverageInput[]) {
       if (installs.length !== 1 || registrations.length !== 1) return null;
       const managed = installs[0]!.offered;
       const external = registrations[0]!.offered;
+      if (typeof managed !== "boolean" || typeof external !== "boolean") return null;
       if (!managed && !external && !targets.declared_platforms.includes(target.platform)) continue;
       const counts = platforms.get(target.platform) ?? {
         managed_install_only: 0,
