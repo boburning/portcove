@@ -44,6 +44,16 @@ Project field.
 
 ## Port-stage contract
 
+Close a title's finite work when the delivered operations meet the applicable
+catalog contract. When a canonical issue exists, record the platform, ownership,
+released route and relevant qualification there. Issue-free additions follow
+the existing catalog preparation and delivery path. A port can be Done at the
+Cataloged stage. A pending shared capability keeps its canonical
+engineering owner and its applicable consumers. Discovery, a watch and a product
+exclusion contribute to inventory coverage only. When an older specification
+requires more than the offered operation, link its dated evidence and identify
+the superseded requirement separately from any passed check.
+
 `Port stage` is a workflow and evidence summary, not a synonym for release
 channel, catalog maturity, or Project Status:
 
