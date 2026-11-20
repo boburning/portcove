@@ -69,6 +69,12 @@ Legacy raw pages remain readable and their original body hashes and input bounds
 are checked before projection. Fresh responses are fully read, charged and
 validated before unused fields are removed. Independent declared-pin metadata
 checks, including embedded-asset completeness, retain their original raw inputs.
+Dedicated GitHub release asset pages can include a failed upload with state
+`starter`. The observer retains that row in `observer-facts-v2` page evidence
+and excludes it from package facts and selection. Pages without these rows
+continue to use `observer-facts-v1`. A later upload can change the package facts under
+the same release identity. Unknown states and malformed rows still fail
+validation, and exact pins still require an uploaded asset.
 GitHub offers
 no atomic repository snapshot: evidence therefore records the observation's
 start/end interval, and any detected change invalidates the entire attempt.

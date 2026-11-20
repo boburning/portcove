@@ -1593,6 +1593,93 @@ void test("Core-bounded release shapes continue past the former single-run reque
   // observations remain distinct evidence even though these shapes fit its caps.
 });
 
+void test("GitHub starter rows survive scoped continuation but cannot nominate packages", async () => {
+  const scoped = validateObserverConfig({
+    ...config,
+    format: 2,
+    asset_scope: "core-channel-candidates",
+    policy_input_sha256: "a".repeat(64),
+    budget: { ...config.budget, requests: 4 },
+  });
+  const server = fixture();
+  const page = `${root}/releases/1/assets?per_page=100&page=1`;
+  const windows = asset();
+  const linux = {
+    ...asset(3),
+    name: "fixture-3-linux.tar.xz",
+    browser_download_url: `https://github.com/${config.repository}/releases/download/v1.0.0/fixture-3-linux.tar.xz`,
+  };
+  const starter = { ...linux, state: "starter", size: 4096, digest: null };
+  server.replies.get(page).body = [starter, windows];
+  assert.throws(
+    () => assetFact(starter, config, "v1.0.0"),
+    /asset size or upload state is invalid/,
+  );
+  const seen: number[][] = [];
+  const options = {
+    fetch: server.fetch,
+    project,
+    selectAssetReleases: async (observation: ProviderObservation) => {
+      seen.push(
+        observation.facts.releases.flatMap((release) => release.assets.map((row) => row.id)),
+      );
+      return [1];
+    },
+  };
+  const partial = await advanceObservation(scoped, null, options);
+  assert.equal(partial.checkpoint.continuation?.phase, "validate");
+  assert.deepEqual(partial.checkpoint.continuation?.pages[page]?.body, [starter, windows]);
+  assert.equal(partial.checkpoint.continuation?.pages[page]?.representation, "observer-facts-v2");
+  const mislabeled = structuredClone(partial.checkpoint.continuation);
+  requiredFixture(mislabeled?.pages[page]).representation = "observer-facts-v1";
+  assert.throws(
+    () => validateObservationContinuation(mislabeled, scoped),
+    /page facts or schema differ/,
+  );
+  const complete = await advanceObservation(scoped, partial.checkpoint, options);
+  assert.equal(complete.report.transition, "initial-baseline");
+  const first = requiredFixture(complete.checkpoint.last_complete);
+  assert.deepEqual(first.observation.facts.releases[0]?.assets, [windows]);
+  assert.ok(seen.every((ids) => !ids.includes(starter.id)));
+  assert.deepEqual(
+    reusableProviderObservation(scoped, first.observation, first.cache, undefined, Date.now())
+      ?.facts,
+    first.observation.facts,
+  );
+
+  const inFlight = await advanceObservation(scoped, complete.checkpoint, options);
+  assert.equal(inFlight.checkpoint.continuation?.phase, "validate");
+  server.replies.get(page).body = [linux, windows];
+  const changed = await advanceObservation(scoped, inFlight.checkpoint, options);
+  assert.equal(changed.report.exception?.rule, "concurrent-change");
+  assert.equal(changed.checkpoint.continuation?.phase, "restart");
+  const late = await advanceObservation(scoped, changed.checkpoint, options);
+  const recovered = await advanceObservation(scoped, late.checkpoint, options);
+  assert.equal(recovered.report.transition, "changed");
+  const next = requiredFixture(recovered.checkpoint.last_complete);
+  assert.equal(next.observation.facts.releases[0]?.id, first.observation.facts.releases[0]?.id);
+  assert.equal(
+    next.observation.facts.releases[0]?.tag_name,
+    first.observation.facts.releases[0]?.tag_name,
+  );
+  assert.deepEqual(next.observation.facts.releases[0]?.assets, [linux, windows]);
+  assert.equal(next.cache.pages[page]?.representation, "observer-facts-v1");
+  assert.notEqual(next.observation.facts_sha256, first.observation.facts_sha256);
+  assert.ok(seen.some((ids) => ids.includes(linux.id)));
+});
+
+void test("GitHub asset collection still refuses unknown states and malformed starter rows", async () => {
+  for (const row of [
+    { ...asset(), state: "pending" },
+    { ...asset(), state: "starter", size: -1 },
+    { ...asset(), state: "starter", browser_download_url: "https://outside.example/fixture.zip" },
+  ]) {
+    const server = fixture();
+    server.replies.get(`${root}/releases/1/assets?per_page=100&page=1`).body = [row];
+    await assert.rejects(observeUpstream(config, { fetch: server.fetch }), ObservationFailure);
+  }
+});
+
 void test("scoped candidate assets reuse complete headers without fetching irrelevant historical assets", async () => {
   const make = () => {
     const server = fixture();
