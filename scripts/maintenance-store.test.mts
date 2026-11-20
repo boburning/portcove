@@ -634,7 +634,7 @@ void test(
         child.on("error", reject);
         child.on("close", (status) => {
           if (status !== 0) reject(new Error(stderr));
-          else resolve(JSON.parse(stdout));
+          else resolve(JSON.parse(stdout) as string | null);
         });
       });
     const admitted = (await Promise.all([attempt("a"), attempt("b")])).find(Boolean);

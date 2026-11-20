@@ -24,6 +24,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
+import { isRecord } from "./runtime-values.mts";
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 export const defaultMigrationDirectory = path.join(
@@ -452,9 +453,8 @@ function validSequences(state: unknown): state is SequenceState {
     Array.isArray(state) &&
     state.length === storeSequences.length &&
     state.every(
-      (entry) =>
-        entry !== null &&
-        typeof entry === "object" &&
+      (entry: unknown) =>
+        isRecord(entry) &&
         typeof entry.last_value === "string" &&
         /^[1-9][0-9]*$/u.test(entry.last_value) &&
         typeof entry.is_called === "boolean",
@@ -634,7 +634,7 @@ async function writeBackup(environment: NodeJS.ProcessEnv, output: string) {
         environment,
         { timeoutMs: dumpTimeoutMs },
       );
-      const afterDump = JSON.parse(await query(sequenceStateQuery));
+      const afterDump: unknown = JSON.parse(await query(sequenceStateQuery));
       if (JSON.stringify(afterDump) !== JSON.stringify(sequences))
         throw new MaintenanceStoreError(
           "Maintenance sequences changed while writing the portable dump",

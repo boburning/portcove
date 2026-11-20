@@ -79,7 +79,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           rc=0
-          bash scripts/maintenance-recovery-artifact.sh "$RUNNER_TEMP/maintenance-baseline" || rc=$?
+          node scripts/maintenance-recovery-artifact.mts "$RUNNER_TEMP/maintenance-baseline" || rc=$?
           if [[ "$rc" == 75 ]]; then
             echo 'No verified recovery baseline was found. A due recovery point requires a separately admitted full export.' >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$rc" == 0 ]]; then

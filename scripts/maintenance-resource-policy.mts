@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { appendFileSync, writeFileSync } from "node:fs";
+import { isRecord } from "./runtime-values.mts";
 import {
   MaintenanceStoreError,
   maintenanceTransfer,
@@ -143,18 +144,24 @@ export async function sampleNeon(environment: NodeJS.ProcessEnv): Promise<NeonMe
     return await response.json();
   };
   const sampledAt = new Date().toISOString();
-  const [{ project }, { branch }, { endpoints }] = await Promise.all([
+  const [projectResponse, branchResponse, endpointsResponse] = await Promise.all([
     read(""),
     read("/branches/br-frosty-bar-bbaitwbu"),
     read("/endpoints"),
   ]);
-  if (project?.effective_project_permission !== "VIEWER")
+  const project = isRecord(projectResponse) && projectResponse.project;
+  const branch = isRecord(branchResponse) && branchResponse.branch;
+  const endpoints = isRecord(endpointsResponse) && endpointsResponse.endpoints;
+  if (!isRecord(project) || !isRecord(branch) || project.effective_project_permission !== "VIEWER")
     throw new MaintenanceStoreError("Neon meter needs a project Viewer credential");
   const host = environment.PGHOST?.replace(/-pooler(?=\.)/u, "").toLowerCase();
   if (
     !Array.isArray(endpoints) ||
     !endpoints.some(
-      (endpoint) => endpoint.host === host && endpoint.branch_id === "br-frosty-bar-bbaitwbu",
+      (endpoint: unknown) =>
+        isRecord(endpoint) &&
+        endpoint.host === host &&
+        endpoint.branch_id === "br-frosty-bar-bbaitwbu",
     )
   )
     throw new MaintenanceStoreError(
@@ -202,7 +209,7 @@ export function acquireMaintenanceReservation(
     meter: NeonMeter;
     operation: MaintenanceOperation;
     request: string;
-    revision?: string;
+    revision?: string | undefined;
     reason: string;
     now?: number;
   },
@@ -322,7 +329,7 @@ export async function withMaintenanceAdmission<T>(
   callback: (bytes: number) => Promise<T> | T,
   options: {
     estimate?: (value: T) => number;
-    request?: string;
+    request?: string | undefined;
     completed?: (value: T) => boolean;
     bootstrap?: boolean;
   } = {},

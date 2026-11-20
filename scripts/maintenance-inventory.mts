@@ -4216,8 +4216,12 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--subject and --before apply only to history");
   if (progressManifest !== undefined && command !== "collect")
     throw new MaintenanceStoreError("--progress applies only to collect");
-  const reassess = option(args, "--reassess");
-  if (reassess !== undefined && reassess !== "full" && reassess !== "changed")
+  const requestedReassessment = option(args, "--reassess");
+  const reassess =
+    requestedReassessment === "full" || requestedReassessment === "changed"
+      ? requestedReassessment
+      : undefined;
+  if (requestedReassessment !== undefined && reassess === undefined)
     throw new MaintenanceStoreError("--reassess must be full or changed");
   const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");

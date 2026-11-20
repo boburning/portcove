@@ -94,7 +94,7 @@ export async function backupReusingHistory(options: {
   source: NodeJS.ProcessEnv;
   prefixDatabase: NodeJS.ProcessEnv;
   target: NodeJS.ProcessEnv;
-  previous?: string;
+  previous?: string | undefined;
   output: string;
   reservedBytes: number;
   reuseRecent?: boolean;
@@ -151,7 +151,7 @@ export async function backupReusingHistory(options: {
           through.push("0");
           continue;
         }
-        const observed = JSON.parse(await query(historyPrefix(index, prefix.through)));
+        const observed: unknown = JSON.parse(await query(historyPrefix(index, prefix.through)));
         through.push(JSON.stringify(observed) === JSON.stringify(prefix) ? prefix.through : "0");
       }
       if (
