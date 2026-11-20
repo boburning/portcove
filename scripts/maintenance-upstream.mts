@@ -897,6 +897,7 @@ export async function readObserverOperatingUsage(
     throw new MaintenanceStoreError("Observer usage checkpoint differs from the report digest");
 
   const seen = new Set<number>();
+  const observationCompletions: (number | null)[] = [];
   const executed: { id: number; name: string; conclusion: string; seconds: number | null }[] = [];
   for (const job of inventory.jobs as unknown[]) {
     if (
@@ -919,16 +920,20 @@ export async function readObserverOperatingUsage(
     if (job.conclusion === "skipped") continue;
     const start = githubJobTime(job.started_at);
     const end = githubJobTime(job.completed_at);
+    const measured = start !== null && end !== null && end >= start;
+    if (job.name === "observe") observationCompletions.push(measured ? end : null);
     executed.push({
       id: job.id,
       name: job.name,
       conclusion: job.conclusion,
-      seconds: start !== null && end !== null && end >= start ? (end - start) / 1000 : null,
+      seconds: measured ? (end - start) / 1000 : null,
     });
   }
   if (!executed.some(({ name }) => name === "observe"))
     throw new MaintenanceStoreError("Imported observer attempt did not execute observation");
   const measured = executed.filter(({ seconds }) => seconds !== null);
+  const observationCompletion =
+    observationCompletions.length === 1 ? observationCompletions[0] : null;
   return {
     format_version: 1,
     kind: "maintenance-observer-operating-usage",
@@ -943,6 +948,8 @@ export async function readObserverOperatingUsage(
     },
     checkpoint: { id: checkpoint.id, digest: artifactDigest, bytes: checkpoint.size_in_bytes },
     executed_jobs: executed,
+    observation_finished_at:
+      observationCompletion != null ? new Date(observationCompletion).toISOString() : null,
     unmeasured_jobs: executed.length - measured.length,
     observed_runner_seconds: measured.length
       ? measured.reduce((total, job) => total + (job.seconds ?? 0), 0)

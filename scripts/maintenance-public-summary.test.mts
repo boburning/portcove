@@ -110,6 +110,24 @@ void test("public management summary emits only explicit counts, time windows an
   assert.doesNotMatch(summary, /https?:|private|journal|credential|upstream-observer-run/u);
 });
 
+void test("public summary uses only the bound observation completion for its age", () => {
+  const boundUsage = { ...usage, observation_finished_at: "2026-11-19T20:30:00Z" };
+  assert.match(
+    renderMaintenancePublicSummary(report(), boundUsage, digest),
+    /imported observation job finished at 2026-11-19T20:30:00\.000Z, aged 3\.5 h/u,
+  );
+  for (const observation_finished_at of ["tomorrow", "2026-11-21T00:00:00Z"]) {
+    assert.match(
+      renderMaintenancePublicSummary(report(), { ...boundUsage, observation_finished_at }, digest),
+      /Actual observer execution age is unknown/u,
+    );
+  }
+  assert.match(
+    renderMaintenancePublicSummary(report(), boundUsage, "0".repeat(64)),
+    /Actual observer execution age is unknown/u,
+  );
+});
+
 void test("public management summary preserves unknown quiet windows, failed coverage and unbound usage", () => {
   const input = report();
   const rollup = input.managed_release_eligibility;
