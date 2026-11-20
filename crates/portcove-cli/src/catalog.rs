@@ -88,6 +88,11 @@ pub(crate) enum CatalogCommand {
         /// Inert capability-requirements JSON file to inspect without opening a library.
         file: PathBuf,
     },
+    /// Emit one canonical typed definition projection without opening a library.
+    CanonicalDefinitionProjection {
+        /// Inert single-port catalog projection assembled from a generated row and reviewed source graph.
+        file: PathBuf,
+    },
     /// Validate inert catalog declarations without changing the trusted catalog.
     InspectProposal {
         /// Inert catalog proposal JSON file; inspection does not sign, trust or publish it.
@@ -281,6 +286,7 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::CanonicalDefinitionProjection { .. } => "catalog.canonical-definition-projection",
             Self::InspectTargets { .. } => "catalog.inspect-targets",
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
@@ -483,6 +489,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::CanonicalDefinitionProjection { .. } => {
+            unreachable!("projection preparation executes before opening a library")
         }
         CatalogCommand::InspectTargets { .. } => {
             unreachable!("target inspection executes before opening a library")

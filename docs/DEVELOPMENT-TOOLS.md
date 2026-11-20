@@ -1817,12 +1817,18 @@ the original cause.
 These observations do not change visibility, enabled-state or pointer checks,
 click dispatch, or the existing evidence limits.
 
-The Linux selected setup journey uses one WebDriver viewport pointer sequence to
-open the initial 400% folder-connection screen. WebKitGTK 2.52.6's Element Click
-command rejected that visible control in the isolated native run. The harness
-checks the same CSS pixel it sends to the driver. The existing settings heading,
-focus and native picker checks still establish the transition and its result.
-A rejected pointer sequence fails the run and retains its original error.
+The Linux selected setup journey explicitly converts CSS target coordinates into
+WebKitGTK window coordinates at its measured 400% page zoom. The retained native
+run rejected Element Click, and an unscaled viewport action opened Navigation
+instead of Game files. DOM visibility, enabled-state and hit tests remain in CSS
+pixels. Only this journey multiplies the final native point by page zoom, moves
+the actual pointer, checks the target's native hover and CSS hit before pressing,
+and sends one press/release without a fallback. Its report keeps both coordinate
+spaces, scale and delivered-target result. Navigation, filters, review actions
+and the restarted session use the same explicit policy. Default consumers and
+Windows retain their previous dispatch. Settings heading, focus, dialog and native
+picker checks still establish each transition; neither a successful command nor
+these fixture checks establish Native acceptance by themselves.
 
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual

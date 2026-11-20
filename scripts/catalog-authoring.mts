@@ -11,6 +11,7 @@ import {
 } from "./package-player-observation.mts";
 import type { PackagePlayerObservationV1 } from "./package-player-observation.mts";
 import { checkSettingsPolicy, projectSettingsQualification } from "./settings-qualification.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import type {
   SettingsQualificationPolicy,
   SettingsQualificationObservation,
@@ -21,6 +22,7 @@ import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
+import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -85,6 +87,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Shared official Raze Windows package and portable-profile layout. */
   raze_windows_profile_v1?: true;
   igdb_regional_cover?: IgdbRegionalCover;
+  /** Ordered platforms with an independently reviewed flat, single-program archive. */
+  reviewed_flat_package_layout_v1?: string[];
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
@@ -94,11 +98,14 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "bundled-openbios"
     | "split-mods"
     | "split-mods-openbios"
-    | "split-mods-overlay-directory";
+    | "split-mods-overlay-directory"
+    | "technically-computers";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
   n64_recomp_persistence_v1?: true;
   /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
   reflectionhle_portable_paths_v1?: true;
+  /** Shared persistent files for the reviewed Crispy Doom Windows player. */
+  crispy_doom_windows_persistence_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -720,11 +727,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Shared presentation fields belong to the listing.");
   }
   const record = value as AuthoredPort;
+  projectReviewedFlatPackageLayout(record);
   projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
   projectN64RecompPersistence(record);
   projectReflectionHlePortablePaths(record);
+  projectCrispyDoomWindowsPersistence(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -763,7 +772,7 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 }
 
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
-  const declared = projectRazeWindowsProfile(input);
+  const declared = projectReviewedFlatPackageLayout(projectRazeWindowsProfile(input));
   const record = projectSettingsQualification(
     projectPackagePlayerFacts(
       projectRouteFacts(
@@ -771,7 +780,9 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       ),
     ),
   );
-  const operational = projectReflectionHlePortablePaths(record).integration;
+  const operational = projectCrispyDoomWindowsPersistence(
+    projectReflectionHlePortablePaths(record),
+  ).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};

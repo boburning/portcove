@@ -6,6 +6,7 @@ import { targetInvocationContext } from "./invocation-state";
 import { failureReport, portStatus } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
 import { InvocationOwnerProvider } from "./invocation-owner";
+import { installRecord } from "../../components/rendered-test-fixtures";
 import {
   OperationPresentationProvider,
   presentPortAction,
@@ -23,20 +24,26 @@ let state!: ReturnType<typeof useOperationState>;
 const refresh = vi.fn<() => Promise<unknown>>();
 const invalidate = vi.fn();
 const openActivity = vi.fn();
+let startedReadRevision = 1;
+const startedWorkspaceReadRevision = () => startedReadRevision;
 function Fixture({
   generation = 7,
   activities = [],
   onActivity = false,
+  workspaceReadRevision = 1,
 }: {
   generation?: number;
   activities?: ActivityRecord[];
   onActivity?: boolean;
+  workspaceReadRevision?: number;
 }) {
   state = useOperationState({
     refresh,
     invalidateDiagnostics: invalidate,
     libraryGeneration: generation,
     activities,
+    workspaceReadRevision,
+    startedWorkspaceReadRevision,
   });
   return (
     <StatusLayer
@@ -61,6 +68,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 beforeEach(async () => {
+  startedReadRevision = 1;
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   refresh.mockReset().mockResolvedValue(undefined);
   invalidate.mockReset();
@@ -69,6 +77,57 @@ beforeEach(async () => {
   document.body.append(host);
   root = createRoot(host);
   await act(async () => root.render(<Fixture />));
+});
+
+it("retains unread installs through dismissal and pre-commit reads, retiring only by full receipt or generation", async () => {
+  refresh.mockRejectedValue(new Error("workspace unavailable"));
+  startedReadRevision = 2; // This read began before A's commit and has not finished.
+  await act(async () => {
+    await state.perform(
+      "install",
+      async () => {
+        const installed = installRecord({ port_id: "A" });
+        state.noteInstallCommitted(installed);
+        return installed;
+      },
+      { context: context("A", "Install game") },
+    );
+  });
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+  const invocation = [...state.invocations.values()][0]!;
+  expect(invocation.outcome).toBe("succeeded");
+  await act(async () => state.dismissInvocation(invocation.id));
+  expect(state.invocations.size).toBe(0);
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+
+  startedReadRevision = 3;
+  await act(async () => {
+    await state.perform(
+      "install",
+      async () => {
+        const installed = installRecord({ port_id: "B" });
+        state.noteInstallCommitted(installed);
+        return installed;
+      },
+      { context: context("B", "Install game") },
+    );
+  });
+  expect([...state.unreadInstallPorts]).toEqual(["A", "B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={2} />));
+  expect([...state.unreadInstallPorts]).toEqual(["A", "B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={3} />));
+  expect([...state.unreadInstallPorts]).toEqual(["B"]);
+  await act(async () => root.render(<Fixture workspaceReadRevision={4} />));
+  expect(state.unreadInstallPorts.size).toBe(0);
+  startedReadRevision = 4;
+  await act(async () => state.noteInstallCommitted(installRecord({ port_id: "A" })));
+  expect([...state.unreadInstallPorts]).toEqual(["A"]);
+  const outgoingCommit = state.noteInstallCommitted;
+  await act(async () => root.render(<Fixture generation={8} workspaceReadRevision={4} />));
+  await act(async () => outgoingCommit(installRecord({ port_id: "outgoing" })));
+  expect(state.unreadInstallPorts.size).toBe(0);
+  await act(async () => root.render(<Fixture workspaceReadRevision={4} />));
+  expect(state.unreadInstallPorts.size).toBe(0);
 });
 afterEach(async () => {
   await act(async () => root.unmount());

@@ -5,10 +5,10 @@
     "name": "The Order: 1886 — The Order1886 native port (mateussmeneses) (mateussmeneses)",
     "original_game_title": "The Order: 1886",
     "summary": "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/mateussmeneses/theorder1886-port",
+    "project_url": "https://github.com/saxons-kicks/theorder1886-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/mateussmeneses/theorder1886-port",
+    "setup_url": "https://github.com/saxons-kicks/theorder1886-port",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/mateussmeneses/theorder1886-port"
+      "help_url": "https://github.com/saxons-kicks/theorder1886-port"
     },
     "issue_number": 3335,
     "listed_at": "2026-10-25",
@@ -48,6 +48,48 @@
         "id": "1419628884"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/mateussmeneses/theorder1886-port",
+          "repository": {
+            "host": "github.com",
+            "id": "1419628884"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/saxons-kicks/theorder1886-port",
+          "repository": {
+            "host": "github.com",
+            "id": "1419628884"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "Retain the same GitHub repository and Portcove listing after independently verifying the numeric redirect, retained source history and current project requirements.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/mateussmeneses/theorder1886-port",
+            "note": "On 2026-11-19 the former address returned HTTP 301 to /repositories/1419628884. The new canonical address returns the existing repository ID."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/saxons-kicks/theorder1886-port/commit/1d265b817fe44288a852de8b0376b867abba6755",
+            "note": "GitHub verifies the historical README commit and maps its old author label to the same numeric user ID as the current account. The current guide retains the CUSA00035 01.02 input contract and original source and funding references."
+          },
+          {
+            "kind": "context",
+            "reference": "https://github.com/boburning/portcove/issues/3335",
+            "note": "Retain the historical project association and original-game requirements."
+          }
+        ],
+        "reconsider_when": "Review a new observed repository ID, contradictory implementation history or changed source requirements before accepting any further relocation.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/177#issuecomment-7024799955",
+          "decision_sha256": "c6d0aa73f31e854604abc4de324fe7072fb0dd9ea4ce13adac655140bf2bc8f5"
+        }
+      }
+    ]
   }
 }

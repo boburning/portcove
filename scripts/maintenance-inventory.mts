@@ -22,6 +22,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { channels } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
@@ -2843,6 +2844,17 @@ interface ManagedRouteCoverageInput {
   curated_platforms?: string[] | null;
 }
 
+type ManagedRouteCandidateEvidence = { candidate_key: string } & (
+  | { channel: (typeof channels)[number]; state: "eligible" | "pending" }
+  | { state: "ambiguous" }
+);
+
+type ManagedRouteEvidence = { port_key: string; platform: string } & (
+  | { evidence: "fixed" }
+  | { evidence: "exact-observation"; candidates: ManagedRouteCandidateEvidence[] }
+  | { evidence: "gap"; reason: string }
+);
+
 /** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
 export function managedRouteObservationCoverage(
   ports: readonly ManagedRouteCoverageInput[],
@@ -2889,6 +2901,7 @@ export function managedRouteObservationCoverage(
     { offered: number; fixed: number; candidate_observed: number }
   >();
   const reasons = new Map<string, number>();
+  const routes: ManagedRouteEvidence[] = [];
   for (const port of ports) {
     if (!targetScopeKnown || port.targets?.presence !== "operational") {
       missingTargets++;
@@ -2905,7 +2918,7 @@ export function managedRouteObservationCoverage(
             port.curated_platforms?.includes(platform) === true,
         ]),
     );
-    const observed = new Set<string>();
+    const observed = new Map<string, Map<string, ManagedRouteCandidateEvidence>>();
     const retained = new Set<string>();
     if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
       const sources = port.upstream.sources;
@@ -2924,18 +2937,50 @@ export function managedRouteObservationCoverage(
                 if (
                   port.definition_sha256 &&
                   source.catalog_definition_sha256 === port.definition_sha256
-                )
-                  observed.add(candidate.platform);
+                ) {
+                  const candidates =
+                    observed.get(candidate.platform) ??
+                    new Map<string, ManagedRouteCandidateEvidence>();
+                  observed.set(candidate.platform, candidates);
+                  const { candidate_key, state } = candidate;
+                  const channel = channels.find((value) => value === candidate.channel);
+                  if (channel) {
+                    const previous = candidates.get(candidate_key);
+                    const conflict =
+                      previous &&
+                      (previous.state === "ambiguous" ||
+                        previous.channel !== channel ||
+                        previous.state !== state);
+                    candidates.set(
+                      candidate_key,
+                      conflict
+                        ? { candidate_key, state: "ambiguous" }
+                        : { candidate_key, channel, state },
+                    );
+                  }
+                }
               }
     }
     for (const [platform, fixed] of offered) {
+      const route = { port_key: port.port_key, platform };
       const counts = platforms.get(platform) ?? { offered: 0, fixed: 0, candidate_observed: 0 };
       counts.offered++;
-      if (fixed) counts.fixed++;
-      else {
+      if (fixed) {
+        counts.fixed++;
+        routes.push({ ...route, evidence: "fixed" });
+      } else {
         if (retained.has(platform)) retainedCandidates++;
-        if (observed.has(platform)) counts.candidate_observed++;
-        else {
+        const candidates = observed.get(platform);
+        if (candidates) {
+          counts.candidate_observed++;
+          routes.push({
+            ...route,
+            evidence: "exact-observation",
+            candidates: [...candidates.values()].sort((a, b) =>
+              a.candidate_key.localeCompare(b.candidate_key),
+            ),
+          });
+        } else {
           const reason =
             observerFailure ??
             gaps.get(port.port_key) ??
@@ -2947,6 +2992,7 @@ export function managedRouteObservationCoverage(
                 ? "no-managed-candidate"
                 : "outside-observer-scope");
           reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+          routes.push({ ...route, evidence: "gap", reason });
         }
       }
       platforms.set(platform, counts);
@@ -2986,6 +3032,11 @@ export function managedRouteObservationCoverage(
     gaps: [...reasons.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([reason, offered_platforms]) => ({ reason, offered_platforms })),
+    routes: completeOffering
+      ? routes.sort(
+          (a, b) => a.port_key.localeCompare(b.port_key) || a.platform.localeCompare(b.platform),
+        )
+      : null,
     observer_revision: upstream?.source_revision ?? null,
     observer_checkpoint_imported_at: upstream?.completed_at ?? null,
     observer_membership_verified: membershipVerified,
@@ -3307,6 +3358,32 @@ ${entries
   )
   .join("\n")}
 </tbody></table>`;
+}
+
+function managedRouteCoverageSection(report: InventoryReport) {
+  const coverage = report.managed_route_observation_coverage;
+  if (!coverage) return "";
+  const gaps = coverage.routes?.filter((route) => route.evidence === "gap") ?? [];
+  return `<h2>Managed installation observation coverage</h2>
+<p>The latest checkpoint recorded candidates that match the current definition for ${escapeHtml(coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>
+<p><a href="inventory.json">JSON report with route and channel evidence</a></p>
+${
+  gaps.length
+    ? `<details>
+<summary>Show ${gaps.length} route observation gaps</summary>
+<div class="scrollable-table" tabindex="0" role="region" aria-labelledby="managed-route-gaps-caption"><table>
+<caption id="managed-route-gaps-caption">Offered routes without exact candidate evidence</caption>
+<thead><tr><th scope="col">Port</th><th scope="col">Platform</th><th scope="col">Evidence gap</th></tr></thead><tbody>
+${gaps
+  .map(
+    ({ port_key, platform, reason }) =>
+      `<tr><th scope="row"><code>${escapeHtml(port_key)}</code></th><td>${escapeHtml(platform)}</td><td>${escapeHtml(reason)}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table></div>
+</details>`
+    : ""
+}`;
 }
 
 function hostedIntakeSection(report: InventoryReport) {
@@ -3648,8 +3725,8 @@ table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8884; padding: .4rem; text-align: left; vertical-align: top; }
 .unknown { color: #b26b00; }
 input { width: 100%; padding: .5rem; font: inherit; }
-.progress-table { overflow: auto; max-inline-size: 100%; }
-.progress-table th, .progress-table td { min-inline-size: 12rem; overflow-wrap: anywhere; }
+.scrollable-table { overflow: auto; max-inline-size: 100%; }
+.scrollable-table th, .scrollable-table td { min-inline-size: 12rem; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -3677,12 +3754,7 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
-${
-  report.managed_route_observation_coverage
-    ? `<h2>Managed installation observation coverage</h2>
-<p>The latest checkpoint recorded candidates that match the current definition for ${escapeHtml(report.managed_route_observation_coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(report.managed_route_observation_coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(report.managed_route_observation_coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(report.managed_route_observation_coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>`
-    : ""
-}
+${managedRouteCoverageSection(report)}
 ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
@@ -3691,7 +3763,7 @@ ${releaseContentSection(report)}
 <p>Optional source-backed research observations. Matching, fuzzy similarity and linked code measure different work. They do not establish playable packages or support. Failed reads preserve the last dated observation.</p>
 ${
   report.progress?.length
-    ? `<div class="progress-table" tabindex="0" role="region" aria-labelledby="research-progress-heading"><table>
+    ? `<div class="scrollable-table" tabindex="0" role="region" aria-labelledby="research-progress-heading"><table>
 <caption>Observed project and edition progress</caption><thead><tr><th scope="col">Project and edition</th><th scope="col">Metrics</th><th scope="col">Source and freshness</th></tr></thead><tbody>
 ${report.progress.map((p) => `<tr><th scope="row">${escapeHtml(p.repository)} · ${escapeHtml(p.game_key)} · ${escapeHtml(p.version)}</th><td>${escapeHtml(p.display)}<br>${escapeHtml(p.methodology)}</td><td><a href="${escapeHtml(p.source_url)}">${escapeHtml(p.provider)} report for ${escapeHtml(p.repository)}</a><br><a href="${escapeHtml(p.evidence_url)}">Source evidence for ${escapeHtml(p.repository)}</a><br>Observed ${escapeHtml(p.observed_at ?? "unknown")}; checked ${escapeHtml(p.checked_at)} (${escapeHtml(p.freshness)}; latest attempt ${escapeHtml(p.latest_attempt)} at ${escapeHtml(p.last_attempt_at)})<br>${escapeHtml(p.commit ?? "commit unavailable")}</td></tr>`).join("\n")}
 </tbody></table></div>`

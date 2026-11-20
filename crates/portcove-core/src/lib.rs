@@ -231,7 +231,7 @@ pub use definition_eligibility::{
 };
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
-pub use definition_projection::DefinitionCatalogProjection;
+pub use definition_projection::{DefinitionCatalogProjection, canonical_definition_projection};
 pub use definition_publication::{
     DefinitionPublicationFile, DefinitionPublicationIdentity, DefinitionPublicationInspection,
     inspect_definition_publication, inspect_definition_publication_bytes,
