@@ -1792,10 +1792,12 @@ void test("caller opportunity clamps GitHub fetch and refuses late retry without
   );
 });
 
-void test("fair observer admission deferrals preserve the provider read allowance", async () => {
+void test("fair observer admission deferrals preserve the provider read allowance", async (context) => {
   const server = fixture();
+  let monotonic = performance.now();
+  context.mock.method(performance, "now", () => monotonic);
   const githubScope = {
-    deadline: performance.now() + 5000,
+    deadline: monotonic + 60_000,
     failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
     deferral: { primary: new Map<string, number>(), secondary: 0 },
   };
@@ -1819,6 +1821,9 @@ void test("fair observer admission deferrals preserve the provider read allowanc
     );
   }
   assert.equal(calls, 0);
+  // A later fair turn can begin after the SDK's default 15-second request
+  // timer, while the shared hosted opportunity still has time remaining.
+  monotonic += 16_000;
   await observeUpstream(config, options);
   assert.ok(calls > 0);
 });
@@ -1844,9 +1849,11 @@ void test("exhausting the shared GitHub deadline before SDK setup is budget cont
   );
 });
 
-void test("continued command cannot renew an exhausted SDK read allowance", async () => {
+void test("continued command cannot renew an exhausted SDK read allowance", async (context) => {
+  let monotonic = performance.now();
+  context.mock.method(performance, "now", () => monotonic);
   const githubScope = {
-    deadline: performance.now() + 5000,
+    deadline: monotonic + 60_000,
     failedReads: new Map<string, import("./github-client.mts").GitHubRequestPolicy>(),
     deferral: { primary: new Map<string, number>(), secondary: 0 },
   };
@@ -1868,6 +1875,12 @@ void test("continued command cannot renew an exhausted SDK read allowance", asyn
     "collection recovery retains the exhausted policy instead of dispatching again",
   );
   assert.equal(githubScope.failedReads.get(root)?.attempts, 3);
+  monotonic += 16_000;
+  await assert.rejects(
+    observeUpstream(config, options),
+    /provider request exceeded its available time/u,
+  );
+  assert.equal(calls, 3, "waiting for another turn cannot renew a dispatched request's deadline");
 });
 
 void test("observer metadata preserves actual SDK success and failed-stream evidence per request", async () => {
