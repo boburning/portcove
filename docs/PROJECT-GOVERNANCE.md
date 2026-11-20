@@ -657,15 +657,15 @@ restart after it stops.
 
 The saved views are entry points into one Project, not independent authorities:
 
-| View                                     | Question answered                                                                                                             |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
-| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
-| In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
-| Next Queue                               | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
-| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
-| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
-| Blocked & Deferred / Product Triage      | What has a resume condition, and which product reports or requests need triage?                                               |
+| View                                                 | Question answered                                                                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product Outcomes                                     | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
+| Required for Beta / Required through 1.0             | Which direct Required outcomes remain?                                                                                        |
+| In Progress                                          | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
+| Next Queue                                           | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
+| Planned Additions                                    | Which approved non-gating additions remain, across releases?                                                                  |
+| Port Pipeline / Active Port Work / Blocked Port Work | Which ports are in the inventory, actively being worked on, or blocked?                                                       |
+| Blocked & Deferred / Product Triage                  | What has a resume condition, and which product reports or requests need triage?                                               |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every
