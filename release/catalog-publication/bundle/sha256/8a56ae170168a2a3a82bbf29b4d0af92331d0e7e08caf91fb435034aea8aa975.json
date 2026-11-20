@@ -2,7 +2,7 @@
   "definition_schema": 1,
   "namespace": "official",
   "stable_id": "dungeon-crawl-stone-soup",
-  "revision": 1,
+  "revision": 2,
   "required_capabilities": [
     {
       "template": "native-portable",
@@ -101,10 +101,10 @@
     "user_data_environment": null
   },
   "source_contracts": [
-    "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json"
+    "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json"
   ],
-  "execution_contract": "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json",
-  "persistence_contract": "sha256/73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62.json",
+  "execution_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
+  "persistence_contract": "sha256/a46ae0aa526c6226a9d5ab0245ce7c14874116988acc846b823e6033b4b43cc2.json",
   "artifact_bindings": [],
   "evidence_references": []
 }

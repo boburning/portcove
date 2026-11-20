@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Initial managed Windows Tiles definition for Dungeon Crawl Stone Soup from crawl/crawl, repository 23038334. The reviewed ordinary Stable baseline is 0.34.1, release 297110712, asset 374122427, SHA-256 a772f22db9dde5dfa85bcc1652dbf16e3d62ecd1173f27c39387403532507979. The grant uses ordinary GitHub release selection. Chameleon retains its existing definition and acquisition scope. Its policy and launch revisions advance to bind the two-entry index. The publisher continues to derive descriptive listings separately."
+    "notes": "Crawl revision 2 uses the existing schema-2 single-port compatibility form for Preview.9 clients where the stable ID is absent. The canonical generated Crawl row, source graph, Stable selector, executable, persistence and acquisition policy remain exact. The current signed revision-31 prior and Chameleon definition stay in publication history; both existing policies and launch records rebind to the revised index within their reviewed scopes."
   }
 }
