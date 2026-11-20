@@ -1524,7 +1524,11 @@ async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
     duplicate["name"] = "SnowboardKidsRecompiled-v0.9.0-beta.1-Linux-x86_64.zip".into();
     let mut competing = options(second.clone(), true);
     competing.push(duplicate);
-    let next_family = archive("0.9.0-rc", 298, 8, &"b".repeat(64));
+    let next_maturity = archive("0.9.0-rc", 298, 8, &"b".repeat(64));
+    let numeric = archive("0.9.0", 300, 8, &"b".repeat(64));
+    let stable = archive("0.9.1", 303, 8, &"b".repeat(64));
+    let mut stable_release = release("v0.9.1", vec![stable.clone()]);
+    stable_release["id"] = 302.into();
     let (origin, requests, server) = serve_http(vec![
         repository(),
         releases(&[old]),
@@ -1538,8 +1542,14 @@ async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
         releases(&[new()]),
         inventories(competing),
         repository(),
-        releases(&[beta_release("v0.9.0-rc", 297, vec![next_family.clone()])]),
-        inventories(vec![next_family]),
+        releases(&[beta_release("v0.9.0-rc", 297, vec![next_maturity.clone()])]),
+        inventories(vec![next_maturity]),
+        repository(),
+        releases(&[beta_release("v0.9.0", 301, vec![numeric.clone()])]),
+        inventories(vec![numeric]),
+        repository(),
+        releases(&[stable_release]),
+        inventories(vec![stable]),
     ]);
     let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
     let accepted = provider
@@ -1551,17 +1561,11 @@ async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
         596_227_934
     );
     let choice = ManagedPackageVariant::from_review(port, platform, &accepted).unwrap();
-    assert!(!choice.has_numeric_manifest_receipt());
     assert!(choice.matches(
         "v0.9.0-beta.1",
         "SnowboardKidsRecompiled-0.9.0-beta.1-Linux-x86_64.zip"
     ));
-    for tag in [
-        "v0.9.0",
-        "v0.9.0-rc",
-        "v0.9.0-beta.01",
-        "v0.9.0-beta.1-debug",
-    ] {
+    for tag in ["v0.9.0-beta.01", "v0.9.0-beta.1-debug"] {
         let name = format!(
             "SnowboardKidsRecompiled-{}-Linux-x86_64.zip",
             tag.trim_start_matches('v')
@@ -1589,21 +1593,29 @@ async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
         .await
         .unwrap_err();
     assert_eq!(ambiguous.details["saved_package_variant"], "ambiguous");
-    let other_family = provider
-        .resolve_saved_variant(port, channel, platform, None, &choice)
-        .await
-        .unwrap_err();
-    assert_eq!(
-        other_family.details["saved_package_variant"],
-        "no-matching-package"
-    );
+    for (version, asset_id) in [("v0.9.0-rc", 298), ("v0.9.0", 300), ("v0.9.1", 303)] {
+        let successor = provider
+            .resolve_saved_variant(port, channel, platform, None, &choice)
+            .await
+            .unwrap();
+        assert_eq!(successor.release.version, version);
+        assert_eq!(successor.release.channel, channel);
+        assert_eq!(
+            successor.github_identity.as_ref().unwrap().asset_id,
+            asset_id
+        );
+        assert_eq!(
+            ManagedPackageVariant::from_review(port, platform, &successor),
+            Some(choice.clone())
+        );
+    }
     server.join().unwrap();
     assert_eq!(
         requests
             .try_iter()
             .filter(|path| path.contains("/assets?"))
             .count(),
-        4
+        6
     );
 }
 

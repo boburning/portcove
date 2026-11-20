@@ -4267,7 +4267,7 @@ fn write_manifest_with_shape(
             .as_ref()
             .and_then(|proof| proof.saved_variant.clone())
             .or_else(|| qualification.retained_package_variant.clone())
-            .filter(crate::ManagedPackageVariant::has_numeric_manifest_receipt),
+            .filter(|_| crate::ManagedPackageVariant::supports_manifest_receipt(version)),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification

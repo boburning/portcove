@@ -2325,8 +2325,8 @@ repository, release and asset identities. On the beta channel, this also
 covers full tags ending in `-alpha`, `-beta` or `-rc`, with an optional dot
 and number. Core recovers that choice from the verified acquisition and the
 definition retained when the package was installed. The next package must
-keep the same prerelease family and include its full tag. Additional edition
-or debug labels need their own reviewed binding. Core remembers the channel, host
+include its full tag. Additional edition or debug labels need their own
+reviewed binding. Core remembers the channel, host
 architecture, native mode, package anchors and any declared original-source
 profile. The next release must offer one verified package with the same
 anchors around its own version. A missing or competing match holds the

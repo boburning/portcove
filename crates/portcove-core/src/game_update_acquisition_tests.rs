@@ -435,7 +435,7 @@ fn acquisition_event(event: OperationEvent) {
 #[tokio::test]
 async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
     check_desktop_acquisition_replays_variant(ReleaseChannel::Stable, "1.0.0", "2.0.0").await;
-    check_desktop_acquisition_replays_variant(ReleaseChannel::Beta, "1.0.0-beta", "2.0.0-beta.1")
+    check_desktop_acquisition_replays_variant(ReleaseChannel::Beta, "1.0.0-alpha", "2.0.0-beta.1")
         .await;
 }
 
@@ -472,8 +472,18 @@ async fn check_desktop_acquisition_replays_variant(
         ) -> Result<crate::ScopedResolvedRelease> {
             assert_eq!(variant, &self.expected);
             self.resolutions.fetch_add(1, Ordering::SeqCst);
-            crate::ScopedResolvedRelease::legacy(self.release.clone())
-                .for_selection(port, platform, channel)
+            let mut resolved = crate::ScopedResolvedRelease::legacy(self.release.clone())
+                .for_selection(port, platform, channel)?;
+            resolved.github_identity =
+                Some(crate::definition_acquisition::GithubArtifactIdentity {
+                    repository: "fixture/game".into(),
+                    repository_id: 8,
+                    release_id: 12,
+                    asset_id: 32,
+                    tag: self.release.version.clone(),
+                });
+            resolved.saved_variant = Some(variant.clone());
+            Ok(resolved)
         }
     }
 
@@ -600,6 +610,26 @@ async fn check_desktop_acquisition_replays_variant(
             .unwrap()
             .manifest_sha256,
         active.manifest_sha256
+    );
+
+    let plan = service.plan_game_update(PORT, false).await.unwrap();
+    let consent = service
+        .authorize_game_update(PORT, false, &plan.plan_sha256)
+        .await
+        .unwrap();
+    let staged = service
+        .apply_game_update(PORT, false, &consent.token, |_| {})
+        .await
+        .unwrap();
+    assert!(staged.staged);
+    assert_eq!(staged.version, offered.version);
+    assert_eq!(
+        service
+            .plan_install(PORT, Some(channel))
+            .await
+            .unwrap()
+            .action,
+        crate::InstallPlanAction::UseStaged
     );
 }
 

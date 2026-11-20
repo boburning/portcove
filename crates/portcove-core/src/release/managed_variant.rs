@@ -12,13 +12,6 @@ enum ExecutionMode {
     Native,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum PrereleaseFamily {
-    Alpha,
-    Beta,
-    ReleaseCandidate,
-}
-
 /// Core passes this opaque evidence from a verified installed manifest to the
 /// resolver. It narrows normal eligibility and supplies no acquisition trust.
 #[doc(hidden)]
@@ -33,10 +26,6 @@ pub struct ManagedPackageVariant {
     source_profile: Option<String>,
     prefix: String,
     suffix: String,
-    // Suffixed choices are reconstructed from the existing acquisition identity.
-    // Never write one to a manifest whose older readers expect a numeric tag.
-    #[serde(skip)]
-    prerelease_family: Option<PrereleaseFamily>,
 }
 
 fn numeric_version(tag: &str) -> Option<&str> {
@@ -48,12 +37,9 @@ fn numeric_version(tag: &str) -> Option<&str> {
     .then_some(digits)
 }
 
-fn reviewed_version(
-    tag: &str,
-    channel: ReleaseChannel,
-) -> Option<(&str, Option<PrereleaseFamily>)> {
+fn reviewed_version(tag: &str, channel: ReleaseChannel) -> Option<&str> {
     if let Some(version) = numeric_version(tag) {
-        return Some((version, None));
+        return Some(version);
     }
     if channel != ReleaseChannel::Beta || tag.len() > 48 {
         return None;
@@ -75,16 +61,10 @@ fn reviewed_version(
         Some(_) => return None,
         None => prerelease,
     };
-    let family = if family.eq_ignore_ascii_case("alpha") {
-        PrereleaseFamily::Alpha
-    } else if family.eq_ignore_ascii_case("beta") {
-        PrereleaseFamily::Beta
-    } else if family.eq_ignore_ascii_case("rc") {
-        PrereleaseFamily::ReleaseCandidate
-    } else {
-        return None;
-    };
-    Some((token, Some(family)))
+    ["alpha", "beta", "rc"]
+        .into_iter()
+        .any(|supported| family.eq_ignore_ascii_case(supported))
+        .then_some(token)
 }
 
 fn reviewed_anchors(port: &PortDefinition, platform: Platform) -> Option<(&str, &str)> {
@@ -118,17 +98,17 @@ fn reviewed_name(
     channel: ReleaseChannel,
     tag: &str,
     filename: &str,
-) -> Option<(String, String, Option<PrereleaseFamily>)> {
+) -> Option<(String, String)> {
     let (prefix, suffix) = reviewed_anchors(port, platform)?;
     let prefix = prefix.to_ascii_lowercase();
     let suffix = suffix.to_ascii_lowercase();
-    let (version, family) = reviewed_version(tag, channel)?;
+    let version = reviewed_version(tag, channel)?;
     let filename = filename.to_ascii_lowercase();
     let slot = filename.strip_prefix(&prefix)?.strip_suffix(&suffix)?;
     slot.strip_prefix('v')
         .unwrap_or(slot)
         .eq_ignore_ascii_case(version)
-        .then_some((prefix, suffix, family))
+        .then_some((prefix, suffix))
 }
 
 impl ManagedPackageVariant {
@@ -173,15 +153,17 @@ impl ManagedPackageVariant {
         install: &crate::InstallRecord,
         identity: &crate::definition_acquisition::GithubArtifactIdentity,
     ) -> Option<Self> {
-        let variant = Self::from_github_package(
+        if Self::supports_manifest_receipt(&install.version) {
+            return None;
+        }
+        Self::from_github_package(
             port,
             platform,
             install.channel,
             &install.version,
             &install.artifact.asset_name,
             identity,
-        )?;
-        variant.prerelease_family.is_some().then_some(variant)
+        )
     }
 
     fn from_github_package(
@@ -202,8 +184,7 @@ impl ManagedPackageVariant {
         {
             return None;
         }
-        let (prefix, suffix, prerelease_family) =
-            reviewed_name(port, platform, channel, tag, filename)?;
+        let (prefix, suffix) = reviewed_name(port, platform, channel, tag, filename)?;
         Some(Self {
             format_version: 1,
             channel,
@@ -213,12 +194,13 @@ impl ManagedPackageVariant {
             source_profile: port.source_profile.clone(),
             prefix,
             suffix,
-            prerelease_family,
         })
     }
 
-    pub(crate) fn has_numeric_manifest_receipt(&self) -> bool {
-        self.prerelease_family.is_none()
+    pub(crate) fn supports_manifest_receipt(tag: &str) -> bool {
+        // Older readers expect a numeric tag when this manifest receipt is set.
+        // Suffixed installations recover the choice from their acquisition facts.
+        numeric_version(tag).is_some()
     }
 
     pub(crate) fn repository_id(&self) -> u64 {
@@ -226,12 +208,9 @@ impl ManagedPackageVariant {
     }
 
     pub(crate) fn matches(&self, tag: &str, filename: &str) -> bool {
-        let Some((version, family)) = reviewed_version(tag, self.channel) else {
+        let Some(version) = reviewed_version(tag, self.channel) else {
             return false;
         };
-        if family != self.prerelease_family {
-            return false;
-        }
         let name = filename.to_ascii_lowercase();
         name.strip_prefix(&self.prefix)
             .and_then(|name| name.strip_suffix(&self.suffix))
