@@ -114,6 +114,197 @@ fn legacy_chameleon_projection_adds_only_its_reviewed_contract_to_schema_three()
 }
 
 #[test]
+fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
+    // Keep the exact initial public bodies independent of active bundle revisions.
+    let entry =
+        include_bytes!("../tests/fixtures/definition-projection/crawl-initial-entry.json.txt");
+    let contract =
+        include_bytes!("../tests/fixtures/definition-projection/crawl-initial-contract.json.txt");
+    assert_eq!(
+        hex::encode(Sha256::digest(entry)),
+        "19c3c379ae5fa5c852fc4d216bd7af2cdd2bc72560f5b7a5c7d89f344d86ccec",
+    );
+    assert_eq!(
+        hex::encode(Sha256::digest(contract)),
+        "73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62",
+    );
+    let parsed_entry: Value = serde_json::from_slice(entry).unwrap();
+    let port_id = "dungeon-crawl-stone-soup";
+    let projection = index(&[(&parsed_entry, entry)], contract)
+        .inspect_catalog_projection("official", port_id, entry, contract)
+        .unwrap();
+    assert_eq!(projection.catalog().document().schema_version, 3);
+    assert_eq!(projection.catalog().ports().len(), 1);
+
+    // Preview.9 did not embed Crawl. Keep the actual catalog's other records.
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    document.ports.retain(|port| port.id != port_id);
+    let baseline = Catalog::from_document(document).unwrap();
+    let effective = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(effective.ports().len(), baseline.ports().len() + 1);
+    assert_eq!(
+        serde_json::to_value(&effective.ports()[..baseline.ports().len()]).unwrap(),
+        serde_json::to_value(baseline.ports()).unwrap(),
+    );
+    assert_eq!(baseline.source_catalog(), effective.source_catalog());
+    assert!(std::ptr::eq(
+        projection.snapshot(),
+        effective.definition_snapshot(port_id).unwrap(),
+    ));
+
+    // An existing implementation may also receive an executable-path repair.
+    let mut existing = effective.authoritative_document();
+    let port = existing.ports.last_mut().unwrap();
+    assert_eq!(port.id, port_id);
+    port.executable_hints.insert(
+        crate::Platform::WindowsX86_64,
+        vec!["obsolete-crawl.exe".into()],
+    );
+    let existing = Catalog::from_document(existing).unwrap();
+    let replaced = projection.catalog_for_selection(&existing).unwrap();
+    assert_eq!(
+        serde_json::to_value(replaced.authoritative_document()).unwrap(),
+        serde_json::to_value(effective.authoritative_document()).unwrap(),
+    );
+
+    // A scoped override must not erase an already-reviewed package layout.
+    let mut held = effective.authoritative_document();
+    held.ports
+        .last_mut()
+        .unwrap()
+        .reviewed_package_layouts
+        .insert(
+            crate::Platform::WindowsX86_64,
+            crate::ReviewedPackageLayout {
+                directories: vec!["dat".into(), "docs".into(), "settings".into()],
+                executables: vec!["crawl.exe".into()],
+                ignore_verified_macos_libraries: false,
+                classify_linux_programs_by_format: false,
+            },
+        );
+    let held = Catalog::from_document(held).unwrap();
+    let error = projection.catalog_for_selection(&held).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("reviewed package layout was removed")
+    );
+}
+
+#[test]
+fn sparse_schema_three_reuses_exact_shared_source_records_and_rejects_conflicts() {
+    let mut full = generic_projection();
+    full["catalog"]["schema_version"] = json!(3);
+    let graph = &mut full["catalog"]["source_catalog"];
+    let mut sibling_evidence = graph["evidence"][0].clone();
+    sibling_evidence["id"] = json!("sibling-source-byte-evidence");
+    graph["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(sibling_evidence);
+    graph["contracts"][1]["evidence_ids"] = json!(["sibling-source-byte-evidence"]);
+    graph["validators"] = json!([{
+        "id": "shared-fixture-validator", "tool_id": "fixture-check",
+        "protocol_version": "1", "evidence_ids": ["fixture-bytes"]
+    }]);
+    for contract in graph["contracts"].as_array_mut().unwrap() {
+        contract["validator_contract_id"] = json!("shared-fixture-validator");
+    }
+    let baseline = Catalog::from_json(&full["catalog"].to_string()).unwrap();
+
+    let mut sparse = full.clone();
+    sparse["catalog"]["ports"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    sparse["catalog"]["ports"][0]["summary"] = json!("Reviewed fixture correction");
+    let graph = &mut sparse["catalog"]["source_catalog"];
+    graph["evidence"].as_array_mut().unwrap().truncate(1);
+    graph["contracts"].as_array_mut().unwrap().truncate(1);
+    let mut selected_evidence = graph["evidence"][0].clone();
+    selected_evidence["id"] = json!("new-selected-source-byte-evidence");
+    graph["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(selected_evidence);
+    graph["contracts"][0]["evidence_ids"] =
+        json!(["fixture-bytes", "new-selected-source-byte-evidence"]);
+
+    let select = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        inspect(&entry(document, &bytes, 0), &bytes)?.catalog_for_selection(&baseline)
+    };
+    let effective = select(&sparse).unwrap();
+    let before = baseline.source_catalog().unwrap();
+    let after = effective.source_catalog().unwrap();
+    assert_eq!(
+        &after.evidence[..before.evidence.len()],
+        before.evidence.as_slice()
+    );
+    assert_eq!(
+        after.evidence.last().unwrap().id,
+        "new-selected-source-byte-evidence"
+    );
+    assert_eq!(after.identities, before.identities);
+    assert_eq!(after.validators, before.validators);
+    assert_eq!(
+        after
+            .contracts
+            .iter()
+            .find(|row| row.port_id == "projection-sibling"),
+        before
+            .contracts
+            .iter()
+            .find(|row| row.port_id == "projection-sibling"),
+    );
+    assert_eq!(
+        effective.port("projection-fixture").unwrap().summary,
+        "Reviewed fixture correction",
+    );
+
+    for (collection, field, value) in [
+        ("evidence", "claim", "Changed evidence"),
+        ("identities", "label", "Changed identity"),
+        ("validators", "protocol_version", "2"),
+    ] {
+        let mut conflicting = sparse.clone();
+        conflicting["catalog"]["source_catalog"][collection][0][field] = json!(value);
+        let error = select(&conflicting).unwrap_err();
+        assert!(
+            error.message.contains("projected source record conflicts"),
+            "{error}"
+        );
+    }
+}
+
+#[test]
+fn complete_schema_three_one_port_keeps_graph_order_checks() {
+    let mut full = generic_projection();
+    full["catalog"]["schema_version"] = json!(3);
+    full["catalog"]["ports"].as_array_mut().unwrap().truncate(1);
+    let graph = &mut full["catalog"]["source_catalog"];
+    graph["contracts"].as_array_mut().unwrap().truncate(1);
+    let mut additional = graph["evidence"][0].clone();
+    additional["id"] = json!("additional-fixture-bytes");
+    graph["evidence"].as_array_mut().unwrap().push(additional);
+    graph["contracts"][0]["evidence_ids"] = json!(["fixture-bytes", "additional-fixture-bytes"]);
+    let baseline = Catalog::from_json(&full["catalog"].to_string()).unwrap();
+
+    let select = |document: &Value| {
+        let bytes = serde_json::to_vec(document).unwrap();
+        inspect(&entry(document, &bytes, 0), &bytes)?.catalog_for_selection(&baseline)
+    };
+    let effective = select(&full).unwrap();
+    assert_eq!(effective.source_catalog(), baseline.source_catalog());
+    full["catalog"]["source_catalog"]["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    let error = select(&full).unwrap_err();
+    assert!(error.message.contains("source evidence order"), "{error}");
+}
+
+#[test]
 fn indexed_upstream_review_requires_matching_new_schemas() {
     let mut document = generic_projection();
     document["catalog"]["ports"][0]["upstream_active_reviewed"] = json!(true);
