@@ -830,13 +830,14 @@ function ArtworkSlotControl({
         >
           <h4
             id={visibilityReviewId}
+            aria-describedby={`${visibilityReviewId}-action`}
             ref={visibilityHeading}
             tabIndex={-1}
             className="m-0 font-semibold"
           >
             {t("artwork.reviewChange")}
           </h4>
-          <p className="m-0">
+          <p id={`${visibilityReviewId}-action`} className="m-0">
             {t(
               visibilityReview.action === "hide" ? "artwork.reviewHide" : "artwork.reviewAutomatic",
             )}

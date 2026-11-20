@@ -449,9 +449,11 @@ describe("local artwork controls", () => {
     await open();
     await click("cover", "Hide artwork");
     const review = page.getByRole("form", { name: "Review artwork change", exact: true });
+    const heading = review.getByRole("heading", { name: "Review artwork change" });
+    await expect.element(heading).toHaveFocus();
     await expect
-      .element(review.getByRole("heading", { name: "Review artwork change" }))
-      .toHaveFocus();
+      .element(heading)
+      .toHaveAccessibleDescription("Hide artwork for this role. Other roles stay as they are.");
     expect(hide).not.toHaveBeenCalled();
     await review.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect.element(review).not.toBeInTheDocument();
@@ -459,6 +461,9 @@ describe("local artwork controls", () => {
     expect(hide).not.toHaveBeenCalled();
 
     await click("cover", "Use automatic");
+    await expect
+      .element(heading)
+      .toHaveAccessibleDescription("Use the default artwork for this role when available.");
     expect(automatic).not.toHaveBeenCalled();
     state = artworkState("sample", "cover", 2, true);
     await render("sample", 7, "corrected-cover");
