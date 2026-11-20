@@ -2323,13 +2323,18 @@ rule change; existing transition and recovery guards still apply.
 A reviewed download can retain a native GitHub package choice in its install
 manifest. This applies when two authored hints cover the full filename around
 the exact three-part numeric release tag, and GitHub supplied the stable
-repository, release and asset identities. Core remembers the channel, host
+repository, release and asset identities. On the beta channel, this also
+covers full tags ending in `-alpha`, `-beta` or `-rc`, with an optional dot
+and number. Core recovers that choice from the verified acquisition and the
+definition retained when the package was installed. The next package must
+include its full tag. Additional edition or debug labels need their own
+reviewed binding. Core remembers the channel, host
 architecture, native mode, package anchors and any declared original-source
 profile. The next release must offer one verified package with the same
 anchors around its own version. A missing or competing match holds the
 update. Ordinary package eligibility, uploader, digest and activation checks
-still apply. A legacy installation with no receipt uses ordinary selection.
-An explicitly selected different channel and exact curated, direct or rolling
+still apply. An installation without the required retained evidence uses
+ordinary selection. An explicitly selected different channel and exact curated, direct or rolling
 pins use their existing release contracts.
 
 When an upstream release still matches a managed route's selector but changes
