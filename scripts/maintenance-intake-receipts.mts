@@ -76,7 +76,9 @@ export function intakeOperationReceipt(plan: IntakePlan, row: HostedRequestStatu
         !["delivered", "existing"].includes(slot.delivery_status ?? "") ||
         ![original, slot].some(
           (identity) =>
-            identity?.repository_id === held.repository_id && identity.port_key === held.port_key,
+            identity !== undefined &&
+            identity.repository_id === held.repository_id &&
+            identity.port_key === held.port_key,
         )
       )
         return;

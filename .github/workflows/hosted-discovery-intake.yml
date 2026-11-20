@@ -15,6 +15,8 @@ on:
         required: true
       PORTCOVE_DISCOVERY_DATABASE_URL:
         required: false
+      PORTCOVE_NEON_METER_TOKEN:
+        required: false
   issue_comment:
     types: [created, edited]
   pull_request:
@@ -106,6 +108,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
           REPOSITORY_TOKEN: ${{ github.token }}
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_DISCOVERY_DATABASE_URL || '' }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_NEON_METER_TOKEN || '' }}
           HOSTED_INTAKE_MODE: ${{ inputs.mode }}
           HOSTED_INTAKE_AUDIT_REQUEST: ${{ inputs.audit_request }}
           HOSTED_INTAKE_PROBE: ${{ inputs.probe_issue }}
@@ -114,6 +117,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
         run: node scripts/maintenance-inventory.mts handoffs --reconcile-intake --database-env PORTCOVE_DISCOVERY_DATABASE_URL
       - name: Retain bounded diagnostics in job logs without metered artifact storage
         if: always()

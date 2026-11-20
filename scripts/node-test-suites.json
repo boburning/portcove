@@ -1630,7 +1630,10 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
             "maintenance store guards history and survives an independent PostgreSQL restore",
-            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "shared admissions fence concurrent callers and retain crash charges",
+            "recovery reconstruction reuses history and restores current state and sequences",
+            "cutover admissions share their finite allowance across purposes"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }

@@ -291,13 +291,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     steps: Step[];
   };
   const workflow = parse(source) as {
-    on: { schedule: { cron: string }[]; workflow_dispatch: unknown };
+    on: {
+      schedule: { cron: string }[];
+      workflow_dispatch: { inputs: { purpose: { default: string; options: string[] } } };
+    };
     permissions: unknown;
     concurrency: { "cancel-in-progress": boolean };
     jobs: Record<string, Job>;
   };
   assert.deepEqual(workflow.on.schedule, [{ cron: "47 4 * * *" }]);
-  assert.equal(workflow.on.workflow_dispatch, null, "dispatch takes no inputs");
+  assert.equal(workflow.on.workflow_dispatch.inputs.purpose.default, "status");
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.purpose.options, [
+    "status",
+    "collect-changed",
+    "report",
+    "recover",
+    "verify-recovery",
+    "recovery-full",
+  ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
@@ -328,8 +339,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       )
       .map((step) => step.name);
   assert.deepEqual(using("PORTCOVE_ROADMAP_TOKEN"), [
-    "Require hosted configuration without exposing credentials",
-    "Collect every declared source in one transaction",
+    "Collect changed sources and periodically reassess all Core subjects",
   ]);
   assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
   // The secret is exposed to the store commands under their default variable name.
@@ -344,10 +354,11 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "the restore target is local",
   );
   const collection = collect!.steps.find(
-    (step) => step.name === "Collect every declared source in one transaction",
+    (step) => step.name === "Collect changed sources and periodically reassess all Core subjects",
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
   for (const flag of [
     "--all",
@@ -359,13 +370,23 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--hosted-intake",
     "--reconcile-intake",
     "--targets",
+    "--reassess changed",
   ])
     assert.ok(collection.run!.includes(flag), flag);
+  const render = collect!.steps.find(
+    (step) => step.name === "Render the report and digest on local PostgreSQL",
+  )!;
+  assert.equal(render.env, undefined);
+  assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
   const finalReceiptCheck = collect!.steps.at(-1)!;
   assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
   assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
-  assert.ok(collect!.steps.slice(0, -1).some((step) => step.name === "Retain the verified backup"));
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the backup for independent restore proof"),
+  );
   assert.ok(
     collect!.steps
       .slice(0, -1)
@@ -4076,6 +4097,72 @@ void test("managed observation coverage keeps stale or unverified membership out
     { port_key: "port:fixed", platform: "windows-x86-64", evidence: "fixed" },
     { port_key: "port:old", platform: "windows-x86-64", evidence: "gap", reason: "scope-changed" },
   ]);
+  // Older target fixtures omit one of the two operation rows. Absence is unknown.
+  assert.equal(coverage.catalog_operation_offers_by_platform, null);
+  const withDecisions = structuredClone(ports);
+  for (const input of withDecisions) {
+    for (const target of input.targets!.targets) {
+      for (const action of ["install", "register_external"]) {
+        if (target.routes.some((route) => route.action === action)) continue;
+        const offered = action === "register_external" && input.port_key === "port:covered";
+        target.routes.push({ action, offered, reason: offered ? null : "route_not_offered" });
+      }
+    }
+  }
+  const held = structuredClone(withDecisions[0]!.targets!.targets[0]!);
+  held.platform = "macos-aarch64";
+  for (const route of held.routes) {
+    route.offered = false;
+    route.reason = "route_not_offered";
+  }
+  withDecisions[0]!.targets!.targets.push(held);
+  withDecisions[0]!.targets!.declared_platforms.push(held.platform);
+  const operations = managedRouteObservationCoverage(
+    withDecisions,
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.deepEqual(operations.catalog_operation_offers_by_platform, [
+    {
+      platform: "linux-x86-64",
+      managed_install_only: 0,
+      external_registration_only: 1,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 2,
+    },
+    {
+      platform: "macos-aarch64",
+      managed_install_only: 0,
+      external_registration_only: 0,
+      both_operations: 0,
+      neither_operation: 1,
+      distinct_offered_pairs: 0,
+    },
+    {
+      platform: "windows-x86-64",
+      managed_install_only: 2,
+      external_registration_only: 0,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 3,
+    },
+  ]);
+  for (const malformed of [undefined, "false"]) {
+    const corrupted = structuredClone(withDecisions);
+    Object.assign(corrupted[0]!.targets!.targets[0]!.routes[0]!, { offered: malformed });
+    assert.equal(
+      managedRouteObservationCoverage(corrupted, [catalog, targets, upstream], members)
+        .catalog_operation_offers_by_platform,
+      null,
+    );
+  }
+  withDecisions[0]!.targets!.declared_platforms.push("unobserved-platform");
+  assert.equal(
+    managedRouteObservationCoverage(withDecisions, [catalog, targets, upstream], members)
+      .catalog_operation_offers_by_platform,
+    null,
+  );
   const withoutChannel = managedRouteObservationCoverage(
     [
       port("covered", [["linux-x86-64"]], [{ platform: "linux-x86-64", state: "eligible" }]),
@@ -4134,6 +4221,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     members,
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
+  assert.equal(oldProjection.catalog_operation_offers_by_platform, null);
   assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
   assert.equal(oldProjection.routes, null);
 });
