@@ -69,6 +69,7 @@ mod library_authority;
 mod library_import;
 mod library_membership;
 mod library_move;
+mod library_recovery_bundle;
 mod library_transfer;
 mod managed_chocolate;
 mod managed_initialization;
@@ -166,6 +167,8 @@ mod transfer_copy;
 mod transfer_journal;
 mod types;
 mod windows_runtime;
+#[cfg(windows)]
+mod windows_user_access;
 mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
@@ -286,8 +289,10 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsContract, GameSettingsFile, GameSettingsFileView,
-    GameSettingsFormat, GameSettingsRelease, GameSettingsView, inspect_game_settings_qualification,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
+    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
+    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
@@ -317,6 +322,10 @@ pub use library_membership::{
     LibraryMembershipSource, MAX_LIBRARY_MEMBERSHIP_BATCH,
 };
 pub use library_move::LibraryMoveResult;
+pub use library_recovery_bundle::{
+    LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
+    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+};
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
     AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,

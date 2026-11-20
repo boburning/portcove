@@ -129,16 +129,9 @@
         "executables": ["dude.exe"]
       },
       "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
         "directories": ["base", "d3le", "d3xp", "lib"],
-        "executables": [
-          "base.so",
-          "base/gamepad-d3xp.cfg",
-          "base/gamepad.cfg",
-          "d3le.so",
-          "d3xp.so",
-          "dude",
-          "lib/libvulkan.so.1"
-        ]
+        "executables": ["dude"]
       }
     },
     "external_profile_policy": "doom3-linux-v1"

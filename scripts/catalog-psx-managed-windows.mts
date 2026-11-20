@@ -199,6 +199,55 @@ function projectTechnicallyComputers(record: AuthoredPort): AuthoredPort {
 
 class PsxLayoutMismatch extends Error {}
 
+const diagnosticKits = [
+  ["windows-x86-64", "windows-x64"],
+  ["linux-x86-64", "linux-x64"],
+  ["macos-x86-64", "macos-x64"],
+  ["macos-aarch64", "macos-arm64"],
+] as const;
+
+function reviewedDiagnosticsRoute(record: AuthoredPort) {
+  const id = record.listing.id;
+  const mortalKombat = id === "mortal-kombat-4-recompiled";
+  if (!mortalKombat && id !== "alexbeav-medievil-recomp") return false;
+  const integration = record.integration;
+  const release = integration?.release;
+  const orderedPlatforms = integration?.platforms;
+  const executables = integration?.executable_hints;
+  const repository = `alexbeavs-ps1-ports/${mortalKombat ? "mortal-kombat-4-recomp" : "medievil-recomp"}`;
+  const player = mortalKombat ? "Mortal_Kombat_4" : "MediEvil_Recompiled";
+  const kits = mortalKombat ? diagnosticKits : diagnosticKits.slice(0, 2);
+  if (
+    record.listing.project_url !== `https://github.com/${repository}` ||
+    integration?.source_profile !==
+      (mortalKombat ? "mortal-kombat-4-psx" : "alexbeav-medievil-recomp-usa-psx") ||
+    integration.bios_source_profile !== "psx-scph-1001-bios" ||
+    record.route_facts_v1 !== undefined ||
+    record.package_observation_v1 !== undefined ||
+    !isRecord(release) ||
+    release.repository !== repository ||
+    release.provider !== (mortalKombat ? undefined : "github") ||
+    !isRecord(release.asset_hints) ||
+    !isRecord(executables) ||
+    !Array.isArray(orderedPlatforms) ||
+    orderedPlatforms.length !== kits.length ||
+    Object.keys(release.asset_hints).length !== kits.length ||
+    Object.keys(executables).length !== kits.length
+  )
+    return false;
+
+  const assets = release.asset_hints;
+  return kits.every(([platform, kit], index) => {
+    const selectors = mortalKombat ? [kit] : ["medievil-recomp-", `-${kit}.zip`];
+    const executable = platform === "windows-x86-64" ? `${player}.exe` : player;
+    return (
+      orderedPlatforms[index] === platform &&
+      JSON.stringify(assets[platform]) === JSON.stringify(selectors) &&
+      JSON.stringify(executables[platform]) === JSON.stringify([executable])
+    );
+  });
+}
+
 /** Prefer a shared layout only when it reproduces the exact authored integration. */
 export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const { integration } = record;
@@ -226,6 +275,7 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
     true,
     "bundled-openbios",
     "split-mods",
+    "split-mods-diagnostics",
     "split-mods-no-crash-log",
     "split-mods-openbios",
     "split-mods-overlay-directory",
@@ -249,11 +299,13 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
   const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
   const withoutCrashLog = layout === "split-mods-no-crash-log";
+  const diagnostics = layout === "split-mods-diagnostics";
   const splitMods =
     layout === "split-mods" ||
     layout === "split-mods-openbios" ||
     overlayDirectoryOnly ||
-    withoutCrashLog;
+    withoutCrashLog ||
+    diagnostics;
   const integration = record.integration;
   const executableHints = isRecord(integration?.executable_hints)
     ? integration.executable_hints
@@ -264,16 +316,21 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const linuxAssets = isRecord(assetHints) ? assetHints["linux-x86-64"] : undefined;
   const windowsAssets = isRecord(assetHints) ? assetHints["windows-x86-64"] : undefined;
   const biosProfile = integration?.bios_source_profile;
+  if (diagnostics && !reviewedDiagnosticsRoute(record))
+    throw new PsxLayoutMismatch(
+      "PSX split-mods diagnostics requires the exact reviewed MediEvil or Mortal Kombat 4 kit route.",
+    );
   if (
     (layout !== true && !bundledOpenBios && !splitMods) ||
     !integration ||
     integration.adapter !== "psx-recomp-managed" ||
     !Array.isArray(integration.platforms) ||
     integration.platforms[0] !== "windows-x86-64" ||
-    (integration.platforms.length !== 1 &&
+    (!diagnostics &&
+      integration.platforms.length !== 1 &&
       (integration.platforms.length !== 2 || integration.platforms[1] !== "linux-x86-64")) ||
     !isRecord(integration.release) ||
-    integration.release.provider !== "github" ||
+    (!diagnostics && integration.release.provider !== "github") ||
     Object.keys(integration.release).some(
       (key) => !["provider", "repository", "asset_hints"].includes(key),
     ) ||
@@ -300,6 +357,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
 
   if (
     splitMods &&
+    !diagnostics &&
     (integration.platforms.length !== 2 ||
       !isRecord(assetHints) ||
       Object.keys(assetHints).length !== 2 ||
@@ -368,6 +426,7 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
       path === "mods" ? splitModPaths : [path],
     );
   }
+  if (diagnostics) projectedLayout.persistent_paths.push("diagnostics-location.txt");
   if (withoutCrashLog)
     projectedLayout.runtime_mutable_paths = projectedLayout.runtime_mutable_paths.filter(
       (path) => path !== "psx_crash.txt",
@@ -381,16 +440,22 @@ export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
         ({ prefix, suffix }) => prefix !== "overlay_captures.json." || suffix !== ".tmp",
       );
   }
+  // The accepted Mortal Kombat definition puts BIOS before the player hints.
+  const retainBiosOrder = diagnostics && record.listing.id === "mortal-kombat-4-recompiled";
   return {
     ...record,
     integration: {
-      ...operation,
+      ...(retainBiosOrder
+        ? Object.fromEntries(
+            Object.entries(integration).filter(([field]) => field !== "presentation"),
+          )
+        : operation),
       ...projectedLayout,
       ...(bundledOpenBios
         ? { launch_arguments: ["--no-launcher", "--bios", "bios/openbios.bin"] }
         : {}),
       ...(presentation === undefined ? {} : { presentation }),
-      ...(bios_source_profile === undefined ? {} : { bios_source_profile }),
+      ...(bios_source_profile === undefined || retainBiosOrder ? {} : { bios_source_profile }),
       ...(hasMultidiscContract
         ? { runtime_source_filename, launch_disc_choice, runtime_source_materialization }
         : {}),

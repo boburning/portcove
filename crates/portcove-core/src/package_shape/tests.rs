@@ -744,6 +744,114 @@ fn archive_inspection_derives_the_installer_shape() {
 
 #[cfg(unix)]
 #[test]
+fn sole_n64_mac_bundle_proves_flat_install_root_persistence_absent() {
+    use std::io::{Cursor, Write as _};
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("zelda64-recomp").unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let archive = directory.path().join("official.zip");
+    let make_archive = |bundle: &str, executable: &str, ship_saves: bool| {
+        let mut inner = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        inner
+            .start_file(
+                format!("{bundle}/Contents/MacOS/{executable}"),
+                options.unix_permissions(0o755),
+            )
+            .unwrap();
+        inner.write_all(b"inert executable for layout").unwrap();
+        inner
+            .start_file(format!("{bundle}/Contents/Resources/config.json"), options)
+            .unwrap();
+        inner.write_all(b"{}").unwrap();
+        if ship_saves {
+            inner.start_file("saves/slot/README", options).unwrap();
+            inner.write_all(b"upstream data beside the bundle").unwrap();
+        }
+        let payload = inner.finish().unwrap().into_inner();
+        let mut outer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        outer.start_file("inner.zip", options).unwrap();
+        outer.write_all(&payload).unwrap();
+        outer.finish().unwrap();
+    };
+    let inspect = |port: &PortDefinition, platform| {
+        let size = fs::metadata(&archive).unwrap().len();
+        let digest = crate::service::sha256_file(&archive).unwrap();
+        inspect_package_shape_archive(&archive, port, platform, size, &digest)
+            .unwrap()
+            .shape
+    };
+
+    make_archive("Game.app", "Zelda64Recompiled", false);
+    for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+        let observed = inspect(port, platform);
+        assert_eq!(
+            observed.programs,
+            Some(vec!["contents/macos/zelda64recompiled".into()])
+        );
+        assert_eq!(observed.top_directories, Some(vec!["contents".into()]));
+        assert_eq!(
+            observed.config_files,
+            Some(vec!["contents/resources/config.json".into()])
+        );
+        assert_eq!(observed.persistent_parent_children, Some(vec![]));
+        assert_eq!(observed.persistent_overlap, Some(vec![]));
+        assert_eq!(observed.missing_persistent_parents, Some(vec![]));
+
+        let mut older = observed.clone();
+        older.persistent_parent_children = None;
+        older.persistent_overlap = None;
+        older.missing_persistent_parents = None;
+        assert!(matches!(
+            compare(ShapeBaseline::ReviewedLayout, &older, &observed),
+            ShapeVerdict::Unknown {
+                reason: ShapeUnknownReason::IncompleteComparison,
+                ..
+            }
+        ));
+    }
+
+    let mut nested = port.clone();
+    nested
+        .persistent_paths
+        .push("mods/profile/settings.json".into());
+    assert_eq!(
+        inspect(&nested, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+    let mut bundle_owned = port.clone();
+    bundle_owned.persistent_paths.push("GAME.APP".into());
+    assert_eq!(
+        inspect(&bundle_owned, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+
+    make_archive("OrdinaryWrapper", "Zelda64Recompiled", false);
+    assert_eq!(
+        inspect(port, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+    make_archive("Game.app", "DifferentPlayer", false);
+    assert_eq!(
+        inspect(port, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+
+    make_archive("Game.app", "Zelda64Recompiled", true);
+    let observed = inspect(port, Platform::MacosAarch64);
+    assert_eq!(
+        observed.persistent_parent_children,
+        Some(vec!["saves/slot".into()])
+    );
+    assert_eq!(
+        observed.persistent_overlap,
+        Some(vec!["saves/slot/readme".into()])
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn reviewed_openmohaa_shape_uses_prepared_title_programs() {
     use std::io::Write as _;
 

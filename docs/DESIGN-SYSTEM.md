@@ -201,7 +201,10 @@ Panels stay mounted to preserve drafts and reviews; inactive panels are hidden a
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
 compatibility qualifications and recorded checks have named disclosures. Game files owns setup, source/BIOS/tool and file observations. Saves owns
-coverage, unknowns, backup history, recovery and reviews, plus game settings and, for
+coverage, unknowns, backup history, recovery and reviews. Backup protection and the most
+recent completed backup appear before the saved-data actions. The backup shows its recorded
+date, elapsed age, and file count. Installation-level paths
+and rule evidence expand through Backup check details. The workspace also supports game settings and, for
 games with reviewed mod support, setups and mods (each setup keeps its own saves and
 settings), including reviewed GameBanana installs for games with a binding. Versions & updates owns
 checks, candidate decisions, staged activation, rollback, future preferences and
@@ -798,10 +801,15 @@ arrows require both known installed and offered versions. Task records retain th
 operation identity and diagnostics, with exact-operation recovery cross-links; no
 records are grouped by game name or inferred installation identity.
 
-Comparison separates original system, runtime targets and release channels, and
-reports observed ownership. Feature comparison remains unavailable until the shared
-catalog contract carries revalidated, sourced and dated claims. Presentation code
-must not supply project-specific feature maps.
+Comparison separates original system, target platform, release channels and observed
+update ownership. Show the selected edition, platform and required features before
+the alternatives. Name a suggested port when Core identifies one. Show each
+port’s selected feature results beside the port. Evidence for a different edition
+or environment leaves support unconfirmed for the selected options. A failed
+version check or changed definition leaves the retained release’s feature support
+unconfirmed in the current comparison.
+The report disclosure retains assessment dimensions, freshness and provenance.
+Core supplies the feature claims and their scope.
 
 At enlarged text sizes the full application shell must reflow as well as the
 cards. Header search and command controls may wrap onto separate rows; neither

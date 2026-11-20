@@ -332,6 +332,50 @@ it("offers a second same-port source and labels cached results and failed refres
   ]);
 });
 
+it.each(["unreadable", "unconfirmed", "multiple"] as const)(
+  "opens the exact file chooser for a %s listing",
+  async (listing) => {
+    vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(catalog());
+    const details = project();
+    const other = { ...details.project.files[0]!, file_id: "11", file_name: "other.zip" };
+    if (listing === "unreadable") {
+      details.project.unreadable_files = 1;
+    } else if (listing === "unconfirmed") {
+      details.project.files.push({ ...other, status_unknown: "omitted" });
+    } else {
+      details.project.files.push(other);
+      details.eligible_file_ids = ["10", "11"];
+    }
+    vi.spyOn(desktopApi, "providerProject").mockResolvedValue(details);
+    await render();
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const add = page.getByRole("button", { name: "Add pack.zip", exact: true });
+    await expect.element(add).toBeVisible();
+    await expect
+      .element(page.getByText("Pending addition", { exact: true }))
+      .not.toBeInTheDocument();
+    const addOther = page.getByRole("button", { name: "Add other.zip", exact: true });
+    await expect.poll(() => addOther.elements().length).toBe(listing === "multiple" ? 1 : 0);
+    await add.click();
+    await expect.element(page.getByText("1 pending change", { exact: true })).toBeVisible();
+  },
+);
+
+it("rejects file choices observed for another port", async () => {
+  vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(catalog());
+  vi.spyOn(desktopApi, "providerProject").mockResolvedValue({
+    ...project(),
+    port_id: "other-port",
+  });
+  await render();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect.element(page.getByRole("alert")).toBeVisible();
+  await expect.element(page.getByText("Pending addition", { exact: true })).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Add pack.zip", exact: true }))
+    .not.toBeInTheDocument();
+});
+
 it("shows a file with unconfirmed eligibility without offering Add", async () => {
   vi.spyOn(desktopApi, "modProviderCatalog").mockResolvedValue(catalog());
   const details = project();

@@ -163,6 +163,7 @@ export default interface Resources {
     },
     "protection": {
       "backupCheckDetails": "Backup check details",
+      "backupDateUnavailable": "Recorded date unavailable",
       "backupIdentifier": "Backup identifier",
       "candidate": "<code/> · {{state}}",
       "checking": "Checking backup information. Previously loaded information may be out of date.",
@@ -233,6 +234,7 @@ export default interface Resources {
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
+      "selectionChanged": "This review no longer matches the selected backup. Close it and refresh backup history.",
       "titleDelete": "Review backup deletion",
       "titleRestore": "Review backup restore"
     },

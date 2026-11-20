@@ -22,7 +22,7 @@ const noActivities: readonly ActivityRecord[] = [];
 const noUnreadInstallPorts: ReadonlySet<string> = new Set();
 
 export type OperationRefresh = "workspace" | "activities" | "none";
-export type PerformOptions = {
+export type PerformOptions<Result = unknown> = {
   /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
   refresh?: OperationRefresh | (() => Promise<unknown>);
   invalidateDiagnostics?: boolean;
@@ -31,6 +31,8 @@ export type PerformOptions = {
   /** Only named nullable native-consent commands opt in; other null results retain their meaning. */
   cancelledResult?: (result: unknown) => boolean;
   context?: InvocationContext;
+  /** Captures the exact installation returned by a managed setup command. */
+  installedResult?: (result: Result) => InvocationRecord["installed"];
 };
 
 export type ReportError = (value: unknown, context?: InvocationContext) => void;
@@ -38,7 +40,7 @@ export type ReportError = (value: unknown, context?: InvocationContext) => void;
 export type Perform = <T>(
   name: string,
   task: (reportEvent?: (event: OperationEvent) => void) => Promise<T>,
-  options?: PerformOptions,
+  options?: PerformOptions<T>,
 ) => Promise<T | undefined>;
 
 export function useOperationState(configuration: {
@@ -212,7 +214,7 @@ export function useOperationState(configuration: {
     async <T>(
       name: string,
       task: (reportEvent?: (event: OperationEvent) => void) => Promise<T>,
-      options: PerformOptions = {},
+      options: PerformOptions<T> = {},
     ): Promise<T | undefined> => {
       const context = options.context ?? defaultContext(name);
       const isCurrent = () =>
@@ -273,6 +275,13 @@ export function useOperationState(configuration: {
           );
         });
         if (options.cancelledResult?.(result)) outcome = "cancelled";
+        else if (context.target.kind === "port" && options.installedResult) {
+          const installed = options.installedResult(result);
+          if (installed?.id && installed.port_id === context.target.id) {
+            const { id, port_id, version } = installed;
+            record = { ...record, installed: { id, port_id, version } };
+          }
+        }
       } catch (value) {
         taskFailure = { value };
         ({ outcome, failure } = classifyInvocationFailure(value));

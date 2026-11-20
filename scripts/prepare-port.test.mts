@@ -756,6 +756,106 @@ void test("starts issue-free preparation from an official project and reviewed g
       const proposed = checkedAuthoredPort(JSON.parse(readFileSync(aliasRecord.path, "utf8")));
       assert.equal(proposed.listing.project_url, project);
     }
+    const originalFile = join(withExisting, "ports", "fixture.json");
+    const originalBytes = readFileSync(originalFile, "utf8");
+    const otherEdition = {
+      id: "example-original-jp",
+      title: "Example Original (Japan)",
+      evidence_urls: ["https://example.com/game/jp"],
+    };
+    const common = {
+      ...options,
+      catalogRoot: withExisting,
+      route: "listing" as const,
+      facts: { ...options.facts, now: () => Date.parse("2026-11-20T10:00:00Z") },
+    };
+    const otherGame = {
+      ...originalGame,
+      id: "another-game",
+      source_editions: [
+        { ...otherEdition, id: "another-game-jp" },
+        { ...otherEdition, id: "another-game-na" },
+      ],
+    };
+    const added = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "distinct-game"),
+      originalGame: otherGame,
+    });
+    const newId = added.report.port_id;
+    assert.match(newId, /^fixture-[a-f0-9]{12}$/u);
+    assert.deepEqual(added.report.changed_records, [newId]);
+    assert.equal(added.report.operational_changed, false);
+    const newFile = added.report.files.records[0]!.path;
+    const newBytes = readFileSync(newFile, "utf8");
+    const newRecord = checkedAuthoredPort(JSON.parse(newBytes));
+    assert.deepEqual(newRecord.listing.original_game, otherGame);
+    assert.equal(newRecord.listing.issue_number, undefined);
+    assert.equal(newRecord.integration, undefined);
+    assert.deepEqual(newRecord.upstream_lineage?.origin, record.upstream_lineage?.origin);
+    const repeated = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "repeat-distinct-game"),
+      originalGame: otherGame,
+    });
+    assert.equal(readFileSync(repeated.report.files.records[0]!.path, "utf8"), newBytes);
+    const reordered = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "reordered-editions"),
+      originalGame: { ...otherGame, source_editions: [...otherGame.source_editions].reverse() },
+    });
+    assert.equal(reordered.report.port_id, newId);
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "reused-source-url"),
+        originalGame: otherGame,
+        facts: { ...common.facts, fetcher: f.fetcher(() => json({ ...metadata, id: 456 })) },
+      }),
+      /already has a retained origin/u,
+    );
+    const distinctEdition = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "distinct-edition"),
+      originalGame: { ...originalGame, source_editions: [otherEdition] },
+    });
+    assert.match(distinctEdition.report.port_id, /^fixture-[a-f0-9]{12}$/u);
+    assert.notEqual(distinctEdition.report.port_id, newId);
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "overlap"),
+        originalGame: {
+          ...originalGame,
+          source_editions: [...originalGame.source_editions, otherEdition],
+        },
+      }),
+      /overlapping or unspecified source editions/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "unspecified"),
+        originalGame: { ...originalGame, source_editions: [] },
+      }),
+      /overlapping or unspecified source editions/u,
+    );
+    const collisionFile = join(withExisting, "ports", `${newId}.json`);
+    const occupied = {
+      format_version: 1,
+      listing: { ...newRecord.listing, project_url: "https://github.com/other/occupied" },
+    };
+    const occupiedBytes = JSON.stringify(occupied);
+    writeFileSync(collisionFile, occupiedBytes);
+    const proposedWithCollision = await preparePort({
+      ...common,
+      outputDirectory: join(f.root, "occupied-id"),
+      originalGame: otherGame,
+    });
+    assert.equal(proposedWithCollision.report.port_id, `${newId}-2`);
+    assert.deepEqual(proposedWithCollision.report.changed_records, [`${newId}-2`]);
+    assert.equal(readFileSync(collisionFile, "utf8"), occupiedBytes);
+    assert.equal(readFileSync(originalFile, "utf8"), originalBytes);
     const forkUrl = "https://github.com/other/fixture";
     const fork = await preparePort({
       ...options,
@@ -2631,6 +2731,61 @@ void test("official URL preparation compacts the exact Alexbeav PSX layout witho
   }
 });
 
+void test("official URL preparation compacts both exact PSX split-mods diagnostics routes", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    for (const [id, repositoryId] of [
+      ["alexbeav-medievil-recomp", 1355812398],
+      ["mortal-kombat-4-recompiled", 1352192597],
+    ] as const) {
+      const record = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectPsxManagedWindows(record);
+      delete explicit.psx_managed_windows_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({
+                  ...metadata,
+                  id: repositoryId,
+                  full_name: new URL(record.listing.project_url).pathname.slice(1),
+                  archived: false,
+                }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      assert.equal(candidate.psx_managed_windows_v1, "split-mods-diagnostics");
+      assert.deepEqual(candidate.listing, record.listing);
+      assert.deepEqual(candidate.integration, record.integration);
+      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
+      assert.deepEqual(
+        JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+        accepted.catalog,
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
+  } finally {
+    f.clean();
+  }
+});
+
 void test("official URL preparation proposes the exact reviewed N64 persistence layout", async () => {
   const f = fixture();
   try {
@@ -2690,7 +2845,6 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
     writeFileSync(source, bytes);
     const common = {
       catalogRoot: root,
-      id,
       projectUrl: selected.listing.project_url,
       facts: {
         fetcher: f.fetcher((url) =>
@@ -2715,11 +2869,39 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
     assert.equal(proposed.raze_windows_profile_v1, true);
     assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
     assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+    assert.deepEqual(proposed.upstream_lineage, selected.upstream_lineage);
     assert.deepEqual(
       JSON.parse(readFileSync(reviewed.report.files.catalog, "utf8")),
       accepted.catalog,
     );
     assert.equal(readFileSync(source, "utf8"), bytes);
+
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "changed-game-evidence"),
+        originalGame: {
+          ...selected.listing.original_game,
+          evidence_urls: ["https://example.com/different-review"],
+        },
+      }),
+      /change to an existing game or edition identity/u,
+    );
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "changed-repository-id"),
+        originalGame: selected.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, id: 2, full_name: "ZDoom/Raze", archived: false }),
+          ),
+        },
+      }),
+      /reviewed record and provider repository identities differ/u,
+    );
 
     const alternate = structuredClone(explicit);
     const persistent = [...(alternate.integration!.persistent_paths as string[]), "custom.cfg"];
@@ -2728,6 +2910,7 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
     writeFileSync(source, alternateBytes);
     const custom = await preparePort({
       ...common,
+      id,
       outputDirectory: join(f.root, "custom"),
       record: alternate,
     });
@@ -2740,10 +2923,38 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
     await assert.rejects(
       preparePort({
         ...common,
+        id,
         outputDirectory: join(f.root, "wrong-game"),
         originalGame: otherGame.listing.original_game,
       }),
       /change to an existing game or edition identity/u,
+    );
+    assert.equal(readFileSync(source, "utf8"), alternateBytes);
+
+    const listing = { ...selected.listing, id: "raze-identity-fixture" };
+    delete listing.issue_number;
+    const sibling = join(root, "ports", `${listing.id}.json`);
+    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "identical-siblings"),
+        originalGame: selected.listing.original_game,
+      }),
+      /share this reviewed game and editions/u,
+    );
+    delete listing.original_game;
+    writeFileSync(sibling, JSON.stringify({ format_version: 1, listing }));
+    await assert.rejects(
+      preparePort({
+        ...common,
+        outputDirectory: join(f.root, "ambiguous-legacy"),
+        originalGame: {
+          ...selected.listing.original_game,
+          id: "another-game",
+        },
+      }),
+      /resolve unbound game identity/u,
     );
     assert.equal(readFileSync(source, "utf8"), alternateBytes);
   } finally {

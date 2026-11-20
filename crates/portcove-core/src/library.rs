@@ -734,6 +734,37 @@ impl Library {
         Self::initialize(root.to_path_buf(), lease)
     }
 
+    /// Bind an existing current library without layout creation or migration.
+    pub(crate) fn open_current_for_recovery_bundle(root: &Path) -> Result<Self> {
+        fn require_current(root: &Path) -> Result<()> {
+            if crate::library_authority::authority(root)?.is_some() {
+                return Err(PortcoveError::conflict(
+                    "finish library relocation or recovery before creating a bundle",
+                ));
+            }
+            crate::import_journal::check_open(root)?;
+            if database::requires_migration(root)? {
+                return Err(PortcoveError::conflict(
+                    "open and update the library before creating a recovery bundle",
+                ));
+            }
+            Ok(())
+        }
+
+        crate::path::unicode(root, "recovery source library")?;
+        require_current(root)?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?);
+        require_current(root)?;
+        Ok(Self {
+            root: root.to_path_buf(),
+            authorizations: AuthorizationStore::default(),
+            _lease: lease,
+        })
+    }
+
     pub(crate) fn initialize(
         root: PathBuf,
         lease: std::sync::Arc<crate::library_access::LibraryLease>,

@@ -289,6 +289,62 @@ pub(crate) fn read(file: &GameSettingsFile, bytes: &[u8]) -> Result<Vec<Option<V
         .collect()
 }
 
+/// Bound repeated parsing, serialized custody, and the number of reviewed values.
+pub(crate) const MAX_CHANGE_SET_EDITS: usize = 16;
+
+/// Plan one postimage in retained declaration order. Each displayed previous value
+/// comes from the original bytes, even when a preceding edit rewrites the file.
+#[cfg(any(windows, test))]
+pub(crate) fn edit_set(
+    file: &GameSettingsFile,
+    before: &[u8],
+    edits: &[super::GameSettingsEdit],
+) -> Result<(Vec<u8>, Vec<super::ReviewedGameSettingsEdit>)> {
+    if edits.is_empty() || edits.len() > MAX_CHANGE_SET_EDITS {
+        return Err(invalid(
+            "settings change-set requires between 1 and 16 edits",
+        ));
+    }
+    let requested: std::collections::BTreeMap<_, _> = edits
+        .iter()
+        .map(|edit| (edit.setting_id.as_str(), edit))
+        .collect();
+    if requested.len() != edits.len()
+        || requested
+            .keys()
+            .any(|id| !file.settings.iter().any(|setting| setting.id == *id))
+    {
+        return Err(invalid(
+            "settings change-set has duplicate or undeclared keys",
+        ));
+    }
+    let previous = read(file, before)?;
+    let mut output = before.to_vec();
+    let mut reviewed = Vec::with_capacity(edits.len());
+    for (index, setting) in file.settings.iter().enumerate() {
+        let Some(request) = requested.get(setting.id.as_str()) else {
+            continue;
+        };
+        let proposed = match &request.change {
+            super::GameSettingChange::Set { value } => value.clone(),
+            super::GameSettingChange::Reset => setting.value.default_value(),
+        };
+        output = edit(file, &output, &setting.id, &proposed)?;
+        reviewed.push((index, *request, setting));
+    }
+    let proposed = read(file, &output)?;
+    let values = reviewed
+        .into_iter()
+        .map(|(index, edit, setting)| super::ReviewedGameSettingsEdit {
+            edit: edit.clone(),
+            label: setting.label.clone(),
+            previous_value: previous[index].clone(),
+            proposed_value: proposed[index].clone().expect("edited declared setting"),
+        })
+        .collect();
+    Ok((output, values))
+}
+
 /// Replace one explicitly declared key. Unknown JSON data survives; INI bytes,
 /// comments and line endings outside that key survive exactly. File I/O and
 /// preimage review belong to the service, not this byte transformation.
@@ -438,6 +494,46 @@ mod tests {
             default: 1.0,
         };
         file
+    }
+
+    #[test]
+    fn change_set_rejects_duplicate_and_unknown_edits_and_preserves_untouched_ini_bytes() {
+        use crate::{GameSettingChange, GameSettingsEdit};
+        let mut file = declared("diddy-kong-racing-golden-balloon");
+        let mut other = file.settings[0].clone();
+        other.id = "music".into();
+        other.key[1] = "MusicVolume".into();
+        file.settings.push(other);
+        let before =
+            b"# keep this comment\r\n[Audio]\r\nMasterVolume=100\r\nMusicVolume=30\nunknown=value";
+        let master = GameSettingsEdit {
+            setting_id: file.settings[0].id.clone(),
+            change: GameSettingChange::Set { value: json!(70) },
+        };
+        let music = GameSettingsEdit {
+            setting_id: "music".into(),
+            change: GameSettingChange::Reset,
+        };
+        let (bytes, reviewed) = edit_set(&file, before, &[music.clone(), master.clone()]).unwrap();
+        assert_eq!(
+            bytes,
+            b"# keep this comment\r\n[Audio]\r\nMasterVolume=70\r\nMusicVolume=100\nunknown=value"
+        );
+        assert_eq!(reviewed[0].edit, master);
+        assert_eq!(reviewed[1].previous_value, Some(json!(30)));
+        assert!(edit_set(&file, before, &[master.clone(), master]).is_err());
+        assert!(
+            edit_set(
+                &file,
+                before,
+                &[GameSettingsEdit {
+                    setting_id: "unknown".into(),
+                    ..music
+                }]
+            )
+            .is_err()
+        );
+        assert!(edit_set(&file, before, &[]).is_err());
     }
 
     #[test]

@@ -13,7 +13,8 @@ import type { useGameComparison } from "./use-game-comparison";
 
 type Comparison = ReturnType<typeof useGameComparison>;
 type Assessment = NonNullable<GameComparison["assessment"]>;
-type Reason = Assessment["candidates"][number]["reasons"][number];
+type Candidate = Assessment["candidates"][number];
+type Reason = Candidate["reasons"][number];
 type Evidence = Assessment["candidates"][number]["evidence"][number];
 const reportKinds: Record<Evidence["evidence"]["kind"], string> = {
   "upstream-declared": "Reported by the project",
@@ -47,7 +48,7 @@ const reasons: Record<Reason, string> = {
   "different-platform-or-environment": "This information is for a different platform or setup.",
   "source-not-selected": "The required original game files are not selected.",
   "operation-unknown":
-    "We couldn’t confirm whether this action is available. Open the game to check its status.",
+    "This comparison couldn’t confirm the operation for the selected options. Open the port to check its current status.",
   "operation-held": "This action isn’t available right now.",
   "requirement-unknown": "We couldn’t confirm a feature you need for this game version.",
   "requirement-unsupported": "A feature you need is listed as unsupported for this version.",
@@ -71,10 +72,27 @@ const dimensions = {
   setup: "Setup and updates",
   maintenance: "Maintenance outlook",
 };
-const statuses: Record<Assessment["status"], string> = {
-  "recommended-starting-point": "Suggested for the options you selected.",
+const comparisonFeatures = [
+  { id: "multiplayer", label: "Multiplayer" },
+  { id: "controller", label: "Controller support" },
+];
+const requirementStates: Record<Candidate["required_capabilities"][string], string> = {
+  satisfied: "Supported for these options",
+  unknown: "Support unconfirmed",
+  unsupported: "Unsupported for these options",
+};
+const decisionReasons: ReadonlySet<Reason> = new Set([
+  "different-game-or-edition",
+  "different-platform-or-environment",
+  "source-not-selected",
+  "conflicting-evidence",
+  "critical-regression",
+  "gameplay-below-default-floor",
+  "stability-below-default-floor",
+]);
+const statuses: Record<Exclude<Assessment["status"], "recommended-starting-point">, string> = {
   "comparable-alternatives":
-    "These options are worth considering; we don’t have enough information to prefer one.",
+    "These options are worth considering. We don’t have enough information to prefer one.",
   "assessed-single-candidate":
     "Only one port has been assessed, so there isn’t enough information to compare it with the others.",
   "insufficient-evidence":
@@ -90,6 +108,16 @@ function time(value: number | null | undefined) {
 
 export function GameComparisonControls({ comparison }: { comparison: Comparison }) {
   const { report, context, setContext } = comparison;
+  const assessment = report?.assessment;
+  const suggested =
+    assessment?.status === "recommended-starting-point"
+      ? report?.ports.find((port) => port.port_id === assessment.recommended?.port_id)
+      : undefined;
+  const edition = report?.editions.find(
+    (item) => item.id === (context.edition || report.edition_id),
+  );
+  const platform = context.platform || report?.platform;
+  const selectedFeatures = comparisonFeatures.filter(({ id }) => context.requirements.includes(id));
   const environments = [
     ...new Set(
       report?.assessment?.candidates.flatMap((candidate) =>
@@ -109,17 +137,44 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
       <header className="comparison-context-heading">
         <h3 className="sr-only">Compare these ports</h3>
         {comparison.enabled && (
-          <p role="status" aria-live="polite" className="text-sm">
-            {comparison.loading
-              ? "Refreshing the selected comparison…"
-              : comparison.failed
-                ? "We couldn’t load this comparison. You can still open each project’s details and available actions."
-                : report?.assessment
-                  ? statuses[report.assessment.status]
-                  : "We don’t have a recommendation for these options yet. You can still explore each project."}
+          <p className="text-sm">
+            {report && !edition && report.editions.length > 1 && !context.edition ? (
+              <>
+                Choose a game edition to compare. Target platform: {platformLabel(report.platform)}.
+              </>
+            ) : (
+              <>
+                Comparing {edition ? <bdi>{edition.title}</bdi> : "the selected game"} on{" "}
+                {platform ? platformLabel(platform) : "this device"}.
+              </>
+            )}{" "}
+            {context.environment ? (
+              <>
+                Using reports for <bdi>{context.environment}</bdi>.
+              </>
+            ) : (
+              "Device-specific test results may be unavailable."
+            )}
           </p>
         )}
-        {comparison.enabled && (
+      </header>
+      {comparison.enabled && (
+        <div className="comparison-context-heading">
+          <p role="status" aria-live="polite" className="text-sm">
+            {comparison.loading ? (
+              "Refreshing the selected comparison…"
+            ) : comparison.failed ? (
+              "We couldn’t load this comparison. You can still open each project’s details and available actions."
+            ) : suggested ? (
+              <>
+                <strong>Suggested starting point</strong> · <bdi>{suggested.name}</bdi>
+              </>
+            ) : assessment && assessment.status !== "recommended-starting-point" ? (
+              statuses[assessment.status]
+            ) : (
+              "We don’t have a recommendation for these options yet. You can still explore each project."
+            )}
+          </p>
           <Button
             data-focusable
             variant="outline"
@@ -129,24 +184,21 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
           >
             Refresh version information
           </Button>
-        )}
-      </header>
+        </div>
+      )}
+      {selectedFeatures.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span>Required features</span>
+          {selectedFeatures.map(({ id, label }) => (
+            <Chip key={id}>{label}</Chip>
+          ))}
+        </div>
+      )}
       {comparison.enabled && (
-        <p className="text-sm">
-          Comparing{" "}
-          {report?.editions.find((edition) => edition.id === context.edition)?.title ??
-            (report?.editions.length === 1
-              ? report.editions[0]?.title
-              : "the available editions")}{" "}
-          on {context.platform ? platformLabel(context.platform) : "this device"}.{" "}
-          {context.environment
-            ? `Using reports for ${context.environment}.`
-            : "Device-specific test results may be unavailable."}
+        <p className="text-xs text-pc-muted-foreground">
+          Refreshing checks version information. It doesn’t run the game or test your device.
         </p>
       )}
-      <p className="text-xs text-pc-muted-foreground">
-        Refreshing checks version information. It doesn’t run the game or test your device.
-      </p>
       {!comparison.enabled ? (
         <p role="status">
           Comparison isn’t available in this view. You can still open each project’s details and
@@ -226,17 +278,14 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
             </div>
             <fieldset className="flex flex-wrap gap-3 text-sm">
               <legend>Features you need</legend>
-              {[
-                ["multiplayer", "Multiplayer"],
-                ["controller", "Controller support"],
-              ].map(([id, label]) => (
+              {comparisonFeatures.map(({ id, label }) => (
                 <label key={id} className="inline-flex items-center gap-2">
                   <input
                     data-focusable
                     type="checkbox"
                     className={controlFocus}
-                    checked={context.requirements.includes(id!)}
-                    onChange={(event) => updateRequirement(id!, event.target.checked)}
+                    checked={context.requirements.includes(id)}
+                    onChange={(event) => updateRequirement(id, event.target.checked)}
                   />
                   {label}
                 </label>
@@ -244,9 +293,9 @@ export function GameComparisonControls({ comparison }: { comparison: Comparison 
             </fieldset>
 
             <p className="text-xs text-pc-muted-foreground">
-              Recognized game files don’t confirm that a game works on your device. Update
-              information may be cached. Follow a project to show its update notices in this
-              library.
+              Recognized game files don’t confirm that a game works on your device. Portcove may use
+              saved version information. Turn on update notices for a port to see when Portcove
+              finds a new download.
             </p>
           </details>
         </>
@@ -269,12 +318,30 @@ export function GameComparisonEvidence({
   const disclosureScope = JSON.stringify([comparison.scopeBinding, portId]);
   const [disclosure, setDisclosure] = useState({ scope: disclosureScope, open: false });
   const report = comparison.report;
-  const port = report?.ports.find((row) => row.port_id === portId);
+  if (!report) return null;
+  const port = report.ports.find((row) => row.port_id === portId);
   if (!port) return null;
-  const candidate = report?.assessment?.candidates.find(
+  const candidate = report.assessment?.candidates.find(
     (candidate) => candidate.scope.port_id === portId,
   );
-  const recommended = !comparison.loading && report?.assessment?.recommended?.port_id === portId;
+  const recommendationAssessment = comparison.loading ? undefined : report.assessment;
+  const recommended =
+    recommendationAssessment?.status === "recommended-starting-point" &&
+    recommendationAssessment.recommended?.port_id === portId;
+  const retainedVersion =
+    port.freshness.state === "definition-changed" || port.freshness.state === "collection-failed";
+  const featureResults =
+    retainedVersion ||
+    !candidate ||
+    candidate.scope.game_id !== report.game_id ||
+    candidate.scope.edition_id !== report.edition_id ||
+    candidate.scope.platform !== report.platform ||
+    candidate.scope.environment_id !== report.environment_id
+      ? undefined
+      : candidate.required_capabilities;
+  const requiredFeatures = comparisonFeatures.filter(({ id }) =>
+    report.required_capabilities.includes(id),
+  );
   const followed = organization?.snapshot?.followed_port_ids.includes(portId) ?? false;
   return (
     <section
@@ -283,47 +350,33 @@ export function GameComparisonEvidence({
       data-focus-group
     >
       {recommended && <Chip>Suggested starting point</Chip>}
-      {!comparison.loading &&
-        report?.assessment?.status === "comparable-alternatives" &&
-        report.assessment.comparable.some((scope) => scope.port_id === portId) && (
+      {recommendationAssessment?.status === "comparable-alternatives" &&
+        recommendationAssessment.comparable.some((scope) => scope.port_id === portId) && (
           <Chip>Comparable option</Chip>
         )}
       <p className="text-xs text-pc-muted-foreground">
         {port.offered_release
-          ? `Offered version ${port.offered_release.version}`
+          ? `${retainedVersion ? "Last recorded version" : "Offered version"} ${port.offered_release.version}`
           : "No confirmed version for this comparison."}
       </p>
-      <p className="text-xs text-pc-muted-foreground">
-        {port.freshness.state === "catalog-pinned"
-          ? "Catalog-pinned identity; not a new upstream check."
-          : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
-      </p>
-      {candidate && !comparison.loading && (
+      {!comparison.loading && (
         <div className="grid gap-2 text-sm">
-          {candidate.reasons.map((reason) => (
-            <p key={reason}>
-              {reason === "operation-held" && port.operation.kind === "held"
-                ? `${reasons[reason]} ${port.operation.reason} Open the game to check the next step.`
-                : reasons[reason]}
-            </p>
-          ))}
-          <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-            {candidate.dimensions.map((dimension) => (
-              <div key={dimension.dimension}>
-                <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
-                <dd>
-                  {dimension.state === "known" &&
-                  (dimension.dimension === "controls" || dimension.dimension === "setup")
-                    ? candidate.evidence.find(
-                        (record) =>
-                          record.disposition === "current" &&
-                          record.evidence.dimension === dimension.dimension,
-                      )?.evidence.explanation || dimensionStates.known
-                    : dimensionStates[dimension.state]}
-                </dd>
-              </div>
+          {port.operation.kind !== "allowed" && <p>{port.operation.reason}</p>}
+          {candidate?.reasons
+            .filter((reason) => decisionReasons.has(reason))
+            .map((reason) => (
+              <p key={reason}>{reasons[reason]}</p>
             ))}
-          </dl>
+          {requiredFeatures.length > 0 && (
+            <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-2">
+              {requiredFeatures.map(({ id, label }) => (
+                <div key={id}>
+                  <dt className="font-medium">{label}</dt>
+                  <dd>{requirementStates[featureResults?.[id] ?? "unknown"]}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
       )}
       <details
@@ -336,11 +389,38 @@ export function GameComparisonEvidence({
           {candidate ? "Why this port?" : "Reports and updates"} — {port.name}
         </summary>
         <div className="mt-2 space-y-2 text-xs">
+          <p className="text-pc-muted-foreground">
+            {port.freshness.state === "catalog-pinned"
+              ? "This comparison uses the version pinned in the catalog."
+              : `Last checked successfully: ${time(port.freshness.last_successful_resolution_at)}. Latest observation: ${port.freshness.state}.`}
+          </p>
           {port.limitations.map((limitation) => (
             <p key={limitation}>{limitation}</p>
           ))}
           {candidate ? (
             <>
+              {candidate.reasons
+                .filter((reason) => !decisionReasons.has(reason))
+                .map((reason) => (
+                  <p key={reason}>{reasons[reason]}</p>
+                ))}
+              <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                {candidate.dimensions.map((dimension) => (
+                  <div key={dimension.dimension}>
+                    <dt className="font-medium">{dimensions[dimension.dimension]}</dt>
+                    <dd>
+                      {dimension.state === "known" &&
+                      (dimension.dimension === "controls" || dimension.dimension === "setup")
+                        ? candidate.evidence.find(
+                            (record) =>
+                              record.disposition === "current" &&
+                              record.evidence.dimension === dimension.dimension,
+                          )?.evidence.explanation || dimensionStates.known
+                        : dimensionStates[dimension.state]}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
               {candidate.evidence.map((record, index) => (
                 <div
                   key={`${record.evidence.id}-${index}`}
@@ -409,7 +489,7 @@ export function GameComparisonEvidence({
               {port.source_profile_ids.join(", ") || "none declared"}.
             </p>
 
-            <p>Comparison policy: {report?.policy_version}</p>
+            <p>Comparison policy: {report.policy_version}</p>
           </details>
         </div>
       </details>

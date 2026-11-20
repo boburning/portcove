@@ -177,10 +177,17 @@ An owner can amend one unattempted candidate on #177 with
 original proposal, current bot receipt and candidate slot. Compute both comment
 hashes with `observationHash(comment.body)` from `scripts/upstream-observer.mts`.
 Copy the previous body/evidence hashes from the exact bot receipt. `replacement` contains
-only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+`upstream`, `evidence` and `resume`. An explicit existing-owner observation may
+also correct its `game` label to match the canonical owner. The executor still
+verifies the exact issue, key, repository, game scope and Project item. An
+unattempted legacy candidate without an intent may provide `canonical_owner:
+{ issue, port_key }` and `game` in its replacement to record an observation
+against the already established canonical owner. A retained creation marker
+blocks that conversion. Optional top-level `hold: true` retains
 the amended candidate for research. A later exact-receipt amendment without that
-flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
-retain their original identities. Competing amendments or completed/uncertain
+flag resumes it after its research condition is satisfied. The repository ID
+and title stay bound to the original proposal. Explicit intents and their
+implementation keys stay fixed. Competing amendments or completed/uncertain
 writes refuse revision. The retained receipt references the exact owner amendment.
 An amendment event drains the existing queue and reports its original proposal.
 For a historical schema 1 batch, an exact-receipt amendment authorizes importing
@@ -210,7 +217,9 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify for new intake before the
 receipt says `complete`. After all candidates in a batch over ten have passing
 scoped proofs, Actions records delivery with the full audit pending. A subsequent
-pass runs only the full doctor for that checkpoint. An upstream release published
+pass runs only the full doctor for that checkpoint. The same audit-only recovery
+applies to a legacy batch over ten with all scoped delivery proofs already
+recorded on its original receipt. An upstream release published
 in the meantime can be recorded as a separate dated observation. The full audit
 still verifies complete live coverage. Missing catalog links produce an
 `audit-repairs` diagnostic naming matching canonical owners when identifiable.

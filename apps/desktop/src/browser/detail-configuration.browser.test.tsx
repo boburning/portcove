@@ -229,7 +229,13 @@ it("keeps the selected mod setup and settings draft through version and save tas
     .element(page.getByRole("button", { name: `Apply update · ${staged.version}`, exact: true }))
     .toBeVisible();
   await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
-  const coverage = page.getByRole("region", { name: "Backups and updates", exact: true });
+  const coverage = page.getByRole("tabpanel", { name: "Saves & backups", exact: true });
+  const history = coverage.getByText("Backups", { exact: true });
+  const details = coverage.getByText("Backup check details", { exact: true });
+  expect(
+    history.element().compareDocumentPosition(details.element()) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  await details.click();
   await expect
     .element(coverage.getByRole("heading", { name: `Current version · ${active.version}` }))
     .toBeVisible();

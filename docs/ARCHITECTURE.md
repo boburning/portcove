@@ -1351,6 +1351,20 @@ it at once with the last published writer's operation, which is advisory because
 inventory probes publish no record. Probes never wait. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
+Core settings change-sets review up to 16 declared keys in one logical
+configuration file. The retained declaration determines the order and each
+key's reset value. The review binds the durable library, exact installation,
+materialized setup when present, original bytes, file custody and the entire
+postimage. Core recomputes that binding under the port lock before writing.
+The canonical file and its optional runtime projection use the existing
+journaled publication and recovery path. A pending setup switch holds review.
+Settings changes leave Mods revisions and selection under the Mods owner.
+Legacy single-setting requests still emit and recover version-one journals.
+Pending version-two journals require a change-set-capable client for recovery.
+When apply has begun, an error carries the operation ID and the observed
+outcome. A verified write with failed readback reports an applied outcome.
+If journal state is unavailable, Core reports an unknown outcome.
+
 ## Steam shortcut compatibility boundary
 
 The Tauri host owns the operating-system-facing adapter for a deliberately
@@ -2857,6 +2871,37 @@ the separate checked destination and historical-admission contract.
 `library_transfer`, `transfer_copy`, and `library_move` own move planning, copy verification, and authority transitions respectively. An exclusive source lease excludes every current client and launch supervisor. The reviewed plan binds metadata and each managed file's hash, detects portable-path collisions and unsupported entries, and budgets destination space. A versioned journal precedes its identified activity, so interruption before activity creation is recoverable. The original library receives a pending authority marker before copying. A newly created destination holds an exclusive lease and a pending marker while files are individually published without overwrite and SQLite is snapshotted with `VACUUM INTO`. Copied paths are rebased; active, previous, and staged identities remain unchanged. Source and destination inventories, logical metadata, database integrity, and all immutable install manifests are verified before a destination receipt is written.
 
 Publication records the source as moved before clearing the destination's pending marker. Normal library opens follow only matching receipts, stop at pending transfers, and bound relocation chains. Recovery after activation only finalizes bookkeeping; it never copies old data over a destination that could have received new saves. Abort before publication removes the original's gate and retains the incomplete destination under its gate. Neither operation deletes either data tree. Pending transfer activity remains running with an explicit recovery journal, then becomes succeeded or failed on completion or abort. Flushed files and directory synchronization support Linux process/power-loss recovery; Windows/macOS retain process interruption recovery without a directory power-loss guarantee. Tauri owns only the temporary handoff of its cached library/provider handles and reopens the root selected by core. This changes no durable domain ownership or crate dependency rule.
+
+## Library recovery bundles
+
+Core previews a bundle from one existing library and a separate destination.
+The review binds the library identity, exact metadata and managed file inventory.
+It accounts for managed versions, library user data, source inbox, backups, toolchains
+and local artwork. External runtimes and save locations, external original or BIOS
+files, unknown save locations and host credentials are excluded. Recorded external
+source references can remain in metadata as locations to verify or relink later.
+An installation managed by Portcove outside the library root holds the bundle
+review because its installation record and runtime could not be restored together.
+
+Creation takes the same exclusive source lease as a library move and rechecks the
+review. It writes an authenticated intent in a private sibling directory and copies
+into that directory. The destination filesystem must enforce private owner access
+for the staging and payload directories. The original library keeps its existing
+authority and active preference.
+Core verifies the copied inventory and metadata, rechecks the source and publishes
+the bundle with an atomic no-replace rename. Staging remains separate from completed
+bundles. Recovery reads the exact intent and either completes the staged copy against
+the unchanged source or verifies the already-published bundle. A changed source needs
+a new review and the old staged files remain available.
+
+Bundle inspection validates the format, installed-contract authority, exact content
+and host-authenticated receipt without opening a library. The receipt uses a separate
+proof domain from historical installation admissions. A different host cannot use
+that receipt to establish local verification or publisher authority. Restore binds
+the verified receipt and checked import plan to a new or empty destination outside
+both the bundle and its source library. The import journal owns the restore and its
+recovery. The player opens the recovered library through the separate library
+selection operation.
 
 ## Library imports
 

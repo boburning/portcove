@@ -1502,7 +1502,7 @@ fn initialize_fresh_schema<'a>(
     Ok(())
 }
 
-fn database_path(root: &Path) -> PathBuf {
+pub(crate) fn database_path(root: &Path) -> PathBuf {
     root.join("portcove.sqlite3")
 }
 

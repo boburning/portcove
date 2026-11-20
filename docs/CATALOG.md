@@ -2651,7 +2651,13 @@ platform is the newest reviewed shape. Changing the derivation rules (the
 program classifier, the configuration extensions, a part or its anchoring)
 bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
 over a fixture fails on any such change until the version and the golden are
-updated together. The golden fixture is a Windows route, so the Unix
+updated together. The N64 macOS archive inspection can additionally prove
+flat install-root persistence absent when the whole payload consists of the
+app bundle that contains the resolved executable. It records the previously
+unknown persistence components through a distinct N64 macOS derivation-input
+digest and preserves the existing coordinates and known values of other
+components. Earlier records still compare their known parts. The golden
+fixture is a Windows route, so the Unix
 executable-bit and verified macOS library branches of the shared classifier
 are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
 of the older version, and `--prune` empties the table until entries are
@@ -3666,6 +3672,12 @@ with the same title prefix and the platform-specific `-windows-x64.zip` and
 `-linux-x64.zip` suffixes. Use `"split-mods-no-crash-log"` for the reviewed
 single-disc Alexbeav kits with SCPH-1001 BIOS whose mutable paths omit
 `psx_crash.txt`. Their remaining split-mods fields are the same.
+Use `"split-mods-diagnostics"` for the reviewed MediEvil and Mortal Kombat 4
+kits. It retains `diagnostics-location.txt` alongside the standard split-mods
+paths. Keep the exact selectors, executables, discs and retail SCPH-1001 BIOS
+explicit. MediEvil keeps managed Windows and Linux routes with separate Mac
+setup. Mortal Kombat 4 keeps its two declared managed Mac routes and existing
+qualification limits.
 `"split-mods-openbios"` combines those split mod
 paths and selectors with the bundled OpenBIOS argument and refuses a retail
 BIOS profile, for reviewed dual-platform kits that ship and support OpenBIOS.
@@ -4081,8 +4093,12 @@ prepare an already-reviewed operational contract. If the record has initial
 lineage, its GitHub repository ID must match the observed repository. Existing
 lineage and issue assignments stay bound to their catalog records. A new
 GitHub-managed route starts from its official project repository.
-Use the existing `--id` if the upstream project names several implementations
-or the existing listing has no reviewed game identity.
+For an issue-free project URL, a unique reviewed game ID and exact set of
+source edition IDs selects the existing listing. Its full reviewed identity
+and evidence must still match. Use `--id` to disambiguate identical siblings,
+unbound legacy listings, or overlapping or unspecified editions of the same game.
+A distinct game or disjoint, specified editions of the same game can start a
+separate listing at the same upstream URL with a deterministic ID.
 For a non-GitHub project, supply `--name` if the game identity has no single
 source edition to name the listing. Resolving a different previously reviewed
 game or edition requires a reviewed record edit. The observed release window

@@ -163,12 +163,15 @@ accepted catalog/listing/pending union. Organization writes preserve unknown
 records, use canonical library identity and compare revisions within the existing
 atomic 64 KiB host preference boundary.
 
-Game Detail keeps the original game, selected port, current version and primary
-play or setup action in its header. Game files shows current requirements and
-file controls directly. Game settings & mods keeps configuration tied to the
-active managed installation. The detail sections stay mounted while the player
-switches between tasks, and Saves & backups puts effective coverage and current
-actions before the history.
+Game Detail keeps the original game, selected port, installation, version,
+readiness and primary play or setup action in its header. Overview shows the
+game artwork and credits. The other sections use a compact header with the
+same identity and actions. A labeled section selector replaces the tab row in
+narrow detail panes and uses the same destinations. Game files shows current
+requirements and file controls directly. Mods and Game settings each use the active managed
+installation. The detail sections stay mounted while the player switches
+between tasks. Saves & backups puts effective coverage and current actions
+before the history.
 
 Add games owns scan progress, matches, setup reviews and batch installation.
 Settings → Game files keeps saved folders, source health, DAT references and

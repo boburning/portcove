@@ -457,6 +457,11 @@ identifies its inspections even when no issue is linked.
 An older reviewed fallback stays distinct from the latest candidate. Other
 providers, incomplete scopes and unavailable archives have no current shape
 assessment from this job.
+When an exact current managed GitHub candidate lacks both reviewed baselines,
+the inspection report records `no-reviewed-baseline` under `baseline_gaps`.
+Each row binds the port, platform, channel, definition and asset identity.
+The report retains up to 1,024 rows in stable order and counts any additional
+rows. These gaps spend no archive budget and do not trigger issue notices.
 
 The read-only inspection verifies size and SHA-256 before comparing the archive
 through `portcove catalog inspect-package-drift`, an alias for the verified
@@ -466,6 +471,14 @@ definition, reviewed baseline and built inspector bytes. A partial layout
 comparison can be reused when Core confirms both reviewed components matched.
 Its verdict stays incomplete. Failed archive checks remain visible and can be
 retried in a later observation. Installed-state eligibility stays with Core.
+
+The inspection checkpoint also tracks where each baseline group ran out of
+time or download budget. The next run continues from that route in stable
+port, platform and channel order, even when new inspector bytes invalidate
+previous results. Generated baselines keep priority over reviewed layouts.
+Oversized archives stay unassessed and do not set the next route. A failed
+download or inspection remains eligible on a later pass. The continuation
+changes only the order of work within existing limits.
 
 A separate main-branch job has only the issue write permission for the notice.
 When a listing links a canonical issue, it records one bot-owned marker comment

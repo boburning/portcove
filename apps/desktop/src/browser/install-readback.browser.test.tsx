@@ -4,12 +4,12 @@ import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
-import { install, workspace } from "../dev-scenarios/interactive/scenarios";
+import { activities, install, workspace } from "../dev-scenarios/interactive/scenarios";
 import { fixtureValue } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { THEME_STORAGE_KEY } from "../theme";
 import { scrollWorkspaceTo } from "../workspace-scroll";
-import type { InstallPlan } from "../types";
+import type { ActivityFeed, InstallPlan } from "../types";
 import { browserFixture } from "../../test/browser-fixture";
 import { controlledAct } from "../../test/controlled-react-act";
 import { captureParityState } from "../../test/parity-capture";
@@ -23,6 +23,16 @@ afterEach(async () => {
   transport = undefined;
   vi.restoreAllMocks();
 });
+
+async function chooseDetailSection(label: string) {
+  const picker = page.getByRole("combobox", { name: /^Game detail sections/ });
+  if (picker.elements().length) {
+    await picker.click();
+    await page.getByRole("option", { name: label, exact: true }).click();
+  } else {
+    await page.getByRole("tab", { name: label, exact: true }).click();
+  }
+}
 
 it.each([
   ["light", 960, 640],
@@ -44,6 +54,25 @@ it.each([
       id: "committed-readback-install",
       port_id: portId,
       path: `fixture/library/${portId}/versions/1.2`,
+    };
+    const activityId = "committed-install-activity";
+    const finishedActivity: ActivityFeed = {
+      ...activities,
+      terminal_history_count: 1,
+      records: [
+        {
+          id: activityId,
+          cancellation: null,
+          failure: null,
+          message: null,
+          operation: "install",
+          target_id: portId,
+          target_kind: "port",
+          status: "succeeded",
+          started_at: 28,
+          finished_at: 42,
+        },
+      ],
     };
     let committed = false;
     let allowReadback = false;
@@ -87,7 +116,7 @@ it.each([
           reason: committed ? "available" : "not_installed",
         },
       ];
-      return current;
+      return { ...current, activities: committed ? finishedActivity : activities };
     };
     const plan: InstallPlan = {
       bundled_runtime: null,
@@ -141,7 +170,24 @@ it.each([
         return snapshot();
       });
       const review = vi.spyOn(desktopApi, "plan").mockResolvedValue(plan);
-      const copy = vi.spyOn(desktopApi, "install").mockReturnValue(copying);
+      vi.spyOn(desktopApi, "activities").mockImplementation(async () =>
+        committed ? finishedActivity : activities,
+      );
+      const copy = vi.spyOn(desktopApi, "install").mockImplementation(async (...args) => {
+        const report = args[6];
+        const event = {
+          schema_version: 2,
+          operation_id: activityId,
+          parent_operation_id: null,
+          target: null,
+          timestamp_ms: 1,
+          operation: "install",
+        };
+        report?.({ ...event, type: "started", sequence: 1 });
+        const result = await copying;
+        report?.({ ...event, type: "finished", result: "succeeded", sequence: 2 });
+        return result;
+      });
       const launch = vi
         .spyOn(desktopApi, "launch")
         .mockResolvedValue({ processId: null, sessionId: "unrelated-play" });
@@ -193,14 +239,14 @@ it.each([
           page.getByRole("button", { name: "Install: Install readback fixture", exact: true }),
         )
         .not.toBeInTheDocument();
-      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      await chooseDetailSection("Game files");
       await expect
         .element(page.getByRole("button", { name: "Review installation", exact: true }))
         .not.toBeInTheDocument();
       await expect
         .element(page.getByText("Not installed", { exact: true }))
         .not.toBeInTheDocument();
-      await page.getByRole("tab", { name: "Manage", exact: true }).click();
+      await chooseDetailSection("Manage");
       await expect
         .element(page.getByText("No active installation", { exact: true }))
         .not.toBeInTheDocument();
@@ -214,7 +260,7 @@ it.each([
         .element(page.getByText("Recorded check identities", { exact: true }))
         .toBeVisible();
       expect(container.querySelector(".cli-continuity")).toBeNull();
-      await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
+      await chooseDetailSection("Versions & updates");
       await expect
         .element(page.getByText("Not installed", { exact: true }))
         .not.toBeInTheDocument();
@@ -225,7 +271,7 @@ it.each([
           }),
         )
         .toBeVisible();
-      await page.getByRole("tab", { name: "Game files", exact: true }).click();
+      await chooseDetailSection("Game files");
       const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
       scrollWorkspaceTo(main, 0);
       await expect.element(retry).toBeVisible();
@@ -239,8 +285,25 @@ it.each([
         .toBeLessThanOrEqual(height);
       expect(retry.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
       await captureParityState("install-committed-refresh-needed");
-      await dismiss.click();
-      await page.getByRole("button", { name: "Back to Discover", exact: true }).click();
+      await expect
+        .element(
+          page.getByText(`Installed Install readback fixture · ${installed.version}`, {
+            exact: true,
+          }),
+        )
+        .toBeVisible();
+      await expect
+        .element(page.getByRole("button", { name: "Open game", exact: true }))
+        .not.toBeInTheDocument();
+      await page.getByRole("button", { name: "View in Activity", exact: true }).click();
+      await expect
+        .element(page.getByRole("heading", { name: "Task history", exact: true }))
+        .toBeVisible();
+      await expect
+        .poll(() => document.activeElement?.getAttribute("data-activity-id"))
+        .toBe(activityId);
+      expect(launch).not.toHaveBeenCalled();
+      await page.getByRole("button", { name: "Discover", exact: true }).click();
       await mountDiscoverPort("collection-3");
       await openDiscoverPort("collection-3");
       const play = document.querySelector<HTMLButtonElement>("[data-launch-action]")!;
@@ -271,6 +334,15 @@ it.each([
       const currentReadiness = document.querySelector<HTMLElement>("[data-detail-readiness]")!;
       currentReadiness.scrollIntoView({ block: "nearest" });
       await captureParityState("install-refreshed-current-play");
+      const back = page.getByRole("button", { name: "Back to Discover", exact: true });
+      await back.click();
+      const openInstalled = page.getByRole("button", { name: "Open game", exact: true });
+      await openInstalled.click();
+      await expect.poll(readiness).toContain("Ready to play");
+      await back.click();
+      await expect.element(openInstalled).toHaveFocus();
+      await dismiss.click();
+      await expect.element(openInstalled).not.toBeInTheDocument();
       expect(copy).toHaveBeenCalledExactlyOnceWith(
         portId,
         "stable",

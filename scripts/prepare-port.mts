@@ -220,6 +220,12 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
     });
+  } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope: "Reviewed MediEvil and Mortal Kombat 4 split-mods and diagnostic location paths.",
+      next: "Keep each exact kit selector, generated executable, disc, retail BIOS and managed platform explicit. Keep the separate Mac setup for MediEvil and the existing qualification limits for Mortal Kombat 4.",
+    });
   } else if (record.psx_managed_windows_v1) {
     projections.push({
       field: "psx_managed_windows_v1",
@@ -706,6 +712,53 @@ function preparedRecordOutputs(
   };
 }
 
+function reviewedGameSelector(game: unknown) {
+  if (!isRecord(game) || typeof game.id !== "string" || !Array.isArray(game.source_editions))
+    throw new Error("An original-game input requires a stable game ID and reviewed evidence.");
+  const editions = game.source_editions.map((edition: unknown) => {
+    if (!isRecord(edition) || typeof edition.id !== "string")
+      throw new Error("An original-game input requires stable source edition IDs.");
+    return edition.id;
+  });
+  return { id: game.id, editions: editions.sort() };
+}
+
+function matchReviewedGame(
+  matching: readonly AuthoredPort[],
+  selector: ReturnType<typeof reviewedGameSelector>,
+) {
+  const sameGame = matching.flatMap((record) => {
+    const game = record.listing.original_game;
+    return game?.id === selector.id
+      ? [{ record, editions: game.source_editions.map(({ id }) => id) }]
+      : [];
+  });
+  const exact = sameGame.filter(
+    ({ editions }) =>
+      editions.length === selector.editions.length &&
+      editions.every((id) => selector.editions.includes(id)),
+  );
+  if (exact.length === 1) return exact[0]?.record;
+  if (exact.length > 1)
+    throw new Error(
+      "Several implementations share this reviewed game and editions; select the stable ID.",
+    );
+  if (matching.some(({ listing }) => listing.original_game === undefined))
+    throw new Error(
+      "Supply the existing stable --id to resolve unbound game identity at this project.",
+    );
+  if (
+    sameGame.some(
+      ({ editions }) =>
+        editions.length === 0 ||
+        selector.editions.length === 0 ||
+        editions.some((id) => selector.editions.includes(id)),
+    )
+  )
+    throw new Error("Review overlapping or unspecified source editions and select the stable ID.");
+  return undefined;
+}
+
 /** Unsigned local proposal preparation. Authored records and accepted outputs are never edited. */
 export async function preparePort(options: PrepareOptions) {
   const started = process.hrtime.bigint();
@@ -715,11 +768,7 @@ export async function preparePort(options: PrepareOptions) {
   const originalGame = options.originalGame;
   if (originalGame !== undefined && (!options.projectUrl || options.issue))
     throw new Error("An original-game input starts preparation with an official project URL.");
-  if (
-    originalGame !== undefined &&
-    (!isRecord(originalGame) || typeof originalGame.id !== "string")
-  )
-    throw new Error("An original-game input requires a stable game ID and reviewed evidence.");
+  const gameSelector = originalGame === undefined ? undefined : reviewedGameSelector(originalGame);
   if (originalGame !== undefined && explicit) {
     if (identityUrl(explicit.listing.project_url) !== identityUrl(options.projectUrl!))
       throw new Error("The reviewed record belongs to another project URL.");
@@ -741,8 +790,16 @@ export async function preparePort(options: PrepareOptions) {
     const sameProject = (url: string) =>
       sourceKey === (originalGame === undefined ? url : identityUrl(url));
     const matching = authored.records.filter((record) => sameProject(record.listing.project_url));
-    if (!explicit && !options.id && !issuePortId && matching.length > 1)
-      throw new Error("Several implementations share this upstream; select the stable ID.");
+    const suppliedId = explicit?.listing.id ?? options.id ?? issuePortId;
+    let matched: AuthoredPort | undefined;
+    if (suppliedId === undefined) {
+      if (gameSelector) matched = matchReviewedGame(matching, gameSelector);
+      else {
+        if (matching.length > 1)
+          throw new Error("Several implementations share this upstream; select the stable ID.");
+        matched = matching[0];
+      }
+    }
     const repository = githubRepository(projectUrl);
     const suggested = repository
       ?.split("/")[1]
@@ -750,19 +807,24 @@ export async function preparePort(options: PrepareOptions) {
       .replace(/[^a-z0-9]+/gu, "-")
       .replace(/^-|-$/gu, "");
     let defaultId = suggested;
-    if (isRecord(originalGame) && typeof originalGame.id === "string") {
-      defaultId ??= originalGame.id;
-      if (
-        authored.records.some(
-          ({ listing }) => listing.id === defaultId && !sameProject(listing.project_url),
-        )
-      ) {
-        const suffix = observationHash([sourceKey, originalGame.id]).slice(0, 12);
-        defaultId = `${defaultId.slice(0, 115).replace(/-+$/u, "")}-${suffix}`;
+    if (gameSelector && suppliedId === undefined && !matched) {
+      defaultId ??= gameSelector.id;
+      const occupied = (id: string) => authored.records.some(({ listing }) => listing.id === id);
+      if (matching.length > 0 || occupied(defaultId)) {
+        const suffix = observationHash(
+          matching.length > 0
+            ? [sourceKey, gameSelector.id, gameSelector.editions]
+            : [sourceKey, gameSelector.id],
+        ).slice(0, 12);
+        const stem = `${defaultId.slice(0, 115).replace(/-+$/u, "")}-${suffix}`;
+        defaultId = stem;
+        for (let ordinal = 2; occupied(defaultId); ordinal += 1) {
+          const ordinalSuffix = `-${ordinal}`;
+          defaultId = `${stem.slice(0, 128 - ordinalSuffix.length)}${ordinalSuffix}`;
+        }
       }
     }
-    const id =
-      explicit?.listing.id ?? options.id ?? issuePortId ?? matching[0]?.listing.id ?? defaultId;
+    const id = suppliedId ?? matched?.listing.id ?? defaultId;
     if (!id) throw new Error("Supply a stable --id for this project.");
     if (issuePortId && issuePortId !== id)
       throw new Error("Canonical issue and proposed stable ID differ.");
@@ -869,8 +931,9 @@ export async function preparePort(options: PrepareOptions) {
       metadata.full_name.toLowerCase() === facts.repository.toLowerCase()
         ? String(metadata.id)
         : undefined;
-    if (originalGame !== undefined && explicit?.upstream_lineage && recordedRepositoryId) {
-      const { current } = assessUpstreamLineage(explicit);
+    const reviewedRecord = explicit ?? (options.id === undefined ? previous : undefined);
+    if (gameSelector && reviewedRecord?.upstream_lineage && recordedRepositoryId) {
+      const { current } = assessUpstreamLineage(reviewedRecord);
       if (
         current.repository?.host === "github.com" &&
         current.repository.id !== recordedRepositoryId
@@ -883,10 +946,11 @@ export async function preparePort(options: PrepareOptions) {
       recordedRepositoryId &&
       authored.records.some((entry) => {
         const { current } = assessUpstreamLineage(entry);
+        if (current.repository?.host !== "github.com") return false;
+        const sameSource = identityUrl(current.project_url) === identityUrl(facts.project_url);
         return (
-          current.repository?.host === "github.com" &&
-          current.repository.id === recordedRepositoryId &&
-          identityUrl(current.project_url) !== identityUrl(facts.project_url)
+          (current.repository.id === recordedRepositoryId && !sameSource) ||
+          (!explicit && !options.id && sameSource && current.repository.id !== recordedRepositoryId)
         );
       })
     )

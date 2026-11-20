@@ -47,6 +47,7 @@ body:
         - macOS Intel
         - macOS Apple Silicon
         - Android
+        - PS5
         - Unknown
     validations:
       required: true

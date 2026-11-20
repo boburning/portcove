@@ -53,6 +53,26 @@ export interface DriftTarget {
   asset: { name: string; url: string; size: number; sha256: string };
 }
 
+interface DriftBaselineGap {
+  reason: "no-reviewed-baseline";
+  port_id: string;
+  platform: string;
+  channel: "stable" | "beta";
+  definition_sha256: string;
+  repository_id: number;
+  release_id: number;
+  asset_id: number;
+  asset_sha256: string;
+  version?: string;
+}
+
+type KnownRoute = Pick<DriftTarget, "issue" | "shapeVersion"> & {
+  repository: string;
+} & (
+    | Pick<DriftTarget, "baselineSha256" | "baselineSource" | "derivationSha256">
+    | { noReviewedBaseline: true }
+  );
+
 const platforms = new Set(["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"]);
 const digest = /^[a-f0-9]{64}$/;
 const catalogId = /^[a-z0-9][a-z0-9-]{0,127}$/;
@@ -76,14 +96,7 @@ function isShapeComponentList(value: unknown): value is string[] {
 }
 
 function reviewedLayout(port: Record<string, unknown>, platform: string) {
-  if (
-    typeof port.adapter !== "string" ||
-    !MANAGED_PORTABLE_ADAPTERS.has(port.adapter) ||
-    !isRecord(port.release) ||
-    (port.release.provider !== undefined && port.release.provider !== "github") ||
-    !isRecord(port.reviewed_package_layouts)
-  )
-    return undefined;
+  if (!isRecord(port.reviewed_package_layouts)) return undefined;
   const layout = port.reviewed_package_layouts[platform];
   if (
     isRecord(layout) &&
@@ -110,17 +123,7 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   const table = records(shapes.entries);
   const canUseLayoutFallback =
     Array.isArray(shapes.entries) && shapes.entries.length === table.length;
-  const routes = new Map<
-    string,
-    {
-      issue?: number;
-      repository: string;
-      baselineSha256: string;
-      baselineSource?: "reviewed_layout";
-      derivationSha256: string;
-      shapeVersion: number;
-    }
-  >();
+  const routes = new Map<string, KnownRoute>();
   for (const port of records(catalog.ports)) {
     if (
       typeof port.id !== "string" ||
@@ -144,7 +147,14 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
         shapeVersion,
       };
       if (baselines.length === 0) {
-        const layout = canUseLayoutFallback ? reviewedLayout(port, platform) : undefined;
+        if (
+          !canUseLayoutFallback ||
+          typeof port.adapter !== "string" ||
+          !MANAGED_PORTABLE_ADAPTERS.has(port.adapter) ||
+          (port.release.provider !== undefined && port.release.provider !== "github")
+        )
+          continue;
+        const layout = reviewedLayout(port, platform);
         if (layout) {
           routes.set(`${port.id}/${platform}`, {
             ...route,
@@ -152,7 +162,7 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
             baselineSource: "reviewed_layout",
             derivationSha256: derivationInputsDigest(port, platform),
           });
-        }
+        } else routes.set(`${port.id}/${platform}`, { ...route, noReviewedBaseline: true });
         continue;
       }
       const derivationSha256 = baselines[0]?.derivation_inputs_sha256;
@@ -219,9 +229,10 @@ export function collectDriftTargets(
   handoffs: readonly unknown[],
   run: ObservationRun,
   now: number,
-): DriftTarget[] {
+) {
   const routes = knownRoutes(catalog, listings, shapeTable);
   const candidates = new Map<string, DriftTarget>();
+  const gaps = new Map<string, { row: DriftBaselineGap; identity: string }>();
   const conflicts = new Set<string>();
   for (const handoff of handoffs) {
     if (
@@ -275,6 +286,30 @@ export function collectDriftTargets(
           selected.release.version,
         );
         if (!asset) continue;
+        const key = `${policy.port_id}/${projection.platform}/${projection.channel}`;
+        if ("noReviewedBaseline" in route) {
+          const gap: DriftBaselineGap = {
+            reason: "no-reviewed-baseline",
+            port_id: policy.port_id,
+            platform: projection.platform,
+            channel: projection.channel,
+            definition_sha256: policy.catalog_definition_sha256,
+            repository_id: policy.repository_id,
+            release_id: selected.release_id,
+            asset_id: selected.asset_id,
+            asset_sha256: asset.sha256,
+            ...(Buffer.byteLength(selected.release.version) <= 256
+              ? { version: selected.release.version }
+              : {}),
+          };
+          const identity = createHash("sha256")
+            .update(JSON.stringify([gap, selected.release.version, asset]))
+            .digest("hex");
+          const prior = gaps.get(key);
+          if (prior && prior.identity !== identity) conflicts.add(key);
+          gaps.set(key, { row: gap, identity });
+          continue;
+        }
         const target: DriftTarget = {
           portId: policy.port_id,
           ...(route.issue === undefined ? {} : { issue: route.issue }),
@@ -291,7 +326,6 @@ export function collectDriftTargets(
           version: selected.release.version,
           asset,
         };
-        const key = `${target.portId}/${target.platform}/${target.channel}`;
         const prior = candidates.get(key);
         if (prior && driftTargetKey(prior) !== driftTargetKey(target)) conflicts.add(key);
         candidates.set(key, target);
@@ -304,7 +338,15 @@ export function collectDriftTargets(
     if (conflicts.has(key)) continue;
     (target.baselineSource ? layouts : generated).push(target);
   }
-  return [...generated, ...layouts];
+  const gapKeys = [...gaps.keys()].filter((key) => !conflicts.has(key)).sort();
+  const retainedGapKeys = gapKeys.slice(0, 1024);
+  return {
+    targets: [...generated, ...layouts],
+    baselineGaps: {
+      rows: retainedGapKeys.map((key) => gaps.get(key)!.row),
+      omitted: gapKeys.length - retainedGapKeys.length,
+    },
+  };
 }
 
 export function driftTargetKey(target: DriftTarget): string {
@@ -332,6 +374,46 @@ const totalArchiveLimit = 2 * 1024 * 1024 * 1024;
 const subprocessLimit = 4 * 1024 * 1024;
 const layoutComponents = new Set<string>(["programs", "top_directories"]);
 const otherComponents = SHAPE_COMPONENTS.filter((part) => !layoutComponents.has(part));
+const driftTiers = ["generated", "reviewed_layout"] as const;
+type DriftTier = (typeof driftTiers)[number];
+type DriftContinuation = Partial<Record<DriftTier, string>>;
+
+function driftRouteKey(target: DriftTarget): string {
+  return `${target.portId}/${target.platform}/${target.channel}`;
+}
+
+function driftTier(target: DriftTarget): DriftTier {
+  return target.baselineSource ?? "generated";
+}
+
+export function readDriftContinuation(value: unknown): DriftContinuation {
+  if (!isRecord(value) || value.format !== 1 || !isRecord(value.continuation)) return {};
+  const continuation: DriftContinuation = {};
+  for (const tier of driftTiers) {
+    const key = value.continuation[tier];
+    if (typeof key !== "string" || key.length > 160) continue;
+    const [port, platform, channel, ...extra] = key.split("/");
+    if (
+      port !== undefined &&
+      catalogId.test(port) &&
+      platform !== undefined &&
+      platforms.has(platform) &&
+      (channel === "stable" || channel === "beta") &&
+      extra.length === 0
+    )
+      continuation[tier] = key;
+  }
+  return continuation;
+}
+
+function orderedDriftTargets(targets: readonly DriftTarget[], resumeAt: string | undefined) {
+  const byRoute = targets
+    .map((target) => ({ key: driftRouteKey(target), target }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const start = resumeAt === undefined ? 0 : byRoute.findIndex(({ key }) => key >= resumeAt);
+  if (start <= 0) return byRoute;
+  return [...byRoute.slice(start), ...byRoute.slice(0, start)];
+}
 
 export function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection {
   const data =
@@ -417,12 +499,21 @@ export async function scanDriftTargets(
     inspect: (archive: string, target: DriftTarget, stopAt: number) => Promise<Inspection>;
     now?: () => number;
   },
+  priorContinuation: DriftContinuation = {},
 ) {
   const observations: DriftObservation[] = [];
   const unassessed: { target: DriftTarget; reason: string }[] = [];
   let bytes = 0;
   const now = dependencies.now ?? Date.now;
-  for (const target of targets) {
+  const queues = driftTiers.map((tier) => ({
+    tier,
+    routes: orderedDriftTargets(
+      targets.filter((target) => driftTier(target) === tier),
+      priorContinuation[tier],
+    ),
+  }));
+  const deferred: DriftContinuation = {};
+  for (const { key: route, target } of queues.flatMap(({ routes }) => routes)) {
     const key = driftTargetKey(target);
     const prior = completed.get(key);
     if (
@@ -439,6 +530,7 @@ export async function scanDriftTargets(
       target.asset.size + bytes > totalArchiveLimit ||
       now() >= stopAt
     ) {
+      if (target.asset.size <= archiveLimit) deferred[driftTier(target)] ??= route;
       unassessed.push({ target, reason: "inspection-budget" });
       continue;
     }
@@ -457,7 +549,18 @@ export async function scanDriftTargets(
       await rm(directory, { recursive: true, force: true });
     }
   }
-  return { observations, unassessed, attempted_bytes: bytes };
+  const continuation: DriftContinuation = {};
+  for (const { tier, routes } of queues) {
+    const resume = deferred[tier];
+    if (resume !== undefined) {
+      // A route that could not fit even in the first slot must not pin the queue.
+      const next = routes.find(
+        ({ key, target }) => key !== resume && target.asset.size <= archiveLimit,
+      );
+      continuation[tier] = resume === routes[0]?.key ? (next?.key ?? resume) : resume;
+    }
+  }
+  return { observations, unassessed, attempted_bytes: bytes, continuation };
 }
 
 async function readBoundedJson(file: string, maxBytes: number): Promise<unknown> {
@@ -544,7 +647,14 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
       handoffs.push(await readBoundedJson(source, 16 * 1024 * 1024));
     }
   }
-  const targets = collectDriftTargets(catalog, listings, shapes, handoffs, run, Date.now());
+  const { targets, baselineGaps } = collectDriftTargets(
+    catalog,
+    listings,
+    shapes,
+    handoffs,
+    run,
+    Date.now(),
+  );
   let previous: unknown;
   try {
     previous = await readBoundedJson(checkpoint, 4 * 1024 * 1024);
@@ -553,16 +663,22 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   }
   const downloader = hostedDependencies();
   const cache = completedInspections(previous, inspector_sha256);
-  const result = await scanDriftTargets(targets, cache, Date.now() + 20 * 60_000, {
-    download: (asset, archive, deadline) =>
-      downloader.download(
-        { ...asset, digest: `sha256:${asset.sha256}` },
-        archive,
-        asset.size,
-        deadline,
-      ),
-    inspect: (archive, candidate, deadline) => inspect(archive, candidate, inspector, deadline),
-  });
+  const { continuation, ...result } = await scanDriftTargets(
+    targets,
+    cache,
+    Date.now() + 20 * 60_000,
+    {
+      download: (asset, archive, deadline) =>
+        downloader.download(
+          { ...asset, digest: `sha256:${asset.sha256}` },
+          archive,
+          asset.size,
+          deadline,
+        ),
+      inspect: (archive, candidate, deadline) => inspect(archive, candidate, inspector, deadline),
+    },
+    readDriftContinuation(previous),
+  );
   // Only current evidence goes to the notice job. Preserve earlier comparisons
   // for unobserved routes only while the same inspector bytes are in use.
   for (const item of result.observations) {
@@ -571,10 +687,16 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
     cache.set(item.key, item.inspection);
   }
   const observations = [...cache].slice(-512).map(([key, inspection]) => ({ key, inspection }));
-  await writeJson(checkpoint, { format: 1, inspector_sha256, observations });
-  await writeJson(output, { format: 1, run, inspector_sha256, ...result });
+  await writeJson(checkpoint, { format: 1, inspector_sha256, observations, continuation });
+  await writeJson(output, {
+    format: 1,
+    run,
+    inspector_sha256,
+    ...result,
+    baseline_gaps: baselineGaps,
+  });
   console.log(
-    `Compared ${result.observations.length} packages for ${targets.length} current routes. ${result.unassessed.length} were unassessed.`,
+    `Compared ${result.observations.length} packages for ${targets.length} current routes with a baseline. ${result.unassessed.length} were unassessed. ${baselineGaps.rows.length + baselineGaps.omitted} other current routes lack a reviewed baseline.`,
   );
 }
 

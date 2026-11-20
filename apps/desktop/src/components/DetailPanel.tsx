@@ -1241,7 +1241,8 @@ function UpdatesGroup({
 
 function SavesStorageGroup({
   port,
-  coverage,
+  backupProtection,
+  externalCoverage,
   status,
   installed,
   backups,
@@ -1256,7 +1257,8 @@ function SavesStorageGroup({
   actions,
 }: {
   port: PortDefinition;
-  coverage: ReactNode;
+  backupProtection?: BackupInventory["protection"] | undefined;
+  externalCoverage?: ReactNode;
   status?: PortStatus | undefined;
   installed: boolean;
   deferSetupChoices: boolean;
@@ -1289,82 +1291,91 @@ function SavesStorageGroup({
       <h2 id="detail-saves-and-storage" tabIndex={-1} className="sr-only">
         Saves & backups
       </h2>
-      <header className="detail-saved-data-header">
-        <div className="min-w-0 flex-1">
-          <h3 ref={heading} tabIndex={-1} className="m-0 text-base font-semibold">
-            Saved data
-          </h3>
-          <p
-            role="status"
-            className="mt-2 text-sm text-pc-muted-foreground"
-            id="backup-create-explanation"
-          >
-            {backupPresentation.explanation}
-          </p>
-        </div>
-        <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
-      </header>
-      <div className="detail-saved-data-summary">
-        <div className="detail-saved-data-fact">
-          <Icon glyph={FileArchive} size="lg" />
-          <div className="min-w-0">
-            <p className="m-0 text-base font-semibold">
-              {backupReadState?.status === "current" &&
-              backupReadState.hasInventory &&
-              backupState === "healthy"
-                ? `${backups.length} ${backups.length === 1 ? "backup" : "backups"}`
-                : "Review history below"}
-            </p>
-            <p className="mt-1 text-xs text-pc-muted-foreground">Saves and settings snapshots</p>
-          </div>
-        </div>
-        <StorageSummary status={status} />
-        <Button
-          data-focusable
-          variant="outline"
-          className="justify-self-start"
-          aria-label="Open folder for saved data"
-          disabled={Boolean(busy)}
-          onClick={() => {
-            void actions.openUserData();
-          }}
-        >
-          <Icon glyph={FolderOpen} />
-          Open folder
-        </Button>
-      </div>
-      {coverage}
-      {hasBackupHistory && (
-        <BackupHistory
-          embedded
-          gameName={gameIdentityLabel(port)}
-          key={`${port.id}:${libraryGeneration}`}
-          generation={libraryGeneration}
-          backups={backups}
-          problems={backupProblems}
-          state={backupState}
-          restoreAssessment={backupRestoreAssessment}
-          readState={backupReadState}
-          retryRead={retryBackupRead}
-          busy={busy}
-          restore={actions.restoreBackup}
-          recoverGhostshipLegacy={actions.recoverGhostshipLegacy}
-          remove={actions.deleteBackup}
-          focusFallback={() => heading.current}
-        />
-      )}
-      <p className="m-0 text-xs text-pc-muted-foreground">
-        Backups cover managed saves and settings. Game-version rollback, library metadata and other
-        folders are separate.
-      </p>
-      <PortableSaves
-        key={`portable-saves:${port.id}:${libraryGeneration}`}
+      <ProtectionSummary
         portId={port.id}
-        gameName={gameIdentityLabel(port)}
-        generation={libraryGeneration}
-        busy={busy}
-        onChanged={() => void retryBackupRead?.()}
-      />
+        status={status}
+        protection={backupProtection}
+        inventoryState={backupState}
+        problems={backupProblems}
+        readState={backupReadState}
+      >
+        {externalCoverage}
+        <header className="detail-saved-data-header">
+          <div className="min-w-0 flex-1">
+            <h3 ref={heading} tabIndex={-1} className="m-0 text-base font-semibold">
+              Saved data
+            </h3>
+            <p
+              role="status"
+              className="mt-2 text-sm text-pc-muted-foreground"
+              id="backup-create-explanation"
+            >
+              {backupPresentation.explanation}
+            </p>
+          </div>
+          <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
+        </header>
+        <div className="detail-saved-data-summary">
+          <div className="detail-saved-data-fact">
+            <Icon glyph={FileArchive} size="lg" />
+            <div className="min-w-0">
+              <p className="m-0 text-base font-semibold">
+                {backupReadState?.status === "current" &&
+                backupReadState.hasInventory &&
+                backupState === "healthy"
+                  ? `${backups.length} ${backups.length === 1 ? "backup" : "backups"}`
+                  : "Review history below"}
+              </p>
+              <p className="mt-1 text-xs text-pc-muted-foreground">Saves and settings snapshots</p>
+            </div>
+          </div>
+          <StorageSummary status={status} />
+          <Button
+            data-focusable
+            variant="outline"
+            className="justify-self-start"
+            aria-label="Open folder for saved data"
+            disabled={Boolean(busy)}
+            onClick={() => {
+              void actions.openUserData();
+            }}
+          >
+            <Icon glyph={FolderOpen} />
+            Open folder
+          </Button>
+        </div>
+        {hasBackupHistory && (
+          <BackupHistory
+            embedded
+            gameName={gameIdentityLabel(port)}
+            key={`${port.id}:${libraryGeneration}`}
+            generation={libraryGeneration}
+            backups={backups}
+            problems={backupProblems}
+            state={backupState}
+            restoreAssessment={backupRestoreAssessment}
+            readState={backupReadState}
+            retryRead={retryBackupRead}
+            busy={busy}
+            restore={actions.restoreBackup}
+            recoverGhostshipLegacy={actions.recoverGhostshipLegacy}
+            remove={actions.deleteBackup}
+            focusFallback={() => heading.current}
+          />
+        )}
+        <p className="m-0 text-xs text-pc-muted-foreground">
+          Backups cover managed saves and settings. Game-version rollback, library metadata and
+          other folders are separate.
+        </p>
+        <PortableSaves
+          key={`portable-saves:${port.id}:${libraryGeneration}`}
+          portId={port.id}
+          gameName={gameIdentityLabel(port)}
+          generation={libraryGeneration}
+          busy={busy}
+          onChanged={() => void retryBackupRead?.()}
+        />
+      </ProtectionSummary>
       <details className="text-sm">
         <summary className="disclosure-pad-2 cursor-pointer font-medium">
           Coverage and recorded rules
@@ -4241,40 +4252,31 @@ function DetailSavesSection({
   return (
     <div className="grid gap-5">
       <SavesStorageGroup
-        coverage={
-          <>
-            <ProtectionSummary
-              portId={model.port.id}
-              status={model.status}
-              protection={model.backupProtection}
-              inventoryState={model.backupState}
-              problems={model.backupProblems}
-              readState={model.backupReadState}
-            />
-            {external && (
-              <CurrentStateSummary
-                title={
-                  <span className="inline-flex items-center gap-2">
-                    <Icon glyph={FolderOpen} />
-                    External installation and backup coverage
-                  </span>
-                }
-              >
-                <section aria-label="Saved-data coverage">
-                  <p>
-                    Portcove does not collect files from this external installation folder. Data
-                    written to Portcove’s managed backup folder can still be backed up and restored
-                    when the current backup checks allow it. External profiles and custom save
-                    locations remain outside Portcove’s managed backups; follow the port’s
-                    instructions to copy them separately.
-                  </p>
-                  <ProjectLink href={model.port.project_url}>
-                    Open upstream project <Icon glyph={ArrowRight} />
-                  </ProjectLink>
-                </section>
-              </CurrentStateSummary>
-            )}
-          </>
+        backupProtection={model.backupProtection}
+        externalCoverage={
+          external && (
+            <CurrentStateSummary
+              title={
+                <span className="inline-flex items-center gap-2">
+                  <Icon glyph={FolderOpen} />
+                  External installation and backup coverage
+                </span>
+              }
+            >
+              <section aria-label="Saved-data coverage">
+                <p>
+                  Portcove does not collect files from this external installation folder. Data
+                  written to Portcove’s managed backup folder can still be backed up and restored
+                  when the current backup checks allow it. External profiles and custom save
+                  locations remain outside Portcove’s managed backups; follow the port’s
+                  instructions to copy them separately.
+                </p>
+                <ProjectLink href={model.port.project_url}>
+                  Open upstream project <Icon glyph={ArrowRight} />
+                </ProjectLink>
+              </section>
+            </CurrentStateSummary>
+          )
         }
         port={model.port}
         status={model.status}
