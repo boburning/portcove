@@ -391,6 +391,7 @@ it("captures Discover and Browse mods at the same 833px and 320px widths", async
         ports={[portDefinition()]}
         statuses={new Map()}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        libraryCount={0}
         filter="all"
         setFilter={() => {}}
         onSelect={() => {}}
