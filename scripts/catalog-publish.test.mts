@@ -852,7 +852,7 @@ void test("reviewed operational listings survive absent observations before opti
   );
   const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
   const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
-  assert.deepEqual(rows.map((row) => row.id).sort(), [fixtureListing.id, registered.id].sort());
+  assert.deepEqual(new Set(rows.map((row) => row.id)), ids);
   assert.deepEqual(
     rows.find((row) => row.id === registered.id),
     registered,
