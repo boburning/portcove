@@ -1273,6 +1273,53 @@ void test("PSX retail split-mods preparation preserves the reviewed multidisc co
   assert.equal(compactPsxManagedWindows(different), different);
 });
 
+void test("Alexbeav PSX split-mods preserves the reviewed diagnostic paths", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "split-mods-no-crash-log",
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "alexbeav-bloody-roar-ii-recomp",
+    "alexbeav-brave-fencer-musashi-recomp",
+    "alexbeav-destruction-derby-2-recomp",
+    "alexbeav-destruction-derby-raw-recomp",
+    "alexbeav-dino-crisis-2-recomp",
+    "alexbeav-dino-crisis-recomp",
+  ]);
+  const mutablePaths = [
+    "cache",
+    "psx_freeze_heartbeat.json",
+    "psx_freeze_heartbeat.json.tmp",
+    "psx_last_run_report.json",
+    "psx_cps_exit_trace.json",
+    "netplay_lan_lobby.txt",
+  ];
+  for (const record of family) {
+    const thin = projectPsxManagedWindows(record).integration;
+    assert.ok(thin);
+    assert.deepEqual(thin.runtime_mutable_paths, mutablePaths);
+    const common = projectPsxManagedWindows({
+      ...record,
+      psx_managed_windows_v1: "split-mods",
+    }).integration;
+    assert.deepEqual(common, {
+      ...thin,
+      runtime_mutable_paths: [...mutablePaths, "psx_crash.txt"],
+    });
+  }
+  const record = family[0]!;
+  const otherSource = {
+    ...record,
+    listing: { ...record.listing, project_url: "https://github.com/fork/port" },
+  };
+  assert.throws(() => projectPsxManagedWindows(otherSource), /reviewed Alexbeav project/u);
+  const otherBios = {
+    ...record,
+    integration: { ...record.integration, bios_source_profile: "psx-scph-5552-bios" },
+  };
+  assert.throws(() => projectPsxManagedWindows(otherBios), /retail SCPH-1001 BIOS/u);
+});
+
 void test("PSX split mods keep the reviewed overlay directory layout distinct", () => {
   const { records } = readCatalogSource(catalogRoot);
   const record = records.find((entry) => entry.listing.id === "alexbeav-alundra-recomp");
