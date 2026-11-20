@@ -1857,11 +1857,14 @@ async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof()
         }
     };
     let source = service.library().root().to_path_buf();
-    let user_data = service.library().user_dir(PORT);
-    std::fs::create_dir_all(&user_data).unwrap();
-    std::fs::write(user_data.join("sopwith.cfg"), b"owned fixture settings").unwrap();
+    let settings_bytes = b"owned fixture settings";
+    std::fs::write(successor.path.join("sopwith.cfg"), settings_bytes).unwrap();
     let backup = service.create_backup(PORT).unwrap();
     assert_eq!(backup.file_count, 1);
+    assert_eq!(
+        std::fs::read(backup.path.join("data/sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
     check_retained(&service);
 
     let metadata_path = temporary.path().join("package-choice-export.json");
@@ -1920,7 +1923,7 @@ async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof()
     );
     assert_eq!(
         std::fs::read(moved_service.library().user_dir(PORT).join("sopwith.cfg")).unwrap(),
-        b"owned fixture settings"
+        settings_bytes
     );
 }
 
