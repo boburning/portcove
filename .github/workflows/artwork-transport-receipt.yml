@@ -1,0 +1,55 @@
+name: Artwork editor transport receipt
+
+on:
+  push:
+    branches: [feature/next-play-artwork-transport-receipt]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.repository == 'boburning/portcove'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      PRODUCT_HEAD: 6bced9453c706424784671fcaf711c04411bd216
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify the exact exporter inputs
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "$PRODUCT_HEAD"
+          test "$(git diff --name-only "$PRODUCT_HEAD" HEAD)" = '.github/workflows/artwork-transport-receipt.yml'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: false
+          key: runtime-diagnostics-linux-${{ hashFiles('Cargo.toml') }}
+      - name: Export schemas from the compiled Core and headless Desktop
+        run: |
+          node scripts/check-transport-contract.mts --write
+          receipt="$RUNNER_TEMP/artwork-transport"
+          mkdir "$receipt"
+          for contract in schemas inputs host-input host-output host-events; do
+            cp "apps/desktop/src/transport-$contract.generated.json" "$receipt/"
+          done
+          (
+            cd "$receipt"
+            printf '%s\n' "$PRODUCT_HEAD" > product-head.txt
+            printf '%s\n' "$GITHUB_SHA" > exporter-head.txt
+            sha256sum transport-*.generated.json > SHA256SUMS
+          )
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: artwork-transport-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/artwork-transport/
+          if-no-files-found: error
+          retention-days: 7
