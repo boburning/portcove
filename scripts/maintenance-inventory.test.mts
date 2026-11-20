@@ -312,7 +312,15 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
-  assert.deepEqual(Object.keys(workflow.jobs), ["collect", "restore-proof"]);
+  assert.deepEqual(Object.keys(workflow.jobs), [
+    "collect",
+    "resume-intake-audits",
+    "restore-proof",
+  ]);
+  const resume = workflow.jobs["resume-intake-audits"]!;
+  assert.match(resume.if!, /github.event_name == 'schedule'/u);
+  assert.match(resume.if!, /audit_continuations != '\[\]'/u);
+  assert.deepEqual(resume.permissions, { contents: "read", issues: "write", actions: "read" });
   assert.equal(
     collect!.if,
     "github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'",

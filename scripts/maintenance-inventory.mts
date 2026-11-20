@@ -2349,6 +2349,9 @@ export async function collect(options: {
               ? "partial"
               : "complete",
           ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
+          ...(hostedIntake.auditContinuations
+            ? { audit_continuations: hostedIntake.auditContinuations }
+            : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,

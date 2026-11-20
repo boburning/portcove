@@ -10,6 +10,7 @@ import {
   HostedIntakeBridge,
   parseHostedRequest,
   assertHostedEvent,
+  verifyOwnerAuditRun,
   hostedRequestMarker,
   hostedBody,
   hostedPlanHash,
@@ -2174,6 +2175,37 @@ void test("explicit observations match exactly one immutable owner and never cre
   );
 });
 
+void test("scheduled audits verify the exact original owner workflow attempt and request", () => {
+  const sha = "a".repeat(40);
+  const origin = `900/2@${sha}`;
+  const run = {
+    actor: { login: "boburning" },
+    repository: { id: 1354613114 },
+    event: "workflow_dispatch",
+    head_branch: "main",
+    status: "completed",
+    path: ".github/workflows/hosted-discovery-intake.yml",
+    display_title: "Hosted intake audit 341 / 1",
+    id: 900,
+    run_attempt: 2,
+    head_sha: sha,
+  };
+  verifyOwnerAuditRun(run, 341, origin);
+  for (const changed of [
+    { actor: { login: "github-actions[bot]" } },
+    { repository: { id: 1 } },
+    { event: "schedule" },
+    { head_branch: "feature" },
+    { status: "queued" },
+    { path: "elsewhere.yml" },
+    { display_title: "Hosted intake audit 342 / 1" },
+    { id: 901 },
+    { run_attempt: 1 },
+    { head_sha: "b".repeat(40) },
+  ])
+    assert.throws(() => verifyOwnerAuditRun({ ...run, ...changed }, 341, origin));
+});
+
 async function verifyAuditRecovery(schema: 1 | 2) {
   const candidates = Array.from({ length: 11 }, (_, i) => ({
     ...candidate,
@@ -2215,6 +2247,35 @@ async function verifyAuditRecovery(schema: 1 | 2) {
   assert.equal(f.creations, candidates.length);
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
+  assert.equal(
+    status.audit_retry,
+    undefined,
+    "an ordinary intake does not authorize a scheduled audit",
+  );
+  const origin = "900/2@" + "f".repeat(40);
+  let scheduledBinding: string | undefined;
+  if (schema === 2) {
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, origin }),
+      /Unrelated Roadmap edit/u,
+    );
+    scheduledBinding = (await f.bridge.status(f.request, f.all())).audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    assert.match(scheduledBinding, /^[0-9a-f]{64}$/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding: "0".repeat(64) }),
+      /does not authorize/u,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding }),
+      /Missing native audit origin/u,
+    );
+  }
+  const verifyOrigin = async (request: number, original: string) => {
+    assert.equal(request, f.request.id);
+    assert.equal(original, origin);
+  };
+  const scheduled = scheduledBinding ? { scheduledBinding, verifyOrigin } : {};
   const writes = f.writes;
   if (schema === 1) {
     const comment = f.comments.get(status.receipt_comment!)!;
@@ -2262,7 +2323,7 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       return await publish(...args);
     };
     await assert.rejects(
-      f.bridge.process(f.request, f.all(), { auditOnly: true }),
+      f.bridge.process(f.request, f.all(), { auditOnly: true, ...scheduled }),
       /Worker interrupted/u,
     );
     f.bridge.persist = publish;
@@ -2270,7 +2331,10 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       throw new Error("Already verified audit must not repeat");
     };
   }
-  const completed = await f.bridge.process(f.request, f.all(), { auditOnly: schema === 2 });
+  const completed = await f.bridge.process(f.request, f.all(), {
+    auditOnly: schema === 2,
+    ...scheduled,
+  });
   assert.equal(completed.status, "complete");
   assert.equal(
     (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,

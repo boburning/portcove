@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
+import type { AuditContinuation } from "./hosted-discovery-intake-runner.mts";
 import type { HostedCandidateSlot, HostedStatusAll } from "./hosted-discovery-intake.mts";
 
 export interface HostedIntakeGap {
@@ -26,6 +27,7 @@ export interface HostedIntakeObservation {
   expected: number | null;
   facts: ReadonlyMap<string, unknown>;
   gaps: HostedIntakeGap[];
+  auditContinuations?: AuditContinuation[];
   receipts?: {
     status: "unavailable" | "failed" | "passed";
     inspected?: number;
@@ -154,7 +156,13 @@ export async function hostedIntakeObservation(
     if (!reconcile) return observation;
     if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
     try {
-      return { ...observation, receipts: { status: "passed", ...(await reconcile(queue)) } };
+      const receipts = await reconcile(queue);
+      const auditContinuations = queue.requests.flatMap((row) =>
+        "error" in row || row.withdrawn || row.superseded_by.length || !row.audit_retry
+          ? []
+          : [row.audit_retry],
+      );
+      return { ...observation, auditContinuations, receipts: { status: "passed", ...receipts } };
     } catch {
       // Keep the original operation current so the next complete read can retry.
       // Unrelated sources and all positively observed native facts still commit.

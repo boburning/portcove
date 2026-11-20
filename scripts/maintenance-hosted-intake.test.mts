@@ -168,7 +168,12 @@ void test("drift and unavailable reads are failed runs that observe nothing", as
 });
 
 void test("scheduled receipt recovery shares the native read and retains source facts on a failed transaction", async () => {
-  const snapshot = read([row(10)]);
+  const ticket = { request: 10, binding: "a".repeat(64) };
+  const snapshot = read([
+    row(10, { audit_retry: ticket }),
+    row(11, { withdrawn: true, audit_retry: ticket }),
+    row(12, { superseded_by: [14], audit_retry: ticket }),
+  ]);
   let reads = 0;
   const collect = () => {
     reads++;
@@ -179,6 +184,7 @@ void test("scheduled receipt recovery shares the native read and retains source 
     return { inspected: 1, completed: ["bound receipt"] };
   });
   assert.equal(reads, 1);
+  assert.deepEqual(success.auditContinuations, [ticket]);
   assert.deepEqual(success.receipts, {
     status: "passed",
     inspected: 1,
@@ -188,7 +194,8 @@ void test("scheduled receipt recovery shares the native read and retains source 
     throw new Error("unavailable");
   });
   assert.equal(failure.failed, false);
-  assert.equal(failure.facts.size, 1);
+  assert.equal(failure.facts.size, 3);
+  assert.equal(failure.auditContinuations, undefined);
   assert.deepEqual(failure.receipts, { status: "failed" });
   assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
   let calls = 0;

@@ -64,12 +64,12 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
 export function runHostedIntakePasses(
   run: (pass: number, requests: number[] | null, remainingMs: number) => unknown,
   now = Date.now,
-  auditRequest?: number,
+  auditRequest?: number | number[],
 ) {
   const retained = new Map<number, Outcome>();
   const stalls = new Map<number, number>();
   const deadline = now() + hostedIntakeDeadlineMs;
-  let requests: number[] | null = auditRequest === undefined ? null : [auditRequest];
+  let requests: number[] | null = auditRequest === undefined ? null : [auditRequest].flat();
   let queuePending = false;
   let queueMovements = 0;
   let stopReason = "pass_limit";
@@ -205,6 +205,39 @@ export function auditDispatchRequest(mode: string | undefined, id: string | unde
   return Number(id);
 }
 
+export interface AuditContinuation {
+  request: number;
+  binding: string;
+}
+
+export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditContinuation[] {
+  if (environment.HOSTED_INTAKE_MODE !== "resume-audits") return [];
+  if (
+    environment.GITHUB_EVENT_NAME !== "schedule" ||
+    environment.GITHUB_REPOSITORY !== "boburning/portcove" ||
+    environment.GITHUB_REF !== "refs/heads/main" ||
+    environment.GITHUB_WORKFLOW_REF !==
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main"
+  )
+    throw new Error("Only the protected maintenance schedule may resume owner-authorized audits");
+  const parsed: unknown = JSON.parse(environment.HOSTED_INTAKE_AUDIT_CONTINUATIONS ?? "null");
+  if (
+    !Array.isArray(parsed) ||
+    !parsed.length ||
+    parsed.some(
+      (value) =>
+        !isRecord(value) ||
+        !Number.isSafeInteger(value.request) ||
+        Number(value.request) < 1 ||
+        typeof value.binding !== "string" ||
+        !/^[0-9a-f]{64}$/u.test(value.binding),
+    ) ||
+    new Set(parsed.map((value) => value.request)).size !== parsed.length
+  )
+    throw new Error("Invalid bound audit continuation selection");
+  return parsed as AuditContinuation[];
+}
+
 function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
@@ -213,11 +246,12 @@ function main() {
     process.env.HOSTED_INTAKE_MODE,
     process.env.HOSTED_INTAKE_AUDIT_REQUEST,
   );
+  const scheduled = scheduledAuditRequests(process.env);
   const result = runHostedIntakePasses(
     (pass, requests, remainingMs) =>
       runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
     Date.now,
-    audit,
+    scheduled.length ? scheduled.map(({ request }) => request) : audit,
   );
   // A comment event reports its own proposal result. The ledger still retains
   // the outcomes of all other queue entries, including historical holds.
