@@ -94,7 +94,7 @@
         "user_data_environment": null
       }
     ],
-    "schema_version": 3,
+    "schema_version": 2,
     "source_catalog": {
       "contracts": [],
       "evidence": [],
