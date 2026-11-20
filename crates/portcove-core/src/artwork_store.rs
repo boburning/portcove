@@ -99,9 +99,9 @@ pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()
     widen_slots(transaction, "artwork_choices_v56", LANDSCAPE_CHOICES)
 }
 
-/// Library migration 73 admits Logo without changing the existing asset store.
+/// Library migration 74 admits Logo without changing the existing asset store.
 pub(crate) fn migrate_logo_slot(transaction: &Transaction<'_>) -> Result<()> {
-    widen_slots(transaction, "artwork_choices_v72", LOGO_CHOICES)
+    widen_slots(transaction, "artwork_choices_v73", LOGO_CHOICES)
 }
 
 fn verify_slots(connection: &Connection, previous_table: &str, accepted: &[&str]) -> Result<()> {
@@ -134,7 +134,7 @@ pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
 }
 
 pub(crate) fn verify_logo_slot(connection: &Connection) -> Result<()> {
-    verify_slots(connection, "artwork_choices_v72", &[LOGO_CHOICES])
+    verify_slots(connection, "artwork_choices_v73", &[LOGO_CHOICES])
 }
 
 const FRAMING_COLUMN: &str = "framing TEXT CHECK(framing IS NULL OR
