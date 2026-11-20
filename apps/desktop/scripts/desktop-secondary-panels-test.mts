@@ -517,7 +517,8 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         const retire = await findButton("Retire recovery offer");
         await capture(`${theme}-retirement-review`, retire);
         await observedAction("retire_mod_setup_recovery_build", () => retire.sendKeys(Key.ENTER));
-        await text("Portcove could not confirm retirement.");
+        await text("Owned presentation fixture refused this action.");
+        await findButton("Check offer again");
         await capture(`${theme}-retirement-refused`);
         await browser.actions().sendKeys(Key.ESCAPE).perform();
         await focused(retirement);
