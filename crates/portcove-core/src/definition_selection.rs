@@ -870,11 +870,19 @@ impl Library {
     ) -> Result<DefinitionSelectionStatus> {
         let connection = self.connection()?;
         let transaction = connection.unchecked_transaction()?;
-        let state = DefinitionSelectionState::read(&transaction)?;
-        let subject = DefinitionSubjectSelection::read(&transaction, namespace, stable_id)?;
-        let result = state.status(subject.as_ref());
+        let result = Self::definition_selection_status_from(&transaction, namespace, stable_id)?;
         transaction.commit()?;
         Ok(result)
+    }
+
+    pub(crate) fn definition_selection_status_from(
+        connection: &Connection,
+        namespace: &str,
+        stable_id: &str,
+    ) -> Result<DefinitionSelectionStatus> {
+        let state = DefinitionSelectionState::read(connection)?;
+        let subject = DefinitionSubjectSelection::read(connection, namespace, stable_id)?;
+        Ok(state.status(subject.as_ref()))
     }
 
     pub(crate) fn assess_definition_operation(
@@ -1394,7 +1402,10 @@ pub(crate) fn migrate_subject_selection(transaction: &rusqlite::Transaction<'_>)
     Ok(())
 }
 
-fn require_fresh(provenance: &AuthenticatedDefinitionProvenance, now_unix: i64) -> Result<()> {
+pub(crate) fn require_fresh(
+    provenance: &AuthenticatedDefinitionProvenance,
+    now_unix: i64,
+) -> Result<()> {
     let expires_at = expiration_unix(provenance)?;
     if now_unix >= expires_at {
         return Err(PortcoveError::verification(

@@ -539,8 +539,9 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
 async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state() {
     use crate::OfficialCatalogAutomaticOutcome as Outcome;
     use policy::provisioning::official_catalog::{
-        automatic_refresh_fixture, hold_refresh_guard_fixture,
+        automatic_refresh_fixture, hold_refresh_guard_fixture, serialize_automatic_refresh_fixtures,
     };
+    let _fixtures = serialize_automatic_refresh_fixtures().await;
     const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());

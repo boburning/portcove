@@ -1,6 +1,8 @@
 //! Normal client setup for the separately appointed compiled catalog source.
 //! Network locations never supply an anchor, policy or publisher authority.
 
+use std::time::Duration;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -14,6 +16,7 @@ use super::{
 
 const COMPILED_SOURCE: &[u8] = include_bytes!("../catalog/official-definition-source.json");
 const MAX_SOURCE_BYTES: usize = 4096;
+const SCHEDULED_LISTING_TIMEOUT: Duration = Duration::from_secs(25);
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -296,7 +299,7 @@ where
         Err(error) => return Ok(unavailable(&error)),
     };
     let listings = tokio::time::timeout_at(
-        deadline,
+        deadline.min(tokio::time::Instant::now() + SCHEDULED_LISTING_TIMEOUT),
         super::super::listing_delivery::acquire_admissible(service.library(), &repository, root),
     )
     .await
@@ -447,6 +450,12 @@ where
         |_| {},
     )
     .await
+}
+
+#[cfg(test)]
+pub(crate) async fn serialize_automatic_refresh_fixtures() -> tokio::sync::MutexGuard<'static, ()> {
+    static FIXTURES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    FIXTURES.lock().await
 }
 
 #[cfg(test)]

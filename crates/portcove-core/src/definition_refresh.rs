@@ -272,11 +272,7 @@ pub(super) async fn refresh_known_official_definitions(
     }
 
     let known: Vec<_> = known.into_iter().collect();
-    // Stable daily windows keep large repositories bounded without leaving
-    // later identities permanently behind the same fixed prefix.
     let day = Library::now().div_euclid(86_400).unsigned_abs();
-    let windows = known.len().div_ceil(SCHEDULED_SUBJECT_LIMIT);
-    let start = (day % windows as u64) as usize * SCHEDULED_SUBJECT_LIMIT;
 
     // Read the index once. A missing or unreadable index cannot undo an
     // independently authenticated explicit withdrawal.
@@ -291,17 +287,10 @@ pub(super) async fn refresh_known_official_definitions(
         ))
     });
     let mut verified_or_updated = false;
-    for &stable_id in known.iter().skip(start).take(SCHEDULED_SUBJECT_LIMIT) {
+    for &stable_id in scheduled_subjects(&known, day) {
         if Instant::now() >= deadline {
             break;
         }
-        let before = match library.definition_selection_status_for("official", stable_id) {
-            Ok(before) => before,
-            Err(error) => {
-                tracing::info!(stable_id, error = %error.message, "scheduled definition state could not be read");
-                continue;
-            }
-        };
         let acquired = tokio::time::timeout_at(
             deadline.min(Instant::now() + SCHEDULED_SUBJECT_TIMEOUT),
             async {
@@ -315,20 +304,6 @@ pub(super) async fn refresh_known_official_definitions(
                         ..
                     }
                 );
-                let connection = library.connection()?;
-                let exact_policy = stored_admission(&connection, "official", stable_id)?
-                    .is_some_and(|(document, provenance, _)| {
-                        document == policy.document && provenance == policy.provenance
-                    });
-                let exact_selection = before.selected.as_ref().is_some_and(|selected| {
-                    index
-                        .as_ref()
-                        .is_ok_and(|index| selected.provenance == index.provenance)
-                });
-                if exact_policy && (revoked || (!needs_launch && exact_selection)) {
-                    return Ok(None);
-                }
-                drop(connection);
                 let launch = if needs_launch {
                     Some(
                         launch_assessment::acquire_from_repository(
@@ -339,10 +314,14 @@ pub(super) async fn refresh_known_official_definitions(
                 } else {
                     None
                 };
-                if exact_policy
-                    && exact_selection
-                    && let Some(Ok(launch)) = &launch
-                    && launch.already_admitted(&library.connection()?)?
+                let launch_current = launch.as_ref().and_then(|launch| launch.as_ref().ok());
+                if (!needs_launch || launch_current.is_some())
+                    && exact_scheduled_replay(
+                        library,
+                        &policy,
+                        index.as_ref().ok(),
+                        launch_current,
+                    )?
                 {
                     return Ok(None);
                 }
@@ -419,6 +398,97 @@ pub(super) async fn refresh_known_official_definitions(
         }
     }
     Ok(verified_or_updated)
+}
+
+/// An exact local retry is successful only while the current repository floors
+/// and effective selection still authorize it in the same read transaction.
+fn exact_scheduled_replay(
+    library: &Library,
+    policy: &AuthenticatedDefinitionPublisherPolicy,
+    index: Option<&super::super::AuthenticatedDefinitionIndex>,
+    launch: Option<&launch_assessment::AuthenticatedDefinitionLaunchAssessment>,
+) -> Result<bool> {
+    let connection = library.connection()?;
+    let transaction = connection.unchecked_transaction()?;
+    let exact_policy = stored_admission(&transaction, "official", &policy.document.stable_id)?
+        .is_some_and(|(document, provenance, _)| {
+            document == policy.document && provenance == policy.provenance
+        });
+    if !exact_policy {
+        return Ok(false);
+    }
+    let floor = super::installed_authority_floor(&transaction, &policy.provenance.anchor_sha256)?
+        .ok_or_else(|| PortcoveError::state("publisher policy lost its replay floor"))?;
+    policy.provenance.check_advance(&floor)?;
+    policy.provenance.require_fresh()?;
+    if matches!(policy.document.decision, PolicyDecision::Revoked) {
+        return Ok(true);
+    }
+    let Some(index) = index else {
+        return Ok(false);
+    };
+    let stable_id = &policy.document.stable_id;
+    let now = Library::now();
+    let status = Library::definition_selection_status_from(&transaction, "official", stable_id)?;
+    if let Some(floor) = &status.replay_floor {
+        floor.evaluate(&index.provenance)?;
+    }
+    crate::definition_candidate::selection::require_fresh(&index.provenance, now)?;
+    let Some(selection) = status
+        .selected
+        .filter(|selected| selected.provenance == index.provenance)
+    else {
+        return Ok(false);
+    };
+    let (catalog, _) = crate::catalog_store::load_catalog_from(&transaction, now)?;
+    if catalog.definition_selection(stable_id) != Some(&selection) {
+        return Ok(false);
+    }
+    if let Some(launch) = launch {
+        return launch.already_admitted(&transaction);
+    }
+    Ok(true)
+}
+
+/// Start one subject later each day, including within the bounded window.
+/// Even when the deadline always cuts the window short, every stable
+/// subject eventually gets the first slot. The split visits each at most once.
+fn scheduled_subjects<T>(known: &[T], day: u64) -> impl Iterator<Item = &T> {
+    let start = day.checked_rem(known.len() as u64).unwrap_or(0) as usize;
+    let (early, late) = known.split_at(start);
+    late.iter().chain(early).take(SCHEDULED_SUBJECT_LIMIT)
+}
+
+#[cfg(test)]
+mod scheduled_subject_tests {
+    use super::*;
+
+    #[test]
+    fn short_daily_budget_eventually_visits_each_subject() {
+        for count in [1, 6, 32, 33, 64, 81] {
+            let subjects: Vec<_> = (0..count).collect();
+            for budget in [1, 4] {
+                let visited: BTreeSet<_> = (0..count as u64)
+                    .flat_map(|day| scheduled_subjects(&subjects, day).take(budget).copied())
+                    .collect();
+                assert_eq!(
+                    visited,
+                    subjects.iter().copied().collect(),
+                    "{count}/{budget}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn daily_window_wraps_within_the_bound_without_duplicates_or_overflow() {
+        let subjects: Vec<_> = (0..40).collect();
+        let selected: Vec<_> = scheduled_subjects(&subjects, u64::MAX).copied().collect();
+        assert_eq!(selected, (15..40).chain(0..7).collect::<Vec<_>>());
+        assert_eq!(selected.len(), SCHEDULED_SUBJECT_LIMIT);
+        let none = scheduled_subjects::<u32>(&[], u64::MAX).count();
+        assert_eq!(none, 0);
+    }
 }
 
 #[cfg(test)]

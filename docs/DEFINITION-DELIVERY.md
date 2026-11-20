@@ -1191,7 +1191,8 @@ and execution contract from the shared authenticated index. Policy, launch
 assessment and selection use the same admission transactions as the manual check.
 
 Each opportunity allows 120 seconds of network work and up to 32 known subjects.
-Daily windows advance through larger sets. Unavailable policy, missing or
+The starting subject changes each day, so an early deadline cannot keep the
+same later subjects waiting indefinitely. Unavailable policy, missing or
 unsupported payloads and replay failures leave other subjects eligible for
 checking. Missing policy targets do not withdraw retained authority. Exact
 settled definition replays skip a new definition activity and selection write.

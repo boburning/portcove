@@ -34238,7 +34238,7 @@
           },
           {
             "const": "refreshed",
-            "description": "The authenticated refresh completed through the existing listing delivery.",
+            "description": "The authenticated refresh verified listings or a known definition.",
             "type": "string"
           }
         ]
@@ -34270,7 +34270,7 @@
             "type": "null"
           }
         ],
-        "description": "The resulting selection, when `outcome` is `refreshed`."
+        "description": "The selected descriptive directory, if present when the refresh completed."
       }
     },
     "required": [

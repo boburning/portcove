@@ -10,6 +10,7 @@ fn request_leaf(url: &Url) -> Option<&str> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RefreshTarget {
+    ListingDirectory,
     LaunchCompanion,
     CandidateIndex,
 }
@@ -17,6 +18,7 @@ enum RefreshTarget {
 impl RefreshTarget {
     fn matches(self, url: &Url) -> bool {
         request_leaf(url).is_some_and(|leaf| match self {
+            Self::ListingDirectory => leaf.ends_with("catalog.listings.json"),
             Self::LaunchCompanion => leaf.ends_with(".launch.json"),
             Self::CandidateIndex => leaf == "index.json",
         })
@@ -769,7 +771,10 @@ async fn ordinary_refresh_refuses_a_transition_that_removes_unrelated_catalog_en
 #[tokio::test]
 async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_scope() {
     use crate::OfficialCatalogAutomaticOutcome as Outcome;
-    use policy::provisioning::official_catalog::automatic_refresh_fixture;
+    use policy::provisioning::official_catalog::{
+        automatic_refresh_fixture, serialize_automatic_refresh_fixtures,
+    };
+    let _fixtures = serialize_automatic_refresh_fixtures().await;
 
     const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
     let fixture = authority_provisioning::separated_fixture();
@@ -822,12 +827,13 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
         "policy/official/unlisted-scheduled-fixture.json".into(),
         b"unknown scope must not be read".to_vec(),
     );
+    let original_expiration = later();
     fixture
         .publish_with_policy(
             &targets.clone().into_iter().collect::<Vec<_>>(),
             true,
             &DEFINITION_ROLE_PATHS,
-            later(),
+            original_expiration,
             Some((&key, 1)),
         )
         .await;
@@ -918,6 +924,17 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
         selections
     );
 
+    let original_targets = targets.clone().into_iter().collect::<Vec<_>>();
+    targets.insert(
+        policy::listing_delivery::TARGET.into(),
+        serde_json::to_vec(&serde_json::json!({
+            "listing_delivery_schema": 1,
+            "revision": 1,
+            "withdrawn_ids": [],
+            "directory": {"format_version": 1, "listings": []},
+        }))
+        .unwrap(),
+    );
     for (index, id) in ids.into_iter().enumerate() {
         let policy_path = format!("policy/official/{id}.json");
         let mut document: Value = serde_json::from_slice(&targets[&policy_path]).unwrap();
@@ -938,16 +955,35 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
             Some((&key, 2)),
         )
         .await;
-    let partial = automatic_refresh_fixture(
+    let started = Arc::new(tokio::sync::Notify::new());
+    let pending = Arc::new(AtomicUsize::new(0));
+    let transport = ObservedTransport {
+        suspended: Some((
+            RefreshTarget::ListingDirectory,
+            started.clone(),
+            pending.clone(),
+        )),
+        ..Default::default()
+    };
+    let mut check = Box::pin(automatic_refresh_fixture(
         &service,
         &preferences,
         &root,
         SOURCE,
         &repository,
-        ObservedTransport::default(),
-    )
-    .await
-    .unwrap();
+        transport,
+    ));
+    tokio::select! {
+        result = &mut check => panic!("scheduled check skipped stalled listing: {result:?}"),
+        () = started.notified() => {}
+    }
+    assert_eq!(pending.load(Ordering::SeqCst), 1);
+    // The valid scoped revocation is still processed after the listing deadline.
+    tokio::time::pause();
+    tokio::time::advance(std::time::Duration::from_secs(26)).await;
+    let partial = check.await.unwrap();
+    tokio::time::resume();
+    assert_eq!(pending.load(Ordering::SeqCst), 0);
     assert_eq!(partial.outcome, Outcome::Refreshed);
     let (effective, _) = library.load_catalog().unwrap();
     assert!(effective.definition_selection(ids[0]).is_none());
@@ -959,4 +995,31 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
             .selected,
         selections[1].selected,
     );
+
+    // The second subject still holds the exact old bytes. The accepted
+    // withdrawal for its neighbor advanced shared authority, so their old
+    // snapshot cannot qualify as a successful no-op.
+    fixture
+        .publish_with_policy(
+            &original_targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            original_expiration,
+            Some((&key, 1)),
+        )
+        .await;
+    let stale = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(stale.outcome, Outcome::Unavailable);
+    let (effective, _) = library.load_catalog().unwrap();
+    assert!(effective.definition_selection(ids[0]).is_none());
+    assert!(effective.definition_selection(ids[1]).is_some());
 }

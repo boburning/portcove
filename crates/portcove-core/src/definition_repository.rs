@@ -107,10 +107,11 @@ pub enum DefinitionReplayDisposition {
     Advance,
 }
 
-/// Complete authenticated bytes for one inert repository snapshot.
+/// Authenticated content for one inert repository snapshot.
 ///
-/// Construction authenticates and bounds every content record. It does not persist metadata,
-/// select a catalog, grant publisher scope, or authorize an operation.
+/// Public acquisition verifies the complete inventory. Scheduled refresh can
+/// acquire just one subject's content from the same authenticated index. Neither
+/// form persists metadata, selects a catalog, or authorizes an operation.
 #[derive(Debug)]
 pub struct AuthenticatedDefinitionCandidate {
     provenance: AuthenticatedDefinitionProvenance,
