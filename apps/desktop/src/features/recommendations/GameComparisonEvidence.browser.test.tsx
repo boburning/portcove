@@ -248,7 +248,9 @@ it.each(["different edition", "retained offer"] as const)(
     await page.getByText("Comparison settings", { exact: true }).click();
     await expect
       .element(result)
-      .toHaveTextContent("We don’t have enough information to suggest a port.");
+      .toHaveTextContent(
+        "We don’t have enough information to suggest a port. You can still explore every project.",
+      );
     const first = page.getByRole("region", { name: "Reports and updates for Fixture project" });
     const second = page.getByRole("region", { name: "Reports and updates for Sibling project" });
     await expect
