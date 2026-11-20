@@ -108,7 +108,11 @@ export function GameFileSetupReviews({
   const toSelect = Math.min(unselectedEligible.length, room);
   if (!available.length && !selected.length) return null;
   return (
-    <section ref={section} aria-label={t("setupReviews.label")} className="col-span-full">
+    <section
+      ref={section}
+      aria-label={t("setupReviews.label")}
+      className="col-span-full border-t border-pc-border pt-4"
+    >
       <h3>{t("setupReviews.heading")}</h3>
       <p>{t("setupReviews.intro")}</p>
       <p>
