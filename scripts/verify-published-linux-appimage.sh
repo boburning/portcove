@@ -28,7 +28,7 @@ release_headers() {
   if [[ -n ${GH_TOKEN:-} ]]; then printf 'Authorization: Bearer %s\n' "$GH_TOKEN"; fi
 }
 # Send the credential through stdin, for this fixed API request without redirects.
-release_headers | curl -fsS --proto '=https' --max-time 45 --max-filesize 1048576 \
+release_headers | curl -q -fsS --proto '=https' --max-time 45 --max-filesize 1048576 \
   --header @- --output "$evidence/release.json" --write-out 'Release metadata HTTP %{http_code}\n' \
   "https://api.github.com/repos/$repo/releases/tags/$tag" | tee "$evidence/release-fetch-status.txt"
 unset GH_TOKEN
