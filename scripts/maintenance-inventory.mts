@@ -2912,6 +2912,52 @@ type ManagedRouteEvidence = { port_key: string; platform: string } & (
   | { evidence: "gap"; reason: string }
 );
 
+/** Count distinct definition/platform pairs for which Core reported both operations. */
+function catalogOperationOffers(ports: readonly ManagedRouteCoverageInput[]) {
+  const platforms = new Map<
+    string,
+    {
+      managed_install_only: number;
+      external_registration_only: number;
+      both_operations: number;
+      neither_operation: number;
+    }
+  >();
+  for (const { targets } of ports) {
+    if (targets?.presence !== "operational") return null;
+    const seen = new Set<string>();
+    for (const target of targets.targets) {
+      if (seen.has(target.platform)) return null;
+      seen.add(target.platform);
+      const installs = target.routes.filter(({ action }) => action === "install");
+      const registrations = target.routes.filter(({ action }) => action === "register_external");
+      if (installs.length !== 1 || registrations.length !== 1) return null;
+      const managed = installs[0]!.offered;
+      const external = registrations[0]!.offered;
+      if (typeof managed !== "boolean" || typeof external !== "boolean") return null;
+      if (!managed && !external && !targets.declared_platforms.includes(target.platform)) continue;
+      const counts = platforms.get(target.platform) ?? {
+        managed_install_only: 0,
+        external_registration_only: 0,
+        both_operations: 0,
+        neither_operation: 0,
+      };
+      if (managed && external) counts.both_operations++;
+      else if (managed) counts.managed_install_only++;
+      else if (external) counts.external_registration_only++;
+      else counts.neither_operation++;
+      platforms.set(target.platform, counts);
+    }
+    if (targets.declared_platforms.some((platform) => !seen.has(platform))) return null;
+  }
+  return Array.from(platforms, ([platform, counts]) => ({
+    platform,
+    ...counts,
+    distinct_offered_pairs:
+      counts.managed_install_only + counts.external_registration_only + counts.both_operations,
+  })).sort((left, right) => left.platform.localeCompare(right.platform));
+}
+
 /** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
 export function managedRouteObservationCoverage(
   ports: readonly ManagedRouteCoverageInput[],
@@ -3070,6 +3116,7 @@ export function managedRouteObservationCoverage(
     target_scope_known: completeOffering,
     operational_definitions: ports.length,
     operational_definitions_without_target_projection: missingTargets,
+    catalog_operation_offers_by_platform: completeOffering ? catalogOperationOffers(ports) : null,
     offered_managed_platforms: completeOffering
       ? byPlatform.reduce((total, { offered }) => total + offered, 0)
       : null,
