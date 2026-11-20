@@ -1,21 +1,21 @@
 {
-  "version": "0.1.0-preview.10",
-  "source": "5ca268bd6eeb19e4ec64a87b2ebd6685527de97a",
-  "release_id": 452429525,
+  "version": "0.1.0-preview.11",
+  "source": "85743cbc0947bfb9838ff311297d5cc29e635cfb",
+  "release_id": 452656701,
   "appimage": {
-    "id": 771030896,
-    "bytes": 107190776,
-    "sha256": "87a0cb0632ec5a07e7814e1c0f0edaa9787b598a09a4476d36e90d108e8dbbf1"
+    "id": 771717884,
+    "bytes": 107358712,
+    "sha256": "8f77c3394d9bfd8751bb1f736ed642a23c9af00228a060ccc743790bdb6d12c6"
   },
   "signature": {
-    "id": 771031031,
+    "id": 771718054,
     "bytes": 468,
-    "sha256": "cb473e7f98237453878ee98ab2a6e22eae99b5c015093ded9bfb36a6113047de"
+    "sha256": "a959dd89133646f848151b4be84187d13cacdb29bb749179d4c6359512b86d06"
   },
   "checksums": {
-    "id": 771031383,
+    "id": 771718625,
     "bytes": 1234,
-    "sha256": "191c70fa1f808f34e8559a82c1faef28c3aaafe7f40815a7bab777fc55087be4"
+    "sha256": "090cf40fa9fa8fe915b6e7b6f0f0772e568b49ede86dba20aa5dcfbce892380e"
   },
   "updater_key_sha256": "02e65e0c41e7a794842d422a10e1b73e9cd43b2155b9d03970cf47e354b5ee5a"
 }
