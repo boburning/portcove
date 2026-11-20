@@ -4355,6 +4355,133 @@ fn background_framing_follows_the_selected_revision_through_portable_restore() {
 }
 
 #[test]
+fn reviewed_local_selections_bind_bytes_without_background_framing() {
+    use crate::{ArtworkSelectionFraming, ErrorCode};
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let image = temporary.path().join("review.png");
+    let before = service.export_library_metadata().unwrap().artwork;
+    for (slot, width, height) in [
+        (ArtworkSlot::Cover, 16, 24),
+        (ArtworkSlot::Landscape, 32, 16),
+        (ArtworkSlot::Logo, 32, 10),
+    ] {
+        let bytes = encoded(width, height, image::ImageFormat::Png);
+        fs::write(&image, &bytes).unwrap();
+        let preview = service.preview_local_artwork(PORT, &image).unwrap();
+        assert_eq!(
+            preview.original_sha256,
+            crate::signed_catalog::digest(&bytes)
+        );
+        assert!(preview.png.starts_with(b"\x89PNG"));
+        let original =
+            crate::artwork::original_path(service.library(), &preview.original_sha256).unwrap();
+        assert!(!original.exists());
+        let review = ArtworkSelectionFraming {
+            preview_sha256: preview.original_sha256,
+            framing: None,
+        };
+        let replacement = encoded(width + 1, height, image::ImageFormat::Png);
+        fs::write(&image, &replacement).unwrap();
+        let refusal = service
+            .import_artwork_with_framing(PORT, slot, &image, 0, Some(review.clone()))
+            .unwrap_err();
+        assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(service.artwork(PORT, slot).unwrap().choice.revision, 0);
+        assert!(!original.exists());
+        let replacement_path = crate::artwork::original_path(
+            service.library(),
+            &crate::signed_catalog::digest(&replacement),
+        )
+        .unwrap();
+        assert!(!replacement_path.exists());
+        fs::write(&image, &bytes).unwrap();
+        let chosen = service
+            .import_artwork_with_framing(PORT, slot, &image, 0, Some(review.clone()))
+            .unwrap();
+        assert_eq!(chosen.choice.revision, 1);
+        assert_eq!(chosen.choice.asset_sha256, Some(review.preview_sha256));
+        assert!(chosen.choice.framing.is_none());
+        assert_eq!(fs::read(original).unwrap(), bytes);
+    }
+    assert_ne!(service.export_library_metadata().unwrap().artwork, before);
+    assert_eq!(
+        service
+            .artwork(PORT, ArtworkSlot::Detail)
+            .unwrap()
+            .choice
+            .revision,
+        0
+    );
+}
+
+#[test]
+fn reviewed_provider_selections_validate_exact_role_and_commit_reviewed_bytes() {
+    use crate::{
+        ArtworkSelectionFraming, ArtworkSelectionPreview, ErrorCode, SteamGridDbArtworkRole as Role,
+    };
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(temporary.path());
+    let port = service.artwork_port(PORT).unwrap();
+    for (slot, role, asset_id, width, height) in [
+        (ArtworkSlot::Cover, Role::PortraitCover, 7, 16, 24),
+        (ArtworkSlot::Landscape, Role::LandscapeCover, 8, 32, 16),
+        (ArtworkSlot::Logo, Role::Logo, 9, 32, 10),
+    ] {
+        let bytes = encoded(width, height, image::ImageFormat::Png);
+        let source =
+            || provider_candidate(asset_id, role, width, height, "image/png", bytes.clone());
+        let before = service.export_library_metadata().unwrap().artwork;
+        let preview = ArtworkSelectionPreview::from_provider(slot, &source()).unwrap();
+        assert_eq!(
+            preview.original_sha256,
+            crate::signed_catalog::digest(&bytes)
+        );
+        assert!(preview.png.starts_with(b"\x89PNG"));
+        assert!(ArtworkSelectionPreview::from_provider(ArtworkSlot::Detail, &source()).is_err());
+        let original =
+            crate::artwork::original_path(service.library(), &preview.original_sha256).unwrap();
+        assert!(!original.exists());
+        let refusal = service
+            .choose_fetched_artwork_with_framing(
+                &port,
+                slot,
+                42,
+                source(),
+                0,
+                Some(ArtworkSelectionFraming {
+                    preview_sha256: "0".repeat(64),
+                    framing: None,
+                }),
+            )
+            .unwrap_err();
+        assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(service.export_library_metadata().unwrap().artwork, before);
+        assert!(!original.exists());
+        let chosen = service
+            .choose_fetched_artwork_with_framing(
+                &port,
+                slot,
+                42,
+                source(),
+                0,
+                Some(ArtworkSelectionFraming {
+                    preview_sha256: preview.original_sha256,
+                    framing: None,
+                }),
+            )
+            .unwrap();
+        assert_eq!(chosen.choice.revision, 1);
+        assert!(chosen.choice.framing.is_none());
+        assert_eq!(chosen.attribution[0].role, role);
+        assert_eq!(chosen.attribution[0].asset_id, asset_id);
+        assert_eq!(fs::read(original).unwrap(), bytes);
+    }
+}
+
+#[test]
 fn reviewed_background_replacement_commits_image_and_framing_together() {
     use crate::{ArtworkFocalPoint, ArtworkFraming, ArtworkSelectionFraming, ErrorCode};
     const PORT: &str = "zelda64-recomp";
@@ -4368,7 +4495,7 @@ fn reviewed_background_replacement_commits_image_and_framing_together() {
     };
     write([20, 90, 40]);
     let before = service.export_library_metadata().unwrap().artwork;
-    let preview = service.preview_local_background(PORT, &image).unwrap();
+    let preview = service.preview_local_artwork(PORT, &image).unwrap();
     assert_eq!(
         preview.original_sha256,
         crate::signed_catalog::digest(&fs::read(&image).unwrap())
@@ -4394,7 +4521,7 @@ fn reviewed_background_replacement_commits_image_and_framing_together() {
     assert!(!original(&changed_digest).exists());
     assert_eq!(service.export_library_metadata().unwrap().artwork, before);
 
-    let preview = service.preview_local_background(PORT, &image).unwrap();
+    let preview = service.preview_local_artwork(PORT, &image).unwrap();
     let update = ArtworkSelectionFraming {
         preview_sha256: preview.original_sha256,
         framing: Some(framing),

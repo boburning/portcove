@@ -59,7 +59,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     check_provider_mod_updates catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
-    inspect_mod_file inspect_mod_recipe inspect_source preview_local_background preview_steamgriddb_background
+    inspect_mod_file inspect_mod_recipe inspect_source preview_local_artwork preview_steamgriddb_artwork
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement

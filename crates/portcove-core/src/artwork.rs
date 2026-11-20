@@ -132,7 +132,7 @@ impl ArtworkFraming {
     }
 }
 
-/// The full image identity shown when a player reviewed a background crop.
+/// The full identity of a reviewed image and optional background framing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ArtworkSelectionFraming {
@@ -142,13 +142,13 @@ pub struct ArtworkSelectionFraming {
 
 impl ArtworkSelectionFraming {
     fn validate(&self, slot: ArtworkSlot) -> Result<()> {
-        if slot != ArtworkSlot::Detail {
-            return Err(PortcoveError::usage(
-                "framing is available for background artwork",
-            ));
-        }
         crate::artwork_store::validate_hash(&self.preview_sha256)?;
         if let Some(framing) = self.framing {
+            if slot != ArtworkSlot::Detail {
+                return Err(PortcoveError::usage(
+                    "framing is available for background artwork",
+                ));
+            }
             framing.validate()?;
         }
         Ok(())
@@ -196,6 +196,14 @@ pub struct ArtworkSelectionPreview {
 }
 
 impl ArtworkSelectionPreview {
+    pub(crate) fn from_provider(
+        slot: ArtworkSlot,
+        fetched: &steamgriddb::FetchedCandidate,
+    ) -> Result<Self> {
+        let decoded = decode_steamgriddb_artwork(slot, fetched)?;
+        Ok(Self::from_decoded(&fetched.bytes, decoded))
+    }
+
     fn from_decoded(bytes: &[u8], decoded: crate::artwork_image::DecodedArtwork) -> Self {
         Self {
             original_sha256: crate::signed_catalog::digest(bytes),
@@ -765,7 +773,7 @@ impl PortcoveService {
         })
     }
 
-    pub fn preview_local_background(
+    pub fn preview_local_artwork(
         &self,
         port_id: &str,
         source: &Path,
@@ -818,22 +826,18 @@ impl PortcoveService {
         )
     }
 
-    /// Preview the validated original so crop coordinates cannot attach to changed bytes.
-    pub fn preview_steamgriddb_background(
+    /// Preview a validated original from the provider collection for this slot.
+    pub fn preview_steamgriddb_artwork(
         &self,
         port_id: &str,
+        slot: ArtworkSlot,
         game_id: u64,
         candidate_id: u64,
     ) -> Result<ArtworkSelectionPreview> {
         self.artwork_port(port_id)?;
-        let slot = ArtworkSlot::Detail;
         let fetched =
             steamgriddb::fetch_chosen_candidate(game_id, provider_role(slot), candidate_id)?;
-        let decoded = decode_steamgriddb_artwork(slot, &fetched)?;
-        Ok(ArtworkSelectionPreview::from_decoded(
-            &fetched.bytes,
-            decoded,
-        ))
+        ArtworkSelectionPreview::from_provider(slot, &fetched)
     }
 
     /// Choose one SteamGridDB image for a port's slot. Re-resolve the candidate
@@ -1289,7 +1293,7 @@ impl PortcoveService {
             framing.validate(slot)?;
             if framing.preview_sha256 != sha256 {
                 return Err(PortcoveError::conflict(
-                    "the background image changed; preview it again before applying",
+                    "the selected image changed; preview it again before applying",
                 ));
             }
         }

@@ -292,16 +292,18 @@ export const desktopApi = {
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
   checkSteamGridDbListings: (generation: number) =>
     invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
-  previewLocalBackground: (portId: string, path: string, generation: number) =>
-    invoke<ArtworkSelectionPreview>("preview_local_background", { portId, path, generation }),
-  previewSteamGridDbBackground: (
+  previewLocalArtwork: (portId: string, path: string, generation: number) =>
+    invoke<ArtworkSelectionPreview>("preview_local_artwork", { portId, path, generation }),
+  previewSteamGridDbArtwork: (
     portId: string,
+    slot: ArtworkSlot,
     gameId: number,
     candidateId: number,
     generation: number,
   ) =>
-    invoke<ArtworkSelectionPreview>("preview_steamgriddb_background", {
+    invoke<ArtworkSelectionPreview>("preview_steamgriddb_artwork", {
       portId,
+      slot,
       gameId,
       candidateId,
       generation,

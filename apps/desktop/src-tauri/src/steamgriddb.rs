@@ -91,9 +91,10 @@ pub(crate) async fn check_steamgriddb_listings(
 }
 
 #[tauri::command]
-pub(crate) async fn preview_steamgriddb_background(
+pub(crate) async fn preview_steamgriddb_artwork(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    slot: ArtworkSlot,
     game_id: u64,
     candidate_id: u64,
     generation: u64,
@@ -103,8 +104,12 @@ pub(crate) async fn preview_steamgriddb_background(
         crate::artwork::remote_thumbnail_workers(),
         true,
         move || {
-            let preview = service_at_generation(&state, generation)?
-                .preview_steamgriddb_background(&port_id, game_id, candidate_id)?;
+            let preview = service_at_generation(&state, generation)?.preview_steamgriddb_artwork(
+                &port_id,
+                slot,
+                game_id,
+                candidate_id,
+            )?;
             crate::require_library_generation(crate::state_generation(&state), generation)?;
             Ok(preview.into())
         },

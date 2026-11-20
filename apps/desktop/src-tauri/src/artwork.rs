@@ -348,7 +348,7 @@ impl From<ArtworkSelectionPreview> for DesktopArtworkSelectionPreview {
 }
 
 #[tauri::command]
-pub(crate) async fn preview_local_background(
+pub(crate) async fn preview_local_artwork(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     path: PathBuf,
@@ -357,7 +357,7 @@ pub(crate) async fn preview_local_background(
     let state = state.inner().clone();
     blocking_worker(move || {
         let preview =
-            service_at_generation(&state, generation)?.preview_local_background(&port_id, &path)?;
+            service_at_generation(&state, generation)?.preview_local_artwork(&port_id, &path)?;
         crate::require_library_generation(crate::state_generation(&state), generation)?;
         Ok(preview.into())
     })

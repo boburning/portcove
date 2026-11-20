@@ -219,7 +219,7 @@ describe("local artwork controls", () => {
     let finish!: (path: string) => void;
     vi.mocked(picker.pickArtworkPath).mockReturnValue(new Promise((resolve) => (finish = resolve)));
     const importArtwork = vi.spyOn(desktopApi, "importArtwork");
-    const preview = vi.spyOn(desktopApi, "previewLocalBackground");
+    const preview = vi.spyOn(desktopApi, "previewLocalArtwork");
     await render();
     await open();
     await click("detail", "Choose local image");
@@ -807,7 +807,7 @@ describe("local artwork controls", () => {
         return state;
       };
       const choose = vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
-      const preview = vi.spyOn(desktopApi, "previewLocalBackground").mockResolvedValue({
+      const preview = vi.spyOn(desktopApi, "previewLocalArtwork").mockResolvedValue({
         original_sha256: "a".repeat(64),
         png_base64: thumbnailPng,
       });
@@ -1561,7 +1561,7 @@ describe("SteamGridDB picker", () => {
     let completePreview:
       | ((value: { original_sha256: string; png_base64: string }) => void)
       | undefined;
-    const preview = vi.spyOn(desktopApi, "previewSteamGridDbBackground").mockImplementation(
+    const preview = vi.spyOn(desktopApi, "previewSteamGridDbArtwork").mockImplementation(
       () =>
         new Promise((resolve) => {
           completePreview = resolve;
@@ -1579,7 +1579,7 @@ describe("SteamGridDB picker", () => {
     await act(async () => finishPreview({ original_sha256: "b".repeat(64), png_base64: pixel }));
     const review = page.getByRole("form", { name: "Review Background", exact: true });
     await expect.element(review.getByText("SteamGridDB image by Artist 701")).toBeVisible();
-    expect(preview).toHaveBeenCalledWith("sample", 55, 701, 7);
+    expect(preview).toHaveBeenCalledWith("sample", "detail", 55, 701, 7);
     expect(choose).not.toHaveBeenCalled();
     await review.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect.element(review).not.toBeInTheDocument();

@@ -535,7 +535,7 @@ function ArtworkSlotControl({
       const path = await pickArtworkPath();
       if (!stillCurrent() || !path) return;
       if (slot === "detail") {
-        const preview = await desktopApi.previewLocalBackground(port.id, path, cache.generation);
+        const preview = await desktopApi.previewLocalArtwork(port.id, path, cache.generation);
         if (!stillCurrent()) return;
         stageBackground({ kind: "local", path }, revision, preview);
         staged = true;
@@ -619,8 +619,9 @@ function ArtworkSlotControl({
     setError(undefined);
     try {
       if (slot === "detail") {
-        const preview = await desktopApi.previewSteamGridDbBackground(
+        const preview = await desktopApi.previewSteamGridDbArtwork(
           port.id,
+          slot,
           gameId,
           candidate.id,
           cache.generation,
