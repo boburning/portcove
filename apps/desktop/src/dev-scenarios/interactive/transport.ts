@@ -851,7 +851,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
             (listing) => listing.id === args?.portId,
           )
         ) ||
-        !["cover", "detail", "landscape"].includes(String(args?.slot))
+        !["cover", "detail", "landscape", "logo"].includes(String(args?.slot))
       )
         return unsupported("get_artwork");
       requireArgs("get_artwork", args, { portId: args?.portId, slot: args?.slot, generation });
@@ -860,9 +860,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         id,
         args?.slot as ArtworkSlot,
         0,
-        (journey.startsWith("collection") && id !== "collection-4") ||
-          (journey === "comparison" &&
-            comparisonEntries.find((entry) => entry.id === id)?.artwork !== null),
+        args?.slot !== "logo" &&
+          ((journey.startsWith("collection") && id !== "collection-4") ||
+            (journey === "comparison" &&
+              comparisonEntries.find((entry) => entry.id === id)?.artwork !== null)),
       );
       if (journey.startsWith("collection") || journey === "comparison") {
         const port = workspace(journey).catalog.ports.find((port) => port.id === id)!;

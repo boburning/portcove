@@ -8,6 +8,7 @@ import type { ArtworkSlot, ArtworkState, CatalogMediaAsset, PortListing } from "
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { artworkState, portDefinition } from "../test-fixtures";
 import { GameHero } from "./GameHero";
+import { ArtworkControls } from "./Artwork";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { DetailLayout } from "./DetailLayout";
 import "../styles/index.css";
@@ -460,6 +461,46 @@ it("keeps a selected local header ahead of an admitted remote header and the aut
   expect(thumbnail).toHaveBeenCalledWith("sample", "detail", 3, 7);
   expect(read).not.toHaveBeenCalled();
   expect(document.querySelector(".media-credit")).toBeNull();
+});
+
+it("returns to the admitted catalog logo after resetting the explicit Logo choice", async () => {
+  const { port, logo, logoBytes } = controlledHeroMedia();
+  let chosen = artworkState(port.id, "logo", 5, true);
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) =>
+    slot === "logo" ? chosen : artworkState(id, slot),
+  );
+  vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async () => ({
+    asset_sha256: chosen.choice.asset_sha256!,
+    choice_revision: 5,
+    png_base64: png,
+  }));
+  const catalog = vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async () => ({
+    asset_sha256: logo.sha256,
+    choice_revision: 0,
+    png_base64: logoBytes,
+  }));
+  const reset = vi.spyOn(desktopApi, "resetArtwork").mockImplementation(async (id, slot) => {
+    chosen = artworkState(id, slot, 6);
+    return chosen;
+  });
+  await page.viewport(1200, 900);
+  await render(
+    <ArtworkProvider generation={7} catalog={{ schema_version: 2, ports: [port] }}>
+      <GameHero port={port} variant="detail">
+        <h1>{port.name}</h1>
+      </GameHero>
+      <ArtworkControls port={port} />
+    </ArtworkProvider>,
+  );
+  const foreground = () => document.querySelector<HTMLImageElement>(".game-hero-image")?.src;
+  await expect.poll(foreground).toBe(`data:image/png;base64,${png}`);
+  expect(catalog).not.toHaveBeenCalled();
+  await page.getByText("Change artwork", { exact: true }).click();
+  await page.getByRole("tab", { name: "Logo", exact: true }).click();
+  await page.getByRole("button", { name: "Reset to default", exact: true }).click();
+  expect(reset).toHaveBeenCalledExactlyOnceWith(port.id, "logo", 5, 7);
+  await expect.poll(foreground).toBe(`data:image/png;base64,${logoBytes}`);
+  expect(catalog).toHaveBeenCalledExactlyOnceWith(port.id, logo.id, logo.sha256, 7);
 });
 
 function controlledHeroMedia(compactLogo = false) {
