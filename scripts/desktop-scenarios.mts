@@ -961,6 +961,11 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (
+    uniqueRequested.includes("native-library-recovery-bundle") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-library-recovery-bundle requires one standalone Windows scenario");
+  if (
     uniqueRequested.includes("native-host-publication-recovery") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )

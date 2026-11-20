@@ -34,7 +34,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat, realpath, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -314,6 +314,7 @@ const interruptedPreparationSession =
   selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
+let bundleRestartUsesSavedSelection = false;
 const hostPublicationSession = selection.selected_scenarios.includes(
   "native-host-publication-recovery",
 );
@@ -1790,6 +1791,26 @@ async function restartApplication(
   prepareWhileStopped?: () => Promise<void>,
   childEnvironment: NodeJS.ProcessEnv = {},
 ) {
+  if (
+    selection.selected_scenarios.includes("native-library-recovery-bundle") &&
+    name === "restored-library-explicitly-opened"
+  ) {
+    assert.deepEqual(selection.selected_scenarios, ["native-library-recovery-bundle"]);
+    assert.equal(prepareWhileStopped, undefined);
+    const preferences: unknown = JSON.parse(
+      await readFile(path.join(runtimeRoot, "preferences.json"), "utf8"),
+    );
+    assert.ok(
+      typeof preferences === "object" &&
+        preferences &&
+        "library_root" in preferences &&
+        typeof preferences.library_root === "string",
+    );
+    const expected = path.join(output, "restored-library");
+    assert.equal(await realpath(preferences.library_root), await realpath(expected));
+    assert.equal(await realpath(expected), path.join(await realpath(output), "restored-library"));
+    bundleRestartUsesSavedSelection = true;
+  }
   const selectedSetupRestart = name === "selected-setup-inputs";
   if (linuxSelectedSession) {
     assert.equal(name, "selected-setup-inputs");
@@ -2318,7 +2339,9 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     delete environment.CHROME_CONFIG_HOME;
     delete environment.CHROME_USER_DATA_DIR;
   }
-  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+  return savedLibraryRecoverySession || bundleRestartUsesSavedSelection
+    ? bootstrapRecoveryEnvironment(environment)
+    : environment;
 }
 
 async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {

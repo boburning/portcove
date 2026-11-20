@@ -75,7 +75,7 @@ export async function libraryRecoveryBundleScenario({
       tool,
       path.join(original, required(port.executable_hints["windows-x86-64"]?.[0])),
     );
-    await writeFile(path.join(original, "general.json"), "owned fixture preferences", {
+    await writeFile(path.join(original, "general.json"), "{}\n", {
       flag: "wx",
     });
     owned(["adopt", original, "--port", portId, "--yes"]);
@@ -86,7 +86,9 @@ export async function libraryRecoveryBundleScenario({
     const backup = transportValue("backup", owned(["backup", "create", portId]));
     const originalBackup = await fileIdentity(path.join(backup.path, "data", path.basename(save)));
     const metadataLeaf = "portcove-recovery-bundle.json";
-    const bundleSave = (root: string) => path.join(root, "content", path.relative(source, save));
+    const saveRelative = path.relative(await realpath(source), await realpath(save));
+    assert.ok(saveRelative && !path.isAbsolute(saveRelative) && !saveRelative.startsWith(".."));
+    const bundleSave = (root: string) => path.join(root, "content", saveRelative);
     const read = async <K extends Parameters<typeof transportValue>[0]>(
       contract: K,
       name: string,
@@ -212,13 +214,11 @@ export async function libraryRecoveryBundleScenario({
     assert.equal((await fileIdentity(bundleSave(bundle))).sha256, captured.sha256);
     await close();
 
-    browser = await restartApplication("verified-recovery-bundle-before-tamper", async () => {
-      await cp(bundle, corrupt, { recursive: true, force: false, errorOnExist: true });
-    });
+    // The app has no open handle to this separate copy after inspection returns.
+    await cp(bundle, corrupt, { recursive: true, force: false, errorOnExist: true });
     assert.equal((await inspect(corrupt)).receipt_sha256, verified.receipt_sha256);
-    browser = await restartApplication("verify-tampered-recovery-bundle", async () => {
-      await writeFile(bundleSave(corrupt), "tampered payload");
-    });
+    await writeFile(bundleSave(corrupt), "tampered payload");
+    assert.notEqual((await fileIdentity(bundleSave(corrupt))).sha256, captured.sha256);
     controls = await location();
     await controls.click(controls.button("Inspect or restore a bundle"));
     await field("Recovery bundle folder", corrupt);
