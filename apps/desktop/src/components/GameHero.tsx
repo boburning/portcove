@@ -247,6 +247,7 @@ export function GameHeroFramingPreview({
   actionLabel,
   onError,
 }: BackgroundPreviewProps) {
+  const { t } = useAppTranslation("browsing");
   const variant = layout === "wide" ? "detail" : "continue";
   const project = gameProjectLabel(port);
   const action = actionLabel && (
@@ -281,7 +282,7 @@ export function GameHeroFramingPreview({
             <div className="continue-actions min-w-0">
               {action}
               <Button type="button" variant="ghost" className="continue-details">
-                Game details
+                {t("hero.openDetails")}
                 <ArrowRight aria-hidden="true" />
               </Button>
             </div>

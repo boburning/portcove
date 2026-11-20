@@ -80,7 +80,8 @@
   "hero": {
     "continueLabel": "{{title}}, jugado recientemente",
     "credits": "Créditos de las imágenes",
-    "detailLabel": "Detalles del juego {{title}}"
+    "detailLabel": "Detalles del juego {{title}}",
+    "openDetails": "Detalles del juego"
   },
   "implementation": {
     "choose": "Elegir <name/>",

@@ -329,7 +329,8 @@ export default interface Resources {
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
-      "detailLabel": "{{title}} game details"
+      "detailLabel": "{{title}} game details",
+      "openDetails": "Game details"
     },
     "implementation": {
       "choose": "Choose <name/>",

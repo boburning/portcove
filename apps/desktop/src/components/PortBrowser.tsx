@@ -1107,6 +1107,7 @@ function ContinueCard({
   launch: (portId: string) => void;
   details: (portId: string, originKey?: string) => void;
 }) {
+  const { t } = useAppTranslation("browsing");
   const { port, status } = recent;
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const { launchable, trial, previouslyPlayed, label } = continueActionPresentation(
@@ -1158,7 +1159,7 @@ function ContinueCard({
           data-detail-origin={`library:continue-details:${port.id}`}
           onClick={() => details(port.id, `library:continue-details:${port.id}`)}
         >
-          Game details
+          {t("hero.openDetails")}
           <Icon glyph={ArrowRight} />
         </Button>
       </div>
