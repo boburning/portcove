@@ -2371,6 +2371,16 @@ programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
 
+An independently reviewed managed GitHub archive with only the selected root
+executable and no fingerprinted directories can declare
+`reviewed_flat_package_layout_v1` as the ordered list of reviewed platforms.
+The existing executable hints supply the basename in the generated fingerprint.
+Keep the actual package selectors, executable hints and all runtime, original
+game and qualification facts explicit. Preparation proposes this form only
+when a previously reviewed fingerprint reproduces the existing integration byte
+for byte. Archives with extra programs, directories or package-layout options
+keep their explicit fingerprints.
+
 For an official Linux archive with a dedicated portable-data directory, omit
 that directory from the reviewed layout. Core checks that the executable's
 declared data directory is absent or empty before comparing the package layout.

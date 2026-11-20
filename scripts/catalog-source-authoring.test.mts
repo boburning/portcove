@@ -16,6 +16,10 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
+  compactReviewedFlatPackageLayout,
+  projectReviewedFlatPackageLayout,
+} from "./catalog-reviewed-flat-package-layout.mts";
+import {
   compactN64RecompPersistence,
   projectN64RecompPersistence,
 } from "./catalog-n64-recomp-persistence.mts";
@@ -259,6 +263,46 @@ void test("Raze Windows authoring preserves the exact shared package and profile
   assert.equal(explicit.raze_windows_profile_v1, undefined);
   assert.equal(compactRazeWindowsProfile(explicit), explicit);
   assert.equal(projectAuthoredPort(explicit)?.portable_marker_file, "gzdoom_portable.ini");
+});
+
+void test("reviewed flat package authoring preserves ordered fingerprints and explicit exceptions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
+  assert.equal(family.length, 13);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(prior.get(record.listing.id)),
+    );
+    const explicit = projectReviewedFlatPackageLayout(record);
+    delete explicit.reviewed_flat_package_layout_v1;
+    assert.deepEqual(compactReviewedFlatPackageLayout(explicit), record);
+  }
+  const selected = requiredFixture(
+    family.find((record) => record.listing.id === "bvschaik-julius"),
+  );
+  assert.deepEqual(selected.reviewed_flat_package_layout_v1, ["linux-x86-64", "windows-x86-64"]);
+  const nested = structuredClone(selected);
+  nested.integration!.executable_hints = {
+    "linux-x86-64": ["app/julius"],
+    "windows-x86-64": ["julius.exe"],
+  };
+  assert.throws(
+    () => checkedAuthoredPort(nested),
+    /requires a managed GitHub archive with one root executable/u,
+  );
+  const duplicate = structuredClone(selected);
+  duplicate.integration!.reviewed_package_layouts = {};
+  assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
+  for (const id of [
+    "mdk-sdl-nemo22",
+    "blake-stone-aliens-of-gold-bstone",
+    "bstoney-yt-mercenaries-2-decompilation",
+  ]) {
+    const explicit = requiredFixture(records.find((record) => record.listing.id === id));
+    assert.equal(compactReviewedFlatPackageLayout(explicit), explicit, id);
+  }
 });
 
 void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {

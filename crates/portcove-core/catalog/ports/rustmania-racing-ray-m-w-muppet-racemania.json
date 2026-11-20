@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "rustmania-racing-ray-m-w-muppet-racemania",
     "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
@@ -93,12 +94,6 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed"
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["rustmania-racing.exe"]
-      }
     }
   },
   "route_facts_v1": {

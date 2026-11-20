@@ -36,6 +36,7 @@ import {
 } from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   compactReflectionHlePortablePaths,
   projectReflectionHlePortablePaths,
@@ -160,6 +161,14 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
+  if (record.reviewed_flat_package_layout_v1) {
+    projections.push({
+      field: "reviewed_flat_package_layout_v1",
+      scope:
+        "Independently reviewed archive layout with one executable in the root on the declared platforms.",
+      next: "Review each exact package and keep the platform order, archive selector and executable explicit. Additional executable or directory facts need an explicit package layout.",
+    });
+  }
   if (record.route_facts_v1) {
     projections.push({
       field: "route_facts_v1",
@@ -985,8 +994,10 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
-    const compact = compactRazeWindowsProfile(
-      compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+    const compact = compactReviewedFlatPackageLayout(
+      compactRazeWindowsProfile(
+        compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+      ),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
     const compactReflection = compactReflectionHlePortablePaths(record);
