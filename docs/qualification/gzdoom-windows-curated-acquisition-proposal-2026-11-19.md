@@ -6,6 +6,13 @@ The candidate is GitHub repository `10879376`, release `216296130`, tag `g4.14.2
 
 The preserved runtime settings are `gzdoom_portable.ini`, `Save`, `Screenshots`, `Demos` and `autoexec.cfg`. Native startup with an IWAD, player-generated file persistence and subsequent activation still require their own evidence. [Tagged Windows path implementation](https://github.com/ZDoom/gzdoom/blob/99aa489d09015a95bb78df2b30ede29f328cc874/src/common/platform/win32/i_specialpaths.cpp)
 
+Independent review downloaded the public release asset through its named upstream
+URL and reproduced all 21,879,627 bytes and the recorded SHA-256. The ZIP's
+`gzdoom.exe` has Windows PE machine `0x8664`. The nested license archive
+includes GPL, LGPL and component notices, and the outer ZIP contains no
+`.wad` entries. The protected intake decision remains open for direct download
+from this exact upstream endpoint.
+
 ## Acceptance input
 
 The [machine-readable proposal](gzdoom-windows-curated-acquisition-proposal-2026-11-19.json) is scoped to `official/zdoom-gzdoom`, Windows x86-64 and native portable capability 19 or later. It records the exact existing port, requested curated record, and policy scope. The acquisition evidence URL resolves after publication of those exact evidence bytes. The independent review and protected input acceptance references await decisions on this tuple. The proposal grants no authority.
