@@ -741,3 +741,106 @@ fn archive_inspection_derives_the_installer_shape() {
         inspect_package_shape_archive(&path, &port, Platform::MacosAarch64, size, &digest).is_err()
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn reviewed_mac_tar_shape_uses_managed_bundle_rules() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("bio-menace-reflectionhle").unwrap();
+    let other_adapter = catalog.port("perfect-dark").unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let archive = temporary.path().join("fixture.tar.xz");
+    let program = "publisher/reflectionhle.app/Contents/MacOS/reflectionhle";
+    let mut no_opt_in = port.clone();
+    no_opt_in.release.tar_xz_platforms.clear();
+
+    for (platform, cpu) in [
+        (Platform::MacosX86_64, 0x0100_0007_u32),
+        (Platform::MacosAarch64, 0x0100_000c_u32),
+    ] {
+        let mut binary = [0_u8; 32];
+        binary[..4].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe]);
+        binary[4..8].copy_from_slice(&cpu.to_le_bytes());
+        binary[12..16].copy_from_slice(&2_u32.to_le_bytes());
+        let tar = |link| {
+            let mut tar = tar::Builder::new(Vec::new());
+            let mut header = tar::Header::new_ustar();
+            header.set_mode(0o755);
+            header.set_size(binary.len() as u64);
+            tar.append_data(&mut header, program, &binary[..]).unwrap();
+            if link {
+                let mut header = tar::Header::new_ustar();
+                header.set_entry_type(tar::EntryType::Symlink);
+                header.set_size(0);
+                tar.append_link(
+                    &mut header,
+                    "publisher/alias",
+                    "reflectionhle.app/Contents/MacOS/reflectionhle",
+                )
+                .unwrap();
+            }
+            crate::archive::encode_xz_fixture(&tar.into_inner().unwrap())
+        };
+        let write = |bytes: &[u8]| {
+            fs::write(&archive, bytes).unwrap();
+            (
+                bytes.len() as u64,
+                crate::service::sha256_file(&archive).unwrap(),
+            )
+        };
+        let (size, digest) = write(&tar(false));
+        let inspection =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap();
+        let layout = &port.reviewed_package_layouts[&platform];
+        assert_eq!(
+            inspection.shape.top_directories.as_ref(),
+            Some(&layout.directories)
+        );
+        assert_eq!(
+            inspection.shape.programs.as_ref(),
+            Some(&layout.executables)
+        );
+        assert!(matches!(
+            inspection.verdict,
+            ShapeVerdict::Unknown {
+                reason: ShapeUnknownReason::IncompleteComparison,
+                ..
+            }
+        ));
+        for unqualified in [&no_opt_in, other_adapter] {
+            let error =
+                inspect_package_shape_archive(&archive, unqualified, platform, size, &digest)
+                    .unwrap_err();
+            assert_eq!(error.message, "choose a supported managed archive");
+        }
+        let error =
+            crate::package_layout::inspect_package_archive(&archive, platform, size, &digest)
+                .unwrap_err();
+        assert_eq!(error.message, "choose a supported managed archive");
+        let error = inspect_package_shape_archive(&archive, port, platform, size, SHA).unwrap_err();
+        assert_eq!(error.message, "package archive SHA-256 differs");
+        let zip_name = temporary.path().join("fixture.zip");
+        let error =
+            inspect_package_shape_archive(&zip_name, port, platform, size, &digest).unwrap_err();
+        assert_eq!(error.message, "the reviewed Mac bundle requires TAR.XZ");
+
+        let (size, digest) = write(&tar(true));
+        let error =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap_err();
+        assert!(error.message.contains("TAR links"), "{}", error.message);
+
+        let mut oversized = tar::Header::new_ustar();
+        oversized.set_path("pax").unwrap();
+        oversized.set_entry_type(tar::EntryType::XHeader);
+        oversized.set_size(64 * 1024 + 1);
+        oversized.set_cksum();
+        let (size, digest) = write(&crate::archive::encode_xz_fixture(oversized.as_bytes()));
+        let error =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap_err();
+        assert!(
+            error.message.contains("extension metadata exceeds"),
+            "{}",
+            error.message
+        );
+    }
+}
