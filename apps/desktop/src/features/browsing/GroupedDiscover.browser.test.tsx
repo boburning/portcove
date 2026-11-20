@@ -75,7 +75,12 @@ it("reveals one complete game identity after resize restoration finishes", async
           style={{ height: "100%", overflow: "auto" }}
         >
           <div style={{ height: 259.5 }} />
-          <GroupedDiscover all={ports} matching={ports} statuses={new Map()} onSelect={vi.fn()} />
+          <GroupedDiscover
+            all={ports}
+            matching={[...ports].reverse()}
+            statuses={new Map()}
+            onSelect={vi.fn()}
+          />
         </main>
       </OperationPresentationProvider>,
     ),
@@ -118,6 +123,11 @@ it("reveals one complete game identity after resize restoration finishes", async
   const result = await prepared;
   expect(result.observation.visible).toBe(true);
   expect(document.activeElement).toBe(host.querySelector(target));
+  const current = host.querySelector<HTMLElement>(target)!;
+  expect(current.dataset.detailGameId).toBe("zelda64-recomp");
+  expect(current.querySelector(".collection-art")?.getAttribute("data-artwork-port-id")).toBe(
+    "2ship2harkinian",
+  );
   for (let frame = 0; frame < 3; frame++) {
     await frames();
     expect(observeVisibleTarget(target, "visual")).toEqual(result.observation);

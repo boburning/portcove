@@ -1516,7 +1516,7 @@ export class HostedIntakeBridge {
     delete receipt.continuation;
     await persist();
   }
-  async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
+  async process(request: Comment, all: Comment[], { resumeHolds = false, auditOnly = false } = {}) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     await this.fresh(request);
@@ -1567,6 +1567,8 @@ export class HostedIntakeBridge {
         "Submit new candidates using schema version 2 with an explicit intake intent",
       );
     let receipt: Receipt | undefined;
+    if (auditOnly && proposal.candidates.length <= 10)
+      throw new Error("Audit mode requires a batch subject to full Roadmap audit");
     if (prior) {
       await this.fresh(prior);
       receipt = readHostedReceipt(
@@ -1579,11 +1581,17 @@ export class HostedIntakeBridge {
         this.client.config.repository,
       );
       if (receipt.status === "complete") {
-        if (receipt.plan_encoding === "proposal-bound-v2" || proposal.schema_version === 2)
+        if (
+          auditOnly ||
+          receipt.plan_encoding === "proposal-bound-v2" ||
+          proposal.schema_version === 2
+        )
           await this.status(request, all);
         return receipt;
       }
     }
+    if (auditOnly && !receipt?.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
     const hasAmendments = amendments.length > 0;
     const authorizedImport =
       proposal.schema_version === 1 &&
@@ -1682,6 +1690,17 @@ export class HostedIntakeBridge {
           "PostgreSQL checkpoint has no confirmed GitHub receipt marker; reconcile before retrying",
         );
       if (prior.body !== saved.receipt_body) {
+        if (auditOnly) {
+          if (!checkpointReceipt.audit_pending && checkpointReceipt.status !== "complete")
+            throw new Error("Stored checkpoint is outside the requested final audit");
+          if (checkpointReceipt.status === "complete")
+            await this.status(
+              request,
+              all.map((comment) =>
+                comment.id === prior?.id ? { ...comment, body: saved.receipt_body } : comment,
+              ),
+            );
+        }
         if (observationHash(prior.body) !== saved.previous_receipt_sha256)
           throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
         await this.fresh(request);
@@ -1752,6 +1771,7 @@ export class HostedIntakeBridge {
         return audit;
       }
     }
+    if (auditOnly) throw new Error("Audit-only recovery cannot enter candidate processing");
     const delivery = structuredClone(
       receipt?.delivery ??
         lineage?.receipt.delivery ??
@@ -2637,6 +2657,15 @@ async function main() {
     const available = comments.filter(
       (c) => c.user.login === config.owner && c.body.startsWith(hostedRequestMarker),
     );
+    const auditOnly = process.env.HOSTED_INTAKE_MODE === "audit";
+    if (
+      auditOnly &&
+      (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+        !Array.isArray(selected) ||
+        selected.length !== 1 ||
+        String(selected[0]) !== process.env.HOSTED_INTAKE_AUDIT_REQUEST)
+    )
+      throw new Error("Audit mode requires the exact owner-dispatched proposal ID");
     const requests =
       selected === null
         ? available
@@ -2655,7 +2684,8 @@ async function main() {
     for (const c of requests) {
       try {
         const receipt = await bridge.process(c, comments, {
-          resumeHolds: process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          resumeHolds: !auditOnly && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          auditOnly,
         });
         outcomes.push({
           request: c.id,
@@ -2668,7 +2698,7 @@ async function main() {
         let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
-          await bridge.diagnostic(c, error, comments);
+          if (!auditOnly) await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));

@@ -296,6 +296,8 @@ impl StoredInstallRow {
 pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
+    pub(crate) artwork_catalog:
+        std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -464,7 +466,7 @@ impl LibraryChangeObserver {
     }
 }
 
-fn data_version(connection: &Connection) -> Result<i64> {
+pub(crate) fn data_version(connection: &Connection) -> Result<i64> {
     Ok(connection.query_row("PRAGMA data_version", [], |row| row.get(0))?)
 }
 
@@ -767,6 +769,7 @@ impl Library {
         Ok(Self {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
             _lease: lease,
         })
     }
@@ -779,6 +782,7 @@ impl Library {
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -960,7 +964,7 @@ impl Library {
     pub(crate) fn recovery_dir(&self) -> PathBuf {
         self.root.join("recovery")
     }
-    fn locks_dir(&self) -> PathBuf {
+    pub(crate) fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
     }
 

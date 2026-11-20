@@ -704,13 +704,14 @@ function DiscoverGameCardView({
     (dropEligible && nativeSourceDrag.targetPortId === first.id) ||
     (groupDropEligible && nativeSourceDrag.targetGameId === group.id);
   const detailOrigin = `catalog:card:${first.id}`;
-  const { element: artworkElement, visible } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(presentation.id, "cover", visible);
+  const { element: artworkElement, visible, priority } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(presentation.id, "cover", visible, priority);
   const companion = useCompanionCover(
     presentation.id,
     showCompanion ? presentation.presentation?.companion_cover?.image_sha256 : undefined,
     artwork,
     visible,
+    priority,
   );
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
@@ -773,6 +774,7 @@ function DiscoverGameCardView({
           display={artwork}
           portId={presentation.id}
           visible={visible}
+          priority={priority}
           companion={companion}
           identityArtwork
           className="collection-art"

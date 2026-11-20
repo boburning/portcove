@@ -346,8 +346,8 @@ function LibraryChoicePrompt({
   favoriteControl?: ReactNode;
 }) {
   const { t } = useAppTranslation("browsing");
-  const { element, visible } = useArtworkVisibility();
-  const { display } = useArtwork(first.id, "cover", visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display } = useArtwork(first.id, "cover", visible, priority);
   return (
     <article
       className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`}
@@ -359,6 +359,7 @@ function LibraryChoicePrompt({
             display={display}
             portId={first.id}
             visible={visible}
+            priority={priority}
             identityArtwork
             className="card-art collection-art"
           />
