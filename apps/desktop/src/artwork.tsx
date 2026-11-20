@@ -373,7 +373,8 @@ export function useGameHeroArtwork(
   const candidates = heroMediaCandidates(port, context);
   const { cache: logoCache, display: logo } = useArtwork(port.id, "logo", visible);
   const hasLogoChoice = Boolean(logo.state?.choice.asset_sha256);
-  const rejectLogo = useCallback(() => logo.onImageError?.(), [logo.onImageError]);
+  const onLogoImageError = logo.onImageError;
+  const rejectLogo = useCallback(() => onLogoImageError?.(), [onLogoImageError]);
   const foregroundCandidates = usesAutomaticArtwork(logo.state) ? candidates.foreground : [];
   const catalogForeground = useCatalogMediaChain(port.id, foregroundCandidates, visible);
   const foreground = hasLogoChoice
