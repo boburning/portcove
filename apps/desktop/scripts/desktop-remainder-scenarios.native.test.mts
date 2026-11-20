@@ -324,9 +324,10 @@ void test("unknown owned identity and failed evidence writes preserve the origin
       assert.ok(result.unjoinedPreparation.error instanceof AggregateError);
       assert.ok(isRecord(result.observations));
       assert.ok(isRecord(result.observations.failure_cleanup));
-      assert.match(
-        String(result.observations.failure_cleanup.error),
-        ownershipIssue ? /unambiguous owned preparation/ : /no captured owned operation ID/,
+      assert.equal(
+        result.observations.failure_cleanup.error,
+        ownershipIssue ??
+          "The attempted preparation has no captured owned operation ID; stop the run",
       );
       assert.equal(result.observations.failure_cleanup.owned, undefined);
       assert.equal(nativeCalls, 0);
