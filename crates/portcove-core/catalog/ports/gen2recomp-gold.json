@@ -49,23 +49,6 @@
     },
     "runtime_source_filename": "portcove-import.gbc",
     "runtime_source_materialization": "copy",
-    "runtime_mutable_paths": ["portcove-import.gbc"],
-    "persistent_paths": [
-      "gold",
-      "mods",
-      "imports",
-      "exports",
-      "screenshots",
-      "saves",
-      "editor",
-      "prints",
-      "save_gold.lua",
-      "save_gold.lua.bak",
-      "save_gold.lua.tmp",
-      "options.lua",
-      "boot_trace.txt",
-      "crash.txt"
-    ],
     "presentation": {
       "installation_method": "generated-game-data",
       "source_requirements": [
@@ -79,5 +62,6 @@
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Portcove replaces this runtime and, from its next Portcove update or install, turns off its built-in update downloads; the game still checks for and announces new releases. A newer update that another copy downloaded into the shared Gen2Recomp updates folder (%APPDATA%/Gen2Recomp/updates on Windows) still loads when this copy starts, so remove that folder if you want the version Portcove installed."
     }
-  }
+  },
+  "gen2recomp_windows_persistence_v1": true
 }

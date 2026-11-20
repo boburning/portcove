@@ -42,6 +42,7 @@ import {
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { compactChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import {
   compactReflectionHlePortablePaths,
@@ -254,6 +255,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "chocolate_family_windows_persistence_v1",
       scope: "Reviewed Chocolate Windows persistent paths, screenshots and runtime logs.",
       next: "Keep each original IWAD profile, package selector, executable and local game arguments explicit. A different runtime layout needs explicit paths.",
+    });
+  }
+  if (record.gen2recomp_windows_persistence_v1) {
+    projections.push({
+      field: "gen2recomp_windows_persistence_v1",
+      scope: "Reviewed Gen2Recomped Windows player data and local generated import paths.",
+      next: "Keep each original edition, source selector, executable and selected game explicit. A different writer layout needs explicit paths.",
     });
   }
   return {
@@ -1086,6 +1094,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
     const compactChocolate = compactChocolateFamilyWindowsPersistence(record);
     if (compactChocolate !== record) record = checkedAuthoredPort(compactChocolate);
+    const compactGen2 = compactGen2RecompWindowsPersistence(record);
+    if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);

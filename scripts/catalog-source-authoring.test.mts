@@ -35,6 +35,10 @@ import {
   compactOpenMohaaPortable,
   projectOpenMohaaPortable,
 } from "./catalog-openmohaa-portable.mts";
+import {
+  compactGen2RecompWindowsPersistence,
+  projectGen2RecompWindowsPersistence,
+} from "./catalog-gen2recomp-windows-persistence.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import {
@@ -226,6 +230,35 @@ void test("current authored operational routes remain valid read-only health inv
   // names. Validate the whole authored inventory without fetching or waiting
   // for the slower command/report fixture; this does not assess live health.
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
+});
+
+void test("Gen2Recomped persistence preserves all three exact Windows edition routes", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.gen2recomp_windows_persistence_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "gen2recomp-crystal",
+    "gen2recomp-gold",
+    "gen2recomp-silver",
+  ]);
+  for (const record of family) {
+    const { id } = record.listing;
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)), id);
+    const explicit = projectGen2RecompWindowsPersistence(record);
+    delete explicit.gen2recomp_windows_persistence_v1;
+    assert.deepEqual(compactGen2RecompWindowsPersistence(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = ["options.lua"];
+    assert.equal(compactGen2RecompWindowsPersistence(alternate), alternate);
+    assert.throws(
+      () => checkedAuthoredPort({ ...alternate, gen2recomp_windows_persistence_v1: true }),
+      /already owns the persistent and mutable paths/u,
+    );
+    const wrongEdition = structuredClone(record);
+    wrongEdition.integration!.source_profile = "pokemon-red";
+    assert.throws(() => checkedAuthoredPort(wrongEdition), /reviewed Windows package and edition/u);
+  }
 });
 
 void test("Chocolate persistence preserves the three reviewed Windows definitions", () => {

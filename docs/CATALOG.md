@@ -3611,6 +3611,12 @@ and treats the two engine logs as runtime output. Keep each official package
 selector, executable, original IWAD profile and launch arguments explicit.
 Preparation compacts a route only when expansion reproduces its exact bytes.
 
+The authoring-only `gen2recomp_windows_persistence_v1: true` expands the
+reviewed Windows player data and generated import paths for the Gold, Silver
+and Crystal routes. Each original profile, release selector, executable and
+edition launch value stays explicit. URL preparation uses the recipe when
+expansion reproduces the existing integration byte for byte.
+
 The authoring-only `openmohaa_portable_v1` generates the official stable
 OpenMoHAA route for Allied Assault (`base`), `spearhead`, or `breakthrough`.
 It supplies the four platform selectors, shared Windows archive layout,

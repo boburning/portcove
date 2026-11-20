@@ -23,6 +23,7 @@ import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
+import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
@@ -113,6 +114,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   external_registration_v1?: true;
   /** Shared persistent and mutable paths for the reviewed Chocolate Windows players. */
   chocolate_family_windows_persistence_v1?: true;
+  /** Shared Windows player data paths for the reviewed Gen2Recomped editions. */
+  gen2recomp_windows_persistence_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
   package_observation_v1?: PackagePlayerObservationV1;
@@ -790,6 +793,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   projectReflectionHlePortablePaths(record);
   projectCrispyDoomWindowsPersistence(record);
   projectChocolateFamilyWindowsPersistence(record);
+  projectGen2RecompWindowsPersistence(record);
   if (record.route_facts_v1 !== undefined)
     checkRouteFacts(record.route_facts_v1, record.integration);
   if (record.package_observation_v1 !== undefined) {
@@ -839,7 +843,9 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   const portable = projectChocolateFamilyWindowsPersistence(
     projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
   );
-  const operational = projectExternalRegistration(projectOpenMohaaPortable(portable)).integration;
+  const operational = projectExternalRegistration(
+    projectGen2RecompWindowsPersistence(projectOpenMohaaPortable(portable)),
+  ).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
