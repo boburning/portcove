@@ -153,6 +153,30 @@ pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmissi
     ))
 }
 
+/// Independent host proof for recovery-bundle publication and its staged intent.
+/// These documents cannot supply an installation's portability admissions.
+pub(crate) fn sign_recovery_bundle(domain: &'static str, body: &impl Serialize) -> Result<String> {
+    let key = load_or_create_key()?;
+    Ok(hmac_sha256(&key, &serde_json::to_vec(&(domain, body))?))
+}
+
+pub(crate) fn verify_recovery_bundle(
+    domain: &'static str,
+    body: &impl Serialize,
+    signature: &str,
+) -> Result<()> {
+    let key = load_key()?.ok_or_else(|| {
+        PortcoveError::verification("this host cannot verify the recovery bundle receipt")
+    })?;
+    let expected = hmac_sha256(&key, &serde_json::to_vec(&(domain, body))?);
+    if !constant_time_eq(expected.as_bytes(), signature.as_bytes()) {
+        return Err(PortcoveError::verification(
+            "recovery bundle receipt did not match its recorded identity",
+        ));
+    }
+    Ok(())
+}
+
 fn canonical_entries(mut entries: Vec<PortabilityAdmission>) -> Result<Vec<PortabilityAdmission>> {
     entries.sort_by(|left, right| left.install_id.cmp(&right.install_id));
     if entries

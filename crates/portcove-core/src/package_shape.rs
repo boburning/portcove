@@ -474,6 +474,15 @@ pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str)
     {
         inputs["openmohaa_prepared_programs"] = serde_json::Value::Bool(true);
     }
+    // The sole N64 app bundle can prove flat install-root siblings absent.
+    // Older CLI builds must not record a partial shape under this input digest.
+    if port["adapter"] == "n64-recomp-portable"
+        && matches!(platform, "macos-x86-64" | "macos-aarch64")
+        && (port["launch_from_install_root"] == true
+            || port["n64_runtime_at_executable_parent"] != true)
+    {
+        inputs["n64_macos_flat_persistence_observed"] = serde_json::Value::Bool(true);
+    }
     inputs.sort_all_objects();
     Ok(hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
         serde_json::to_string(&inputs)?.as_bytes(),
@@ -538,6 +547,8 @@ pub(crate) struct ShapeRoots {
     /// The directory declared persistent paths are relative to, when the
     /// declared executable resolved.
     pub persistence: Option<PathBuf>,
+    /// A single app owns the whole payload and its parent owns player data.
+    sole_n64_mac_bundle: bool,
 }
 
 pub(crate) fn roots(
@@ -551,12 +562,26 @@ pub(crate) fn roots(
     } else {
         crate::package_layout::look_through_wrapper(payload)?
     };
-    let persistence = crate::install::resolve_declared_executable(payload, qualification)
-        .ok()
-        .map(|selected| qualification.persistence_root(payload, &selected));
+    let executable = crate::install::resolve_declared_executable(payload, qualification).ok();
+    let persistence = executable
+        .as_deref()
+        .map(|selected| qualification.persistence_root(payload, selected));
+    let sole_n64_mac_bundle = port.adapter == crate::AdapterKind::N64RecompPortable
+        && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+        && persistence.as_deref() == Some(payload)
+        && package.parent() == Some(payload)
+        && package
+            .extension()
+            .and_then(std::ffi::OsStr::to_str)
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("app"))
+        && executable
+            .as_deref()
+            .and_then(Path::parent)
+            .is_some_and(|parent| parent == package.join("Contents/MacOS"));
     Ok(ShapeRoots {
         package,
         persistence,
+        sole_n64_mac_bundle,
     })
 }
 
@@ -711,6 +736,24 @@ fn anchors(
     roots: &ShapeRoots,
     persistence: &Path,
 ) -> Anchors {
+    let declared_paths = crate::persistence::declared_paths(port, platform);
+    if roots.sole_n64_mac_bundle {
+        let bundle_name = roots.package.file_name().and_then(std::ffi::OsStr::to_str);
+        if let Some(bundle_name) = bundle_name
+            && declared_paths
+                .iter()
+                .all(|path| !path.contains(['/', '\\']) && !path.eq_ignore_ascii_case(bundle_name))
+        {
+            // Looking through the sole app proves the install root contains no
+            // other entry. Flat siblings and regular files matched by root
+            // patterns are absent, and their parent (the install root) exists.
+            return Anchors {
+                paths: BTreeSet::new(),
+                pattern_directory: None,
+                complete: true,
+            };
+        }
+    }
     let relative_lower = |path: &Path| -> Option<String> {
         let parts = path
             .components()
@@ -740,7 +783,7 @@ fn anchors(
     };
     let mut paths = BTreeSet::new();
     let mut complete = inside.is_some() || port.persistent_file_patterns.is_empty();
-    for declared in crate::persistence::declared_paths(port, platform) {
+    for declared in declared_paths {
         let declared = normalize(declared);
         let anchored = match (&inside, &outside) {
             (Some(prefix), _) if prefix.is_empty() => Some(declared),

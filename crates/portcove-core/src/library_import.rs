@@ -343,20 +343,7 @@ impl PortcoveService {
                 "import destination overlaps the metadata export",
             ));
         }
-        let content = metadata
-            .content_roots
-            .iter()
-            .map(|root| {
-                Ok(LibraryTreePlan {
-                    kind: root.kind,
-                    relative_path: root.relative_path.clone(),
-                    copy: crate::library_transfer::reviewed_tree(
-                        &content_root.join(&root.relative_path),
-                    )?,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
+        let content = crate::library_transfer::plan_portable_content(&metadata, &content_root)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
