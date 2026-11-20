@@ -3921,10 +3921,12 @@ or similar ID strings must not manufacture a selection.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
-image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
-bounded authenticated transport. Key art requires a positive `image_type.id/name`
-classification; conceptual art and unknown classifications do not qualify. Source
-image-type IDs are observed rather than hard-coded.
+image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
+the same paced, bounded authenticated transport. Key art and backgrounds share the
+artwork query for the exact game. Key art requires a positive `image_type.id/name`
+classification. A background specifically requires Key Art Without Logo and a
+decoded image at least 3:2. An original-game screenshot identifies its subject in
+the caption. Source image-type IDs are observed rather than hard-coded.
 
 The optional image-type inventory uses IGDB's maximum 500-record page and a
 separate one-record overflow query when the page is full. Overflow, malformed
@@ -3935,7 +3937,9 @@ Original identity facts bind `source_edition_id` explicitly; optional
 `hero_media_edition_neutral` records reviewed
 applicability. Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
-candidate chains and independent role failures. Exact HTTP410 observations sweep
+candidate chains and independent role failures. Preparation may fill a missing
+background and propose one screenshot when a subject has none. It preserves
+reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
 requests do not establish absence or withdrawal. Preparation proposes remote URLs,
 provenance, hashes and provider terms; it grants no admission, signing, publication
