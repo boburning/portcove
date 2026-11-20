@@ -115,6 +115,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::CanonicalDefinitionProjection { .. }
             | CatalogCommand::InspectTargets { .. }
             | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
@@ -418,6 +419,7 @@ mod tests {
             "catalog show p",
             "catalog status",
             "catalog inspect-proposal file",
+            "catalog canonical-definition-projection file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
