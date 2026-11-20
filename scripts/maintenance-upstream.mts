@@ -25,7 +25,10 @@ import {
   inputEvidenceKey,
   type OriginalSourceProgress,
   readOriginalSourceProgress,
+  selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
+import { planN64OriginalBindings } from "./n64-original-binding-candidates.mts";
 
 import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
 
@@ -335,6 +338,11 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
 export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.now()) {
   const state = validateCatalogObserverCheckpoint(checkpoint, now);
   const { sources, held, port_ids: portIds } = catalogObservationSources(catalog);
+  const rawCatalog = isRecord(catalog) ? catalog : {};
+  const definitions = new Map<string, Record<string, unknown>>();
+  for (const port of (Array.isArray(rawCatalog.ports) ? rawCatalog.ports : []) as unknown[]) {
+    if (isRecord(port) && typeof port.id === "string") definitions.set(port.id, port);
+  }
   const heldReasons = new Map<string, string[]>();
   for (const { port_id, reason } of held)
     heldReasons.set(port_id, [...new Set([...(heldReasons.get(port_id) ?? []), reason])].sort());
@@ -420,6 +428,18 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               family,
             )
           : undefined;
+      const n64Target =
+        family === "n64-recomp" && progress.repository_id !== null && !exceptionKey
+          ? selectOriginalSourceTarget(policy, source.repository, progress.repository_id)
+          : undefined;
+      const bindingPlan =
+        n64Target && inputEvidence?.last_complete?.binding === orderedJsonSha256(n64Target)
+          ? planN64OriginalBindings(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+            )
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -439,6 +459,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               : null,
           ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
           ...(evidenceKey && inputEvidence ? { [evidenceKey]: inputEvidence } : {}),
+          ...(bindingPlan ? { n64_original_binding_plan: bindingPlan } : {}),
         },
       ]);
     }
@@ -753,6 +774,7 @@ export interface UpstreamSourceFact {
   managed_release_candidates?: ManagedReleaseCandidate[];
   original_recognition?: OriginalSourceProgress;
   n64_game_entries?: OriginalSourceProgress;
+  n64_original_binding_plan?: NonNullable<ReturnType<typeof planN64OriginalBindings>>;
 }
 
 const storedSources = (payload: unknown) =>

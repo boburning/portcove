@@ -1102,7 +1102,12 @@ ${gameEntryFixture}`,
 for (const family of ["libultraship", "n64-recomp"] as const) {
   void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
     const h = harness();
-    Object.assign(h.input.ports[0]!, { adapter: `${family}-portable`, source_profile: "example" });
+    Object.assign(h.input.ports[0]!, {
+      adapter: `${family}-portable`,
+      source_profile: "example",
+      runtime_source_filename: "fixture.us.z64",
+      executable_hints: { "linux-x86-64": ["FixtureRecompiled"] },
+    });
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
     const baseProject = h.options.project;
     let unavailable: "budget" | "rate-limit" | null = null;
@@ -1199,6 +1204,12 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
                 conclusion: "success",
                 steps: [
                   { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+                  {
+                    number: 10,
+                    name: "Build FixtureRecompiled",
+                    status: "completed",
+                    conclusion: "success",
+                  },
                   {
                     number: 12,
                     name: "Archive game",
@@ -1351,10 +1362,16 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
                   repository: "Cyan4973/xxHash",
                   repository_id: 19330466,
                   revision: "d".repeat(40),
-                  headers: ["xxh3.h", "xxhash.h"].map((source_path) => ({
+                  headers: [
+                    ["xxh3.h", "a927ee0e6e0800835baed52b16bc981ec39f46287271a1a3f77c22cc48634430"],
+                    [
+                      "xxhash.h",
+                      "ccc7934d982bfd4f51624e7fdd93a6c40bc3d5c33f66463b54e70c21932d9129",
+                    ],
+                  ].map(([source_path, source_sha256]) => ({
                     source_path,
                     source_blob_sha1: "e".repeat(40),
-                    source_sha256: "f".repeat(64),
+                    source_sha256,
                   })),
                 },
               },
@@ -1376,12 +1393,18 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
                   "'",
                 run.head_sha,
               ]
-            : [
-                "##[group]Run actions/upload-artifact@v4",
-                "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
-                "Artifact Build.zip successfully finalized. Artifact ID 72",
-                "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
-              ];
+            : step === 10
+              ? [
+                  "[100/103] Building CXX object lib/N64ModernRuntime/librecomp/CMakeFiles/librecomp.dir/src/recomp.cpp.o",
+                  "[102/103] Linking CXX static library lib/N64ModernRuntime/librecomp/liblibrecomp.a",
+                  "[103/103] Linking CXX executable FixtureRecompiled",
+                ]
+              : [
+                  "##[group]Run actions/upload-artifact@v4",
+                  "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
+                  "Artifact Build.zip successfully finalized. Artifact ID 72",
+                  "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
+                ];
         const bytes = Buffer.from(lines.map((line) => "2026-10-26T12:04:00Z " + line).join("\r\n"));
         account.consumeResponseBytes(bytes.byteLength);
         return bytes;
@@ -1414,6 +1437,65 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       );
       assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
 
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const compiled = observation?.last_complete?.fact;
+      assert.ok(compiled?.parser === "n64-recomp-game-entry-v1");
+      assert.equal(compiled.build_jobs?.matches[0]?.compile?.executable, "FixtureRecompiled");
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+        [77, 10],
+      ]);
+      for (const admission_mode of ["enforced", "informational"]) {
+        const authoringInput = {
+          ...h.input,
+          source_catalog: {
+            identities: [{ id: "example", kind: "file" }],
+            contracts: [
+              {
+                id: "example-game",
+                port_id: "stable-port",
+                profile_id: "example",
+                role: "game",
+                admission_mode,
+                supported_variant_ids: admission_mode === "enforced" ? ["legacy-accepted"] : [],
+              },
+            ],
+          },
+        };
+        const projectedBinding = upstreamFacts(
+          previous,
+          authoringInput,
+          h.options.now!(),
+        ).facts.get("port:stable-port");
+        assert.ok(
+          isRecord(projectedBinding) &&
+            Array.isArray(projectedBinding.sources) &&
+            isRecord(projectedBinding.sources[0]),
+        );
+        const plan = projectedBinding.sources[0].n64_original_binding_plan;
+        assert.ok(isRecord(plan));
+        assert.equal(plan.authority, "authoring-input-only");
+        assert.deepEqual(plan.platforms, [
+          {
+            platform: "linux-x86-64",
+            artifact_sha256: "a".repeat(64),
+            build_job_id: 77,
+            state:
+              admission_mode === "enforced" ? "legacy-contract-migration-required" : "candidate",
+            binding: {
+              upstream_ref: "v1.0.0",
+              artifact_sha256: "a".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "0123456789abcdef",
+            },
+          },
+        ]);
+      }
+
       additionalPlatform = true;
       outputExpired = true;
       h.advanceClock(48 * 3600_000);
@@ -1423,10 +1505,10 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       const expanded = observation?.last_complete?.fact;
       assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
       assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
-      assert.deepEqual(expanded.build_jobs?.matches, built.build_jobs?.matches);
+      assert.deepEqual(expanded.build_jobs?.matches, compiled.build_jobs?.matches);
       assert.notEqual(expanded.build_outputs?.search, null);
-      assert.equal(buildRequests.length, 6);
-      assert.equal(jobLogs.length, 2);
+      assert.equal(buildRequests.length, 7);
+      assert.equal(jobLogs.length, 3);
     }
 
     h.advanceClock(48 * 3600_000);
@@ -1435,7 +1517,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
-    assert.equal(buildRequests.length, family === "n64-recomp" ? 6 : 0);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 7 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();

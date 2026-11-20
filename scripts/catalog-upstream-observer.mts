@@ -1684,7 +1684,11 @@ export async function advanceCatalogObservations(
             ) {
               const fact = complete.fact;
               const target = n64BuildJobTarget(fact);
-              if (target && (fact.build_jobs?.matches.length ?? 0) < target.outputs.length) {
+              if (
+                target &&
+                ((fact.build_jobs?.matches.length ?? 0) < target.outputs.length ||
+                  fact.build_jobs?.matches.some((match) => !match.compile))
+              ) {
                 try {
                   const jobs = await advanceN64BuildJobObservation(
                     target,
