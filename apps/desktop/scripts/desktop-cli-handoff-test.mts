@@ -63,7 +63,7 @@ export async function cliHandoffScenario({
     const { click } = reviewControls(browser);
     const open = async (portId: string, view: "Library" | "Discover") => {
       const port = transportValue("port", command(["catalog", "show", portId]));
-      if (view === "Discover") await openCatalogPortAfterRefresh(browser, port);
+      if (view === "Discover") await openCatalogPortAfterRefresh(browser, port, port.name);
       else {
         await browser.navigate().refresh();
         await selectPrimaryNavigation(browser, "Library");

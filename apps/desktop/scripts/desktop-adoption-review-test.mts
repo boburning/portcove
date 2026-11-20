@@ -31,12 +31,22 @@ import path from "node:path";
 import { copyFile, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { By, Key, until } from "selenium-webdriver";
+import type { Locator, WebDriver } from "selenium-webdriver";
 import { installedPreservationWitness } from "./desktop-scenario-state.mts";
 import {
   reviewControls,
   assertCompactReview,
   captureAccessibilityReport,
 } from "./desktop-review-controls.mts";
+
+/** Native consent can finish before the operation's authoritative workspace readback. */
+export async function waitForCopyReadback(browser: WebDriver, dialog: Locator, stage: string) {
+  await browser.wait(
+    async () => (await browser.findElements(dialog)).length === 0,
+    60_000,
+    `${stage}: the copy dialog must close after native consent and workspace readback`,
+  );
+}
 
 export async function adoptionReviewScenario({
   browser,
@@ -190,7 +200,7 @@ export async function adoptionReviewScenario({
       ambiguous,
       "adoption-ambiguous-cancelled",
     );
-    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
+    await waitForCopyReadback(browser, dialog, "Ambiguous-copy native cancellation");
     assert.deepEqual(
       await Promise.all(ambiguousFiles.map((item) => fileIdentity(item.path))),
       ambiguousFiles,
@@ -243,7 +253,7 @@ export async function adoptionReviewScenario({
       paths.user_data_root,
       "adoption-native-cancelled",
     );
-    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
+    await waitForCopyReadback(browser, dialog, "Existing-copy native cancellation");
     await open();
     await writeFile(current, "changed after review");
     await click(button("Continue to copy confirmation"));
@@ -306,7 +316,7 @@ export async function adoptionReviewScenario({
       paths.user_data_root,
       "adoption-native-confirmed",
     );
-    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
+    await waitForCopyReadback(browser, dialog, "Confirmed existing-copy settlement");
     const adopted = required(status(port.id).active);
     assert.notEqual(adopted.id, previous.id);
     assert.equal(

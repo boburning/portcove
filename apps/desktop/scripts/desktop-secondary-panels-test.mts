@@ -344,24 +344,31 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
 
       // A real preference change asks the mounted notice component to assess again.
       const noticeSwitch = await browser.wait(
-        until.elementLocated(
-          By.xpath(
-            '//label[contains(., "Tell me when games I chose to hear about are ready")]//*[@role="checkbox"]',
-          ),
-        ),
-        15_000,
-      );
-      await browser.wait(
-        async () => (await noticeSwitch.getAttribute("data-disabled")) === null,
+        async () => {
+          const controls = await browser.findElements(
+            By.xpath(
+              '//label[normalize-space(.)="Tell me when games I chose to hear about are ready"]//*[@role="checkbox"]',
+            ),
+          );
+          assert.ok(controls.length <= 1, "Expected one visible ready-notice checkbox");
+          const [control] = controls;
+          return control &&
+            (await control.isEnabled()) &&
+            (await control.getAttribute("data-disabled")) === null
+            ? control
+            : false;
+        },
         15_000,
         "Ready notice settings did not finish loading",
       );
+      assert.ok(noticeSwitch, "Expected the settled ready-notice checkbox");
       for (let change = 0; change < 2; change++) {
         const before = await noticeSwitch.getAttribute("aria-checked");
         await clickVisible(browser, noticeSwitch);
         await browser.wait(
           async () =>
             (await noticeSwitch.getAttribute("aria-checked")) !== before &&
+            (await noticeSwitch.isEnabled()) &&
             (await noticeSwitch.getAttribute("data-disabled")) === null,
           15_000,
         );

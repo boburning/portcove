@@ -98,6 +98,12 @@ import {
 
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import {
+  managedInterventionEvidenceLimit,
+  readManagedInterventionEvidence,
+  scopedManagedInterventions,
+  type ManagedInterventionEvidence,
+} from "./maintenance-interventions.mts";
+import {
   collectProgress,
   validateProgressSources,
   type ProgressCollection,
@@ -2289,7 +2295,11 @@ export async function collect(options: {
 
 const corePrefix = "core-port-capabilities-";
 
-const reportQuery = (from: string, through: string) => `WITH latest_issue AS (
+const reportQuery = (
+  from: string,
+  through: string,
+  withInterventionEvidence: boolean,
+) => `WITH latest_issue AS (
     SELECT DISTINCT ON (o.subject_key) o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
@@ -2440,7 +2450,12 @@ SELECT json_build_object(
   'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
       FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
   'managed_release_observations', (
-    SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at)
+    SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at${
+      withInterventionEvidence
+        ? `, 'port_key', o.subject_key, 'observer_revision', r.source_revision,
+             'definition_sha256', source.value ->> 'catalog_definition_sha256'`
+        : ""
+    })
                              ORDER BY o.observed_at, o.observation_id), '[]')
     FROM portcove_maintenance.observations o
     JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
@@ -2569,6 +2584,7 @@ export interface InventoryReport {
   runs: unknown[];
   progress?: ReturnType<typeof visibleProgress>;
   managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
+  managed_intervention_evidence?: ReturnType<typeof scopedManagedInterventions>;
   managed_route_observation_coverage?: ReturnType<typeof managedRouteObservationCoverage>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
@@ -3043,9 +3059,15 @@ export function managedRouteObservationCoverage(
   };
 }
 
-export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
+export function buildReport(
+  environment: NodeJS.ProcessEnv,
+  now = new Date(),
+  interventionEvidence?: ManagedInterventionEvidence,
+): InventoryReport {
   const { from, through } = managedReleaseEligibilityWindow([], now);
-  const data = JSON.parse(runSql(environment, reportQuery(from, through)).trim()) as {
+  const data = JSON.parse(
+    runSql(environment, reportQuery(from, through, interventionEvidence !== undefined)).trim(),
+  ) as {
     generation: number;
     universe_inputs: {
       records: Parameters<typeof buildUniverse>[0]["records"];
@@ -3200,6 +3222,16 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       data.managed_release_observations,
       now,
     ),
+    ...(interventionEvidence
+      ? {
+          managed_intervention_evidence: scopedManagedInterventions(
+            interventionEvidence,
+            data.managed_release_observations,
+            from,
+            through,
+          ),
+        }
+      : {}),
     managed_route_observation_coverage: managedRouteObservationCoverage(
       data.managed_route_inputs,
       data.runs,
@@ -4027,6 +4059,8 @@ commands:
                                        failures retain last-good research observations
   report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
                                        --previous, refuse if that report reflects newer collections
+                                       --intervention-evidence FILE --intervention-evidence-sha256 DIGEST
+                                       optionally include operator-supplied intervention assertions in JSON
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
@@ -4083,6 +4117,13 @@ export async function main(argv = process.argv.slice(2)) {
   const sample = option(args, "--sample");
   const output = option(args, "--output");
   const previous = option(args, "--previous");
+  const interventionFile = option(args, "--intervention-evidence");
+  const interventionSha256 = option(args, "--intervention-evidence-sha256");
+  if (
+    (interventionFile !== undefined || interventionSha256 !== undefined) &&
+    (command !== "report" || !interventionFile || !interventionSha256)
+  )
+    throw new MaintenanceStoreError("Intervention evidence requires both flags on report");
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
@@ -4181,7 +4222,19 @@ export async function main(argv = process.argv.slice(2)) {
     );
   } else if (command === "report") {
     if (!output) throw new MaintenanceStoreError("report requires --output DIR");
-    const report = buildReport(environment);
+    const interventionPath = interventionFile && path.resolve(interventionFile);
+    const evidence =
+      interventionPath && interventionSha256
+        ? readManagedInterventionEvidence(
+            await readBoundedPublicBuildInputFile(
+              path.dirname(interventionPath),
+              path.basename(interventionPath),
+              managedInterventionEvidenceLimit,
+            ),
+            interventionSha256,
+          )
+        : undefined;
+    const report = buildReport(environment, new Date(), evidence);
     writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
     console.log(
       JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),

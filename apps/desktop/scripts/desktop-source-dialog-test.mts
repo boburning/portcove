@@ -663,7 +663,7 @@ export async function sourceDialogScenario({
     const profileLabel = required(required(port.presentation).source_requirements[0]).label;
     const { button, click } = reviewControls(browser);
 
-    await openCatalogPortAfterRefresh(browser, port);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
     await revealDetailSection(browser, "Game files");
     const intakeTrigger = await browser.findElement(button("Check game files"));
     await executeBrowserScript(
@@ -1639,7 +1639,8 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
       report.observations.registered = registered;
       report.observations.status = status;
       await clickVisible(browser, checkbox);
-      assert.match(await queue.getText(), /1 of 16 ports selected/);
+      assert.equal(await queue.findElement(By.css('[role="status"]')).getText(), "1 selected");
+      assert.equal(await queue.findElement(checkboxLocator).getAttribute("aria-checked"), "true");
       assert.deepEqual(await read("get_statuses"), statuses);
       await screenshot("preliminary-selected-queue");
       await click(button(`Review ${fixture.port.name} setup`));
