@@ -171,14 +171,19 @@ impl DefinitionCatalogProjection {
 
     pub(crate) fn catalog_for_selection(&self, baseline: &Catalog) -> Result<Catalog> {
         let selected = self.snapshot.port_id();
-        let mut catalog = if self.catalog.document().schema_version == 2
+        let schema = self.catalog.document().schema_version;
+        let legacy_addition = schema == 2 && baseline.port(selected).is_err();
+        let mut catalog = if self.catalog.ports().len() == 1
             && baseline.document().schema_version == 3
-            && self.catalog.ports().len() == 1
-            && baseline.port(selected).is_err()
+            && (schema == 3 || legacy_addition)
         {
-            // The legacy single-port projection for a new identity supplies
-            // that port's contract. Keep the current catalog schema and graph.
-            let supplied = self.catalog.authoritative_document();
+            // A single-port projection supplies only its admitted contract.
+            // Keep the baseline's catalog and unrelated source graph.
+            let mut supplied = self.catalog.authoritative_document();
+            let port = supplied
+                .ports
+                .pop()
+                .ok_or_else(|| PortcoveError::state("projected port is missing"))?;
             let mut document = baseline.authoritative_document();
             let sources = document
                 .source_catalog
@@ -193,12 +198,26 @@ impl DefinitionCatalogProjection {
             } = supplied
                 .source_catalog
                 .ok_or_else(|| PortcoveError::state("projected catalog source graph is missing"))?;
+            if let Some(previous) = document
+                .ports
+                .iter_mut()
+                .find(|previous| previous.id == selected)
+            {
+                *previous = port;
+                sources
+                    .contracts
+                    .retain(|contract| contract.port_id != selected);
+                sources
+                    .qualification
+                    .retain(|record| record.scope.port_id != selected);
+            } else {
+                document.ports.push(port);
+            }
             sources.evidence.extend(evidence);
             sources.identities.extend(identities);
             sources.contracts.extend(contracts);
             sources.validators.extend(validators);
             sources.qualification.extend(qualification);
-            document.ports.extend(supplied.ports);
             let mut catalog = Catalog::from_document(document)?;
             catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
             catalog

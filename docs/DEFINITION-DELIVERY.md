@@ -1000,14 +1000,17 @@ recaptures the complete record. Format 2 stays readable as supplied successor
 content but gains no invented authentication. Writer protocols 25 and 27 prevent
 older clients from dropping exact successor bytes or the authenticated admission
 record.
-At authenticated selection and reopen, Core can add a new identity from a
-legacy schema-2 projection that supplies one port and its source graph to a
-schema-3 baseline. Core validates the combined graph and applies the existing
-scope checks, including source ownership and collision checks. The effective
-catalog keeps the baseline schema and unrelated ports, and the receipt retains
-the exact verified projection bytes. Other transitions still require the
-complete scoped replacement graph. Clients built before this compatibility
-change require a complete projection matching their baseline schema and scope.
+At authenticated selection and reopen, Core composes a schema-3 single-port
+projection into the schema-3 baseline. An existing identity keeps its position
+and a new identity is appended. The projection supplies the selected port and
+its source contracts. Core preserves unrelated ports and source records,
+validates the combined graph, and applies the existing ownership, collision,
+and transition checks. The receipt retains the exact verified projection bytes.
+
+Preview.9 can add a new identity from a legacy single-port schema-2 projection
+into a schema-3 baseline. That older compatibility path is limited to a new
+identity. Preview.9 also accepts complete projections matching the baseline
+schema and scope. Use the compatible representation for each supported reader.
 
 Authenticated loading, freshness/revocation, transactional catalog selection and
 scoped runtime activation are implemented in core. Production root and grant

@@ -114,6 +114,84 @@ fn legacy_chameleon_projection_adds_only_its_reviewed_contract_to_schema_three()
 }
 
 #[test]
+fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
+    // Keep the exact initial public bodies independent of active bundle revisions.
+    let entry =
+        include_bytes!("../tests/fixtures/definition-projection/crawl-initial-entry.json.txt");
+    let contract =
+        include_bytes!("../tests/fixtures/definition-projection/crawl-initial-contract.json.txt");
+    assert_eq!(
+        hex::encode(Sha256::digest(entry)),
+        "19c3c379ae5fa5c852fc4d216bd7af2cdd2bc72560f5b7a5c7d89f344d86ccec",
+    );
+    assert_eq!(
+        hex::encode(Sha256::digest(contract)),
+        "73517c5ddcce5db85571b70712ed3892d2048c5e4aa41adec91268cdba3efc62",
+    );
+    let parsed_entry: Value = serde_json::from_slice(entry).unwrap();
+    let port_id = "dungeon-crawl-stone-soup";
+    let projection = index(&[(&parsed_entry, entry)], contract)
+        .inspect_catalog_projection("official", port_id, entry, contract)
+        .unwrap();
+    assert_eq!(projection.catalog().document().schema_version, 3);
+    assert_eq!(projection.catalog().ports().len(), 1);
+
+    // Preview.9 did not embed Crawl. Keep the actual catalog's other records.
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    document.ports.retain(|port| port.id != port_id);
+    let baseline = Catalog::from_document(document).unwrap();
+    let effective = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(effective.ports().len(), baseline.ports().len() + 1);
+    assert_eq!(
+        serde_json::to_value(&effective.ports()[..baseline.ports().len()]).unwrap(),
+        serde_json::to_value(baseline.ports()).unwrap(),
+    );
+    assert_eq!(baseline.source_catalog(), effective.source_catalog());
+    assert!(std::ptr::eq(
+        projection.snapshot(),
+        effective.definition_snapshot(port_id).unwrap(),
+    ));
+
+    // An existing implementation may also receive an executable-path repair.
+    let mut existing = effective.authoritative_document();
+    let port = existing.ports.last_mut().unwrap();
+    assert_eq!(port.id, port_id);
+    port.executable_hints.insert(
+        crate::Platform::WindowsX86_64,
+        vec!["obsolete-crawl.exe".into()],
+    );
+    let existing = Catalog::from_document(existing).unwrap();
+    let replaced = projection.catalog_for_selection(&existing).unwrap();
+    assert_eq!(
+        serde_json::to_value(replaced.authoritative_document()).unwrap(),
+        serde_json::to_value(effective.authoritative_document()).unwrap(),
+    );
+
+    // A scoped override must not erase an already-reviewed package layout.
+    let mut held = effective.authoritative_document();
+    held.ports
+        .last_mut()
+        .unwrap()
+        .reviewed_package_layouts
+        .insert(
+            crate::Platform::WindowsX86_64,
+            crate::ReviewedPackageLayout {
+                directories: vec!["dat".into(), "docs".into(), "settings".into()],
+                executables: vec!["crawl.exe".into()],
+                ignore_verified_macos_libraries: false,
+                classify_linux_programs_by_format: false,
+            },
+        );
+    let held = Catalog::from_document(held).unwrap();
+    let error = projection.catalog_for_selection(&held).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("reviewed package layout was removed")
+    );
+}
+
+#[test]
 fn indexed_upstream_review_requires_matching_new_schemas() {
     let mut document = generic_projection();
     document["catalog"]["ports"][0]["upstream_active_reviewed"] = json!(true);
