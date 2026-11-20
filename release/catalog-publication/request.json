@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Crawl revision 3 adds the reviewed Windows Tiles package layout to the exact accepted 0.34.1 route. It preserves schema-2 single-port compatibility for released Preview.9, keeps the ordinary Stable selector and existing persistence, and rebinds both existing policies and launch records to the revised index. The prior definitions remain in immutable publication history."
+    "notes": "DUDE's official Linux 0.9.8 and 0.9.9 packages retain the same native program and directories. The later package stops marking two controller configurations executable. The existing native capability 36 recognizes programs by format and excludes shared libraries and configuration. The authored rule changes only the Linux reviewed layout. Original data and the runtime's existing external profile remain player-owned. Windows, the exact release selector and title-specific launch arguments remain governed by their reviewed definition. Existing definitions and source leaves retain their exact bytes. This input is bound to the then-retained official definition index dc0f562b37b80767baeed3ad5a575a9a1d1a34f06641df0a8d0ebcc0dbcd91a6."
   }
 }
