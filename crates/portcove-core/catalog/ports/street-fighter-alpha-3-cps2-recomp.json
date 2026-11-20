@@ -48,6 +48,16 @@
           "instruction": "Use Your files → Show in the launcher to find the actual launcher and game folders. With portable.txt beside the launcher or Mac app, the collection uses user/ there. Keep your settings, saves and the working package before replacing it. The shared launcher offers updates. Leave its files together and manage them outside Portcove."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-alpha-3",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/cps2recomp/blob/0c6d4182dd41635d129a8243264d5580dfaf8a2c/games/sfa3/README.md",
+        "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
+        "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

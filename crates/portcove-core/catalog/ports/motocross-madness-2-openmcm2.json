@@ -36,6 +36,12 @@
         }
       ],
       "warnings": ["Portcove does not manage this program's updates or back up its user folder."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "motocross-madness-2",
+      "evidence_urls": ["https://github.com/crspytopgn/openmcm2/blob/v0.6.5/README.md"],
+      "source_editions": []
     }
   }
 }

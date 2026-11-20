@@ -66,7 +66,16 @@
       "macos-aarch64": ["sdlpal-macos.dmg"]
     },
     "original_game_title": "The Legend of Sword and Fairy",
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-sword-and-fairy",
+      "evidence_urls": [
+        "https://github.com/sdlpal/sdlpal/blob/master/docs/README.md",
+        "https://github.com/sdlpal/sdlpal"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

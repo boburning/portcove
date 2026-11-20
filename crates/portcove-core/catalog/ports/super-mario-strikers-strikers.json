@@ -53,6 +53,16 @@
       "windows-x86-64": ["strikers-windows-x86_64.zip"],
       "linux-x86-64": ["strikers-linux-x86_64.tar.gz"],
       "macos-aarch64": ["strikers-macos-arm64.tar.gz"]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-strikers",
+      "evidence_urls": [
+        "https://github.com/new-coke/strikers#readme",
+        "https://github.com/new-coke/strikers"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario Strikers"
   }
 }

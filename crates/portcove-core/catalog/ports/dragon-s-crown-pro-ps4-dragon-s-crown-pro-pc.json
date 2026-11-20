@@ -51,6 +51,15 @@
       "warnings": [
         "Keep Allow overlay programs Off for the same-process route; enabling it starts a successor outside the tracked player. Preserve all prepared builds, saves and existing key files."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-s-crown-pro-ps4",
+      "evidence_urls": [
+        "https://github.com/saulob/dragons-crown-pro-pc",
+        "https://github.com/saulob/dragons-crown-pro-pc/blob/1ec294a8cdcf84f29954f15e90dd7782290994ef/docs/LAUNCHER.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

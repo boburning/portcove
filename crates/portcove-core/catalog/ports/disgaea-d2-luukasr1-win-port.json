@@ -39,6 +39,15 @@
       "warnings": [
         "Use each supported original with its own profile. Portcove does not build or update this game or back up its profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "disgaea-d2-a-brighter-darkness",
+      "evidence_urls": [
+        "https://github.com/LUUKASR1/disgaea-d2-recomp-windows/blob/v1.0.2/docs/RELEASE-0.2.1.md",
+        "https://github.com/Sean13128/disgaea-d2-recomp"
+      ],
+      "source_editions": []
     }
   }
 }

@@ -16,7 +16,13 @@
       "game_slug": "pokemon-silver-version",
       "match_kind": "underlying-game"
     },
-    "issue_number": 99
+    "issue_number": 99,
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-silver",
+      "evidence_urls": ["https://github.com/UNDERdecoded/Gen2Recomped"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

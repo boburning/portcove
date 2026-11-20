@@ -32,7 +32,7 @@
         },
         {
           "title": "Use your Linux package manager",
-          "instruction": "On Ubuntu x64, install matching freeorion and freeorion-data packages with all dependencies. In the reviewed 0.5.1.2-1 package, select the native /usr/lib/freeorion/freeorion and set /usr/share/games/freeorion as the working folder, with no arguments. Keep the sibling server/AI programs and package data/libraries installed. /usr/games/freeorion is a shell wrapper, not the native selection. Review the details, add the client and choose Play. Other distributions can use different paths; verify their complete native installation first. Flathub remains a separate option: install and run org.freeorion.FreeOrion through Flatpak, which owns its runtime and updates. Do not select Flatpak\u2019s internal /app/bin path as a host-native program. Update through the same package manager."
+          "instruction": "On Ubuntu x64, install matching freeorion and freeorion-data packages with all dependencies. In the reviewed 0.5.1.2-1 package, select the native /usr/lib/freeorion/freeorion and set /usr/share/games/freeorion as the working folder, with no arguments. Keep the sibling server/AI programs and package data/libraries installed. /usr/games/freeorion is a shell wrapper, not the native selection. Review the details, add the client and choose Play. Other distributions can use different paths; verify their complete native installation first. Flathub remains a separate option: install and run org.freeorion.FreeOrion through Flatpak, which owns its runtime and updates. Do not select Flatpak’s internal /app/bin path as a host-native program. Update through the same package manager."
         },
         {
           "title": "Keep your saves and settings",
@@ -47,6 +47,15 @@
           "instruction": "Portcove tracks the graphical client you select. FreeOrion starts its own server and AI processes for games; a local server you host can stay separate after the client closes. Portcove does not take ownership of those servers or certify that every companion has stopped. You and upstream own installation, updates, saves, settings, mods, backups and removal. Removing the registration preserves all external files. The current official release has no Android package or native Windows ARM64 build."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "freeorion",
+      "evidence_urls": [
+        "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+        "https://github.com/freeorion/freeorion"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

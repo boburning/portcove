@@ -48,6 +48,12 @@
         }
       ],
       "help_url": "https://ddnet.org/downloads/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ddnet",
+      "evidence_urls": ["https://ddnet.org/downloads/", "https://github.com/ddnet/ddnet"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -55,7 +61,10 @@
     "target_key": "ddnet",
     "origin": {
       "project_url": "https://github.com/ddnet/ddnet",
-      "repository": { "host": "github.com", "id": "22821674" }
+      "repository": {
+        "host": "github.com",
+        "id": "22821674"
+      }
     },
     "decisions": []
   }

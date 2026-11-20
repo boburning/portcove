@@ -35,6 +35,12 @@
       "image_sha256": "a271b55d20f4147ac353ad3aacd92bfa60c0db3b54da3c4fcd52d3e23dba5f3a",
       "game_slug": "escape-from-monster-manor",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "escape-from-monster-manor",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-escapefrommonstermanor"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

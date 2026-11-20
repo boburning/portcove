@@ -51,6 +51,12 @@
       "linux-x86-64": ["SealTeam-", "-linux-x64.tar.gz"],
       "macos-x86-64": ["SealTeam-", "-macos-universal.zip"],
       "macos-aarch64": ["SealTeam-", "-macos-universal.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "seal-team",
+      "evidence_urls": ["https://github.com/PlasticCog/SealTeam-Source-Port"],
+      "source_editions": []
     }
   }
 }

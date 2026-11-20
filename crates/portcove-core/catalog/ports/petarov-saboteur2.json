@@ -42,6 +42,15 @@
           "instruction": "The player normally stores fullscreen settings and high scores in SDL’s per-user petarov/saboteur2 preferences folder. When that folder is unavailable, high scores can fall back to SAB_II.SCR in the working directory; preserve that file too. Forced quit keys do not save scores. Before changing versions, close the game and keep a separate copy of the working runtime and actual preferences/fallback file. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "saboteur-ii-avenging-angel",
+      "evidence_urls": [
+        "https://github.com/petarov/saboteur2#readme",
+        "https://github.com/petarov/saboteur2"
+      ],
+      "source_editions": []
     }
   }
 }

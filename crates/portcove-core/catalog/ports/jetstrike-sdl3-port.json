@@ -64,6 +64,15 @@
       "image_sha256": "f9808d15b4ddf646fee4967310d941711713ed11fe60df51e6067385df9e5ddc",
       "game_slug": "jetstrike",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jetstrike",
+      "evidence_urls": [
+        "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md",
+        "https://github.com/kylofon/jetstrike-sdl3"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -58,6 +58,15 @@
           "instruction": "For Linux ARM64, use CPS2Recomp-linux-arm64.tar.gz and run cps2recomp-launcher. On an ARM64 device running Android 9 or later, install CPS2Recomp-android.apk and use Games → Add ROM sets. Get both packages and their checksums from the upstream release page."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-vs-predator",
+      "evidence_urls": [
+        "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/avsp/README.md",
+        "https://github.com/tmcleroy/cps2recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

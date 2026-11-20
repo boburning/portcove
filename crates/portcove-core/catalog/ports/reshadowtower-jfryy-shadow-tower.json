@@ -35,6 +35,12 @@
       "image_sha256": "f1a0f5acf5bddc43711fba35b38b7ca932379a1d2a8d4e24d733d52851da2b51",
       "game_slug": "shadow-tower",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-tower",
+      "evidence_urls": ["https://github.com/JFryy/reshadowtower"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

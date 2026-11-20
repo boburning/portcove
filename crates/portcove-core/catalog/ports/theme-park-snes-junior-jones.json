@@ -33,6 +33,14 @@
         }
       ],
       "warnings": ["Portcove does not manage this installation or back up its snapshots."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-park",
+      "evidence_urls": [
+        "https://github.com/Junior-Jones/Theme-Park-SNES-Static-Recomp/blob/v1.0.1/README.txt"
+      ],
+      "source_editions": []
     }
   }
 }

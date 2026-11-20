@@ -34,6 +34,12 @@
         }
       ],
       "warnings": ["Portcove does not back up your ReMoM saves."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "master-of-magic",
+      "evidence_urls": ["https://github.com/jbalcomb/ReMoM/blob/v0.1.0/PLAYING.md"],
+      "source_editions": []
     }
   }
 }

@@ -45,6 +45,15 @@
       "warnings": [
         "The publisher also supplies Windows ARM64, Windows x86 and Linux ARM64 runtime archives through the release page. Choose your actual architecture. Use the reviewed runtime archive for this layout. Upstream setup and backups are player-managed."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ballance",
+      "evidence_urls": [
+        "https://github.com/doyaGu/Ballanced/blob/v0.2.0/README.md#for-players",
+        "https://github.com/doyaGu/Ballanced"
+      ],
+      "source_editions": []
     }
   }
 }

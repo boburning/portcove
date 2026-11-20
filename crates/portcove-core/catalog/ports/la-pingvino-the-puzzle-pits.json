@@ -40,6 +40,15 @@
       "warnings": [
         "This is the first upstream preview. The publisher describes the Mac binary as unsigned. Review the publisher’s instructions before opening it."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-puzzle-pits",
+      "evidence_urls": [
+        "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
+        "https://github.com/LaPingvino/The-Puzzle-Pits"
+      ],
+      "source_editions": []
     }
   }
 }

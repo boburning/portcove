@@ -46,6 +46,15 @@
         }
       ],
       "help_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "magic-ball-2",
+      "evidence_urls": [
+        "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions",
+        "https://github.com/Kippykip/OpenMB2"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

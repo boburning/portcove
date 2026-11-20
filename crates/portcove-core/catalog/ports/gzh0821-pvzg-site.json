@@ -52,6 +52,17 @@
           "instruction": "Choose Mods then Open Folder to find the data directory actually used by this edition. Close the game, then copy the whole directory, including mod configuration, mod-data, patches, __gpn_edits and save-backups, plus any custom locations. Native exports and cloud saves do not automatically include mod-owned progress. Keep the original working package too; never assume Standard and Lite share or isolate the same profile."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "plants-vs-zombies-2",
+      "evidence_urls": [
+        "https://github.com/Gzh0821/pvzg_site/blob/0bbd7dc892ca39b302f3492cf02fcafe795f822d/README.md",
+        "https://pvzge.com/en/guide/FAQ.html",
+        "https://github.com/Gzh0821/pvzg_site"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Plants vs. Zombies 2"
   }
 }

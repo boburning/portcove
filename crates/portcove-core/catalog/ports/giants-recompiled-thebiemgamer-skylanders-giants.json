@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/TheBiemGamer/GiantsRecomp"
     },
-    "issue_number": 3148
+    "issue_number": 3148,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-giants",
+      "evidence_urls": ["https://github.com/TheBiemGamer/GiantsRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

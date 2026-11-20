@@ -40,6 +40,15 @@
         }
       ],
       "help_url": "https://wiki.unvanquished.net/wiki/Install_and_play"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "unvanquished",
+      "evidence_urls": [
+        "https://wiki.unvanquished.net/wiki/Install_and_play",
+        "https://github.com/Unvanquished/Unvanquished"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

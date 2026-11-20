@@ -35,7 +35,13 @@
       ],
       "help_url": "https://github.com/thefixinhixon/RealSteelRecomp"
     },
-    "issue_number": 3250
+    "issue_number": 3250,
+    "original_game": {
+      "format_version": 1,
+      "id": "real-steel",
+      "evidence_urls": ["https://github.com/thefixinhixon/RealSteelRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

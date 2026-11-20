@@ -35,6 +35,12 @@
       "image_sha256": "1084a70eae25a4c86079dafdb1a5b6575b3ca06c0bd9edc03d9d790b169634c7",
       "game_slug": "bust-a-groove",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bust-a-groove",
+      "evidence_urls": ["https://github.com/brankomatija/BustAGrooveRecompiled-Releases"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

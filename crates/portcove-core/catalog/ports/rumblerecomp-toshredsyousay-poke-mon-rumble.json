@@ -35,6 +35,12 @@
       "image_sha256": "eed9b7cc1785186d8aa106d010711b82881160b4b503fdfd1f0a433df6ebe758",
       "game_slug": "pokemon-rumble",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-rumble",
+      "evidence_urls": ["https://github.com/ToShredsYouSay/RumbleRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -38,7 +38,17 @@
       ],
       "help_url": "https://github.com/openglad/openglad/blob/master/docs/INSTALL.md"
     },
-    "original_game_title": "Gladiator"
+    "original_game_title": "Gladiator",
+    "original_game": {
+      "format_version": 1,
+      "id": "gladiator",
+      "evidence_urls": [
+        "https://github.com/openglad/openglad#readme",
+        "https://github.com/openglad/openglad/blob/master/docs/INSTALL.md",
+        "https://github.com/openglad/openglad"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -38,6 +38,12 @@
           "instruction": "The project reports early play at 60 FPS with eight shader failures out of 73,496. It offers no release package and excludes Intel Mac, Windows and Linux."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-resonance",
+      "evidence_urls": ["https://github.com/tomasvivaldi/FFResonanceRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

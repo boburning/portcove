@@ -37,6 +37,13 @@
           "instruction": "The project reports Adventure and Legend battles with sound. Source builds generate C from the original game. Release instructions do not say whether this generation occurs on first launch."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hyrule-warriors-definitive-edition",
+      "evidence_urls": ["https://github.com/sonsegajp/HWDER"],
+      "source_editions": []
+    },
+    "original_game_title": "Hyrule Warriors: Definitive Edition"
   }
 }
