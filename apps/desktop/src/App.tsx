@@ -155,6 +155,7 @@ import {
   requiredSourceNeeds,
   summarizeLibrary,
   type DetailDestination,
+  type View,
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
@@ -506,12 +507,20 @@ type WorkspaceProps = {
   consumeLibrarySelectionReturn: () => void;
 };
 
-function workspaceDetailBackLabel(addGamesOpen: boolean, origin: string | undefined) {
-  if (addGamesOpen && (origin?.startsWith("add-games:") || origin?.startsWith("add-games-folders")))
+function workspaceDetailBackLabel(view: View, addGamesOpen: boolean, origin: string | undefined) {
+  const fromInstallResult = origin?.startsWith("install-result:") ?? false;
+  if (
+    addGamesOpen &&
+    (origin?.startsWith("add-games:") ||
+      origin?.startsWith("add-games-folders") ||
+      (fromInstallResult && view === "library"))
+  )
     return "Back to Add games";
-  if (origin?.startsWith("library:")) return "Back to Library";
-  if (origin?.startsWith("catalog:")) return "Back to Discover";
-  if (origin?.startsWith("updates:")) return "Back to Activity";
+  const destination = fromInstallResult ? view : origin?.split(":", 1)[0];
+  if (destination === "library") return "Back to Library";
+  if (destination === "catalog") return "Back to Discover";
+  if (destination === "updates") return "Back to Activity";
+  if (fromInstallResult && destination === "settings") return "Back to Settings";
   return undefined;
 }
 
@@ -667,7 +676,7 @@ function useWorkspace(props: WorkspaceProps) {
     setAddGamesOpen(false);
     setPrimaryView("library");
   };
-  const detailBackLabel = workspaceDetailBackLabel(addGamesOpen, detailOpening?.originKey);
+  const detailBackLabel = workspaceDetailBackLabel(ui.view, addGamesOpen, detailOpening?.originKey);
   const addGamesReturn = useRef(0);
   const [addGamesFromSettings, setAddGamesFromSettings] = useState(false);
   const { setActivitySection } = ui;
