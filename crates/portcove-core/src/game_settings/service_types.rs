@@ -59,6 +59,15 @@ pub struct GameSettingReview {
     pub review_sha256: String,
 }
 
+/// Settings observed for the exact installation used by the materialized setup.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameSettingsChangeSetView {
+    pub settings: GameSettingsView,
+    pub setup: Option<GameSettingsSetupIdentity>,
+    pub setup_name: Option<String>,
+    pub installed_version: Option<String>,
+}
+
 /// An edit to one declared key within the change-set's single configuration file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]

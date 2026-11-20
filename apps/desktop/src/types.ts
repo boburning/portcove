@@ -68,6 +68,10 @@ export type GameSettingsView = Generated.TransportOutputs["game_settings_view"];
 export type GameSettingView = GameSettingsView["files"][number]["settings"][number];
 export type GameSettingReview = Generated.TransportOutputs["game_setting_review"];
 export type GameSettingChange = Requests.TransportInputs["game_setting_change"];
+export type GameSettingsChangeSetView = Generated.TransportOutputs["game_settings_change_set_view"];
+export type GameSettingsChangeSetReview =
+  Generated.TransportOutputs["game_settings_change_set_review"];
+export type GameSettingsEdit = Requests.TransportInputs["game_settings_edit"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];

@@ -286,9 +286,9 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
-    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
-    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsChangeSetView, GameSettingsContract,
+    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsFormat,
+    GameSettingsRelease, GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
     inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;

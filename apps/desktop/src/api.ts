@@ -194,6 +194,34 @@ export const desktopApi = {
       reviewSha256: review.review_sha256,
       generation,
     }),
+  gameSettingsChangeSetView: (portId: string, generation: number) =>
+    invoke<import("./types").GameSettingsChangeSetView>("get_game_settings_change_set_view", {
+      portId,
+      generation,
+    }),
+  reviewGameSettingsChangeSet: (
+    portId: string,
+    fileId: string,
+    edits: import("./types").GameSettingsEdit[],
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingsChangeSetReview>("review_game_settings_change_set", {
+      portId,
+      fileId,
+      edits,
+      generation,
+    }),
+  applyGameSettingsChangeSet: (
+    review: import("./types").GameSettingsChangeSetReview,
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingsView>("apply_game_settings_change_set", {
+      portId: review.port_id,
+      fileId: review.file_id,
+      edits: review.edits.map(({ edit }) => edit),
+      reviewSha256: review.review_sha256,
+      generation,
+    }),
   compareGamePorts: (request: GameComparisonRequest, generation: number) =>
     invoke<GameComparison>("compare_game_ports", { request, generation }),
   organizationPreferences: (generation: number) =>
