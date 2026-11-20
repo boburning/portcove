@@ -1,4 +1,5 @@
 import { captureParityState } from "../../test/parity-capture";
+import { observeCollectionLayoutReady } from "../../scripts/browser-readiness.mts";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -767,6 +768,17 @@ for (const theme of ["dark", "light"]) {
     await expect
       .element(page.getByRole("button", { name: "Clear search", exact: true }))
       .toBeVisible();
+    // The row toggle and search can still be restoring the reading anchor.
+    // Let that existing owner settle before requesting one exact destination.
+    await expect
+      .poll(async () => {
+        await act(async () => {
+          await new Promise(requestAnimationFrame);
+          await new Promise(requestAnimationFrame);
+        });
+        return observeCollectionLayoutReady();
+      })
+      .toBe(true);
     const expectedCount = Number(
       document.querySelector("[data-library-port-ids]")!.getAttribute("aria-setsize"),
     );
