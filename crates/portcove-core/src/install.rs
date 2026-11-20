@@ -4114,10 +4114,10 @@ pub(crate) fn retained_query_context_with_budget(
     Ok((catalog, platform))
 }
 
-pub(crate) fn portability_catalog_for_install(
+pub(crate) fn portable_install_contract(
     install: &InstallRecord,
     embedded: &crate::Catalog,
-) -> Result<Option<crate::Catalog>> {
+) -> Result<(Option<crate::Catalog>, Option<crate::ManagedPackageVariant>)> {
     let manifest = install.path.join(".portcove-manifest.json");
     if embedded.port(&install.port_id).is_ok()
         && matches!(
@@ -4145,13 +4145,27 @@ pub(crate) fn portability_catalog_for_install(
             ));
         }
         crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;
-        return Ok(None);
+        return Ok((None, None));
     }
-    let retained = retained_catalog_for_install(install)?;
+    let manifest = verified_manifest(install)?;
+    let retained = catalog_for_verified_manifest(install, &manifest)?;
     if let Some(catalog) = &retained {
         crate::managed_shared_preferences::refuse_scope_transfer(catalog.port(&install.port_id)?)?;
     }
-    Ok(retained)
+    let choice = manifest
+        .saved_package_variant
+        .filter(crate::ManagedPackageVariant::requires_explicit_proof);
+    if choice.is_some()
+        && (embedded.port(&install.port_id).is_err()
+            || retained
+                .as_ref()
+                .is_none_or(|catalog| catalog.definition_selection(&install.port_id).is_some()))
+    {
+        return Err(PortcoveError::verification(
+            "a saved package choice requires a retained embedded port contract",
+        ));
+    }
+    Ok((retained, choice))
 }
 
 impl Installer {
@@ -6726,7 +6740,7 @@ mod tests {
                 .is_some()
         );
         assert_eq!(verified_manifest(&install).unwrap().schema_version, 7);
-        assert!(crate::install::portability_catalog_for_install(&install, &catalog).is_err());
+        assert!(crate::install::portable_install_contract(&install, &catalog).is_err());
         assert!(
             !service
                 .status(id)

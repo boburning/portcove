@@ -90,7 +90,15 @@ impl PortabilityCatalogs {
                     .detail("install_id", &install.id));
                 }
             }
-            let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
             if let Some(identity) = retained
                 .as_ref()
                 .and_then(|catalog| catalog.definition_selection(&install.port_id))
