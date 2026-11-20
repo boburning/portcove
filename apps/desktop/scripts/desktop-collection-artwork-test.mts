@@ -525,7 +525,12 @@ export async function collectionArtworkScenario(context: Context) {
           ...surface,
           complete_collection: surface.images.length === members.length,
         });
-        await captureKeyboardTarget(context, name, target, scenarioId);
+        // Image decode can replace the original artwork node while layout settles.
+        const captureTargets = await browser.findElements(By.css(selector));
+        assert.equal(captureTargets.length, 1, `Expected one artwork target for ${name}`);
+        const [captureTarget] = captureTargets;
+        assert.ok(captureTarget);
+        await captureKeyboardTarget(context, name, captureTarget, scenarioId);
         const after = verifiedCollectionSurface(
           await executeBrowserScript(browser, observeCollectionArtwork, selector),
           thumbnails,
