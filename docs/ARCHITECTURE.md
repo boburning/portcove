@@ -58,6 +58,22 @@ installation lock or host scheduler is created for interface scaling. See
 
 Core owns game release-channel selection and its stored values. See the [CLI release-channel contract](CLI.md#release-channels).
 
+Game-group presentation uses the complete explicitly identified family, with a
+stable authored-title/stable-port-ID representative independent of filters and
+implementation choice. The representative supplies the game title and accepted
+cover only; Core assessments and exact port/install identities still govern
+actions. Global command search returns one game for an original-title query and
+exact port options for project queries. Its game detail destination respects an
+explicit preferred implementation or the sole visible installed implementation;
+opening details never persists an implementation choice.
+
+Native grouped file drops retain their paths in ephemeral React state while an
+ambiguous group asks for a specific implementation. The continuation binds the
+library generation and accepted definition/listing snapshots. Selection then
+uses the exact current port's source profile and existing Core source-review
+route. Sharing an original-game ID grants no original-file or save compatibility.
+A resolved eligible implementation keeps its exact direct drop target.
+
 ## Current ownership and deliverables
 
 Game integrations use the [upstream-first ownership contract](CATALOG.md#integration-ownership).

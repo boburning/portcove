@@ -48320,6 +48320,7 @@
             }
           ]
         },
+        "variant_label": "Prebuilt player",
         "manual_setup": {
           "steps": [
             {
@@ -48462,6 +48463,7 @@
             }
           ]
         },
+        "variant_label": "Build from setup kit",
         "manual_setup": {
           "steps": [
             {

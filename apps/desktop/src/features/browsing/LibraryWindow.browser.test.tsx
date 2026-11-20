@@ -1,5 +1,5 @@
 import "../../styles/index.css";
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -34,7 +34,7 @@ const ports = Array.from({ length: 201 }, (_, index) => ({
 }));
 const expected = [["library-0", "library-1"], ...ports.slice(2).map((port) => [port.id])];
 const open = vi.fn();
-const organizationCommit = vi.fn(async () => true);
+const organizationCommit = vi.fn<Organization["commit"]>(async () => true);
 const pending = new Map();
 const organization: Organization = {
   snapshot: {
@@ -63,6 +63,7 @@ function Fixture({
   ready = true,
   matching = ports,
   organizationState = "ready",
+  organizationValue = organization,
   trailing = false,
 }: {
   layout?: CollectionLayout;
@@ -71,6 +72,7 @@ function Fixture({
   ready?: boolean;
   matching?: typeof ports;
   organizationState?: "ready" | "busy" | "unavailable";
+  organizationValue?: Organization;
   trailing?: boolean;
 } = {}) {
   return (
@@ -82,8 +84,8 @@ function Fixture({
             organizationState === "unavailable"
               ? undefined
               : organizationState === "busy"
-                ? { ...organization, busy: true }
-                : organization
+                ? { ...organizationValue, busy: true }
+                : organizationValue
           }
           view="library"
           ports={matching}
@@ -114,6 +116,27 @@ const frames = async () => {
     await new Promise(requestAnimationFrame);
   });
 };
+function CollectionMembershipFixture({ layout }: { layout: CollectionLayout }) {
+  const [members, setMembers] = useState(["library-2", "library-3"]);
+  const collectionOrganization: Organization = {
+    ...organization,
+    snapshot: {
+      ...organization.snapshot!,
+      collections: { handpicked: { name: "Handpicked", port_ids: members } },
+    },
+    commit: async (change) => {
+      const accepted = await organizationCommit(change);
+      if (!accepted || change.kind !== "set_collection_port") return false;
+      setMembers((before) =>
+        change.included
+          ? [...new Set([...before, change.port_id])]
+          : before.filter((id) => id !== change.port_id),
+      );
+      return true;
+    },
+  };
+  return <Fixture layout={layout} organizationValue={collectionOrganization} />;
+}
 async function draw(props: Parameters<typeof Fixture>[0] = {}) {
   await act(async () => root.render(<Fixture {...props} />));
   await frames();
@@ -394,6 +417,54 @@ it.each(["resize", "reorder"] as const)(
       .toBe(origin);
     expect(document.activeElement).toBe(document.querySelector(`[data-detail-origin="${origin}"]`));
     expect(document.activeElement).not.toBe(trigger);
+  },
+);
+
+it.each(["covers", "rows"] as const)(
+  "does not reopen a %s menu after removing its port from the selected collection",
+  async (layout) => {
+    await act(async () => root.render(<CollectionMembershipFixture layout={layout} />));
+    await frames();
+    await page.getByRole("button", { name: "Collections", exact: true }).click();
+    const collections = page.getByRole("group", { name: "Library collections", exact: true });
+    await collections.getByRole("button", { name: "Handpicked (2)", exact: true }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(collections).not.toBeInTheDocument();
+    const group = await mountLibraryPort("library-2");
+    expect(
+      group.querySelector(`.collection-${layout === "rows" ? "row" : "cover"}`),
+    ).not.toBeNull();
+    const origin = "library:card-more:library-2";
+    await act(async () => {
+      await userEvent.click(group.querySelector(`[data-detail-origin="${origin}"]`)!);
+    });
+    await expect.element(page.getByRole("menu")).toBeVisible();
+    await page.getByRole("menuitemcheckbox", { name: "Handpicked", exact: true }).click();
+    expect(organizationCommit).toHaveBeenCalledTimes(1);
+    expect(organizationCommit).toHaveBeenCalledWith({
+      kind: "set_collection_port",
+      collection_id: "handpicked",
+      port_id: "library-2",
+      included: false,
+    });
+    await expect.poll(() => group.isConnected).toBe(false);
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    await page.getByRole("button", { name: "Collections · Handpicked", exact: true }).click();
+    await expect
+      .element(collections.getByRole("button", { name: "Handpicked (1)", exact: true }))
+      .toHaveAttribute("aria-pressed", "true");
+    await collections.getByRole("button", { name: "All games", exact: true }).click();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(collections).not.toBeInTheDocument();
+    const returned = await mountLibraryPort("library-2");
+    await expect.element(page.getByRole("menu")).not.toBeInTheDocument();
+    expect(
+      returned.querySelector(`[data-detail-origin="${origin}"]`)?.getAttribute("aria-expanded"),
+    ).toBe("false");
+    const outside = document.querySelector<HTMLButtonElement>("#outside-library")!;
+    await act(async () => outside.focus());
+    await frames();
+    expect(document.activeElement).toBe(outside);
   },
 );
 

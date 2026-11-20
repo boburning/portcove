@@ -11748,6 +11748,7 @@
           }
         ]
       },
+      "variant_label": "Prebuilt player",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11845,7 +11846,8 @@
             ]
           }
         ]
-      }
+      },
+      "variant_label": "Build from setup kit"
     },
     {
       "id": "alexbeav-medievil-recomp",

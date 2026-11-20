@@ -3633,6 +3633,16 @@ installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
 
+The Windows normal-package case also reads the actual workspace catalog and
+catalog status, checks the reviewed original-game relationships, and retains
+`normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
+digest, definition/listing provenance, independent relationship fixture, package
+and executable to the executing source revision. The fixture and oracle have
+immutable input custody. Existing packages use their own matching source and
+fixture; the verifier refuses a different candidate revision. A relationship
+failure fails the scenario and retains the readback. This read-only observation
+grants no source compatibility, installation permission or gameplay acceptance.
+
 For the distinct current-installed Windows case, use the fixed existing launcher:
 `just desktop-test --current-installed --installer <absolute-nsis> --package-evidence
 <absolute-ordinary-build-manifest> --expected-app <absolute-built-executable>
