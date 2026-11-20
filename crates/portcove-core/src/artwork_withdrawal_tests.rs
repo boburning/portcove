@@ -49,6 +49,43 @@ fn cover(service: &PortcoveService) -> crate::ArtworkState {
 }
 
 #[test]
+fn colliding_logo_cannot_republish_an_evicted_grid() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let selected = choose_provider(&service, 0);
+    let sha256 = selected.choice.asset_sha256.as_ref().unwrap();
+    let original = crate::artwork::original_path(service.library(), sha256).unwrap();
+    assert!(original.is_file());
+    let removal = absent(&service, Source::Gone);
+    assert_eq!(image(&removal, 7).effect, Effect::Removed);
+    assert!(!original.exists());
+    let old_cover = cover(&service);
+
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let result = service.choose_fetched_artwork(
+        &port,
+        ArtworkSlot::Logo,
+        42,
+        provider_candidate(
+            7,
+            Role::Logo,
+            12,
+            24,
+            "image/png",
+            encoded(12, 24, image::ImageFormat::Png),
+        ),
+        0,
+    );
+    assert!(result.is_err());
+    assert!(!original.exists());
+    let retained = cover(&service);
+    assert_eq!(retained.evicted_at, old_cover.evicted_at);
+    assert_eq!(retained.attribution, old_cover.attribution);
+    assert_eq!(retained.provider_listing, old_cover.provider_listing);
+    assert_eq!(retained.choice, old_cover.choice);
+}
+
+#[test]
 fn a_withdrawal_needs_a_second_signal_from_the_observation_being_applied() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));

@@ -1064,6 +1064,13 @@ impl PortcoveService {
         // Restoring an evicted image changes its provenance only after the
         // original is published again, so a failed restore leaves it as it was.
         let restoring = crate::artwork_store::evicted_at(&transaction, &proposed.sha256)?.is_some();
+        if restoring && let IngestOrigin::Provider(attribution) = &origin {
+            crate::artwork_store::require_compatible_provider_listing(
+                &transaction,
+                &proposed.sha256,
+                attribution,
+            )?;
+        }
         // Reserve durable inventory before publishing bytes. Interruption leaves
         // a tracked unused asset that can be retried or explicitly removed.
         crate::artwork_store::write_asset(&transaction, &proposed)?;

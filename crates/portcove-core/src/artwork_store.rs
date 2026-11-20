@@ -905,6 +905,36 @@ pub(crate) fn asset_exists(connection: &Connection, id: &str) -> Result<bool> {
     )?)
 }
 
+pub(crate) fn require_compatible_provider_listing(
+    connection: &Connection,
+    asset_sha256: &str,
+    incoming: &ArtworkAttribution,
+) -> Result<()> {
+    // A provider's collections may reuse a numeric ID. Existing storage keys
+    // know the asset and provider ID, so refuse an ambiguous Logo collision
+    // before recording listing or withdrawal evidence for either collection.
+    let existing: Option<String> = connection
+        .query_row(
+            "SELECT record_json FROM artwork_asset_providers
+             WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
+            params![asset_sha256, incoming.provider.key(), incoming.asset_id,],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if let Some(existing) = existing {
+        let existing: ArtworkAttribution = serde_json::from_str(&existing)?;
+        let logo = crate::SteamGridDbArtworkRole::Logo;
+        let involves_logo = existing.role == logo || incoming.role == logo;
+        if involves_logo && (existing.role != incoming.role || existing.game_id != incoming.game_id)
+        {
+            return Err(PortcoveError::conflict(
+                "This image shares a SteamGridDB identifier with a different artwork listing.",
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Keeps the first record for a provider image; attribution is never dropped or
 /// rewritten by a later identical import.
 pub(crate) fn write_provider(
@@ -922,34 +952,7 @@ pub(crate) fn write_provider(
             "artwork provider attribution is dated in the future",
         ));
     }
-    // A provider's collections may reuse a numeric ID. Existing storage keys
-    // know the asset and provider ID, so refuse an ambiguous Logo collision
-    // before recording listing or withdrawal evidence for either collection.
-    let existing: Option<String> = connection
-        .query_row(
-            "SELECT record_json FROM artwork_asset_providers
-             WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3",
-            params![
-                record.asset_sha256,
-                record.attribution.provider.key(),
-                record.attribution.asset_id,
-            ],
-            |row| row.get(0),
-        )
-        .optional()?;
-    if let Some(existing) = existing {
-        let existing: ArtworkAttribution = serde_json::from_str(&existing)?;
-        let logo = crate::SteamGridDbArtworkRole::Logo;
-        let involves_logo = existing.role == logo || record.attribution.role == logo;
-        if involves_logo
-            && (existing.role != record.attribution.role
-                || existing.game_id != record.attribution.game_id)
-        {
-            return Err(PortcoveError::conflict(
-                "This image shares a SteamGridDB identifier with a different artwork listing.",
-            ));
-        }
-    }
+    require_compatible_provider_listing(connection, &record.asset_sha256, &record.attribution)?;
     let (recorded, total): (u64, u64) = connection.query_row(
         "SELECT (SELECT COUNT(*) FROM artwork_asset_providers WHERE asset_sha256=?1 AND NOT (provider=?2 AND asset_id=?3)),
                 (SELECT COUNT(*) FROM artwork_asset_providers)",
@@ -1255,6 +1258,12 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
             "artwork provenance exceeds its record limit",
         ));
     }
+    let png_assets: BTreeSet<_> = metadata
+        .assets
+        .iter()
+        .filter(|asset| asset.format == crate::ArtworkImageFormat::Png)
+        .map(|asset| &asset.sha256)
+        .collect();
     let mut records = BTreeSet::new();
     let mut per_asset = std::collections::BTreeMap::<&String, usize>::new();
     for record in &metadata.providers {
@@ -1267,6 +1276,13 @@ fn validate_provenance(metadata: &ArtworkMetadata, ids: &BTreeSet<&String>) -> R
         }
         validate_hash(&record.asset_sha256)?;
         validate_attribution(&record.attribution)?;
+        if record.attribution.role == crate::SteamGridDbArtworkRole::Logo
+            && !png_assets.contains(&record.asset_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "a SteamGridDB logo requires a PNG asset",
+            ));
+        }
         if !ids.contains(&record.asset_sha256)
             || !records.insert((
                 &record.asset_sha256,

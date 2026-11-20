@@ -4081,6 +4081,9 @@ fn provider_logo_keeps_credit_and_does_not_feed_destination_artwork() {
     crate::portability_authority::seal(&mut metadata, Vec::new()).unwrap();
     assert_eq!(metadata.schema_version, 13);
     crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut wrong_format = metadata.clone();
+    wrong_format.artwork.as_mut().unwrap().assets[0].format = crate::ArtworkImageFormat::Jpeg;
+    assert!(crate::library_import::validate_metadata(&wrong_format, &catalogs).is_err());
     metadata.schema_version = 12;
     assert!(crate::library_import::validate_metadata(&metadata, &catalogs).is_err());
     assert!(
