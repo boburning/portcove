@@ -35,6 +35,12 @@
       "image_sha256": "f9baa102bfbc51b00d071b3876e22767e3ee581e77e5844a781d6de689d59200",
       "game_slug": "fist-of-the-north-star-lost-paradise",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fist-of-the-north-star-lost-paradise",
+      "evidence_urls": ["https://github.com/ItalianKuze/port-ga-gotoku"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

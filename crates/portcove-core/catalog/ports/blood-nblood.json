@@ -46,6 +46,15 @@
           "instruction": "The upstream player can find a supported Steam or GOG installation. To try this, start the player without -usecwd before copying originals. Keep the existing installation, and check where the player writes settings and saves on that route."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blood",
+      "evidence_urls": [
+        "https://github.com/NBlood/NBlood/blob/497385d64b97f4fd13b6efb3929df0f2ab3adc87/README.md#nblood",
+        "https://github.com/ZDoom/Raze"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

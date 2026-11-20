@@ -345,6 +345,7 @@ fn project_channel(
         port.release.rolling_tag.as_deref(),
         |release| {
             !release.provider.draft
+                && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
                 // Uncollected assets cannot establish that this release belongs
                 // to another platform's stream. Stop at that unknown candidate.
                 && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
@@ -444,6 +445,7 @@ fn project_channel(
             port.release.rolling_tag.as_deref(),
             |release| {
                 !release.provider.draft
+                    && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
                     && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
                         || (super::native_release_applies_to_platform(
                             port,

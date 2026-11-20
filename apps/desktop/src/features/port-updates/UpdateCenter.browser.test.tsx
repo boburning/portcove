@@ -586,7 +586,7 @@ it.each(
               <Sidebar
                 view="updates"
                 setView={vi.fn()}
-                installedCount={1}
+                libraryCount={1}
                 updateCount={0}
                 activities={[activity]}
               />

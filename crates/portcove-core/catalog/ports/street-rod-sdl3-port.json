@@ -64,6 +64,15 @@
       "image_sha256": "427b375020b0410bd5c2bb0661ca1d395fc88e6636e58572654245291016aad0",
       "game_slug": "street-rod",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "street-rod",
+      "evidence_urls": [
+        "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md",
+        "https://github.com/kylofon/street-rod-sdl3"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

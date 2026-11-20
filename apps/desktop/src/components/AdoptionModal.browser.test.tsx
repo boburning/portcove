@@ -88,6 +88,16 @@ it("keeps an uncancellable copy open and inputs locked even while another operat
     expect(dialog).not.toBeNull();
     expect(dialog.querySelector("#adopt-path")?.getAttribute("data-slot")).toBe("input");
     expect(dialog.classList.contains("modal")).toBe(false);
+    const title = dialog.querySelector<HTMLElement>("#adopt-title")!;
+    const closeButton = dialog.querySelector('[aria-label="Close copy installation dialog"]')!;
+    await expect.poll(() => title.matches(":focus-visible")).toBe(true);
+    const outline = getComputedStyle(title);
+    expect(outline.outlineStyle).toBe("solid");
+    const outlineRight =
+      title.getBoundingClientRect().right +
+      Number.parseFloat(outline.outlineOffset) +
+      Number.parseFloat(outline.outlineWidth);
+    expect(closeButton.getBoundingClientRect().left - outlineRight).toBeGreaterThanOrEqual(2);
     for (const control of dialog.querySelectorAll<HTMLInputElement | HTMLButtonElement>(
       "button, input",
     ))

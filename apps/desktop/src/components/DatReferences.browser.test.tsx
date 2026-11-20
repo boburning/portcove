@@ -1,8 +1,11 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
+import { captureParityState } from "../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import "../styles/index.css";
 import type { DatReferenceStatus, SourceInspectionReport } from "../types";
-import { sourceInspectionIdentityFixture } from "../test-fixtures";
+import { failureReport, sourceInspectionIdentityFixture } from "../test-fixtures";
 import { DatReferenceSettings } from "./DatReferences";
 import { SourceIdentityPanel } from "./SourceIdentity";
 
@@ -89,6 +92,83 @@ describe("DAT files", () => {
     expect(addButton.getAttribute("aria-disabled")).not.toBe("true");
     expect(document.activeElement).toBe(addButton);
     expect(add).not.toHaveBeenCalled();
+  });
+
+  it("offers a supported DAT format after refusal and retains the exact parser detail", async () => {
+    const reason = "this DAT file can’t be used: it isn’t a complete Logiqx datafile";
+    const failure = failureReport();
+    failure.presentation.technical_message = reason;
+    failure.presentation.technical_context = { dat_problem: "logiqx_format" };
+    let saved: DatReferenceStatus[] = [];
+    const add = vi
+      .fn(async (path: string) => {
+        const reference = { ...ready, path };
+        saved = [reference];
+        return reference;
+      })
+      .mockRejectedValueOnce(failure);
+    const pick = vi.fn(async () => ready.path).mockResolvedValueOnce("C:/DATs/incomplete.dat");
+    await act(async () =>
+      root.rerender(<DatReferenceSettings load={async () => saved} add={add} pick={pick} />),
+    );
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    await act(async () => addButton.click());
+    const alert = host.querySelector("[role='alert']");
+    expect(alert?.textContent).toBe(
+      "DAT file wasn’t added. Choose a complete Logiqx XML DAT file and add it again.",
+    );
+    expect(host.textContent).not.toContain(failure.presentation.summary);
+    expect(host.textContent).toContain("No DAT files added.");
+    const disclosure = host.querySelector("details");
+    expect(disclosure?.open).toBe(false);
+    expect(disclosure?.querySelector("summary")?.textContent).toBe("View technical details");
+    const viewport = { width: innerWidth, height: innerHeight };
+    const theme = document.documentElement.dataset.theme;
+    try {
+      document.documentElement.dataset.theme = "light";
+      await page.viewport(960, 640);
+      await captureParityState("dat-refused-logiqx-format");
+      document.documentElement.dataset.theme = "dark";
+      await page.viewport(430, 780);
+      disclosure?.querySelector("summary")?.click();
+      expect(disclosure?.open).toBe(true);
+      expect(disclosure?.querySelector("pre")?.textContent).toContain(reason);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState("dat-refused-logiqx-format-details");
+    } finally {
+      if (theme) document.documentElement.dataset.theme = theme;
+      else delete document.documentElement.dataset.theme;
+      await page.viewport(viewport.width, viewport.height);
+    }
+    await act(async () => addButton.click());
+    expect(add).toHaveBeenCalledTimes(2);
+    expect(add).toHaveBeenNthCalledWith(2, ready.path);
+    expect(host.querySelector("[role='alert']")).toBeNull();
+    expect(host.textContent).toContain("Nintendo - Nintendo 64 (20261113)");
+  });
+
+  it("keeps non-format DAT failures distinct from the Logiqx replacement instruction", async () => {
+    const failure = failureReport();
+    failure.presentation.technical_message =
+      "this DAT file can’t be used: it is larger than 64 MiB";
+    await act(async () =>
+      root.rerender(
+        <DatReferenceSettings
+          load={async () => []}
+          add={vi.fn<() => Promise<DatReferenceStatus>>().mockRejectedValue(failure)}
+          pick={async () => ready.path}
+        />,
+      ),
+    );
+    const addButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Add DAT file",
+    )!;
+    await act(async () => addButton.click());
+    const text = host.querySelector("[role='alert']")?.textContent;
+    expect(text).toContain(failure.presentation.technical_message);
+    expect(text).not.toContain("Choose a complete Logiqx XML DAT file");
   });
 
   it("refreshes a failed inventory without picking a file and returns focus to Add", async () => {

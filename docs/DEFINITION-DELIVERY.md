@@ -1664,6 +1664,40 @@ Since 2026-11-15 the bundle below is published by
 [Catalog publication](RELEASING.md#current-release-process). The coordinator,
 review and journal steps described in the rest of this section are retired.
 
+### Prepare one generated definition
+
+`node scripts/catalog-prepare-publication.mts project --catalog CATALOG --port ID
+--projection-template TEMPLATE --validator CORE_CLI` writes Core’s canonical typed
+projection to standard output. Use the independently reviewed generated operational
+catalog and a CLI that supports `catalog canonical-definition-projection`. The
+template supplies the existing projection contract schema and reviewed catalog
+source graph, with `representation` set to `catalog_projection` and an empty
+`catalog.ports` array. The tool inserts the exact matching managed record. A
+listing without an operational definition cannot supply this input.
+
+Use `prepare` with the same inputs and `--prior PRIOR_BUNDLE --reviewed
+REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` after
+the request, index, typed definition entry, policy and applicable launch
+records have been independently reviewed. The review directory contains the
+existing `request.json` and `bundle/` layout. A newly generated projection
+must match the indexed digest exactly. A semantically identical projection
+already in the baseline retains its original bytes and digest. Supply
+`--projection-producer CORE_CLI` when the frozen released `--validator`
+supports bundle inspection but predates canonical projection output. The bridge
+fingerprints each executable and sends the completed bundle to the validator.
+
+The index hash binds every retained managed policy. Adding an entry therefore
+requires reviewed policy revisions and matching launch records for the other
+entries. Their definition content, grant scope and launch assessments remain
+intact. Old bindings, equal-revision replacement and missing review files
+refuse. The tool runs the existing inert Core inspector on the supplied prior
+bundle and candidate before it returns a new local `request.json` and `bundle/`
+directory. Its receipt records the exact inputs and output digests with authority
+`none`. The protected publisher still establishes the authenticated baseline,
+revision floors, signing and public delivery through the existing workflow.
+
+### Historical coordinator
+
 The automatic catalog authoring boundary is the fixed inert source subtree
 `release/catalog-publication/`: strict `request.json` plus `bundle/` containing
 the managed index, checksum-addressed definitions and official policy/launch

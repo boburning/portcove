@@ -47,6 +47,15 @@
         "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
         "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "midtown-madness-sneak-preview-beta-build-1560",
+      "evidence_urls": [
+        "https://github.com/0x1F9F1/Open1560",
+        "https://github.com/0x1F9F1/Open1560/tree/965d1cccc1d7bbecdb799c01c1f9daab1344d580"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

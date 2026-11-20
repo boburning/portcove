@@ -45,6 +45,16 @@
       "warnings": [
         "Select Bloodborne.exe in the intact Supermedo Windows package and use your own decrypted CUSA03173 v1.09. Preserve user/, runtime configuration and %APPDATA%/bbport-launcher or existing path overrides; other Bloodborne forks keep separate contracts."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bloodborne",
+      "evidence_urls": [
+        "https://github.com/Supermedo/bloodborne_pc/blob/22a6a3cdada0d1e5b6e8220ef41f1cf847e55453/README.md",
+        "https://github.com/Supermedo/bloodborne_pc"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Bloodborne"
   }
 }

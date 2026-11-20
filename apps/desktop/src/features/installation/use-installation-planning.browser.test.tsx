@@ -45,6 +45,7 @@ function Fixture({
   generation = 1,
   registeredSource,
   sourcePath = "",
+  adoptionPerform = perform,
 }: {
   port?: string | null;
   channel?: "stable" | "beta";
@@ -53,6 +54,7 @@ function Fixture({
   generation?: number;
   registeredSource?: SourceRecord;
   sourcePath?: string;
+  adoptionPerform?: Perform;
 }) {
   install = useInstallPlanning(
     port ?? undefined,
@@ -69,7 +71,7 @@ function Fixture({
     registeredSource,
     sourcePath,
   );
-  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done, [
+  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, adoptionPerform, done, [
     { ...portDefinition(), id: "first", name: "Game first" },
     { ...portDefinition(), id: "second", name: "Game second" },
   ]);
@@ -648,5 +650,42 @@ describe("current review intent", () => {
       pending.resolve(null);
       await first;
     });
+  });
+
+  it("does not revive a readback phase after its review identity is invalidated", async () => {
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({
+      selected_port_id: "first",
+      plan_sha256: "reviewed",
+    } as Preview);
+    vi.spyOn(desktopApi, "adopt").mockResolvedValue(null);
+    const readback = deferred<void>();
+    const adoptionPerform: Perform = async (name, task, options) => {
+      const result = await perform(name, task, options);
+      if (name === "adopt") await readback.promise;
+      return result;
+    };
+    await render({ adoptionPerform });
+    await act(async () => adoption.review());
+    let pending!: Promise<void>;
+    try {
+      await act(async () => {
+        pending = adoption.adopt();
+      });
+      expect(adoption.applying).toBe(true);
+      expect(adoption.refreshing).toBe(true);
+      await render({ adoptionPerform, generation: 2 });
+      expect(adoption.refreshing).toBe(false);
+      await render({ adoptionPerform });
+      expect(adoption.refreshing).toBe(false);
+    } finally {
+      await act(async () => {
+        readback.resolve();
+        await pending;
+      });
+    }
+    expect(adoption.applying).toBe(false);
+    expect(adoption.refreshing).toBe(false);
+    expect(done).not.toHaveBeenCalled();
+    expect(desktopApi.adopt).toHaveBeenCalledOnce();
   });
 });

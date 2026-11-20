@@ -1060,8 +1060,10 @@ The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
 Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
-host preference. Core compares the SHA-1 or SHA-256 and size it already
-observed for the selected files with the DAT entries and reports the matching
+host preference. If the import rejects the Logiqx format, Settings prompts
+players to choose a complete Logiqx XML DAT file and keeps the exact parser
+reason in technical details. Core compares the SHA-1 or SHA-256 and size it
+already observed for the selected files with the DAT entries and reports the matching
 entry name beside the catalog result, for example to say a rejected file is the
 Europe dump. A DAT file must list a size to match. An entry is complete only
 when every file that has a SHA-1 or SHA-256 and is not a cue or gdi descriptor
@@ -2287,6 +2289,13 @@ updates. A deliberate `DirectManifest`, rolling tag, source/runtime identity or
 exact qualification record must not be broadened to manufacture automatic
 updates.
 
+For a managed GitHub route, `release.github_other_stream_tag_prefixes` can
+exclude a reviewed upstream stream on a specific supported platform. Use it
+for independently published add-ons or other platform streams with documented
+tag prefixes. Core excludes these tags even before asset collection. Releases
+in the selected stream with incomplete package evidence still hold. Review the
+existing tag history before adding a prefix and retain exact package verification.
+
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
 let the existing provider observe each release's version, asset ID, exact name,
@@ -2363,6 +2372,16 @@ different layout is refused with a player-facing reason naming the new or missin
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
+
+An independently reviewed managed GitHub archive with only the selected root
+executable and no fingerprinted directories can declare
+`reviewed_flat_package_layout_v1` as the ordered list of reviewed platforms.
+The existing executable hints supply the basename in the generated fingerprint.
+Keep the actual package selectors, executable hints and all runtime, original
+game and qualification facts explicit. Preparation proposes this form only
+when a previously reviewed fingerprint reproduces the existing integration byte
+for byte. Archives with extra programs, directories or package-layout options
+keep their explicit fingerprints.
 
 For an official Linux archive with a dedicated portable-data directory, omit
 that directory from the reviewed layout. Core checks that the executable's
@@ -3566,6 +3585,20 @@ different provider, optional settings declaration or different writer set uses
 an explicit integration. URL preparation proposes the family form when its
 expanded integration reproduces the reviewed explicit bytes.
 
+Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
+shared portable-root persistence list for the reviewed ReflectionHLE route.
+Keep the original editions, platform packages, launch arguments and reviewed
+package layouts explicit. Preparation proposes the shared form only when it
+can reproduce the exact reviewed integration bytes. A different writer scope
+or additional runtime layout declaration uses explicit paths.
+
+Optional authoring-only `crispy_doom_windows_persistence_v1: true` expands the
+reviewed Windows persistent paths and filename patterns shared by the Crispy
+Doom, Heretic, Hexen and Strife player routes. Keep each game mode, package
+selector, executable, original edition, launch values and qualification
+explicit. Preparation compacts only integrations that expand byte for byte.
+A fork or a different writer layout uses explicit paths.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the
@@ -3598,6 +3631,13 @@ or the overlay temporary-file pattern. The dual-platform selector, BIOS and
 split mod rules still apply. For the reviewed retail multidisc split-mods kits,
 keep `runtime-discs`, `psx-settings-selected` and `psx-raw-set` explicit in the
 integration.
+
+Use `"technically-computers"` for the reviewed TechnicallyComputers GitHub
+kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
+variant supplies only the `build-portcove` runtime root and eight persistent
+paths. Each record retains its repository, asset selectors, executable hints,
+original disc profile, guide and qualification. A different upstream or writer
+layout uses explicit fields.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.

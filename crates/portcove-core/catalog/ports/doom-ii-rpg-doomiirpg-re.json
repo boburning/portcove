@@ -56,7 +56,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["DoomIIRPG.", ".zip"]
     },
-    "original_game_title": "Doom II RPG"
+    "original_game_title": "Doom II RPG",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-ii-rpg",
+      "evidence_urls": [
+        "https://github.com/Erick194/DoomIIRPG-RE#readme",
+        "https://github.com/Erick194/DoomIIRPG-RE"
+      ],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "beta",

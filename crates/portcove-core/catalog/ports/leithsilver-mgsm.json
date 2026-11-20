@@ -47,6 +47,15 @@
     "platforms": ["linux-x86-64"],
     "download_asset_hints": {
       "linux-x86-64": ["mgs_mobile_", "_linux_x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-solid-mobile",
+      "evidence_urls": [
+        "https://github.com/LeithSilver/mgsm#readme",
+        "https://github.com/LeithSilver/mgsm"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -25575,6 +25575,37 @@
             },
             "type": "object"
           },
+          "github_other_stream_tag_prefixes": {
+            "additionalProperties": false,
+            "description": "Reviewed prefixes belonging to other streams, scoped to a managed GitHub platform.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "grant_declared_executable": {
             "description": "Native22, Libultraship4 or GeneratedCache2 (by adapter): after extraction on a Unix platform, grant\nexecute permission to the declared executable only when it verifies as a binary for\nthat platform. The publisher's own executable bit, when present, is never changed.",
             "type": "boolean"

@@ -52,6 +52,16 @@
           "instruction": "Keep the complete creating runtime and every actual game, user, cache, mod, mod-dump, update, metadata and custom root, including external game-version links. Relative path settings resolve against the configuration’s parent directory in the inspected SDK. A portable.txt beside the executable makes the default user directory user/ beside it; other configurations use platform folders. Preserve settings.toml, runtime configuration, selected-version metadata, install/migration staging, saves, mods, caches, backups and temporary files. Keep established paths and creating-runtime compatibility; the working directory alone does not identify all player data."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "eternal-sonata",
+      "evidence_urls": [
+        "https://github.com/birabittoh/EternalSonataReprise",
+        "https://github.com/birabittoh/EternalSonataReprise/releases/tag/v1.3.7"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Eternal Sonata"
   }
 }

@@ -52,6 +52,15 @@
           "instruction": "The 0.3.10 packages bundle .NET. The launcher can defer an update or roll back a failed start. The project reports a boss or orb sound issue. Exact disc mastering, separate BIOS requirements and a full playthrough are unconfirmed."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-chronicles",
+      "evidence_urls": [
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp/blob/0b578b91c14eeb25c06185d660954b86ff092fff/README.md",
+        "https://github.com/Spicywonda/castlevania-chronicles-recomp"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

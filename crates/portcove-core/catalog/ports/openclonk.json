@@ -42,6 +42,15 @@
         }
       ],
       "help_url": "https://www.openclonk.org/download/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "openclonk",
+      "evidence_urls": [
+        "https://www.openclonk.org/download/",
+        "https://github.com/openclonk/openclonk"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

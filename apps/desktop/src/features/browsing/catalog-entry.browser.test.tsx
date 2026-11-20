@@ -101,6 +101,7 @@ function Fixture({ clearMedia, editionNeutral }: { clearMedia: boolean; editionN
           view="catalog"
           ports={entries}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}

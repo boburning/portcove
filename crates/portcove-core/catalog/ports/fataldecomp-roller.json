@@ -45,6 +45,15 @@
           "instruction": "Upstream/player owns runtime replacement. The native source enters FATDATA/fatdata under the executable or --whiplash-root root; original extracted data and mutable FATAL.INI, ROLLER.INI, records and save slots live there. REPLAYS/ and TRACKS/ are created under the root. Preserve that whole root, custom MIDI location and any logs/crash data before changing a daily build. Portcove does not own original assets, external saves, update compatibility, backups, rollback or deletion."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "whiplash",
+      "evidence_urls": [
+        "https://github.com/FatalDecomp/ROLLER",
+        "https://github.com/FatalDecomp/ROLLER#readme"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

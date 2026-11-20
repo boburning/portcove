@@ -35,6 +35,12 @@
       "image_sha256": "7839e528887aaf8daa9c151a62215be9479717ea9cac1abdf91c78601e0cf66d",
       "game_slug": "persona-3-dancing-in-moonlight",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-dancing-in-moonlight",
+      "evidence_urls": ["https://github.com/MaouAnimus/p3d-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

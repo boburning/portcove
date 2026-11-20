@@ -39,6 +39,15 @@
       "warnings": [
         "The original’s sections run within the installed odyssey.exe player. The publisher’s setup and uninstaller own replacement and removal."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-odyssey",
+      "evidence_urls": [
+        "https://github.com/kingzmanh/alien-odyssey-pc/blob/v0.1.0/README.md",
+        "https://github.com/kingzmanh/alien-odyssey-pc"
+      ],
+      "source_editions": []
     }
   }
 }

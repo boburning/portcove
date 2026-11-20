@@ -16,6 +16,10 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
+  compactReviewedFlatPackageLayout,
+  projectReviewedFlatPackageLayout,
+} from "./catalog-reviewed-flat-package-layout.mts";
+import {
   compactN64RecompPersistence,
   projectN64RecompPersistence,
 } from "./catalog-n64-recomp-persistence.mts";
@@ -29,6 +33,14 @@ import {
 } from "./catalog-raze-windows-profile.mts";
 import { estimateHealthRequests } from "./check-catalog-repositories.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
+import {
+  compactCrispyDoomWindowsPersistence,
+  projectCrispyDoomWindowsPersistence,
+} from "./catalog-crispy-doom-windows-persistence.mts";
+import {
+  compactReflectionHlePortablePaths,
+  projectReflectionHlePortablePaths,
+} from "./catalog-portable-reflectionhle.mts";
 
 import {
   requiredFixture,
@@ -176,6 +188,36 @@ void test("current authored operational routes remain valid read-only health inv
   assert.doesNotThrow(() => estimateHealthRequests(readCatalogSource(catalogRoot).catalog));
 });
 
+void test("Crispy Doom persistence preserves all six exact Windows package layouts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.crispy_doom_windows_persistence_v1);
+  assert.equal(family.length, 6);
+  for (const record of family) {
+    const projected = projectAuthoredPort(record);
+    assert.equal(JSON.stringify(projected), JSON.stringify(prior.get(record.listing.id)));
+    const explicit = projectCrispyDoomWindowsPersistence(record);
+    delete explicit.crispy_doom_windows_persistence_v1;
+    assert.deepEqual(compactCrispyDoomWindowsPersistence(explicit), record);
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_file_patterns = [];
+    assert.equal(compactCrispyDoomWindowsPersistence(alternate), alternate);
+    alternate.crispy_doom_windows_persistence_v1 = true;
+    assert.throws(() => checkedAuthoredPort(alternate), /already owns the persistent paths/u);
+  }
+  const startedWithOtherArguments = structuredClone(requiredFixture(family[0]));
+  startedWithOtherArguments.integration!.launch_arguments = [
+    "-game",
+    "doom",
+    "-savedir",
+    "another-folder",
+  ];
+  assert.throws(
+    () => checkedAuthoredPort(startedWithOtherArguments),
+    /requires the reviewed Windows portable data route/u,
+  );
+});
+
 void test("Raze Windows authoring preserves the exact shared package and profile facts", () => {
   const { records } = readCatalogSource(catalogRoot);
   const family = records.filter((record) => record.raze_windows_profile_v1);
@@ -221,6 +263,46 @@ void test("Raze Windows authoring preserves the exact shared package and profile
   assert.equal(explicit.raze_windows_profile_v1, undefined);
   assert.equal(compactRazeWindowsProfile(explicit), explicit);
   assert.equal(projectAuthoredPort(explicit)?.portable_marker_file, "gzdoom_portable.ini");
+});
+
+void test("reviewed flat package authoring preserves ordered fingerprints and explicit exceptions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
+  const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
+  assert.equal(family.length, 13);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(prior.get(record.listing.id)),
+    );
+    const explicit = projectReviewedFlatPackageLayout(record);
+    delete explicit.reviewed_flat_package_layout_v1;
+    assert.deepEqual(compactReviewedFlatPackageLayout(explicit), record);
+  }
+  const selected = requiredFixture(
+    family.find((record) => record.listing.id === "bvschaik-julius"),
+  );
+  assert.deepEqual(selected.reviewed_flat_package_layout_v1, ["linux-x86-64", "windows-x86-64"]);
+  const nested = structuredClone(selected);
+  nested.integration!.executable_hints = {
+    "linux-x86-64": ["app/julius"],
+    "windows-x86-64": ["julius.exe"],
+  };
+  assert.throws(
+    () => checkedAuthoredPort(nested),
+    /requires a managed GitHub archive with one root executable/u,
+  );
+  const duplicate = structuredClone(selected);
+  duplicate.integration!.reviewed_package_layouts = {};
+  assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
+  for (const id of [
+    "mdk-sdl-nemo22",
+    "blake-stone-aliens-of-gold-bstone",
+    "bstoney-yt-mercenaries-2-decompilation",
+  ]) {
+    const explicit = requiredFixture(records.find((record) => record.listing.id === id));
+    assert.equal(compactReviewedFlatPackageLayout(explicit), explicit, id);
+  }
 });
 
 void test("shared upstream family facts stay consistent while game and permission facts remain independent", () => {
@@ -332,6 +414,34 @@ void test("shared upstream family facts stay consistent while game and permissio
     guide.steps = steps;
   }
   check(independent);
+});
+
+void test("ReflectionHLE authoring preserves the exact portable data paths for all configured ports", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const family = records.filter((record) => record.reflectionhle_portable_paths_v1);
+  assert.equal(family.length, 9);
+  for (const record of family) {
+    const explicit = projectReflectionHlePortablePaths(record);
+    delete explicit.reflectionhle_portable_paths_v1;
+    const projected = requiredFixture(projectAuthoredPort(record));
+    const fromCatalog = requiredFixture(
+      fixtureRecords(schema3Fixture.ports).find((port) => port.id === record.listing.id),
+    );
+    assert.deepEqual(projected, fromCatalog);
+    assert.ok(Array.isArray(projected.persistent_paths));
+    const persistentPaths: unknown[] = projected.persistent_paths;
+    assert.equal(persistentPaths.length, 110);
+    assert.deepEqual(compactReflectionHlePortablePaths(explicit), record);
+
+    const alternate = structuredClone(explicit);
+    alternate.integration!.persistent_paths = [...persistentPaths, "custom.cfg"];
+    assert.equal(compactReflectionHlePortablePaths(alternate), alternate);
+    alternate.reflectionhle_portable_paths_v1 = true;
+    assert.throws(() => checkedAuthoredPort(alternate), /already own persistent_paths/u);
+  }
+  const nested = structuredClone(requiredFixture(family[0]));
+  nested.integration!.runtime_subdirectory = "alternate";
+  assert.throws(() => checkedAuthoredPort(nested), /reviewed portable root layout/u);
 });
 
 void test("per-port source projects all accepted operations unchanged and listing-only records stay inert", () => {
@@ -1036,7 +1146,10 @@ void test("reviewed GBA archive facts preserve both installed contract variants"
 void test("PSX managed Windows authoring preserves the embedded contracts", () => {
   const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
   const { records } = readCatalogSource(catalogRoot);
-  const consumers = records.filter((record) => record.psx_managed_windows_v1);
+  const consumers = records.filter(
+    (record) =>
+      record.psx_managed_windows_v1 && record.psx_managed_windows_v1 !== "technically-computers",
+  );
   assert.ok(consumers.length > 0);
   for (const record of consumers) {
     const id = record.listing.id;
@@ -1077,6 +1190,43 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
     delete release.asset_hints["linux-x86-64"];
     assert.throws(() => checkedAuthoredPort(missingSelector), /explicit asset selector/u);
   }
+});
+
+void test("TechnicallyComputers PSX persistence preserves the reviewed three-platform definitions", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "technically-computers",
+  );
+  assert.equal(family.length, 10);
+  for (const record of family) {
+    assert.equal(
+      JSON.stringify(projectAuthoredPort(record)),
+      JSON.stringify(accepted.get(record.listing.id)),
+    );
+    const explicit = projectPsxManagedWindows(record);
+    assert.deepEqual(explicit.integration?.persistent_paths, [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+    ]);
+    assert.equal(explicit.integration?.runtime_subdirectory, "build-portcove");
+  }
+  const conflict = structuredClone(requiredFixture(family[0]));
+  conflict.integration!.runtime_subdirectory = "different-root";
+  assert.throws(() => checkedAuthoredPort(conflict), /already owns the runtime root/u);
+  const incorrectRoute = structuredClone(requiredFixture(family[0]));
+  incorrectRoute.integration!.platforms = ["windows-x86-64"];
+  delete incorrectRoute.managed_setup_platform_warnings;
+  assert.throws(() => checkedAuthoredPort(incorrectRoute), /reviewed Windows and macOS/u);
+  const tomba = requiredFixture(records.find(({ listing }) => listing.id === "tomba-recompiled"));
+  assert.equal(tomba.psx_managed_windows_v1, undefined);
+  assert.equal(compactPsxManagedWindows(tomba), tomba);
 });
 
 void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {

@@ -200,6 +200,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     platform: Platform,
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
+    other_stream_tag_prefixes: Vec<String>,
     accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
     acquisition_policy: Option<crate::ManagedAcquisitionHold>,
@@ -252,6 +253,7 @@ impl ReleaseSelectionCacheKey {
                 .get(&platform)
                 .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
                 .unwrap_or_default(),
+            other_stream_tag_prefixes: port.release.github_stream_exclusions(platform).to_vec(),
             accepted_uploaders: {
                 let mut ids = port
                     .release
@@ -1568,11 +1570,13 @@ impl GithubReleaseProvider {
                 "the saved package release inventory repeats a provider release identity",
             ));
         }
-        while let Some(index) = select_github_release_index(releases, port, channel, |release| {
-            !release.draft
-                && (refresh.needs(release)
-                    || native_release_applies_to_platform(port, platform, release))
-        }) {
+        while let Some(index) =
+            select_github_release_index(releases, port, channel, platform, |release| {
+                !release.draft
+                    && (refresh.needs(release)
+                        || native_release_applies_to_platform(port, platform, release))
+            })
+        {
             let release = &mut releases[index];
             if !refresh.needs(release) {
                 break;
@@ -1876,7 +1880,7 @@ impl GithubReleaseProvider {
         let applies = |release: &GithubRelease| {
             !release.draft && native_release_applies_to_platform(port, platform, release)
         };
-        let latest_index = select_github_release_index(&releases, port, channel, applies)
+        let latest_index = select_github_release_index(&releases, port, channel, platform, applies)
             .ok_or_else(|| {
                 PortcoveError::not_found(format!(
                     "no published {channel} release exists for {}",
@@ -1954,24 +1958,25 @@ impl GithubReleaseProvider {
                 // A saved choice needs complete evidence only for the next
                 // reviewed fallback in channel order after the latest digest
                 // has actually triggered the hold.
-                let index = select_github_release_index(&releases, port, channel, |candidate| {
-                    candidate.tag_name != latest_tag
-                        && !candidate.draft
-                        && !checked
-                            .iter()
-                            .any(|previous| std::ptr::eq(&releases[*previous], candidate))
-                        && reviewed
-                            .iter()
-                            .any(|(version, _)| *version == candidate.tag_name)
-                        && (saved_refresh
-                            .as_ref()
-                            .is_some_and(|refresh| refresh.needs(candidate))
-                            || applies(candidate))
-                })
-                .ok_or_else(|| match (withheld, hold) {
-                    (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
-                    _ => PortcoveError::not_found("no reviewed fallback release is available"),
-                })?;
+                let index =
+                    select_github_release_index(&releases, port, channel, platform, |candidate| {
+                        candidate.tag_name != latest_tag
+                            && !candidate.draft
+                            && !checked
+                                .iter()
+                                .any(|previous| std::ptr::eq(&releases[*previous], candidate))
+                            && reviewed
+                                .iter()
+                                .any(|(version, _)| *version == candidate.tag_name)
+                            && (saved_refresh
+                                .as_ref()
+                                .is_some_and(|refresh| refresh.needs(candidate))
+                                || applies(candidate))
+                    })
+                    .ok_or_else(|| match (withheld, hold) {
+                        (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
+                        _ => PortcoveError::not_found("no reviewed fallback release is available"),
+                    })?;
                 checked.push(index);
                 let fallback = &mut releases[index];
                 if let Some(refresh) = &mut saved_refresh
@@ -2190,11 +2195,24 @@ fn fresh_release_id(release: &GithubRelease) -> Result<u64> {
     })
 }
 
+fn tag_in_stream(tag: &str, other_stream_prefixes: &[String]) -> bool {
+    !other_stream_prefixes
+        .iter()
+        .any(|prefix| tag.starts_with(prefix))
+}
+
+fn github_tag_in_stream(port: &PortDefinition, platform: Platform, tag: &str) -> bool {
+    tag_in_stream(tag, port.release.github_stream_exclusions(platform))
+}
+
 fn native_release_applies_to_platform(
     port: &PortDefinition,
     platform: Platform,
     release: &GithubRelease,
 ) -> bool {
+    if !github_tag_in_stream(port, platform, &release.tag_name) {
+        return false;
+    }
     if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
         || port.release.curated.contains_key(&platform)
     {
@@ -2266,13 +2284,16 @@ fn select_github_release_index(
     releases: &[GithubRelease],
     port: &PortDefinition,
     channel: ReleaseChannel,
+    platform: Platform,
     selectable: impl Fn(&GithubRelease) -> bool,
 ) -> Option<usize> {
     let candidate = select_channel_candidate(
         releases,
         channel,
         port.release.rolling_tag.as_deref(),
-        selectable,
+        // Release headers are enough to exclude a reviewed foreign stream.
+        // Only in-stream candidates can request or consume asset inventories.
+        |release| github_tag_in_stream(port, platform, &release.tag_name) && selectable(release),
         is_beta_release,
         |release| release.tag_name.as_str(),
     )?;
@@ -3850,6 +3871,7 @@ mod tests {
             platform: Platform::WindowsX86_64,
             rolling_tag: None,
             asset_hints: Vec::new(),
+            other_stream_tag_prefixes: Vec::new(),
             acquisition_policy: None,
             accepted_uploaders: Vec::new(),
         };
@@ -3880,6 +3902,7 @@ mod tests {
                         platform: Platform::WindowsX86_64,
                         rolling_tag: None,
                         asset_hints: Vec::new(),
+                        other_stream_tag_prefixes: Vec::new(),
                         acquisition_policy: None,
                         accepted_uploaders: Vec::new(),
                     },

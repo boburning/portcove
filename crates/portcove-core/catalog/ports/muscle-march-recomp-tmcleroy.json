@@ -17,6 +17,13 @@
       "image_sha256": "313d6afdc7b8b20debfc26560beffd862e53cb28b262875edd9bfdf2cac63d7a",
       "game_slug": "muscle-march",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "muscle-march",
+      "evidence_urls": ["https://github.com/tmcleroy/muscle-march-recomp"],
+      "source_editions": []
+    },
+    "original_game_title": "Muscle March"
   }
 }

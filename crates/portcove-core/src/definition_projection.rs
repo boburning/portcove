@@ -5,12 +5,85 @@ use std::sync::Arc;
 
 use crate::{Catalog, DefinitionContentIndex, DefinitionEntryInspection, PortcoveError, Result};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ProjectionDocument {
     contract_schema: u32,
     representation: String,
     catalog: Value,
+}
+
+impl ProjectionDocument {
+    fn validated_catalog(&self) -> Result<Catalog> {
+        let catalog_json = serde_json::to_string(&self.catalog)?;
+        if catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
+            return Err(PortcoveError::verification(
+                "projected catalog exceeds its existing byte bound",
+            ));
+        }
+        let catalog = Catalog::from_json(&catalog_json)?;
+        for port in catalog.ports() {
+            if port.upstream_active_reviewed && self.contract_schema != 2 {
+                return Err(PortcoveError::unsupported(
+                    "a reviewed active project requires indexed catalog projection schema 2",
+                ));
+            }
+            crate::definition_entry::require_indexed_persistence(port)?;
+        }
+        Ok(catalog)
+    }
+}
+
+/// Materializes one proposed port's exact typed contract without opening a library.
+pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String> {
+    let limit = crate::definition_index::MAX_CONTENT_BYTES;
+    let bytes = crate::path::read_bounded_regular(path, limit)?;
+    let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
+    let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
+    if !matches!(document.contract_schema, 1 | 2) || document.representation != "catalog_projection"
+    {
+        return Err(PortcoveError::unsupported(
+            "unsupported definition catalog projection contract",
+        ));
+    }
+    let catalog = document.validated_catalog()?;
+    if catalog.ports().len() != 1 {
+        return Err(PortcoveError::usage(
+            "definition projection preparation requires exactly one port",
+        ));
+    }
+    let typed = serde_json::to_value(catalog.authoritative_document())?;
+    if !retains_authored_fields(&document.catalog, &typed) {
+        return Err(PortcoveError::verification(
+            "canonical projection would omit or change authored fields",
+        ));
+    }
+    document.catalog = typed;
+    let output = format!("{}\n", serde_json::to_string_pretty(&document)?);
+    if output.len() as u64 > limit {
+        return Err(PortcoveError::verification(
+            "canonical projection exceeds its byte bound",
+        ));
+    }
+    Ok(output)
+}
+
+fn retains_authored_fields(authored: &Value, typed: &Value) -> bool {
+    match (authored, typed) {
+        (Value::Object(authored), Value::Object(typed)) => authored.iter().all(|(name, value)| {
+            typed
+                .get(name)
+                .is_some_and(|field| retains_authored_fields(value, field))
+        }),
+        (Value::Array(authored), Value::Array(typed)) => {
+            authored.len() == typed.len()
+                && authored
+                    .iter()
+                    .zip(typed)
+                    .all(|(a, b)| retains_authored_fields(a, b))
+        }
+        _ => authored == typed,
+    }
 }
 
 /// Exact interpreted origin. Deserialization alone never establishes validity.
@@ -218,21 +291,7 @@ impl DefinitionContentIndex {
                 "unsupported definition catalog projection contract",
             ));
         }
-        let catalog_json = serde_json::to_string(&document.catalog)?;
-        if catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
-            return Err(PortcoveError::verification(
-                "projected catalog exceeds its existing byte bound",
-            ));
-        }
-        let mut catalog = Catalog::from_json(&catalog_json)?;
-        for port in catalog.ports() {
-            if port.upstream_active_reviewed && document.contract_schema != 2 {
-                return Err(PortcoveError::unsupported(
-                    "a reviewed active project requires indexed catalog projection schema 2",
-                ));
-            }
-            crate::definition_entry::require_indexed_persistence(port)?;
-        }
+        let mut catalog = document.validated_catalog()?;
         // Track counts live in the source profile, so only the projection can
         // tell that the entry's disc set needs a reader that keeps every track.
         if catalog.requires_psx_multi_track_set(catalog.port(stable_id)?)

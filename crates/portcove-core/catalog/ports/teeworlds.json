@@ -49,6 +49,15 @@
         }
       ],
       "help_url": "https://www.teeworlds.com/?page=docs"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "teeworlds",
+      "evidence_urls": [
+        "https://www.teeworlds.com/?page=docs",
+        "https://github.com/teeworlds/teeworlds"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

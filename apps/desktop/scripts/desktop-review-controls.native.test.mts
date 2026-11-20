@@ -245,8 +245,10 @@ function clickDiagnosticFixture(program: string) {
     new URL("./desktop-review-controls.mts", import.meta.url),
     `
     const {clickVisible} = await import(entry);
-    function fixture(failureStage, original, contextFailure) {
+    const {runInNewContext} = await import("node:vm");
+    function fixture(failureStage, original, contextFailure, obscured = false) {
       const calls = [];
+      const hitPoints = [];
       const visit = (stage) => {
         calls.push(stage);
         if (stage === failureStage) throw original;
@@ -257,12 +259,13 @@ function clickDiagnosticFixture(program: string) {
         async click() { visit("webdriver-click"); },
       };
       const browser = {
+        actions() { throw Error("Default dispatch must not substitute native Actions"); },
         async wait(condition) {
           const result = await (typeof condition === "function" ? condition() : condition.fn());
-          assert.equal(result, true, "Every interaction gate must pass");
+          assert.ok(result, "Every interaction gate must pass");
           return result;
         },
-        async executeScript(script) {
+        async executeScript(script, ...args) {
           const source = String(script);
           if (source.includes("scrollContainers")) {
             calls.push("context");
@@ -274,10 +277,22 @@ function clickDiagnosticFixture(program: string) {
             : source.includes("elementFromPoint") ? "pointer-target"
             : source.includes(".click()") ? "dom-click" : "scroll";
           visit(stage);
-          return true;
+          if (stage !== "pointer-target") return true;
+          const target = {
+            scrollIntoView() {},
+            getBoundingClientRect() { return { x: 76.5, y: 61.75, width: 148.5, height: 37 }; },
+            contains() { return false; },
+          };
+          return runInNewContext("(" + source + ")(...scriptArguments)", {
+            scriptArguments: [target, ...args.slice(1)],
+            document: { elementFromPoint(x, y) {
+              hitPoints.push({ x, y });
+              return obscured ? {} : target;
+            }},
+          });
         },
       };
-      return { calls, element, browser };
+      return { calls, hitPoints, element, browser };
     }
     function diagnostic(error) {
       assert(error instanceof Error);
@@ -297,6 +312,141 @@ void test("native review clicks retain every gate and the requested dispatch wit
       const f = fixture();
       await clickVisible(f.browser, f.element, { dispatch });
       assert.deepEqual(f.calls, [...gates, dispatch + "-click"]);
+      assert.deepEqual(f.hitPoints, [{ x: 150.75, y: 80.25 }]);
+    }
+    const covered = fixture(undefined, undefined, undefined, true);
+    await assert.rejects(
+      clickVisible(covered.browser, covered.element),
+      error => diagnostic(error).stage === "pointer-target",
+    );
+    assert.deepEqual(covered.calls, [...gates, "context"]);
+  `);
+});
+
+void test("Linux GTK pointers convert page zoom once and refuse a misdelivered move before pressing", () => {
+  clickDiagnosticFixture(`
+    Object.defineProperty(process, "platform", {value:"linux"});
+    function gtkFixture({ hovered = true, zoom = "400", width = 240, failPress = false,
+      visible = true, enabled = true, obscured = false, multiple = false } = {}) {
+      const calls = [];
+      const hits = [];
+      const observations = [];
+      const element = {
+        tagName: "BUTTON", id: "connect-folder", textContent: "Connect folder",
+        getAttribute(name) {
+          if (name.startsWith("data-discover-")) return JSON.stringify(multiple ? ["fixture","other"] : ["fixture"]);
+          return null;
+        },
+        getClientRects() { return [{}]; },
+        async findElement() { return element; },
+        closest() { return null; },
+        getAnimations() { return []; },
+        focus() { calls.push("focus"); },
+        scrollIntoView() { calls.push("scroll"); },
+        getBoundingClientRect() { return { x: 76.5, y: 61.75, width: 148.5, height: 37 }; },
+        contains(hit) { return hit === element; },
+        matches(selector) { return selector === ":hover" && hovered; },
+        async isDisplayed() { calls.push("visible"); return visible; },
+        async isEnabled() { calls.push("enabled"); return enabled; },
+        async click() { throw Error("Element Click is forbidden in explicit GTK mode"); },
+      };
+      const document = {
+        elementFromPoint(x,y) { hits.push({x,y}); return obscured ? null : element; },
+      };
+      const browser = {
+        async executeScript(script, ...args) {
+          if (String(script).includes("scrollContainers")) return {};
+          const result = runInNewContext(
+            typeof script === "function" ? "("+script+")(...args)" : "(function(){"+script+"}).apply(null,args)",
+            { args, document, innerWidth: width, innerHeight: 160,
+              localStorage: { getItem: () => zoom }, getComputedStyle: () => ({visibility:"visible"}) },
+          );
+          return result === undefined ? undefined : JSON.parse(JSON.stringify(result));
+        },
+        async wait(condition, timeout, message) {
+          if (condition?.using) return element;
+          const result = await (typeof condition === "function" ? condition() : condition.fn());
+          assert.ok(result, message ?? "Every GTK gate must pass");
+          return result;
+        },
+        async findElements(locator) { return locator.value === ".navigation-sheet" ? [] : [element]; },
+        actions() {
+          const queued = [];
+          return {
+            move(point) { queued.push({ move: point }); return this; },
+            press() { queued.push("press"); return this; },
+            release() { queued.push("release"); return this; },
+            async perform() {
+              calls.push(queued);
+              if (failPress && queued.includes("press")) throw Error("Native press refused");
+            },
+          };
+        },
+      };
+      const options = { dispatch: "webkit-window-pointer", pageZoom: 4,
+        baselineViewport: { width: 960, height: 640 }, observe: value => observations.push(value) };
+      return { browser, element, options, calls, hits, observations };
+    }
+    const f = gtkFixture();
+    await clickVisible(f.browser, f.element, f.options);
+    assert.deepEqual(f.calls.filter(Array.isArray), [
+      [{ move: { x: 603, y: 321, duration: 0 } }], ["press", "release"],
+    ]);
+    assert.deepEqual(f.hits, [{ x: 150.75, y: 80.25 }, { x: 150.75, y: 80.25 }]);
+    assert.deepEqual(f.observations, [{
+      target: {tag:"BUTTON",id:"connect-folder",role:null,label:"Connect folder"},
+      cssPoint: {x:150.75,y:80.25}, nativePoint: {x:603,y:321}, pageZoom:4,
+      viewport:{width:240,height:160}, delivered:true,
+    }]);
+    const wrong = gtkFixture({ hovered: false });
+    await assert.rejects(clickVisible(wrong.browser, wrong.element, wrong.options), error => {
+      assert.equal(diagnostic(error).stage, "webkit-delivered-target");
+      assert.equal(diagnostic(error).webkitPointer.delivered, false);
+      return true;
+    });
+    assert.deepEqual(wrong.calls.filter(Array.isArray), [[{move:{x:603,y:321,duration:0}}]]);
+    assert.equal(wrong.observations[0].delivered, false);
+    for (const shape of [{zoom:"100"}, {width:960}]) {
+      const invalid = gtkFixture(shape);
+      await assert.rejects(clickVisible(invalid.browser, invalid.element, invalid.options), error =>
+        diagnostic(error).stage === "webkit-window-point");
+      assert.deepEqual(invalid.calls.filter(Array.isArray), []);
+    }
+    for (const shape of [{visible:false}, {enabled:false}, {obscured:true}]) {
+      const blocked = gtkFixture(shape);
+      await assert.rejects(clickVisible(blocked.browser, blocked.element, blocked.options));
+      assert.deepEqual(blocked.calls.filter(Array.isArray), []);
+    }
+    Object.defineProperty(process, "platform", {value:"win32"});
+    const windows = gtkFixture();
+    await assert.rejects(clickVisible(windows.browser, windows.element, windows.options), error =>
+      diagnostic(error).stage === "webkit-window-point");
+    assert.deepEqual(windows.calls.filter(Array.isArray), []);
+    Object.defineProperty(process, "platform", {value:"linux"});
+    const refused = gtkFixture({failPress:true});
+    await assert.rejects(clickVisible(refused.browser, refused.element, refused.options), error => {
+      assert.equal(diagnostic(error).stage, "webkit-pointer-click");
+      assert.equal(error.cause.message, "Native press refused");
+      return true;
+    });
+    assert.deepEqual(refused.calls.filter(Array.isArray), f.calls.filter(Array.isArray));
+    const {reviewControls,selectPrimaryNavigation,selectGameFilesSettings,clearCatalogFilters,selectCatalogPort} = await import(entry);
+    for (const [run, expectedPresses, multiple] of [
+      [(value)=>reviewControls(value.browser,value.options).click({using:"css selector",value:"button"}),1,false],
+      [(value)=>selectPrimaryNavigation(value.browser,"Settings",value.options),1,false],
+      [(value)=>selectGameFilesSettings(value.browser,value.options),1,false],
+      [(value)=>clearCatalogFilters(value.browser,value.options),3,false],
+      [(value)=>selectCatalogPort(value.browser,"fixture",value.options),1,false],
+      [(value)=>selectCatalogPort(value.browser,"fixture",value.options),2,true],
+    ]) {
+      const consumer = gtkFixture({multiple});
+      await run(consumer);
+      assert.equal(consumer.observations.length, expectedPresses);
+      assert.equal(consumer.calls.filter(value=>Array.isArray(value)&&value.includes("press")).length,expectedPresses);
+      for (const observation of consumer.observations) {
+        assert.deepEqual(observation.nativePoint,{x:603,y:321});
+        assert.equal(observation.delivered,true);
+      }
     }
   `);
 });

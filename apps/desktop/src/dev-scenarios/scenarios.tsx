@@ -364,6 +364,7 @@ function ReferenceWorkspace({
               [secondPort.id, companionStatus],
             ])
           }
+          libraryCount={2}
           overview={{
             installed: 2,
             ready: attention ? 1 : 2,
@@ -456,6 +457,7 @@ function Scenario({ id }: { id: ScenarioId }) {
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={0}
         overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={blockedScenarioAction}
@@ -469,6 +471,7 @@ function Scenario({ id }: { id: ScenarioId }) {
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={2}
         overview={{ installed: 2, ready: 1, needsSetup: 1, staged: 0 }}
         filter="ready"
         setFilter={blockedScenarioAction}

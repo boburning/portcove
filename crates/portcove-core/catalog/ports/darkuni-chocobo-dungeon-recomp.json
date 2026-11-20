@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "darkuni-chocobo-dungeon-recomp",
     "artwork": {
@@ -81,12 +82,6 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["chocobo.exe"]
-      }
     }
   },
   "listing_inherit_asset_hints": ["windows-x86-64"]

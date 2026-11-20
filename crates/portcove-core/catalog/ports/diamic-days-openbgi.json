@@ -45,6 +45,14 @@
           "instruction": "The upstream project documents building the engine for Linux from source. This preview publishes a Windows executable."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diamic-days",
+      "evidence_urls": [
+        "https://github.com/Cytlan/openbgi/blob/40b144a03e15f159cadc957387e6f94bce8de65f/README.md#running"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

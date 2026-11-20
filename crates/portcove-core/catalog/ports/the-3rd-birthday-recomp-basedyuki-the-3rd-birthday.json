@@ -36,6 +36,12 @@
       "image_sha256": "e15aed6e2509b4560257c9ba849fc66c3a039af6c042862758f8b4c0c72d81cb",
       "game_slug": "the-3rd-birthday",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-3rd-birthday",
+      "evidence_urls": ["https://github.com/BasedYuki/the-3rd-birthday-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

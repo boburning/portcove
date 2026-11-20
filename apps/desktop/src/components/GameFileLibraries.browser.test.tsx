@@ -298,7 +298,7 @@ it.each(
                 <Sidebar
                   view="settings"
                   setView={vi.fn()}
-                  installedCount={1}
+                  libraryCount={1}
                   updateCount={0}
                   activities={[]}
                 />
@@ -477,7 +477,7 @@ it.each(["dark", "light"] as const)(
                 <Sidebar
                   view="settings"
                   setView={vi.fn()}
-                  installedCount={0}
+                  libraryCount={0}
                   updateCount={0}
                   activities={[]}
                 />
@@ -2822,6 +2822,16 @@ it("uses Core's registered path spelling even when the complete scan fits its pr
   );
   expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  const notices = page.getByRole("checkbox", {
+    name: "Tell me when games I chose to hear about are ready",
+  });
+  const setupHeading = page.getByRole("heading", { name: "Select games for setup review" });
+  expect(
+    setupHeading.element().getBoundingClientRect().top -
+      notices.element().getBoundingClientRect().bottom,
+  ).toBeGreaterThanOrEqual(16);
+  button("Review installing 1 selected").scrollIntoView({ block: "center", behavior: "instant" });
+  await captureParityState("game-files-library-selected-setup-actions");
   await click("Review installing 1 selected");
   expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
   expect(start).not.toHaveBeenCalled();

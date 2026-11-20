@@ -45,6 +45,15 @@
           "instruction": "Keep the Celeste64 user data folder in Roaming AppData on Windows, in XDG_DATA_HOME or ~/.local/share on Linux, or in Library/Application Support on Mac. Preserve save.json and the other settings files there when replacing the extracted game folder."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "celeste-64-fragments-of-the-mountain",
+      "evidence_urls": [
+        "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+        "https://github.com/EXOK/Celeste64"
+      ],
+      "source_editions": []
     }
   }
 }

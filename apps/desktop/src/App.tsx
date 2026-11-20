@@ -622,7 +622,8 @@ function useWorkspace(props: WorkspaceProps) {
     ui.selectedId,
     model.port?.id,
     model.status,
-    data.refreshFailure,
+    Boolean(data.refreshFailure) ||
+      (model.port !== undefined && operations.unreadInstallPorts.has(model.port.id)),
     installPlanning.reviewSource,
     ui.sourcePath,
     ui.setSourcePath,
@@ -831,10 +832,8 @@ function useWorkspace(props: WorkspaceProps) {
         query={ui.query}
         setQuery={ui.setQuery}
         portCount={model.entries.length}
-        libraryCount={data.catalog ? model.overview.installed : undefined}
-        onAddGames={
-          ui.view === "library" && model.overview.installed > 0 ? openAddGames : undefined
-        }
+        libraryCount={data.catalog ? model.libraryCount : undefined}
+        onAddGames={ui.view === "library" && model.libraryCount > 0 ? openAddGames : undefined}
       />
     ));
   const renderPreferenceFailure = () =>
@@ -1135,7 +1134,7 @@ function WorkspaceSidebar({ model }: { model: Omit<WorkspaceModel, "workspace"> 
       view={model.ui.view}
       setView={model.setPrimaryView}
       controller={model.controller}
-      installedCount={model.model.overview.installed}
+      libraryCount={model.data.catalog ? model.model.libraryCount : undefined}
       updateCount={
         model.data.statuses.filter((status) => {
           const check = currentUpdateSnapshot(status)?.check;
@@ -1173,6 +1172,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
     <OperationPresentationProvider
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
+      unreadInstallPorts={model.operations.unreadInstallPorts}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -1467,12 +1467,16 @@ function useAppModel(
   );
   const overview = useMemo(() => summarizeLibrary(entries, statusMap), [entries, statusMap]);
   const recent = useMemo(() => mostRecentPort(entries, statusMap), [entries, statusMap]);
-  const searchableGames = useMemo(() => {
-    const library = new Set(
-      filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id),
-    );
-    return entries.map((port) => ({ port, inLibrary: library.has(port.id) }));
-  }, [entries, statusMap]);
+  // Library membership includes Core's add-only entries. Keep this unfiltered
+  // total separate from installation/readiness counts and organization choices.
+  const libraryPortIds = useMemo(
+    () => new Set(filterPorts(entries, statusMap, "library", "all", "").map((entry) => entry.id)),
+    [entries, statusMap],
+  );
+  const searchableGames = useMemo(
+    () => entries.map((port) => ({ port, inLibrary: libraryPortIds.has(port.id) })),
+    [entries, libraryPortIds],
+  );
   const sourceNeeds = useMemo(
     () =>
       requiredSourceNeeds(
@@ -1516,6 +1520,7 @@ function useAppModel(
     visible,
     catalogFilterCandidates,
     libraryFilterCandidates,
+    libraryCount: libraryPortIds.size,
     overview,
     recent,
     searchableGames,
@@ -1744,6 +1749,7 @@ function CurrentView({
       setLibraryReadiness={ui.setLibraryReadiness}
       statuses={model.statusMap}
       overview={model.overview}
+      libraryCount={model.libraryCount}
       recent={model.recent}
       filter={ui.filter}
       query={ui.query}
@@ -2018,6 +2024,8 @@ function SelectedPortPanel({
 }) {
   const selectedRoute = model.port?.id;
   const selectedChannel = model.status?.channel;
+  const installReadbackPending =
+    selectedRoute !== undefined && operations.unreadInstallPorts.has(selectedRoute);
   const installAction = model.status?.port_actions?.find((action) => action.action === "install");
   useLayoutEffect(() => {
     const requests = setupOriginalRequests.current;
@@ -2034,6 +2042,7 @@ function SelectedPortPanel({
     installAction?.reason,
     model.status?.active?.id,
     model.status?.external_runtime?.id,
+    installReadbackPending,
     setupOriginalRequests,
     ui.sourcePath,
     ui.biosPath,
@@ -2057,6 +2066,7 @@ function SelectedPortPanel({
   const status = model.status;
   const managedSetup =
     status &&
+    !installReadbackPending &&
     !status.active &&
     !status.external_runtime &&
     (installAction?.availability === "allowed" || installAction?.availability === "waiting");
@@ -2252,6 +2262,7 @@ function SelectedPortPanel({
         backupsChanged: backups.refresh,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
+        onInstallCommitted: operations.noteInstallCommitted,
       })}
     />
   );
@@ -2300,6 +2311,7 @@ function AdoptionOverlay({
       preview={planning.preview}
       copyFailed={planning.copyFailed}
       applying={planning.applying}
+      refreshing={planning.refreshing}
       busy={operations.busy}
       close={() => {
         planning.invalidate();
@@ -2469,6 +2481,8 @@ function useWorkspaceLibrary({
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
+    workspaceReadRevision: data.workspaceReadRevision,
+    startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
     bootstrap.generation,

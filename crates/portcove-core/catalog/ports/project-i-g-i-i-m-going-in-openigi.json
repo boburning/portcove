@@ -4,7 +4,7 @@
     "id": "project-i-g-i-i-m-going-in-openigi",
     "issue_number": 5843,
     "name": "Project I.G.I. / OpenIGI",
-    "original_game_title": "Project I.G.I.",
+    "original_game_title": "Project I.G.I.: I'm Going In",
     "summary": "Play Project I.G.I. using your own retail installation. OpenIGI publishes standalone players and has a separate launcher that manages game versions.",
     "project_url": "https://github.com/OpenIGI/OpenIGI",
     "listed_at": "2026-11-18",
@@ -42,6 +42,12 @@
       "linux-x86-64": ["openigi-game-0.6.9-beta.4-linux-x64"],
       "macos-aarch64": ["openigi-game-", "-osx-arm64.tar.gz"]
     },
-    "recommended_download_channel": "beta"
+    "recommended_download_channel": "beta",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-i-g-i-im-going-in",
+      "evidence_urls": ["https://github.com/OpenIGI/OpenIGI/blob/v0.6.9-beta.4/README.md#playing"],
+      "source_editions": []
+    }
   }
 }

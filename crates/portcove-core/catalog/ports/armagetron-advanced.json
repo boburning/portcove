@@ -44,6 +44,15 @@
         }
       ],
       "help_url": "https://armagetronad.org/downloads.php"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armagetron-advanced",
+      "evidence_urls": [
+        "https://armagetronad.org/downloads.php",
+        "https://gitlab.com/armagetronad/armagetronad"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -740,9 +740,27 @@ publication has been verified.
     observation has no recorded hold reason. Publication-to-recorded-eligibility
     lag uses the first retained eligible observation. The first and last retained
     recording times show the observed span within the reporting window. The
-    report's source freshness and gaps still describe coverage. Released-client
-    availability, interventions, repairs, and cost stay unknown until their
-    receipts are available.
+    report's `managed_route_observation_coverage` counts each Core-offered
+    managed port and installation platform once. It joins those offers to
+    candidate facts in the latest observer collection and reports its revision,
+    import time, gaps, and per-platform counts. It uses the existing Core
+    definition inspection to compare the current definition digest with the
+    observed definition digest. The target projection reports whether the
+    CLI embeds the exact committed catalog bytes. Older recorded candidates remain visible as
+    retained coverage when the current definition has changed or is unbound. Core's fixed package offers
+    are counted separately from release-following offers. It verifies the retained
+    checkpoint membership after removing explicitly reported gaps. Older facts
+    remain visible in subject history. If the current catalog's Core target
+    projection or the latest observer membership is unavailable, its count is
+    unknown. When the target scope is complete, `routes` lists each offered port
+    and platform with a fixed offer, exact checkpoint evidence, or the same gap
+    reason as the aggregate. Exact evidence lists each verified candidate key
+    once, with its channel and observed eligible or pending state when available.
+    Conflicting facts for the same candidate key are marked ambiguous. Use the
+    candidate key to find the recorded tag or hold reasons in the subject's
+    upstream facts. The HTML report lists route gaps and links to the JSON
+    evidence. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`
@@ -765,6 +783,12 @@ publication has been verified.
   budget, cancellation and quota stops) are routine continuation and stay quiet;
   an exception without a recorded rule stays visible. No freshness threshold or
   policy is applied beyond the observer's own.
+- Hosted inventory retains `observer-operating-usage.json` when it can verify
+  the exact imported observer attempt and checkpoint digest. The evidence binds
+  the inventory by its SHA-256. It records the event type, checkpoint bytes, executed job durations and the number of jobs
+  with missing times. Skipped jobs contribute no duration. Each report covers
+  one imported attempt. Billed cost remains unknown without billing evidence.
+
 - **Authority:** this projection grants no admission, eligibility, acquisition or
   publication authority.
 

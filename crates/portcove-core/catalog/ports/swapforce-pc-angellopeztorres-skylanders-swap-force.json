@@ -35,6 +35,12 @@
       "image_sha256": "212d713068cc3c34872c86b17a7468f9a2816207c3835edbe07ea79e47e626de",
       "game_slug": "skylanders-swap-force",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-swap-force",
+      "evidence_urls": ["https://github.com/AngelLopezTorres/swapforce-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

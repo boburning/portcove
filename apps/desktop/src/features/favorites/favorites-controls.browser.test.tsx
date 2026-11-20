@@ -55,6 +55,7 @@ it("counts favorites within actual composed search/channel results and reset pre
       view="catalog"
       ports={narrowed}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter={{ version: 1, channels: ["stable"] }}
       query="Keep"
@@ -88,6 +89,7 @@ it("unavailable favorites expose actionable retry while ordinary details remain 
       view="catalog"
       ports={[fixtureValue(ports[0], "ports[0]")]}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}
@@ -121,6 +123,7 @@ it("keeps an unknown existing query unresolved instead of treating it as an empt
       view="catalog"
       ports={narrowed}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter={unsupported}
       setFilter={vi.fn()}
@@ -143,6 +146,7 @@ it("ends loading after a favorites read fails without reporting a successful emp
       view="catalog"
       ports={ports}
       statuses={new Map()}
+      libraryCount={0}
       overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
       filter="all"
       setFilter={vi.fn()}

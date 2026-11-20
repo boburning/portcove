@@ -35,6 +35,12 @@
       "image_sha256": "2dfba045049b748fe56c3bf00de8ab48580b0394471dc1a336edd2db76f567d5",
       "game_slug": "killzone-shadow-fall",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-shadow-fall",
+      "evidence_urls": ["https://github.com/lesca-191204/killzone-shadowfall-pc"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

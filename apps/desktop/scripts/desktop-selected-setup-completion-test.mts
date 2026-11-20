@@ -36,7 +36,8 @@ import {
   observeCompletionReturnFocus,
 } from "./desktop-completion-focus.mts";
 
-import type { WebDriver } from "selenium-webdriver";
+import type { Locator, WebDriver } from "selenium-webdriver";
+import type { ReviewClickOptions, WebKitPointerObservation } from "./desktop-review-controls.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeGameFileFolderPicker } from "./desktop-native-confirmation.mts";
 import type { PreparationObservation } from "../../../scripts/native-readiness.mts";
@@ -82,6 +83,7 @@ type CompletionCapture = Awaited<
 >;
 interface CompletionObservations {
   sources: SourceRecord[] | undefined;
+  pointer_inputs?: WebKitPointerObservation[];
   completed_sources?: unknown;
   geometry?: Record<string, CompletionCapture["observation"]>;
   folder_picker_cancel?: PickerResult;
@@ -230,7 +232,9 @@ export async function selectedSetupCompletionScenario({
     const setupOrigin = "add-games-folders-setup";
     const setupHeading = "add-games-folders-heading";
     let generation: number;
-    const { button, click } = reviewControls(browser);
+    const { button } = reviewControls(browser);
+    let clickOptions: ReviewClickOptions = {};
+    const click = (locator: Locator) => reviewControls(browser, clickOptions).click(locator);
     const coreEnvironment = {
       ...process.env,
       PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
@@ -469,6 +473,13 @@ export async function selectedSetupCompletionScenario({
           ),
         10_000,
       );
+      if (process.platform === "linux")
+        clickOptions = {
+          dispatch: "webkit-window-pointer",
+          pageZoom: 4,
+          baselineViewport: { width: baseline.width, height: baseline.height },
+          observe: (observation) => (report.observations.pointer_inputs ??= []).push(observation),
+        };
       await enlargedStage("folder-connection");
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
@@ -589,7 +600,7 @@ export async function selectedSetupCompletionScenario({
         await connectSetupFolderWithNativePicker();
       }
       {
-        await selectPrimaryNavigation(browser, "Library");
+        await selectPrimaryNavigation(browser, "Library", clickOptions);
         await click(button("Add games"));
         await browser.wait(
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
@@ -600,8 +611,8 @@ export async function selectedSetupCompletionScenario({
         await click(By.css('button[aria-label="Browse games"]'));
         const query = await browser.wait(until.elementLocated(By.id("port-search")), 5_000);
         await query.sendKeys(port.name);
-        await clearCatalogFilters(browser);
-        await selectCatalogPort(browser, port.id);
+        await clearCatalogFilters(browser, clickOptions);
+        await selectCatalogPort(browser, port.id, clickOptions);
         {
           await browser.wait(
             () =>
@@ -636,8 +647,8 @@ export async function selectedSetupCompletionScenario({
           artifacts.push(receipt);
         }
         // Add games keeps its workspace while the player browses elsewhere.
-        await selectPrimaryNavigation(browser, "Settings");
-        await selectPrimaryNavigation(browser, "Library");
+        await selectPrimaryNavigation(browser, "Settings", clickOptions);
+        await selectPrimaryNavigation(browser, "Library", clickOptions);
         await browser.wait(
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
           5_000,
@@ -995,7 +1006,8 @@ export async function selectedSetupCompletionScenario({
       }
 
       await openInstall();
-      await browser.findElement(install).click();
+      if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
+      else await browser.findElement(install).click();
       await browser.wait(() => (fixture.requests[0]?.bytes_sent ?? 0) > 0, 15_000);
       const running = required(await browser.wait(() => activity("install", "running"), 15_000));
       assert.equal(required(running.cancellation).requested, false);
@@ -1017,7 +1029,8 @@ export async function selectedSetupCompletionScenario({
 
       await browser.wait(until.elementLocated(button("Review installation")), 15_000);
       await openInstall();
-      await browser.findElement(install).click();
+      if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
+      else await browser.findElement(install).click();
       const installedActivity = required(
         await browser.wait(() => activity("install", "succeeded"), 30_000),
       );
@@ -1202,8 +1215,8 @@ export async function selectedSetupCompletionScenario({
       assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       await screenshot("selected-setup-queue-return");
       await enlargedStage("returned-selection");
-      await selectPrimaryNavigation(browser, "Settings");
-      await selectGameFilesSettings(browser);
+      await selectPrimaryNavigation(browser, "Settings", clickOptions);
+      await selectGameFilesSettings(browser, clickOptions);
       const sourceHealthRow = `.source-health-row[data-source-profile="${owned.profiles[0]}"]`;
       await click(
         By.xpath(
@@ -1244,7 +1257,7 @@ export async function selectedSetupCompletionScenario({
         [],
         "The visible source result must not retain prohibited or unresolved ARIA attributes",
       );
-      await selectPrimaryNavigation(browser, "Library");
+      await selectPrimaryNavigation(browser, "Library", clickOptions);
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       // The game remains registered outside this new root. Only a newly found
@@ -1463,7 +1476,7 @@ export async function selectedSetupCompletionScenario({
         "Restart did not restore native enlargement",
       );
       generation = await selectedSetupGeneration(invoke);
-      const { button: restartButton, click: restartClick } = reviewControls(browser);
+      const { button: restartButton, click: restartClick } = reviewControls(browser, clickOptions);
       assert.deepEqual(await read("get_sources"), biosSources);
       assert.deepEqual(await read("get_game_file_roots"), rootsBeforeRestart);
       const restoredSnapshot = required(await read("get_game_file_scan_snapshot"));
@@ -1482,8 +1495,8 @@ export async function selectedSetupCompletionScenario({
         ),
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
-      await selectPrimaryNavigation(browser, "Settings");
-      await selectGameFilesSettings(browser);
+      await selectPrimaryNavigation(browser, "Settings", clickOptions);
+      await selectGameFilesSettings(browser, clickOptions);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await browser.wait(
         async () => {

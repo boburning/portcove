@@ -36,6 +36,11 @@ import {
 } from "./catalog-raze-windows-profile.mts";
 import { collectPortFacts, githubRepository } from "./port-upstream-facts.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
+import {
+  compactReflectionHlePortablePaths,
+  projectReflectionHlePortablePaths,
+} from "./catalog-portable-reflectionhle.mts";
 import {
   createIgdbInspector,
   createCoreImageValidator,
@@ -51,6 +56,10 @@ import { prepareArtworkWorkset } from "./artwork-preparation-progress.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  compactCrispyDoomWindowsPersistence,
+  projectCrispyDoomWindowsPersistence,
+} from "./catalog-crispy-doom-windows-persistence.mts";
 import { collectSettingsSource, qualifySettingsObservation } from "./settings-qualification.mts";
 import { prepareSettingsCandidate } from "./prepare-settings-candidate.mts";
 import {
@@ -89,7 +98,7 @@ type PackageFacts = Pick<
 
 /** Authoring feedback only. Filename matches never establish executable or lifecycle fit. */
 export function portablePreparationFeedback(input: AuthoredPort, facts: PackageFacts) {
-  const record = projectRazeWindowsProfile(input);
+  const record = projectCrispyDoomWindowsPersistence(projectRazeWindowsProfile(input));
   if (record.integration?.adapter !== "native-portable") return undefined;
   const release = record.integration.release;
   const hints = isRecord(release) && isRecord(release.asset_hints) ? release.asset_hints : {};
@@ -116,6 +125,7 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
       next: "Review the exact declared archive pin, native headers, working directory, process lifetime and data ownership. GitHub hint uniqueness does not apply to this Direct selection.",
     }));
   }
+  const persistentPaths = projectReflectionHlePortablePaths(record).integration?.persistent_paths;
   return {
     ...selection,
     pinned_releases: direct
@@ -126,9 +136,7 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
             "Declared pin only; Core validation, independent authentication and native/lifecycle evidence remain required.",
         }))
       : [],
-    persistence: Array.isArray(record.integration.persistent_paths)
-      ? record.integration.persistent_paths
-      : [],
+    persistence: Array.isArray(persistentPaths) ? persistentPaths : [],
     manual_setup: {
       completion_record: record.integration.setup_marker ?? null,
       next: "For manual preparation before Play, use an upstream atomically published JSON completion record beneath already declared player data when that contract exists. Core checks bounded structural progress only; upstream still owns edition/content validation. Native capability 2 is required. Do not invent a marker, execute a discovered helper, or add a marker for a game's own first-Play picker.",
@@ -153,6 +161,14 @@ export function portablePreparationFeedback(input: AuthoredPort, facts: PackageF
 /** Advice only: distinctive declarations never follow from arbitrary guide prose. */
 export function declarativePreparationFeedback(record: AuthoredPort) {
   const projections = [];
+  if (record.reviewed_flat_package_layout_v1) {
+    projections.push({
+      field: "reviewed_flat_package_layout_v1",
+      scope:
+        "Independently reviewed archive layout with one executable in the root on the declared platforms.",
+      next: "Review each exact package and keep the platform order, archive selector and executable explicit. Additional executable or directory facts need an explicit package layout.",
+    });
+  }
   if (record.route_facts_v1) {
     projections.push({
       field: "route_facts_v1",
@@ -169,7 +185,21 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Check the exact package, original edition, picker lifetime and writer differences against the reviewed layout. Reuse matching staging, preservation and rollback evidence. Keep repository, release selectors, executable and external saves explicit.",
     });
   }
-  if (record.psx_managed_windows_v1) {
+  if (record.reflectionhle_portable_paths_v1) {
+    projections.push({
+      field: "reflectionhle_portable_paths_v1",
+      scope: "Shared reviewed ReflectionHLE file and configuration paths in the portable root.",
+      next: "Keep each game's original editions, package selection, lifecycle qualification and launch facts explicit. Keep a different writer layout explicit.",
+    });
+  }
+  if (record.psx_managed_windows_v1 === "technically-computers") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
+      next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
+    });
+  } else if (record.psx_managed_windows_v1) {
     projections.push({
       field: "psx_managed_windows_v1",
       scope: "Managed Windows PSXRecomp generated-player launch and reviewed local data layout.",
@@ -188,6 +218,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "raze_windows_profile_v1",
       scope: "Shared stable Raze Windows archive, executable and portable data layout.",
       next: "Keep the original edition, support, qualification and external routes explicit. A different runtime layout needs its own reviewed declaration.",
+    });
+  }
+  if (record.crispy_doom_windows_persistence_v1) {
+    projections.push({
+      field: "crispy_doom_windows_persistence_v1",
+      scope: "Shared reviewed Crispy Doom Windows persistent paths and filename patterns.",
+      next: "Keep each package selector, executable, game arguments, originals and temporary directory explicit. A different writer layout needs explicit paths.",
     });
   }
   return {
@@ -957,10 +994,16 @@ export async function preparePort(options: PrepareOptions) {
         };
       }
     }
-    const compact = compactRazeWindowsProfile(
-      compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+    const compact = compactReviewedFlatPackageLayout(
+      compactRazeWindowsProfile(
+        compactN64RecompPersistence(compactGbaArchive(compactPsxManagedWindows(record))),
+      ),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
+    const compactReflection = compactReflectionHlePortablePaths(record);
+    if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
+    const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);
+    if (compactCrispyDoom !== record) record = checkedAuthoredPort(compactCrispyDoom);
     const records = authored.records.filter((entry) => entry.listing.id !== id).concat(record);
     const inspector = artworkInspector(options, root, validatorIdentity);
     const artwork = await prepareArtworkWorkset(artworkCatalog(records), {

@@ -197,6 +197,13 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   - Every trigger uses the same bounded CI run reads as nightly previews and
     selects the newest CI-green first-parent `main` commit. A rerun of an older
     CI run follows the current selection.
+- **Readback receipt:** after the public timestamp and browse pages match, the
+  same publisher can retain a seven-day receipt. It verifies the exact live
+  index and the affected immutable targets, records previous and published
+  hashes and revisions, and distinguishes definition changes and retained index
+  rebinds from descriptive refresh and metadata renewal. A trigger identifies
+  the producing workflow event. Human intervention and automatic repair need
+  separate evidence. Missing or out-of-bound readback leaves no success receipt.
 - **Recovery:** if renewals stop and the published timestamp expires, clients
   keep their last verified catalog. The next successful run publishes again,
   because the expired catalog is still read as authenticated history: its

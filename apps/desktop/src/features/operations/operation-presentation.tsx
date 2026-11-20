@@ -3,14 +3,22 @@ import type { PortStatus } from "../../types";
 import { portActionPresentation } from "../port-actions/port-action-presentation";
 import { pendingInvocationConflict, type InvocationRecord } from "./invocation-state";
 
-type PresentationOwner = { generation: number; pending: ReadonlyMap<number, InvocationRecord> };
+type PresentationOwner = {
+  generation: number;
+  pending: ReadonlyMap<number, InvocationRecord>;
+  unreadInstallPorts?: ReadonlySet<string> | undefined;
+};
 const OperationPresentation = createContext<PresentationOwner | null>(null);
 export function OperationPresentationProvider({
   generation,
   pending,
+  unreadInstallPorts,
   children,
 }: PresentationOwner & { children: ReactNode }) {
-  const owner = useMemo(() => ({ generation, pending }), [generation, pending]);
+  const owner = useMemo(
+    () => ({ generation, pending, unreadInstallPorts }),
+    [generation, pending, unreadInstallPorts],
+  );
   return <OperationPresentation value={owner}>{children}</OperationPresentation>;
 }
 export const useOperationPresentation = () => useContext(OperationPresentation);
@@ -40,5 +48,11 @@ export function presentPortAction(
     assessment: portActionPresentation(status, action, reason),
     busy: owner ? pending?.name : fallbackBusy,
     pending,
+    installReadbackRequired: Boolean(
+      action === "install" &&
+      owner?.unreadInstallPorts?.has(portId) &&
+      !status?.active &&
+      !status?.external_runtime,
+    ),
   };
 }

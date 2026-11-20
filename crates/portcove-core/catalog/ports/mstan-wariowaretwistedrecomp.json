@@ -81,6 +81,9 @@
     "release": {
       "provider": "github",
       "repository": "mstan/WarioWareTwistedRecomp",
+      "github_other_stream_tag_prefixes": {
+        "windows-x86-64": ["android-", "linux-"]
+      },
       "asset_hints": {
         "windows-x86-64": ["WarioWareTwistedRecomp-windows-x64-", ".zip"]
       }
