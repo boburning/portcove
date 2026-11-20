@@ -397,14 +397,21 @@ function timestamp(value: unknown, label: string, nullable = false) {
 
 function downloadUrl(value: unknown, config: { repository: string }, tag: string, name: string) {
   const url = new URL(textFact(value, "asset URL", 4096));
-  const expected = `/${config.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
+  const prefix = `/${config.repository}/releases/download/`;
+  const filename = encodeURIComponent(name);
+  const tagSegments = tag.split("/");
+  // GitHub's asset metadata can keep slashes literal in an exact release tag.
+  const matchingSegmentedTag =
+    tagSegments.length > 1 &&
+    tagSegments.every((segment) => segment !== "" && segment !== "." && segment !== "..") &&
+    url.pathname === `${prefix}${tagSegments.map(encodeURIComponent).join("/")}/${filename}`;
   requireFact(
     url.origin === "https://github.com" &&
       !url.username &&
       !url.password &&
       !url.search &&
       !url.hash &&
-      url.pathname === expected,
+      (url.pathname === `${prefix}${encodeURIComponent(tag)}/${filename}` || matchingSegmentedTag),
     "asset-scope",
     "asset URL does not match the configured repository, tag and filename",
   );
