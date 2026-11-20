@@ -3924,6 +3924,13 @@ folder, and player or upstream ownership in the authored record. Use explicit
 `user_prepared` entries for accepted packages and per-platform distinctions.
 The CPS2Recomp routes use this shared registration form.
 
+The `native_managed_profile_v1` recipe supplies the managed `profile`
+directory, Windows temporary directory and relative-file path policy for the
+reviewed BStone and DevilutionX routes. The official selector, original-file
+contract, launch arguments and package-layout review remain explicit.
+`prepare-port.mts` compacts an exact match. Use the explicit integration when
+the title uses a different writer path or a player-owned profile.
+
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into

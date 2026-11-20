@@ -41,6 +41,7 @@ import {
   projectOpenMohaaPortable,
 } from "./catalog-openmohaa-portable.mts";
 import type { PortFactsOptions } from "./port-upstream-facts.mts";
+import { compactNativeManagedProfile } from "./catalog-native-managed-profile.mts";
 import { compactOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { compactReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import { compactGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
@@ -221,6 +222,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "n64_recomp_persistence_v1",
       scope: "Managed N64Recomp player data and original-file paths in the installation root.",
       next: "Check the installed layout and its writes. Keep original edition, archive selection, executable and other runtime values explicit.",
+    });
+  }
+  if (record.native_managed_profile_v1) {
+    projections.push({
+      field: "native_managed_profile_v1",
+      scope: "Reviewed Portcove-managed BStone or DevilutionX profile and Windows path policy.",
+      next: "Keep the original files, selector and launch arguments explicit. Use an explicit integration for a different profile.",
     });
   }
   if (record.external_registration_v1) {
@@ -1096,6 +1104,8 @@ export async function preparePort(options: PrepareOptions) {
       ),
     );
     if (compact !== record) record = checkedAuthoredPort(compact);
+    const compactNativeProfile = compactNativeManagedProfile(record);
+    if (compactNativeProfile !== record) record = checkedAuthoredPort(compactNativeProfile);
     const compactReflection = compactReflectionHlePortablePaths(record);
     if (compactReflection !== record) record = checkedAuthoredPort(compactReflection);
     const compactCrispyDoom = compactCrispyDoomWindowsPersistence(record);

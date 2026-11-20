@@ -232,6 +232,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-game-review.mts",
       "scripts/catalog-gen2recomp-windows-persistence.mts",
       "scripts/catalog-n64-recomp-persistence.mts",
+      "scripts/catalog-native-managed-profile.mts",
       "scripts/catalog-opengoal-setup.mts",
       "scripts/catalog-openmohaa-portable.mts",
       "scripts/catalog-portable-reflectionhle.mts",
