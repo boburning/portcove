@@ -1,6 +1,6 @@
 {
-  "audited_revision": "8e755a5b907568448e9fc8610eccc280199e30a9",
-  "scope": "Independent reviewed real-catalog relationship baseline for #8076. This fixture tests expectations; authored records remain authoritative. New singletons need no fixture row; changed family membership needs reviewed expectation updates.",
+  "audited_revision": "538c2f2966a1639e6e680d7f3fa4beccd5fde202",
+  "scope": "Independent reviewed real-catalog relationship baseline for #8076. This fixture tests expectations; authored records remain authoritative. New records require audited-ID reconciliation; changed family membership needs reviewed expectation updates.",
   "audited_port_ids": [
     "007frwl-xberecomp-tgp482-007-from-russia-with-love",
     "2ship2harkinian",
@@ -454,6 +454,7 @@
     "dune-ii-dune-dynasty",
     "dune-ii-henricj-dune-legacy",
     "dune-ii-opendune",
+    "dungeon-crawl-stone-soup",
     "dungeon-keeper-keeperfx-tux-edition",
     "dungeon-siege-joshspeakman-macos",
     "dusklight",

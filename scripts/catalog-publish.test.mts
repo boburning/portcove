@@ -448,6 +448,14 @@ void test("catalog keys reach only one signing step per role, from main", async 
   assert.match(publish.jobs.prepare!.if!, /^github\.ref == 'refs\/heads\/main' && /u);
   assert.match(publish.jobs.prepare!.if!, /workflow_run\.conclusion == 'success'/u);
   assert.match(publish.jobs.prepare!.if!, /workflow_run\.event == 'push'/u);
+  const prepareSteps = publish.jobs.prepare!.steps!;
+  const preflight = prepareSteps.findIndex((step) =>
+    step.run?.includes("check-definition-publication-context"),
+  );
+  assert.ok(preflight >= 0);
+  assert.match(prepareSteps[preflight]!.run!, /catalog-work\/context\.json/u);
+  assert.equal(prepareSteps[preflight]!.env, undefined);
+  assert.ok(preflight < prepareSteps.findIndex((step) => step.with?.name === "catalog-work"));
 
   const roles = {
     "sign-definitions": "official-definitions",
@@ -462,6 +470,8 @@ void test("catalog keys reach only one signing step per role, from main", async 
     assert.equal(job.secrets, "inherit");
     assert.deepEqual(job.with, { role, commit: "${{ needs.prepare.outputs.commit }}" });
   }
+  assert.equal(publish.jobs["sign-definitions"]!.needs, "prepare");
+  assert.equal(publish.jobs["sign-policy"]!.needs, "prepare");
   assert.deepEqual(publish.jobs["sign-snapshot"]!.needs, [
     "prepare",
     "sign-definitions",

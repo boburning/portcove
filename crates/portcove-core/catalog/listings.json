@@ -35612,6 +35612,39 @@
       }
     },
     {
+      "id": "dungeon-crawl-stone-soup",
+      "project_url": "https://github.com/crawl/crawl",
+      "name": "Dungeon Crawl Stone Soup",
+      "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
+      "listed_at": "2026-11-19",
+      "release_url": "https://github.com/crawl/crawl/releases/tag/0.34.1",
+      "original_game_title": "Dungeon Crawl Stone Soup",
+      "setup_url": "https://crawl.develz.org/wordpress/about",
+      "availability": "packages",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start the Windows Tiles edition",
+            "instruction": "Install the official Windows package and choose Play. The package includes the game files."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://crawl.develz.org/wordpress/about"
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "linleys-dungeon-crawl",
+        "evidence_urls": [
+          "https://crawl.develz.org/wordpress/about",
+          "https://github.com/crawl/crawl/blob/0.34.1/README.md#license-and-history-information"
+        ],
+        "source_editions": []
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
+    },
+    {
       "id": "dungeon-keeper-keeperfx-tux-edition",
       "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
       "name": "Dungeon Keeper / KeeperFX Tux Edition",
@@ -74953,7 +74986,7 @@
       "name": "R4: Ridge Racer Type 4 — RidgeRacerType4Recomp (tetrisgm)",
       "original_game_title": "R4: Ridge Racer Type 4",
       "summary": "Information only. The project reports an early R4 preview reaching startup and races, with VSLink claims for two to four players. Committed game-derived C and applicable package rights remain unresolved, so new downloads are unavailable. The own-disc preview does not establish a full playthrough, VSLink compatibility or permission for automated distribution. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/tetrisgm/RidgeRacerType4Recomp",
+      "project_url": "https://github.com/tetrisgm/RidgeRacerType4Remaster",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -75642,10 +75675,10 @@
       "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
       "original_game_title": "Rule of Rose",
       "summary": "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/RaikoDenpa/RoR-Port",
+      "project_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/RaikoDenpa/RoR-Port",
+      "setup_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp",
       "manual_setup": {
         "steps": [
           {
@@ -75661,7 +75694,7 @@
           "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/RaikoDenpa/RoR-Port"
+        "help_url": "https://github.com/RaikoDenpa/RuleOfRose-Decomp"
       },
       "issue_number": 3043,
       "listed_at": "2026-10-25",
@@ -82273,7 +82306,6 @@
           }
         ]
       },
-      "original_game_title": "Hyrule Warriors: Definitive Edition",
       "original_game": {
         "format_version": 1,
         "id": "hyrule-warriors-definitive-edition",
@@ -82281,7 +82313,8 @@
           "https://github.com/sonsegajp/HWDER"
         ],
         "source_editions": []
-      }
+      },
+      "original_game_title": "Hyrule Warriors: Definitive Edition"
     },
     {
       "id": "sotc-vibe-pc-lightvelox-shadow-of-the-colossus",
@@ -90057,16 +90090,6 @@
           }
         ]
       },
-      "original_game": {
-        "format_version": 1,
-        "id": "the-simpsons-wrestling",
-        "evidence_urls": [
-          "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
-          "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
-        ],
-        "source_editions": []
-      },
-      "original_game_title": "The Simpsons Wrestling",
       "release_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/releases",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -90116,7 +90139,17 @@
             }
           }
         ]
-      }
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "the-simpsons-wrestling",
+        "evidence_urls": [
+          "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
+          "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
+        ],
+        "source_editions": []
+      },
+      "original_game_title": "The Simpsons Wrestling"
     },
     {
       "id": "tenchu-stealth-assassins-tenchu-sa-recomp",
@@ -92250,12 +92283,12 @@
       "name": "The Order: 1886 — The Order1886 native port (mateussmeneses) (mateussmeneses)",
       "original_game_title": "The Order: 1886",
       "summary": "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/mateussmeneses/theorder1886-port",
+      "project_url": "https://github.com/saxons-kicks/theorder1886-port",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/mateussmeneses/theorder1886-port",
+      "setup_url": "https://github.com/saxons-kicks/theorder1886-port",
       "manual_setup": {
         "steps": [
           {
@@ -92271,7 +92304,7 @@
           "The project tested boot and the New Game prologue cutscene on an RTX 5060 Laptop. Save/load and the campaign are unverified.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/mateussmeneses/theorder1886-port"
+        "help_url": "https://github.com/saxons-kicks/theorder1886-port"
       },
       "issue_number": 3335,
       "listed_at": "2026-10-25",

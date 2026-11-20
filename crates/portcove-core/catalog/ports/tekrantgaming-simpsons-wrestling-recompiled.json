@@ -56,16 +56,6 @@
         }
       ]
     },
-    "original_game": {
-      "format_version": 1,
-      "id": "the-simpsons-wrestling",
-      "evidence_urls": [
-        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
-        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
-      ],
-      "source_editions": []
-    },
-    "original_game_title": "The Simpsons Wrestling",
     "release_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/releases",
     "download_asset_hints": {
       "windows-x86-64": ["SimpsonsWrestling-", "windows-x64.zip"],
@@ -109,6 +99,16 @@
           }
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-simpsons-wrestling",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
+        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Simpsons Wrestling"
   }
 }

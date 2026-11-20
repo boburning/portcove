@@ -12,16 +12,16 @@
     "availability": "packages",
     "setup_url": "https://naev.org/downloads/",
     "release_url": "https://codeberg.org/naev/naev/releases/latest",
-    "download_block_reason": "Use Naev\u2019s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+    "download_block_reason": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
     "manual_setup": {
       "steps": [
         {
           "title": "Get the current official package",
-          "instruction": "Use the releases linked by Naev\u2019s downloads page. Current releases are on Codeberg; the old GitHub mirror has older packages. The desktop packages include the game data. Keep the complete package and its licence notices."
+          "instruction": "Use the releases linked by Naev’s downloads page. Current releases are on Codeberg; the old GitHub mirror has older packages. The desktop packages include the game data. Keep the complete package and its licence notices."
         },
         {
           "title": "Set up Naev on your computer",
-          "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher\u2019s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows. Leave arguments empty only for a fresh default setup. For an existing installation, keep its established launch arguments, including any custom profile or data-folder options."
+          "instruction": "On Windows x64, use the installer. For a portable copy, select Portable Install and choose a separate writable folder. On Linux x64, mark the AppImage executable and open it. On Intel or Apple Silicon Mac, copy the complete Naev app from the disk image to Applications. Follow the publisher’s Mac security instructions if your system prevents opening it. To add an Intel or Apple Silicon Mac copy to Portcove, select /Applications/Naev.app/Contents/MacOS/naev and its containing folder, retain your established arguments, review the details, then choose Play. Keep the complete app together. The later naev.exe selection applies to Windows. Leave arguments empty only for a fresh default setup. For an existing installation, keep its established launch arguments, including any custom profile or data-folder options."
         },
         {
           "title": "Preserve current and older profiles before changes",
@@ -32,7 +32,7 @@
       "references": [
         {
           "title": "Updates, backups and existing installations",
-          "instruction": "Use upstream\u2019s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. A Windows installation uses naev.exe and its parent so an existing datapath.lua applies. Mac uses the native player inside the complete app. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
+          "instruction": "Use upstream’s installer, app or package tools to replace the runtime. Keep your working version and every profile folder recoverable. A Windows installation uses naev.exe and its parent so an existing datapath.lua applies. Mac uses the native player inside the complete app. Retain any established launch arguments. Removing the registration leaves external files in place. You and upstream own runtime replacement, backups, save migration and file removal."
         },
         {
           "title": "Host requirements and other platforms",

@@ -16,8 +16,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
+import { projectReviewedFlatPackageLayout } from "./catalog-reviewed-flat-package-layout.mts";
 import {
   collectPortFacts,
   githubRepository,
@@ -36,6 +38,7 @@ import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts"
 import { observationHash } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
+import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -2292,17 +2295,22 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.reflectionhle_portable_paths_v1));
   assert.ok(records.some((record) => record.psx_managed_windows_v1));
   assert.ok(records.some((record) => record.n64_recomp_persistence_v1));
+  assert.ok(records.some((record) => record.reviewed_flat_package_layout_v1));
   assert.ok(records.some((record) => record.raze_windows_profile_v1));
+  assert.ok(records.some((record) => record.crispy_doom_windows_persistence_v1));
   for (const record of records) {
     const id = record.listing.id;
     const feedback = declarativePreparationFeedback(record);
     const expected = [];
+    if (record.reviewed_flat_package_layout_v1) expected.push("reviewed_flat_package_layout_v1");
     if (record.route_facts_v1) expected.push("route_facts_v1");
     if (record.gba_staged_archive_v1) expected.push("gba_staged_archive_v1");
     if (record.reflectionhle_portable_paths_v1) expected.push("reflectionhle_portable_paths_v1");
     if (record.psx_managed_windows_v1) expected.push("psx_managed_windows_v1");
     if (record.n64_recomp_persistence_v1) expected.push("n64_recomp_persistence_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
+    if (record.crispy_doom_windows_persistence_v1)
+      expected.push("crispy_doom_windows_persistence_v1");
     assert.deepEqual(
       feedback.projections.map(({ field }) => field),
       expected,
@@ -2356,6 +2364,50 @@ void test("official URL preparation retains ReflectionHLE portability observatio
     );
     assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
     assert.equal(candidate.reflectionhle_portable_paths_v1, true);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const accepted = readCatalogSource(root);
+    const id = "bomberman-fantasy-race-recompiled";
+    const record = accepted.records.find((entry) => entry.listing.id === id)!;
+    const explicit = projectPsxManagedWindows(record);
+    delete explicit.psx_managed_windows_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const result = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: record.listing.project_url,
+      originalGame: record.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                full_name: "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(result.report.changed_records, [id]);
+    assert.equal(result.report.operational_changed, false);
+    assert.equal(candidate.psx_managed_windows_v1, "technically-computers");
+    assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
     assert.equal(readFileSync(source, "utf8"), bytes);
   } finally {
     f.clean();
@@ -2482,6 +2534,54 @@ void test("Raze preparation compacts the reviewed Windows profile and preserves 
   }
 });
 
+void test("official URL preparation compacts only the exact Crispy Doom persistence coordinates", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "doom-ii-crispy-doom-family";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectCrispyDoomWindowsPersistence(selected);
+    delete explicit.crispy_doom_windows_persistence_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({
+                ...metadata,
+                id: 17395051,
+                full_name: "fabiangreffrath/crispy-doom",
+                archived: false,
+              }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(
+      prepared.report.portable_preparation?.persistence,
+      explicit.integration?.persistent_paths,
+    );
+    assert.equal(candidate.crispy_doom_windows_persistence_v1, true);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
+});
+
 void test("unsupported managed subshapes and contradictory GBA paths fail authoring validation", () => {
   const { records } = readCatalogSource(catalogRoot);
   const native = structuredClone(records.find((record) => record.route_facts_v1?.managed_native)!);
@@ -2491,6 +2591,45 @@ void test("unsupported managed subshapes and contradictory GBA paths fail author
   const gba = structuredClone(records.find((record) => record.gba_staged_archive_v1)!);
   gba.integration!.persistent_paths = ["contradictory"];
   assert.throws(() => checkedAuthoredPort(gba), /already own persistent_paths/);
+});
+
+void test("official URL preparation compacts an already reviewed exact flat package layout", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const id = "gunstar-heroes-gunstars";
+    const selected = readCatalogSource(root).records.find((record) => record.listing.id === id)!;
+    const explicit = projectReviewedFlatPackageLayout(selected);
+    delete explicit.reviewed_flat_package_layout_v1;
+    const source = join(root, "ports", `${id}.json`);
+    const bytes = JSON.stringify(explicit);
+    writeFileSync(source, bytes);
+    const prepared = await preparePort({
+      id,
+      catalogRoot: root,
+      outputDirectory: join(f.root, "output"),
+      projectUrl: selected.listing.project_url,
+      originalGame: selected.listing.original_game,
+      facts: {
+        fetcher: f.fetcher((url) =>
+          url.includes("/releases?")
+            ? json([])
+            : json({ ...metadata, id: 1424763220, full_name: "1nputs/gunstars", archived: false }),
+        ),
+      },
+      artwork: { inspectGame: () => [] },
+    });
+    const candidate = checkedAuthoredPort(
+      JSON.parse(readFileSync(prepared.report.files.records[0]!.path, "utf8")),
+    );
+    assert.deepEqual(prepared.report.changed_records, [id]);
+    assert.equal(prepared.report.operational_changed, false);
+    assert.deepEqual(candidate.reviewed_flat_package_layout_v1, ["windows-x86-64", "linux-x86-64"]);
+    assert.deepEqual(candidate.listing.original_game, selected.listing.original_game);
+    assert.equal(readFileSync(source, "utf8"), bytes);
+  } finally {
+    f.clean();
+  }
 });
 
 void test("settings qualification requests complete exact package facts and limits missing evidence to settings", async () => {

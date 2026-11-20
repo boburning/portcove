@@ -678,7 +678,8 @@ function useWorkspace(props: WorkspaceProps) {
     ui.selectedId,
     model.port?.id,
     model.status,
-    data.refreshFailure,
+    Boolean(data.refreshFailure) ||
+      (model.port !== undefined && operations.unreadInstallPorts.has(model.port.id)),
     installPlanning.reviewSource,
     ui.sourcePath,
     ui.setSourcePath,
@@ -1228,6 +1229,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
     <OperationPresentationProvider
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
+      unreadInstallPorts={model.operations.unreadInstallPorts}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -2080,6 +2082,8 @@ function SelectedPortPanel({
 }) {
   const selectedRoute = model.port?.id;
   const selectedChannel = model.status?.channel;
+  const installReadbackPending =
+    selectedRoute !== undefined && operations.unreadInstallPorts.has(selectedRoute);
   const installAction = model.status?.port_actions?.find((action) => action.action === "install");
   useLayoutEffect(() => {
     const requests = setupOriginalRequests.current;
@@ -2096,6 +2100,7 @@ function SelectedPortPanel({
     installAction?.reason,
     model.status?.active?.id,
     model.status?.external_runtime?.id,
+    installReadbackPending,
     setupOriginalRequests,
     ui.sourcePath,
     ui.biosPath,
@@ -2119,6 +2124,7 @@ function SelectedPortPanel({
   const status = model.status;
   const managedSetup =
     status &&
+    !installReadbackPending &&
     !status.active &&
     !status.external_runtime &&
     (installAction?.availability === "allowed" || installAction?.availability === "waiting");
@@ -2313,6 +2319,7 @@ function SelectedPortPanel({
         backupsChanged: backups.refresh,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
+        onInstallCommitted: operations.noteInstallCommitted,
       })}
     />
   );
@@ -2530,6 +2537,8 @@ function useWorkspaceLibrary({
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
+    workspaceReadRevision: data.workspaceReadRevision,
+    startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
     bootstrap.generation,

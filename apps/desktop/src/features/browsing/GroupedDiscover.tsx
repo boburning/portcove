@@ -687,14 +687,15 @@ function DiscoverGameCardView({
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useAppTranslation("browsing");
-  const { first, chosen, actionGroup, status, exact, firstProject, projectLabel } =
+  const { first, dropChosen, actionGroup, status, exact, firstProject, projectLabel } =
     discoverCardIdentity(t, group, statuses, organization, devicePlatform);
   const presentation = gameGroupPresentationPort(group);
   const title = gameGroupTitle(group);
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
   const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
-  const dropEligible = Boolean(chosen) && sourceDropEligible(first, status, nativeSourceDrag);
+  // A device-based click shortcut does not choose where dropped originals belong.
+  const dropEligible = Boolean(dropChosen) && sourceDropEligible(first, status, nativeSourceDrag);
   const groupDropEligible =
     !dropEligible &&
     nativeSourceDrag.active &&
@@ -908,6 +909,7 @@ function discoverCardIdentity(
   return {
     first,
     chosen,
+    dropChosen: choice.port,
     actionGroup: chosen ? { ...group, matchingPorts: [chosen] } : group,
     status: statuses.get(first.id),
     exact: Boolean(chosen) || group.matchingPorts.length === 1,

@@ -861,8 +861,8 @@ test("native relationship observation checks every independent reviewed family a
   assert.match(sha256, /^[a-f0-9]{64}$/u);
   const actual = await productionWorkspace();
   const observed = inspectGameFirstRelationships(actual, expected);
-  assert.equal(observed.provenance.length, 1647);
-  assert.equal(new Set(observed.provenance.map((row) => row.port_id)).size, 1647);
+  assert.equal(observed.provenance.length, 1648);
+  assert.equal(new Set(observed.provenance.map((row) => row.port_id)).size, 1648);
   assert.ok(observed.provenance.some((row) => row.definition && row.listing));
   assert.ok(observed.provenance.some((row) => !row.definition && row.listing));
   for (const id of gameFirstPresentationFamilies)

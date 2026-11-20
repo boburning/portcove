@@ -64039,6 +64039,70 @@
       }
     },
     {
+      "id": "dungeon-crawl-stone-soup",
+      "name": "Dungeon Crawl Stone Soup",
+      "summary": "Play the official Windows Tiles build of the open-source tactical roguelike.",
+      "project_url": "https://github.com/crawl/crawl",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "crawl/crawl",
+        "asset_hints": {
+          "windows-x86-64": [
+            "dcss-",
+            "-win32-tiles.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "crawl.exe"
+        ]
+      },
+      "persistent_paths": [
+        "init.txt",
+        "morgue",
+        "saves",
+        "settings/macro.txt"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "The package includes the game files. Portcove collects saves, character dumps and keyboard macros from the managed game after it closes.",
+        "original_game_title": "Dungeon Crawl Stone Soup",
+        "original_game": {
+          "format_version": 1,
+          "id": "linleys-dungeon-crawl",
+          "evidence_urls": [
+            "https://crawl.develz.org/wordpress/about",
+            "https://github.com/crawl/crawl/blob/0.34.1/README.md#license-and-history-information"
+          ],
+          "source_editions": []
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Start the Windows Tiles edition",
+              "instruction": "Install the official Windows package and choose Play. The package includes the game files."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://crawl.develz.org/wordpress/about"
+        }
+      },
+      "launch_arguments": [
+        "-dir",
+        "."
+      ]
+    },
+    {
       "id": "eandis-sdoj-recomp",
       "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
       "summary": "Play the DoDonPachi SaiDaiOuJou recompilation with your own Xbox 360 disc or Games-on-Demand copy and its Title Update 1 data.",

@@ -889,73 +889,86 @@ it("keeps stable game presentation while selected actions and file drops use the
   expect(organization.commit).not.toHaveBeenCalled();
 });
 
-it("keeps direct details separate from cancelled and confirmed ambiguous file drops", async () => {
-  const first = {
-    ...portDefinition(),
-    id: "first-port",
-    name: "First project",
-    presentation: second.presentation,
-    source_profile: "first-source",
-  };
-  const secondPort = { ...second, source_profile: "second-source" };
-  const onSelect = vi.fn();
-  const onGameDropSelect = vi.fn();
-  const onGameDropDismiss = vi.fn();
-  const commit = vi.fn();
-  const organization: Organization = {
-    snapshot: empty,
-    busy: false,
-    failure: undefined,
-    refresh: async () => true,
-    commit,
-  };
-  const view = (pendingGameDrop?: { gameId: string; paths: string[] }) => (
-    <GroupedDiscover
-      all={[first, secondPort]}
-      matching={[secondPort]}
-      statuses={new Map()}
-      organization={organization}
-      nativeSourceDrag={{ active: true, pathCount: 1 }}
-      pendingGameDrop={pendingGameDrop}
-      onGameDropSelect={onGameDropSelect}
-      onGameDropDismiss={onGameDropDismiss}
-      onSelect={onSelect}
-    />
-  );
-  const screen = await render(view());
-  expect(
-    document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropPortId,
-  ).toBeUndefined();
-  expect(document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropGameId).toBe(
-    "game:original-game",
-  );
-  await page.getByRole("button", { name: /Matching port: Second project/u }).click();
-  expect(onSelect).toHaveBeenCalledExactlyOnceWith(second.id, `catalog:card:${second.id}`);
-  expect(onGameDropSelect).not.toHaveBeenCalled();
-  expect(commit).not.toHaveBeenCalled();
-  onGameDropDismiss.mockClear();
+it.each(["filter", "device"] as const)(
+  "keeps a %s click shortcut separate from cancelled and confirmed ambiguous file drops",
+  async (shortcut) => {
+    const first = {
+      ...portDefinition(),
+      id: "first-port",
+      name: "First project",
+      presentation: second.presentation,
+      source_profile: "first-source",
+    };
+    const secondPort = {
+      ...second,
+      source_profile: "second-source",
+      platforms: ["linux-x86-64" as const],
+    };
+    const onSelect = vi.fn();
+    const onGameDropSelect = vi.fn();
+    const onGameDropDismiss = vi.fn();
+    const commit = vi.fn();
+    const organization: Organization = {
+      snapshot: empty,
+      busy: false,
+      failure: undefined,
+      refresh: async () => true,
+      commit,
+    };
+    const view = (pendingGameDrop?: { gameId: string; paths: string[] }) => (
+      <GroupedDiscover
+        all={[first, secondPort]}
+        matching={shortcut === "filter" ? [secondPort] : [first, secondPort]}
+        devicePlatform={shortcut === "device" ? "windows-x86-64" : undefined}
+        statuses={new Map()}
+        organization={organization}
+        nativeSourceDrag={{ active: true, pathCount: 1 }}
+        pendingGameDrop={pendingGameDrop}
+        onGameDropSelect={onGameDropSelect}
+        onGameDropDismiss={onGameDropDismiss}
+        onSelect={onSelect}
+      />
+    );
+    const screen = await render(view());
+    expect(
+      document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropPortId,
+    ).toBeUndefined();
+    expect(document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropGameId).toBe(
+      "game:original-game",
+    );
+    const clicked = shortcut === "device" ? first : secondPort;
+    await page
+      .getByRole("button", { name: new RegExp(`Matching port: ${clicked.name}`, "u") })
+      .click();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked.id, `catalog:card:${clicked.id}`);
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+    onGameDropDismiss.mockClear();
 
-  await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
-  await expect.element(page.getByRole("dialog")).toBeVisible();
-  expect(onGameDropSelect).not.toHaveBeenCalled();
-  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
-  expect(onGameDropDismiss).toHaveBeenCalledExactlyOnceWith();
-  await screen.rerender(view());
-  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
-  expect(onGameDropSelect).not.toHaveBeenCalled();
-  expect(commit).not.toHaveBeenCalled();
+    await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+    expect(onGameDropDismiss).toHaveBeenCalledExactlyOnceWith();
+    await screen.rerender(view());
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
 
-  await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
-  await expect.element(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "Check files with Second project", exact: true }).click();
-  expect(onGameDropSelect).toHaveBeenCalledExactlyOnceWith({
-    portId: second.id,
-    profileId: secondPort.source_profile,
-    paths: ["D:/Game.z64"],
-  });
-  expect(onSelect).toHaveBeenCalledTimes(1);
-  expect(commit).not.toHaveBeenCalled();
-});
+    await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Check files with Second project", exact: true })
+      .click();
+    expect(onGameDropSelect).toHaveBeenCalledExactlyOnceWith({
+      portId: second.id,
+      profileId: secondPort.source_profile,
+      paths: ["D:/Game.z64"],
+    });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+  },
+);
 
 it("supplies a stable game presentation separately from the Library action target", async () => {
   const selected = {

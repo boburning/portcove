@@ -1667,20 +1667,24 @@ review and journal steps described in the rest of this section are retired.
 ### Prepare one generated definition
 
 `node scripts/catalog-prepare-publication.mts project --catalog CATALOG --port ID
---projection-template TEMPLATE` writes the deterministic projection to standard
-output. Use the independently reviewed generated operational catalog. The
+--projection-template TEMPLATE --validator CORE_CLI` writes Core’s canonical typed
+projection to standard output. Use the independently reviewed generated operational
+catalog and a CLI that supports `catalog canonical-definition-projection`. The
 template supplies the existing projection contract schema and reviewed catalog
 source graph, with `representation` set to `catalog_projection` and an empty
 `catalog.ports` array. The tool inserts the exact matching managed record. A
 listing without an operational definition cannot supply this input.
 
-Use `prepare` with the same three inputs and `--prior PRIOR_BUNDLE --reviewed
-REVIEW_DIRECTORY --validator CORE_CLI --output-parent LOCAL_DIRECTORY` after
+Use `prepare` with the same inputs and `--prior PRIOR_BUNDLE --reviewed
+REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` after
 the request, index, typed definition entry, policy and applicable launch
 records have been independently reviewed. The review directory contains the
 existing `request.json` and `bundle/` layout. A newly generated projection
 must match the indexed digest exactly. A semantically identical projection
-already in the baseline retains its original bytes and digest.
+already in the baseline retains its original bytes and digest. Supply
+`--projection-producer CORE_CLI` when the frozen released `--validator`
+supports bundle inspection but predates canonical projection output. The bridge
+fingerprints each executable and sends the completed bundle to the validator.
 
 The index hash binds every retained managed policy. Adding an entry therefore
 requires reviewed policy revisions and matching launch records for the other

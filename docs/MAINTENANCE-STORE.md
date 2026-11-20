@@ -762,9 +762,15 @@ publication has been verified.
     checkpoint membership after removing explicitly reported gaps. Older facts
     remain visible in subject history. If the current catalog's Core target
     projection or the latest observer membership is unavailable, its count is
-    unknown. Released-client
-    availability, interventions, repairs, and cost stay unknown until their
-    receipts are available.
+    unknown. When the target scope is complete, `routes` lists each offered port
+    and platform with a fixed offer, exact checkpoint evidence, or the same gap
+    reason as the aggregate. Exact evidence lists each verified candidate key
+    once, with its channel and observed eligible or pending state when available.
+    Conflicting facts for the same candidate key are marked ambiguous. Use the
+    candidate key to find the recorded tag or hold reasons in the subject's
+    upstream facts. The HTML report lists route gaps and links to the JSON
+    evidence. Released-client availability, interventions, repairs, and cost
+    stay unknown until their receipts are available.
 - **Gaps:** a port is a fact only when every source serving it has completed
   with a policy for it. Otherwise the run is `partial` and the port is a gap:
   `held` (no observation source serves the port), `unobserved`

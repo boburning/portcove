@@ -23,7 +23,8 @@ plan_desktop_prerequisites() {
     case "$option" in
       --include-rpm) packages+=(rpm) ;;
       --include-appimage-runtime) packages+=("$fuse_package" xvfb dbus-x11 at-spi2-core util-linux) ;;
-      --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11) ;;
+      # The native GTK picker is observed through the session's AT-SPI bus.
+      --include-webdriver) packages+=(webkit2gtk-driver xvfb dbus-x11 at-spi2-core) ;;
       --include-dialog-tests) packages+=(xvfb xauth) ;;
       --prefer-archive-mirror) prefer_archive_mirror=true ;;
       --install-timeout-seconds=*)

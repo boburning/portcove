@@ -6,6 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import {
+  derivationInputsDigest,
+  MANAGED_PORTABLE_ADAPTERS,
+  SHAPE_COMPONENTS,
+} from "./package-shape-baselines.mts";
 import { callTimeout, hostedDependencies } from "./release-content-scan.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -22,6 +27,7 @@ export interface DriftTarget {
   channel: "stable" | "beta";
   definitionSha256: string;
   baselineSha256: string;
+  baselineSource?: "reviewed_layout";
   derivationSha256: string;
   shapeVersion: number;
   repositoryId: number;
@@ -53,6 +59,27 @@ function isShapeComponentList(value: unknown): value is string[] {
   );
 }
 
+function reviewedLayout(port: Record<string, unknown>, platform: string) {
+  if (
+    typeof port.adapter !== "string" ||
+    !MANAGED_PORTABLE_ADAPTERS.has(port.adapter) ||
+    !isRecord(port.release) ||
+    (port.release.provider !== undefined && port.release.provider !== "github") ||
+    !isRecord(port.reviewed_package_layouts)
+  )
+    return undefined;
+  const layout = port.reviewed_package_layouts[platform];
+  if (
+    isRecord(layout) &&
+    Array.isArray(layout.directories) &&
+    layout.directories.every((item: unknown) => typeof item === "string") &&
+    Array.isArray(layout.executables) &&
+    layout.executables.length > 0 &&
+    layout.executables.every((item: unknown) => typeof item === "string")
+  )
+    return layout;
+}
+
 function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   if (!isRecord(catalog) || !isRecord(listings) || !isRecord(shapes)) {
     throw new Error("The managed catalog, listing projection and shape table are required");
@@ -65,12 +92,15 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   if (!positiveInteger(shapes.shape_version)) throw new Error("Invalid shape table version");
   const shapeVersion = shapes.shape_version;
   const table = records(shapes.entries);
+  const canUseLayoutFallback =
+    Array.isArray(shapes.entries) && shapes.entries.length === table.length;
   const routes = new Map<
     string,
     {
       issue?: number;
       repository: string;
       baselineSha256: string;
+      baselineSource?: "reviewed_layout";
       derivationSha256: string;
       shapeVersion: number;
     }
@@ -92,6 +122,23 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
       const baselines = table.filter(
         (shape) => shape.port_id === port.id && shape.platform === platform,
       );
+      const route = {
+        ...(positiveInteger(issue) ? { issue } : {}),
+        repository: port.release.repository,
+        shapeVersion,
+      };
+      if (baselines.length === 0) {
+        const layout = canUseLayoutFallback ? reviewedLayout(port, platform) : undefined;
+        if (layout) {
+          routes.set(`${port.id}/${platform}`, {
+            ...route,
+            baselineSha256: createHash("sha256").update(JSON.stringify(layout)).digest("hex"),
+            baselineSource: "reviewed_layout",
+            derivationSha256: derivationInputsDigest(port, platform),
+          });
+        }
+        continue;
+      }
       const derivationSha256 = baselines[0]?.derivation_inputs_sha256;
       if (
         typeof derivationSha256 !== "string" ||
@@ -100,11 +147,9 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
       )
         continue;
       routes.set(`${port.id}/${platform}`, {
-        ...(positiveInteger(issue) ? { issue } : {}),
-        repository: port.release.repository,
+        ...route,
         baselineSha256: createHash("sha256").update(JSON.stringify(baselines)).digest("hex"),
         derivationSha256,
-        shapeVersion,
       });
     }
   }
@@ -221,6 +266,7 @@ export function collectDriftTargets(
           channel: projection.channel,
           definitionSha256: policy.catalog_definition_sha256,
           baselineSha256: route.baselineSha256,
+          ...(route.baselineSource ? { baselineSource: route.baselineSource } : {}),
           derivationSha256: route.derivationSha256,
           shapeVersion: route.shapeVersion,
           repositoryId: policy.repository_id,
@@ -236,7 +282,13 @@ export function collectDriftTargets(
       }
     }
   }
-  return [...candidates].filter(([key]) => !conflicts.has(key)).map(([, target]) => target);
+  const generated: DriftTarget[] = [];
+  const layouts: DriftTarget[] = [];
+  for (const [key, target] of candidates) {
+    if (conflicts.has(key)) continue;
+    (target.baselineSource ? layouts : generated).push(target);
+  }
+  return [...generated, ...layouts];
 }
 
 export function driftTargetKey(target: DriftTarget): string {
@@ -249,6 +301,7 @@ interface Inspection {
   shapeVersion: number;
   derivationSha256: string;
   components: string[];
+  layoutMatch?: true;
 }
 
 interface DriftObservation {
@@ -261,8 +314,10 @@ const exec = promisify(execFile);
 const archiveLimit = 768 * 1024 * 1024;
 const totalArchiveLimit = 2 * 1024 * 1024 * 1024;
 const subprocessLimit = 4 * 1024 * 1024;
+const layoutComponents = new Set<string>(["programs", "top_directories"]);
+const otherComponents = SHAPE_COMPONENTS.filter((part) => !layoutComponents.has(part));
 
-function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection {
+export function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection {
   const data =
     isRecord(value) && value.ok === true && value.command === "catalog.inspect-package-shape"
       ? value.data
@@ -285,11 +340,33 @@ function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection
   if (!isShapeComponentList(components)) {
     throw new Error("Core returned an unrecognized shape component");
   }
+  if (
+    target.baselineSource === "reviewed_layout" &&
+    (!isRecord(data.verdict.baseline) ||
+      data.verdict.baseline.source !== "reviewed_layout" ||
+      (status === "unknown"
+        ? data.verdict.reason !== "incomplete_comparison"
+        : status !== "drifted" ||
+          components.length === 0 ||
+          components.some((part) => !layoutComponents.has(part))))
+  )
+    throw new Error("Core did not compare against the explicit reviewed layout");
+  // These are the components omitted by a reviewed layout. If Core reported
+  // any other unknown, one of the two reviewed components did not compare.
+  const unknown = data.verdict.unknown;
+  const layoutMatch =
+    target.baselineSource === "reviewed_layout" &&
+    status === "unknown" &&
+    components.length === 0 &&
+    isShapeComponentList(unknown) &&
+    unknown.length === otherComponents.length &&
+    otherComponents.every((part) => unknown.includes(part));
   return {
     status,
     shapeVersion: data.shape_version,
     derivationSha256: data.derivation_inputs_sha256,
     components: [...new Set(components)].sort(),
+    ...(layoutMatch ? { layoutMatch: true } : {}),
   };
 }
 
@@ -334,7 +411,9 @@ export async function scanDriftTargets(
     const prior = completed.get(key);
     if (
       prior?.shapeVersion === target.shapeVersion &&
-      prior.derivationSha256 === target.derivationSha256
+      prior.derivationSha256 === target.derivationSha256 &&
+      (prior.status !== "unknown" ||
+        (target.baselineSource === "reviewed_layout" && prior.layoutMatch === true))
     ) {
       observations.push({ key, target, inspection: prior });
       continue;
@@ -382,16 +461,25 @@ export function completedInspections(
   for (const item of records(value.observations)) {
     if (typeof item.key !== "string" || !digest.test(item.key) || !isRecord(item.inspection))
       continue;
-    const { status, shapeVersion, derivationSha256, components } = item.inspection;
+    const { status, shapeVersion, derivationSha256, components, layoutMatch } = item.inspection;
     if (
-      (status !== "compatible" && status !== "drifted") ||
+      (status !== "compatible" &&
+        status !== "drifted" &&
+        !(status === "unknown" && layoutMatch === true)) ||
       !positiveInteger(shapeVersion) ||
       typeof derivationSha256 !== "string" ||
       !digest.test(derivationSha256) ||
-      !isShapeComponentList(components)
+      !isShapeComponentList(components) ||
+      (status === "unknown" && components.length > 0)
     )
       continue;
-    completed.set(item.key, { status, shapeVersion, derivationSha256, components });
+    completed.set(item.key, {
+      status,
+      shapeVersion,
+      derivationSha256,
+      components,
+      ...(status === "unknown" ? { layoutMatch: true } : {}),
+    });
   }
   return completed;
 }
@@ -457,7 +545,7 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   // Only current evidence goes to the notice job. Preserve earlier comparisons
   // for unobserved routes only while the same inspector bytes are in use.
   for (const item of result.observations) {
-    if (item.inspection.status === "unknown") continue;
+    if (item.inspection.status === "unknown" && item.inspection.layoutMatch !== true) continue;
     cache.delete(item.key);
     cache.set(item.key, item.inspection);
   }

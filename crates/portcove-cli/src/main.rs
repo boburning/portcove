@@ -448,6 +448,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Catalog {
+        command: CatalogCommand::CanonicalDefinitionProjection { file },
+    } = &cli.command
+    {
+        render_read_success(
+            mode,
+            "catalog.canonical-definition-projection",
+            portcove_core::canonical_definition_projection(file)?,
+            String::clone,
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectDefinitionPublication { directory },
     } = &cli.command
     {

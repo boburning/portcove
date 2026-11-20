@@ -46,6 +46,7 @@
       ]
     }
   },
+  "psx_managed_windows_v1": "technically-computers",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -67,17 +68,6 @@
       "macos-x86-64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"],
       "macos-aarch64": ["Star_wars___Episode_I___Jedi_Power_Battles__Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "config",
-      "mods",
-      "settings.toml",
-      "game_options.json",
-      "graphics.json",
-      "input.json",
-      "sound.json"
-    ],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [

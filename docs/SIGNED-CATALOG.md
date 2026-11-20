@@ -128,6 +128,17 @@ leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
 limit. The complete retained graph remains available for existing installs and rollback. A per-port
 retention redesign requires separate work.
 
+The catalog publisher bounds the entire retained public repository at 256 MiB.
+The bound covers prior reads, signing-context rechecks, assembly and public
+verification. The keyless prepare job checks that retained files and new
+hash-addressed targets fit before it starts the signing jobs. The signer
+repeats the check before opening its key file. Assembly checks the exact signed
+output before writing it. The separate 8 MiB descriptive target limit still
+applies to each directory revision. Catalog publish run 44643025884 retained
+130,711,331 bytes and needed 139,099,484 bytes after adding the next descriptive
+target, before adding the new signed metadata. This exceeded the previous
+128 MiB repository limit.
+
 Library writer protocol 60 rebuilds `catalog_state` in one transaction, copying
 the singleton row, replay floor and both envelopes byte for byte. Failure leaves
 the schema-59 table intact. Older binaries refuse both a migrated library and
