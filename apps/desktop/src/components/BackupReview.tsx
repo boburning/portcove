@@ -9,6 +9,8 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { useAppTranslation } from "../localization";
 
+const backupSelectionChanged = new Error("Backup preview does not match the selected backup.");
+
 export type ApplyBackupAction = (
   backup: BackupRecord,
   expectedPreview: string,
@@ -41,12 +43,30 @@ export function BackupReviewDialog({
     execute,
     dismiss,
   } = useActionReview({
-    identity: `${backup.port_id}:${backup.id}:${action}:${generation}`,
-    load: () => desktopApi.previewBackupAction(backup.port_id, backup.id, action, generation),
+    identity: `${backup.port_id}:${backup.id}:${backup.sha256}:${action}:${generation}`,
+    load: async () => {
+      const result = await desktopApi.previewBackupAction(
+        backup.port_id,
+        backup.id,
+        action,
+        generation,
+      );
+      const observed = result.preview.backup;
+      if (
+        result.preview.action !== action ||
+        observed.port_id !== backup.port_id ||
+        observed.id !== backup.id ||
+        observed.sha256 !== backup.sha256
+      ) {
+        throw backupSelectionChanged;
+      }
+      return result;
+    },
     apply: (review) => apply(review.preview.backup, review.preview.preview_sha256),
     close,
     failureMessage: t("review.failure"),
   });
+  const selectionChanged = error === backupSelectionChanged;
   const restore = action === "restore";
   return (
     <Dialog
@@ -78,12 +98,12 @@ export function BackupReviewDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">{t("review.checking")}</p>}
         {review && <BackupReviewDetails review={review} />}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure error={selectionChanged ? t("review.selectionChanged") : error} />
         <DialogFooter className="mt-4">
           <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}
           </Button>
-          {!review && (
+          {!review && !selectionChanged && (
             <Button
               data-focusable
               disabled={Boolean(pending)}
