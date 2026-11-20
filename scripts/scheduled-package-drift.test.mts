@@ -92,7 +92,7 @@ function observation(portId = "example") {
 }
 
 const collect = (handoffs: unknown[]) =>
-  collectDriftTargets(catalog, listings, table, handoffs, source, now);
+  collectDriftTargets(catalog, listings, table, handoffs, source, now).targets;
 
 const layout = { directories: ["data"], executables: ["example.exe"] };
 const layoutPort = {
@@ -111,7 +111,7 @@ function collectWithLayout(port = layoutPort, shapes = table) {
     [observation("layout"), observation()],
     source,
     now,
-  );
+  ).targets;
 }
 
 const comparedLayout = {
@@ -178,13 +178,113 @@ void test("excludes fallback, stale, cross-run, noncanonical and unreviewable ro
     "https://github.com/other/repo/releases/download/v2/example.zip";
   assert.deepEqual(collect([wrongAttempt, historical, fallback, stale, foreign]), []);
   assert.deepEqual(
-    collectDriftTargets(catalog, { listings: [] }, table, [snapshot], source, now),
+    collectDriftTargets(catalog, { listings: [] }, table, [snapshot], source, now).targets,
     [],
   );
   assert.deepEqual(
-    collectDriftTargets(catalog, listings, { ...table, entries: [] }, [snapshot], source, now),
+    collectDriftTargets(catalog, listings, { ...table, entries: [] }, [snapshot], source, now)
+      .targets,
     [],
   );
+});
+
+void test("reports one exact current missing-baseline row without inspection or issue notice", async () => {
+  const port = { ...catalog.ports[0]!, adapter: "n64-recomp-portable" };
+  const noShapes = { ...table, entries: [] };
+  const select = (handoffs: unknown[]) =>
+    collectDriftTargets({ ports: [port] }, listings, noShapes, handoffs, source, now);
+  const snapshot = observation();
+  const selected = select([snapshot, structuredClone(snapshot)]);
+  assert.deepEqual(selected, {
+    targets: [],
+    baselineGaps: {
+      rows: [
+        {
+          reason: "no-reviewed-baseline",
+          port_id: "example",
+          platform,
+          channel: "stable",
+          definition_sha256: "e".repeat(64),
+          repository_id: 900,
+          release_id: 2,
+          asset_id: 3,
+          asset_sha256: "a".repeat(64),
+          version: "v2",
+        },
+      ],
+      omitted: 0,
+    },
+  });
+  const inspected = await scanDriftTargets(selected.targets, new Map(), now + 60_000, {
+    now: () => now,
+    download: async () => assert.fail("missing baseline should not download"),
+    inspect: async () => assert.fail("missing baseline should not inspect"),
+  });
+  assert.equal(inspected.attempted_bytes, 0);
+  assert.deepEqual(inspected.observations, []);
+  assert.deepEqual(
+    driftNotices(
+      { format: 1, run: source, ...inspected, baseline_gaps: selected.baselineGaps },
+      listings,
+      source,
+    ),
+    [],
+  );
+
+  const conflict = observation();
+  conflict.catalog_policies[0]!.projections[0]!.latest_eligible.asset_id++;
+  assert.deepEqual(select([snapshot, conflict, snapshot]).baselineGaps.rows, []);
+  const sameAssetId = observation();
+  sameAssetId.catalog_policies[0]!.projections[0]!.latest_eligible.release.asset.size++;
+  assert.deepEqual(select([snapshot, sameAssetId, snapshot]).baselineGaps.rows, []);
+  const partial = { ...snapshot, unassessed_current_port_ids: ["example"] };
+  const crossRun = { ...snapshot, execution: { ...source, run_attempt: "2" } };
+  const fallback = observation();
+  fallback.catalog_policies[0]!.projections[0]!.channel_candidate.id++;
+  const stale = observation();
+  stale.catalog_policies[0]!.observed_at = new Date(now - 5 * 60 * 60_000).toISOString();
+  const foreign = observation();
+  foreign.catalog_policies[0]!.projections[0]!.latest_eligible.release.asset.url =
+    "https://github.com/other/repo/releases/download/v2/example.zip";
+  const historical = {
+    ...snapshot,
+    catalog_policies_scope: "last-complete-historical-fallback; current state unknown",
+  };
+  assert.deepEqual(
+    select([partial, crossRun, fallback, stale, foreign, historical]).baselineGaps.rows,
+    [],
+  );
+  for (const unsupported of [
+    { ...catalog.ports[0]!, adapter: "manual-setup" },
+    { ...port, release: { repository: "owner/repo", provider: "gitlab" } },
+  ]) {
+    const result = collectDriftTargets(
+      { ports: [unsupported] },
+      listings,
+      noShapes,
+      [snapshot],
+      source,
+      now,
+    );
+    assert.deepEqual(result.baselineGaps.rows, []);
+  }
+});
+
+void test("retains only the bounded first missing-baseline keys in stable order", () => {
+  const ids = Array.from({ length: 1025 }, (_, index) => `port-${String(index).padStart(4, "0")}`);
+  const selected = collectDriftTargets(
+    { ports: ids.map((id) => ({ ...catalog.ports[0]!, id, adapter: "native-portable" })) },
+    { listings: ids.map((id) => ({ id })) },
+    { ...table, entries: [] },
+    [...ids].reverse().map(observation),
+    source,
+    now,
+  );
+  assert.deepEqual(
+    selected.baselineGaps.rows.map(({ port_id }) => port_id),
+    ids.slice(0, 1024),
+  );
+  assert.equal(selected.baselineGaps.omitted, 1);
 });
 
 void test("a reviewed layout supplies an issue-free baseline only without a generated entry", () => {
@@ -467,7 +567,7 @@ void test("inspects issue-free routes and preserves comparison identity when iss
     [observation()],
     source,
     now,
-  );
+  ).targets;
   assert.ok(linked);
   assert.ok(unlinked);
   assert.equal(Object.hasOwn(unlinked, "issue"), false);

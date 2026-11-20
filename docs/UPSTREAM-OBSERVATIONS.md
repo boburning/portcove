@@ -457,6 +457,11 @@ identifies its inspections even when no issue is linked.
 An older reviewed fallback stays distinct from the latest candidate. Other
 providers, incomplete scopes and unavailable archives have no current shape
 assessment from this job.
+When an exact current managed GitHub candidate lacks both reviewed baselines,
+the inspection report records `no-reviewed-baseline` under `baseline_gaps`.
+Each row binds the port, platform, channel, definition and asset identity.
+The report retains up to 1,024 rows in stable order and counts any additional
+rows. These gaps spend no archive budget and do not trigger issue notices.
 
 The read-only inspection verifies size and SHA-256 before comparing the archive
 through `portcove catalog inspect-package-drift`, an alias for the verified
