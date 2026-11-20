@@ -72,7 +72,7 @@ describe("disposable artwork display cache", () => {
       cache.loadMedia("sample", catalogImage(`fill-${index}`), () => true);
     cache.loadMedia("sample", third, () => thirdVisible);
     expect(read).toHaveBeenCalledTimes(maximumRemoteRequests);
-    expect(read).toHaveBeenCalledWith("sample", first.id, first.sha256, 7, false, undefined);
+    expect(read).toHaveBeenCalledWith("sample", first.id, first.sha256, 7);
     thirdVisible = false;
     pending[0]!({ asset_sha256: first.sha256, choice_revision: 0, png_base64: "iVBORw==" });
     pending[1]!({ asset_sha256: "foreign", choice_revision: 0, png_base64: "iVBORw==" });
@@ -539,7 +539,7 @@ describe("disposable artwork display cache", () => {
     cachedPriority = 1;
     cache.reprioritize();
     await vi.waitFor(() => expect(cache.read("cached", "cover").image).toBeDefined());
-    expect(thumbnails).toHaveBeenCalledWith("cached", "cover", 0, 7, true, undefined);
+    expect(thumbnails).toHaveBeenCalledWith("cached", "cover", 0, 7, true);
     await cache.load(
       "selected",
       "cover",
@@ -565,7 +565,10 @@ describe("disposable artwork display cache", () => {
       vi.spyOn(desktopApi, "artwork").mockResolvedValue(mappedArtwork("visible"));
       const thumbnail = vi
         .spyOn(desktopApi, "artworkThumbnail")
-        .mockRejectedValueOnce({ message: "temporary", details: { artwork_retry_after: "30" } })
+        .mockRejectedValueOnce({
+          message: "temporary",
+          details: { artwork_retry_after: "30", artwork_cache_epoch: "initial" },
+        })
         .mockResolvedValue(mappedThumbnail());
       await cache.load(
         "visible",
@@ -579,6 +582,7 @@ describe("disposable artwork display cache", () => {
       await vi.advanceTimersByTimeAsync(31_000);
       expect(cache.read("visible", "cover").image).toBeDefined();
       expect(thumbnail).toHaveBeenCalledTimes(2);
+      expect(thumbnail).toHaveBeenLastCalledWith("visible", "cover", 0, 7, false, "initial");
     } finally {
       cache.clearRetryTimers();
       vi.useRealTimers();
@@ -674,7 +678,7 @@ describe("disposable artwork display cache", () => {
     await cache.change("overridden", "cover", 0, "owned.png", () => true);
     finish.get("fill-0")?.(mappedThumbnail());
     await vi.waitFor(() => expect(finish.has("refreshed")).toBe(true));
-    expect(thumbnails).toHaveBeenCalledWith("refreshed", "cover", 2, 7, false, undefined);
+    expect(thumbnails).toHaveBeenCalledWith("refreshed", "cover", 2, 7);
     expect(thumbnails.mock.calls.filter(([port]) => port === "refreshed")).toHaveLength(1);
     expect(thumbnails.mock.calls.filter(([port]) => port === "overridden")).toHaveLength(1);
     for (const port of fillers.slice(1)) finish.get(port)?.(mappedThumbnail());
@@ -1071,8 +1075,7 @@ it("bounds and coalesces collection requests through the shared remote queue", a
   );
   expect(peak).toBe(maximumRemoteRequests);
   expect(load).toHaveBeenCalledTimes(members.length);
-  for (const { portId, sha } of members)
-    expect(load).toHaveBeenCalledWith(portId, sha, 3, 8, false, undefined);
+  for (const { portId, sha } of members) expect(load).toHaveBeenCalledWith(portId, sha, 3, 8);
 });
 
 it("refuses collection thumbnails with a different choice revision", async () => {

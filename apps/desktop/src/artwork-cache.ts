@@ -39,6 +39,7 @@ interface QueuedThumbnail {
   priority?: ArtworkPriority | undefined;
   probed?: boolean;
   attempt?: number;
+  visibleOnly?: boolean;
   isCurrent: () => boolean;
   stillInterested: () => boolean;
   fetch: (cacheOnly: boolean, attempt: number) => Promise<"done" | "miss" | "retry">;
@@ -61,6 +62,14 @@ function artworkErrorDetail(error: unknown, detail: string) {
     return undefined;
   const value: unknown = Reflect.get(error.details, detail);
   return typeof value === "string" ? value : undefined;
+}
+
+function cacheProbeArguments(
+  cacheOnly: boolean,
+  cacheEpoch?: string,
+): [cacheOnly?: boolean, cacheEpoch?: string] {
+  if (cacheEpoch) return [cacheOnly, cacheEpoch];
+  return cacheOnly ? [true] : [];
 }
 
 function decodedBytes(encoded: string) {
@@ -186,13 +195,13 @@ export class ArtworkCache {
       setTimeout(
         () => {
           this.retryTimers.delete(key);
-          if (
-            !request.isCurrent() ||
-            !request.priority?.() ||
-            (!request.stillInterested() && !this.listeners.has(key))
-          )
-            return;
-          this.remoteQueued.set(key, { ...request, probed: false, attempt: attempt + 1 });
+          if (!request.isCurrent()) return;
+          this.remoteQueued.set(key, {
+            ...request,
+            probed: false,
+            attempt: attempt + 1,
+            visibleOnly: true,
+          });
           this.drainRemote();
         },
         31_000 * 2 ** attempt,
@@ -289,6 +298,7 @@ export class ArtworkCache {
         this.entries.delete(key);
         continue;
       }
+      if (request.visibleOnly && priority === 0) continue;
       const cacheOnly = this.remoteActive.size >= maximumRemoteRequests;
       if (cacheOnly) {
         if (
@@ -361,8 +371,7 @@ export class ArtworkCache {
           media.id,
           media.sha256,
           this.generation,
-          cacheOnly,
-          cacheEpoch,
+          ...cacheProbeArguments(cacheOnly, cacheEpoch),
         ),
       stillInterested,
       refresh,
@@ -405,8 +414,7 @@ export class ArtworkCache {
           sha256,
           revision,
           this.generation,
-          cacheOnly,
-          cacheEpoch,
+          ...cacheProbeArguments(cacheOnly, cacheEpoch),
         ),
       stillInterested,
       Boolean(this.entries.get(key)?.error),
@@ -443,8 +451,7 @@ export class ArtworkCache {
           sha256,
           revision,
           this.generation,
-          cacheOnly,
-          cacheEpoch,
+          ...cacheProbeArguments(cacheOnly, cacheEpoch),
         ),
       stillInterested,
       false,
@@ -499,10 +506,9 @@ export class ArtworkCache {
             },
           });
         } catch (error) {
-          if (cacheOnly && artworkErrorDetail(error, "artwork_download_required")) {
-            cacheEpoch = artworkErrorDetail(error, "artwork_cache_epoch");
-            if (cacheEpoch) return "miss";
-          }
+          cacheEpoch = artworkErrorDetail(error, "artwork_cache_epoch") ?? cacheEpoch;
+          if (cacheOnly && cacheEpoch && artworkErrorDetail(error, "artwork_download_required"))
+            return "miss";
           if (!isCurrent()) return "done";
           const retry = artworkErrorDetail(error, "artwork_retry_after");
           requested = {
@@ -564,8 +570,7 @@ export class ArtworkCache {
           slot,
           state.choice.revision,
           this.generation,
-          cacheOnly,
-          cacheEpoch,
+          ...cacheProbeArguments(cacheOnly, cacheEpoch),
         );
         const image = thumbnailUrl(thumbnail, state);
         if (this.read(portId, slot).state !== state) return "done";
@@ -594,10 +599,9 @@ export class ArtworkCache {
           loading: false,
         });
       } catch (error) {
-        if (cacheOnly && artworkErrorDetail(error, "artwork_download_required")) {
-          cacheEpoch = artworkErrorDetail(error, "artwork_cache_epoch");
-          if (cacheEpoch) return "miss";
-        }
+        cacheEpoch = artworkErrorDetail(error, "artwork_cache_epoch") ?? cacheEpoch;
+        if (cacheOnly && cacheEpoch && artworkErrorDetail(error, "artwork_download_required"))
+          return "miss";
         if (this.read(portId, slot).state !== state) return "done";
         const current = this.read(portId, slot);
         const retry = artworkErrorDetail(error, "artwork_retry_after");

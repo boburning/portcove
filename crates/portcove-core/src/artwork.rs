@@ -24,7 +24,8 @@ pub use destination::{
 pub use igdb_cache::IGDB_ARTWORK_WORK_LIMIT;
 /// Internal adapter detail distinguishing a downloadable cache miss from an unavailable asset.
 pub const ARTWORK_CACHE_MISS: &str = "artwork_download_required";
-pub(crate) const ARTWORK_RETRY: &str = "artwork_retry_after";
+/// Internal adapter detail indicating an eligible transient image failure.
+pub const ARTWORK_RETRY: &str = "artwork_retry_after";
 pub use steamgriddb::{
     STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
     SteamGridDbCandidate, SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure,

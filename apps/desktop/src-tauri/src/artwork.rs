@@ -5,7 +5,7 @@ use crate::{
 };
 use base64::Engine as _;
 use portcove_core::{
-    ARTWORK_CACHE_MISS, ArtworkSlot, ArtworkState, ArtworkThumbnail, PortcoveService,
+    ARTWORK_CACHE_MISS, ARTWORK_RETRY, ArtworkSlot, ArtworkState, ArtworkThumbnail, PortcoveService,
 };
 use serde::Serialize;
 use std::{
@@ -310,13 +310,7 @@ where
             .map_err(Into::into)
     })
     .await;
-    let thumbnail = match cached {
-        Err(mut error) if cache_only && error.details.contains_key(ARTWORK_CACHE_MISS) => {
-            error
-                .details
-                .insert("artwork_cache_epoch".into(), epoch.token());
-            return Err(error);
-        }
+    let result = match cached {
         Err(error) if !cache_only && error.details.contains_key(ARTWORK_CACHE_MISS) => {
             let download_state = state.clone();
             thumbnail_worker(remote_thumbnail_workers(), true, move || {
@@ -326,10 +320,20 @@ where
                     .map(display_thumbnail)
                     .map_err(Into::into)
             })
-            .await?
+            .await
         }
-        result => result?,
+        result => result,
     };
+    let thumbnail = result.map_err(|mut error| {
+        if error.details.contains_key(ARTWORK_CACHE_MISS)
+            || error.details.contains_key(ARTWORK_RETRY)
+        {
+            error
+                .details
+                .insert("artwork_cache_epoch".into(), epoch.token());
+        }
+        error
+    })?;
     crate::require_library_generation(state_generation(&state), generation)?;
     Ok(thumbnail)
 }
