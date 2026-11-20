@@ -1360,6 +1360,127 @@ void test("untouched managed sources are admitted before listing-only sources", 
   assert.ok(listingPositions.every((position) => position > lastManaged));
 });
 
+void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive fixture",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const { sources } = catalogObservationSources(input);
+  const critical = sources.find((source) => source.repository === "owner/shared")!;
+  const ordinary = sources.find((source) => source.repository === "owner/other")!;
+  const listings = sources
+    .filter((source) => source.repository.startsWith("listing-owner/"))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const [deferred, oldest, next] = listings;
+  assert.ok(deferred && oldest && next);
+  const listingIds = new Map(listings.map((source, index) => [source.repository, 20 + index]));
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    repositoryId: async (source, transport) => {
+      const id = listingIds.get(source.repository);
+      if (id === undefined) return h.options.repositoryId(source, transport);
+      transport.admitRequest();
+      return id;
+    },
+    fetch: async (url, init) => {
+      const pathname = new URL(url).pathname;
+      for (const [repository, id] of listingIds) {
+        if (pathname === `/repos/${repository}`)
+          return new Response(JSON.stringify({ id, full_name: repository, archived: false }), {
+            headers: { "content-type": "application/json" },
+          });
+        if (pathname.startsWith(`/repos/${repository}/`))
+          return new Response("[]", { headers: { "content-type": "application/json" } });
+      }
+      return h.options.fetch!(url, init);
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, {
+    ...options,
+    excludedSources: new Set([oldest.key, next.key]),
+  });
+  const initial = first.checkpoint.sources[critical.key]?.freshness_observed_at;
+  assert.ok(initial);
+  const hour = 3600000;
+  h.advanceClock(6 * hour);
+  const fresh = await advanceCatalogObservations(input, first.checkpoint, {
+    ...options,
+    excludedSources: new Set([critical, ...listings].map(({ key }) => key)),
+  });
+  const verified = fresh.checkpoint.sources[ordinary.key]?.freshness_observed_at;
+  assert.ok(verified && verified !== initial);
+  h.advanceClock(6 * hour - 60000);
+  const prior = fresh.checkpoint;
+  // Ordinary due work is older in rotation than the freshness-critical source.
+  // The reservation must protect the latter even when order alone would not.
+  prior.sources[ordinary.key]!.attempted_sequence = 1;
+  prior.sources[critical.key]!.attempted_sequence = prior.sequence;
+  prior.sources[deferred.key]!.retry_at = new Date(options.now!() + hour).toISOString();
+  const baselineTime = options.now!();
+  const perBatch = options.config.budget.duration_ms;
+  const displace = {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    project: async (...args: Parameters<CatalogObservationOptions["project"]>) => {
+      if (args[0] === "other-port") h.advanceClock(perBatch);
+      return options.project(...args);
+    },
+  };
+  const beforeSourceCheckpoints = new Map(h.states);
+  const baseline = await advanceCatalogObservations(input, prior, displace);
+  assert.deepEqual(baseline.report.attempted_source_keys, [ordinary.key]);
+  h.advanceClock(baselineTime - options.now!());
+  h.states.clear();
+  for (const [key, value] of beforeSourceCheckpoints) h.states.set(key, value);
+
+  const reserved = await advanceCatalogObservations(input, prior, {
+    ...displace,
+    reserveExpiredListingTurn: true,
+  });
+  assert.deepEqual(reserved.report.attempted_source_keys, [critical.key, oldest.key, ordinary.key]);
+  assert.ok(reserved.report.completed_source_keys.includes(oldest.key));
+  assert.equal(reserved.checkpoint.sources[next.key], undefined);
+  assert.deepEqual(reserved.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  for (const source of [critical, ordinary]) {
+    assert.equal(
+      reserved.checkpoint.sources[source.key]?.freshness_observed_at,
+      baseline.checkpoint.sources[source.key]?.freshness_observed_at,
+    );
+  }
+  const retained = reserved.checkpoint.sources[oldest.key]!;
+  assert.ok(retained.freshness_observed_at && retained.completed_at && retained.next_due_at);
+
+  const empty = await advanceCatalogObservations(input, reserved.checkpoint, {
+    ...options,
+    requestLimit: 0,
+    excludedSources: new Set([critical.key, ordinary.key]),
+    reserveExpiredListingTurn: true,
+  });
+  assert.equal(empty.report.requests, 0);
+  assert.deepEqual(empty.report.attempted_source_keys, []);
+  assert.deepEqual(empty.checkpoint, reserved.checkpoint);
+
+  const resumed = await advanceCatalogObservations(input, empty.checkpoint, {
+    ...options,
+    policyIdentity: displace.policyIdentity,
+    reserveExpiredListingTurn: true,
+  });
+  assert.ok(resumed.report.completed_source_keys.includes(next.key));
+  assert.equal(resumed.report.attempted_source_keys[0], critical.key);
+  assert.deepEqual(resumed.checkpoint.sources[oldest.key], retained);
+  assert.deepEqual(resumed.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  assert.ok(
+    Date.parse(resumed.checkpoint.sources[critical.key]!.freshness_observed_at!) >
+      Date.parse(initial),
+  );
+});
+
 void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {
   const h = harness();
   const input = {

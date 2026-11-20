@@ -505,6 +505,8 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
+  /** Offer one due descriptive source the existing ordinary source quantum. */
+  reserveExpiredListingTurn?: boolean;
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
@@ -736,6 +738,31 @@ export async function advanceCatalogObservations(
           (state.sources[b.key]?.attempted_sequence ?? -1) ||
         a.key.localeCompare(b.key),
     );
+  if (options.reserveExpiredListingTurn) {
+    const listingTurn = pending.find((source) => {
+      if (!listingOnly(source) || earlyTurn(source)) return false;
+      const progress = state.sources[source.key];
+      return !progress || freshnessExpired(progress);
+    });
+    if (listingTurn) {
+      const priority = (source: ObservableSource) => {
+        if (earlyTurn(source)) return 3;
+        const progress = state.sources[source.key];
+        if (
+          servesManagedPort(source) &&
+          (!progress?.freshness_observed_at ||
+            Date.parse(progress.freshness_observed_at) + template.stale_after_hours * 3600000 <=
+              deadline)
+        )
+          return 2;
+        return source === listingTurn ? 1 : 0;
+      };
+      // A stable reordering keeps the admitted appointment positions and the
+      // durable rotation within each group. The selected listing uses its usual
+      // source quantum and the same shared deadline, quota and byte admission.
+      pending.sort((a, b) => priority(b) - priority(a));
+    }
+  }
   const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
   const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
