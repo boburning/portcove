@@ -104,7 +104,11 @@ it("reveals one complete game identity after resize restoration finishes", async
     ready: observeCollectionLayoutReady,
     scroll: () =>
       identity.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }),
-    observe: () => observeVisibleTarget(target, "visual"),
+    observe: () => {
+      const observation = observeVisibleTarget(target, "visual");
+      expect(observation.visible, JSON.stringify(observation)).toBe(true);
+      return observation;
+    },
     settle: frames,
   });
   const result = await prepared;
