@@ -123,7 +123,7 @@ pub(crate) async fn resume_library_recovery_restore(
         transfer_preserving_current_library(&state, generation, |active| {
             let destination = std::fs::canonicalize(&destination)?;
             require_separate_destination(active, &destination)?;
-            PortcoveService::resume_library_import(&destination)
+            PortcoveService::resume_library_recovery_restore(&destination)
         })
     })
     .await

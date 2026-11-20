@@ -1,8 +1,8 @@
 //! Native handle handoff; copy, verification, and authority remain in core.
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_service, blocking_worker,
-    initialize_desktop_at, require_library_generation, require_no_library_handoff,
-    state_generation,
+    initialize_desktop_at, initialize_desktop_selection, require_library_generation,
+    require_no_library_handoff, state_generation,
 };
 use portcove_core::{PortcoveError, PortcoveService};
 use std::path::{Path, PathBuf};
@@ -170,7 +170,7 @@ fn handoff_desktop_library<T>(
     operation: impl FnOnce(&Path) -> portcove_core::Result<T>,
     active_root: impl FnOnce(&T, &Path) -> PathBuf,
 ) -> DesktopResult<T> {
-    let (root, outgoing_root) = {
+    let (root, outgoing_root, previous_selection) = {
         let mut initialization = state.initialization.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("desktop state lock was poisoned"))
         })?;
@@ -178,6 +178,17 @@ fn handoff_desktop_library<T>(
         if let Some(expected) = generation {
             require_library_generation(state_generation(state), expected)?;
         }
+        let previous_selection = if generation.is_some() {
+            Some(
+                initialization
+                    .as_ref()
+                    .map_err(Clone::clone)?
+                    .selection
+                    .clone(),
+            )
+        } else {
+            None
+        };
         let outgoing_root = initialization
             .as_ref()
             .ok()
@@ -198,7 +209,7 @@ fn handoff_desktop_library<T>(
             .detail("transfer_in_progress", "true")
             .detail("retained_source", root.display().to_string())
             .into());
-        (root, outgoing_root)
+        (root, outgoing_root, previous_selection)
     };
     // Probe only the formerly selected, validated root. An explicit recovery
     // path must reach Core's validation without a host-created lease directory.
@@ -211,7 +222,11 @@ fn handoff_desktop_library<T>(
     let active_root = result
         .as_ref()
         .map_or_else(|_| root.clone(), |value| active_root(value, &root));
-    let reopened = initialize_desktop_at(Some(active_root)).map_err(|mut error| {
+    let reopened = match previous_selection {
+        Some(selection) => initialize_desktop_selection(selection),
+        None => initialize_desktop_at(Some(active_root)),
+    }
+    .map_err(|mut error| {
         if !error.details.contains_key("import_destination") {
             error
                 .details
@@ -340,14 +355,23 @@ mod tests {
         store.set_library(&source).unwrap();
         let contents = fs::read(preferences).unwrap();
         let state = DesktopState {
-            initialization: std::sync::Arc::new(std::sync::Mutex::new(initialize_desktop_at(
-                Some(source.clone()),
-            ))),
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(
+                initialize_desktop_selection(portcove_core::LibrarySelection {
+                    root: source.clone(),
+                    source: portcove_core::LibrarySelectionSource::Saved,
+                }),
+            )),
             preferences: Ok(store),
             generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
-        let original = bootstrap_status(&state).library_root.unwrap();
+        let initial = bootstrap_status(&state);
+        let original = initial.library_root.unwrap();
+        let selected = initial.selection.unwrap();
+        assert_eq!(
+            selected.source,
+            portcove_core::LibrarySelectionSource::Saved
+        );
         assert!(
             transfer_preserving_current_library::<()>(&state, 0, |_| {
                 panic!("a stale review must not enter the transfer")
@@ -366,6 +390,9 @@ mod tests {
         let status = bootstrap_status(&state);
         assert_eq!(status.generation, 2);
         assert_eq!(status.library_root.unwrap(), original);
+        let current_selection = status.selection.unwrap();
+        assert_eq!(current_selection.source, selected.source);
+        assert_eq!(current_selection.root, selected.root);
         assert_eq!(
             fs::read(temporary.path().join("preferences.json")).unwrap(),
             contents

@@ -149,12 +149,18 @@ impl PortcoveService {
         }
         // Import owns all mutation, recovery, and publication of the restored
         // root. Its content-bound journal can be resumed without a second owner.
-        Self::import_library(
-            &import.metadata_file.path,
-            &import.content_root,
-            &import.destination_root,
-            &import.plan_sha256,
-        )
+        let path = import.destination_root.clone();
+        crate::import_execution::start_reviewed_import(import, Some(&review.bundle), &|phase| {
+            #[cfg(feature = "qualification-fixtures")]
+            if phase == crate::transfer_journal::TransferPhase::Published {
+                return crate::qualification_checkpoint::observe(
+                    &path,
+                    crate::qualification_checkpoint::Checkpoint::LibraryImportPublished,
+                );
+            }
+            let _ = (&path, phase);
+            Ok(())
+        })
     }
 }
 
@@ -735,6 +741,51 @@ mod tests {
         assert_eq!(
             fs::metadata(destination).unwrap().permissions().mode() & 0o077,
             0
+        );
+    }
+
+    #[test]
+    fn bundle_resume_requires_its_receipt_until_publication_and_refuses_manual_imports() {
+        use crate::transfer_journal::TransferPhase;
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        let restore_root = workspace.path().join("restored");
+        let manual_root = workspace.path().join("manual");
+        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root).unwrap();
+        let interrupt = |phase| {
+            if phase == TransferPhase::Copying {
+                return Err(PortcoveError::state("fixture interruption before copy"));
+            }
+            Ok(())
+        };
+        crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
+        assert!(PortcoveService::resume_library_recovery_restore(&manual_root).is_err());
+
+        let (_, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
+        crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
+            .unwrap_err();
+        assert!(PortcoveService::resume_library_import(&restore_root).is_err());
+        let manifest = bundle.path.join(MANIFEST_FILE);
+        let original = fs::read(&manifest).unwrap();
+        fs::write(&manifest, b"tampered receipt").unwrap();
+        assert!(PortcoveService::resume_library_recovery_restore(&restore_root).is_err());
+        assert!(Library::open(&restore_root).is_err());
+        fs::write(&manifest, original).unwrap();
+        let restored = PortcoveService::resume_library_recovery_restore(&restore_root).unwrap();
+        assert!(restored.completed);
+        fs::rename(&bundle.path, workspace.path().join("offline-bundle")).unwrap();
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&restore_root)
+                .unwrap()
+                .completed
         );
     }
 }

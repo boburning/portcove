@@ -188,9 +188,10 @@ function RecoveryBundleDialog({
     setTransferred(true);
     setCreation(undefined);
     setRestore(undefined);
-    setRecovery(undefined);
     try {
-      return await action(current?.generation ?? generation);
+      const result = await action(current?.generation ?? generation);
+      setRecovery(undefined);
+      return result;
     } catch (failure) {
       const target = recoveryFolder(failure, kind);
       if (target) setRecovery({ operation: kind, path: target });
@@ -199,6 +200,8 @@ function RecoveryBundleDialog({
   }
 
   function resume(target: RecoveryStep) {
+    if (inFlight.current) return;
+    setRecovery(target);
     void run("Resuming the reviewed operation…", async () => {
       if (target.operation === "resumeCreation") {
         setVerified(

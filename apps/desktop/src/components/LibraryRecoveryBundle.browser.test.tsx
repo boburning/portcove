@@ -131,7 +131,10 @@ it("resumes only the reported staging folder after reading the current generatio
     message: "The copy stopped",
     details: { recovery_staging: staging },
   });
-  const resumed = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle").mockResolvedValue(bundle);
+  const resumed = vi
+    .spyOn(desktopApi, "resumeLibraryRecoveryBundle")
+    .mockRejectedValueOnce(new Error("The staging drive is temporarily unavailable"))
+    .mockResolvedValue(bundle);
   const read = vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
     ready: true,
     library_root: source,
@@ -144,8 +147,16 @@ it("resumes only the reported staging folder after reading the current generatio
   await expect.element(dialog.getByText(staging)).toBeVisible();
   expect(resumed).not.toHaveBeenCalled();
   await dialog.getByRole("button", { name: "Resume bundle creation" }).click();
-  expect(read).toHaveBeenCalledOnce();
-  expect(resumed).toHaveBeenCalledExactlyOnceWith(staging, 8);
+  await expect
+    .element(dialog.getByText("The staging drive is temporarily unavailable"))
+    .toBeVisible();
+  await expect.element(dialog.getByText(staging)).toBeVisible();
+  await dialog.getByRole("button", { name: "Resume bundle creation" }).click();
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(resumed.mock.calls).toEqual([
+    [staging, 8],
+    [staging, 8],
+  ]);
   expect(create).toHaveBeenCalledOnce();
   await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
 });
