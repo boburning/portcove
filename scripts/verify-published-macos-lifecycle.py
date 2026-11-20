@@ -11,7 +11,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-import time
 
 CPU = {"macos-15": ("arm64", 0x0100000C), "macos-15-intel": ("x86_64", 0x01000007)}
 PREVIEW_11_LIBRARY_SCHEMA = 72
@@ -67,46 +66,23 @@ def library_status(database):
     return {"ready": ready, "schema_version": max(versions, default=0), "missing_core_tables": missing}
 
 
-def observe(executable, helper, run_dir, evidence, architecture, cpu, env, stage):
-    started = time.time()
-    protocol = str(started)
-    with (run_dir / f"{stage}.stdout").open("wb") as stdout, (run_dir / f"{stage}.stderr").open("wb") as stderr:
-        app = subprocess.Popen([str(executable)], cwd=run_dir, stdout=stdout, stderr=stderr, env=env)
-        observed = {"pid": app.pid, "stage": stage, "native_architecture": architecture}
-        try:
-            args = (str(app.pid), str(executable), str(cpu), protocol)
-            deadline = time.monotonic() + 40
-            while time.monotonic() < deadline and app.poll() is None:
-                proof = subprocess.run(
-                    (str(helper), "window", *args, "-"), capture_output=True, text=True, timeout=5
-                )
-                observed["last_native_probe_exit"] = proof.returncode
-                observed["library"] = library_status(Path(env["PORTCOVE_LIBRARY"]) / "portcove.sqlite3")
-                require(proof.returncode in (0, 2, 3), f"Native window probe failed ({stage})")
-                if proof.returncode == 0:
-                    count, reported_cpu, birth = proof.stdout.split()
-                    require(int(reported_cpu) == cpu and int(count) > 0, "Native executable architecture or window differs")
-                    observed.update(owned_windows=int(count), cocoa_launch_date=birth)
-                    if observed["library"]["ready"]:
-                        break
-                time.sleep(0.3)
-            require("owned_windows" in observed and observed["library"]["ready"],
-                    f"Did not observe the exact native window and private library ({stage})")
-            require(app.poll() is None, f"Application exited before the Cocoa quit ({stage})")
-            checked(str(helper), "quit", *args, observed["cocoa_launch_date"], timeout=10)
-            require(app.wait(timeout=20) == 0, f"Application exited unsuccessfully after Cocoa quit ({stage})")
-            observed.update(quit="NSRunningApplication.terminate", exit_code=app.returncode, forced_cleanup=False)
-        finally:
-            if app.poll() is None:
-                observed["forced_cleanup"] = True
-                app.terminate()
-                try:
-                    app.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    app.kill()
-                    app.wait(timeout=5)
-            observed["exit_code"] = app.returncode
-            (evidence / f"{stage}.json").write_text(json.dumps(observed, indent=2) + "\n", encoding="utf8")
+def observe(bundle, helper, evidence, architecture, cpu, env, stage):
+    report = {"stage": stage, "native_architecture": architecture}
+    try:
+        result = subprocess.run(
+            (str(helper), str(bundle), str(cpu)), env=env,
+            capture_output=True, text=True, timeout=90,
+        )
+        report["observer_exit"] = result.returncode
+        if result.stdout:
+            report.update(json.loads(result.stdout))
+        report["library"] = library_status(Path(env["PORTCOVE_LIBRARY"]) / "portcove.sqlite3")
+        require(result.returncode == 0 and report.get("terminated") is True,
+                f"AppKit did not establish the attributed normal lifecycle ({stage})")
+        require(report["library"]["ready"], f"Private Core library is not ready after normal quit ({stage})")
+    finally:
+        (evidence / f"{stage}.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf8")
+    return report
 
 
 def main(evidence, package):
@@ -135,7 +111,10 @@ def main(evidence, package):
                 "Signed Desktop package is missing a native slice")
         checked("/usr/bin/codesign", "--verify", "--deep", "--strict", str(bundle))
         helper = work / "observe-window"
-        checked("/usr/bin/swiftc", "scripts/verify-published-macos-owned-window.swift", "-o", str(helper), timeout=90)
+        checked(
+            "/usr/bin/swiftc", "-parse-as-library", "scripts/verify-published-macos-owned-window.swift",
+            "-o", str(helper), timeout=90,
+        )
         cocoa_home = work / "private-cocoa-home"
         cocoa_home.mkdir(mode=0o700)
         env = dict(os.environ)
@@ -150,8 +129,12 @@ def main(evidence, package):
                 "attempt": os.environ["GITHUB_RUN_ATTEMPT"], "bundle_version": binding["version"],
                 "desktop_sha256": executable_digest}
         (evidence / "host.json").write_text(json.dumps(host, indent=2) + "\n", encoding="utf8")
-        observe(executable, helper, work, evidence, architecture, cpu, env, "fresh-start")
-        observe(executable, helper, work, evidence, architecture, cpu, env, "reopen")
+        fresh = observe(bundle, helper, evidence, architecture, cpu, env, "fresh-start")
+        library = Path(env["PORTCOVE_LIBRARY"]) / "portcove.sqlite3"
+        library_inode = library.stat().st_ino
+        reopened = observe(bundle, helper, evidence, architecture, cpu, env, "reopen")
+        require(reopened["pid"] != fresh["pid"], "Reopen must observe a distinct application instance")
+        require(library.stat().st_ino == library_inode, "Reopen did not retain the private library database")
         require(sha256(executable) == executable_digest, "Executable changed during the native witness")
 
 
