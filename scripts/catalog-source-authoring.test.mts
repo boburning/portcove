@@ -88,6 +88,38 @@ void test("managed platform warnings are checked and stay outside definition pro
   }
 });
 
+void test("external runtime registration reproduces all reviewed CPS2Recomp routes", () => {
+  const ports = fixtureCatalog(schema3Fixture).ports.filter((port) =>
+    port.id.startsWith("cps2recomp-"),
+  );
+  assert.equal(ports.length, 12);
+  for (const port of ports) {
+    const authored = checkedAuthoredPort(
+      fixtureJson(readFileSync(join(catalogRoot, "ports", `${port.id}.json`))),
+    );
+    assert.equal(authored.external_registration_v1, true);
+    const release = fixtureRecord(authored.integration?.release);
+    assert.equal(release.user_prepared, undefined);
+    assert.deepEqual(projectAuthoredPort(authored), port);
+    const integration = requiredFixture(authored.integration);
+    const explicit = {
+      ...authored,
+      integration: { ...integration, release: port.release },
+    };
+    assert.throws(() => checkedAuthoredPort(explicit), /exclusively user-selected/u);
+    delete explicit.external_registration_v1;
+    assert.deepEqual(projectAuthoredPort(checkedAuthoredPort(explicit)), port);
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          ...authored,
+          integration: { ...integration, platforms: ["windows-x86-64", "windows-x86-64"] },
+        }),
+      /exclusively user-selected/u,
+    );
+  }
+});
+
 void test("current catalog schema accepts numeric 2 without guide references", () => {
   assert.equal(schema2Fixture.schema_version, 2);
   assert.doesNotThrow(() => checkedCurrentCatalog(structuredClone(schema2Fixture)));

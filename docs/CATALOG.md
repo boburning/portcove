@@ -3903,6 +3903,14 @@ provenance, hashes and provider terms; it grants no admission, signing, publicat
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
 
+For registration-only routes, use `external_registration_v1: true` with the
+`user-prepared` provider, the `staged-source-portable` adapter and the declared
+platforms. The generator creates the user-selected registration contract for each
+platform. Keep the original-file instructions, package preparation, working
+folder, and player or upstream ownership in the authored record. Use explicit
+`user_prepared` entries for accepted packages and per-platform distinctions.
+The CPS2Recomp routes use this shared registration form.
+
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into

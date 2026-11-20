@@ -109,6 +109,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */
   crispy_doom_windows_persistence_v1?: true;
+  /** Registration-only user-selected runtime on the declared platforms. */
+  external_registration_v1?: true;
   /** Shared persistent and mutable paths for the reviewed Chocolate Windows players. */
   chocolate_family_windows_persistence_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
@@ -471,6 +473,49 @@ function validListingAssetHints(hints: unknown): hints is string[] {
   );
 }
 
+function projectExternalRegistration(record: AuthoredPort): AuthoredPort {
+  if (record.external_registration_v1 === undefined) return record;
+  const { integration } = record;
+  const release = integration?.release;
+  const presentation = integration?.presentation;
+  if (
+    record.external_registration_v1 !== true ||
+    integration?.adapter !== "staged-source-portable" ||
+    !isRecord(release) ||
+    release.provider !== "user-prepared" ||
+    Object.hasOwn(release, "user_prepared") ||
+    !isRecord(presentation) ||
+    presentation.installation_method !== "user-prepared-runtime" ||
+    presentation.saves_and_settings !== "external-user-owned" ||
+    !Array.isArray(integration.platforms) ||
+    integration.platforms.length === 0 ||
+    !integration.platforms.every(
+      (platform) => typeof platform === "string" && platform.length > 0,
+    ) ||
+    new Set(integration.platforms).size !== integration.platforms.length
+  ) {
+    throw new Error(
+      "external_registration_v1 requires an exclusively user-selected external route.",
+    );
+  }
+  const user_prepared = Object.fromEntries(
+    integration.platforms.map((platform: string) => [
+      platform,
+      {
+        trust: "user-selected",
+        version: "user-managed",
+        archive_name: "",
+        archive_size: 0,
+        archive_sha256: "",
+        immutable_tree_sha256: "",
+        executable: "",
+        mutable_paths: [],
+      },
+    ]),
+  );
+  return { ...record, integration: { ...integration, release: { ...release, user_prepared } } };
+}
+
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
@@ -675,7 +720,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     );
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
-  const integration = projectOpenMohaaPortable(value as AuthoredPort).integration;
+  const integration = projectExternalRegistration(
+    projectOpenMohaaPortable(value as AuthoredPort),
+  ).integration;
   if (integration !== undefined) {
     if (
       integration.upstream_active_reviewed !== undefined &&
@@ -792,7 +839,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   const portable = projectChocolateFamilyWindowsPersistence(
     projectCrispyDoomWindowsPersistence(projectReflectionHlePortablePaths(record)),
   );
-  const operational = projectOpenMohaaPortable(portable).integration;
+  const operational = projectExternalRegistration(projectOpenMohaaPortable(portable)).integration;
   if (!operational) return undefined;
   const integration = structuredClone(operational);
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
