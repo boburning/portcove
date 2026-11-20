@@ -226,7 +226,7 @@ function progressDetail(completed: number, total: number, unit: ProgressUnit | u
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
-export type DetailDestination = "updates" | "saves" | "files" | "manage";
+export type DetailDestination = "updates" | "saves" | "files" | "manage" | "artwork";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =

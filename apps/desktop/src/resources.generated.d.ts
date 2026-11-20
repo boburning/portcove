@@ -733,6 +733,9 @@ export default interface Resources {
       "project": "Upstream project",
       "steam": "Steam shortcut"
     },
+    "artwork": {
+      "scopeCurrentPort": "Artwork changes apply only to this port."
+    },
     "capabilities": {
       "assessment": "Assessment details",
       "backupNone": "Latest completed backup: None recorded. Review Saves & backups for effective coverage and exclusions.",

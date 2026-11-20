@@ -1,4 +1,5 @@
 import { cn } from "cn";
+import { useAppTranslation } from "../localization";
 import { Tabs } from "@base-ui/react/tabs";
 import styles from "./Artwork.module.css";
 import {
@@ -232,13 +233,14 @@ export function ArtworkControls({
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
+  const { t } = useAppTranslation("detail");
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
   const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
-        Change artwork
+        {t("actions.artwork")}
       </summary>
       {open && (
         <Tabs.Root
@@ -251,6 +253,7 @@ export function ArtworkControls({
           }}
           className="artwork-slots grid min-w-0 gap-5"
         >
+          <p className="m-0 text-sm text-pc-muted-foreground">{t("artwork.scopeCurrentPort")}</p>
           <Tabs.List
             activateOnFocus={false}
             aria-label="Artwork slot"

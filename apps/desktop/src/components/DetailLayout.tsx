@@ -76,6 +76,11 @@ function platformIdentities(
 }
 
 /** Presentation only: all eligibility and stateful workflow owners stay with the caller. */
+const artworkTarget = {
+  targetId: "detail-artwork",
+  control: ".artwork-controls > summary",
+};
+
 export function DetailLayout({
   backLabel,
   favoriteControl,
@@ -155,8 +160,9 @@ export function DetailLayout({
     const newOpening = focusedOpening.current !== identity;
     if (!request && !newOpening) return;
     if (!opening && !request) return;
+    const destination = request ?? (opening?.destination === "artwork" ? artworkTarget : undefined);
     const targetId =
-      request?.targetId ??
+      destination?.targetId ??
       (request || opening?.destination ? `detail-section-${selected}` : "port-detail-title");
     const element = root.current;
     const frame = requestAnimationFrame(() => {
@@ -172,8 +178,8 @@ export function DetailLayout({
       focusAndReveal(target);
       focusedOpening.current = identity;
       const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const control = request?.control
-        ? controlScope?.querySelector<HTMLElement>(request.control)
+      const control = destination?.control
+        ? controlScope?.querySelector<HTMLElement>(destination.control)
         : undefined;
       if (
         control?.isConnected &&
@@ -336,7 +342,7 @@ export function DetailLayout({
                     <Menu.Item
                       className={`${controlFocus} cursor-default rounded-pc-sm px-3 py-2 text-sm data-highlighted:bg-pc-selection`}
                       onClick={() =>
-                        reveal(managementSection, "detail-artwork", ".artwork-controls > summary")
+                        reveal(managementSection, artworkTarget.targetId, artworkTarget.control)
                       }
                     >
                       {t("actions.artwork")}

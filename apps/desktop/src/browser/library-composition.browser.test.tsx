@@ -1285,6 +1285,36 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
   await captureParityState("library-short-covers-compact-grouped-menu-return");
 });
 
+it("opens the Cover editor from the game card and returns focus to the same More actions button", async () => {
+  await page.viewport(430, 740);
+  await mount("light", "collection", 3);
+  const opener = page.elementLocator(
+    document.querySelector<HTMLButtonElement>(
+      '[data-detail-origin="library:card-more:collection-0"]',
+    )!,
+  );
+  opener.element().focus();
+  await userEvent.keyboard("{Enter}");
+  const menu = page.getByRole("menu", { name: /^More actions for/ });
+  await expect.element(menu).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
+
+  const disclosure = page
+    .getByRole("region", { name: "Artwork", exact: true })
+    .getByText("Change artwork", { exact: true });
+  await expect.element(disclosure).toHaveFocus();
+  expect(disclosure.element().closest("details")?.open).toBe(true);
+  await expect
+    .element(page.getByRole("tab", { name: "Cover image", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await userEvent.keyboard("{Tab}");
+  await expect.element(page.getByRole("tab", { name: "Cover image", exact: true })).toHaveFocus();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+  await expect
+    .poll(() => (document.activeElement as HTMLElement | null)?.dataset.detailOrigin)
+    .toBe("library:card-more:collection-0");
+});
+
 it("keeps plain short Covers and their overflow menu reachable at 430px", async () => {
   await page.viewport(430, 640);
   const snapshot = workspace("collection");

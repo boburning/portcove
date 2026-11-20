@@ -5,6 +5,9 @@
     "project": "Proyecto original",
     "steam": "Acceso directo de Steam"
   },
+  "artwork": {
+    "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."
+  },
   "capabilities": {
     "assessment": "Detalles de la evaluación",
     "backupNone": "Última copia de seguridad completada: no hay ninguna registrada. Revisa Partidas y copias de seguridad para ver qué se incluye y qué se excluye.",
