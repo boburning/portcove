@@ -1147,7 +1147,7 @@ void test("scheduled original recognition retains the exact table across refresh
     "port:stable-port",
   );
   assert.ok(isRecord(projected) && Array.isArray(projected.sources));
-  const source = projected.sources.find(
+  const source: unknown = projected.sources.find(
     (value: unknown) => isRecord(value) && value.repository === "owner/shared",
   );
   assert.ok(isRecord(source));

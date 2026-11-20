@@ -32,6 +32,7 @@ import {
 import {
   observationHash,
   readObserverMetadata,
+  observerGitHubRateLimit,
   ObservationFailure,
   validateObserverConfig,
 } from "./upstream-observer.mts";
@@ -425,13 +426,22 @@ export async function runCatalogUpstreams(
             );
           return response.body;
         } catch (error) {
-          if (error instanceof GitHubApiError) account.consumeResponseBytes(error.responseBytes);
-          if (error instanceof GitHubApiError && error.code === "rate_limited") {
-            throw new ObservationFailure(
-              "rate-limit",
-              "Original recognition lookup is provider-deferred",
-              error.rateLimit?.resetAt ?? null,
-            );
+          if (error instanceof GitHubApiError) {
+            const deferred =
+              error.code === "rate_limited" ? observerGitHubRateLimit(error, now()) : null;
+            try {
+              account.consumeResponseBytes(error.responseBytes);
+            } catch (chargeError) {
+              if (
+                !(
+                  deferred &&
+                  chargeError instanceof ObservationFailure &&
+                  chargeError.rule === "budget"
+                )
+              )
+                throw chargeError;
+            }
+            if (deferred) throw deferred;
           }
           throw error;
         }

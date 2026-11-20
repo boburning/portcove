@@ -1,3 +1,4 @@
+import { GitHubApiError } from "./github-operation.mts";
 import { createHash } from "node:crypto";
 import {
   observeOriginalRecognition,
@@ -22,6 +23,7 @@ import {
   assetFact,
   observeUpstream,
   readObserverMetadata,
+  observerGitHubRateLimit,
   validateObserverConfig,
   compactObserverCache,
   reusableProviderObservation,
@@ -2294,4 +2296,15 @@ void test("original recognition binds the selected release and exact source blob
     observeOriginalRecognition(target, async () => replies.shift()),
     /tag changed/,
   );
+});
+
+void test("original recognition and provider reads share a bounded retry clock", () => {
+  const now = Date.parse("2026-11-20T00:00:00Z");
+  const secondary = new GitHubApiError("rate_limited", "fixture throttle", {
+    status: 429,
+    retryAfter: "300",
+  });
+  assert.equal(observerGitHubRateLimit(secondary, now).retryAt, "2026-11-20T00:05:00.000Z");
+  const unspecified = new GitHubApiError("rate_limited", "fixture quota", { status: 429 });
+  assert.equal(observerGitHubRateLimit(unspecified, now).retryAt, "2026-11-20T00:01:00.000Z");
 });

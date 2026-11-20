@@ -349,6 +349,28 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
     );
   return;
 }
+export function observerGitHubRateLimit(error: GitHubApiError, now: number): ObservationFailure {
+  const retry = error.retryAfter;
+  const required =
+    retry && /^\d+$/u.test(retry) ? now + Number(retry) * 1000 : Date.parse(retry ?? "");
+  const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
+  const resume = Math.max(
+    now + 60_000,
+    Number.isFinite(required) ? required : 0,
+    Number.isFinite(reset) ? reset : 0,
+  );
+  requireFact(
+    Number.isFinite(resume) && resume <= 8.64e15,
+    "invalid-metadata",
+    "provider retry clock is invalid",
+  );
+  return new ObservationFailure(
+    "rate-limit",
+    "provider rate limit defers observation without advancing the last complete snapshot",
+    new Date(resume).toISOString(),
+  );
+}
+
 export function validateObserverConfig(config: unknown): ObserverConfig {
   assertObserverConfig(config);
   return config;
@@ -1738,25 +1760,7 @@ export async function observeUpstream(
         );
       if (error instanceof GitHubApiError) {
         if (error.code === "rate_limited") {
-          const retry = error.retryAfter;
-          const required =
-            retry && /^\d+$/u.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
-          const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
-          const resume = Math.max(
-            now() + 60_000,
-            Number.isFinite(required) ? required : 0,
-            Number.isFinite(reset) ? reset : 0,
-          );
-          requireFact(
-            Number.isFinite(resume) && resume <= 8.64e15,
-            "invalid-metadata",
-            "provider retry clock is invalid",
-          );
-          throw new ObservationFailure(
-            "rate-limit",
-            "provider rate limit defers observation without advancing the last complete snapshot",
-            new Date(resume).toISOString(),
-          );
+          throw observerGitHubRateLimit(error, now());
         }
         if (error.code === "response_limit")
           throw new ObservationFailure(
