@@ -44,6 +44,35 @@ export interface ObservableSource {
   ports: ObservablePort[];
   scope_sha256: string;
 }
+function listingOnly(source: ObservableSource) {
+  return source.ports.every((port) => port.kind === "listing");
+}
+
+function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
+  const clocks = new Map<string, string>();
+  for (const policy of progress.last_complete_policies) {
+    const update = policy.listing_update;
+    const observation = isRecord(update) ? update.upstream_observation : null;
+    if (
+      policy.format === 2 &&
+      policy.authority === "descriptive-listing-observation-only" &&
+      policy.repository_id === progress.repository_id &&
+      policy.facts_sha256 === progress.last_complete_facts_sha256 &&
+      typeof policy.port_id === "string" &&
+      isRecord(observation) &&
+      observation.provider === "gitlab" &&
+      observation.repository === source.repository &&
+      typeof observation.attempted_at === "string" &&
+      progress.completed_at !== null &&
+      Date.parse(observation.attempted_at) <= Date.parse(progress.completed_at)
+    ) {
+      if (clocks.has(policy.port_id)) return null;
+      clocks.set(policy.port_id, observation.attempted_at);
+    }
+  }
+  return source.ports.every(({ id }) => clocks.has(id)) ? clocks : null;
+}
+
 interface SelectionProgress {
   binding: string;
   facts_sha256: string;
@@ -517,16 +546,27 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) =>
-    observationHash({
+  const scopeBinding = (source: ObservableSource) => {
+    const provider = source.provider ?? "github";
+    if (listingOnly(source)) {
+      // The declaration scope already binds the exact descriptive projector.
+      return observationHash({
+        contract: "normalized-current-catalog-listing-policy-v1",
+        source: source.key,
+        provider,
+        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+        scope: source.scope_sha256,
+        stale_after_hours: template.stale_after_hours,
+      });
+    }
+    return observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
-      ...((source.provider ?? "github") !== "github"
-        ? { provider_proof: "explicit-page-coverage-v2" }
-        : {}),
+      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
       definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
     });
+  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -722,11 +762,37 @@ export async function advanceCatalogObservations(
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
     const previousProgress = state.sources[source.key];
+    const descriptive = listingOnly(source);
+    const retainedListingCompletion =
+      descriptive &&
+      previousProgress?.completed_scope_sha256 &&
+      previousProgress.completed_at &&
+      previousProgress.freshness_observed_at &&
+      previousProgress.last_complete_facts_sha256 &&
+      previousProgress.next_due_at
+        ? {
+            completed_at: previousProgress.completed_at,
+            observed_at: previousProgress.freshness_observed_at,
+            facts_sha256: previousProgress.last_complete_facts_sha256,
+            next_due_at: new Date(
+              Math.min(
+                Date.parse(previousProgress.next_due_at),
+                Date.parse(previousProgress.freshness_observed_at) +
+                  template.stale_after_hours * 3600000 -
+                  template.budget.duration_ms,
+              ),
+            ).toISOString(),
+          }
+        : null;
+    const canReuseListing =
+      retainedListingCompletion !== null &&
+      Date.parse(retainedListingCompletion.next_due_at) > now();
     const scheduledRefreshDue =
       isScheduledPriority(source) &&
       (!previousProgress?.next_due_at || Date.parse(previousProgress.next_due_at) <= now());
     const reprojectFreshFacts =
       !scheduledRefreshDue &&
+      (!descriptive || canReuseListing) &&
       previousProgress !== undefined &&
       previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
       previousProgress.last_complete_facts_sha256 !== null;
@@ -791,8 +857,10 @@ export async function advanceCatalogObservations(
           await options.commit(structuredClone(state));
         }
 
+        const listingClocks = canReuseListing ? retainedListingClocks(source, progress) : null;
         const reuseComplete =
           previousComplete &&
+          (!descriptive || listingClocks !== null) &&
           progress.freshness_observed_at !== null &&
           now() - Date.parse(progress.freshness_observed_at) <
             template.stale_after_hours * 3600000 &&
@@ -824,6 +892,15 @@ export async function advanceCatalogObservations(
               await options.commit(structuredClone(state));
             },
             reuseComplete,
+            ...(reuseComplete && retainedListingCompletion && listingClocks
+              ? {
+                  retainedCompletion: {
+                    observed_at: retainedListingCompletion.observed_at,
+                    facts_sha256: retainedListingCompletion.facts_sha256,
+                    completed_by_port: listingClocks,
+                  },
+                }
+              : {}),
             admit: () => {
               requests++;
             },
@@ -911,6 +988,11 @@ export async function advanceCatalogObservations(
           );
         await options.exportProvider(source, result.observations, result.policies);
         const factsHash = String(result.observations[0]!.facts_sha256);
+        const retainedTiming =
+          reuseComplete &&
+          retainedListingCompletion !== null &&
+          listingClocks !== null &&
+          result.requests === 0;
         if (progress.last_complete_facts_sha256 !== factsHash) {
           if (progress.last_change_at) {
             const interval = Math.max(1, now() - Date.parse(progress.last_change_at));
@@ -923,20 +1005,24 @@ export async function advanceCatalogObservations(
           }
           progress.last_change_at = new Date(now()).toISOString();
         }
-        progress.completed_at = new Date(now()).toISOString();
+        progress.completed_at = retainedTiming
+          ? retainedListingCompletion.completed_at
+          : new Date(now()).toISOString();
         progress.freshness_observed_at = result.observed_at;
-        progress.next_due_at = new Date(
-          Math.min(
-            now() +
-              Math.max(
-                template.cadence_hours * 3600000,
-                (progress.mean_change_interval_ms ?? 0) / 2,
+        progress.next_due_at = retainedTiming
+          ? retainedListingCompletion.next_due_at
+          : new Date(
+              Math.min(
+                now() +
+                  Math.max(
+                    template.cadence_hours * 3600000,
+                    (progress.mean_change_interval_ms ?? 0) / 2,
+                  ),
+                Date.parse(result.observed_at) +
+                  template.stale_after_hours * 3600000 -
+                  template.budget.duration_ms,
               ),
-            Date.parse(result.observed_at) +
-              template.stale_after_hours * 3600000 -
-              template.budget.duration_ms,
-          ),
-        ).toISOString();
+            ).toISOString();
         progress.completed_scope_sha256 = binding;
         progress.last_complete_facts_sha256 = String(result.observations[0]!.facts_sha256);
         progress.last_complete_policies = result.policies.map((p) => p as Record<string, unknown>);
@@ -1281,10 +1367,17 @@ export async function advanceCatalogObservations(
         });
       } else {
         const sameScope = progress.completed_scope_sha256 === binding;
+        const retainedTiming =
+          reprojectFreshFacts &&
+          retainedListingCompletion !== null &&
+          sourceRequests === 0 &&
+          result.report.last_complete_at === retainedListingCompletion.completed_at &&
+          result.report.freshness_observed_at === retainedListingCompletion.observed_at &&
+          result.report.observation?.facts_sha256 === retainedListingCompletion.facts_sha256;
         const changed =
           sameScope &&
           progress.last_complete_facts_sha256 !== result.report.observation?.facts_sha256;
-        if (!sameScope) {
+        if (!sameScope && !retainedTiming) {
           progress.last_change_at = new Date(now()).toISOString();
           progress.change_intervals = 0;
           progress.mean_change_interval_ms = null;
@@ -1305,9 +1398,12 @@ export async function advanceCatalogObservations(
           progress.last_change_at = new Date(now()).toISOString();
         }
         progress.completed_at = result.report.last_complete_at;
-        progress.next_due_at = result.report.next_observation_due_at;
+        progress.next_due_at = retainedTiming
+          ? retainedListingCompletion.next_due_at
+          : result.report.next_observation_due_at;
         progress.freshness_observed_at = result.report.freshness_observed_at;
         if (
+          !retainedTiming &&
           progress.mean_change_interval_ms &&
           progress.freshness_observed_at &&
           source.repository !== template.repository
