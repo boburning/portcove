@@ -19,7 +19,11 @@ test "$(git rev-parse "refs/tags/$tag^{commit}")" = "$source"
 if [[ ${GITHUB_ACTIONS:-} == true ]]; then
   : "${GH_TOKEN:?Hosted release metadata needs the read-only workflow token}"
 fi
-if [[ -n ${GH_TOKEN:-} && ! $GH_TOKEN =~ ^[A-Za-z0-9_]+$ ]]; then
+valid_bearer_token() {
+  local LC_ALL=C
+  (( ${#1} <= 4096 )) && [[ $1 =~ ^[A-Za-z0-9._~+/-]+=*$ ]]
+}
+if [[ -n ${GH_TOKEN:-} ]] && ! valid_bearer_token "$GH_TOKEN"; then
   echo 'Invalid release metadata token format' >&2
   exit 1
 fi
