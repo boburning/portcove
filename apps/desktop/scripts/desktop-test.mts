@@ -158,6 +158,8 @@ import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
+  hostPublicationScenarios,
+  usesHostPublicationHarness,
 } from "../../../scripts/desktop-scenarios.mts";
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mts";
 import { observeStartup } from "./desktop-startup-observation.mts";
@@ -315,9 +317,7 @@ const interruptedPreparationSession =
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 let bundleRestartUsesSavedSelection = false;
-const hostPublicationSession = selection.selected_scenarios.includes(
-  "native-host-publication-recovery",
-);
+const hostPublicationSession = usesHostPublicationHarness(selection.selected_scenarios);
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -2964,31 +2964,33 @@ try {
     await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
     artifacts.push(record);
   }
-  await scenario("native-host-publication-recovery", async () => {
-    const fixture = required(installFixture);
-    await hostPublicationScenario({
-      browser: driverBrowser(),
-      output,
-      library,
-      artifacts,
-      fixture,
-      command: ownedFixtureCommand({
-        cli: required(values["preparation-cli"]),
+  for (const publicationScenario of hostPublicationScenarios)
+    await scenario(publicationScenario, async () => {
+      const fixture = required(installFixture);
+      await hostPublicationScenario({
+        browser: driverBrowser(),
+        output,
         library,
-        output,
-        catalogPath: fixture.catalogPath,
-      }),
-      invoke,
-      confirmNative: nativeConfirmation({
-        application,
-        getDriverPid: () => required(required(driver).pid),
-        output,
         artifacts,
-      }),
-      restartApplication,
-      interruptHost: interruptCheckpointHost,
+        fixture,
+        command: ownedFixtureCommand({
+          cli: required(values["preparation-cli"]),
+          library,
+          output,
+          catalogPath: fixture.catalogPath,
+        }),
+        invoke,
+        confirmNative: nativeConfirmation({
+          application,
+          getDriverPid: () => required(required(driver).pid),
+          output,
+          artifacts,
+        }),
+        restartApplication,
+        interruptHost: interruptCheckpointHost,
+        bundleOnly: publicationScenario === "native-library-recovery-interruption",
+      });
     });
-  });
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) {
     await registeredSourceReuseScenario({
       browser: driverBrowser(),

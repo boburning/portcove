@@ -1,5 +1,9 @@
 import { parseArgs } from "node:util";
-import { desktopScenarioById, resolveDesktopSelection } from "./desktop-scenarios.mts";
+import {
+  desktopScenarioById,
+  resolveDesktopSelection,
+  usesHostPublicationHarness,
+} from "./desktop-scenarios.mts";
 import { expandNativeHelperInputs } from "./native-helper-dependencies.mts";
 import {
   gameFirstInstalledArgumentNames,
@@ -131,7 +135,7 @@ export function planDesktopExecution(
     registeredSourceReuse ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-saved-folder-selected-setup")) ||
-    selection.selected_scenarios.includes("native-host-publication-recovery") ||
+    usesHostPublicationHarness(selection.selected_scenarios) ||
     selection.selected_scenarios.includes("native-real-prepared-runtime") ||
     selection.selected_scenarios.includes("native-direct-preparation-recovery") ||
     selection.selected_scenarios.includes("native-late-listener-disposal") ||
@@ -168,7 +172,7 @@ export function planDesktopExecution(
       ? "game-first-installed-picori"
       : acquisitionJourney
         ? "update-acquisition"
-        : selection.selected_scenarios.includes("native-host-publication-recovery")
+        : usesHostPublicationHarness(selection.selected_scenarios)
           ? "host-publication"
           : selection.selected_scenarios.includes("native-real-prepared-runtime")
             ? "real-prepared-runtime"
@@ -274,7 +278,7 @@ export function planDesktopExecution(
   inputs.push({ kind: "file", path: "apps/desktop/scripts/native-enlargement.mts" });
   inputs.push({ kind: "file", path: "scripts/acceptance-packet.mts" });
   inputs.push(receiptSource(harnessUrl));
-  if (selection.selected_scenarios.includes("native-host-publication-recovery"))
+  if (usesHostPublicationHarness(selection.selected_scenarios))
     inputs.push(receiptSource(new URL("./desktop-host-publication-test.mts", harnessUrl)));
   if (registeredSourceReuse)
     for (const name of [
@@ -566,7 +570,7 @@ export function planDesktopExecution(
         sourceJourney ||
         completionJourney ||
         updateReviewJourney ||
-        selection.selected_scenarios.includes("native-host-publication-recovery")
+        usesHostPublicationHarness(selection.selected_scenarios)
           ? ["portcove-core/qualification-fixtures"]
           : [],
       qualificationFeatures:

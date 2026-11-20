@@ -3,13 +3,27 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { mkdir, readFile, writeFile, rename, stat, realpath } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+  rename,
+  stat,
+  realpath,
+} from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import type { WebDriver } from "selenium-webdriver";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { clickVisible, reviewControls, selectCatalogPort } from "./desktop-review-controls.mts";
+import {
+  clickVisible,
+  reviewControls,
+  selectCatalogPort,
+  selectPrimaryNavigation,
+} from "./desktop-review-controls.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -17,6 +31,7 @@ import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 
 interface Context {
+  bundleOnly?: boolean;
   browser: WebDriver;
   output: string;
   library: string;
@@ -198,6 +213,199 @@ export async function hostPublicationScenario(context: Context) {
   }
   const assertIdentity = async (identity: Awaited<ReturnType<typeof fileIdentity>>) =>
     assert.deepEqual(await fileIdentity(identity.path), identity);
+  if (context.bundleOnly) {
+    try {
+      const bundle = path.join(output, "interrupted-recovery-bundle");
+      const destination = path.join(output, "interrupted-bundle-restore");
+      const relativeSave = path.join("user", "owned-interruption-progress.bin");
+      const sourceSave = path.join(library, relativeSave);
+      await mkdir(path.dirname(sourceSave), { recursive: true });
+      await writeFile(sourceSave, "owned recovery progress", { flag: "wx" });
+      const save = await fileIdentity(sourceSave);
+      const confirmActiveSource = async () => {
+        const status = transportValue(
+          "desktop_bootstrap_status",
+          success(await invoke("get_bootstrap_status")),
+        );
+        assert.equal(status.ready, true);
+        assert.ok(status.library_root && samePath(status.library_root, library));
+        return transportValue(
+          "library_identity",
+          success(await invoke("get_library_identity", { generation: status.generation })),
+        );
+      };
+      const activeSource = await confirmActiveSource();
+      const storage = async () => {
+        await browser.wait(
+          until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+          60_000,
+        );
+        await selectPrimaryNavigation(browser, "Settings");
+        await reviewControls(browser).click(button("Library and storage"));
+      };
+      const click = (label: string) => reviewControls(browser).click(button(label));
+      const field = async (label: string, value: string) => {
+        const name = await browser.findElement(
+          By.xpath(`//*[@role="dialog"]//label[normalize-space(.)="${label}"]`),
+        );
+        const id = await name.getAttribute("for");
+        assert.ok(id);
+        await browser.findElement(By.id(id)).sendKeys(value);
+      };
+      const waitText = async (text: string) => {
+        await browser.wait(
+          async () =>
+            (await browser.findElement(By.css('[role="dialog"]')).getText()).includes(text),
+          60_000,
+          text,
+        );
+      };
+      const resumeMenu = () =>
+        reviewControls(browser).click(
+          By.xpath('//summary[normalize-space(.)="Resume an interrupted bundle operation"]'),
+        );
+
+      const creation = await arm("recovery_bundle_copied", library);
+      await storage();
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("Review what Portcove will copy");
+      await click("Copy and verify");
+      await creation.wait();
+      const stages = (await readdir(output, { withFileTypes: true })).filter(
+        (entry) =>
+          entry.isDirectory() && /^\.portcove-recovery-bundle-[a-f0-9-]{36}$/u.test(entry.name),
+      );
+      assert.equal(stages.length, 1);
+      const stage = path.join(output, stages[0]!.name);
+      const creationIntent = await fileIdentity(path.join(stage, "intent.json"));
+      const copiedSave = await fileIdentity(path.join(stage, "payload", "content", relativeSave));
+      assert.equal(copiedSave.sha256, save.sha256);
+      const staysIncomplete = async () => {
+        await assertIdentity(creationIntent);
+        await assertIdentity(copiedSave);
+        await assertIdentity(save);
+        await assert.rejects(access(bundle), { code: "ENOENT" });
+        await assert.rejects(access(path.join(stage, "payload", "portcove-recovery-bundle.json")), {
+          code: "ENOENT",
+        });
+      };
+      await staysIncomplete();
+      browser = await interruptHost(
+        "bundle-creation-copied",
+        async (application) => {
+          await creation.held(application);
+          await staysIncomplete();
+        },
+        async () => {
+          await staysIncomplete();
+          await creation.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      assert.equal(
+        object(await invoke("inspect_library_recovery_bundle", { path: stage })).ok,
+        false,
+      );
+      await storage();
+      await resumeMenu();
+      await click("Resume bundle creation");
+      await field("Staging folder", stage);
+      await reviewControls(browser).click(
+        By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle creation"]'),
+      );
+      await waitText("Bundle verified");
+      await capture("interrupted-bundle-creation-resumed");
+      const verified = transportValue(
+        "library_recovery_bundle",
+        success(await invoke("inspect_library_recovery_bundle", { path: bundle })),
+      );
+      assert.equal(verified.source_library_id, activeSource.id);
+      const bundleIdentity = await fileIdentity(path.join(bundle, "portcove-recovery-bundle.json"));
+      assert.equal(
+        (await fileIdentity(path.join(bundle, "content", relativeSave))).sha256,
+        save.sha256,
+      );
+      creation.result.resumed = { stage, creationIntent, copiedSave, verified };
+      await click("Close");
+      await browser.wait(
+        async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+        60_000,
+      );
+
+      // A new, empty owned destination gives the checkpoint a canonical root.
+      await mkdir(destination);
+      const copying = await arm("recovery_bundle_restore_copying", destination);
+      await storage();
+      await click("Inspect or restore a bundle");
+      await field("Recovery bundle folder", bundle);
+      await click("Verify bundle");
+      await waitText("Bundle verified");
+      await field("Restore destination", destination);
+      await click("Review restore");
+      await waitText("Review the restore destination");
+      await click("Restore library");
+      await copying.wait();
+      const journalPath = path.join(destination, ".portcove-import.json");
+      const journal = object(JSON.parse(await readFile(journalPath, "utf8")));
+      assert.equal(journal.schema_version, 2);
+      assert.equal(journal.phase, "copying");
+      assert.equal(object(journal.bundle).receipt_sha256, verified.receipt_sha256);
+      const transfer = await fileIdentity(journalPath);
+      const preserved = async () => {
+        await assertIdentity(transfer);
+        await assertIdentity(bundleIdentity);
+        await assertIdentity(save);
+        await assert.rejects(access(path.join(destination, relativeSave)), { code: "ENOENT" });
+      };
+      await preserved();
+      browser = await interruptHost(
+        "bundle-restore-copying",
+        async (application) => {
+          await copying.held(application);
+          await preserved();
+        },
+        async () => {
+          await preserved();
+          await copying.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      await storage();
+      await resumeMenu();
+      await click("Resume bundle restore");
+      await field("Restore destination", destination);
+      await reviewControls(browser).click(
+        By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle restore"]'),
+      );
+      await waitText("Library restored");
+      await capture("interrupted-bundle-restore-resumed");
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      const restored = await fileIdentity(path.join(destination, relativeSave));
+      assert.equal(restored.sha256, save.sha256);
+      const archived = object(
+        JSON.parse(
+          await readFile(path.join(destination, "recovery", "library-import.json"), "utf8"),
+        ),
+      );
+      assert.equal(archived.phase, "complete");
+      assert.equal(archived.transfer_id, journal.transfer_id);
+      await assertIdentity(save);
+      await assertIdentity(bundleIdentity);
+      copying.result.resumed = { transfer, archived, restored };
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "recovery-bundle-interruption.json");
+      await writeFile(file, JSON.stringify(report, null, 2), { flag: "wx" });
+      artifacts.push(file);
+    }
+    return;
+  }
   const archive = await fileIdentity(fixture.artifactPath);
   try {
     for (const [port, checkpoint, phase] of [

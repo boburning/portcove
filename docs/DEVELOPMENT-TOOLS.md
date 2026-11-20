@@ -2348,6 +2348,12 @@ creation review, overlapping destinations, and a tampered copy. It records the
 verified receipt, saves, installation and backup identities, and the selected
 library across restart.
 
+Select `native-library-recovery-interruption` for the instrumented Windows
+process-loss check. It stops the owned app after creation has copied files and
+again when restore has recorded its import journal. Resume uses the original
+staging folder or restore destination. The test checks that no unpublished
+bundle verifies, source data stays intact, and the original library stays open.
+
 For the normal Codex and maintainer workflow, start with a non-launching plan and
 then run the smallest useful selection:
 

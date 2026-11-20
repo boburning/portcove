@@ -17,6 +17,14 @@ interface DesktopScenario {
 }
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
+export const hostPublicationScenarios = [
+  "native-host-publication-recovery",
+  "native-library-recovery-interruption",
+] as const;
+
+export function usesHostPublicationHarness(scenarios: readonly string[]) {
+  return hostPublicationScenarios.some((id) => scenarios.includes(id));
+}
 
 // Two finite install waits, source scan, owned game observation and cleanup.
 // This explicit MM case does not change product or other scenario deadlines.
@@ -146,6 +154,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-external-runtime-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-library-recovery-interruption",
+    "Interrupt recovery bundle creation and restore at recorded Core boundaries and resume.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "install-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-host-publication-test.mts",
       qualification_only: true,
       platforms: ["win32"],
     },
@@ -965,11 +984,9 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-library-recovery-bundle requires one standalone Windows scenario");
-  if (
-    uniqueRequested.includes("native-host-publication-recovery") &&
-    (uniqueRequested.length !== 1 || platform !== "win32")
-  )
-    throw new Error("native-host-publication-recovery requires one standalone Windows scenario");
+  const hostPublication = hostPublicationScenarios.find((id) => uniqueRequested.includes(id));
+  if (hostPublication && (uniqueRequested.length !== 1 || platform !== "win32"))
+    throw new Error(`${hostPublication} requires one standalone Windows scenario`);
   if (
     uniqueRequested.includes("native-real-prepared-runtime") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -1125,7 +1142,7 @@ export function desktopHarnessDeadlineMs(
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
     return 1_200_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
-  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
+  if (usesHostPublicationHarness(selection.selected_scenarios)) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;

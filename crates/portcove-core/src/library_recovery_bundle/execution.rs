@@ -95,7 +95,14 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryRecoveryBundle> {
-        start_creation(source, destination, expected_plan, &|| Ok(()))
+        start_creation(source, destination, expected_plan, &|| {
+            #[cfg(feature = "qualification-fixtures")]
+            crate::qualification_checkpoint::observe(
+                source,
+                crate::qualification_checkpoint::Checkpoint::RecoveryBundleCopied,
+            )?;
+            Ok(())
+        })
     }
 
     pub fn resume_library_recovery_bundle(staging: &Path) -> Result<LibraryRecoveryBundle> {
@@ -151,6 +158,13 @@ impl PortcoveService {
         // root. Its content-bound journal can be resumed without a second owner.
         let path = import.destination_root.clone();
         crate::import_execution::start_reviewed_import(import, Some(&review.bundle), &|phase| {
+            #[cfg(feature = "qualification-fixtures")]
+            if phase == crate::transfer_journal::TransferPhase::Copying {
+                return crate::qualification_checkpoint::observe(
+                    &path,
+                    crate::qualification_checkpoint::Checkpoint::RecoveryBundleRestoreCopying,
+                );
+            }
             #[cfg(feature = "qualification-fixtures")]
             if phase == crate::transfer_journal::TransferPhase::Published {
                 return crate::qualification_checkpoint::observe(
