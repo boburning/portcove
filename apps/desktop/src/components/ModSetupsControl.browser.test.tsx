@@ -2324,7 +2324,9 @@ it("filters pending provider and local additions and counts them only after Appl
     exact: true,
   });
   await expect.element(stale).toBeVisible();
-  await expect.element(page.getByRole("button", { name: "Installed mods 2" })).not.toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Installed mods 2" }))
+    .not.toBeInTheDocument();
 
   read.mockResolvedValue(refreshed);
   await click("Read setups again");
