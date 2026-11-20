@@ -46,6 +46,17 @@ interface CoverRow {
   detailImage: CoverImage | null;
   mapping: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]>;
 }
+interface DiscoverCoverTiming {
+  pass: string;
+  viewport: { width: number; height: number; devicePixelRatio: number };
+  visibleIds: string[];
+  readyIds: string[];
+  firstReadyMs: number | null;
+  cohortReadyMs: number | null;
+}
+
+type CoverTimingWindow = Window & { portcoveDiscoverCoverTiming?: DiscoverCoverTiming };
+
 interface InspectContext {
   browser: WebDriver;
   ports: PortDefinition[];
@@ -137,6 +148,7 @@ export async function defaultCoverScenario({
         const ids = selectDefaultCoverIds(catalog.ports, coverPortIds, cacheConditions);
         if (coverPortIds.length) for (const id of ids) detailIds.add(id);
         const rows: CoverRow[] = [];
+        const discoverTimings: DiscoverCoverTiming[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
             () =>
@@ -266,9 +278,16 @@ export async function defaultCoverScenario({
           artifacts.push(firstOfflineReport);
           browser = await restart("default-cover-after-first-offline");
         }
-        for (const [pass, theme, size] of coverPasses(cacheConditions)) {
+        const measureDiscover = cacheConditions && coverPortIds.length > 0;
+        const mappedIds = catalog.ports
+          .filter((port) => port.presentation?.artwork)
+          .map((port) => port.id);
+        for (const [pass, defaultTheme, defaultSize] of coverPasses(cacheConditions)) {
+          const theme = measureDiscover ? "light" : defaultTheme;
+          const size = measureDiscover ? { width: 1280, height: 800 } : defaultSize;
           if (cacheConditions && pass === "offline-cached-restart") {
-            await verifyMappedCache(catalog.ports, ids, cache);
+            const measured = discoverTimings.flatMap((row) => row.readyIds);
+            await verifyMappedCache(catalog.ports, [...new Set([...ids, ...measured])], cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
           }
           await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -281,6 +300,15 @@ export async function defaultCoverScenario({
             width: innerWidth,
             height: innerHeight,
           }));
+          if (measureDiscover) {
+            discoverTimings.push(await observeDiscoverCovers(browser, pass, mappedIds));
+            if (pass === "cold-empty-cache") {
+              await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+              discoverTimings.push(
+                await observeDiscoverCovers(browser, "same-session-revisit", mappedIds),
+              );
+            }
+          }
           rows.push(
             ...(await inspectCoverPass({
               browser,
@@ -335,6 +363,7 @@ export async function defaultCoverScenario({
               refusedOrigins,
               catalogCount: catalog.ports.length,
               mappedCount: ids.length,
+              discoverTimings,
               rows,
             },
             null,
@@ -504,6 +533,94 @@ function coverPasses(
     [cacheConditions ? "cold-empty-cache" : "first-display", "light", { width: 1280, height: 800 }],
     [cacheConditions ? "offline-cached-restart" : "warm", "dark", { width: 960, height: 640 }],
   ];
+}
+
+async function observeDiscoverCovers(
+  browser: WebDriver,
+  pass: string,
+  mappedIds: string[],
+): Promise<DiscoverCoverTiming> {
+  const discover = await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]'));
+  await executeBrowserScript(
+    browser,
+    (button, pass, mappedIds) => {
+      const observation = window as CoverTimingWindow;
+      delete observation.portcoveDiscoverCoverTiming;
+      const mapped = new Set(mappedIds);
+      const visible = new Set<string>();
+      const ready = new Set<string>();
+      const selector = '[data-detail-origin^="catalog:card:"]';
+      button.addEventListener(
+        "click",
+        () => {
+          const started = performance.now();
+          const viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
+          let firstReadyMs: number | null = null;
+          const inspect = (now: number) => {
+            const elapsed = Math.max(0, now - started);
+            const cards = document.querySelectorAll<HTMLElement>(selector);
+            if (!visible.size) {
+              for (const card of cards) {
+                const id = card.dataset.detailGameId;
+                if (!id || !mapped.has(id)) continue;
+                const rect = card.getBoundingClientRect();
+                if (
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  rect.bottom > 0 &&
+                  rect.top < viewport.height &&
+                  rect.right > 0 &&
+                  rect.left < viewport.width
+                )
+                  visible.add(id);
+              }
+            }
+            for (const card of cards) {
+              const id = card.dataset.detailGameId;
+              if (!id || !visible.has(id) || ready.has(id)) continue;
+              const frame = card.querySelector<HTMLElement>(".collection-art");
+              const source = frame?.dataset.artworkSource;
+              if (source !== "igdb_cover" && source !== "igdb_cover_collection") continue;
+              const pictures = frame?.querySelectorAll("img");
+              if (pictures?.length && [...pictures].some((img) => img.complete && img.naturalWidth))
+                ready.add(id);
+            }
+            if (firstReadyMs === null && ready.size) firstReadyMs = elapsed;
+            const complete = visible.size > 0 && ready.size === visible.size;
+            if (complete || elapsed >= 15_000) {
+              observation.portcoveDiscoverCoverTiming = {
+                pass,
+                viewport,
+                visibleIds: [...visible],
+                readyIds: [...ready],
+                firstReadyMs,
+                cohortReadyMs: complete ? elapsed : null,
+              };
+            } else {
+              requestAnimationFrame(inspect);
+            }
+          };
+          requestAnimationFrame(inspect);
+        },
+        { capture: true, once: true },
+      );
+    },
+    discover,
+    pass,
+    mappedIds,
+  );
+  await discover.click();
+  const result = await browser.wait(
+    async () => {
+      return executeBrowserScript(
+        browser,
+        () => (window as CoverTimingWindow).portcoveDiscoverCoverTiming ?? null,
+      );
+    },
+    20_000,
+    `No native Discover artwork timing for ${pass}`,
+  );
+  return required(result);
 }
 
 async function inspectCoverPass({
