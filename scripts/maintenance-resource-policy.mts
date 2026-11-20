@@ -21,6 +21,37 @@ const recoveryDailyForecast = 22 * mb;
 const normalReserve = 2_000 * mb;
 const emergencyReserve = 350 * mb;
 const transitionReset = "2026-12-01T00:00:00.000Z";
+const transitionAllowance = 300 * mb;
+const transitionMeter: NeonMeter = {
+  periodStart: "2026-11-12T21:55:18.000Z",
+  resetAt: transitionReset,
+  sampledAt: "2026-11-20T20:51:30.000Z",
+  sampleOrigin: "november-cutover",
+  transferBytes: 4_065_773_982,
+  computeSeconds: 9790,
+  activeSeconds: 34828,
+  storageBytes: 170_606_592,
+  branchTransferBytes: 4_065_773_982,
+};
+const transitionHost = "ep-shy-resonance-bb33lu82.c-15.us-east-1.aws.neon.tech";
+
+export function cutoverReading(
+  environment: NodeJS.ProcessEnv,
+  operation: MaintenanceOperation,
+  now = Date.now(),
+) {
+  if (
+    environment.PORTCOVE_NEON_METER_TOKEN ||
+    !["recovery", "recovery-catchup", "collect", "handoffs", "intake", "inspect"].includes(
+      operation,
+    ) ||
+    environment.PGHOST?.replace(/-pooler(?=\.)/u, "").toLowerCase() !== transitionHost ||
+    now < Date.parse(transitionMeter.sampledAt) ||
+    now >= Date.parse(transitionReset)
+  )
+    return undefined;
+  return transitionMeter;
+}
 
 const costs = {
   collect: 18 * mb,
@@ -28,6 +59,7 @@ const costs = {
   handoffs: 8 * mb,
   digest: 16 * mb,
   recovery: 48 * mb,
+  "recovery-catchup": 110 * mb,
   "recovery-full": 440 * mb,
   inspect: 2 * mb,
   intake: 18 * mb,
@@ -39,6 +71,7 @@ export interface NeonMeter {
   periodStart: string;
   resetAt: string;
   sampledAt: string;
+  sampleOrigin?: "live" | "november-cutover";
   transferBytes: number;
   computeSeconds: number | null;
   activeSeconds: number | null;
@@ -85,6 +118,7 @@ export function normalizeNeonMeter(
     periodStart,
     resetAt,
     sampledAt,
+    sampleOrigin: "live",
     transferBytes,
     computeSeconds: asCounter(project.compute_time_seconds),
     activeSeconds: asCounter(project.active_time_seconds),
@@ -135,7 +169,7 @@ export function isNeon(environment: NodeJS.ProcessEnv) {
 
 export function policyLimits(meter: NeonMeter, operation: MaintenanceOperation, now: number) {
   const days = Math.max(0, Math.ceil((Date.parse(meter.resetAt) - now) / day) - 1);
-  const recovery = operation === "recovery" || operation === "recovery-full";
+  const recovery = operation.startsWith("recovery");
   const reserve =
     meter.resetAt === transitionReset
       ? emergencyReserve
@@ -143,17 +177,24 @@ export function policyLimits(meter: NeonMeter, operation: MaintenanceOperation, 
         ? emergencyReserve
         : normalReserve;
   const scheduled = days * recoveryDailyForecast + (recovery ? 0 : costs.recovery);
+  const operatingCeiling =
+    meter.sampleOrigin === "november-cutover"
+      ? meter.transferBytes + transitionAllowance
+      : transferLimit - reserve;
+  const chargeableForecast = meter.sampleOrigin === "november-cutover" && recovery ? 0 : scheduled;
   return {
     reserve_bytes: reserve,
     future_daily_recovery_bytes: scheduled,
     operation_reservation_bytes: costs[operation],
-    ceiling_bytes: transferLimit - reserve - scheduled - bootstrapAllowance,
+    ceiling_bytes: operatingCeiling - chargeableForecast - bootstrapAllowance,
+    cutover_allowance_bytes: meter.sampleOrigin === "november-cutover" ? transitionAllowance : null,
     recurring_monthly_projection_bytes: 31 * (recoveryDailyForecast + costs.collect),
     development_burst_projection_bytes: 15 * costs.collect + 15 * costs.inspect,
   };
 }
 
 export class MaintenanceResourceDeferred extends MaintenanceStoreError {}
+export class MaintenanceRequestCoalesced extends MaintenanceStoreError {}
 
 export function acquireMaintenanceReservation(
   environment: NodeJS.ProcessEnv,
@@ -170,10 +211,11 @@ export function acquireMaintenanceReservation(
   const now = input.now ?? Date.now();
   const limits = policyLimits(meter, operation, now);
   const age = now - Date.parse(meter.sampledAt);
+  const useCutover = meter.sampleOrigin === "november-cutover";
   if (
     !Number.isFinite(age) ||
     age < 0 ||
-    age > sampleLifetime ||
+    (!useCutover && age > sampleLifetime) ||
     now + admissionTimeout >= Date.parse(meter.resetAt)
   )
     throw new MaintenanceResourceDeferred(
@@ -199,37 +241,51 @@ export function acquireMaintenanceReservation(
       FROM ${table}
       WHERE period_start = ${period}::timestamptz OR
         (period_start < ${period}::timestamptz AND started_at + interval '2 hours' >= ${period}::timestamptz)
-    ), request AS (
+    ), state AS (
       SELECT EXISTS (SELECT FROM ${table} WHERE request_key = ${sqlLiteral(request)}
         AND (outcome = 'completed' OR (outcome = 'running' AND started_at > clock_timestamp() - interval '2 hours')))
-        AS duplicate
-    ), admitted AS (
+        AS duplicate,
+        EXISTS (SELECT FROM ${table} WHERE request_key = ${sqlLiteral(request)} AND outcome = 'completed')
+        AS equivalent_completed,
+        NOT EXISTS (SELECT FROM ${table}
+          WHERE (period_start = ${period}::timestamptz AND reset_at <> ${reset}::timestamptz)
+             OR (period_start < ${period}::timestamptz AND reset_at > ${period}::timestamptz)
+             OR period_start > ${period}::timestamptz) AS period_compatible
+    ), decision AS (
+      SELECT *, ${meter.transferBytes} >= coalesce(high_water, 0) AND period_compatible AND
+        clock_timestamp() >= ${sampled}::timestamptz AND
+        (${useCutover} OR clock_timestamp() <= ${sampled}::timestamptz + interval '5 minutes') AND
+        clock_timestamp() + interval '2 hours' < ${reset}::timestamptz AS valid,
+        NOT duplicate AND ${meter.transferBytes} + unresolved + ${costs[operation]} <= ${limits.ceiling_bytes} AS fits
+      FROM balance, state
+    ), observed AS (
       INSERT INTO ${table}
-        (attempt_id, request_key, operation, source_revision, reason, period_start, reset_at, sampled_at, reported_bytes, reserved_bytes)
+        (attempt_id, request_key, operation, source_revision, reason, period_start, reset_at, sampled_at, sample_origin,
+         reported_bytes, reserved_bytes, outcome, finished_at)
       SELECT ${sqlLiteral(id)}::uuid, ${sqlLiteral(request)}, ${sqlLiteral(operation)}, ${revision ? sqlLiteral(revision) : "NULL"},
-        ${sqlLiteral(reason)}, ${period}, ${reset}, ${sampled}, ${meter.transferBytes}, ${costs[operation]}
-      FROM balance, request
-      WHERE NOT duplicate
-        AND ${meter.transferBytes} >= coalesce(high_water, 0)
-        AND clock_timestamp() BETWEEN ${sampled}::timestamptz AND ${sampled}::timestamptz + interval '5 minutes'
-        AND clock_timestamp() + interval '2 hours' < ${reset}::timestamptz
-        AND ${meter.transferBytes} + unresolved + ${costs[operation]} <= ${limits.ceiling_bytes}
-      RETURNING attempt_id
+        ${sqlLiteral(reason)}, ${period}, ${reset}, ${sampled}, ${sqlLiteral(meter.sampleOrigin ?? "live")}, ${meter.transferBytes},
+        CASE WHEN fits THEN ${costs[operation]} ELSE 0 END,
+        CASE WHEN fits THEN 'running' ELSE 'deferred' END, CASE WHEN NOT fits THEN clock_timestamp() END
+      FROM decision WHERE valid
+      RETURNING attempt_id, outcome
     )
-    SELECT json_build_object('attempt_id', (SELECT attempt_id FROM admitted), 'duplicate', duplicate,
+    SELECT json_build_object('attempt_id', (SELECT attempt_id FROM observed WHERE outcome = 'running'), 'duplicate', duplicate, 'equivalent_completed', equivalent_completed,
       'prior_meter_high_water_bytes', high_water, 'unreconciled_bytes', unresolved,
-      'provider_growth_since_accounting_bytes', ${meter.transferBytes} - initial,
-      'unattributed_growth_lower_bound_bytes', CASE WHEN initial IS NOT NULL
+      'provider_growth_since_accounting_bytes', CASE WHEN NOT ${useCutover} THEN ${meter.transferBytes} - initial END,
+      'unattributed_growth_lower_bound_bytes', CASE WHEN NOT ${useCutover} AND initial IS NOT NULL
         THEN greatest(0, ${meter.transferBytes} - initial - unresolved) END,
       'unattributed_exact_bytes', NULL, 'reason',
-        CASE WHEN duplicate THEN 'equivalent-request'
+        CASE WHEN NOT period_compatible THEN 'overlapping-provider-period'
           WHEN ${meter.transferBytes} < coalesce(high_water, 0) THEN 'counter-regressed'
-          WHEN EXISTS (SELECT FROM admitted) THEN 'admitted'
+          WHEN duplicate THEN 'equivalent-request'
+          WHEN EXISTS (SELECT FROM observed WHERE outcome = 'running') THEN 'admitted'
           ELSE 'allowance-or-sample-window' END)
-    FROM balance, request;`,
+    FROM decision;`,
+    { executor: operation === "intake" },
   ) as {
     attempt_id: string | null;
     duplicate: boolean;
+    equivalent_completed: boolean;
     prior_meter_high_water_bytes: number | null;
     unreconciled_bytes: number;
     provider_growth_since_accounting_bytes: number | null;
@@ -243,7 +299,8 @@ export function acquireMaintenanceReservation(
     request,
     revision,
     trigger: reason,
-    remaining_bytes: transferLimit - meter.transferBytes,
+    remaining_bytes: useCutover ? null : transferLimit - meter.transferBytes,
+    sampled_remaining_bytes: transferLimit - meter.transferBytes,
     available_after_reserves_bytes:
       limits.ceiling_bytes - meter.transferBytes - status.unreconciled_bytes,
     retry_at: meter.resetAt,
@@ -265,6 +322,7 @@ export async function withMaintenanceAdmission<T>(
     estimate?: (value: T) => number;
     request?: string;
     completed?: (value: T) => boolean;
+    bootstrap?: boolean;
   } = {},
 ): Promise<T> {
   if (!isNeon(environment)) return await callback(costs[operation]);
@@ -289,7 +347,7 @@ export async function withMaintenanceAdmission<T>(
       : `local:${randomUUID()}`);
   let meter: NeonMeter;
   try {
-    meter = await sampleNeon(environment);
+    meter = cutoverReading(environment, operation) ?? (await sampleNeon(environment));
   } catch (error) {
     recordEvidence(environment, {
       operation,
@@ -302,10 +360,21 @@ export async function withMaintenanceAdmission<T>(
     });
     throw new MaintenanceResourceDeferred("Current Neon metadata is unavailable");
   }
-  const status = migrationStatus(environment);
+  const status =
+    operation === "intake"
+      ? {
+          schema_version: queryJson(
+            environment,
+            "SELECT coalesce(max(version), 0) FROM portcove_maintenance_meta.schema_migrations;",
+            { executor: true },
+          ) as number,
+          pending: [],
+          problems: [],
+        }
+      : migrationStatus(environment);
   // One known small deployment migration can create its own admission table.
   if (
-    operation !== "intake" &&
+    options.bootstrap === true &&
     status.schema_version === 5 &&
     status.pending.length === 1 &&
     status.pending[0]?.version === 6 &&
@@ -332,10 +401,15 @@ export async function withMaintenanceAdmission<T>(
     revision,
     reason,
   });
+  const coalesced =
+    admission.reason === "equivalent-request" &&
+    admission.equivalent_completed &&
+    options.request?.startsWith("github:catalog-only:");
   recordEvidence(environment, {
     ...admission,
-    outcome: admission.attempt_id ? "admitted" : "deferred",
+    outcome: admission.attempt_id ? "admitted" : coalesced ? "coalesced" : "deferred",
   });
+  if (coalesced) throw new MaintenanceRequestCoalesced(admission.reason);
   if (!admission.attempt_id) throw new MaintenanceResourceDeferred(admission.reason);
   let outcome = "failed";
   let estimate: number | undefined;
@@ -362,6 +436,7 @@ export async function withMaintenanceAdmission<T>(
       `UPDATE portcove_maintenance_meta.resource_admissions
       SET outcome = ${sqlLiteral(outcome)}, finished_at = clock_timestamp(), estimate_bytes = ${estimate ?? "NULL"}
       WHERE attempt_id = ${sqlLiteral(admission.attempt_id)}::uuid AND outcome = 'running';`,
+      { executor: operation === "intake" },
     );
     recordEvidence(environment, {
       operation,

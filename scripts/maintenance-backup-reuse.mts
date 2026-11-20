@@ -30,6 +30,7 @@ const history = [
 ] as const;
 
 const schema = "portcove_maintenance";
+const activation = "portcove_maintenance_meta.discovery_intake_activation";
 const copySettings =
   "SET DateStyle = 'ISO, MDY'; SET TimeZone = 'UTC'; SET IntervalStyle = 'postgres'; SET extra_float_digits = 1;";
 
@@ -74,7 +75,7 @@ function copyTo(
 
 /** Bound transfer before fetching data, from the same snapshot that supplies it. */
 function exportCeiling(through: readonly string[]) {
-  const sources = storeTables.map(([table]) => {
+  const sources = [...storeTables.map(([table]) => table), activation].map((table) => {
     const index = history.findIndex(([name]) => table === `${schema}.${name}`);
     const where = index < 0 ? "" : ` WHERE ${history[index]![1]} > ${through[index]}`;
     // Allow for text COPY escaping, row framing and query/transport overhead.
@@ -96,6 +97,7 @@ export async function backupReusingHistory(options: {
   previous?: string;
   output: string;
   reservedBytes: number;
+  reuseRecent?: boolean;
 }) {
   const { source, prefixDatabase, target, previous, output, reservedBytes } = options;
   if (existsSync(output)) throw new MaintenanceStoreError("Backup destination already exists");
@@ -117,10 +119,8 @@ export async function backupReusingHistory(options: {
   if (status.problems.length || status.pending.length || !status.schema_version)
     throw new MaintenanceStoreError("Back up only a store migrated to this checkout's schema");
 
-  if (previous) {
-    readBackupManifest(previous);
-    restore(prefixDatabase, previous);
-  }
+  const base = previous ? readBackupManifest(previous) : undefined;
+  if (previous) restore(prefixDatabase, previous);
   const work = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-reuse-"));
   try {
     const dump = path.join(work, "store.dump");
@@ -135,6 +135,16 @@ export async function backupReusingHistory(options: {
     );
     const captured = await withExportedSnapshot(source, async (snapshot, query) => {
       await query(copySettings);
+      const expected = [...storeTables.map(([table]) => table), activation].sort();
+      const exportedTables = JSON.parse(
+        await query(`SELECT coalesce(json_agg(n.nspname || '.' || c.relname), '[]')
+        FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname IN (${maintenanceSchemas.map(sqlLiteral).join(", ")}) AND c.relkind IN ('r','p','f','m');`),
+      ) as string[];
+      if (JSON.stringify(exportedTables.sort()) !== JSON.stringify(expected))
+        throw new MaintenanceStoreError(
+          "Protected table inventory differs from the recovery contract",
+        );
       const through: string[] = [];
       for (const [index, prefix] of local.entries()) {
         if (!prefix || !/^[0-9]+$/u.test(prefix.through)) {
@@ -143,6 +153,23 @@ export async function backupReusingHistory(options: {
         }
         const observed = JSON.parse(await query(historyPrefix(index, prefix.through)));
         through.push(JSON.stringify(observed) === JSON.stringify(prefix) ? prefix.through : "0");
+      }
+      if (
+        options.reuseRecent &&
+        base?.sequences &&
+        Date.now() >= Date.parse(base.created_at) &&
+        Date.now() - Date.parse(base.created_at) < 20 * 60 * 60 * 1000
+      ) {
+        const current = JSON.parse(await query(digestQuery())) as StoreDigest;
+        const matches = storeTables.every(
+          ([table]) =>
+            table.endsWith(".resource_admissions") ||
+            (current[table]?.rows === base.tables[table]?.rows &&
+              current[table]?.sha256 === base.tables[table]?.sha256),
+        );
+        const state = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
+        if (matches && JSON.stringify(state) === JSON.stringify(base.sequences))
+          return { reused: true as const };
       }
       const estimated = Number((await query(exportCeiling(through))).trim());
       if (!Number.isSafeInteger(estimated) || estimated > reservedBytes)
@@ -174,8 +201,20 @@ export async function backupReusingHistory(options: {
       // Sequences are not MVCC. Sample after COPY so values are at least as new
       // as all included rows, even if another collector took tickets meanwhile.
       const state = JSON.parse(await query(sequenceStateQuery)) as SequenceState;
-      return { tables, through, estimated, state };
+      return { reused: false as const, tables, through, estimated, state };
     });
+    if (captured.reused)
+      return {
+        reused: true,
+        manifest: base!,
+        transfer: {
+          reserved_bytes: reservedBytes,
+          estimated_payload_ceiling: 2_000_000,
+          history_copy_bytes: 0,
+          other_table_copy_bytes: 0,
+          method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead",
+        } satisfies BackupTransfer,
+      };
     const scripts = ["pre-data", "data", "post-data"].map((section) => {
       const file = path.join(work, `${section}.sql`);
       runTool(
@@ -244,7 +283,7 @@ export async function backupReusingHistory(options: {
       other_table_copy_bytes: statSync(scripts[1]!).size,
       method: "logical-copy-payload-plus-unmeasured-postgresql-and-tls-overhead",
     };
-    return { manifest, transfer };
+    return { manifest, transfer, reused: false };
   } finally {
     rmSync(work, { recursive: true, force: true });
   }

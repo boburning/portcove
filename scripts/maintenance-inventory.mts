@@ -1918,6 +1918,7 @@ export async function collect(options: {
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
+  bindCatalogDefinitions?: boolean;
 }) {
   const revision = git(["rev-parse", "HEAD"]).trim();
   const ids = options.all
@@ -1967,7 +1968,7 @@ export async function collect(options: {
     reviewedCatalogBytes !== null &&
     sha256(reviewedCatalogBytes) === producer?.embedded_catalog_sha256;
   const currentDefinitionHashes =
-    options.upstream && catalogBytesVerified
+    (options.upstream || options.bindCatalogDefinitions) && catalogBytesVerified
       ? await sourceOutcome(async () => {
           const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
           try {
@@ -2239,9 +2240,22 @@ export async function collect(options: {
   for (let attempt = 1; ; attempt++) {
     const baseline =
       mode === "all"
-        ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
+        ? new Map(
+            sources.map((source) => {
+              const prior =
+                attempt === 1 && decidedBaseline
+                  ? source === "catalog-records"
+                    ? decidedBaseline.catalog
+                    : source === coreSource
+                      ? decidedBaseline.core
+                      : undefined
+                  : undefined;
+              return [source, prior ?? latestMembers(options.environment, source)];
+            }),
+          )
         : undefined;
-    // Reuse was decided against these baselines; another run in between voids it.
+    // Reuse binds the considered baselines. The transaction confirms that the
+    // first attempt still has those exact runs, and retries verify them again.
     if (
       plan.reused.size &&
       (baseline?.get("catalog-records")?.run !== decidedBaseline?.catalog.run ||
@@ -4118,6 +4132,7 @@ commands:
                                        --reassess changed (with --all and --targets) reuses
                                        unchanged Core results under the same Core semantics
                                        after a full read within 7 days; full (default) reads all
+                                       --catalog-only reads only the pinned catalog and Core sources
                                        --progress FILE adds a reviewed format-1 progress-source
                                        manifest through bounded provider/project report reads;
                                        failures retain last-good research observations
@@ -4236,9 +4251,28 @@ export async function main(argv = process.argv.slice(2)) {
   };
   const json = flag("--json");
   const record = flag("--record");
+  const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
+  if (
+    catalogOnly &&
+    (command !== "collect" ||
+      !all ||
+      !targets ||
+      reassess !== "changed" ||
+      issues ||
+      delivery ||
+      publication ||
+      releaseHealth ||
+      releaseContent ||
+      upstreamSource ||
+      hostedSource ||
+      progressManifest)
+  )
+    throw new MaintenanceStoreError(
+      "--catalog-only takes --all --targets --reassess changed without external sources",
+    );
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
@@ -4254,11 +4288,40 @@ export async function main(argv = process.argv.slice(2)) {
     command === "collect" || command === "report" || command === "digest" || command === "handoffs"
       ? command
       : "inspect";
-  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+  let complete = true;
+  let request: string | undefined;
+  if (
+    catalogOnly &&
+    environment.GITHUB_SHA &&
+    environment.GITHUB_WORKFLOW === "Maintenance inventory"
+  ) {
+    const revision = git(["rev-parse", "HEAD"]).trim();
+    if (revision !== environment.GITHUB_SHA)
+      throw new MaintenanceStoreError(
+        "Hosted catalog-only request does not match its checked-out revision",
+      );
+    const started = Math.floor(Date.now() / 1000);
+    const window = Math.floor(started / 600) * 600;
+    const documents = ["catalog.json", "listings.json"].map((file): unknown =>
+      JSON.parse(git(["show", `${revision}:crates/portcove-core/catalog/${file}`])),
+    );
+    // If a dated fact became effective inside this window, use the exact event
+    // run identity so a prior completion can never obscure the change.
+    if (!clockWindowCrossed(documents, window, started))
+      request = `github:catalog-only:${revision}:${window}`;
+  }
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred, MaintenanceRequestCoalesced } =
     await import("./maintenance-resource-policy.mts");
   try {
-    return await withMaintenanceAdmission(environment, operation, run);
+    return await withMaintenanceAdmission(environment, operation, run, {
+      request,
+      completed: () => complete,
+    });
   } catch (error) {
+    if (error instanceof MaintenanceRequestCoalesced) {
+      console.log(JSON.stringify({ outcome: "coalesced", request }));
+      return 0;
+    }
     if (!(error instanceof MaintenanceResourceDeferred)) throw error;
     console.error(`Maintenance deferred: ${error.message}`);
     return 75;
@@ -4271,41 +4334,38 @@ export async function main(argv = process.argv.slice(2)) {
         issuesTokenEnvironment === undefined
           ? undefined
           : takeIssueCredential(issuesTokenEnvironment);
-      console.log(
-        JSON.stringify(
-          await collect({
-            cli: path.resolve(cli),
-            sample,
-            all,
-            concurrency: concurrency === undefined ? undefined : Number(concurrency),
-            issues: issues ? () => readIssueInventory(issueCredential) : undefined,
-            releaseHealth: releaseHealth ? readReleaseHealth : undefined,
-            releaseContent: releaseContent ? readReleaseContent : undefined,
-            upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
-            progress: progressManifest
-              ? validateProgressSources(
-                  JSON.parse(
-                    new TextDecoder("utf-8", { fatal: true }).decode(
-                      await readBoundedPublicBuildInputFile(
-                        path.dirname(path.resolve(progressManifest)),
-                        path.basename(progressManifest),
-                        64 * 1024,
-                      ),
-                    ),
+      const collected = await collect({
+        cli: path.resolve(cli),
+        sample,
+        all,
+        concurrency: concurrency === undefined ? undefined : Number(concurrency),
+        issues: issues ? () => readIssueInventory(issueCredential) : undefined,
+        releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+        releaseContent: releaseContent ? readReleaseContent : undefined,
+        upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+        progress: progressManifest
+          ? validateProgressSources(
+              JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(
+                  await readBoundedPublicBuildInputFile(
+                    path.dirname(path.resolve(progressManifest)),
+                    path.basename(progressManifest),
+                    64 * 1024,
                   ),
-                )
-              : undefined,
-            hostedIntake: hostedSource ? readHostedIntake : undefined,
-            publication: publication || undefined,
-            delivery: delivery || undefined,
-            targets: targets || undefined,
-            reassess,
-            environment,
-          }),
-          null,
-          2,
-        ),
-      );
+                ),
+              ),
+            )
+          : undefined,
+        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        publication: publication || undefined,
+        delivery: delivery || undefined,
+        targets: targets || undefined,
+        reassess,
+        bindCatalogDefinitions: catalogOnly,
+        environment,
+      });
+      complete = collected.failed_sources.length === 0 && collected.core_gaps === 0;
+      console.log(JSON.stringify(collected, null, 2));
     } else if (command === "report") {
       if (!output) throw new MaintenanceStoreError("report requires --output DIR");
       const interventionPath = interventionFile && path.resolve(interventionFile);

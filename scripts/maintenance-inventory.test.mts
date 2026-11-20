@@ -357,6 +357,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
   for (const flag of [
     "--all",

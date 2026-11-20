@@ -201,14 +201,14 @@ export function runSql(
   environment: NodeJS.ProcessEnv,
   sql: string,
   /** A longer budget for one known-large transaction; the default suits ordinary queries. */
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; executor?: boolean } = {},
 ) {
   return runTool(
     "psql",
     [...psqlBase, "-A", "-t", "--single-transaction", "-f", "-"],
     environment,
     {
-      input: sql,
+      input: options.executor ? `SET LOCAL ROLE portcove_maintenance_executor;\n${sql}` : sql,
       ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
     },
   );
@@ -247,8 +247,12 @@ export function portableRestoreSql(sql: string) {
     .join("\n");
 }
 
-export function queryJson(environment: NodeJS.ProcessEnv, sql: string): unknown {
-  const output = runSql(environment, sql).trim();
+export function queryJson(
+  environment: NodeJS.ProcessEnv,
+  sql: string,
+  options?: { executor?: boolean },
+): unknown {
+  const output = runSql(environment, sql, options).trim();
   try {
     return JSON.parse(output);
   } catch {
@@ -799,7 +803,7 @@ commands:
   digest    print per-table row counts and content digests
   server    print the server version, its major version and the database size in bytes
   backup    --output DIR   write maintenance.dump and manifest.json to a new DIR
-  backup-reusing-history --output DIR [--input VERIFIED-BACKUP-DIR]
+  backup-reusing-history --output DIR [--input VERIFIED-BACKUP-DIR] [--recovery-envelope routine|catchup|full]
             reconstruct a complete independent dump using two local scratch databases
   resource-meter                read provider metadata without connecting to PostgreSQL
   resource-probe --output FILE  exercise bounded hosted admission and report migration status
@@ -824,6 +828,15 @@ export async function main(argv = process.argv.slice(2)) {
   const directory = path.resolve(option(args, "--migrations") ?? defaultMigrationDirectory);
   const output = option(args, "--output");
   const input = option(args, "--input");
+  const recoveryEnvelope = option(args, "--recovery-envelope");
+  if (
+    recoveryEnvelope &&
+    (command !== "backup-reusing-history" ||
+      !["routine", "catchup", "full"].includes(recoveryEnvelope))
+  )
+    throw new MaintenanceStoreError(
+      "Recovery envelope must be routine, catchup or full on backup-reusing-history",
+    );
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
   const environment = connectionFromEnvironment(environmentName, process.env, envFile);
@@ -832,7 +845,15 @@ export async function main(argv = process.argv.slice(2)) {
   const policy = await import("./maintenance-resource-policy.mts");
   delete process.env.PORTCOVE_NEON_METER_TOKEN;
   try {
-    return await runStoreCommand(command, environment, directory, output, input, policy);
+    return await runStoreCommand(
+      command,
+      environment,
+      directory,
+      output,
+      input,
+      recoveryEnvelope,
+      policy,
+    );
   } catch (error) {
     if (
       !(error instanceof policy.MaintenanceResourceDeferred) &&
@@ -850,6 +871,7 @@ async function runStoreCommand(
   directory: string,
   output: string | undefined,
   input: string | undefined,
+  recoveryEnvelope: string | undefined,
   policy: typeof import("./maintenance-resource-policy.mts"),
 ) {
   let result: unknown;
@@ -862,8 +884,11 @@ async function runStoreCommand(
       migrationStatus(environment, directory),
     );
   else if (command === "migrate")
-    result = await policy.withMaintenanceAdmission(environment, "inspect", () =>
-      migrate(environment, directory),
+    result = await policy.withMaintenanceAdmission(
+      environment,
+      "inspect",
+      () => migrate(environment, directory),
+      { bootstrap: directory === defaultMigrationDirectory },
     );
   else if (command === "digest")
     result = await policy.withMaintenanceAdmission(environment, "inspect", () =>
@@ -882,7 +907,11 @@ async function runStoreCommand(
     delete process.env.PORTCOVE_MAINTENANCE_SCRATCH_URL;
     result = await policy.withMaintenanceAdmission(
       environment,
-      input ? "recovery" : "recovery-full",
+      !input || recoveryEnvelope === "full"
+        ? "recovery-full"
+        : recoveryEnvelope === "catchup"
+          ? "recovery-catchup"
+          : "recovery",
       (bytes) =>
         backupReusingHistory({
           source: environment,
@@ -891,6 +920,7 @@ async function runStoreCommand(
           previous: input && path.resolve(input),
           output: path.resolve(output),
           reservedBytes: bytes,
+          reuseRecent: environment.PORTCOVE_MAINTENANCE_PURPOSE === "recover",
         }),
       {
         estimate: ({ transfer }) =>

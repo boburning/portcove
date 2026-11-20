@@ -20,9 +20,10 @@ on:
 permissions:
   contents: read
 
-# One store writer at a time; a queued run waits and never cancels a running one.
+# Manual requests cannot replace a queued nightly recovery. The database fences
+# shared admissions and stale writes across these separate purpose groups.
 concurrency:
-  group: maintenance-inventory
+  group: maintenance-inventory-${{ inputs.purpose || 'schedule' }}-${{ inputs.purpose && github.sha || 'nightly' }}
   cancel-in-progress: false
 
 jobs:
@@ -116,6 +117,17 @@ jobs:
           rc=0
           node scripts/maintenance-store.mts resource-probe --output work/maintenance-report/status.json || rc=$?
           [[ "$rc" == 0 || "$rc" == 75 ]]
+      - name: Prepare the production resource ledger
+        if: ${{ !cancelled() && steps.postgres.outcome == 'success' &&
+          (github.event_name == 'schedule' || inputs.purpose == 'recover' || inputs.purpose == 'recovery-full') }}
+        timeout-minutes: 4
+        env:
+          PORTCOVE_MAINTENANCE_DATABASE_URL: ${{ secrets.PORTCOVE_DATABASE_URL }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
+        run: |
+          rc=0
+          node scripts/maintenance-store.mts migrate > work/maintenance-evidence/migrate.json || rc=$?
+          [[ "$rc" == 0 || "$rc" == 75 ]]
       - name: Collect changed sources and periodically reassess all Core subjects
         id: collect
         if: github.event_name == 'schedule' || inputs.purpose == 'collect-changed'
@@ -128,10 +140,16 @@ jobs:
         run: |
           started=$EPOCHSECONDS
           rc=0
+          sources=(--catalog-only)
+          if [[ "$PORTCOVE_MAINTENANCE_PURPOSE" == schedule ]]; then
+            sources=(--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN
+              --release-health --release-content --publication --delivery --upstream --hosted-intake
+              --progress scripts/upstream-progress/sources-v1.json)
+          else
+            unset PORTCOVE_ROADMAP_GH_TOKEN
+          fi
           node scripts/maintenance-inventory.mts collect --all --cli target/debug/portcove \
-            --issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN \
-            --release-health --release-content --publication --delivery --upstream --hosted-intake \
-            --targets --reassess changed --progress scripts/upstream-progress/sources-v1.json \
+            --targets --reassess changed "${sources[@]}" \
             > work/maintenance-evidence/collect.json || rc=$?
           if [[ "$rc" == 75 ]]; then
             echo 'Collection deferred. The next scheduled run retries collection at the current source revision.' >> "$GITHUB_STEP_SUMMARY"
@@ -184,8 +202,16 @@ jobs:
           started=$EPOCHSECONDS
           rc=0
           args=()
-          if [[ -f "$RUNNER_TEMP/maintenance-baseline/backup/manifest.json" ]]; then
-            args+=(--input "$RUNNER_TEMP/maintenance-baseline/backup")
+          baseline="$RUNNER_TEMP/maintenance-baseline/backup"
+          if [[ -f "$baseline/manifest.json" ]]; then
+            args+=(--input "$baseline")
+            previous=$(jq -er '.created_at' "$baseline/manifest.json")
+            age=$((EPOCHSECONDS - $(date -u -d "$previous" +%s)))
+            if ((age > 54 * 3600)) && [[ -n "$PORTCOVE_NEON_METER_TOKEN" ]]; then
+              args+=(--recovery-envelope full)
+            elif ((age > 30 * 3600)); then
+              args+=(--recovery-envelope catchup)
+            fi
           fi
           node scripts/maintenance-store.mts backup-reusing-history "${args[@]}" \
             --output work/maintenance-backup/store > work/maintenance-report/recovery-transfer.json || rc=$?
@@ -194,6 +220,11 @@ jobs:
             exit 0
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
+          fi
+          if jq -e '.reused == true' work/maintenance-report/recovery-transfer.json > /dev/null; then
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo 'The verified recovery point still covers the protected state and sequence values.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
           printf 'backup\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
@@ -266,7 +297,7 @@ jobs:
         env:
           COLLECT_OUTCOME: ${{ steps.collect.outcome }}
           REPORT_OUTCOME: ${{ steps.report.outcome }}
-          BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
+          BACKUP_OUTCOME: ${{ steps.backup.outputs.artifact && 'captured' || steps.backup.outputs.reused == 'true' && 'reused' || steps.backup.outcome == 'success' && 'deferred' || steps.backup.outcome }}
           COLLECT_COMPLETED: ${{ steps.collect.outputs.completed }}
           PUBLIC_SUMMARY_OUTCOME: ${{ steps.public-summary.outcome }}
           RUN_ID: ${{ github.run_id }}
@@ -357,7 +388,7 @@ jobs:
                       compute = meter["computeSeconds"]
                       hours = f"{compute / 3600:.3f} CU-hours" if compute is not None else "unknown"
                       lines += [f"- {record['operation']}: {record['outcome']}. "
-                                f"Neon transfer {meter['transferBytes']} bytes; period reset {meter['resetAt']}; "
+                                f"{meter['sampleOrigin']} Neon transfer sample {meter['transferBytes']} bytes at {meter['sampledAt']}; period reset {meter['resetAt']}; "
                                 f"compute {hours}; branch logical size {meter['storageBytes']} bytes. "
                                 f"Unreconciled estimate {record.get('unreconciled_bytes')} bytes."]
                   elif record["outcome"] == "deferred":

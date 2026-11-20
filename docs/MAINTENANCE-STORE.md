@@ -1216,17 +1216,24 @@ inputs change or the last compatible full pass reaches seven days. A failed
 source preserves its last verified data. The backup checks the committed store
 independently of the collection exit status.
 
-Manual runs default to `status`. Each purpose runs on repository `main` and
-shares the existing workflow concurrency group.
+Manual runs default to `status`. Each purpose runs on repository `main`.
+Purpose and revision scope the concurrency groups. A manual request cannot
+replace a pending scheduled run. PostgreSQL serializes budget admissions and
+fences stale collection writes across groups.
 
-| Purpose           | Work                                                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| `status`          | Record the provider reading and exercise bounded admission with a migration-status query.               |
-| `collect-changed` | Collect with selective Core reassessment. Leave reports and recovery to the daily run.                  |
-| `report`          | Restore a retained, independently verified backup and render its report and digest on local PostgreSQL. |
-| `verify-recovery` | Restore a retained backup on a clean local PostgreSQL instance and verify it.                           |
-| `recover`         | Create and independently restore a portable recovery point using the retained history prefix.           |
-| `recovery-full`   | Request a separately admitted full recovery export to seed a replacement baseline.                      |
+| Purpose           | Work                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `status`          | Record the provider reading and exercise bounded admission with a migration-status query.                                           |
+| `collect-changed` | Read only pinned catalog and Core facts with selective reassessment. Leave external sources, reports and recovery to the daily run. |
+| `report`          | Restore a retained, independently verified backup and render its report and digest on local PostgreSQL.                             |
+| `verify-recovery` | Restore a retained backup on a clean local PostgreSQL instance and verify it.                                                       |
+| `recover`         | Create and independently restore a portable recovery point using the retained history prefix.                                       |
+| `recovery-full`   | Request a separately admitted full recovery export to seed a replacement baseline.                                                  |
+
+Equivalent manual catalog requests with the same pinned revision and a recent
+completed result coalesce inside a ten-minute window. A clock-dated change or
+an incomplete result remains eligible. Daily collection reads fresh external
+source identities.
 
 The daily run keeps existing source and repository access. The production steps
 use the direct database secret `PORTCOVE_DATABASE_URL`. Only collection receives
@@ -1256,10 +1263,14 @@ There is no separately committed recovery time. The independent restore job
 retains its existing 20-minute job budget and records actual restore duration.
 
 The newest retained backup with matching independent restore evidence seeds the
-next export. PostgreSQL compares ordered content hashes and row counts for the
+next export. A manual recovery request can reuse a verified backup under 20 hours
+old after matching protected table digests and sequence values. PostgreSQL compares ordered content hashes and row counts for the
 retained prefix of each large append-only table under one exported snapshot.
 When a prefix matches, only newer rows cross the network. A mismatch requires
-that table's full payload to fit the admission. All smaller tables, including
+that table's full payload to fit the admission. The schedule requests a larger
+envelope when the retained recovery point is more than 30 hours old. Beyond 54
+hours, a live meter can admit a full recovery envelope. Incomplete GitHub
+inventory never implies that the prior backup is missing. All smaller tables, including
 mutable state and the migration ledger, come from the same snapshot. The
 independent reconstruction loads current schema and data, preserves sequence
 values and verifies all protected table hashes before writing a new standalone
@@ -1302,7 +1313,13 @@ and outcome. The GitHub summary reports deferred work and the dated recovery poi
 Publication and player routes keep their existing static signed catalog inputs.
 No paid fallback is used.
 
-Missing or regressed readings defer metered work. The next scheduled maintenance
+Missing or regressed readings defer metered work outside the finite November
+cutover. The cutover uses the 20:51 UTC November 20 observation only for the
+existing production endpoint and charges at most 300 MB through the recorded
+December 1 reset. The workflow labels that reading as historical and reports
+current remaining allowance as unknown. It keeps full exports and direct report
+exports outside this temporary envelope. A configured but invalid Viewer token
+defers work. The next scheduled maintenance
 run, or the next existing discovery intake event, retries from its durable source
 or receipt. Retained-artifact reports and restore checks remain available offline.
 A repeated deferral stays visible as the age of the last verified recovery point
@@ -1321,12 +1338,12 @@ period earmarks 2 GB for recovery and uncertainty, outside the routine 3 GB
 allowance. Recovery itself can draw from the earmark while retaining emergency
 capacity for failure or unaccounted transfer.
 
-| Case                     | Recurring and burst assumptions                                                     | Transfer model                                                                                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Legacy November baseline | One normal export per day, with the same backup size as run 44799126269             | 143.61 MB logical COPY × 31 = 4.45 GB for backups alone. The compressed dump was 17.01 MB. The 26.66 MB rendered inventory was a separate output.                |
-| Cutover period           | 10 additional daily slots at 22 MB recovery forecast and 350 MB emergency allowance | 220 MB projected future recovery. With 934 MB apparent balance, there is about 364 MB before unsettled work, bootstrap allowance and today's recovery admission. |
-| Normal full month        | 31 recovery points at 22 MB and 31 collection admissions at up to 18 MB             | 1.24 GB projected plus narrow handoff and status reads. Reports, digest and independent restore are local.                                                       |
-| Development burst        | Normal month plus 15 scoped collection attempts and 15 status probes                | Up to 300 MB in additional reservations before protocol uncertainty, history growth and conservative provider overlap.                                           |
+| Case                     | Recurring and burst assumptions                                                     | Transfer model                                                                                                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Legacy November baseline | One normal export per day, with the same backup size as run 44799126269             | 143.61 MB logical COPY × 31 = 4.45 GB for backups alone. The compressed dump was 17.01 MB. The 26.66 MB rendered inventory was a separate output.                                                                  |
+| Cutover period           | 10 additional daily slots at 22 MB recovery forecast and 350 MB emergency allowance | 220 MB projected future recovery. The credential-free transition envelope limits all new admissions to 300 MB of the 934 MB sampled balance. At least 634 MB of the sampled allowance stays outside that envelope. |
+| Normal full month        | 31 recovery points at 22 MB and 31 collection admissions at up to 18 MB             | 1.24 GB projected plus narrow handoff and status reads. Reports, digest and independent restore are local.                                                                                                         |
+| Development burst        | Normal month plus 15 scoped collection attempts and 15 status probes                | Up to 300 MB in additional reservations before protocol uncertainty, history growth and conservative provider overlap.                                                                                             |
 
 The retained artifact and local PostgreSQL replay measured a zero-change recovery
 at approximately 5.27 MB of small-table SQL output and zero remotely needed

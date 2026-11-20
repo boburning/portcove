@@ -9,6 +9,7 @@ import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.
 import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
 import {
   acquireMaintenanceReservation,
+  cutoverReading,
   normalizeNeonMeter,
   policyLimits,
   type NeonMeter,
@@ -607,7 +608,7 @@ void test(
   },
   async (context) => {
     const fixture = postgresFixture(context, server.directory!);
-    const { owner } = fixture.start("quota");
+    const { owner, as } = fixture.start("quota");
     migrate(owner);
     const initial = testMeter(0);
     initial.transferBytes =
@@ -636,6 +637,14 @@ void test(
       });
     const admitted = (await Promise.all([attempt("a"), attempt("b")])).find(Boolean);
     assert.ok(admitted);
+    runSql(owner, "CREATE ROLE quota_executor LOGIN IN ROLE portcove_maintenance_executor;");
+    const blockedUpdate = runSql(
+      as("quota_executor"),
+      `UPDATE portcove_maintenance_meta.resource_admissions
+      SET outcome='completed', finished_at=clock_timestamp(), estimate_bytes=0 WHERE attempt_id='${admitted}'
+      RETURNING attempt_id;`,
+    ).trim();
+    assert.equal(blockedUpdate, "", "intake cannot settle a reservation owned by collection");
     assert.equal(await attempt("new"), null, "stalled meter cannot erase the earlier charge");
     const reserve = (meter: NeonMeter, request: string) =>
       acquireMaintenanceReservation(owner, {
@@ -657,11 +666,21 @@ void test(
       "UPDATE portcove_maintenance_meta.resource_admissions SET started_at = clock_timestamp() - interval '4 days';",
     );
     assert.equal(await attempt("after-crash"), null, "an abandoned reservation is still charged");
+    assert.equal(
+      reserve({ ...initial, transferBytes: 4_900_000_000 }, "denied-peak").attempt_id,
+      null,
+    );
+    assert.equal(reserve(initial, "stale-after-denial").reason, "counter-regressed");
     const reset = {
       ...initial,
       transferBytes: 5,
       periodStart: new Date(Date.now() - 60_000).toISOString(),
     };
+    assert.equal(reserve(reset, "overlap").reason, "overlapping-provider-period");
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions SET reset_at='${reset.periodStart}';`,
+    );
     assert.ok(
       reserve(reset, "after-reset").attempt_id,
       "scheduled continuation can admit after reset",
@@ -700,6 +719,21 @@ void test(
       backupReusingHistory({ source, prefixDatabase: prefix, target, output, reservedBytes: 1 }),
       MaintenanceBackupDeferred,
     );
+    runSql(
+      source,
+      "CREATE TABLE portcove_maintenance.unexpected(data text); INSERT INTO portcove_maintenance.unexpected VALUES (repeat('x', 10000));",
+    );
+    await assert.rejects(
+      backupReusingHistory({
+        source,
+        prefixDatabase: prefix,
+        target,
+        output,
+        reservedBytes: 5_000_000,
+      }),
+      /Protected table inventory/u,
+    );
+    runSql(source, "DROP TABLE portcove_maintenance.unexpected;");
     const result = await backupReusingHistory({
       source,
       prefixDatabase: prefix,
@@ -712,6 +746,19 @@ void test(
     assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
     const restored = restore(proof, output);
     assert.equal(restored.sequences_verified, true);
+    const reusePrefix = fixture.start("reuse-prefix").owner;
+    const reused = await backupReusingHistory({
+      source,
+      prefixDatabase: reusePrefix,
+      target,
+      previous: output,
+      output: path.join(fixture.root, "duplicate"),
+      reservedBytes: 5_000_000,
+      reuseRecent: true,
+    });
+    assert.equal(reused.reused, true);
+    assert.equal(reused.manifest.dump.sha256, result.manifest.dump.sha256);
+    assert.equal(reused.transfer.history_copy_bytes, 0);
     assert.deepEqual(restored.tables, storeDigest(source));
     assert.equal(
       runSql(
@@ -722,3 +769,19 @@ void test(
     );
   },
 );
+
+void test("credential-free cutover is bound to one endpoint, period, and finite envelope", () => {
+  const endpoint = { PGHOST: "ep-shy-resonance-bb33lu82.c-15.us-east-1.aws.neon.tech" };
+  const now = Date.parse("2026-11-21T04:47:00Z");
+  const meter = cutoverReading(endpoint, "recovery", now);
+  assert.ok(meter);
+  assert.equal(meter.sampleOrigin, "november-cutover");
+  assert.equal(policyLimits(meter, "recovery", now).cutover_allowance_bytes, 300_000_000);
+  assert.equal(cutoverReading(endpoint, "recovery-full", now), undefined);
+  assert.equal(cutoverReading({ PGHOST: "ep-other.neon.tech" }, "recovery", now), undefined);
+  assert.equal(
+    cutoverReading({ ...endpoint, PORTCOVE_NEON_METER_TOKEN: "configured" }, "recovery", now),
+    undefined,
+  );
+  assert.equal(cutoverReading(endpoint, "recovery", Date.parse(meter.resetAt)), undefined);
+});

@@ -15,6 +15,8 @@ on:
         required: true
       PORTCOVE_DISCOVERY_DATABASE_URL:
         required: false
+      PORTCOVE_NEON_METER_TOKEN:
+        required: false
   issue_comment:
     types: [created, edited]
   pull_request:

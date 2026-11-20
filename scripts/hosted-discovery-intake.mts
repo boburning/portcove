@@ -2737,7 +2737,6 @@ async function runWithCheckpointAdmission() {
   const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
     await import("./maintenance-resource-policy.mts");
   const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL");
-  environment.PGOPTIONS = "-c role=portcove_maintenance_executor";
   const run = process.env.GITHUB_RUN_ID;
   const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
   try {
