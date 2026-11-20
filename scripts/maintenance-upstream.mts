@@ -22,8 +22,9 @@ import {
 } from "./catalog-upstream-observer.mts";
 
 import {
-  type OriginalRecognitionProgress,
-  readOriginalRecognitionProgress,
+  inputEvidenceKey,
+  type OriginalSourceProgress,
+  readOriginalSourceProgress,
 } from "./upstream-original-recognition.mts";
 
 import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
@@ -409,12 +410,15 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               release: port.release,
             })
           : undefined;
-      const recognition =
-        port.observes_original_recognition && progress.repository_id !== null
-          ? readOriginalRecognitionProgress(policy.original_recognition, {
-              repository: source.repository,
-              repository_id: progress.repository_id,
-            })
+      const family = port.original_source_family;
+      const evidenceKey = family ? inputEvidenceKey(family) : undefined;
+      const inputEvidence =
+        family && evidenceKey && progress.repository_id !== null
+          ? readOriginalSourceProgress(
+              policy[evidenceKey],
+              { repository: source.repository, repository_id: progress.repository_id },
+              family,
+            )
           : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
@@ -434,7 +438,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               ? policy.catalog_definition_sha256
               : null,
           ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
-          ...(recognition === undefined ? {} : { original_recognition: recognition }),
+          ...(evidenceKey && inputEvidence ? { [evidenceKey]: inputEvidence } : {}),
         },
       ]);
     }
@@ -747,7 +751,8 @@ export interface UpstreamSourceFact {
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
   managed_release_candidates?: ManagedReleaseCandidate[];
-  original_recognition?: OriginalRecognitionProgress;
+  original_recognition?: OriginalSourceProgress;
+  n64_game_entries?: OriginalSourceProgress;
 }
 
 const storedSources = (payload: unknown) =>

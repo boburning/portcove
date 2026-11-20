@@ -1,10 +1,10 @@
 import { GitHubApiError } from "./github-operation.mts";
 import { createHash } from "node:crypto";
 import {
-  observeOriginalRecognition,
+  observeOriginalSource,
   parseSupportedOriginalHashes,
-  readOriginalRecognitionProgress,
-  selectOriginalRecognitionTarget,
+  readOriginalSourceProgress,
+  selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import { hostedOpportunityMs } from "./observe-catalog-upstreams.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -2232,11 +2232,11 @@ void test("original recognition binds the selected release and exact source blob
     channel_candidate: { id: 31, tag: "1.2.3" },
     latest_eligible: { release_id: 31, release: { version: "1.2.3", asset: { sha256 } } },
   };
-  const target = selectOriginalRecognitionTarget({ projections: [current] }, "sample/runtime", 12);
+  const target = selectOriginalSourceTarget({ projections: [current] }, "sample/runtime", 12);
   assert.ok(target);
   const ref = { ref: "refs/tags/1.2.3", object: { type: "commit", sha: "c".repeat(40) } };
   const paths: string[] = [];
-  const observed = await observeOriginalRecognition(target, async (endpoint) => {
+  const observed = await observeOriginalSource(target, async (endpoint) => {
     paths.push(endpoint);
     if (endpoint === "/repos/sample/runtime") return { id: 12, full_name: "sample/runtime" };
     return endpoint.includes("/contents/") ? contents : ref;
@@ -2258,7 +2258,7 @@ void test("original recognition binds the selected release and exact source blob
     /Git object/,
   );
   assert.equal(
-    selectOriginalRecognitionTarget(
+    selectOriginalSourceTarget(
       {
         projections: [
           { ...current, latest_eligible: { ...current.latest_eligible, release_id: 30 } },
@@ -2277,9 +2277,9 @@ void test("original recognition binds the selected release and exact source blob
       fact: observed,
     },
   };
-  assert.deepEqual(readOriginalRecognitionProgress(previous, target), previous);
+  assert.deepEqual(readOriginalSourceProgress(previous, target), previous);
   assert.equal(
-    readOriginalRecognitionProgress(
+    readOriginalSourceProgress(
       {
         ...previous,
         last_complete: {
@@ -2293,7 +2293,7 @@ void test("original recognition binds the selected release and exact source blob
   );
   const replies = [ref, contents, { ...ref, object: { ...ref.object, sha: "d".repeat(40) } }];
   await assert.rejects(
-    observeOriginalRecognition(target, async () => replies.shift()),
+    observeOriginalSource(target, async () => replies.shift()),
     /tag changed/,
   );
 });
