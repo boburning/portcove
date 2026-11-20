@@ -78,6 +78,7 @@ impl From<DestinationArtworkChoice> for ArtworkChoice {
             revision: value.revision,
             asset_sha256: value.asset_sha256,
             framing: None,
+            suppressed: false,
         }
     }
 }
@@ -141,7 +142,7 @@ impl DestinationArtworkHandoff {
             || self
                 .choice
                 .as_ref()
-                .is_some_and(|choice| choice.framing.is_some())
+                .is_some_and(|choice| choice.framing.is_some() || choice.suppressed)
             || self.attribution.len() > MAX_ATTRIBUTIONS
             || (!self.attribution.is_empty()
                 && !matches!(self.source, DestinationArtworkSource::LocalImport { .. }))
@@ -458,7 +459,9 @@ impl PortcoveService {
         if let Some(slot) = slot {
             let connection = self.library().connection()?;
             let mut choice = crate::artwork_store::choice(&connection, port_id, slot)?;
+            let automatic = choice.is_automatic();
             choice.framing = None;
+            choice.suppressed = false;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
                 handoff.attribution = crate::artwork_store::attributions(&connection, id)?
@@ -506,7 +509,7 @@ impl PortcoveService {
                 };
             } else if role == DestinationArtworkRole::PortraitCover {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
-                if let Some(artwork) = port.artwork.as_ref() {
+                if automatic && let Some(artwork) = port.artwork.as_ref() {
                     handoff.source = DestinationArtworkSource::CatalogDefault {
                         artwork: artwork.clone(),
                     };

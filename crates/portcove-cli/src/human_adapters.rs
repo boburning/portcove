@@ -234,6 +234,9 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         human::port_name(catalog, &state.choice.port_id),
         state.choice.revision
     );
+    if state.choice.suppressed {
+        output.push_str("\nArtwork hidden. Use artwork reset to return to automatic artwork.");
+    }
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
     }
@@ -781,6 +784,7 @@ mod tests {
                 revision: 1,
                 asset_sha256: None,
                 framing: None,
+                suppressed: false,
             }),
             source: DestinationArtworkSource::UnassignedRole,
             selected_asset_sha256: None,

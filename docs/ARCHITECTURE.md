@@ -760,6 +760,13 @@ bounded static image ingest, content store, revision checks and read-only
 thumbnail path as the existing Cover, Detail and Landscape choices. Library
 metadata records a Logo selection or reset revision under schema 13.
 
+Library schema 75 records explicit role suppression alongside the choice
+revision. A suppressed slot carries no asset or framing. Core keeps a neutral
+fallback available and withholds automatic Cover, companion and collection
+images. Metadata schema 15 preserves a suppressed choice across export and
+restore. The destination handoff remains schema 4 and reports no local original
+for that role.
+
 Core stores versioned wide and narrow focal points with the selected Detail
 asset and its choice revision in library schema 74. Each coordinate is measured
 in ten-thousandths of the orientation-corrected image. Replacing the asset or

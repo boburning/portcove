@@ -87,6 +87,14 @@ pub struct ArtworkChoice {
     pub asset_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub framing: Option<ArtworkFraming>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub suppressed: bool,
+}
+
+impl ArtworkChoice {
+    pub(crate) fn is_automatic(&self) -> bool {
+        self.asset_sha256.is_none() && !self.suppressed
+    }
 }
 
 /// A focal point on the orientation-corrected image, in ten-thousandths.
@@ -269,6 +277,10 @@ pub struct ArtworkMetadata {
 }
 
 impl ArtworkMetadata {
+    pub(crate) fn contains_suppression(&self) -> bool {
+        self.choices.iter().any(|choice| choice.suppressed)
+    }
+
     pub(crate) fn contains_framing(&self) -> bool {
         self.choices.iter().any(|choice| choice.framing.is_some())
     }
@@ -697,7 +709,7 @@ impl PortcoveService {
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
             None => match (slot, port.artwork.as_ref()) {
-                (ArtworkSlot::Cover, Some(artwork)) => (
+                (ArtworkSlot::Cover, Some(artwork)) if choice.is_automatic() => (
                     ArtworkAvailability::Available,
                     None,
                     ArtworkResolvedSource::IgdbCover {
@@ -1357,13 +1369,12 @@ impl PortcoveService {
             }
             None => None,
         };
-        crate::artwork_store::write_framed_choice(
+        crate::artwork_store::write_choice(
             &transaction,
             port_id,
             slot,
             expected_revision,
-            Some(&proposed.sha256),
-            framing,
+            crate::artwork_store::ChoiceValue::Image(&proposed.sha256, framing),
         )?;
         // Choices publish only after validated originals. The accepted decode
         // also produced the thumbnail, but its disposable cache cannot make a
@@ -1433,13 +1444,12 @@ impl PortcoveService {
             ));
         };
         if current.framing != framing {
-            crate::artwork_store::write_framed_choice(
+            crate::artwork_store::write_choice(
                 &transaction,
                 port_id,
                 slot,
                 expected_revision,
-                Some(asset_sha256),
-                framing,
+                crate::artwork_store::ChoiceValue::Image(asset_sha256, framing),
             )?;
         }
         transaction.commit()?;
@@ -1452,17 +1462,41 @@ impl PortcoveService {
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkState> {
+        self.set_artwork_without_image(port_id, slot, expected_revision, false)
+    }
+
+    pub fn suppress_artwork(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        self.set_artwork_without_image(port_id, slot, expected_revision, true)
+    }
+
+    fn set_artwork_without_image(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        expected_revision: u64,
+        suppressed: bool,
+    ) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
+        let mut connection = self.library().connection()?;
+        let transaction = connection.transaction()?;
+        crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
+        let value = if suppressed {
+            crate::artwork_store::ChoiceValue::Suppressed
+        } else {
+            crate::artwork_store::ChoiceValue::Automatic
+        };
+        crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, value)?;
+        transaction.commit()?;
         let _ = crate::artwork_eviction::complete_pending_evictions(
             self.library(),
             Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
         );
-        let mut connection = self.library().connection()?;
-        let transaction = connection.transaction()?;
-        crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
-        crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
-        transaction.commit()?;
         self.artwork_for_listing(&port, slot)
     }
 
@@ -1495,7 +1529,7 @@ impl PortcoveService {
                 ArtworkSlot::Cover,
                 expected_revision,
             )?;
-            if current.asset_sha256.is_some() {
+            if !current.is_automatic() {
                 return Err(PortcoveError::conflict("the artwork choice changed"));
             }
             Ok(())
@@ -1548,7 +1582,7 @@ impl PortcoveService {
                 ArtworkSlot::Cover,
                 expected_revision,
             )?;
-            if current.asset_sha256.is_some() {
+            if !current.is_automatic() {
                 return Err(PortcoveError::conflict(
                     "the primary artwork choice changed",
                 ));
@@ -1587,7 +1621,7 @@ impl PortcoveService {
                 slot,
                 expected_revision,
             )?;
-            if choice.asset_sha256.is_none() {
+            if choice.is_automatic() {
                 drop(connection);
                 let thumbnail =
                     igdb_thumbnail(self.library(), artwork, expected_revision, |original| {
@@ -1599,7 +1633,7 @@ impl PortcoveService {
                             slot,
                             expected_revision,
                         )?;
-                        if current.asset_sha256.is_some() {
+                        if !current.is_automatic() {
                             return Err(PortcoveError::conflict(
                                 "the artwork choice changed during cover retrieval",
                             ));
@@ -1613,7 +1647,7 @@ impl PortcoveService {
                     slot,
                     expected_revision,
                 )?;
-                if current.asset_sha256.is_some() {
+                if !current.is_automatic() {
                     return Err(PortcoveError::conflict(
                         "the artwork choice changed during cover retrieval",
                     ));

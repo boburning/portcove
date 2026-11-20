@@ -747,6 +747,17 @@ pub(crate) enum ArtworkCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
+    /// Hide selected and automatic artwork for one port and slot.
+    Suppress {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to hide.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Remove only regenerable artwork cache files.
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
@@ -777,6 +788,7 @@ impl ArtworkCommand {
             Self::Show { .. } => "artwork.show",
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
+            Self::Suppress { .. } => "artwork.suppress",
             Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",

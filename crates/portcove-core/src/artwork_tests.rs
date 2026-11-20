@@ -2821,9 +2821,54 @@ fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
             .code,
         crate::ErrorCode::Conflict
     );
+    let hidden = service
+        .suppress_artwork(port_id, ArtworkSlot::Cover, 0)
+        .unwrap();
+    assert!(hidden.choice.suppressed);
+    assert_eq!(
+        hidden.resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+    assert_eq!(
+        get(hidden.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        service
+            .artwork_thumbnail(port_id, ArtworkSlot::Cover, hidden.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+    let handoff = service
+        .destination_artwork(port_id, crate::DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(matches!(
+        handoff.source,
+        crate::DestinationArtworkSource::GeneratedFallback
+    ));
+    assert!(handoff.selected_asset_sha256.is_none());
+    assert!(
+        serde_json::to_value(handoff).unwrap()["choice"]
+            .get("suppressed")
+            .is_none()
+    );
+    let automatic = service
+        .reset_artwork(port_id, ArtworkSlot::Cover, hidden.choice.revision)
+        .unwrap();
+    assert!(automatic.choice.is_automatic());
+    assert_eq!(
+        get(automatic.choice.revision).unwrap().asset_sha256,
+        companion.image_sha256
+    );
     let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
     let selected = service
-        .import_artwork(port_id, ArtworkSlot::Cover, &local, 0)
+        .import_artwork(
+            port_id,
+            ArtworkSlot::Cover,
+            &local,
+            automatic.choice.revision,
+        )
         .unwrap();
     assert_eq!(get(0).unwrap_err().code, crate::ErrorCode::Conflict);
     assert_eq!(
@@ -2867,9 +2912,27 @@ fn collection_members_obey_local_choice_and_retain_registered_identity_after_dir
             .code,
         crate::ErrorCode::NotFound
     );
+    let hidden = service.suppress_artwork(id, ArtworkSlot::Cover, 0).unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, hidden.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let automatic = service
+        .reset_artwork(id, ArtworkSlot::Cover, hidden.choice.revision)
+        .unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, automatic.choice.revision)
+            .unwrap()
+            .asset_sha256,
+        first.image_sha256
+    );
     let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
     let selected = service
-        .import_artwork(id, ArtworkSlot::Cover, &local, 0)
+        .import_artwork(id, ArtworkSlot::Cover, &local, automatic.choice.revision)
         .unwrap();
     for revision in [0, selected.choice.revision] {
         assert_eq!(
@@ -4454,4 +4517,81 @@ fn provider_background_refuses_a_crop_reviewed_against_different_bytes() {
         .unwrap_err();
     assert_eq!(stale.code, ErrorCode::Conflict);
     assert!(original.is_file());
+}
+
+#[test]
+fn suppression_is_revisioned_per_role_and_survives_portable_restore() {
+    const PORT: &str = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("library");
+    let service = open_service(&root);
+    let image = image_file(temporary.path(), "background.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 0)
+        .unwrap();
+    let original = crate::artwork::original_path(
+        service.library(),
+        selected.choice.asset_sha256.as_deref().unwrap(),
+    )
+    .unwrap();
+    let cover = service.artwork(PORT, ArtworkSlot::Cover).unwrap();
+    let rejected = service
+        .suppress_artwork(PORT, ArtworkSlot::Detail, 0)
+        .unwrap_err();
+    assert_eq!(rejected.code, crate::ErrorCode::Conflict);
+    let hidden = service
+        .suppress_artwork(PORT, ArtworkSlot::Detail, 1)
+        .unwrap();
+    assert_eq!(hidden.choice.revision, 2);
+    assert!(hidden.choice.suppressed);
+    assert!(hidden.choice.asset_sha256.is_none());
+    assert!(hidden.choice.framing.is_none());
+    assert_eq!(fs::read(&original).unwrap(), fs::read(&image).unwrap());
+    assert_eq!(
+        service.artwork(PORT, ArtworkSlot::Cover).unwrap().choice,
+        cover.choice
+    );
+
+    let catalogs =
+        crate::library_import::PortabilityCatalogs::from_catalog(service.catalog().clone());
+    let metadata = service.export_library_metadata().unwrap();
+    assert_eq!(metadata.schema_version, 15);
+    crate::library_import::validate_metadata(&metadata, &catalogs).unwrap();
+    let mut old_reader = metadata.clone();
+    old_reader.schema_version = 14;
+    assert!(crate::library_import::validate_metadata(&old_reader, &catalogs).is_err());
+    let mut inconsistent = metadata;
+    inconsistent
+        .artwork
+        .as_mut()
+        .unwrap()
+        .choices
+        .iter_mut()
+        .find(|choice| choice.slot == ArtworkSlot::Detail)
+        .unwrap()
+        .asset_sha256 = selected.choice.asset_sha256.clone();
+    assert!(crate::library_import::validate_metadata(&inconsistent, &catalogs).is_err());
+
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("restored");
+    service.write_library_metadata(&export).unwrap();
+    let plan = PortcoveService::plan_library_import(&export, &root, &destination).unwrap();
+    PortcoveService::import_library(&export, &root, &destination, &plan.plan_sha256).unwrap();
+    let restored = open_service(&destination);
+    assert_eq!(
+        restored.artwork(PORT, ArtworkSlot::Detail).unwrap().choice,
+        hidden.choice
+    );
+    let reselected = restored
+        .import_artwork(PORT, ArtworkSlot::Detail, &image, 2)
+        .unwrap();
+    assert!(!reselected.choice.suppressed);
+    assert_eq!(reselected.choice.revision, 3);
+    assert_eq!(reselected.choice.asset_sha256, selected.choice.asset_sha256);
+    let automatic = restored
+        .reset_artwork(PORT, ArtworkSlot::Detail, 3)
+        .unwrap();
+    assert_eq!(automatic.choice.revision, 4);
+    assert!(automatic.choice.is_automatic());
+    assert!(restored.export_library_metadata().unwrap().schema_version < 15);
 }

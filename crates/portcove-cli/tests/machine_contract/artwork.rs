@@ -543,3 +543,50 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
     assert!(!library.join("artwork").join(id).exists());
     assert_eq!(std::fs::read(source).unwrap(), bytes);
 }
+
+#[test]
+fn artwork_cli_suppression_is_distinct_from_returning_to_automatic() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let run = |args: &[&str]| {
+        let output = portcove(&library, args);
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        json_stdout(&output)
+    };
+    let hidden = run(&[
+        "--json",
+        "artwork",
+        "suppress",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "0",
+    ]);
+    assert_eq!(hidden["command"], "artwork.suppress");
+    let choice = &hidden["data"]["choice"];
+    assert_eq!(choice["revision"], 1);
+    assert_eq!(choice["suppressed"], true);
+    assert!(choice["asset_sha256"].is_null());
+    let show = run(&[
+        "--json",
+        "artwork",
+        "show",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+    ]);
+    assert_eq!(&show["data"]["choice"], choice);
+    let reset = run(&[
+        "--json",
+        "artwork",
+        "reset",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "1",
+    ]);
+    assert_eq!(reset["data"]["choice"]["revision"], 2);
+    assert!(reset["data"]["choice"].get("suppressed").is_none());
+}

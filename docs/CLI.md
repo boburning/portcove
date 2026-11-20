@@ -1464,6 +1464,7 @@ under the current generation and lease; Desktop continues to call core directly.
 ```text
 portcove --json artwork show <port-id> --slot cover
 portcove --json artwork import <port-id> <image.png> --slot cover --expected-revision <revision>
+portcove --json artwork suppress <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork reset <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork clear-cache
 portcove --json artwork unused
@@ -1476,9 +1477,11 @@ capsule. Use `--slot logo` to import or reset a local logo. A library export wit
 a logo choice or reset revision requires metadata schema 13.
 Read the current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
-reviewed revision so stale selections fail explicitly. Reset increments the
-revision and returns to fallback, retaining copied originals. Removal requires an
-unused asset and explicit confirmation; external source images are never removed.
+reviewed revision so stale selections fail explicitly. Suppression requires an
+explicit revision. It hides the selected and automatic artwork for that port and
+slot. Reset returns the slot to automatic artwork. Both retain copied originals.
+Removal requires an unused asset and explicit confirmation. External source
+images are never removed.
 
 Core copies static PNG/JPEG images into library-owned storage, preserves the first
 filename/import time for deduplicated content and reports `available`, `unavailable`

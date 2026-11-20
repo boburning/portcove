@@ -148,17 +148,35 @@ pub(crate) fn migrate_framing(transaction: &Transaction<'_>) -> Result<()> {
 }
 
 pub(crate) fn verify_framing(connection: &Connection) -> Result<()> {
+    verify_choice_column(connection, FRAMING_COLUMN)
+}
+
+fn verify_choice_column(connection: &Connection, column: &str) -> Result<()> {
     let definition: String = connection.query_row(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_choices'",
         [],
         |row| row.get(0),
     )?;
-    if !definition.contains(FRAMING_COLUMN) {
+    if !definition.contains(column) {
         return Err(PortcoveError::verification(
-            "artwork choice framing does not match the library schema",
+            "artwork choice fields do not match the library schema",
         ));
     }
     Ok(())
+}
+
+const SUPPRESSION_COLUMN: &str = "suppressed INTEGER NOT NULL DEFAULT 0 CHECK(
+    suppressed IN (0,1) AND (suppressed=0 OR asset_sha256 IS NULL))";
+
+pub(crate) fn migrate_suppression(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "ALTER TABLE artwork_choices ADD COLUMN {SUPPRESSION_COLUMN}"
+    ))?;
+    Ok(())
+}
+
+pub(crate) fn verify_suppression(connection: &Connection) -> Result<()> {
+    verify_choice_column(connection, SUPPRESSION_COLUMN)
 }
 
 /// Library migration 58: listing-check evidence beside each provider record. It
@@ -852,13 +870,20 @@ pub(crate) fn choice(
 ) -> Result<ArtworkChoice> {
     let recorded = connection
         .query_row(
-            "SELECT revision,asset_sha256,framing FROM artwork_choices WHERE port_id=?1 AND slot=?2",
+            "SELECT revision,asset_sha256,framing,suppressed FROM artwork_choices WHERE port_id=?1 AND slot=?2",
             params![port_id, slot.key()],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, Option<String>>(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get::<_, Option<String>>(2)?, row.get(3)?)),
         )
         .optional()?;
-    let (revision, asset_sha256, framing) = recorded.unwrap_or((0, None, None));
-    read_choice(port_id.into(), slot, revision, asset_sha256, framing)
+    let (revision, asset_sha256, framing, suppressed) = recorded.unwrap_or((0, None, None, false));
+    read_choice(
+        port_id.into(),
+        slot,
+        revision,
+        asset_sha256,
+        framing,
+        suppressed,
+    )
 }
 
 fn validate_choice_framing(
@@ -883,19 +908,22 @@ fn read_choice(
     revision: u64,
     asset_sha256: Option<String>,
     framing: Option<String>,
+    suppressed: bool,
 ) -> Result<ArtworkChoice> {
     if let Some(id) = &asset_sha256 {
         validate_hash(id)?;
     }
     let framing = framing.as_deref().map(serde_json::from_str).transpose()?;
-    validate_choice_framing(slot, asset_sha256.as_deref(), framing)?;
-    Ok(ArtworkChoice {
+    let choice = ArtworkChoice {
         port_id,
         slot,
         revision,
         asset_sha256,
         framing,
-    })
+        suppressed,
+    };
+    choice_value(&choice)?;
+    Ok(choice)
 }
 
 pub(crate) fn require_revision(
@@ -1139,24 +1167,37 @@ pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Resu
     Ok(())
 }
 
+pub(crate) enum ChoiceValue<'a> {
+    Automatic,
+    Suppressed,
+    Image(&'a str, Option<ArtworkFraming>),
+}
+
+fn choice_value(choice: &ArtworkChoice) -> Result<ChoiceValue<'_>> {
+    let id = choice.asset_sha256.as_deref();
+    validate_choice_framing(choice.slot, id, choice.framing)?;
+    match (choice.suppressed, id) {
+        (true, None) => Ok(ChoiceValue::Suppressed),
+        (false, None) => Ok(ChoiceValue::Automatic),
+        (false, Some(id)) => Ok(ChoiceValue::Image(id, choice.framing)),
+        (true, Some(_)) => Err(PortcoveError::verification(
+            "suppressed artwork cannot also select an asset",
+        )),
+    }
+}
+
 pub(crate) fn write_choice(
     connection: &Connection,
     port_id: &str,
     slot: ArtworkSlot,
     previous: u64,
-    id: Option<&str>,
+    value: ChoiceValue<'_>,
 ) -> Result<()> {
-    write_framed_choice(connection, port_id, slot, previous, id, None)
-}
-
-pub(crate) fn write_framed_choice(
-    connection: &Connection,
-    port_id: &str,
-    slot: ArtworkSlot,
-    previous: u64,
-    id: Option<&str>,
-    framing: Option<ArtworkFraming>,
-) -> Result<()> {
+    let (id, framing, suppressed) = match value {
+        ChoiceValue::Automatic => (None, None, false),
+        ChoiceValue::Suppressed => (None, None, true),
+        ChoiceValue::Image(id, framing) => (Some(id), framing, false),
+    };
     validate_choice_framing(slot, id, framing)?;
     let framing = framing.as_ref().map(serde_json::to_string).transpose()?;
     let revision = previous
@@ -1164,10 +1205,11 @@ pub(crate) fn write_framed_choice(
         .filter(|value| *value <= i64::MAX as u64)
         .ok_or_else(|| PortcoveError::state("artwork revision is exhausted"))?;
     connection.execute(
-        "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256,framing) VALUES (?1,?2,?3,?4,?5)
+        "INSERT INTO artwork_choices(port_id,slot,revision,asset_sha256,framing,suppressed)
+         VALUES (?1,?2,?3,?4,?5,?6)
          ON CONFLICT(port_id,slot) DO UPDATE SET revision=excluded.revision,
-         asset_sha256=excluded.asset_sha256,framing=excluded.framing",
-        params![port_id, slot.key(), revision, id, framing],
+         asset_sha256=excluded.asset_sha256,framing=excluded.framing,suppressed=excluded.suppressed",
+        params![port_id, slot.key(), revision, id, framing, suppressed],
     )?;
     Ok(())
 }
@@ -1201,7 +1243,7 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
         .iter()
         .map(|id| asset(connection, id))
         .collect::<Result<Vec<_>>>()?;
-    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256,framing FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
+    let mut statement = connection.prepare("SELECT port_id,slot,revision,asset_sha256,framing,suppressed FROM artwork_choices ORDER BY port_id,slot LIMIT 8193")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
@@ -1209,14 +1251,15 @@ pub(crate) fn snapshot(connection: &Connection) -> Result<ArtworkMetadata> {
             row.get::<_, u64>(2)?,
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
+            row.get::<_, bool>(5)?,
         ))
     })?;
     let choices = rows
         .map(|row| {
-            let (port_id, slot, revision, asset_sha256, framing) = row?;
+            let (port_id, slot, revision, asset_sha256, framing, suppressed) = row?;
             let slot = ArtworkSlot::from_key(&slot)
                 .ok_or_else(|| PortcoveError::verification("unknown artwork slot"))?;
-            read_choice(port_id, slot, revision, asset_sha256, framing)
+            read_choice(port_id, slot, revision, asset_sha256, framing, suppressed)
         })
         .collect::<Result<Vec<_>>>()?;
     let mut statement = connection.prepare(&format!(
@@ -1464,7 +1507,7 @@ pub(crate) fn validate_metadata_with(
     let mut choices = BTreeSet::new();
     for choice in &metadata.choices {
         require_port(&choice.port_id)?;
-        validate_choice_framing(choice.slot, choice.asset_sha256.as_deref(), choice.framing)?;
+        choice_value(choice)?;
         if choice.revision == 0
             || choice.revision > i64::MAX as u64
             || !choices.insert((&choice.port_id, choice.slot.key()))
@@ -1510,13 +1553,12 @@ pub(crate) fn restore(connection: &Connection, metadata: &ArtworkMetadata) -> Re
         mark_evicted(connection, &asset.asset_sha256, asset.evicted_at)?;
     }
     for choice in &metadata.choices {
-        write_framed_choice(
+        write_choice(
             connection,
             &choice.port_id,
             choice.slot,
             choice.revision - 1,
-            choice.asset_sha256.as_deref(),
-            choice.framing,
+            choice_value(choice)?,
         )?;
     }
     Ok(())

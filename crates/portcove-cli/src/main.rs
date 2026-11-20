@@ -3837,6 +3837,16 @@ fn execute_artwork(
                 |result| human_adapters::artwork_state(result, service.catalog()),
             )
         }
+        ArtworkCommand::Suppress {
+            port_id,
+            slot,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.suppress_artwork(&port_id, slot.into(), expected_revision)?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
         ArtworkCommand::ClearCache => {
             render_read_success(mode, name, service.clear_artwork_cache()?, |result| {
                 format!(

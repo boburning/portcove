@@ -68,6 +68,12 @@ fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
     if metadata
         .artwork
         .as_ref()
+        .is_some_and(crate::ArtworkMetadata::contains_suppression)
+    {
+        15
+    } else if metadata
+        .artwork
+        .as_ref()
         .is_some_and(crate::ArtworkMetadata::contains_framing)
     {
         14
@@ -138,8 +144,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=14) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=14) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=15) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=15) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
