@@ -27,6 +27,7 @@ where
 {
     // Await remote admission before occupying the shared blocking pool. Local
     // thumbnails and choice mutations do not wait behind slow CDN requests.
+    let queued = std::time::Instant::now();
     let permit =
         if remote {
             Some(workers.acquire_owned().await.map_err(|_| {
@@ -39,6 +40,11 @@ where
         // Cancellation of an IPC waiter must not release capacity while its
         // already-dispatched blocking operation is still running.
         let _permit = permit;
+        tracing::debug!(
+            elapsed_us = queued.elapsed().as_micros() as u64,
+            remote,
+            "Artwork thumbnail worker admission"
+        );
         operation()
     })
     .await
@@ -52,10 +58,19 @@ pub(crate) struct DesktopArtworkThumbnail {
 }
 
 fn display_thumbnail(thumbnail: ArtworkThumbnail) -> DesktopArtworkThumbnail {
+    let started = std::time::Instant::now();
+    let input_bytes = thumbnail.png.len() as u64;
+    let png_base64 = base64::engine::general_purpose::STANDARD.encode(thumbnail.png);
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes,
+        output_bytes = png_base64.len() as u64,
+        "Artwork thumbnail encoding"
+    );
     DesktopArtworkThumbnail {
         asset_sha256: thumbnail.asset_sha256,
         choice_revision: thumbnail.choice_revision,
-        png_base64: base64::engine::general_purpose::STANDARD.encode(thumbnail.png),
+        png_base64,
     }
 }
 
@@ -231,9 +246,14 @@ pub(crate) async fn get_artwork(
 ) -> DesktopResult<ArtworkState> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        service_at_generation(&state, generation)?
-            .artwork(&port_id, slot)
-            .map_err(Into::into)
+        let started = std::time::Instant::now();
+        let artwork = service_at_generation(&state, generation)?.artwork(&port_id, slot);
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            success = artwork.is_ok(),
+            "Artwork state read"
+        );
+        artwork.map_err(Into::into)
     })
     .await
 }

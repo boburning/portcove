@@ -1734,8 +1734,15 @@ fn cached_igdb_thumbnail(
     state: &IgdbRequestState,
 ) -> Result<Option<ArtworkThumbnail>> {
     let path = igdb_original_path(library, artwork)?;
-    if let Ok(original) =
-        crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES)
+    let started = Instant::now();
+    let read = crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES);
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes = read.as_ref().map_or(0, |bytes| bytes.len() as u64),
+        success = read.is_ok(),
+        "Cover original disk lookup"
+    );
+    if let Ok(original) = read
         && verify_igdb_original(&original, artwork).is_ok()
     {
         let cached = igdb_requests()
@@ -1792,7 +1799,15 @@ pub(super) fn igdb_thumbnail_with_fetch(
         return Err(PortcoveError::network(failure.message.clone()));
     }
     *retry = None;
-    let original = match fetch() {
+    let fetch_started = Instant::now();
+    let fetched = fetch();
+    tracing::debug!(
+        elapsed_us = fetch_started.elapsed().as_micros() as u64,
+        input_bytes = fetched.as_ref().map_or(0, |bytes| bytes.len() as u64),
+        success = fetched.is_ok(),
+        "Cover download"
+    );
+    let original = match fetched {
         Ok(original) => original,
         Err(failure) => {
             if failure.retryable
@@ -1913,9 +1928,16 @@ fn decode_igdb_original(
 }
 
 fn verify_igdb_original(original: &[u8], artwork: &crate::IgdbArtwork) -> Result<()> {
-    if original.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
-        || crate::signed_catalog::digest(original) != artwork.image_sha256
-    {
+    let started = Instant::now();
+    let valid = original.len() as u64 <= crate::artwork_image::MAX_ORIGINAL_BYTES
+        && crate::signed_catalog::digest(original) == artwork.image_sha256;
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes = original.len() as u64,
+        success = valid,
+        "Cover original verification"
+    );
+    if !valid {
         return Err(PortcoveError::verification(
             "IGDB cover no longer matches its catalog identity",
         ));
