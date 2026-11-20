@@ -469,6 +469,7 @@ fn verify_migration_72(connection: &Connection) -> Result<()> {
             "selected_revision",
             "active_json",
             "previous_json",
+            "historical_only",
         ],
     )
 }
@@ -1621,6 +1622,7 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
             let compatible: bool = transaction.query_row(
                 "SELECT
                    (SELECT COUNT(*) FROM fixture_source.definition_subject_selection) <= 1
+                   AND NOT EXISTS(SELECT 1 FROM fixture_source.definition_subject_selection WHERE historical_only=1)
                    AND NOT EXISTS(
                      SELECT 1 FROM fixture_source.definition_selection_state
                      WHERE active_json IS NOT NULL OR previous_json IS NOT NULL

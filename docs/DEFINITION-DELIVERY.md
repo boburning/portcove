@@ -1258,7 +1258,12 @@ creating contracts and still require the applicable launch and recovery checks.
 
 Incoming repository metadata must satisfy the library-wide replay floor. An
 exact selection already committed for another subject remains usable while its
-own policy, metadata and evidence permit the requested operation. Schema 72
+own policy, metadata and evidence permit the requested operation. A portable
+receipt whose older full projection falls outside the current baseline can
+retain its historical launch authority. Core excludes it from current selection
+and requires its exact subject safety preimage before admitting a successor.
+An import that conflicts with another selected subject's source records refuses
+before changing either subject. Schema 72
 carries forward the old single selection and its predecessor. Older database
 writers refuse the migrated library. Preview.9 still has the earlier single
 selection behavior.

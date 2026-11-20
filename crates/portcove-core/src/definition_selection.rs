@@ -195,20 +195,23 @@ struct DefinitionSubjectSelection {
     active: ValidatedDefinitionSelection,
     previous: Option<ValidatedDefinitionSelection>,
     active_json: String,
+    historical_only: bool,
 }
 
 impl DefinitionSubjectSelection {
     fn read(connection: &Connection, namespace: &str, stable_id: &str) -> Result<Option<Self>> {
-        let stored: Option<(String, Option<String>)> = connection
+        let stored: Option<(String, Option<String>, bool)> = connection
             .query_row(
-                "SELECT active_json,previous_json FROM definition_subject_selection
+                "SELECT active_json,previous_json,historical_only FROM definition_subject_selection
                  WHERE namespace=?1 AND stable_id=?2",
                 params![namespace, stable_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .optional()?;
         stored
-            .map(|(active, previous)| Self::decode(namespace, stable_id, active, previous))
+            .map(|(active, previous, historical)| {
+                Self::decode(namespace, stable_id, active, previous, historical)
+            })
             .transpose()
     }
 
@@ -217,6 +220,7 @@ impl DefinitionSubjectSelection {
         stable_id: &str,
         active_json: String,
         previous_json: Option<String>,
+        historical_only: bool,
     ) -> Result<Self> {
         let parse = |json: &str, label: &str| -> Result<ValidatedDefinitionSelection> {
             let stored: StoredDefinitionSelection = decode_bounded(Some(json), label)?
@@ -237,6 +241,7 @@ impl DefinitionSubjectSelection {
             active,
             previous,
             active_json,
+            historical_only,
         })
     }
 
@@ -259,7 +264,7 @@ impl DefinitionSubjectSelection {
         let subject: Option<(String, String)> = connection
             .query_row(
                 "SELECT namespace,stable_id FROM definition_subject_selection
-                 ORDER BY selected_revision DESC LIMIT 1",
+                 WHERE historical_only=0 ORDER BY selected_revision DESC LIMIT 1",
                 [],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -297,6 +302,7 @@ impl DefinitionSelectionState {
     }
 
     fn status(&self, subject: Option<&DefinitionSubjectSelection>) -> DefinitionSelectionStatus {
+        let subject = subject.filter(|slot| !slot.historical_only);
         DefinitionSelectionStatus {
             revision: self.revision,
             selected: subject.map(|slot| slot.active.stored.identity()),
@@ -354,6 +360,12 @@ impl DefinitionOperationAssessment<'_> {
         } else {
             false
         };
+        let historical_only: bool = transaction.query_row(
+            "SELECT EXISTS(SELECT 1 FROM definition_subject_selection
+             WHERE namespace=?1 AND stable_id=?2 AND historical_only=1)",
+            params![identity.namespace, identity.stable_id],
+            |row| row.get(0),
+        )?;
         // A newer global floor blocks incoming replay. It does not invalidate
         // an exact committed subject whose own policy and expiry still apply.
         let publisher_scoped = policy
@@ -397,7 +409,8 @@ impl DefinitionOperationAssessment<'_> {
             required_source_missing: context.required_source_missing,
             source_mismatch: context.source_mismatch,
             mandatory_checks_passed: launch_checks != Some(false),
-            fresh_metadata: Library::now() < expiration_unix(&identity.provenance)?
+            fresh_metadata: !historical_only
+                && Library::now() < expiration_unix(&identity.provenance)?
                 && crate::definition_repository::publisher_policy::availability_expiration(
                     transaction,
                     &identity.namespace,
@@ -602,8 +615,9 @@ impl Library {
                 "import destination has a different retained definition authority",
             ));
         }
+        let mut historical_only = false;
         if role == "active" {
-            require_composable_selection(&transaction, &projection, None, Self::now())?;
+            historical_only = preflight_portable_selection(&transaction, &projection, Self::now())?;
             if let Some(policy) =
                 PublisherPolicyRecord::read(&transaction, &identity.namespace, &identity.stable_id)?
                 && (!policy.matches_identity(identity)
@@ -643,8 +657,8 @@ impl Library {
         if role == "active" {
             transaction.execute(
                 "INSERT INTO definition_subject_selection
-                 (namespace,stable_id,selected_revision,active_json) VALUES(?1,?2,?3,?4)",
-                params![identity.namespace, identity.stable_id, next, stored_json],
+                 (namespace,stable_id,selected_revision,active_json,historical_only) VALUES(?1,?2,?3,?4,?5)",
+                params![identity.namespace, identity.stable_id, next, stored_json, historical_only],
             )?;
         } else {
             transaction.execute(
@@ -778,7 +792,7 @@ impl Library {
         } else if let Some(predecessor) = predecessor.filter(|_| definition_changed) {
             // The lower-level candidate API does not resolve the current baseline.
             // It still cannot replace the exact same-subject safety preimage.
-            crate::definition_loader::validate_definition_transition(
+            crate::definition_loader::validate_retained_subject_successor(
                 predecessor.projection.catalog(),
                 candidate.projection.catalog(),
                 selected,
@@ -793,7 +807,7 @@ impl Library {
         }
         if subject
             .as_ref()
-            .is_some_and(|slot| slot.active_json == active_json)
+            .is_some_and(|slot| !slot.historical_only && slot.active_json == active_json)
             && state.replay_floor.as_ref() == Some(&proposed_floor)
         {
             transaction.commit()?;
@@ -805,7 +819,7 @@ impl Library {
              VALUES(?1,?2,?3,?4)
              ON CONFLICT(namespace,stable_id) DO UPDATE SET
                selected_revision=excluded.selected_revision, previous_json=active_json,
-               active_json=excluded.active_json",
+               active_json=excluded.active_json,historical_only=0",
             params![stored.namespace, stored.stable_id, next, active_json],
         )?;
         transaction.execute(
@@ -1050,14 +1064,58 @@ fn require_composable_selection(
         // The exact previously committed snapshot remains the safety preimage.
         // Its present publisher policy, trust freshness and load status can
         // have changed during this refresh.
-        let prior = predecessor.catalog_for_selection(&baseline)?;
-        crate::definition_loader::validate_definition_transition(&prior, &proposed, selected)?;
+        crate::definition_loader::validate_retained_subject_successor(
+            predecessor.catalog(),
+            &proposed,
+            selected,
+        )?;
     }
     let unaffected = load_definition_selections_except(connection, &baseline, now, Some(selected))?;
     if let Some((effective, _)) = unaffected.catalog {
         crate::definition_loader::compose_verified_definition(&effective, &proposed, selected)?;
     }
     Ok(())
+}
+
+// A legacy full snapshot can outlive the unrelated baseline it was
+// accepted against. Preserve an imported retained execution receipt, but keep
+// it out of catalog selection until a compatible successor is admitted.
+fn preflight_portable_selection(
+    connection: &Connection,
+    projection: &crate::DefinitionCatalogProjection,
+    now: i64,
+) -> Result<bool> {
+    let selected = &projection.entry().port().id;
+    let (baseline, _) = crate::catalog_store::CatalogState::read(connection)?.resolve(now)?;
+    let unaffected = load_definition_selections_except(connection, &baseline, now, Some(selected))?;
+    match projection.catalog_for_selection(&baseline) {
+        Ok(proposed) => {
+            if let Some((effective, _)) = unaffected.catalog {
+                crate::definition_loader::compose_verified_definition(
+                    &effective, &proposed, selected,
+                )?;
+            }
+            Ok(false)
+        }
+        Err(error)
+            if error.details.contains_key("definition_baseline_drift")
+                && (projection.catalog().ports().len() > 1
+                    || projection.catalog().document().schema_version
+                        < baseline.document().schema_version) =>
+        {
+            let effective = unaffected
+                .catalog
+                .as_ref()
+                .map_or(&baseline, |(catalog, _)| catalog);
+            crate::definition_loader::validate_historical_source_overlap(
+                projection.catalog(),
+                effective,
+                selected,
+            )?;
+            Ok(true)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 pub(crate) struct DefinitionSelectionLoad {
@@ -1095,7 +1153,7 @@ fn load_definition_selections_except(
         ));
     }
     let mut statement = connection.prepare(
-        "SELECT namespace,stable_id FROM definition_subject_selection ORDER BY namespace,stable_id",
+        "SELECT namespace,stable_id FROM definition_subject_selection WHERE historical_only=0 ORDER BY namespace,stable_id",
     )?;
     let subjects = statement.query_map([], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -1250,6 +1308,7 @@ pub(crate) fn migrate_subject_selection(transaction: &rusqlite::Transaction<'_>)
            selected_revision INTEGER NOT NULL UNIQUE CHECK(selected_revision>=0),
            active_json TEXT NOT NULL CHECK(length(active_json)<={MAX_SELECTION_JSON_BYTES}),
            previous_json TEXT CHECK(length(previous_json)<={MAX_SELECTION_JSON_BYTES}),
+           historical_only INTEGER NOT NULL DEFAULT 0 CHECK(historical_only IN (0,1)),
            PRIMARY KEY(namespace,stable_id)
          );"
     ))?;
@@ -1269,7 +1328,7 @@ pub(crate) fn migrate_subject_selection(transaction: &rusqlite::Transaction<'_>)
             prior.namespace == selected.namespace && prior.stable_id == selected.stable_id
         });
         transaction.execute(
-            "INSERT INTO definition_subject_selection VALUES(?1,?2,?3,?4,?5)",
+            "INSERT INTO definition_subject_selection(namespace,stable_id,selected_revision,active_json,previous_json) VALUES(?1,?2,?3,?4,?5)",
             params![
                 selected.namespace,
                 selected.stable_id,
@@ -1291,7 +1350,7 @@ pub(crate) fn migrate_subject_selection(transaction: &rusqlite::Transaction<'_>)
             && selected.validate().is_ok()
         {
             transaction.execute(
-                "INSERT INTO definition_subject_selection VALUES(?1,?2,?3,?4,NULL)",
+                "INSERT INTO definition_subject_selection(namespace,stable_id,selected_revision,active_json) VALUES(?1,?2,?3,?4)",
                 params![
                     prior.namespace,
                     prior.stable_id,

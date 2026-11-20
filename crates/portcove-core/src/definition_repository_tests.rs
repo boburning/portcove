@@ -1724,6 +1724,178 @@ async fn a_post_client_successor_preserves_its_predecessors_immutable_source_ide
 }
 
 #[tokio::test]
+async fn embedded_crawl_accepts_a_schema_three_successor_with_a_retained_schema_two_predecessor() {
+    let fixture = RepositoryFixture::new();
+    let source_root = TempDir::new().unwrap();
+    let target_root = TempDir::new().unwrap();
+    let source = Library::open(source_root.path()).unwrap();
+    let target = Library::open(target_root.path()).unwrap();
+    let port_id = "dungeon-crawl-stone-soup";
+    let baseline = Catalog::embedded().unwrap();
+
+    let mut absent = baseline.authoritative_document();
+    absent.ports.retain(|port| port.id != port_id);
+    let absent = Catalog::from_document(absent).unwrap();
+    let mut legacy = baseline.export_document(2).unwrap();
+    legacy.ports.retain(|port| port.id == port_id);
+    legacy.source_profiles.clear();
+    legacy.source_catalog = Some(crate::SourceCatalog {
+        evidence: Vec::new(),
+        identities: Vec::new(),
+        validators: Vec::new(),
+        contracts: Vec::new(),
+        qualification: Vec::new(),
+    });
+    let legacy = Catalog::from_document(legacy).unwrap();
+    let old = prepare_selection_revision(&fixture, &source, &legacy, port_id, 1, 7).await;
+    assert!(
+        old.projection()
+            .catalog_for_selection(&absent)
+            .unwrap()
+            .port(port_id)
+            .is_ok()
+    );
+    assert!(old.projection().catalog_for_selection(&baseline).is_err());
+    let snapshot = old.projection().snapshot().clone();
+    let identity = source
+        .select_definition_candidate(old)
+        .unwrap()
+        .selected
+        .unwrap();
+    target
+        .restore_retained_definition_admission(&identity, &snapshot, "active")
+        .unwrap();
+    assert_eq!(
+        target
+            .retained_definition_admission_role(&identity)
+            .unwrap(),
+        Some("active")
+    );
+    assert!(
+        target
+            .definition_selection_status()
+            .unwrap()
+            .selected
+            .is_none()
+    );
+    assert!(
+        target
+            .load_catalog()
+            .unwrap()
+            .0
+            .definition_selection(port_id)
+            .is_none()
+    );
+    let install = DefinitionOperationContext::observed(DefinitionOperation::Install, false, true);
+    assert_ne!(
+        target
+            .assess_definition_operation(&identity, install)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+    let launch = DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true);
+    assert_eq!(
+        target
+            .assess_definition_operation(&identity, launch)
+            .unwrap()
+            .outcome,
+        DefinitionEligibilityOutcome::Eligible
+    );
+
+    let mut successor = baseline.authoritative_document();
+    successor
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .summary = "A compatible reviewed description correction.".into();
+    let successor = Catalog::from_document(successor).unwrap();
+    let next = prepare_selection_revision(&fixture, &target, &successor, port_id, 2, 8).await;
+    let status = target.select_definition_catalog(next).unwrap();
+    assert_eq!(status.selected.as_ref().unwrap().definition_revision, 8);
+    assert_eq!(
+        target
+            .retained_definition_admission_role(&identity)
+            .unwrap(),
+        Some("previous")
+    );
+    assert_eq!(
+        target
+            .load_catalog()
+            .unwrap()
+            .0
+            .definition_selection(port_id),
+        status.selected.as_ref()
+    );
+}
+
+#[tokio::test]
+async fn historical_full_projection_can_import_without_replacing_current_unrelated_rows() {
+    let fixture = RepositoryFixture::new();
+    let source_root = TempDir::new().unwrap();
+    let target_root = TempDir::new().unwrap();
+    let source = Library::open(source_root.path()).unwrap();
+    let target = Library::open(target_root.path()).unwrap();
+    let (committed, port_id) = post_client_catalog();
+    let current = Catalog::embedded().unwrap();
+    let unrelated = &current.ports()[0];
+    let mut old = committed.authoritative_document();
+    old.ports
+        .iter_mut()
+        .find(|port| port.id == unrelated.id)
+        .unwrap()
+        .summary = "A historical unrelated row.".into();
+    let old = Catalog::from_document(old).unwrap();
+    let mut then_baseline = old.authoritative_document();
+    then_baseline.ports.retain(|port| port.id != port_id);
+    let graph = then_baseline.source_catalog.as_mut().unwrap();
+    graph.contracts.retain(|row| row.port_id != port_id);
+    let profile = old
+        .port(&port_id)
+        .unwrap()
+        .source_profile
+        .as_deref()
+        .unwrap();
+    graph.identities.retain(|row| row.id != profile);
+    let then_baseline = Catalog::from_document(then_baseline).unwrap();
+    let eligible = prepare_selection_revision(&fixture, &source, &old, &port_id, 1, 7).await;
+    assert!(
+        eligible
+            .projection()
+            .catalog_for_selection(&then_baseline)
+            .is_ok()
+    );
+    assert!(
+        eligible
+            .projection()
+            .catalog_for_selection(&current)
+            .is_err()
+    );
+    let snapshot = eligible.projection().snapshot().clone();
+    let identity = source
+        .select_definition_candidate(eligible)
+        .unwrap()
+        .selected
+        .unwrap();
+    target
+        .restore_retained_definition_admission(&identity, &snapshot, "active")
+        .unwrap();
+    let (effective, _) = target.load_catalog().unwrap();
+    assert!(effective.port(&port_id).is_err());
+    assert_eq!(
+        effective.port(&unrelated.id).unwrap().summary,
+        unrelated.summary
+    );
+    assert_eq!(
+        target
+            .retained_definition_admission_role(&identity)
+            .unwrap(),
+        Some("active")
+    );
+}
+
+#[tokio::test]
 async fn portable_active_restore_refuses_source_collision_in_both_subject_orders() {
     let fixture = RepositoryFixture::new();
     let (first, first_id) = post_client_catalog();
