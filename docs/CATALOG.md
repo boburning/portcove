@@ -3705,7 +3705,11 @@ kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
 variant supplies only the `build-portcove` runtime root and eight persistent
 paths. Each record retains its repository, asset selectors, executable hints,
 original disc profile, guide and qualification. A different upstream or writer
-layout uses explicit fields.
+layout uses explicit fields. Bomberman Party Edition and Final Fantasy VII can
+use `"technically-computers-input-files"` for the same eight persistent paths
+plus `input.ini` and `keybinds.ini`. Both keep the runtime root and mutable
+files explicit. Final Fantasy VII also keeps its three-disc source
+materialization and launch arguments explicit.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.

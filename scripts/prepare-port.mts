@@ -220,6 +220,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
     });
+  } else if (record.psx_managed_windows_v1 === "technically-computers-input-files") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
+    });
   } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
     projections.push({
       field: "psx_managed_windows_v1",
