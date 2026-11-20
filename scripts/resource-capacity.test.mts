@@ -20,6 +20,7 @@ interface WorkerEvent {
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
+import fileSystem from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
@@ -797,6 +798,38 @@ void test("host bridge preserves UTF-8 decoding, EOF and exact byte boundaries",
     });
   }
 });
+
+void test(
+  "host bridge refuses a public Linux custody directory before requesting either lease",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await fixture(t);
+    const create = fileSystem.mkdtempSync;
+    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => {
+      const directory = create(path.join(root, "public-custody-"));
+      fileSystem.chmodSync(directory, 0o777);
+      return directory;
+    });
+    const spawnHost = t.mock.method(childProcess, "spawn", () =>
+      assert.fail("the Windows bridge must not start with public custody"),
+    );
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        acquireBridgedCapacity(bridgeConfig, "browser", {}, {}, async () =>
+          assert.fail("the Linux lease must not start with public custody"),
+        ),
+        /private Linux-backed temporary directory/u,
+      );
+      assert.equal(temporary.mock.callCount(), 1);
+      assert.equal(spawnHost.mock.callCount(), 0);
+      assert.deepEqual(await readdir(root), ["config.json"]);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  },
+);
 
 void test(
   "host bridge Linux probe refuses changed custody, live children and missing cleanup",
