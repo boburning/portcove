@@ -634,7 +634,8 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
         "authority_ref": "test-release",
         "reviewed_at": "2026-09-30",
         "claim": "Synthetic upstream input requirement",
-        "immutable_url": "https://example.invalid/fixtures/runtime-v1"
+        "immutable_url": "https://example.invalid/fixtures/runtime-v1",
+        "live_url": null
     }));
     let source = &mut sources["contracts"][0];
     source["evidence_ids"] = json!(["fixture-upstream-input"]);

@@ -353,7 +353,14 @@ impl PortcoveService {
         install: &crate::InstallRecord,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
-        let catalog = self.installed_catalog(install)?;
+        // Publication recovery can be checking a verified payload whose path
+        // is not yet in the library. Older builds without retained policy do
+        // not inherit a new input restriction from the current catalog.
+        let Some(catalog) =
+            crate::Installer::new(self.library.clone())?.retained_catalog(install)?
+        else {
+            return Ok(());
+        };
         let release = (install.version.as_str(), install.artifact.sha256.as_str());
         let Some((profile_id, _)) =
             crate::source_inspection::n64_release_input(&catalog, &install.port_id, release)

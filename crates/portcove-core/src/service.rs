@@ -4768,7 +4768,6 @@ impl PortcoveService {
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
         self.require_activation_gates(&staged, fresh_continuity)?;
-        self.require_retained_n64_release_input(&staged, &|| Ok(()))?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -7028,7 +7027,8 @@ impl PortcoveService {
             &self.catalog,
             install,
         )?;
-        self.require_activation_uploader_continuity(install, fresh)
+        self.require_activation_uploader_continuity(install, fresh)?;
+        self.require_retained_n64_release_input(install, &|| Ok(()))
     }
 
     /// Uploader continuity for a build about to become active from stored facts

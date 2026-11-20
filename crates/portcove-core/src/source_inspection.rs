@@ -2283,7 +2283,11 @@ impl N64ReleaseInputProof {
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<()> {
         crate::path::refuse_symlink_ancestors(path)?;
-        let (sha256, size) = crate::adapter::hash_file_with_checkpoint(path, checkpoint)?;
+        let (sha256, size) = crate::adapter::hash_file_bounded_with_checkpoint(
+            path,
+            self.canonical_size,
+            checkpoint,
+        )?;
         if sha256 != self.canonical_sha256 || size != self.canonical_size {
             return Err(PortcoveError::verification(
                 "The installed N64 game file differs from the checked original. Repair the game files before playing.",

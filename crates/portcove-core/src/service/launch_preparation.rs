@@ -59,7 +59,10 @@ impl PortcoveService {
                 "launch installation belongs to another port",
             ));
         }
-        let catalog = self.installed_catalog(active)?;
+        self.managed_install_root(&active.port_id, &active.path)?;
+        let retained = Installer::new(self.library.clone())?.retained_catalog(active)?;
+        let has_retained = retained.is_some();
+        let catalog = self.installed_catalog_or_fallback(active, retained)?;
         let port = catalog.port(&active.port_id)?;
         crate::install::check_retained_runtime_paths(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
@@ -88,8 +91,8 @@ impl PortcoveService {
         checkpoint()?;
         let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
         let release = (active.version.as_str(), active.artifact.sha256.as_str());
-        let n64_input_required =
-            crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
+        let n64_input_required = has_retained
+            && crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
         let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -153,13 +156,17 @@ impl PortcoveService {
         } else {
             None
         };
-        let n64_input_proof = crate::source_inspection::verify_n64_release_input(
-            &catalog,
-            &port.id,
-            source.as_ref(),
-            release,
-            &checkpoint,
-        )?;
+        let n64_input_proof = if n64_input_required {
+            crate::source_inspection::verify_n64_release_input(
+                &catalog,
+                &port.id,
+                source.as_ref(),
+                release,
+                &checkpoint,
+            )?
+        } else {
+            None
+        };
         let bios = if port.adapter == crate::AdapterKind::PsxRecompManaged {
             let bios = crate::psx::verified_launch_bios(&self.library, port, active, &checkpoint)?;
             if let Some(bios) = &bios {
