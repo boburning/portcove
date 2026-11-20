@@ -109,6 +109,8 @@ pub struct InstallQualification {
     /// so a rewrite never adds facts the original did not record.
     retained_acquisition: Option<crate::release::RecordedAcquisition>,
     retained_package_variant: Option<crate::ManagedPackageVariant>,
+    retained_github_artifact_identity:
+        Option<crate::definition_acquisition::GithubArtifactIdentity>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -273,6 +275,7 @@ impl InstallQualification {
             acquisition: None,
             retained_acquisition: None,
             retained_package_variant: None,
+            retained_github_artifact_identity: None,
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -3183,6 +3186,7 @@ impl Installer {
         let mut adopted = qualification.clone();
         adopted.runtime_origin = RuntimeOrigin::AdoptedTree;
         adopted.retained_package_variant = None;
+        adopted.retained_github_artifact_identity = None;
         write_manifest(install_id, port_id, version, artifact, &adopted, root)
     }
 
@@ -3474,6 +3478,7 @@ impl Installer {
             acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
         qualification.retained_package_variant = manifest.saved_package_variant;
+        qualification.retained_github_artifact_identity = manifest.github_artifact_identity;
         Ok(qualification)
     }
 
@@ -4255,12 +4260,14 @@ fn write_manifest_with_shape(
         github_artifact_identity: qualification
             .acquisition
             .as_ref()
-            .and_then(|proof| proof.github_identity.clone()),
+            .and_then(|proof| proof.github_identity.clone())
+            .or_else(|| qualification.retained_github_artifact_identity.clone()),
         saved_package_variant: qualification
             .acquisition
             .as_ref()
             .and_then(|proof| proof.saved_variant.clone())
-            .or_else(|| qualification.retained_package_variant.clone()),
+            .or_else(|| qualification.retained_package_variant.clone())
+            .filter(crate::ManagedPackageVariant::has_numeric_manifest_receipt),
         uploader_continuity: match &qualification.retained_acquisition {
             Some(retained) => retained.uploader_continuity.clone(),
             None => qualification
@@ -4540,16 +4547,39 @@ pub(crate) fn recorded_acquisition(
 pub(crate) fn recorded_package_variant(
     install: &InstallRecord,
 ) -> Result<Option<crate::ManagedPackageVariant>> {
-    // Older registrations may lack all manifest identity. Their selection
-    // remains ordinary and does not gain a receipt retroactively.
+    // Builds without a verified manifest cannot supply retained choice evidence.
     if install.manifest_sha256.is_empty() {
         return Ok(None);
     }
     let manifest = verified_manifest(install)?;
-    if let Some(variant) = &manifest.saved_package_variant {
+    if let Some(variant) = manifest.saved_package_variant {
         variant.require_installed(install, manifest.platform)?;
+        return Ok(Some(variant));
     }
-    Ok(manifest.saved_package_variant)
+    if install.channel != crate::ReleaseChannel::Beta
+        || !install.verified
+        || !manifest.acquisition_facts_recorded
+        || install
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.origin == RuntimeOrigin::AdoptedTree)
+    {
+        return Ok(None);
+    }
+    let (Some(identity), Some(contract), Some(platform)) = (
+        manifest.github_artifact_identity,
+        manifest.retained_contract,
+        manifest.platform,
+    ) else {
+        return Ok(None);
+    };
+    let catalog = contract.catalog(&install.port_id)?;
+    Ok(crate::ManagedPackageVariant::from_retained_prerelease(
+        catalog.port(&install.port_id)?,
+        platform,
+        install,
+        &identity,
+    ))
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -8368,6 +8398,11 @@ mod tests {
 
     #[test]
     fn saved_native_package_choice_survives_manifest_refresh() {
+        check_package_choice_manifest("v1.2.3", crate::ReleaseChannel::Stable);
+        check_package_choice_manifest("v1.2.3-alpha.1", crate::ReleaseChannel::Beta);
+    }
+
+    fn check_package_choice_manifest(version: &str, channel: crate::ReleaseChannel) {
         let temporary = tempfile::tempdir().unwrap();
         let library_root = temporary.path().join("library");
         let library = Library::open(&library_root).unwrap();
@@ -8379,6 +8414,9 @@ mod tests {
             .iter_mut()
             .find(|port| port.id == id)
             .unwrap();
+        if channel == crate::ReleaseChannel::Beta {
+            port.channels.push(channel);
+        }
         port.release
             .asset_hints
             .insert(platform, vec!["sopwith-".into(), "-win64.zip".into()]);
@@ -8388,13 +8426,16 @@ mod tests {
         let root = library.versions_dir().join(id).join("saved-variant");
         fs::create_dir_all(&root).unwrap();
         fs::write(root.join(&executable), b"inert manifest fixture").unwrap();
+        let name = format!("sopwith-{}-win64.zip", version.trim_start_matches('v'));
         let release = crate::ResolvedRelease {
-            version: "v1.2.3".into(),
-            channel: crate::ReleaseChannel::Stable,
+            version: version.into(),
+            channel,
             published_at: None,
             asset: ReleaseAsset {
-                name: "sopwith-1.2.3-win64.zip".into(),
-                url: "https://github.com/fragglet/sdl-sopwith/releases/download/v1.2.3/sopwith-1.2.3-win64.zip".into(),
+                url: format!(
+                    "https://github.com/fragglet/sdl-sopwith/releases/download/{version}/{name}"
+                ),
+                name,
                 size: 42,
                 sha256: "a".repeat(64),
             },
@@ -8458,6 +8499,16 @@ mod tests {
         )
         .unwrap();
         install.manifest_sha256 = digest;
+        let manifest = verified_manifest(&install).unwrap();
+        assert_eq!(
+            manifest.saved_package_variant.is_some(),
+            channel == crate::ReleaseChannel::Stable,
+            "the prerelease choice must not write a receipt older readers cannot understand"
+        );
+        assert_eq!(
+            manifest.github_artifact_identity.as_ref().unwrap().tag,
+            version
+        );
         assert_eq!(
             recorded_package_variant(&install).unwrap().as_ref(),
             Some(&variant)
@@ -8475,18 +8526,19 @@ mod tests {
         drop(library);
 
         let reopened = Library::open(library_root).unwrap();
-        let retained = reopened
-            .status(id, crate::ReleaseChannel::Stable)
-            .unwrap()
-            .active
-            .unwrap();
+        let retained = reopened.status(id, channel).unwrap().active.unwrap();
         assert_eq!(
             recorded_package_variant(&retained).unwrap().as_ref(),
             Some(&variant)
         );
         let mut changed_channel = retained;
-        changed_channel.channel = crate::ReleaseChannel::Beta;
-        assert!(recorded_package_variant(&changed_channel).is_err());
+        if channel == crate::ReleaseChannel::Stable {
+            changed_channel.channel = crate::ReleaseChannel::Beta;
+            assert!(recorded_package_variant(&changed_channel).is_err());
+        } else {
+            changed_channel.channel = crate::ReleaseChannel::Stable;
+            assert_eq!(recorded_package_variant(&changed_channel).unwrap(), None);
+        }
     }
 
     #[test]

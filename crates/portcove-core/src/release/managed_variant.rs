@@ -1,6 +1,6 @@
 //! An exact reviewed native-package family recorded in an installation manifest.
 //! The package's shape comes from two authored selectors covering the entire
-//! filename around the provider's numeric release tag.
+//! filename around the provider's exact release tag.
 
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +10,13 @@ use crate::{AdapterKind, Platform, PortDefinition, PortcoveError, ReleaseChannel
 #[serde(rename_all = "kebab-case")]
 enum ExecutionMode {
     Native,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum PrereleaseFamily {
+    Alpha,
+    Beta,
+    ReleaseCandidate,
 }
 
 /// Core passes this opaque evidence from a verified installed manifest to the
@@ -26,6 +33,10 @@ pub struct ManagedPackageVariant {
     source_profile: Option<String>,
     prefix: String,
     suffix: String,
+    // Suffixed choices are reconstructed from the existing acquisition identity.
+    // Never write one to a manifest whose older readers expect a numeric tag.
+    #[serde(skip)]
+    prerelease_family: Option<PrereleaseFamily>,
 }
 
 fn numeric_version(tag: &str) -> Option<&str> {
@@ -35,6 +46,45 @@ fn numeric_version(tag: &str) -> Option<&str> {
         && parts.clone().count() == 3
         && parts.all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())))
     .then_some(digits)
+}
+
+fn reviewed_version(
+    tag: &str,
+    channel: ReleaseChannel,
+) -> Option<(&str, Option<PrereleaseFamily>)> {
+    if let Some(version) = numeric_version(tag) {
+        return Some((version, None));
+    }
+    if channel != ReleaseChannel::Beta || tag.len() > 48 {
+        return None;
+    }
+    let token = tag.strip_prefix(['v', 'V']).unwrap_or(tag);
+    let (version, prerelease) = token.split_once('-')?;
+    if numeric_version(version) != Some(version) {
+        return None;
+    }
+    let family = match prerelease.split_once('.') {
+        Some((family, number))
+            if !number.is_empty()
+                && number.len() <= 8
+                && number.bytes().all(|byte| byte.is_ascii_digit())
+                && (number.len() == 1 || !number.starts_with('0')) =>
+        {
+            family
+        }
+        Some(_) => return None,
+        None => prerelease,
+    };
+    let family = if family.eq_ignore_ascii_case("alpha") {
+        PrereleaseFamily::Alpha
+    } else if family.eq_ignore_ascii_case("beta") {
+        PrereleaseFamily::Beta
+    } else if family.eq_ignore_ascii_case("rc") {
+        PrereleaseFamily::ReleaseCandidate
+    } else {
+        return None;
+    };
+    Some((token, Some(family)))
 }
 
 fn reviewed_anchors(port: &PortDefinition, platform: Platform) -> Option<(&str, &str)> {
@@ -65,16 +115,20 @@ fn reviewed_anchors(port: &PortDefinition, platform: Platform) -> Option<(&str, 
 fn reviewed_name(
     port: &PortDefinition,
     platform: Platform,
+    channel: ReleaseChannel,
     tag: &str,
     filename: &str,
-) -> Option<(String, String)> {
+) -> Option<(String, String, Option<PrereleaseFamily>)> {
     let (prefix, suffix) = reviewed_anchors(port, platform)?;
     let prefix = prefix.to_ascii_lowercase();
     let suffix = suffix.to_ascii_lowercase();
-    let version = numeric_version(tag)?;
+    let (version, family) = reviewed_version(tag, channel)?;
     let filename = filename.to_ascii_lowercase();
     let slot = filename.strip_prefix(&prefix)?.strip_suffix(&suffix)?;
-    (slot.strip_prefix('v').unwrap_or(slot) == version).then_some((prefix, suffix))
+    slot.strip_prefix('v')
+        .unwrap_or(slot)
+        .eq_ignore_ascii_case(version)
+        .then_some((prefix, suffix, family))
 }
 
 impl ManagedPackageVariant {
@@ -83,7 +137,14 @@ impl ManagedPackageVariant {
         platform: Platform,
         release: &crate::ResolvedRelease,
     ) -> bool {
-        reviewed_name(port, platform, &release.version, &release.asset.name).is_some()
+        reviewed_name(
+            port,
+            platform,
+            release.channel,
+            &release.version,
+            &release.asset.name,
+        )
+        .is_some()
     }
 
     pub(crate) fn from_review(
@@ -93,30 +154,71 @@ impl ManagedPackageVariant {
     ) -> Option<Self> {
         // A Core preview is not enough on its own. Only the provider can bind
         // the reviewed bytes to the exact repository, tag and asset IDs.
-        let identity = release.github_identity.as_ref()?;
-        if release
+        release
             .require_selection(port, platform, release.release.channel)
-            .is_err()
-            || identity.validate().is_err()
+            .ok()?;
+        Self::from_github_package(
+            port,
+            platform,
+            release.release.channel,
+            &release.release.version,
+            &release.release.asset.name,
+            release.github_identity.as_ref()?,
+        )
+    }
+
+    pub(crate) fn from_retained_prerelease(
+        port: &PortDefinition,
+        platform: Platform,
+        install: &crate::InstallRecord,
+        identity: &crate::definition_acquisition::GithubArtifactIdentity,
+    ) -> Option<Self> {
+        let variant = Self::from_github_package(
+            port,
+            platform,
+            install.channel,
+            &install.version,
+            &install.artifact.asset_name,
+            identity,
+        )?;
+        variant.prerelease_family.is_some().then_some(variant)
+    }
+
+    fn from_github_package(
+        port: &PortDefinition,
+        platform: Platform,
+        channel: ReleaseChannel,
+        tag: &str,
+        filename: &str,
+        identity: &crate::definition_acquisition::GithubArtifactIdentity,
+    ) -> Option<Self> {
+        if identity.validate().is_err()
+            || !port.channels.contains(&channel)
+            || !port.platforms.contains(&platform)
             || !identity
                 .repository
                 .eq_ignore_ascii_case(&port.release.repository)
-            || identity.tag != release.release.version
+            || identity.tag != tag
         {
             return None;
         }
-        let (prefix, suffix) =
-            reviewed_name(port, platform, &identity.tag, &release.release.asset.name)?;
+        let (prefix, suffix, prerelease_family) =
+            reviewed_name(port, platform, channel, tag, filename)?;
         Some(Self {
             format_version: 1,
-            channel: release.release.channel,
+            channel,
             platform,
             execution_mode: ExecutionMode::Native,
             repository_id: identity.repository_id,
             source_profile: port.source_profile.clone(),
             prefix,
             suffix,
+            prerelease_family,
         })
+    }
+
+    pub(crate) fn has_numeric_manifest_receipt(&self) -> bool {
+        self.prerelease_family.is_none()
     }
 
     pub(crate) fn repository_id(&self) -> u64 {
@@ -124,13 +226,20 @@ impl ManagedPackageVariant {
     }
 
     pub(crate) fn matches(&self, tag: &str, filename: &str) -> bool {
-        let Some(version) = numeric_version(tag) else {
+        let Some((version, family)) = reviewed_version(tag, self.channel) else {
             return false;
         };
+        if family != self.prerelease_family {
+            return false;
+        }
         let name = filename.to_ascii_lowercase();
         name.strip_prefix(&self.prefix)
             .and_then(|name| name.strip_suffix(&self.suffix))
-            .is_some_and(|slot| slot.strip_prefix('v').unwrap_or(slot) == version)
+            .is_some_and(|slot| {
+                slot.strip_prefix('v')
+                    .unwrap_or(slot)
+                    .eq_ignore_ascii_case(version)
+            })
     }
 
     pub(crate) fn require_contract(

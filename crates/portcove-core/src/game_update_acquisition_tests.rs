@@ -434,6 +434,16 @@ fn acquisition_event(event: OperationEvent) {
 
 #[tokio::test]
 async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
+    check_desktop_acquisition_replays_variant(ReleaseChannel::Stable, "1.0.0", "2.0.0").await;
+    check_desktop_acquisition_replays_variant(ReleaseChannel::Beta, "1.0.0-beta", "2.0.0-beta.1")
+        .await;
+}
+
+async fn check_desktop_acquisition_replays_variant(
+    channel: ReleaseChannel,
+    installed_version: &str,
+    successor_version: &str,
+) {
     struct VariantProvider {
         release: ResolvedRelease,
         expected: crate::ManagedPackageVariant,
@@ -479,15 +489,18 @@ async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
     let (_temporary, mut service, server) = fixture_with_catalog(false, false, catalog);
     let port = service.catalog.port(PORT).unwrap();
     let mut active = service.status(PORT).unwrap().active.unwrap();
-    active.version = "v1.0.0".into();
-    active.artifact.asset_name = format!("fixture-hd-1.0.0{suffix}");
+    active.version = format!("v{installed_version}");
+    active.channel = channel;
+    active.artifact.asset_name = format!("fixture-hd-{installed_version}{suffix}");
     let old = ResolvedRelease {
         version: active.version.clone(),
         channel: active.channel,
         published_at: None,
         asset: ReleaseAsset {
             name: active.artifact.asset_name.clone(),
-            url: "https://github.com/fixture/game/releases/download/v1.0.0/previous.zip".into(),
+            url: format!(
+                "https://github.com/fixture/game/releases/download/v{installed_version}/previous.zip"
+            ),
             size: active.artifact.size,
             sha256: active.artifact.sha256.clone(),
         },
@@ -554,11 +567,11 @@ async fn desktop_archive_acquisition_replays_the_saved_native_variant() {
 
     let bytes = archive();
     let offered = ResolvedRelease {
-        version: "v2.0.0".into(),
+        version: format!("v{successor_version}"),
         channel: active.channel,
         published_at: None,
         asset: ReleaseAsset {
-            name: format!("fixture-hd-2.0.0{suffix}"),
+            name: format!("fixture-hd-{successor_version}{suffix}"),
             url: server.url.clone(),
             size: bytes.len() as u64,
             sha256: crate::signed_catalog::digest(&bytes),
