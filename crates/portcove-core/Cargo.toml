@@ -35,6 +35,7 @@ async-trait.workspace = true
 directories.workspace = true
 ed25519-dalek.workspace = true
 crc32fast.workspace = true
+base64 = "0.23.1"
 flate2.workspace = true
 futures-util.workspace = true
 fs4.workspace = true
@@ -50,7 +51,7 @@ rusqlite.workspace = true
 schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true

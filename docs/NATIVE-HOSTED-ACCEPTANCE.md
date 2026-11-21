@@ -76,7 +76,10 @@ scenario or command.
 Each isolated job checks the interactive session before provisioning, installs
 the source-pinned native prerequisites, uses a fresh application target and runs
 the maintained harness with clean source. The host-publication source also runs
-its four qualification checkpoint unit tests before native execution.
+its four qualification checkpoint unit tests before native execution. Within the existing
+checkpoint discovery window, the harness waits for its wall clock to reach the recorded Core
+entry time. It checks the marker identity and requires more than 30 seconds of the pause to
+remain before proceeding with the owned process interruption.
 
 These are feasibility observations until actual native receipts and positive
 process closure are independently reviewed. The 90-minute job allocation changes
@@ -371,6 +374,11 @@ snapshot labelled as a rollback with the reverse versions, labelled in history a
 holding the current saves. The fixture save does not change between the update and
 the rollback, so the snapshot's bytes alone do not distinguish it from the update
 snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
+
+The first update acquisition starts from the existing activation review. The
+harness compares the real archive-only review digest, checks the displayed
+archive and source, and expects the held transfer after a single action from
+that review. Later acquisitions retain the standalone download-review route.
 
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
