@@ -84,15 +84,8 @@
   "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
