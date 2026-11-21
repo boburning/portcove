@@ -72,7 +72,12 @@ export async function backupReviewScenario({
     object(await invoke(name, args));
   const readStatus = (portId: string) => transportValue("status", command(["status", portId]));
   const inventory = (portId: string) =>
-    transportValue("backup_inventory", command(["backup", "list", portId]));
+    transportValue(
+      "backup_inventory",
+      // The owned Windows inventory read exceeded the generic 15 s fixture
+      // limit just after preparation (job 136932740784).
+      command(["backup", "list", portId], undefined, { timeoutMs: 30_000 }),
+    );
   await scenario("native-reviewed-backup-restore-and-delete", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port, install } = await seed("opengoal-jak3", "success");
