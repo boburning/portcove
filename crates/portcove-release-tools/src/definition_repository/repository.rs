@@ -801,54 +801,83 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         return invalid("catalog signed inputs changed during assembly");
     }
     let output_exists = io::directory_exists(&output)?;
-    if let Some((history, directory)) = &history_output
-        && io::directory_exists(directory)?
-        && io::directory_exists(&directory.join("sha256"))?
-    {
-        for (name, bytes) in &history.objects {
-            io::output_file_exists(&directory.join(name), bytes)?;
+    let history_directories = if let Some((history, directory)) = &history_output {
+        let store = directory.join("sha256");
+        let directory_exists = io::directory_exists(directory)?;
+        let store_exists = directory_exists && io::directory_exists(&store)?;
+        if store_exists {
+            for (name, bytes) in &history.objects {
+                io::output_file_exists(&directory.join(name), bytes)?;
+            }
         }
-    }
-    let changed = if output_exists {
-        if public_identities(&output)? != files.identities() {
-            return invalid("catalog assembly output exists with different bytes; retain original");
-        }
-        false
+        Some((directory_exists, store, store_exists))
     } else {
-        io::ancestry(
-            output.parent().ok_or_else(|| {
+        None
+    };
+    if output_exists && public_identities(&output)? != files.identities() {
+        return invalid("catalog assembly output exists with different bytes; retain original");
+    }
+
+    // Reserve both roots using exclusive directory creation before any file writes.
+    // For example, Windows can allocate a short alias only after creation.
+    let mut reserved = Vec::new();
+    let reserve_result = (|| -> Result<()> {
+        let mut reserve = |directory: &Path| -> Result<()> {
+            io::ancestry(directory.parent().ok_or_else(|| {
                 TufRepositoryError::Invalid("catalog output parent absent".into())
-            })?,
-        )?;
-        #[cfg(unix)]
-        let mut builder = fs::DirBuilder::new();
-        #[cfg(not(unix))]
-        let builder = fs::DirBuilder::new();
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::DirBuilderExt;
-            builder.mode(0o700);
+            })?)?;
+            #[cfg(not(unix))]
+            let builder = fs::DirBuilder::new();
+            #[cfg(unix)]
+            let mut builder = fs::DirBuilder::new();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::DirBuilderExt;
+                builder.mode(0o700);
+            }
+            builder.create(directory)?;
+            reserved.push(directory.to_path_buf());
+            Ok(())
+        };
+        if !output_exists {
+            reserve(&output)?;
         }
-        builder.create(&output)?;
+        io::no_overlap(&output, &inputs)?;
+        if let (Some((_, directory)), Some((directory_exists, store, store_exists))) =
+            (&history_output, &history_directories)
+        {
+            if !directory_exists {
+                reserve(directory)?;
+            }
+            io::no_overlap(directory, &inputs)?;
+            io::no_output_overlap(directory, &output)?;
+            if !store_exists {
+                reserve(store)?;
+            }
+        }
+        Ok(())
+    })();
+    if let Err(error) = reserve_result {
+        // Only directories created exclusively above are eligible for removal.
+        for directory in reserved.iter().rev() {
+            if io::directory_exists(directory).unwrap_or(false) {
+                let _ = fs::remove_dir(directory);
+            }
+        }
+        return Err(error);
+    }
+
+    if !output_exists {
         for (name, file) in files.iter() {
             let destination = output.join(name);
             fs::create_dir_all(destination.parent().unwrap())?;
             io::create_synced(&destination, &file.read()?)?;
         }
-        // This single readback checks all written bytes and the exact file set.
         if public_identities(&output)? != files.identities() {
             return invalid("catalog complete assembly retained readback differs");
         }
-        true
-    };
+    }
     if let Some((history, directory)) = history_output {
-        if !io::directory_exists(&directory)? {
-            fs::create_dir(&directory)?;
-        }
-        let store = directory.join("sha256");
-        if !io::directory_exists(&store)? {
-            fs::create_dir(&store)?;
-        }
         for (name, bytes) in &history.objects {
             io::write_new(&directory.join(name), bytes)?;
         }
@@ -867,7 +896,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         &context.root_bytes,
         selected_top,
         &context.index_sha256,
-        changed,
+        !output_exists,
     )
 }
 
@@ -1109,7 +1138,7 @@ mod capacity_tests {
     #[test]
     fn repeated_historical_target_reference_still_checks_signed_length() {
         let name = "policy/official/catalog.listings.json";
-        let bytes = br#"{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"listings":[]}}"#;
+        let bytes = br#"{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"format_version":11,"listings":[]}}"#;
         let path = public_target_path(name, bytes).unwrap();
         let mut files = PublicHistory::default();
         files.insert(path, bytes);

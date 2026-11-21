@@ -955,6 +955,21 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
             .iter()
             .any(|row| row.target.ends_with(history_checkpoint::TARGET))
     );
+    // Existing input directories must not prevent creating a distinct Unicode sibling.
+    assembly_json["history_output"] = json!("checkpoint-objécts");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    let reapplied = assemble_definition_repository(&assembly).await.unwrap();
+    assert_eq!(reapplied.repository_sha256, assembled.repository_sha256);
+    assert!(
+        fixture
+            .root()
+            .join("checkpoint-objécts")
+            .join("sha256")
+            .is_dir()
+    );
+    assembly_json["history_output"] = json!("checkpoint-objects");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+
     assert!(
         original
             .files
@@ -1292,7 +1307,7 @@ async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revisio
 fn replace_listing_directory(fixture: &Fixture, revision: u64) {
     let target = "policy/official/catalog.listings.json";
     let listings = (0..40).map(|index| json!({"id":format!("listing-{index}"),"name":format!("Listing {index} revision {revision}"),"summary":"x".repeat(2000),"project_url":"https://example.invalid/project","availability":"source-only"})).collect::<Vec<_>>();
-    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":revision,"withdrawn_ids":[],"directory":{"format_version":11,"listings":listings}})).unwrap();
+    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":revision,"withdrawn_ids":[],"directory":{"format_version":1,"listings":listings}})).unwrap();
     assert!(bytes.len() > 65536);
     fs::write(fixture.root().join("bundle").join(target), &bytes).unwrap();
     let files = io::tree(&fixture.root().join("bundle"), BUNDLE_FILES, BUNDLE_MAX).unwrap();

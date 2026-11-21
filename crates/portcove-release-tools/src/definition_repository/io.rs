@@ -96,11 +96,13 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
         .iter()
         .map(|p| p.canonicalize())
         .collect::<std::io::Result<Vec<_>>>()?;
-    if inputs
-        .iter()
-        .any(|p| output_contains(&normalized_output, p) || output_contains(p, &normalized_output))
-    {
-        return invalid("catalog output overlaps original inputs");
+    for input in inputs {
+        if output_contains(&normalized_output, &input)
+            || output_contains(&input, &normalized_output)
+            || same_directory_ancestry(&normalized_output, &input)?
+        {
+            return invalid("catalog output overlaps original inputs");
+        }
     }
     let parent = output
         .parent()
@@ -110,11 +112,45 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
 pub(super) fn no_output_overlap(first: &Path, second: &Path) -> Result<()> {
     let first = normalize_output(first)?;
     let second = normalize_output(second)?;
-    if output_contains(&first, &second) || output_contains(&second, &first) {
+    if output_contains(&first, &second)
+        || output_contains(&second, &first)
+        || same_directory_ancestry(&first, &second)?
+    {
         return invalid("catalog assembly outputs overlap");
     }
     Ok(())
 }
+// Once the roots exist, compare actual Unix directory identities as well as names.
+// This covers volume-specific case folding, Unicode normalization and mount aliases.
+#[cfg(unix)]
+fn same_directory_ancestry(first: &Path, second: &Path) -> Result<bool> {
+    use std::os::unix::fs::MetadataExt as _;
+
+    fn identity(path: &Path) -> Result<Option<(u64, u64)>> {
+        match path.symlink_metadata() {
+            Ok(metadata) if metadata.is_dir() => Ok(Some((metadata.dev(), metadata.ino()))),
+            Ok(_) => Ok(None),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
+        }
+    }
+    for (path, other) in [(first, second), (second, first)] {
+        if let Some(expected) = identity(path)? {
+            for parent in other.ancestors() {
+                if identity(parent)? == Some(expected) {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(not(unix))]
+fn same_directory_ancestry(_: &Path, _: &Path) -> Result<bool> {
+    Ok(false)
+}
+
 #[cfg(not(windows))]
 fn output_contains(path: &Path, prefix: &Path) -> bool {
     let mut components = path.components();
@@ -122,9 +158,7 @@ fn output_contains(path: &Path, prefix: &Path) -> bool {
         components.next().is_some_and(|actual| {
             let actual = actual.as_os_str().as_encoded_bytes();
             let expected = expected.as_os_str().as_encoded_bytes();
-            // Filesystem case folding and normalization may vary by volume.
-            // An unequal non-ASCII component cannot prove separation.
-            actual.eq_ignore_ascii_case(expected) || !actual.is_ascii() || !expected.is_ascii()
+            actual.eq_ignore_ascii_case(expected)
         })
     })
 }
