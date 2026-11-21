@@ -532,10 +532,13 @@ export async function backupReviewScenario({
     const createdInventory = inventory(port.id);
     assert.equal(createdInventory.problems.length, 2);
     assert.equal(createdInventory.state, "degraded");
-    const createdRow = await row(createdFromRetainedData.id);
-    assert.equal(
-      await createdRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
-      true,
+    const createdRestore = By.css(
+      `${backupSectionSelector} .backup-history[data-backup-read-state="current"] [data-backup-id="${createdFromRetainedData.id}"] button[data-backup-action="restore"]:not(:disabled)`,
+    );
+    await browser.wait(
+      until.elementLocated(createdRestore),
+      45_000,
+      "Fresh backup history must enable Restore on the newly created retained-data backup",
     );
     await capture("native-retained-data-backup-created", ".backup-history");
 
