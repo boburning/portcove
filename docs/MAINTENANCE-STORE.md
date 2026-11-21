@@ -1054,8 +1054,8 @@ nothing.
 
 Handoffs connect an attention item to the existing executor that resolves it.
 They are not a second backlog: a handoff row has no priority, owner or status
-field. Canonical work stays in its issues, Project fields and executors, and
-every dispatch is disabled.
+field. Canonical work stays in its issues, Project fields and executors. The
+handoff registry cannot dispatch executors.
 
 **Registry.** `scripts/maintenance-handoffs.mts` defines one entry per attention
 kind in code; it is never stored. Each entry names:
@@ -1070,7 +1070,7 @@ kind in code; it is never stored. Each entry names:
 | `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                                                 | Owner only | The next scheduled main `upstream-health` report no longer shows it |
 | `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                                          | Routine    | The next scheduled main report                                      |
 | `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                                          | Routine    | The next completed checkpoint snapshot                              |
-| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md))                      | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-blocked`       | `status --request <id> --json`; the daily maintenance schedule resumes verified final audits. Other blockers require the recorded owner action ([route](DAILY-PORT-DISCOVERY.md))      | Owner only | A new bot receipt on #177                                           |
 | `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                                               | Owner only | A new bot receipt on #177                                           |
 | `release-content-finding`     | By condition: confirm flagged files or inspect an unreadable package, then a reviewed hold or accounting entry; unavailable GitHub releases defer to the owner-only relocation handoff | Routine    | The next scheduled main release-content scan no longer reports it   |
 
@@ -1166,7 +1166,10 @@ of the deciding source. Release health also reports complete coverage per port.
   because a handoff appearing is itself the change.
 
 **Hosted intake receipts.** An owner-authored #177 request can finish an existing
-hosted-intake handoff through the ordinary worker, including audit-only recovery.
+hosted-intake handoff through the ordinary worker. The daily schedule can resume
+a final audit by passing the original request, authenticated workflow attempt and
+exact pending receipt to the existing intake worker. The worker checks the live
+receipt and durable checkpoint before it completes the audit.
 The intake workflow reads back the authenticated bot receipt and records its
 comment URL and exact body digest against the original planned operation. The
 daily inventory reuses its one verified native queue read to reconcile before
@@ -1228,12 +1231,11 @@ subjects. The changes-only digest includes handoff transitions with their
 recorded condition (`handoff_condition`) and names the same action as the
 report.
 
-**Explicitly disabled:** executor dispatch (every executor is owner-only or needs
-a reviewed change no executor is authorized to deliver, and no delegated
-credential exists), digest posting and publication. A kind resumes only when its
-registry resume condition holds and a reviewed change enables it. The
-[hosted operation](#hosted-operation) records handoffs daily and never
-dispatches them.
+The registry keeps executor dispatch, separate handoff schedules, digest posting
+and publication disabled. The [hosted operation](#hosted-operation) records
+handoffs daily and hands verified pending final audits to the native intake
+worker on the same run. Other work continues through its recorded resume
+condition and existing executor.
 
 ## Hosted operation
 
@@ -1271,8 +1273,10 @@ an incomplete result remains eligible. Daily collection reads fresh external
 source identities.
 
 The daily run keeps existing source and repository access. The production steps
-use the direct database secret `PORTCOVE_DATABASE_URL`. Only collection receives
-`PORTCOVE_ROADMAP_TOKEN` to read the Project. The metered steps also require
+use the direct database secret `PORTCOVE_DATABASE_URL`. Collection uses
+`PORTCOVE_ROADMAP_TOKEN` to read the Project. A verified scheduled final audit
+uses the existing intake worker's Project credential, separate database role and
+metered admission in the same run. The metered steps also require
 `PORTCOVE_NEON_METER_TOKEN` with effective Viewer access to the existing Portcove
 project. A personal token from a dedicated Neon Collaborator with only this
 project's Viewer grant can supply that access. Project-scoped organization keys
