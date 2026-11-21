@@ -76372,7 +76372,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -76390,6 +76393,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -76397,14 +76430,15 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. On Linux x86-64 or macOS 14 and later, follow the matching setup steps on this page and the upstream Linux/macOS guide at https://github.com/OpenXRay/xray-16/wiki/%5BEN%5D-How-to-build-and-setup-on-Linux-and-MacOS. Call of Pripyat is the default. Leave out -cs. Keep the actual configuration and player profile with each prepared copy.",
         "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
         "original_game": {
           "format_version": 1,
           "id": "s-t-a-l-k-e-r-call-of-pripyat",
           "evidence_urls": [
             "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
-            "https://github.com/OpenXRay/xray-16"
+            "https://github.com/OpenXRay/xray-16",
+            "https://github.com/OpenXRay/xray-16/wiki/%5BEN%5D-How-to-build-and-setup-on-Linux-and-MacOS"
           ],
           "source_editions": []
         },
@@ -76415,7 +76449,7 @@
               "instruction": "Use your own complete Call of Pripyat 1.6.02 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files."
             },
             {
-              "title": "Prepare upstream and select the player",
+              "title": "Prepare the Windows player",
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Preserve the old bin and extract the complete matching archive into the working game root. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
@@ -76436,15 +76470,15 @@
             },
             {
               "title": "Prepare the Linux player yourself",
-              "instruction": "Use the upstream portable instructions with your own Call of Pripyat 1.6.02 files. On x86-64 or ARM64 with glibc 2.38 or later, make the complete upstream CI AppImage executable and open that file. For a separately prepared portable tree, keep its engine libraries and resources together and open bin/xr_3da. Use -fsltx and the absolute path to your config for either player."
+              "instruction": "Follow the upstream Linux/macOS guide with your own Call of Pripyat 1.6.02 resources. Open https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml and choose AppImage Release amd64 from a successful push on the official dev branch. Use a system with glibc 2.38 or later. Unzip the download and make the AppImage executable. Select the AppImage and its containing folder. Where FUSE is unavailable, enter --appimage-extract-and-run on its own line. Call of Pripyat is the default. Leave out -cs. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
             },
             {
               "title": "Prepare the matching Mac build yourself",
-              "instruction": "The inspected upstream CI ZIPs are for Intel or Apple silicon on macOS 14 or later. Keep bin/xr_3da and share/openxray. Use the architecture-matched Homebrew dependencies in the upstream setup instructions, including sdl2-compat, and your own Call of Pripyat 1.6.02 resources. Start bin/xr_3da from the prepared folder containing bin and share. Use -fsltx and the absolute path to your config."
+              "instruction": "From the same official Build workflow, download macOS Intel Release x86_64 or macOS Release arm64 for your Mac. These builds target macOS 14 or later. Keep bin and share/openxray together, including the supplied fsgame.ltx template and gamedata. Use the matching Homebrew architecture to install sdl2-compat, lzo, libogg, libvorbis, theora and jpeg-turbo. Follow the upstream guide to arrange your own Call of Pripyat 1.6.02 resources. Select bin/xr_3da and the unpacked folder that contains bin and share. Call of Pripyat is the default. Leave out -cs. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
             },
             {
               "title": "Keep the effective profile for this copy",
-              "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
+              "instruction": "Keep the required resource folder names lowercase and confirm a normal launch and quit in your prepared copy before registering it. Keep the complete runtime, original files and the app_data_root selected by that copy's fsgame.ltx. Use separate player profiles for the two games."
             }
           ]
         },
@@ -76468,7 +76502,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -76486,6 +76523,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -76493,14 +76560,15 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation. Preserve the actual app_data_root selected by that installation’s fsgame.ltx, all saves/configuration/logs and the complete working original/runtime copy. Locations and mod requirements can vary. Upstream warns that incompatible or malformed mods can fail; neither save migration nor mod compatibility is established by registration. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. On Linux x86-64 or macOS 14 and later, follow the matching setup steps on this page and the upstream Linux/macOS guide at https://github.com/OpenXRay/xray-16/wiki/%5BEN%5D-How-to-build-and-setup-on-Linux-and-MacOS. Enter -cs on its own argument line to select Clear Sky. Keep the actual configuration and player profile with each prepared copy.",
         "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
         "original_game": {
           "format_version": 1,
           "id": "s-t-a-l-k-e-r-clear-sky",
           "evidence_urls": [
             "https://github.com/OpenXRay/xray-16/wiki/How-to-install-and-play",
-            "https://github.com/OpenXRay/xray-16"
+            "https://github.com/OpenXRay/xray-16",
+            "https://github.com/OpenXRay/xray-16/wiki/%5BEN%5D-How-to-build-and-setup-on-Linux-and-MacOS"
           ],
           "source_editions": []
         },
@@ -76511,7 +76579,7 @@
               "instruction": "Use your own complete Clear Sky 1.5.10 resources in a private working copy. Shadow of Chernobyl, Enhanced Edition and Legends of the Zone data are outside this route. Preserve the original installation and mod-specific files."
             },
             {
-              "title": "Prepare upstream and select the player",
+              "title": "Prepare the Windows player",
               "instruction": "Follow the upstream Windows installation guide for the exact selected release. The inspected latest-nightly OpenXRay.Release.Master.Gold.64-bit.7z contains the x64 bin/xrEngine.exe player. Follow the Clear Sky instructions: extract bin from the engine archive and apply the matching nightly Clear Sky gamedata patch. The older December 2021 RC1 patch is different; do not mix it with nightly. Register the prepared bin/xrEngine.exe using the working directory and arguments of the upstream installation. Keep its companion DLLs; do not register a helper or replace a live original installation."
             },
             {
@@ -76533,15 +76601,15 @@
             },
             {
               "title": "Prepare the Linux player yourself",
-              "instruction": "Use the upstream portable instructions with your own Clear Sky 1.5.10 files. On x86-64 or ARM64 with glibc 2.38 or later, make the complete upstream CI AppImage executable and open that file. For a separately prepared portable tree, keep its engine libraries and resources together and open bin/xr_3da. Use -cs plus -fsltx and the absolute path to your config for either player."
+              "instruction": "Follow the upstream Linux/macOS guide with your own Clear Sky 1.5.10 resources. Open https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml and choose AppImage Release amd64 from a successful push on the official dev branch. Use a system with glibc 2.38 or later. Unzip the download and make the AppImage executable. Select the AppImage and its containing folder. Where FUSE is unavailable, enter --appimage-extract-and-run on its own line. Enter -cs on its own argument line to select Clear Sky. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
             },
             {
               "title": "Prepare the matching Mac build yourself",
-              "instruction": "The inspected upstream CI ZIPs are for Intel or Apple silicon on macOS 14 or later. Keep bin/xr_3da and share/openxray. Use the architecture-matched Homebrew dependencies in the upstream setup instructions, including sdl2-compat, and your own Clear Sky 1.5.10 resources. Start bin/xr_3da from the prepared folder containing bin and share. Use -cs plus -fsltx and the absolute path to your config."
+              "instruction": "From the same official Build workflow, download macOS Intel Release x86_64 or macOS Release arm64 for your Mac. These builds target macOS 14 or later. Keep bin and share/openxray together, including the supplied fsgame.ltx template and gamedata. Use the matching Homebrew architecture to install sdl2-compat, lzo, libogg, libvorbis, theora and jpeg-turbo. Follow the upstream guide to arrange your own Clear Sky 1.5.10 resources. Select bin/xr_3da and the unpacked folder that contains bin and share. Enter -cs on its own argument line to select Clear Sky. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
             },
             {
               "title": "Keep the effective profile for this copy",
-              "instruction": "Keep the complete engine and original files and the actual app_data_root defined by the selected fsgame.ltx. The CI packages and source instructions describe player-managed setup. Confirm a normal start and quit before attaching any prepared native player."
+              "instruction": "Keep the required resource folder names lowercase and confirm a normal launch and quit in your prepared copy before registering it. Keep the complete runtime, original files and the app_data_root selected by that copy's fsgame.ltx. Use separate player profiles for the two games."
             }
           ]
         },
