@@ -19,6 +19,7 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import { preparePayloadSigningEnvironment } from "./release-payload-signing.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
+import { validateObserverConfig } from "./upstream-observer.mts";
 import {
   managedN64OriginalProjection,
   verifyManagedN64OriginalProposal,
@@ -294,8 +295,22 @@ async function main(argv: string[]) {
     );
     const bytes = await readControllerToolFile(path.resolve(checkpointPath), 32 * 1024 ** 2);
     const checkpoint: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    const observerConfig = validateObserverConfig(
+      document(
+        await readControllerToolFile(
+          fileURLToPath(new URL("../release/upstream-observer.json", import.meta.url)),
+          16_384,
+        ),
+      ),
+    );
     authored = {
-      ...managedN64OriginalProjection(prior!, id, source.catalog, checkpoint),
+      ...managedN64OriginalProjection(
+        prior!,
+        id,
+        { ...source.catalog, listings: source.directory.listings },
+        checkpoint,
+        observerConfig.stale_after_hours,
+      ),
       checkpointSha256: hash(bytes),
     };
   } else {

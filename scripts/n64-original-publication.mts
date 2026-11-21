@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import type { CurrentCatalog } from "./catalog-authoring.mts";
 import { upstreamFacts } from "./maintenance-upstream.mts";
+import {
+  catalogObservationSources,
+  validateCatalogObserverCheckpoint,
+} from "./catalog-upstream-observer.mts";
 import { n64PackagedInputLayout } from "./n64-original-binding-candidates.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -75,10 +78,51 @@ function managedN64Entry(files: Files, portId: string) {
   return { entry, policy, decision, port, projection, graph };
 }
 
-function currentAmendment(checkpoint: unknown, catalog: CurrentCatalog, portId: string) {
-  const facts = record(upstreamFacts(checkpoint, catalog).facts.get("port:" + portId) ?? {});
-  const matches = records(facts.sources ?? []).flatMap(
-    ({ n64_original_contract_amendment: item }) => (isRecord(item) ? [item] : []),
+function currentAmendment(
+  checkpoint: unknown,
+  catalog: unknown,
+  portId: string,
+  staleAfterHours: number,
+  now: number,
+) {
+  const state = validateCatalogObserverCheckpoint(checkpoint, now);
+  const source = catalogObservationSources(catalog).sources.find((item) =>
+    item.ports.some((port) => port.id === portId && port.original_source_family === "n64-recomp"),
+  );
+  const progress = source ? state.sources[source.key] : undefined;
+  const freshness = progress?.freshness_observed_at;
+  if (
+    !source ||
+    !progress ||
+    typeof freshness !== "string" ||
+    !Number.isFinite(staleAfterHours) ||
+    staleAfterHours <= 0 ||
+    now - Date.parse(freshness) >= staleAfterHours * 3600000 ||
+    progress.completed_at === null ||
+    progress.completed_scope_sha256 === null ||
+    progress.last_complete_facts_sha256 === null ||
+    progress.exception_key !== null ||
+    (progress.selection_progress !== null &&
+      (progress.selection_progress.binding !== progress.completed_scope_sha256 ||
+        progress.selection_progress.cursor !== source.ports.length)) ||
+    progress.policy_progress !== null ||
+    !progress.current_config ||
+    progress.current_config.stale_after_hours !== staleAfterHours ||
+    !isDeepStrictEqual(progress.current_config, progress.last_complete_config) ||
+    !isDeepStrictEqual(
+      progress.last_complete_policies.map(({ port_id }) => port_id),
+      source.ports.map(({ id }) => id),
+    )
+  )
+    throw new Error("Current observer source completion is missing, stale or incomplete");
+
+  // The projector checks the exact current release/platform selections and the
+  // authored port and source-contract scope against the completed proof.
+  const facts = record(upstreamFacts(state, catalog, now).facts.get("port:" + portId) ?? {});
+  const matches = records(facts.sources ?? []).flatMap((item) =>
+    item.source_key === source.key && isRecord(item.n64_original_contract_amendment)
+      ? [item.n64_original_contract_amendment]
+      : [],
   );
   if (matches.length !== 1)
     throw new Error("Current observer evidence does not supply one verified N64 amendment");
@@ -91,13 +135,15 @@ function currentAmendment(checkpoint: unknown, catalog: CurrentCatalog, portId: 
 export function managedN64OriginalProjection(
   prior: Files,
   portId: string,
-  catalog: CurrentCatalog,
+  catalog: unknown,
   checkpoint: unknown,
+  staleAfterHours: number,
+  now = Date.now(),
 ) {
   return projectVerifiedN64OriginalAmendment(
     prior,
     portId,
-    currentAmendment(checkpoint, catalog, portId),
+    currentAmendment(checkpoint, catalog, portId, staleAfterHours, now),
   );
 }
 
@@ -131,6 +177,19 @@ export function projectVerifiedN64OriginalAmendment(
     throw new Error("Observed repository differs from the retained approved repository");
   const release = record(port.release);
   const curated = record(release.curated);
+  if (
+    !Array.isArray(port.platforms) ||
+    !(port.platforms as unknown[]).every((platform) => {
+      const artifact = typeof platform === "string" ? curated[platform] : undefined;
+      return (
+        isRecord(artifact) &&
+        artifact.platform === platform &&
+        artifact.route === "github-release-asset" &&
+        isDigest(artifact.sha256)
+      );
+    })
+  )
+    throw new Error("Retained platform without an exact curated artifact cannot be amended");
   const transitions =
     policy.curated_transitions === undefined ? undefined : record(policy.curated_transitions);
   if (transitions?.future_acceptance_lost === true)
