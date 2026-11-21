@@ -491,6 +491,21 @@ mod tests {
         let moved =
             PortcoveService::move_library(&source, &destination, &plan.plan_sha256).unwrap();
         assert!(moved.completed);
+        let inspection = Library::inspect_selection_target(&source).unwrap();
+        assert_eq!(inspection.root, fs::canonicalize(&source).unwrap());
+        assert_eq!(
+            inspection.relocated_to,
+            Some(fs::canonicalize(&destination).unwrap())
+        );
+        let refusal = Library::open_reviewed_selection(&source).unwrap_err();
+        assert_eq!(refusal.code, ErrorCode::Conflict);
+        assert_eq!(
+            refusal.details["current_library_root"],
+            fs::canonicalize(&destination)
+                .unwrap()
+                .display()
+                .to_string()
+        );
         let library = Library::open(&source).unwrap();
         assert_eq!(library.root(), fs::canonicalize(&destination).unwrap());
         assert_eq!(

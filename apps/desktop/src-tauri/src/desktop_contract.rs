@@ -441,6 +441,7 @@ pub fn export_transport_schemas() -> Value {
         "output": {
             "game_comparison": output::<portcove_core::GameComparison>(),
             "bootstrap_status": output::<BootstrapStatus>(),
+            "library_selection_review": output::<crate::library_selection::LibrarySelectionReview>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),

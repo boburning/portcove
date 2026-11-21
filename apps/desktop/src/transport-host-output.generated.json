@@ -8041,6 +8041,67 @@
     "title": "LibraryOrganization",
     "type": "object"
   },
+  "library_selection_review": {
+    "$defs": {
+      "LibrarySelectionContents": {
+        "description": "The files recognized during a read-only library selection check.",
+        "enum": [
+          "empty_directory",
+          "existing_database",
+          "recovery_records",
+          "new_default_directory"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionEffect": {
+        "enum": [
+          "keep",
+          "change_startup",
+          "open"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionSource": {
+        "enum": [
+          "invocation",
+          "saved",
+          "platform_default"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "contents": {
+        "$ref": "#/$defs/LibrarySelectionContents"
+      },
+      "effect": {
+        "$ref": "#/$defs/LibrarySelectionEffect"
+      },
+      "path": {
+        "type": "string"
+      },
+      "resets_preferences": {
+        "type": "boolean"
+      },
+      "review_sha256": {
+        "type": "string"
+      },
+      "source": {
+        "$ref": "#/$defs/LibrarySelectionSource"
+      }
+    },
+    "required": [
+      "path",
+      "source",
+      "effect",
+      "contents",
+      "resets_preferences",
+      "review_sha256"
+    ],
+    "title": "LibrarySelectionReview",
+    "type": "object"
+  },
   "locale_preference": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
