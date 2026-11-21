@@ -1044,9 +1044,12 @@ mod tests {
         .unwrap_err();
         assert!(capacity_occupied);
         assert!(copied > 0 && copied < fixture.len() as u64);
-        assert_eq!(
-            error.message,
-            io::Error::from_raw_os_error(libc::ENOSPC).to_string()
+        assert_eq!(error.code, crate::ErrorCode::State);
+        let disk_full = io::Error::from_raw_os_error(libc::ENOSPC).to_string();
+        assert!(
+            error.message == disk_full
+                || error.message.starts_with(&format!("{disk_full} at path ")),
+            "expected the kernel's ENOSPC during the copy, got {error}"
         );
         let stage = Path::new(&error.details["recovery_staging"]);
         let intent = read_creation_intent(stage).unwrap();
