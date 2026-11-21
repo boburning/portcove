@@ -1555,6 +1555,55 @@ void test("ScummVM game data reaches only an admitted guide and retains reviewed
   assert.equal(pressured.scummvm_guides, 0);
   assert.deepEqual(pressured.bytes, retired.bytes);
   assert.deepEqual(projectListingDelivery(canonical, [], pressured.bytes).bytes, pressured.bytes);
+  const noCurrentZips = source(
+    [row("English v2.0", "sfinx-en-v2.0.tar.gz"), row("German v2.0", "sfinx-de-v2.0.7z")],
+    "e",
+  );
+  assert.equal(noCurrentZips.editions.size, 0);
+  const allZipsWithdrawn = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    retired.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    noCurrentZips,
+  );
+  assert.deepEqual(allZipsWithdrawn.bytes, retired.bytes);
+  for (const [broken, failure] of [
+    ["- { category: games, game_id: 'cge2:sfinx'", /YAML is invalid/u],
+    [row("German v2.0", ""), /archive paths/u],
+    [
+      row("German v2.0", "sfinx-de-v2.0.7z").replace("category: games", "category: addons"),
+      /no complete game rows/u,
+    ],
+  ] as const) {
+    let observation;
+    assert.throws(() => {
+      observation = source([broken], "f");
+    }, failure);
+    assert.deepEqual(
+      projectListingDelivery(
+        canonical,
+        [],
+        next.bytes,
+        0,
+        undefined,
+        undefined,
+        admitted,
+        0,
+        [],
+        false,
+        observation,
+      ).bytes,
+      next.bytes,
+    );
+  }
+
   assert.throws(() => source([row("English v1.1", "../escape.zip")], "d"), /archive paths/u);
 });
 
@@ -1566,7 +1615,7 @@ void test("ScummVM game data observer binds official repository and byte-exact c
     "- { category: games, game_id: 'test:other', name: 'Other', url: 'Other/data.zip' }",
   );
   const expected = readScummvmGameData(bytes, revision);
-  const responses = (wrong: "repo" | "blob" | "revision" | null) => {
+  const responses = (wrong: "repo" | "blob" | "revision" | "truncated" | null) => {
     const urls: URL[] = [];
     return {
       urls,
@@ -1586,7 +1635,7 @@ void test("ScummVM game data observer binds official repository and byte-exact c
             path: "data/en/game_downloads.yaml",
             type: "file",
             encoding: "base64",
-            content: bytes.toString("base64"),
+            content: (wrong === "truncated" ? bytes.subarray(0, -1) : bytes).toString("base64"),
             size: bytes.length,
             sha: wrong === "blob" ? "b".repeat(40) : expected.blob,
           });
@@ -1609,6 +1658,10 @@ void test("ScummVM game data observer binds official repository and byte-exact c
   );
   await assert.rejects(
     observeScummvmGameData(undefined, responses("blob").fetch),
+    /blob does not match/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("truncated").fetch),
     /blob does not match/u,
   );
   await assert.rejects(
