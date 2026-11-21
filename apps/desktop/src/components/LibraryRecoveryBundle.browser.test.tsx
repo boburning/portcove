@@ -380,8 +380,19 @@ it("resumes only the transfer identified by the reviewed restore check", async (
 it("offers the exact interrupted creation after a fresh review and clears it when the folder changes", async () => {
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
+    code: "conflict",
     message: "An interrupted copy is waiting for this bundle folder.",
     details: { recovery_staging: staging },
+    presentation: {
+      mutation_state: "unknown",
+      phase: null,
+      presentation_key: "conflict",
+      recovery_actions: [],
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      technical_context: {},
+      technical_message: "An interrupted copy is waiting for this bundle folder.",
+      tone: "error",
+    },
   });
   const copy = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
   const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle").mockResolvedValue(bundle);
@@ -398,6 +409,16 @@ it("offers the exact interrupted creation after a fresh review and clears it whe
   await reviewAction.click();
   await expect.element(dialog.getByText(staging)).toBeVisible();
   await expect.element(resumeAction).toBeVisible();
+  const feedback = dialog.getByRole("alert");
+  await expect
+    .element(
+      feedback.getByText("An interrupted copy is waiting for this bundle folder.", { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(feedback.getByText(/confirm whether anything changed/))
+    .not.toBeInTheDocument();
+  await expect.element(feedback.getByText("View technical details")).toBeVisible();
   expect(resume).not.toHaveBeenCalled();
 
   await folder.fill("D:/backups/Another bundle");
