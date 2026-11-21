@@ -6,10 +6,153 @@ use crate::{
     require_no_library_handoff, service_at_generation, state_generation,
 };
 use portcove_core::{
-    LibraryImportResult, LibraryRecoveryBundle, LibraryRecoveryBundlePlan,
-    LibraryRecoveryRestorePlan, PortcoveError, PortcoveService,
+    LibraryImportResult, LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryProgress,
+    LibraryRecoveryRestorePlan, OperationCoordinator, OperationEvent, OperationResult,
+    PortcoveError, PortcoveService, ProgressUnit,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU8, Ordering},
+    },
+    time::{Duration, Instant},
+};
+use tauri::{Manager, ipc::Channel};
+
+const COPYING: u8 = 0;
+const CANCEL_REQUESTED: u8 = 1;
+const VERIFYING: u8 = 2;
+
+/// Only live cancellation switches. Durable recovery still uses Core's journals.
+#[derive(Default)]
+pub(crate) struct RecoveryCopyOperations(Mutex<BTreeMap<String, Arc<AtomicU8>>>);
+
+impl RecoveryCopyOperations {
+    pub(crate) fn request(
+        &self,
+        id: &str,
+    ) -> DesktopResult<Option<portcove_core::CancellationState>> {
+        let operations = self.0.lock().map_err(|_| {
+            DesktopError::from(PortcoveError::state(
+                "recovery copy coordination is unavailable",
+            ))
+        })?;
+        Ok(operations.get(id).map(|phase| {
+            let accepted = !matches!(
+                phase.compare_exchange(
+                    COPYING,
+                    CANCEL_REQUESTED,
+                    Ordering::AcqRel,
+                    Ordering::Acquire
+                ),
+                Err(VERIFYING)
+            );
+            portcove_core::CancellationState {
+                phase: if accepted {
+                    portcove_core::CancellationPhase::Preparing
+                } else {
+                    portcove_core::CancellationPhase::Finishing
+                },
+                requested: accepted,
+            }
+        }))
+    }
+}
+
+type CopyObservation<'a> = dyn FnMut(LibraryRecoveryProgress) -> portcove_core::Result<()> + 'a;
+
+fn observe_copy<T>(
+    app: &tauri::AppHandle,
+    channel: Option<Channel<OperationEvent>>,
+    work: impl FnOnce(&mut CopyObservation<'_>) -> DesktopResult<T>,
+) -> DesktopResult<T> {
+    let operation = OperationCoordinator::new("copy_recovery_bundle", None);
+    let id = operation.operation_id();
+    let phase = Arc::new(AtomicU8::new(COPYING));
+    let operations = app.state::<RecoveryCopyOperations>();
+    operations
+        .0
+        .lock()
+        .map_err(|_| {
+            DesktopError::from(PortcoveError::state(
+                "recovery copy coordination is unavailable",
+            ))
+        })?
+        .insert(id.to_owned(), phase.clone());
+    struct Registration<'a> {
+        operations: &'a RecoveryCopyOperations,
+        id: &'a str,
+    }
+    impl Drop for Registration<'_> {
+        fn drop(&mut self) {
+            if let Ok(mut operations) = self.operations.0.lock() {
+                operations.remove(self.id);
+            }
+        }
+    }
+    let _registration = Registration {
+        operations: &operations,
+        id,
+    };
+    let emit = |event: OperationEvent| {
+        // The handoff deliberately advances the library generation. Keep the
+        // initiating view bound to its invocation and publish general activity too.
+        crate::emit_install_operation(app, &channel, event);
+    };
+    emit(operation.started());
+    let mut previous = None::<(Instant, u64)>;
+    let result = work(&mut |progress| {
+        let cancel = || {
+            PortcoveError::new(
+                portcove_core::ErrorCode::Cancelled,
+                "Recovery copy stopped. Resume from the recorded folder when you’re ready.",
+            )
+        };
+        match progress {
+            LibraryRecoveryProgress::Copying {
+                copied_bytes,
+                total_bytes,
+            } => {
+                if phase.load(Ordering::Acquire) == CANCEL_REQUESTED {
+                    return Err(cancel());
+                }
+                if previous.is_none_or(|(time, reported)| {
+                    reported != copied_bytes
+                        && (copied_bytes == total_bytes
+                            || time.elapsed() >= Duration::from_millis(120))
+                }) {
+                    previous = Some((Instant::now(), copied_bytes));
+                    emit(operation.progress_with_unit(
+                        "Copying recovery data",
+                        ProgressUnit::Bytes,
+                        copied_bytes,
+                        Some(total_bytes),
+                    ));
+                }
+            }
+            LibraryRecoveryProgress::Verifying => {
+                if phase.compare_exchange(COPYING, VERIFYING, Ordering::AcqRel, Ordering::Acquire)
+                    == Err(CANCEL_REQUESTED)
+                {
+                    return Err(cancel());
+                }
+                emit(operation.progress("Verifying recovery data", 0, None));
+            }
+        }
+        Ok(())
+    });
+    phase.store(VERIFYING, Ordering::Release);
+    emit(operation.finished(match &result {
+        Ok(_) => OperationResult::Succeeded,
+        Err(error) if error.code == portcove_core::ErrorCode::Cancelled => {
+            OperationResult::Cancelled
+        }
+        Err(_) => OperationResult::Failed,
+    }));
+    result
+}
 
 #[tauri::command]
 pub(crate) async fn plan_library_recovery_bundle(
@@ -29,6 +172,9 @@ pub(crate) async fn plan_library_recovery_bundle(
 
 #[tauri::command]
 pub(crate) async fn create_library_recovery_bundle(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     destination: PathBuf,
@@ -36,8 +182,15 @@ pub(crate) async fn create_library_recovery_bundle(
 ) -> DesktopResult<LibraryRecoveryBundle> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        transfer_preserving_current_library(&state, generation, |source| {
-            PortcoveService::create_library_recovery_bundle(source, &destination, &expected_plan)
+        observe_copy(&app, on_event.map(|id| id.channel_on(webview)), |observe| {
+            transfer_preserving_current_library(&state, generation, |source| {
+                PortcoveService::create_library_recovery_bundle_with_progress(
+                    source,
+                    &destination,
+                    &expected_plan,
+                    observe,
+                )
+            })
         })
     })
     .await
@@ -45,14 +198,19 @@ pub(crate) async fn create_library_recovery_bundle(
 
 #[tauri::command]
 pub(crate) async fn resume_library_recovery_bundle(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     staging: PathBuf,
 ) -> DesktopResult<LibraryRecoveryBundle> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        transfer_preserving_current_library(&state, generation, |_| {
-            PortcoveService::resume_library_recovery_bundle(&staging)
+        observe_copy(&app, on_event.map(|id| id.channel_on(webview)), |observe| {
+            transfer_preserving_current_library(&state, generation, |_| {
+                PortcoveService::resume_library_recovery_bundle_with_progress(&staging, observe)
+            })
         })
     })
     .await
@@ -61,9 +219,16 @@ pub(crate) async fn resume_library_recovery_bundle(
 #[tauri::command]
 pub(crate) async fn inspect_library_recovery_bundle(
     path: PathBuf,
+    expected_plan: Option<String>,
 ) -> DesktopResult<LibraryRecoveryBundle> {
     blocking_worker(move || {
-        PortcoveService::inspect_library_recovery_bundle(&path).map_err(Into::into)
+        match expected_plan {
+            Some(expected) => {
+                PortcoveService::inspect_library_recovery_bundle_for_plan(&path, &expected)
+            }
+            None => PortcoveService::inspect_library_recovery_bundle(&path),
+        }
+        .map_err(Into::into)
     })
     .await
 }
@@ -87,6 +252,9 @@ pub(crate) async fn plan_library_recovery_restore(
 
 #[tauri::command]
 pub(crate) async fn restore_library_recovery_bundle(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     path: PathBuf,
@@ -95,18 +263,21 @@ pub(crate) async fn restore_library_recovery_bundle(
 ) -> DesktopResult<LibraryImportResult> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        transfer_preserving_current_library(&state, generation, |active| {
-            let plan = reviewed_destination(active, &path, &destination)?;
-            if plan.plan_sha256 != expected_plan {
-                return Err(PortcoveError::conflict(
-                    "recovery bundle or restore destination changed; review recovery again",
-                ));
-            }
-            PortcoveService::restore_library_recovery_bundle(
-                &plan.bundle.path,
-                &plan.destination_root,
-                &expected_plan,
-            )
+        observe_copy(&app, on_event.map(|id| id.channel_on(webview)), |observe| {
+            transfer_preserving_current_library(&state, generation, |active| {
+                let plan = reviewed_destination(active, &path, &destination)?;
+                if plan.plan_sha256 != expected_plan {
+                    return Err(PortcoveError::conflict(
+                        "recovery bundle or restore destination changed; review recovery again",
+                    ));
+                }
+                PortcoveService::restore_library_recovery_bundle_with_progress(
+                    &plan.bundle.path,
+                    &plan.destination_root,
+                    &expected_plan,
+                    observe,
+                )
+            })
         })
     })
     .await
@@ -114,21 +285,30 @@ pub(crate) async fn restore_library_recovery_bundle(
 
 #[tauri::command]
 pub(crate) async fn resume_library_recovery_restore(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    on_event: Option<tauri::ipc::JavaScriptChannelId>,
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     destination: PathBuf,
 ) -> DesktopResult<LibraryImportResult> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        if let Some(result) =
-            resume_bundle_restore_blocking_startup(&state, generation, &destination)?
-        {
-            return Ok(result);
-        }
-        transfer_preserving_current_library(&state, generation, |active| {
-            let destination = std::fs::canonicalize(&destination)?;
-            require_separate_destination(active, &destination)?;
-            PortcoveService::resume_library_recovery_restore(&destination, None)
+        observe_copy(&app, on_event.map(|id| id.channel_on(webview)), |observe| {
+            if let Some(result) =
+                resume_bundle_restore_blocking_startup(&state, generation, &destination, observe)?
+            {
+                return Ok(result);
+            }
+            transfer_preserving_current_library(&state, generation, |active| {
+                let destination = std::fs::canonicalize(&destination)?;
+                require_separate_destination(active, &destination)?;
+                PortcoveService::resume_library_recovery_restore_with_progress(
+                    &destination,
+                    None,
+                    observe,
+                )
+            })
         })
     })
     .await
@@ -140,6 +320,7 @@ fn resume_bundle_restore_blocking_startup(
     state: &DesktopState,
     generation: u64,
     destination: &Path,
+    observe: &mut CopyObservation<'_>,
 ) -> DesktopResult<Option<LibraryImportResult>> {
     let lock_error = || DesktopError::from(PortcoveError::state("desktop state lock was poisoned"));
     let (pending, transfer_id) = {
@@ -175,7 +356,11 @@ fn resume_bundle_restore_blocking_startup(
         (failure, transfer_id)
     };
 
-    let result = PortcoveService::resume_library_recovery_restore(destination, Some(&transfer_id));
+    let result = PortcoveService::resume_library_recovery_restore_with_progress(
+        destination,
+        Some(&transfer_id),
+        observe,
+    );
     // A later explicit open retries normal startup. Until then the blocked
     // startup view owns the result rather than treating it as an open library.
     *state.initialization.lock().map_err(|_| lock_error())? = Err(pending);
@@ -208,6 +393,27 @@ mod tests {
     use std::sync::{Arc, Mutex, atomic::AtomicU64};
 
     #[test]
+    fn cancel_targets_the_exact_copy_and_refuses_a_verifying_operation() {
+        let runtime = RecoveryCopyOperations::default();
+        let copying = Arc::new(AtomicU8::new(COPYING));
+        let verifying = Arc::new(AtomicU8::new(VERIFYING));
+        runtime.0.lock().unwrap().extend([
+            ("copying".to_owned(), copying.clone()),
+            ("verifying".to_owned(), verifying.clone()),
+        ]);
+
+        assert!(runtime.request("unknown").unwrap().is_none());
+        let accepted = runtime.request("copying").unwrap().unwrap();
+        assert!(accepted.requested);
+        assert_eq!(accepted.phase, portcove_core::CancellationPhase::Preparing);
+        assert_eq!(copying.load(Ordering::Acquire), CANCEL_REQUESTED);
+        let refused = runtime.request("verifying").unwrap().unwrap();
+        assert!(!refused.requested);
+        assert_eq!(refused.phase, portcove_core::CancellationPhase::Finishing);
+        assert_eq!(verifying.load(Ordering::Acquire), VERIFYING);
+    }
+
+    #[test]
     fn startup_resume_only_admits_the_selected_interrupted_bundle() {
         let temporary = tempfile::tempdir().unwrap();
         let destination = temporary.path().join("restore");
@@ -227,11 +433,17 @@ mod tests {
             launch_observer: Arc::new(Mutex::new(None)),
         };
         let sibling = temporary.path().join("another-library");
-        let wrong = resume_bundle_restore_blocking_startup(&state, 2, &sibling).unwrap_err();
+        let wrong = resume_bundle_restore_blocking_startup(&state, 2, &sibling, &mut |_| Ok(()))
+            .unwrap_err();
         assert_eq!(wrong.message, failure.message);
         assert!(!sibling.exists());
-        assert!(resume_bundle_restore_blocking_startup(&state, 1, &destination).is_err());
-        let actual = resume_bundle_restore_blocking_startup(&state, 2, &destination).unwrap_err();
+        assert!(
+            resume_bundle_restore_blocking_startup(&state, 1, &destination, &mut |_| Ok(()))
+                .is_err()
+        );
+        let actual =
+            resume_bundle_restore_blocking_startup(&state, 2, &destination, &mut |_| Ok(()))
+                .unwrap_err();
         assert!(actual.message.contains("no library import journal"));
         let startup = crate::bootstrap_status(&state);
         assert!(!startup.ready);

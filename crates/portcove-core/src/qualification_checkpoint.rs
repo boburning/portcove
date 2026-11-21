@@ -26,6 +26,8 @@ pub(crate) enum Checkpoint {
     RestorePublished,
     LibraryMovePublished,
     LibraryImportPublished,
+    RecoveryBundleCopied,
+    RecoveryBundleRestoreCopying,
 }
 
 #[derive(Debug, Deserialize)]

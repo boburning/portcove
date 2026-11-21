@@ -257,6 +257,9 @@ through restart, selected setup completion, update
 acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
+Recovery bundle creation, verification, restore and explicit activation run in
+one standalone group. Interruption and resume run in a second group with a
+fresh runner, library and preferences.
 This preserves the planner's standalone and incompatible-fixture refusals.
 
 The owned Windows preparation harness waits for initial Library content within

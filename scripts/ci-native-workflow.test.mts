@@ -288,8 +288,17 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
       "startup-preferences",
       "startup-library",
       "library-switch",
+      "recovery-bundle-create-restore",
+      "recovery-bundle-interruption",
     ],
   );
+  assert.deepEqual(groups.slice(-2), [
+    { selection: "recovery-bundle-create-restore", scenarios: ["native-library-recovery-bundle"] },
+    {
+      selection: "recovery-bundle-interruption",
+      scenarios: ["native-library-recovery-interruption"],
+    },
+  ]);
   const ownedCoverage = new Set<string>();
   for (const group of groups) {
     assert.ok(isRecord(group) && typeof group.selection === "string");

@@ -51,6 +51,21 @@ async function openExport() {
 
 const receipt = () => document.querySelector(".library-recovery [role=status]");
 
+it("keeps recovery bundle actions available when the storage report fails", async () => {
+  const doctor = vi.spyOn(desktopApi, "doctor").mockRejectedValue(new Error("Storage unavailable"));
+  await openExport();
+  await expect.poll(() => doctor.mock.calls.length).toBeGreaterThan(0);
+  await expect
+    .element(page.getByText("Storage capacity is unavailable for this location.", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Create recovery bundle", exact: true }))
+    .toBeEnabled();
+  await expect
+    .element(page.getByRole("button", { name: "Inspect or restore a bundle", exact: true }))
+    .toBeEnabled();
+});
+
 it("announces a declined metadata picker as cancelled without exporting or showing a receipt", async () => {
   vi.mocked(pickMetadataExportPath).mockResolvedValue(null);
   const exported = vi.spyOn(desktopApi, "exportLibraryMetadata");

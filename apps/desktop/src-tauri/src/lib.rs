@@ -792,9 +792,13 @@ async fn get_activity_diagnostic(
 
 #[tauri::command]
 async fn cancel_operation(
+    recovery: tauri::State<'_, library_recovery_bundle::RecoveryCopyOperations>,
     state: tauri::State<'_, DesktopState>,
     operation_id: String,
 ) -> DesktopResult<portcove_core::CancellationState> {
+    if let Some(result) = recovery.request(&operation_id)? {
+        return Ok(result);
+    }
     blocking_service(state.inner().clone(), move |service| {
         service
             .request_cancellation(&operation_id)
@@ -3044,6 +3048,7 @@ pub fn run() -> std::process::ExitCode {
         .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update::ApplicationUpdateState::configured())
         .manage(application_runtime)
+        .manage(library_recovery_bundle::RecoveryCopyOperations::default())
         .manage(exit_diagnostics.clone())
         .manage(DesktopState {
             initialization,

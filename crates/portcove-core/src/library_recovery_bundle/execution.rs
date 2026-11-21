@@ -87,6 +87,13 @@ struct Manifest {
     exclusions: Vec<LibraryRecoveryExclusion>,
 }
 
+/// Point-in-time transfer observation. Cancellable copying uses private staging.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LibraryRecoveryProgress {
+    Copying { copied_bytes: u64, total_bytes: u64 },
+    Verifying,
+}
+
 impl PortcoveService {
     /// Copy a reviewed point-in-time recovery bundle without moving the active library.
     /// No ordinary source handles may remain open while this takes the exclusive lease.
@@ -95,10 +102,38 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryRecoveryBundle> {
-        start_creation(source, destination, expected_plan, &|| Ok(()))
+        Self::create_library_recovery_bundle_with_progress(
+            source,
+            destination,
+            expected_plan,
+            |_| Ok(()),
+        )
+    }
+
+    pub fn create_library_recovery_bundle_with_progress(
+        source: &Path,
+        destination: &Path,
+        expected_plan: &str,
+        mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
+    ) -> Result<LibraryRecoveryBundle> {
+        start_creation(source, destination, expected_plan, &mut observe, &|| {
+            #[cfg(feature = "qualification-fixtures")]
+            crate::qualification_checkpoint::observe(
+                source,
+                crate::qualification_checkpoint::Checkpoint::RecoveryBundleCopied,
+            )?;
+            Ok(())
+        })
     }
 
     pub fn resume_library_recovery_bundle(staging: &Path) -> Result<LibraryRecoveryBundle> {
+        Self::resume_library_recovery_bundle_with_progress(staging, |_| Ok(()))
+    }
+
+    pub fn resume_library_recovery_bundle_with_progress(
+        staging: &Path,
+        mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
+    ) -> Result<LibraryRecoveryBundle> {
         let stage = checked_directory(staging)?;
         require_private_directory(&stage)?;
         let intent: CreationIntent =
@@ -110,13 +145,24 @@ impl PortcoveService {
             ));
         }
         let result = (|| match fs::symlink_metadata(&intent.plan.destination_root) {
-            Ok(_) => inspect_created(&intent),
+            Ok(_) => {
+                observe(LibraryRecoveryProgress::Verifying)?;
+                inspect_created(&intent)
+            }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 let library = open_source(&intent.plan.source_root)?;
                 let service = Self::new_read_only(library)?;
                 let (review, metadata, content) = prepare(&service, &intent.plan.destination_root)?;
                 require_same_plan(&review, &intent.plan.plan_sha256)?;
-                publish_creation(&service, &stage, &intent, metadata, &content, &|| Ok(()))
+                publish_creation(
+                    &service,
+                    &stage,
+                    &intent,
+                    metadata,
+                    &content,
+                    &mut observe,
+                    &|| Ok(()),
+                )
             }
             Err(error) => Err(error.into()),
         })();
@@ -126,6 +172,20 @@ impl PortcoveService {
     /// Verify a completed bundle without opening its database or changing preferences.
     pub fn inspect_library_recovery_bundle(path: &Path) -> Result<LibraryRecoveryBundle> {
         inspect(path).map(|(summary, _)| summary)
+    }
+
+    /// Re-read a possibly committed create result for its exact reviewed destination and plan.
+    pub fn inspect_library_recovery_bundle_for_plan(
+        path: &Path,
+        expected_plan: &str,
+    ) -> Result<LibraryRecoveryBundle> {
+        let (bundle, manifest) = inspect(path)?;
+        if manifest.reviewed_plan_sha256 != expected_plan {
+            return Err(PortcoveError::conflict(
+                "the verified bundle belongs to a different recovery review",
+            ));
+        }
+        Ok(bundle)
     }
 
     /// Preview a checked import into a new or empty library. Opening it is separate.
@@ -141,6 +201,20 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryImportResult> {
+        Self::restore_library_recovery_bundle_with_progress(
+            path,
+            destination,
+            expected_plan,
+            |_| Ok(()),
+        )
+    }
+
+    pub fn restore_library_recovery_bundle_with_progress(
+        path: &Path,
+        destination: &Path,
+        expected_plan: &str,
+        mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
+    ) -> Result<LibraryImportResult> {
         let (review, import) = prepare_restore(path, destination)?;
         if review.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
@@ -150,17 +224,29 @@ impl PortcoveService {
         // Import owns all mutation, recovery, and publication of the restored
         // root. Its content-bound journal can be resumed without a second owner.
         let path = import.destination_root.clone();
-        crate::import_execution::start_reviewed_import(import, Some(&review.bundle), &|phase| {
-            #[cfg(feature = "qualification-fixtures")]
-            if phase == crate::transfer_journal::TransferPhase::Published {
-                return crate::qualification_checkpoint::observe(
-                    &path,
-                    crate::qualification_checkpoint::Checkpoint::LibraryImportPublished,
-                );
-            }
-            let _ = (&path, phase);
-            Ok(())
-        })
+        crate::import_execution::start_reviewed_import_with_progress(
+            import,
+            Some(&review.bundle),
+            &|phase| {
+                #[cfg(feature = "qualification-fixtures")]
+                if phase == crate::transfer_journal::TransferPhase::Copying {
+                    return crate::qualification_checkpoint::observe(
+                        &path,
+                        crate::qualification_checkpoint::Checkpoint::RecoveryBundleRestoreCopying,
+                    );
+                }
+                #[cfg(feature = "qualification-fixtures")]
+                if phase == crate::transfer_journal::TransferPhase::Published {
+                    return crate::qualification_checkpoint::observe(
+                        &path,
+                        crate::qualification_checkpoint::Checkpoint::LibraryImportPublished,
+                    );
+                }
+                let _ = (&path, phase);
+                Ok(())
+            },
+            &mut observe,
+        )
     }
 }
 
@@ -211,6 +297,7 @@ fn start_creation(
     source: &Path,
     destination: &Path,
     expected_plan: &str,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
     after_copy: &dyn Fn() -> Result<()>,
 ) -> Result<LibraryRecoveryBundle> {
     let library = open_source(source)?;
@@ -241,8 +328,10 @@ fn start_creation(
     }
     crate::durability::sync_publication(stage.parent().expect("staging has parent"))
         .map_err(|error| creation_error(error, &stage))?;
-    publish_creation(&service, &stage, &intent, metadata, &content, after_copy)
-        .map_err(|error| creation_error(error, &stage))
+    publish_creation(
+        &service, &stage, &intent, metadata, &content, observe, after_copy,
+    )
+    .map_err(|error| creation_error(error, &stage))
 }
 
 fn publish_creation(
@@ -251,6 +340,7 @@ fn publish_creation(
     intent: &CreationIntent,
     mut metadata: LibraryMetadata,
     content: &[LibraryTreePlan],
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
     after_copy: &dyn Fn() -> Result<()>,
 ) -> Result<LibraryRecoveryBundle> {
     require_private_directory(stage)?;
@@ -267,13 +357,15 @@ fn publish_creation(
     crate::transfer_copy::verify_installations(service.library(), &metadata, &catalogs)?;
     let work = stage.join(WORK_DIR);
     ensure_directory(&work)?;
-    crate::transfer_copy::copy_content_with_work(
+    crate::transfer_copy::copy_library_payload(
         service.library().root(),
         &content_root,
         content,
         &work,
+        observe,
     )?;
     after_copy()?;
+    observe(LibraryRecoveryProgress::Verifying)?;
     metadata.exported_at = intent.created_at;
     let metadata_bytes = serde_json::to_vec_pretty(&metadata)?;
     write_or_verify(
@@ -608,16 +700,153 @@ mod tests {
     }
 
     #[test]
+    fn cancellation_waits_for_the_copy_worker_and_retains_exact_staging() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (source_id, plan) = plan_fixture(&source, &destination);
+        let (paused, reached) = channel();
+        let (cancel, requested) = channel();
+        let timeout = Duration::from_secs(10);
+
+        let error = std::thread::scope(|scope| {
+            let destination = &destination;
+            let source = &source;
+            let expected_plan = plan.plan_sha256.as_str();
+            let worker = scope.spawn(move || {
+                PortcoveService::create_library_recovery_bundle_with_progress(
+                    source,
+                    destination,
+                    expected_plan,
+                    |progress| {
+                        if matches!(
+                            progress,
+                            LibraryRecoveryProgress::Copying {
+                                copied_bytes: 1..,
+                                ..
+                            }
+                        ) {
+                            paused.send(()).unwrap();
+                            requested.recv_timeout(timeout).unwrap();
+                            return Err(PortcoveError::new(
+                                crate::ErrorCode::Cancelled,
+                                "recovery bundle copying cancelled",
+                            ));
+                        }
+                        Ok(())
+                    },
+                )
+            });
+            reached.recv_timeout(timeout).unwrap();
+            // The plan resolves the destination parent to its canonical path, including
+            // the extended-length prefix on Windows. Match the reported path exactly.
+            let stage = fs::read_dir(plan.destination_root.parent().unwrap())
+                .unwrap()
+                .map(|entry| entry.unwrap().path())
+                .find(|path| path.join(JOURNAL_FILE).is_file())
+                .unwrap();
+            assert!(!worker.is_finished());
+            assert!(!destination.exists());
+            assert!(stage.join(WORK_DIR).read_dir().unwrap().next().is_some());
+            cancel.send(()).unwrap();
+            let error = worker.join().unwrap().unwrap_err();
+            assert_eq!(Path::new(&error.details["recovery_staging"]), stage);
+            assert!(stage.join(JOURNAL_FILE).is_file());
+            assert!(!stage.join(PAYLOAD_DIR).join(MANIFEST_FILE).exists());
+            error
+        });
+        assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert!(!destination.exists());
+        assert_eq!(
+            fs::read(source.join("user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
+        let resumed = PortcoveService::resume_library_recovery_bundle(Path::new(
+            &error.details["recovery_staging"],
+        ))
+        .unwrap();
+        assert_eq!(resumed.source_library_id, source_id);
+        assert_eq!(resumed.path, plan.destination_root);
+    }
+
+    #[test]
+    fn cancelled_restore_remains_gated_until_its_exact_journal_resumes() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let restored = workspace.path().join("restored");
+        let (_, create_plan) = plan_fixture(&source, &destination);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &create_plan.plan_sha256,
+        )
+        .unwrap();
+        assert!(PortcoveService::inspect_library_recovery_bundle_for_plan(
+            &destination, "wrong review",
+        ).is_err());
+        assert_eq!(
+            PortcoveService::inspect_library_recovery_bundle_for_plan(
+                &destination,
+                &create_plan.plan_sha256,
+            )
+            .unwrap()
+            .receipt_sha256,
+            bundle.receipt_sha256,
+        );
+        let restore_plan =
+            PortcoveService::plan_library_recovery_restore(&destination, &restored).unwrap();
+        let cancelled = PortcoveService::restore_library_recovery_bundle_with_progress(
+            &destination,
+            &restored,
+            &restore_plan.plan_sha256,
+            |progress| match progress {
+                LibraryRecoveryProgress::Copying {
+                    copied_bytes: 1.., ..
+                } => Err(PortcoveError::new(
+                    crate::ErrorCode::Cancelled,
+                    "restore copy cancelled",
+                )),
+                _ => Ok(()),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert!(Library::open(&restored).is_err());
+        let outcome = PortcoveService::resume_library_recovery_restore(
+            &restored,
+            Some(&cancelled.details["transfer_id"]),
+        )
+        .unwrap();
+        assert!(outcome.completed);
+        assert!(outcome.input_retained);
+        assert_eq!(
+            fs::read(restored.join("user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
+        assert!(source.join("user/progress.bin").is_file());
+    }
+
+    #[test]
     fn resumes_creation_and_restores_separately_without_redirecting_the_source() {
         let workspace = tempfile::tempdir().unwrap();
         let source = workspace.path().join("library");
         let destination = workspace.path().join("bundle");
         let (source_id, plan) = plan_fixture(&source, &destination);
-        let interrupted = start_creation(&source, &destination, &plan.plan_sha256, &|| {
-            Err(PortcoveError::state(
-                "fixture interruption after managed copy",
-            ))
-        })
+        let interrupted = start_creation(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            &mut |_| Ok(()),
+            &|| {
+                Err(PortcoveError::state(
+                    "fixture interruption after managed copy",
+                ))
+            },
+        )
         .unwrap_err();
         let stage = Path::new(&interrupted.details["recovery_staging"]);
         assert!(!destination.exists());
@@ -684,10 +913,16 @@ mod tests {
         let destination = workspace.path().join("bundle");
         let (_, plan) = plan_fixture(&source, &destination);
         let credential = source.join("user/retroachievements.credentials");
-        let cause = start_creation(&source, &destination, &plan.plan_sha256, &|| {
-            fs::write(&credential, b"synthetic fixture")?;
-            Ok(())
-        })
+        let cause = start_creation(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            &mut |_| Ok(()),
+            &|| {
+                fs::write(&credential, b"synthetic fixture")?;
+                Ok(())
+            },
+        )
         .unwrap_err();
         let stage = Path::new(&cause.details["recovery_staging"]);
         assert!(!destination.exists());
@@ -727,9 +962,13 @@ mod tests {
         let source = workspace.path().join("library");
         let destination = workspace.path().join("bundle");
         let (_, plan) = plan_fixture(&source, &destination);
-        let interrupted = start_creation(&source, &destination, &plan.plan_sha256, &|| {
-            Err(PortcoveError::state("fixture interruption"))
-        })
+        let interrupted = start_creation(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            &mut |_| Ok(()),
+            &|| Err(PortcoveError::state("fixture interruption")),
+        )
         .unwrap_err();
         let stage = Path::new(&interrupted.details["recovery_staging"]);
         assert_eq!(fs::metadata(stage).unwrap().permissions().mode() & 0o077, 0);

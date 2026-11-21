@@ -209,32 +209,33 @@ void test("real prepared runtimes use production builds and positive owned closu
   );
 });
 
-void test("publication interruption is standalone, instrumented and positively supervised", () => {
-  const id = "native-host-publication-recovery";
-  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
-  const plan = planDesktopExecution(selection, { platform: "win32" });
-  assert.deepEqual(selection.setup_scenarios, []);
-  assert.equal(plan.session.identityBoundSession, true);
-  assert.equal(plan.session.cleanupName, "host-publication");
-  assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
-  assert.equal(plan.fixtures.install, true);
-  assert.equal(plan.fixtures.owned, true);
-  assert.equal(plan.fixtures.holdFirstDownload, false);
-  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
-  assert.ok(
-    plan.receiptInputs.some(
-      (input) =>
-        input.kind === "file" &&
-        input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
-    ),
-  );
-  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
-  assert.throws(
-    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
-    /standalone/,
-  );
-});
+for (const id of ["native-host-publication-recovery", "native-library-recovery-interruption"]) {
+  void test(`${id} is standalone, instrumented and positively supervised`, () => {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    const plan = planDesktopExecution(selection, { platform: "win32" });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(plan.session.cleanupName, "host-publication");
+    assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
+    assert.equal(plan.fixtures.install, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.fixtures.holdFirstDownload, false);
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.equal(desktopHarnessDeadlineMs(selection), 720_000);
+    assert.ok(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/desktop-host-publication-test.mts",
+      ),
+    );
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+      /standalone/,
+    );
+  });
+}
 
 void test("selected completion captures and verifies its serialized focus observer source", async (t) => {
   const source = "apps/desktop/scripts/desktop-completion-focus.mts";
@@ -404,8 +405,8 @@ void test("execution planning preserves the independently reviewed pre-change or
       ...row.options,
       platform: baselinePlatform(row.platform),
     });
-    // Preserve the frozen oracle. This new opt-in scenario was absent from its
-    // inventory and remains excluded from every historical execution.
+    // Preserve the frozen oracle. New opt-in scenarios were absent from its
+    // inventory and remain excluded from every historical execution.
     const historicalSelection = <Value extends { excluded_scenarios: readonly string[] }>(
       value: Value,
     ) => ({
@@ -425,6 +426,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-direct-preparation-recovery",
             "native-late-listener-disposal",
             "native-host-publication-recovery",
+            "native-library-recovery-bundle",
+            "native-library-recovery-interruption",
             "native-real-prepared-runtime",
             "native-registered-source-reuse",
             "native-linux-interrupted-preparation",
@@ -455,6 +458,11 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
     assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
     assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
+    for (const id of ["native-library-recovery-bundle", "native-library-recovery-interruption"]) {
+      assert.ok(!selection.selected_scenarios.includes(id));
+      assert.ok(!selection.setup_scenarios.includes(id));
+      if (row.platform === "win32") assert.ok(selection.excluded_scenarios.includes(id));
+    }
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =

@@ -169,6 +169,13 @@ type ModSetupDraftEdits = {
   local_files: { path: string; expected_plan_sha256: string }[];
 };
 
+function recoveryBundleEventChannel(onEvent?: (event: OperationEvent) => void) {
+  if (!onEvent) return undefined;
+  const channel = new Channel<OperationEvent>();
+  channel.onmessage = onEvent;
+  return channel;
+}
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -1363,14 +1370,20 @@ export const desktopApi = {
     }),
   planLibraryRecoveryBundle: (destination: string, generation: number) =>
     invoke<LibraryRecoveryBundlePlan>("plan_library_recovery_bundle", { destination, generation }),
-  createLibraryRecoveryBundle: (destination: string, expectedPlan: string, generation: number) =>
+  createLibraryRecoveryBundle: (
+    destination: string,
+    expectedPlan: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
     invoke<LibraryRecoveryBundle>("create_library_recovery_bundle", {
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  inspectLibraryRecoveryBundle: (path: string) =>
-    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path }),
+  inspectLibraryRecoveryBundle: (path: string, expectedPlan?: string) =>
+    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path, expectedPlan }),
   planLibraryRecoveryRestore: (path: string, destination: string, generation: number) =>
     invoke<LibraryRecoveryRestorePlan>("plan_library_recovery_restore", {
       path,
@@ -1382,17 +1395,35 @@ export const desktopApi = {
     destination: string,
     expectedPlan: string,
     generation: number,
+    onProgress?: (event: OperationEvent) => void,
   ) =>
     invoke<LibraryImportResult>("restore_library_recovery_bundle", {
       path,
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  resumeLibraryRecoveryBundle: (staging: string, generation: number) =>
-    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", { staging, generation }),
-  resumeLibraryRecoveryRestore: (destination: string, generation: number) =>
-    invoke<LibraryImportResult>("resume_library_recovery_restore", { destination, generation }),
+  resumeLibraryRecoveryBundle: (
+    staging: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
+    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", {
+      staging,
+      generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
+  resumeLibraryRecoveryRestore: (
+    destination: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
+    invoke<LibraryImportResult>("resume_library_recovery_restore", {
+      destination,
+      generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
   reportFrontendError: (report: FrontendFailureReport) =>
     invoke<void>("report_frontend_error", { report }),
   plan: (portId: string, channel: ReleaseChannel) =>

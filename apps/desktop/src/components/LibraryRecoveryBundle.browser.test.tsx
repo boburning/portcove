@@ -1,10 +1,15 @@
+import { useState, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { desktopApi } from "../api";
 import { BootstrapRecovery } from "../App";
-import type { LibraryRecoveryBundle, LibraryRecoveryBundlePlan } from "../types";
-import { LibraryRecoveryBundleControls } from "./LibraryRecoveryBundle";
+import type { LibraryRecoveryBundle, LibraryRecoveryBundlePlan, OperationEvent } from "../types";
+import {
+  LibraryRecoveryBundleContinuation,
+  LibraryRecoveryBundleControls,
+  LibraryRecoveryBundleProvider,
+} from "./LibraryRecoveryBundle";
 import "../styles/index.css";
 
 afterEach(async () => {
@@ -40,9 +45,13 @@ const plan: LibraryRecoveryBundlePlan = {
   available_bytes: 140_000_000,
 };
 
-async function openCreationReview() {
+async function openCreationReview(
+  surface: ReactNode = (
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />
+  ),
+) {
   const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockResolvedValue(plan);
-  await render(<LibraryRecoveryBundleControls generation={7} disabled={false} />);
+  await render(surface);
   const trigger = page.getByRole("button", { name: "Create recovery bundle", exact: true });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
@@ -59,19 +68,176 @@ it("reviews coverage before copying and shows the verified bundle after publishi
   await page.viewport(390, 844);
   const { dialog } = await openCreationReview();
   const review = dialog.getByRole("region", { name: "Creation review" });
+  await expect
+    .element(dialog.getByText(/original computer and its secure credential store/))
+    .toBeVisible();
+  await expect.element(review.getByText(/folders private to your account/)).toBeVisible();
   await expect.element(review.getByText("Library saves and settings")).toBeVisible();
   await expect.element(review.getByText("Sign-in credentials")).toBeVisible();
   expect(create).not.toHaveBeenCalled();
 
   await dialog.getByRole("button", { name: "Copy and verify" }).click();
-  expect(create).toHaveBeenCalledExactlyOnceWith(destination, plan.plan_sha256, 7);
+  expect(create).toHaveBeenCalledExactlyOnceWith(
+    destination,
+    plan.plan_sha256,
+    7,
+    expect.any(Function),
+  );
   const verified = dialog.getByRole("region", { name: "Verified recovery bundle" });
   await expect.element(verified.getByText("Bundle verified")).toBeVisible();
+  await expect
+    .element(verified.getByText(/original computer and its secure credential store/))
+    .toBeVisible();
   await expect.element(verified.getByText(destination)).toBeVisible();
   await expect.element(verified.getByText("Imported game files")).toBeVisible();
   const bounds = dialog.element().getBoundingClientRect();
   expect(bounds.width).toBeLessThanOrEqual(390);
   expect(page.getByRole("button", { name: "Restore library", exact: true }).query()).toBeNull();
+});
+
+it.each([
+  {
+    name: "Retained update download",
+    message: /Open Versions for the game below/,
+    exactId: "download-1",
+    details: {
+      recovery_action: "discard_game_update_acquisition",
+      port_id: "exact-port",
+      acquisition_id: "download-1",
+    },
+  },
+  {
+    name: "Managed installation outside the library",
+    message: /Open Manage for the game below/,
+    exactId: "install-1",
+    details: {
+      recovery_action: "review_managed_installation_location",
+      port_id: "exact-port",
+      install_id: "install-1",
+    },
+  },
+])(
+  "retains the exact port and next action for $name",
+  async ({ name, message, exactId, details }) => {
+    vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
+      message: "The copy is held",
+      details,
+    });
+    const copy = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
+    await render(
+      <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+    );
+    await page.getByRole("button", { name: "Create recovery bundle", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
+    await dialog.getByRole("textbox", { name: "New bundle folder" }).fill(destination);
+    await dialog.getByRole("button", { name: "Review bundle creation" }).click();
+    const blocker = dialog.getByRole("region", { name });
+    await expect.element(blocker.getByText(message)).toBeVisible();
+    await expect.element(blocker.getByText("exact-port")).toBeVisible();
+    await expect.element(blocker.getByText(exactId, { exact: true })).toBeVisible();
+    await expect
+      .element(dialog.getByRole("button", { name: "Copy and verify" }))
+      .not.toBeInTheDocument();
+    expect(copy).not.toHaveBeenCalled();
+  },
+);
+
+it("waits for the copy worker to stop and offers continuation from its exact staging folder", async () => {
+  const staging = "D:/backups/.portcove-recovery-bundle-stage";
+  let stopCopy!: () => void;
+  const pending = new Promise<LibraryRecoveryBundle>((_resolve, reject) => {
+    stopCopy = () =>
+      reject({
+        message: "Recovery copy stopped.",
+        details: { recovery_staging: staging },
+      });
+  });
+  const progress = {
+    schema_version: 3,
+    type: "progress",
+    operation: "copy_recovery_bundle",
+    operation_id: "copy-operation",
+    parent_operation_id: null,
+    target: null,
+    sequence: 1,
+    timestamp_ms: 1,
+    phase: "Copying recovery data",
+    completed: 4096,
+    total: 16384,
+    unit: "bytes",
+  } satisfies OperationEvent;
+  const copy = vi
+    .spyOn(desktopApi, "createLibraryRecoveryBundle")
+    .mockImplementation((_destination, _plan, _generation, report) => {
+      report?.(progress);
+      return pending;
+    });
+  const cancel = vi.spyOn(desktopApi, "cancelOperation").mockResolvedValue({
+    phase: "preparing",
+    requested: true,
+  });
+  function Workspace() {
+    const [showSettings, setShowSettings] = useState(true);
+    return (
+      <LibraryRecoveryBundleProvider>
+        <button onClick={() => setShowSettings(false)}>Open Activity</button>
+        {showSettings ? (
+          <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />
+        ) : (
+          <h1>Activity</h1>
+        )}
+        <LibraryRecoveryBundleContinuation />
+      </LibraryRecoveryBundleProvider>
+    );
+  }
+  const { dialog } = await openCreationReview(<Workspace />);
+  try {
+    await dialog.getByRole("button", { name: "Copy and verify", exact: true }).click();
+    await expect
+      .element(dialog.getByRole("progressbar", { name: "Recovery data copied" }))
+      .toBeVisible();
+    await dialog.getByRole("button", { name: "Hide details", exact: true }).click();
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect
+      .element(page.getByRole("button", { name: "Create recovery bundle", exact: true }))
+      .toBeDisabled();
+    await page.getByRole("button", { name: "Open Activity", exact: true }).click();
+    await expect
+      .element(page.getByRole("heading", { name: "Activity", exact: true }))
+      .toBeVisible();
+    await page.getByRole("button", { name: "View recovery bundle operation", exact: true }).click();
+    const cancelButton = dialog.getByRole("button", { name: "Cancel copy", exact: true });
+    await cancelButton.click();
+    expect(cancel).toHaveBeenCalledExactlyOnceWith("copy-operation");
+    await expect.element(cancelButton).toBeDisabled();
+    await expect
+      .element(dialog.getByRole("button", { name: "Resume bundle creation", exact: true }))
+      .not.toBeInTheDocument();
+    stopCopy();
+    await expect.element(dialog.getByText(staging, { exact: true })).toBeVisible();
+    await expect
+      .element(dialog.getByRole("button", { name: "Resume bundle creation", exact: true }))
+      .toBeEnabled();
+    await expect
+      .element(dialog.getByText("Bundle verified", { exact: true }))
+      .not.toBeInTheDocument();
+    expect(copy).toHaveBeenCalledOnce();
+  } finally {
+    stopCopy();
+  }
+});
+
+it("checks the exact reviewed destination after losing the create reply", async () => {
+  const create = vi
+    .spyOn(desktopApi, "createLibraryRecoveryBundle")
+    .mockRejectedValueOnce(new Error("The create reply was lost"));
+  const inspect = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
+  const { dialog } = await openCreationReview();
+  await dialog.getByRole("button", { name: "Copy and verify", exact: true }).click();
+  await dialog.getByRole("button", { name: "Check reviewed bundle again", exact: true }).click();
+  expect(inspect).toHaveBeenCalledExactlyOnceWith(destination, plan.plan_sha256);
+  await expect.element(dialog.getByText("Bundle verified", { exact: true })).toBeVisible();
+  expect(create).toHaveBeenCalledOnce();
 });
 
 it("returns keyboard focus to the entry action when closing a review before copying", async () => {
@@ -100,7 +266,9 @@ it("verifies the bundle before a distinct restore review and keeps activation se
     input_retained: true,
     transfer_id: "restore-1",
   });
-  await render(<LibraryRecoveryBundleControls generation={7} disabled={false} />);
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
   await page.getByRole("button", { name: "Inspect or restore a bundle" }).click();
   const dialog = page.getByRole("dialog", { name: "Inspect or restore a bundle" });
   await dialog.getByRole("textbox", { name: "Recovery bundle folder" }).fill(destination);
@@ -118,6 +286,7 @@ it("verifies the bundle before a distinct restore review and keeps activation se
     restoreDestination,
     restoreReview.plan_sha256,
     7,
+    expect.any(Function),
   );
   await expect.element(dialog.getByText("Library restored", { exact: true })).toBeVisible();
   await expect
@@ -155,8 +324,8 @@ it("resumes only the reported staging folder after reading the current generatio
   await dialog.getByRole("button", { name: "Resume bundle creation" }).click();
   expect(read).toHaveBeenCalledTimes(2);
   expect(resumed.mock.calls).toEqual([
-    [staging, 8],
-    [staging, 8],
+    [staging, 8, expect.any(Function)],
+    [staging, 8, expect.any(Function)],
   ]);
   expect(create).toHaveBeenCalledOnce();
   await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
