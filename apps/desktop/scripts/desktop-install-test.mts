@@ -497,11 +497,28 @@ export async function installScenarios({
     await revealDetailSection(browser, "Game settings");
     assert.deepEqual(await readValues(), ["84", "65"]);
 
+    const settingsReview = By.xpath(
+      '//*[@role="dialog" and .//h2[normalize-space(.)="Review game settings"]]',
+    );
+    const technicalFailure = By.css(".failure-details pre");
+    const saveChanges = By.xpath('.//button[normalize-space(.)="Save changes"]');
     const review = async (expected: readonly string[]) => {
       await click("Review changes");
-      const modal = await browser.wait(until.elementLocated(By.css('[role="dialog"]')), 30_000);
+      const modal = await browser.wait(until.elementLocated(settingsReview), 30_000);
       await browser.wait(
-        async () => (await modal.findElement(button("Save changes"))).isEnabled(),
+        async () => {
+          const [failure] = await modal.findElements(technicalFailure);
+          if (failure) {
+            const text: unknown = await failure.getProperty("textContent");
+            assert.ok(typeof text === "string" && Buffer.byteLength(text) <= 4096);
+            const details = object(JSON.parse(text));
+            const receipt = path.join(output, "native-game-settings-review-refusal.json");
+            await writeFile(receipt, text, { flag: "wx" });
+            artifacts.push(receipt);
+            throw new Error(`Core refused the native Settings review: ${String(details.message)}`);
+          }
+          return (await modal.findElement(saveChanges)).isEnabled();
+        },
         30_000,
         "The native review never loaded its exact preimage",
       );
@@ -513,14 +530,15 @@ export async function installScenarios({
         ...expected,
       ])
         assert.ok(reviewText.includes(label), `Review did not display ${label}`);
+      return modal;
     };
-    await review(["Master volume", "Music volume", "40", "84", "60", "65"]);
+    const initialReview = await review(["Master volume", "Music volume", "40", "84", "60", "65"]);
     for (const file of configPaths)
       assert.equal(await readFile(file, "utf8"), JSON.stringify(initial));
     const screenshot = path.join(output, "native-game-settings-review.png");
     await writeFile(screenshot, await browser.takeScreenshot(), { flag: "wx", encoding: "base64" });
     artifacts.push(screenshot);
-    await click("Save changes");
+    await clickVisible(browser, await initialReview.findElement(saveChanges));
     await browser.wait(
       until.elementLocated(By.xpath('//*[@role="status" and normalize-space(.)="Changes saved."]')),
       30_000,
@@ -535,15 +553,15 @@ export async function installScenarios({
     const afterSave = await snapshot("after-save");
 
     await edit("master-volume", "72");
-    await review(["Master volume", "84", "72"]);
+    const staleReview = await review(["Master volume", "84", "72"]);
     const outside = JSON.stringify({ ...initial, master: 84, music: 67 });
     for (const file of configPaths) await writeFile(file, outside);
-    await click("Save changes");
+    await clickVisible(browser, await staleReview.findElement(saveChanges));
     await browser.wait(
       async () => {
-        const modal = await browser.findElement(By.css('[role="dialog"]'));
-        const details = await modal.findElements(By.css(".failure-details pre"));
-        if (details.length !== 1 || (await modal.findElement(button("Save changes")).isEnabled()))
+        const modal = await browser.findElement(settingsReview);
+        const details = await modal.findElements(technicalFailure);
+        if (details.length !== 1 || (await modal.findElement(saveChanges).isEnabled()))
           return false;
         const refusal = object(JSON.parse(await required(details[0]).getProperty("textContent")));
         assert.equal(refusal.mutation_state, "not_started");
@@ -556,7 +574,10 @@ export async function installScenarios({
       30_000,
       "The stale settings review did not show a refusal",
     );
-    await click("Cancel");
+    await clickVisible(
+      browser,
+      await staleReview.findElement(By.xpath('.//button[normalize-space(.)="Cancel"]')),
+    );
     await browser.wait(
       until.elementLocated(
         By.xpath(
@@ -565,6 +586,7 @@ export async function installScenarios({
       ),
       30_000,
     );
+    assert.equal((await readValues())[0], "72", "The refused review must retain the edited value");
     for (const file of configPaths) assert.equal(await readFile(file, "utf8"), outside);
     const afterRefusal = await snapshot("outside-edit-retained");
     const receipt = path.join(output, "native-game-settings-review.json");
