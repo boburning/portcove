@@ -259,6 +259,53 @@ artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
 
+For #6511, a temporary **unmerged** controller follows the #6841 qualification
+pattern. Its ordinary verification PR requires the normal five exact-head checks
+and independent source/composition review before dispatch. The Linux setup job binds
+the exact App checkout tested by CI, commit
+`f4efdd4c52c8afe5c746d4a6de8dffb3f127666f`, and tree
+`8a4901ed0129feabe4277e955717f884b79ac42d` separately from the controller commit.
+The prerequisite report includes the AT-SPI package used by the GTK folder chooser.
+The Windows rows bind application commit
+`184b97556549f57d39cc775822f7cbaa391f9fc8` and tree
+`b0dded9a2ac4b3cc56bb64d92093c3a07af8f64f` with the Windows startup repair.
+Seven fixed Windows rows request 17 scenarios including 15 unresolved ones; each checks
+its actual maintained plan, dependencies, artifact roles and harness budget before
+execution. This controller does not replace Main's 18 groups and must close
+unmerged with its source, logs and evidence retained. The combined Steam row
+checks the maintained eligibility-dependent Settings or Manage route; it makes no
+new singleton Settings qualification claim.
+
+The temporary nine-execution review and measured six-case install/Steam rows allow
+150 minutes; other Windows rows retain 90. The install/Steam aggregate alone receives
+a 30-minute harness allowance after the original 600-second run exceeded its budget.
+Standalone, per-case and product deadlines are unchanged. Two unchanged successful
+startup recovery rows from run 44395050884 are retained and omitted from this follow-up. #6840 measured about 74 minutes of cold setup/build, in addition to the
+40-minute review harness and bounded 20-minute driver publication wait. The
+existing Linux private-X11 route runs only selected setup completion with the
+qualification application, Core qualification CLI and owned probe. It consolidates
+the separate prerequisite recovery: a 1,200-second install through the maintained
+archive preference inside a 30-minute prerequisite step. The preference rewrites
+supported Azure entries; it does not guarantee an EC2 mirror switch, and statuses
+124/137 still refuse in-place package retry.
+
+The delivered namespace-input capture correction accounts for each existing
+60-second capture. For the unchanged 600-second selected-case harness and its
+60-second supervisor allowance, the actual private-X11 command budget is 1,470
+seconds. It fits the reviewed 1,770-second ceiling inside a 30-minute observation
+step, leaving 30 seconds outside the ceiling. The job allows 110 minutes: 80
+outside prerequisites and 50 outside prerequisites plus observation. The existing
+helper timer, product, network, cancellation, evidence and cleanup controls remain
+unchanged. These finite validation envelopes do not establish physical-device,
+minimum-OS, installed-package or gameplay acceptance.
+
+The two separately recorded requests use `product-workflows` on `windows-2022`
+and `linux-preparation-continuity` on `ubuntu-24.04`. Their existing concurrency
+keys differ by runner and retain `cancel-in-progress: false`; qualification must
+finish for the exact application and controller before either intentional
+request. Old controller/run evidence remains historical; a prepared request is
+not a dispatch or runtime result.
+
 The owned Windows preparation harness waits for initial Library content within
 its existing 60-second reload envelope before locating the exact game action.
 Discover setup uses a player-visible search before selecting the exact port ID,

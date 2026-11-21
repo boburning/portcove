@@ -1,5 +1,6 @@
 import { readWorkflow } from "./ci-workflow-fixture.mts";
-import { DESKTOP_PROFILES, resolveDesktopSelection } from "./desktop-scenarios.mts";
+import { desktopHarnessDeadlineMs, resolveDesktopSelection } from "./desktop-scenarios.mts";
+import { planDesktopExecution } from "./desktop-execution-plan.mts";
 import { isRecord } from "./runtime-values.mts";
 import { workflowJobs } from "./qualification-coverage.mts";
 import assert from "node:assert/strict";
@@ -248,13 +249,43 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   );
 });
 
-void test("fixed native product groups preserve owned lifecycle coverage and isolation constraints", () => {
+void test("temporary controller keeps Windows and Linux requests on distinct existing concurrency keys", () => {
+  const source = nativeDesignCompatibilityWorkflow;
+  const workflow: unknown = parseDocument(source).toJS();
+  assert.ok(isRecord(workflow) && isRecord(workflow.concurrency));
+  const concurrency = workflow.concurrency;
+  assert.equal(
+    concurrency.group,
+    "native-design-compatibility-${{ inputs.runner }}-${{ github.ref }}",
+  );
+  assert.equal(concurrency["cancel-in-progress"], false);
+  const windows = workflowJob("product_workflows", source);
+  const linux = workflowJob("linux_preparation_continuity", source);
+  assert.equal(
+    windows.if,
+    "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+  );
+  assert.equal(
+    linux.if,
+    "${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}",
+  );
+  const key = (runner: string) =>
+    String(concurrency.group)
+      .replace("${{ inputs.runner }}", runner)
+      .replace("${{ github.ref }}", "refs/heads/feature/6511-hosted-native-followup");
+  assert.notEqual(key("windows-2022"), key("ubuntu-24.04"));
+});
+
+void test("temporary native controller preserves exact remaining selections, artifact roles and isolation constraints", () => {
   const source = nativeDesignCompatibilityWorkflow;
   const job = workflowJob("product_workflows", source);
   const section = workflowJobSource(source, "product_workflows");
   assert.equal(job["runs-on"], "windows-2022");
-  // Calibrated for hosted inventory, build, harness and driver-wait time (#4879).
-  assert.equal(job["timeout-minutes"], 90);
+  // Finite cold-build, measured review/install aggregate harnesses and exact-driver wait (#6511).
+  assert.equal(
+    job["timeout-minutes"],
+    "${{ (matrix.selection == 'review-continuation' || matrix.selection == 'install-steam-artwork') && 150 || 90 }}",
+  );
   assert.equal(
     job.if,
     "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
@@ -270,27 +301,16 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
       return group.selection;
     }),
     [
-      "owned-ready",
-      "owned-update-review",
-      "owned-recovery",
-      "owned-backups",
-      "owned-steam",
-      "owned-sources",
-      "owned-handoff",
-      "library-layout",
-      "library-organization",
-      "selected-setup",
-      "update-acquisition",
-      "staged-update",
-      "external-runtime",
-      "artwork",
-      "restart",
-      "startup-preferences",
-      "startup-library",
-      "library-switch",
+      "review-continuation",
+      "install-steam-artwork",
+      "saved-folder-selected-setup",
+      "preliminary-selected-setup",
+      "library-switch-recovery",
+      "secondary-panels",
+      "public-collection",
     ],
   );
-  const ownedCoverage = new Set<string>();
+  const requested: string[] = [];
   for (const group of groups) {
     assert.ok(isRecord(group) && typeof group.selection === "string");
     assert.ok(Array.isArray(group.scenarios) && group.scenarios.length > 0);
@@ -302,11 +322,40 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
     const selection = resolveDesktopSelection({ scenarios, platform: "win32" });
     assert.deepEqual(selection.known_gaps, []);
     assert.deepEqual(selection.requested_scenarios, scenarios);
-    if (group.selection.startsWith("owned-"))
-      for (const scenario of [...selection.selected_scenarios, ...selection.setup_scenarios])
-        ownedCoverage.add(scenario);
+    const execution = planDesktopExecution(selection, { platform: "win32" });
+    assert.deepEqual(group.expected_plan, {
+      selected: selection.selected_scenarios,
+      setup: selection.setup_scenarios,
+      harness_ms: desktopHarnessDeadlineMs(selection),
+      qualification_features: execution.build.qualificationFeatures,
+      cli_features: execution.build.cliFeatures,
+      cli_required: execution.fixtures.owned,
+      probe_required: execution.fixtures.owned,
+    });
+    assert.equal(group.source, "184b97556549f57d39cc775822f7cbaa391f9fc8");
+    requested.push(...scenarios);
   }
-  assert.deepEqual([...ownedCoverage].sort(), [...DESKTOP_PROFILES["owned-lifecycle"]].sort());
+  assert.equal(requested.length, 17);
+  assert.equal(new Set(requested).size, 17);
+  assert.deepEqual(requested, [
+    "native-interrupted-preparation-recovery",
+    "native-source-intake-and-discovery-dialogs",
+    "native-reviewed-installed-game-removal",
+    "native-reviewed-existing-install-copy",
+    "native-library-move-invalidates-prior-reviews",
+    "native-contextual-cli-handoff",
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+    "native-saved-folder-selected-setup",
+    "native-preliminary-selected-setup",
+    "native-library-switch-recovery",
+    "native-secondary-panel-presentation",
+    "native-collection-artwork-presentation",
+  ]);
   assert.ok(isRecord(job.env));
   assert.equal(job.env.NATIVE_SCENARIOS, "${{ toJSON(matrix.scenarios) }}");
   assert.equal(
@@ -318,7 +367,15 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
     "${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}",
   );
   assert.match(section, /persist-credentials: false/);
-  assert.match(section, /\$source -cne \$env:GITHUB_SHA/);
+  assert.match(section, /\$source -cne \$env:SOURCE_HEAD/);
+  assert.match(section, /\$env:CONTROLLER_HEAD -cne \$env:GITHUB_SHA/);
+  const checkout = job.steps;
+  assert.ok(Array.isArray(checkout));
+  assert.ok(isRecord(checkout[0]) && isRecord(checkout[1]));
+  assert.equal(checkout[0].name, "Refuse unbound source before checkout");
+  assert.match(String(checkout[0].run), /SOURCE_HEAD -cnotmatch/);
+  assert.ok(isRecord(checkout[1].with));
+  assert.equal(checkout[1].with.ref, "${{ matrix.source }}");
   assert.match(section, /-not \$identity.user_interactive/);
   assert.match(section, /bootstrap-quality-tools\.ps1 -Desktop/);
   assert.ok(Array.isArray(job.steps));
@@ -335,18 +392,33 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   assert.ok(!("continue-on-error" in execution));
   assert.deepEqual(
     executableLines(String(execution.run)).filter((line) => line.startsWith("just desktop-verify")),
-    [
-      "just desktop-verify @scenarioArguments --require-clean --plan",
-      "just desktop-verify @scenarioArguments --require-clean",
-    ],
+    ["just desktop-verify @scenarioArguments --require-clean"],
   );
   const singleton = requiredFixture(
-    steps.find((step) => step.if === "matrix.selection == 'owned-steam'"),
+    steps.find((step) => step.if === "matrix.selection == 'install-steam-artwork'"),
   );
   assert.match(String(singleton.run), /steam-entry-result\.json/);
-  assert.match(String(singleton.run), /entry_route -cne 'settings-integrations'/);
-  assert.match(String(singleton.run), /\$eligible.Count -ne 1/);
-  assert.match(String(singleton.run), /\$eligible\[0\] -cne \$report.port_id/);
+  assert.match(String(singleton.run), /\$report.port_id -cnotin \$eligible/);
+  assert.match(String(singleton.run), /\$eligible.Count -eq 1/);
+  assert.match(String(singleton.run), /'settings-integrations'.*'detail-manage'/);
+  assert.match(String(singleton.run), /entry_route -cne \$expectedRoute/);
+  assert.match(
+    String(execution.run),
+    /node scripts\/desktop-verify\.mts @scenarioArguments --require-clean --plan --json/,
+  );
+  for (const field of [
+    "source.revision",
+    "source.clean",
+    "requested_scenarios",
+    "selected_scenarios",
+    "setup_scenarios",
+    "harness_deadline_ms",
+    "qualification_features",
+    "cli_features",
+    "paths.cli",
+    "paths.owned_probe",
+  ])
+    assert.ok(String(execution.run).includes(field), field);
   const retention = requiredFixture(steps.at(-1));
   assert.equal(retention.if, "always()");
   assert.match(String(retention.run), /native-backup-evidence\.mts emit/);

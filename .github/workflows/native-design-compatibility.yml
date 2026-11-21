@@ -276,14 +276,22 @@ jobs:
           retention-days: 14
 
   linux_preparation_continuity:
-    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
-    runs-on: ubuntu-22.04
-    timeout-minutes: 75
+    if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
+    name: Linux selected setup completion
+    runs-on: ubuntu-24.04
+    timeout-minutes: 110
     env:
+      SOURCE_HEAD: f4efdd4c52c8afe5c746d4a6de8dffb3f127666f
+      SOURCE_TREE: 8a4901ed0129feabe4277e955717f884b79ac42d
+      CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
+      - name: Refuse unbound source before checkout
+        run: |
+          [[ "$SOURCE_HEAD" =~ ^[a-f0-9]{40}$ ]] || { echo 'Source is UNBOUND; final plans and independent review required.'; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.SOURCE_HEAD }}
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -303,14 +311,18 @@ jobs:
           import assert from 'node:assert/strict';
           const read = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
           const revision = read('git', ['rev-parse', 'HEAD']);
-          assert.equal(revision, process.env.GITHUB_SHA);
+          assert.equal(revision, process.env.SOURCE_HEAD);
+          const tree = read('git', ['rev-parse', 'HEAD^{tree}']);
+          assert.equal(tree, process.env.SOURCE_TREE);
+          assert.match(revision, /^[a-f0-9]{40}$/);
+          assert.equal(process.env.CONTROLLER_HEAD, process.env.GITHUB_SHA);
           assert.equal(read('git', ['status', '--porcelain']), '');
           assert.ok(process.env.RUNNER_TEMP && path.isAbsolute(process.env.RUNNER_TEMP));
           const retained = path.join(process.env.RUNNER_TEMP, 'slice3-native-retained');
           fs.appendFileSync(process.env.GITHUB_ENV, 'PORTCOVE_RETAINED_EVIDENCE_DIR=' + retained + '\n');
-          fs.mkdirSync('work/linux-preparation-continuity', { recursive: true });
-          fs.writeFileSync('work/linux-preparation-continuity/host.json', JSON.stringify({
-            revision, runner: 'ubuntu-22.04', platform: process.platform,
+          fs.mkdirSync('work/linux-selected-setup-completion', { recursive: true });
+          fs.writeFileSync('work/linux-selected-setup-completion/host.json', JSON.stringify({
+            revision, tree, controller: process.env.CONTROLLER_HEAD, runner: 'ubuntu-24.04', platform: process.platform,
             architecture: process.arch, kernel: read('uname', ['-r']),
             retained_evidence: retained,
             image_os: process.env.ImageOS, image_version: process.env.ImageVersion,
@@ -319,6 +331,12 @@ jobs:
             scope: 'Ordinary hosted Linux development fixture; no minimum OS, installed package or physical device claim',
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
+      - name: Grant user namespaces only to this disposable qualification interpreter
+        id: namespace_profile
+        run: node scripts/desktop-linux-namespace-profile.mts --prepare
+      - name: Admit the maintained namespace mechanism before building
+        timeout-minutes: 3
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
       - name: Install the existing disposable Linux prerequisites
         timeout-minutes: 30
         run: |
@@ -328,33 +346,49 @@ jobs:
             --root "$RUNNER_TEMP/slice3-native-driver" \
             --target-dir "$RUNNER_TEMP/slice3-native-driver-target"
           "$RUNNER_TEMP/slice3-native-driver/bin/tauri-driver" --help \
-            > work/linux-preparation-continuity/driver-help.txt
+            > work/linux-selected-setup-completion/driver-help.txt
           cargo install --list --root "$RUNNER_TEMP/slice3-native-driver" \
-            > work/linux-preparation-continuity/driver-installation.txt
+            > work/linux-selected-setup-completion/driver-installation.txt
           dpkg-query --show --showformat='${Package} ${Version} ${Architecture}\n' \
-            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils \
-            > work/linux-preparation-continuity/native-packages.txt
+            libwebkit2gtk-4.1-0 webkit2gtk-driver xvfb x11-xkb-utils at-spi2-core \
+            > work/linux-selected-setup-completion/native-packages.txt
       - run: pnpm install --frozen-lockfile
-      - name: Build fresh ordinary application, CLI and owned probe
+      - name: Verify the exact selected setup plan before building
+        run: |
+          node scripts/desktop-verify.mts --scenario native-selected-setup-completion --require-clean --plan --json > work/linux-selected-setup-completion/selected-plan.json
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync('work/linux-selected-setup-completion/selected-plan.json', 'utf8'));
+          assert.equal(plan.source.revision, process.env.SOURCE_HEAD);
+          assert.equal(plan.source.clean, true);
+          assert.deepEqual(plan.requested_scenarios, ['native-selected-setup-completion']);
+          assert.deepEqual(plan.selected_scenarios, ['native-selected-setup-completion']);
+          assert.deepEqual(plan.setup_scenarios, []);
+          assert.equal(plan.harness_deadline_ms, 600000);
+          assert.deepEqual(plan.qualification_features, ['qualification-fixtures']);
+          assert.deepEqual(plan.cli_features, ['portcove-core/qualification-fixtures']);
+          assert.ok(plan.paths.cli && plan.paths.owned_probe);
+          NODE
+      - name: Build fresh qualification application, CLI and owned probe
         run: |
           test ! -e "$CARGO_TARGET_DIR"
           pnpm build
           node scripts/run-rust-tests.mts --guard-command \
-            cargo build --locked -p portcove-desktop --features tauri/custom-protocol
-          node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli
+            cargo build --locked -p portcove-desktop --features tauri/custom-protocol,qualification-fixtures
+          node scripts/run-rust-tests.mts --guard-command cargo build --locked -p portcove-cli --features portcove-core/qualification-fixtures
           rustc --edition=2024 --crate-name portcove_host_tool_fixture \
             crates/portcove-core/src/testdata/host_tool_probe.rs.txt \
             -o "$RUNNER_TEMP/slice3-native-owned-probe"
-      - name: Prepare the two exact private-X11 selections
+      - name: Prepare the exact private-X11 review selection
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
-          const output = path.resolve('work/linux-preparation-continuity');
+          const output = path.resolve('work/linux-selected-setup-completion');
           fs.mkdirSync(output, { recursive: true });
           for (const [name, scenario] of [
-            ['cancellation', 'native-preparation-cancellation'],
-            ['interruption', 'native-linux-interrupted-preparation'],
+            ['selected-completion', 'native-selected-setup-completion'],
           ]) {
             const config = {
               format_version: 1, stage: 'harness',
@@ -373,11 +407,15 @@ jobs:
             fs.writeFileSync(path.join(output, `${name}-config.json`), JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
           }
           NODE
-      - name: Observe reload, actual cancellation and forced namespace recovery
-        timeout-minutes: 10
+      # Namespace-aware X11 command: 1470s, below the reviewed 1770s ceiling.
+      # Keep 30s outside that ceiling for the observation step's own reporting.
+      - name: Observe the exact selected setup completion
+        timeout-minutes: 30
         run: |
-          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/cancellation-config.json"
-          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-preparation-continuity/interruption-config.json"
+          node scripts/desktop-linux-x11.mts --config "$PWD/work/linux-selected-setup-completion/selected-completion-config.json"
+      - name: Withdraw only the quiescent qualification profile
+        if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
+        run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
       - name: Retain bounded Linux reports and images in ordinary job logs
         if: always()
         run: |
@@ -387,22 +425,34 @@ jobs:
           import assert from 'node:assert/strict';
           import { createHash } from 'node:crypto';
           import { encodeBackupEvidence } from './scripts/native-backup-evidence.mts';
-          const root = path.resolve('work/linux-preparation-continuity');
+          const root = path.resolve('work/linux-selected-setup-completion');
           assert.ok(fs.lstatSync(root).isDirectory() && !fs.lstatSync(root).isSymbolicLink(), 'Report root must be an owned directory');
-          const encoded = path.resolve('work/linux-continuity-encoded');
+          const encoded = path.resolve('work/linux-selected-completion-encoded');
           assert.ok(!fs.existsSync(encoded), 'Never overwrite collected evidence');
           const native = path.join(encoded, 'desktop-verify', 'slice3', 'native');
           fs.mkdirSync(native, { recursive: true, mode: 0o700 });
           const directories = [root];
           for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-            if (entry.name === 'cancellation' || entry.name === 'interruption' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
+            if (entry.name === 'selected-completion' || /^private-x11-[a-zA-Z0-9]+$/.test(entry.name)) {
               assert.ok(entry.isDirectory() && !entry.isSymbolicLink(), 'Report root must be an owned directory');
               directories.push(path.join(root, entry.name));
             }
           }
+          const namespaceReports = path.resolve('work/linux-namespace-profile');
+          if (fs.existsSync(namespaceReports)) {
+            assert.ok(fs.lstatSync(namespaceReports).isDirectory() && !fs.lstatSync(namespaceReports).isSymbolicLink(), 'Namespace reports must be an owned directory');
+            directories.push(namespaceReports);
+          }
+          const namespacePreflight = path.resolve('work/linux-namespace-preflight');
+          const preflightReceipts = ['parent.json', 'maintained-launcher.json', 'complete-mechanism.json', 'result.json'];
+          if (fs.existsSync(namespacePreflight)) {
+            assert.ok(fs.lstatSync(namespacePreflight).isDirectory() && !fs.lstatSync(namespacePreflight).isSymbolicLink(), 'Namespace preflight reports must be an owned directory');
+            directories.push(namespacePreflight);
+          }
           const inventory = [];
           for (const directory of directories.sort()) {
             for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+              if (directory === namespacePreflight && !preflightReceipts.includes(entry.name)) continue;
               if (!/\.(json|jsonl|log|png|txt)$/.test(entry.name)) continue;
               assert.ok(entry.isFile() && !entry.isSymbolicLink(), 'Report must be a regular file');
               assert.ok(inventory.length < 126, 'Report inventory exceeds the existing codec bound');
@@ -412,7 +462,7 @@ jobs:
               const extension = path.extname(entry.name) === '.txt' ? '.log' : path.extname(entry.name);
               const name = String(inventory.length).padStart(3, '0') + extension;
               fs.writeFileSync(path.join(native, name), bytes, { flag: 'wx' });
-              inventory.push({ original: path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+              inventory.push({ original: directory === namespaceReports ? 'namespace-profile/' + entry.name : directory === namespacePreflight ? 'namespace-preflight/' + entry.name : path.relative(root, source), retained: name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
             }
           }
           fs.writeFileSync(path.join(encoded, 'collection.json'), JSON.stringify({
@@ -611,90 +661,164 @@ jobs:
     # and ~7.5 min building, before a harness allowance of up to 20 min and a
     # driver wait of up to 21 min; at 60 the job timeout cancelled update-acquisition
     # (run 43513519698) mid-harness and discarded its own failure evidence.
-    timeout-minutes: 90
+    # #6840 measured ~74 minutes of cold setup/build before native work.
+    # The nine-execution review row retains a 40-minute harness and the shared
+    # exact-driver publication wait retains 20 minutes. The measured six-case install/Steam
+    # group now gets 30 minutes inside 150 minutes for cold setup, driver wait and cleanup.
+    timeout-minutes: ${{ (matrix.selection == 'review-continuation' || matrix.selection == 'install-steam-artwork') && 150 || 90 }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix:
         include:
-          - selection: owned-ready
+          - selection: review-continuation
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
             scenarios:
-              - native-external-cli-reconciliation
-              - native-ready-detail-composition
-              - native-game-return-continuity
-              - native-missing-readiness-recovery
-              - native-retained-contract-repair-state
-              - native-update-settings-save-without-execution
-              - native-release-channel-selection-and-restart
-          # Serves its offered release from the owned install fixture instead of the
-          # live provider API, so it builds with qualification fixtures (#4879).
-          - selection: owned-update-review
-            scenarios:
-              - native-game-update-review
-          - selection: owned-recovery
-            scenarios:
-              - native-preparation-cancellation
               - native-interrupted-preparation-recovery
-          - selection: owned-backups
-            scenarios:
-              - native-reviewed-backup-restore-and-delete
-              - native-reviewed-installed-game-removal
-          - selection: owned-steam
-            scenarios:
-              - native-reviewed-steam-entry-add-and-remove
-              - native-reviewed-steam-batch-add
-          - selection: owned-sources
-            scenarios:
               - native-source-intake-and-discovery-dialogs
-              - native-primary-file-pickers
-              - native-reviewed-source-reference-removal
-          - selection: owned-handoff
-            scenarios:
+              - native-reviewed-installed-game-removal
               - native-reviewed-existing-install-copy
               - native-library-move-invalidates-prior-reviews
               - native-contextual-cli-handoff
-          - selection: library-layout
+            expected_plan:
+              {
+                "selected":
+                  [
+                    "native-interrupted-preparation-recovery",
+                    "native-source-intake-and-discovery-dialogs",
+                    "native-reviewed-installed-game-removal",
+                    "native-reviewed-existing-install-copy",
+                    "native-library-move-invalidates-prior-reviews",
+                    "native-contextual-cli-handoff",
+                  ],
+                "setup":
+                  [
+                    "native-preparation-review-and-play",
+                    "native-preparation-cancellation",
+                    "native-reviewed-backup-restore-and-delete",
+                  ],
+                "harness_ms": 2400000,
+                "qualification_features": [],
+                "cli_features": [],
+                "cli_required": true,
+                "probe_required": true,
+              }
+          - selection: install-steam-artwork
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
             scenarios:
-              - native-library-layout
-          - selection: library-organization
-            scenarios:
-              - native-library-organization-restart
-          - selection: selected-setup
-            scenarios:
-              - native-selected-setup-completion
-          - selection: update-acquisition
-            scenarios:
-              - native-update-acquisition-lifecycle
-          - selection: staged-update
-            scenarios:
+              - install-progress-cancellation
+              - install-commit-refresh-recovery
               - native-staged-update-composition
-          - selection: external-runtime
-            scenarios:
-              - native-external-runtime-review
-          - selection: artwork
-            scenarios:
+              - native-reviewed-steam-entry-add-and-remove
+              - native-reviewed-steam-batch-add
               - native-local-artwork-picker-and-recovery
-          - selection: restart
+            expected_plan:
+              {
+                "selected":
+                  [
+                    "install-progress-cancellation",
+                    "install-commit-refresh-recovery",
+                    "native-staged-update-composition",
+                    "native-reviewed-steam-entry-add-and-remove",
+                    "native-reviewed-steam-batch-add",
+                    "native-local-artwork-picker-and-recovery",
+                  ],
+                "setup": [],
+                "harness_ms": 1800000,
+                "qualification_features": ["qualification-fixtures"],
+                "cli_features": [],
+                "cli_required": true,
+                "probe_required": true,
+              }
+          - selection: saved-folder-selected-setup
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
             scenarios:
-              - appearance-restart
-              - native-workspace-refresh-recovery
-          - selection: startup-preferences
+              - native-saved-folder-selected-setup
+            expected_plan:
+              {
+                "selected": ["native-saved-folder-selected-setup"],
+                "setup": [],
+                "harness_ms": 600000,
+                "qualification_features": ["qualification-fixtures"],
+                "cli_features": ["portcove-core/qualification-fixtures"],
+                "cli_required": true,
+                "probe_required": true,
+              }
+          - selection: preliminary-selected-setup
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
             scenarios:
-              - native-startup-preferences-recovery
-          - selection: startup-library
-            scenarios:
-              - native-startup-library-recovery
-          - selection: library-switch
+              - native-preliminary-selected-setup
+            expected_plan:
+              {
+                "selected": ["native-preliminary-selected-setup"],
+                "setup": [],
+                "harness_ms": 180000,
+                "qualification_features": ["qualification-fixtures"],
+                "cli_features": ["portcove-core/qualification-fixtures"],
+                "cli_required": true,
+                "probe_required": true,
+              }
+          - selection: library-switch-recovery
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
             scenarios:
               - native-library-switch-recovery
+            expected_plan:
+              {
+                "selected": ["native-library-switch-recovery"],
+                "setup": [],
+                "harness_ms": 180000,
+                "qualification_features": [],
+                "cli_features": [],
+                "cli_required": false,
+                "probe_required": false,
+              }
+          - selection: secondary-panels
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
+            scenarios:
+              - native-secondary-panel-presentation
+            expected_plan:
+              {
+                "selected": ["native-secondary-panel-presentation"],
+                "setup": ["native-preparation-review-and-play"],
+                "harness_ms": 600000,
+                "qualification_features": [],
+                "cli_features": [],
+                "cli_required": true,
+                "probe_required": true,
+              }
+          - selection: public-collection
+            source: 184b97556549f57d39cc775822f7cbaa391f9fc8
+            scenarios:
+              - native-collection-artwork-presentation
+            expected_plan:
+              {
+                "selected": ["native-collection-artwork-presentation"],
+                "setup": [],
+                "harness_ms": 600000,
+                "qualification_features": [],
+                "cli_features": [],
+                "cli_required": false,
+                "probe_required": false,
+              }
     env:
+      SOURCE_HEAD: ${{ matrix.source }}
+      SOURCE_TREE: b0dded9a2ac4b3cc56bb64d92093c3a07af8f64f
+      CONTROLLER_HEAD: ${{ github.sha }}
+      EXPECTED_NATIVE_PLAN: ${{ toJSON(matrix.expected_plan) }}
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
       NATIVE_SCENARIOS: ${{ toJSON(matrix.scenarios) }}
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
     steps:
+      - name: Refuse unbound source before checkout
+        shell: pwsh
+        run: |
+          if ($env:SOURCE_HEAD -cnotmatch '^[a-f0-9]{40}$') {
+            throw 'Source is UNBOUND. Recompute exact final plans, qualify and independently review before dispatch.'
+          }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ matrix.source }}
           fetch-depth: 0
           persist-credentials: false
       - name: Bind clean source and interactive hosted session before setup
@@ -705,11 +829,16 @@ jobs:
           $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Path $env:PORTCOVE_OUTPUT_DIR | Out-Null
           $source = (git rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $source -cne $env:GITHUB_SHA) { throw 'Native source identity differs.' }
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:SOURCE_HEAD) { throw 'Native source identity differs.' }
+          $tree = (git rev-parse 'HEAD^{tree}').Trim()
+          if ($LASTEXITCODE -ne 0 -or $tree -cne $env:SOURCE_TREE) { throw 'Native source tree differs.' }
+          if ($env:CONTROLLER_HEAD -cne $env:GITHUB_SHA) { throw 'Controller identity differs.' }
           $status = git status --porcelain=v1 --untracked-files=all
           if ($LASTEXITCODE -ne 0 -or $status) { throw 'Native source must be clean.' }
           $identity = [ordered]@{
             source_head = $source
+            source_tree = $tree
+            controller_head = $env:CONTROLLER_HEAD
             workflow = $env:GITHUB_WORKFLOW_REF
             selection = $env:NATIVE_SELECTION
             requested_scenarios = @($env:NATIVE_SCENARIOS | ConvertFrom-Json)
@@ -775,8 +904,19 @@ jobs:
             if ($scenario -isnot [string] -or $scenario -cnotmatch '^[a-z][a-z0-9-]+$') { throw 'Invalid fixed scenario name.' }
             $scenarioArguments += @('--scenario', $scenario)
           }
-          just desktop-verify @scenarioArguments --require-clean --plan
+          node scripts/desktop-verify.mts @scenarioArguments --require-clean --plan --json > "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json"
           if ($LASTEXITCODE -ne 0) { throw 'Owned product scenario plan failed.' }
+          $actual = Get-Content -Raw "$env:PORTCOVE_OUTPUT_DIR/selected-plan.json" | ConvertFrom-Json
+          $expected = $env:EXPECTED_NATIVE_PLAN | ConvertFrom-Json
+          if ($actual.source.revision -cne $env:SOURCE_HEAD -or -not $actual.source.clean) { throw 'Plan source differs.' }
+          foreach ($field in @('requested_scenarios','selected_scenarios')) {
+            if ((ConvertTo-Json -InputObject @($actual.$field) -Compress) -cne (ConvertTo-Json -InputObject @($expected.selected) -Compress)) { throw "Plan $field differs." }
+          }
+          foreach ($pair in @(@('setup_scenarios','setup'),@('qualification_features','qualification_features'),@('cli_features','cli_features'))) {
+            if ((ConvertTo-Json -InputObject @($actual.($pair[0])) -Compress) -cne (ConvertTo-Json -InputObject @($expected.($pair[1])) -Compress)) { throw "Plan $($pair[0]) differs." }
+          }
+          if ($actual.harness_deadline_ms -ne $expected.harness_ms) { throw 'Harness budget differs.' }
+          if ([bool]$actual.paths.cli -ne [bool]$expected.cli_required -or [bool]$actual.paths.owned_probe -ne [bool]$expected.probe_required) { throw 'CLI/probe artifact roles differ.' }
           just desktop-verify @scenarioArguments --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Owned native product scenario failed; retain original evidence.' }
       # Read-only failure diagnostics: the application's own bounded host
@@ -845,8 +985,8 @@ jobs:
           "==== Windows Application log errors since job start"
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 1, 2; StartTime = (Get-Date).AddHours(-2) } -MaxEvents 30 -ErrorAction SilentlyContinue |
             ForEach-Object { "$($_.TimeCreated.ToString('o')) $($_.ProviderName) $($_.Id)`n    $("$($_.Message)".Substring(0, [Math]::Min(1500, "$($_.Message)".Length)))" }
-      - name: Require the isolated singleton Settings entry evidence
-        if: matrix.selection == 'owned-steam'
+      - name: Require the selected Steam entry evidence
+        if: matrix.selection == 'install-steam-artwork'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -854,9 +994,9 @@ jobs:
           if ($runs.Count -ne 1) { throw 'Exactly one isolated native run is required.' }
           $report = Get-Content -LiteralPath (Join-Path $runs[0].FullName 'native/steam-entry-result.json') -Raw | ConvertFrom-Json
           $eligible = @($report.eligible_installed_port_ids)
-          if ($report.entry_route -cne 'settings-integrations' -or $eligible.Count -ne 1 -or $eligible[0] -cne $report.port_id) {
-            throw 'The singleton Steam lane must exercise the actual Settings entry with one eligible installation.'
-          }
+          if ($eligible.Count -lt 1 -or $report.port_id -cnotin $eligible) { throw 'The tested Steam port must be eligible.' }
+          $expectedRoute = if ($eligible.Count -eq 1) { 'settings-integrations' } else { 'detail-manage' }
+          if ($report.entry_route -cne $expectedRoute) { throw 'The actual Steam entry route differs from installation eligibility.' }
       - name: Retain bounded lossless native evidence in ordinary job logs
         if: always()
         shell: pwsh
