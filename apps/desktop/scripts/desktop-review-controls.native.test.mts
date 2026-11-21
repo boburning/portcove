@@ -327,10 +327,12 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
   clickDiagnosticFixture(`
     Object.defineProperty(process, "platform", {value:"linux"});
     function gtkFixture({ hovered = true, zoom = "400", width = 240, failPress = false,
-      visible = true, enabled = true, obscured = false, multiple = false } = {}) {
+      visible = true, enabled = true, obscured = false, multiple = false, reflow = false, persistent = false } = {}) {
       const calls = [];
       const hits = [];
       const observations = [];
+      let recentered = false;
+      let moves = 0;
       const element = {
         tagName: "BUTTON", id: "connect-folder", textContent: "Connect folder",
         getAttribute(name) {
@@ -342,8 +344,13 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
         closest() { return null; },
         getAnimations() { return []; },
         focus() { calls.push("focus"); },
-        scrollIntoView() { calls.push("scroll"); },
-        getBoundingClientRect() { return { x: 76.5, y: 61.75, width: 148.5, height: 37 }; },
+        scrollIntoView() {
+          calls.push("scroll");
+          if (reflow && moves > 0) recentered = true;
+        },
+        getBoundingClientRect() {
+          return { x:76.5,y:recentered ? 73.75 : 61.75,width:148.5,height:37 };
+        },
         contains(hit) { return hit === element; },
         matches(selector) { return selector === ":hover" && hovered; },
         async isDisplayed() { calls.push("visible"); return visible; },
@@ -351,7 +358,11 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
         async click() { throw Error("Element Click is forbidden in explicit GTK mode"); },
       };
       const document = {
-        elementFromPoint(x,y) { hits.push({x,y}); return obscured ? null : element; },
+        elementFromPoint(x,y) {
+          hits.push({x,y});
+          const missesMovedTarget = reflow && moves > 0 && (!recentered || y !== 92.25);
+          return obscured || missesMovedTarget || (persistent && moves >= 2) ? null : element;
+        },
       };
       const browser = {
         async executeScript(script, ...args) {
@@ -378,6 +389,7 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
             release() { queued.push("release"); return this; },
             async perform() {
               calls.push(queued);
+              if (queued.some(step => typeof step === "object" && step.move)) moves++;
               if (failPress && queued.includes("press")) throw Error("Native press refused");
             },
           };
@@ -406,6 +418,19 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
     });
     assert.deepEqual(wrong.calls.filter(Array.isArray), [[{move:{x:603,y:321,duration:0}}]]);
     assert.equal(wrong.observations[0].delivered, false);
+    const moved = gtkFixture({ reflow:true });
+    await clickVisible(moved.browser, moved.element, moved.options);
+    assert.deepEqual(moved.calls.filter(Array.isArray), [
+      [{ move: { x:603,y:321,duration:0 } }],
+      [{ move: { x:603,y:369,duration:0 } }],
+      ["press", "release"],
+    ]);
+    assert.deepEqual(moved.observations.map(value => value.delivered), [false, true]);
+    const noLongerReachable = gtkFixture({reflow:true,persistent:true});
+    await assert.rejects(clickVisible(noLongerReachable.browser, noLongerReachable.element, noLongerReachable.options), error =>
+      diagnostic(error).stage === "webkit-delivered-target");
+    assert.equal(noLongerReachable.calls.filter(Array.isArray).length, 2);
+    assert.deepEqual(noLongerReachable.observations.map(value => value.delivered), [false,false]);
     for (const shape of [{zoom:"100"}, {width:960}]) {
       const invalid = gtkFixture(shape);
       await assert.rejects(clickVisible(invalid.browser, invalid.element, invalid.options), error =>
