@@ -82,9 +82,11 @@ plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
 New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
 records the candidate index/key, body hash and primary evidence bindings rather
 than repeating the proposal text and rendered body. Reconstruct the body with
-the maintained `hostedBody` renderer from the exact hash-matching proposal;
-the recorded body hash must match before recovery or completion readback.
-Legacy full-plan receipts remain readable and completed receipts are not rewritten.
+the maintained `hostedBody` renderer from the exact hash-matching proposal.
+A retained slot must match its exact recorded body hash against a supported
+rendering version. Keep the existing rendering versions when changing the
+default issue template. New slots use the current template, and completed
+receipts keep their original bytes.
 Before delivery, Actions sizes the encoded receipt against the bounded delivery
 and hold fields and reserves room for its final doctor and diagnostics. The
 logical batch stays together when it fits the existing comment limit.

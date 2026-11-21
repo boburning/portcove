@@ -55,6 +55,7 @@ import {
 import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
+  type PortIssueBodyTemplate,
   findPortIssueDuplicates,
   normalizedUpstream,
   normalizePortKey,
@@ -386,14 +387,17 @@ interface Receipt {
   continuation?: string | null;
   body_request_comment?: number;
 }
-export function hostedBody(c: Candidate, request: number) {
-  return renderPortIssueBody({
-    title: c.title,
-    upstream: c.upstream,
-    portKey: c.port_key,
-    currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
-    blocker: c.resume,
-  });
+export function hostedBody(c: Candidate, request: number, template?: PortIssueBodyTemplate) {
+  return renderPortIssueBody(
+    {
+      title: c.title,
+      upstream: c.upstream,
+      portKey: c.port_key,
+      currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
+      blocker: c.resume,
+    },
+    template,
+  );
 }
 export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
@@ -476,7 +480,11 @@ function readHostedReceipt(
         throw new Error("Retained repository location binding differs");
       candidate = { ...candidate, upstream: location.current };
     }
-    const body = hostedBody(candidate, bodyRequest);
+    const currentBody = hostedBody(candidate, bodyRequest);
+    const body =
+      binding.body_sha256 === observationHash(currentBody)
+        ? currentBody
+        : hostedBody(candidate, bodyRequest, "hosted-before-finite-v1");
     if (
       binding.body_sha256 !== observationHash(body) ||
       (binding.primary === null
