@@ -1,0 +1,140 @@
+{
+  "dkr": [
+    {
+      "version": "Version1.0.2",
+      "platform": "windows-x86-64",
+      "asset_name": "DKR-R-1.0.2-Windows-x64.zip",
+      "size": 22425041,
+      "sha256": "e937bd8c49ee9154891ef59c49172aa590d82425158c95a22724f107d8ae00e6",
+      "executable": "DKR-R.exe"
+    },
+    {
+      "version": "Version1.0.2",
+      "platform": "linux-x86-64",
+      "asset_name": "DKR-R-1.0.2-Linux-x86_64.AppImage",
+      "size": 26610168,
+      "sha256": "6ea52c6a53e5d46218187334b91e0d51c4e3e3156d385ad16e417022732113ee",
+      "executable": "DKR-R-1.0.2-Linux-x86_64.AppImage"
+    },
+    {
+      "version": "Version1.0.4",
+      "platform": "windows-x86-64",
+      "asset_name": "DKR-R-1.0.4-Windows-x64.zip",
+      "size": 22429704,
+      "sha256": "0732aa1637f6813f6cce9a23564f53214b2f47b913bbb1ade23298a97a37f728",
+      "executable": "DKR-R.exe"
+    },
+    {
+      "version": "Version1.0.4",
+      "platform": "linux-x86-64",
+      "asset_name": "DKR-R-1.0.4-Linux-x86_64.AppImage",
+      "size": 26614264,
+      "sha256": "9da1e72dd23eaf7b6e096f19bc2bb215065e2ef7c5fd35a2601c9d430fe25ee0",
+      "executable": "DKR-R-1.0.4-Linux-x86_64.AppImage"
+    }
+  ],
+  "direct": [
+    {
+      "port_id": "sonic-3-and-knuckles-recomp",
+      "version": "v0.5.3",
+      "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+    },
+    {
+      "port_id": "sonic-the-hedgehog-recomp",
+      "version": "v0.6.0",
+      "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40"
+    },
+    {
+      "port_id": "mega-man-x2-snes-recomp",
+      "version": "v0.1.4",
+      "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07"
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "version": "v0.3.12",
+      "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9"
+    }
+  ],
+  "packages": [
+    {
+      "contract": "tfe-dark-forces-122420",
+      "version": "1.22.420",
+      "size": 10561878,
+      "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
+    },
+    {
+      "contract": "racewave46-v100-windows",
+      "version": "v1.0.0",
+      "size": 35768574,
+      "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+      "asset_name": "RaceWave46-Windows-x64-v1.0.0.zip"
+    },
+    {
+      "contract": "regaiden-041-windows",
+      "version": "v0.4.1",
+      "size": 33085815,
+      "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+      "asset_name": "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip"
+    },
+    {
+      "contract": "ghostship-200-windows",
+      "version": "2.0.0",
+      "size": 21561620,
+      "sha256": "a49f4c791377fcc611264b8920f2c3254b3ab25747c2a59da9305c32f92a6d3f",
+      "asset_name": "Mary-Celeste-Alfa-Win64.zip"
+    },
+    {
+      "contract": "regaiden-041-prepared-windows",
+      "version": "0.4.1",
+      "size": 33085815,
+      "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+      "asset_name": "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip"
+    },
+    {
+      "contract": "smb1r-11-windows",
+      "version": "1.1-stable",
+      "size": 76214255,
+      "sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109",
+      "asset_name": "Windows.zip"
+    },
+    {
+      "contract": "shipwright-931-windows",
+      "version": "9.3.1",
+      "size": 72980600,
+      "sha256": "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c",
+      "asset_name": "SoH-Dewey-Bravo-Win64.zip"
+    }
+  ],
+  "cartridge": [
+    {
+      "port_id": "cvlod-recomp",
+      "recipe": "cvlod-n64-source-cb8548d145a1-ui-lifetime-v1",
+      "projection": "cvlod-recomp"
+    },
+    {
+      "port_id": "dr-mario-nes-recomp",
+      "recipe": "dr-mario-nes-cycle-v1.3.0-usa",
+      "projection": "dr-mario-nes-recomp"
+    },
+    {
+      "port_id": "earthbound-recomp",
+      "recipe": "earthbound-snes-source-fe1155dc26ff-usa",
+      "projection": "earthbound-recomp"
+    },
+    {
+      "port_id": "gundam-wing-endless-duel-recomp",
+      "recipe": "gundam-wing-snes-source-c7aaaa152192-japan-offline",
+      "projection": "gundam-wing-endless-duel-recomp"
+    },
+    {
+      "port_id": "render96ex",
+      "recipe": "render96-us-source-48da5c491c8a",
+      "projection": "render96ex"
+    },
+    {
+      "port_id": "yoshis-cookie-recomp",
+      "recipe": "yoshis-cookie-nes-cycle-v1.1.0",
+      "projection": "yoshis-cookie-recomp"
+    }
+  ]
+}

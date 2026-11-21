@@ -10,8 +10,11 @@ mod review;
 pub(crate) use review::{DataReview, ReviewedEntry};
 
 const CREDENTIAL: &str = "retroachievements.credentials";
+use crate::historical_artifacts::PackageContract;
 pub(crate) fn known_artifact(sha256: &str) -> bool {
-    sha256.eq_ignore_ascii_case("f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+    PackageContract::Racewave46V100Windows
+        .package()
+        .has_digest(sha256)
 }
 pub(crate) const NOTICE: &str = "Saves and settings are preserved. RetroAchievements sign-in stays with each installed version and is excluded from backups. Sign in again after installing another version.";
 
@@ -41,10 +44,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         || !port.release.user_prepared.is_empty()
         || (legacy
             && release.is_none_or(|release| {
-                release.version != "v1.0.0"
-                    || release.size != 35_768_574
-                    || release.sha256
-                        != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                !PackageContract::Racewave46V100Windows
+                    .package()
+                    .matches_bytes(&release.version, release.size, &release.sha256)
             }))
         || port.persistent_paths != [".runtime"]
         || port.runtime_mutable_paths != ["game.z64"]
@@ -123,12 +125,9 @@ pub(crate) fn require_artifact(
     }
     if (port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256))
         && (port.runtime_data_policy.is_none()
-            || platform != Some(crate::Platform::WindowsX86_64)
-            || version != "v1.0.0"
-            || artifact.asset_name != "RaceWave46-Windows-x64-v1.0.0.zip"
-            || artifact.size != 35_768_574
-            || artifact.sha256
-                != "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+            || !PackageContract::Racewave46V100Windows
+                .package()
+                .matches_release(version, platform, artifact))
     {
         return Err(PortcoveError::verification(
             "version-local credential handling requires the actual reviewed RaceWave46 Windows installation; install the official package through Portcove",
