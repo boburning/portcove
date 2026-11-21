@@ -167,6 +167,44 @@ void test("drift and unavailable reads are failed runs that observe nothing", as
   assert.equal(complete.facts.size, 1);
 });
 
+void test("scheduled receipt recovery shares the native read and retains source facts on a failed transaction", async () => {
+  const snapshot = read([row(10)]);
+  let reads = 0;
+  const collect = () => {
+    reads++;
+    return Promise.resolve(snapshot);
+  };
+  const success = await hostedIntakeObservation(collect, async (queue) => {
+    assert.equal(queue, snapshot);
+    return { inspected: 1, completed: ["bound receipt"] };
+  });
+  assert.equal(reads, 1);
+  assert.deepEqual(success.receipts, {
+    status: "passed",
+    inspected: 1,
+    completed: ["bound receipt"],
+  });
+  const failure = await hostedIntakeObservation(collect, async () => {
+    throw new Error("unavailable");
+  });
+  assert.equal(failure.failed, false);
+  assert.equal(failure.facts.size, 1);
+  assert.deepEqual(failure.receipts, { status: "failed" });
+  assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
+  let calls = 0;
+  const unavailable = await hostedIntakeObservation(
+    async () => {
+      throw new Error("read failed");
+    },
+    async () => {
+      calls++;
+      return { inspected: 0, completed: [] };
+    },
+  );
+  assert.deepEqual(unavailable.receipts, { status: "unavailable" });
+  assert.equal(calls, 0);
+});
+
 void test("attention reuses the executor classification and withdrawn requests stay quiet", () => {
   const fact = (overrides: Partial<Record<string, unknown>>) =>
     hostedIntakeFacts(read([row(10, overrides)])).facts.get("intake:10");

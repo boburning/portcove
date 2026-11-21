@@ -1106,6 +1106,8 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
     const baseProject = h.options.project;
     let unavailable: "budget" | "rate-limit" | null = null;
+    let additionalPlatform = false;
+    let outputExpired = false;
     h.options.project = async (portId, repositoryId, observation) => {
       const policy = await baseProject(portId, repositoryId, observation);
       if (
@@ -1127,6 +1129,19 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
               release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
             },
           },
+          ...(additionalPlatform
+            ? [
+                {
+                  channel: "stable",
+                  platform: "windows-x86-64",
+                  channel_candidate: { id: 1, tag: release.tag_name },
+                  latest_eligible: {
+                    release_id: 1,
+                    release: { version: release.tag_name, asset: { sha256: "b".repeat(64) } },
+                  },
+                },
+              ]
+            : []),
         ],
       };
     };
@@ -1138,6 +1153,22 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
     const requests: string[] = [];
     const runtimeRequests: string[] = [];
+    const buildRequests: string[] = [];
+    const jobLogs: [number, number][] = [];
+    const run = {
+      id: 70,
+      repository: { id: 7 },
+      head_repository: { id: 7 },
+      head_sha: "c".repeat(40),
+      event: "push",
+      status: "completed",
+      conclusion: "success",
+      run_attempt: 1,
+      workflow_id: 71,
+      path: ".github/workflows/release.yml",
+      run_started_at: "2026-10-26T12:00:00Z",
+      updated_at: "2026-10-26T12:05:00Z",
+    };
     h.options.observeN64Runtime = family === "n64-recomp";
     let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
     let tagSha = "c".repeat(40);
@@ -1151,6 +1182,54 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         return gitlinkResponse === "incomplete"
           ? { path: n64RuntimeLinkPath, type: "submodule" }
           : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
+      }
+      if (endpoint.includes("/actions/runs")) {
+        buildRequests.push(endpoint);
+        if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+        if (endpoint.includes("/attempts/1/jobs?"))
+          return {
+            total_count: 1,
+            jobs: [
+              {
+                id: 77,
+                run_id: 70,
+                run_attempt: 1,
+                head_sha: run.head_sha,
+                status: "completed",
+                conclusion: "success",
+                steps: [
+                  { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+                  {
+                    number: 12,
+                    name: "Archive game",
+                    status: "completed",
+                    conclusion: "success",
+                    started_at: "2026-10-26T12:03:00Z",
+                    completed_at: "2026-10-26T12:04:00Z",
+                  },
+                ],
+              },
+            ],
+          };
+        if (!endpoint.includes("/artifacts?")) return run;
+        return {
+          total_count: 1,
+          artifacts: [
+            {
+              id: 72,
+              digest: "sha256:" + "a".repeat(64),
+              expired: outputExpired,
+              size_in_bytes: 1024,
+              created_at: "2026-10-26T12:04:00Z",
+              workflow_run: {
+                id: 70,
+                repository_id: 7,
+                head_repository_id: 7,
+                head_sha: run.head_sha,
+              },
+            },
+          ],
+        };
       }
       requests.push(endpoint);
       if (unavailable)
@@ -1236,12 +1315,127 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     }
     assert.equal(requests.length, 5 + extraTagReads);
 
+    let previous = refreshed.checkpoint;
+    if (family === "n64-recomp") {
+      // Feed the same retained runtime/header receipt shape the real observer reads.
+      // The unrelated synthetic game table above does not serve as runtime source.
+      const retainedPolicy = Object.values(previous.sources)
+        .find((source) => source.repository === "owner/shared")
+        ?.last_complete_policies.find((policy) => policy.port_id === "stable-port");
+      const sourceFact = observation?.last_complete?.fact;
+      assert.ok(
+        retainedPolicy &&
+          observation?.last_complete &&
+          sourceFact?.parser === "n64-recomp-game-entry-v1",
+      );
+      retainedPolicy[inputEvidenceKey(family)] = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...sourceFact,
+            runtime_source: {
+              state: "observed",
+              source: {
+                repository: "N64Recomp/N64ModernRuntime",
+                repository_id: 802962241,
+                source_path: "librecomp/src/recomp.cpp",
+                revision: "a".repeat(40),
+                blob_sha1: "b".repeat(40),
+                source_sha256: "c".repeat(64),
+                input_blocks_sha256:
+                  "0c7cf4bad35b597ac6fd332cb9110907bf28ab182ab4e526bec3e641f0e21dbc",
+                matched_input_blocks: "n64modernruntime-padded-xxh3-call-sites-v1",
+                hash_source: {
+                  state: "observed",
+                  repository: "Cyan4973/xxHash",
+                  repository_id: 19330466,
+                  revision: "d".repeat(40),
+                  headers: ["xxh3.h", "xxhash.h"].map((source_path) => ({
+                    source_path,
+                    source_blob_sha1: "e".repeat(40),
+                    source_sha256: "f".repeat(64),
+                  })),
+                },
+              },
+            },
+          },
+        },
+      };
+      h.options.readN64BuildStepLog = async (repository, job, step, account) => {
+        account.admitRequest();
+        jobLogs.push([job, step]);
+        const lines =
+          step === 2
+            ? [
+                "##[group]Run actions/checkout@v4",
+                "Syncing repository: " + repository,
+                "Submodule path 'lib/N64ModernRuntime': checked out '" + "a".repeat(40) + "'",
+                "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+                  "d".repeat(40) +
+                  "'",
+                run.head_sha,
+              ]
+            : [
+                "##[group]Run actions/upload-artifact@v4",
+                "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
+                "Artifact Build.zip successfully finalized. Artifact ID 72",
+                "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
+              ];
+        const bytes = Buffer.from(lines.map((line) => "2026-10-26T12:04:00Z " + line).join("\r\n"));
+        account.consumeResponseBytes(bytes.byteLength);
+        return bytes;
+      };
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const built = observation?.last_complete?.fact;
+      assert.ok(built?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(
+        built.build_outputs?.matches.map((match) => match.artifact_id),
+        [72],
+      );
+      assert.equal(built.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 4);
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+      ]);
+      assert.deepEqual(
+        built.build_jobs?.matches.map((match) => match.job_id),
+        [77],
+      );
+      const projected = upstreamFacts(previous, h.input, h.options.now!()).facts.get(
+        "port:stable-port",
+      );
+      assert.ok(
+        isRecord(projected) && Array.isArray(projected.sources) && isRecord(projected.sources[0]),
+      );
+      assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
+
+      additionalPlatform = true;
+      outputExpired = true;
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads += 4;
+      observation = retained(previous);
+      const expanded = observation?.last_complete?.fact;
+      assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.deepEqual(expanded.build_jobs?.matches, built.build_jobs?.matches);
+      assert.notEqual(expanded.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 6);
+      assert.equal(jobLogs.length, 2);
+    }
+
     h.advanceClock(48 * 3600_000);
     tagSha = "d".repeat(40);
-    const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+    const moved = await advanceCatalogObservations(h.input, previous, h.options);
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 6 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();
@@ -1358,6 +1552,127 @@ void test("untouched managed sources are admitted before listing-only sources", 
     .filter((position) => position !== -1);
   assert.ok(managed.every((source) => order.includes(source.key)));
   assert.ok(listingPositions.every((position) => position > lastManaged));
+});
+
+void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive fixture",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const { sources } = catalogObservationSources(input);
+  const critical = sources.find((source) => source.repository === "owner/shared")!;
+  const ordinary = sources.find((source) => source.repository === "owner/other")!;
+  const listings = sources
+    .filter((source) => source.repository.startsWith("listing-owner/"))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const [deferred, oldest, next] = listings;
+  assert.ok(deferred && oldest && next);
+  const listingIds = new Map(listings.map((source, index) => [source.repository, 20 + index]));
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    repositoryId: async (source, transport) => {
+      const id = listingIds.get(source.repository);
+      if (id === undefined) return h.options.repositoryId(source, transport);
+      transport.admitRequest();
+      return id;
+    },
+    fetch: async (url, init) => {
+      const pathname = new URL(url).pathname;
+      for (const [repository, id] of listingIds) {
+        if (pathname === `/repos/${repository}`)
+          return new Response(JSON.stringify({ id, full_name: repository, archived: false }), {
+            headers: { "content-type": "application/json" },
+          });
+        if (pathname.startsWith(`/repos/${repository}/`))
+          return new Response("[]", { headers: { "content-type": "application/json" } });
+      }
+      return h.options.fetch!(url, init);
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, {
+    ...options,
+    excludedSources: new Set([oldest.key, next.key]),
+  });
+  const initial = first.checkpoint.sources[critical.key]?.freshness_observed_at;
+  assert.ok(initial);
+  const hour = 3600000;
+  h.advanceClock(6 * hour);
+  const fresh = await advanceCatalogObservations(input, first.checkpoint, {
+    ...options,
+    excludedSources: new Set([critical, ...listings].map(({ key }) => key)),
+  });
+  const verified = fresh.checkpoint.sources[ordinary.key]?.freshness_observed_at;
+  assert.ok(verified && verified !== initial);
+  h.advanceClock(6 * hour - 60000);
+  const prior = fresh.checkpoint;
+  // Ordinary due work is older in rotation than the freshness-critical source.
+  // The reservation must protect the latter even when order alone would not.
+  prior.sources[ordinary.key]!.attempted_sequence = 1;
+  prior.sources[critical.key]!.attempted_sequence = prior.sequence;
+  prior.sources[deferred.key]!.retry_at = new Date(options.now!() + hour).toISOString();
+  const baselineTime = options.now!();
+  const perBatch = options.config.budget.duration_ms;
+  const displace = {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    project: async (...args: Parameters<CatalogObservationOptions["project"]>) => {
+      if (args[0] === "other-port") h.advanceClock(perBatch);
+      return options.project(...args);
+    },
+  };
+  const beforeSourceCheckpoints = new Map(h.states);
+  const baseline = await advanceCatalogObservations(input, prior, displace);
+  assert.deepEqual(baseline.report.attempted_source_keys, [ordinary.key]);
+  h.advanceClock(baselineTime - options.now!());
+  h.states.clear();
+  for (const [key, value] of beforeSourceCheckpoints) h.states.set(key, value);
+
+  const reserved = await advanceCatalogObservations(input, prior, {
+    ...displace,
+    reserveExpiredListingTurn: true,
+  });
+  assert.deepEqual(reserved.report.attempted_source_keys, [critical.key, oldest.key, ordinary.key]);
+  assert.ok(reserved.report.completed_source_keys.includes(oldest.key));
+  assert.equal(reserved.checkpoint.sources[next.key], undefined);
+  assert.deepEqual(reserved.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  for (const source of [critical, ordinary]) {
+    assert.equal(
+      reserved.checkpoint.sources[source.key]?.freshness_observed_at,
+      baseline.checkpoint.sources[source.key]?.freshness_observed_at,
+    );
+  }
+  const retained = reserved.checkpoint.sources[oldest.key]!;
+  assert.ok(retained.freshness_observed_at && retained.completed_at && retained.next_due_at);
+
+  const empty = await advanceCatalogObservations(input, reserved.checkpoint, {
+    ...options,
+    requestLimit: 0,
+    excludedSources: new Set([critical.key, ordinary.key]),
+    reserveExpiredListingTurn: true,
+  });
+  assert.equal(empty.report.requests, 0);
+  assert.deepEqual(empty.report.attempted_source_keys, []);
+  assert.deepEqual(empty.checkpoint, reserved.checkpoint);
+
+  const resumed = await advanceCatalogObservations(input, empty.checkpoint, {
+    ...options,
+    policyIdentity: displace.policyIdentity,
+    reserveExpiredListingTurn: true,
+  });
+  assert.ok(resumed.report.completed_source_keys.includes(next.key));
+  assert.equal(resumed.report.attempted_source_keys[0], critical.key);
+  assert.deepEqual(resumed.checkpoint.sources[oldest.key], retained);
+  assert.deepEqual(resumed.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  assert.ok(
+    Date.parse(resumed.checkpoint.sources[critical.key]!.freshness_observed_at!) >
+      Date.parse(initial),
+  );
 });
 
 void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {

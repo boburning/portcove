@@ -613,16 +613,18 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
   const handoffs = (conditions: unknown[]) =>
     releaseHealthHandoffs(new Map([["port:alpha", { freshness: "fresh-complete", conditions }]]));
   const entry = handoffEntry("release-health-relocation")!;
-  // All accounted: still a relocation handoff (nothing hidden or reclassified), no new evidence prescribed.
-  const all = handoffs([
+  const conditions = [
     reviewed("k1", "provider-redirect"),
     reviewed("k2", "inaccessible-or-missing"),
-  ]);
-  assert.deepEqual(
-    all.map(({ kind }) => kind),
-    ["release-health-relocation"],
-  );
-  const guidance = handoffGuidance(entry, all[0]!.condition);
+  ];
+  assert.deepEqual(handoffs(conditions), []);
+  for (const overrides of [
+    { resume_condition: "  " },
+    { classification: "unclassified-or-actionable" },
+  ])
+    assert.equal(handoffs([reviewed("k1", "provider-redirect", overrides)]).length, 1);
+  // Retained historical assessments continue to explain their original conditions.
+  const guidance = handoffGuidance(entry, { conditions });
   assert.doesNotMatch(guidance.action, /Read bounded relocation evidence/u);
   assert.match(guidance.action, /no new relocation evidence or accounting is needed/u);
   assert.doesNotMatch(guidance.invocation, /upstream-relocation-evidence\.yml/u);
@@ -635,7 +637,7 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
       subject_key: handoffSubject("release-health-relocation", "port:alpha"),
       sequence: 1,
       updated_at: "2026-11-11T00:00:00Z",
-      explanation: { condition: all[0]!.condition },
+      explanation: { condition: { conditions } },
       operation: null,
     },
   ]);

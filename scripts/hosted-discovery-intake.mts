@@ -55,6 +55,7 @@ import {
 import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
+  type PortIssueBodyTemplate,
   findPortIssueDuplicates,
   normalizedUpstream,
   normalizePortKey,
@@ -386,14 +387,17 @@ interface Receipt {
   continuation?: string | null;
   body_request_comment?: number;
 }
-export function hostedBody(c: Candidate, request: number) {
-  return renderPortIssueBody({
-    title: c.title,
-    upstream: c.upstream,
-    portKey: c.port_key,
-    currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
-    blocker: c.resume,
-  });
+export function hostedBody(c: Candidate, request: number, template?: PortIssueBodyTemplate) {
+  return renderPortIssueBody(
+    {
+      title: c.title,
+      upstream: c.upstream,
+      portKey: c.port_key,
+      currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
+      blocker: c.resume,
+    },
+    template,
+  );
 }
 export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
@@ -476,7 +480,11 @@ function readHostedReceipt(
         throw new Error("Retained repository location binding differs");
       candidate = { ...candidate, upstream: location.current };
     }
-    const body = hostedBody(candidate, bodyRequest);
+    const currentBody = hostedBody(candidate, bodyRequest);
+    const body =
+      binding.body_sha256 === observationHash(currentBody)
+        ? currentBody
+        : hostedBody(candidate, bodyRequest, "hosted-before-finite-v1");
     if (
       binding.body_sha256 !== observationHash(body) ||
       (binding.primary === null
@@ -1389,6 +1397,24 @@ export class HostedIntakeBridge {
       full_doctor_required: proposal.candidates.length > 10,
       ...(receipt?.audit_pending ? { audit_pending: true } : {}),
       doctor: receipt?.doctor ?? null,
+      ...(receipt?.status === "complete" && found[0]
+        ? {
+            executor_receipt: {
+              run: receipt.run,
+              attempt: receipt.attempt,
+              head: receipt.head,
+              request_sha256: receipt.request_sha256,
+              body_sha256: createHash("sha256").update(found[0].body).digest("hex"),
+              published_at: found[0].updated_at,
+              checkpoint_required:
+                proposal.schema_version === 2 || receipt.plan.some((entry) => entry.amendment),
+              original_slots: proposal.candidates.map(({ port_key, repository_id }) => ({
+                port_key,
+                repository_id,
+              })),
+            },
+          }
+        : {}),
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
       slots: candidateSlots(
@@ -2726,8 +2752,34 @@ async function main() {
     save("roadmap-observations", client.observations);
   }
 }
+async function runWithCheckpointAdmission() {
+  if (
+    process.argv[2] === "status" ||
+    process.env.HOSTED_INTAKE_MODE === "probe" ||
+    !process.env.PORTCOVE_DISCOVERY_DATABASE_URL
+  )
+    return await main();
+  const { connectionFromEnvironment } = await import("./maintenance-store.mts");
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+    await import("./maintenance-resource-policy.mts");
+  const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL");
+  const run = process.env.GITHUB_RUN_ID;
+  const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
+  try {
+    await withMaintenanceAdmission(environment, "intake", main, {
+      request: run
+        ? `github:${run}:intake:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}:${pass}`
+        : undefined,
+      completed: () => process.exitCode !== 1,
+    });
+  } catch (error) {
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    process.exitCode = 75;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  await main().catch((error) => {
+  await runWithCheckpointAdmission().catch((error) => {
     console.error(JSON.stringify(sanitizeOperationError(error)));
     process.exitCode = 1;
   });

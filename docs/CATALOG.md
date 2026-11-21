@@ -188,6 +188,21 @@ offered. Fixtures, actual setup/launch and optional gameplay/device observations
 remain separate; known relevant failures remain visible. A link, catalog
 placeholder, research record or deferral is not a delivered integration.
 
+An integration can finish when a released client offers an actionable operation
+on an applicable platform and its required checks pass. An upstream-managed
+registration can be the finished title scope. Record which operations Portcove
+offers and who owns each one. Record the Portcove handoff at the boundary
+actually observed. Showing a picker, importing an original and completing
+setup each need evidence when the offered operation depends on that event.
+
+Reuse a shared capability result when the title fits its tested contract.
+Verify the title's package, platform, source and ownership facts and exercise
+unique behavior or a known failure affecting the offered operation. A player's
+matching original is required at the operation that consumes it. Runner custody
+of originals, completed campaigns and natural successors are separate evidence
+unless the specific operation depends on them. Previously failed checks keep
+their outcomes when a narrower operation becomes available.
+
 Ordinary fitting additions use reviewed definition facts and existing behavior.
 Compatible upstream updates normally change artifact facts. Reuse a policy only
 after checking the behavior it relies on; a checksum or filename alone is
@@ -3659,6 +3674,14 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
+Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
+and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
+path. Each title keeps its original-data picker instructions, executable,
+reviewed package layout, external SDL profile and qualification explicit.
+URL preparation uses the recipe only when it reproduces the full integration
+byte for byte.
+
 The optional authoring-only `psx_managed_windows_v1` supplies the shared
 launch and data layout for the reviewed Windows GitHub PSXRecomp kit and its
 matching Linux x64 sibling when independently enrolled. Use the
@@ -3723,6 +3746,12 @@ needs the explicit form and applicable qualification.
 `prepare-port.mts` proposes the compact PSX form automatically when its
 expanded integration matches the explicit declaration byte for byte. A
 different layout, selector or setting stays explicit.
+
+The stock Diablo Windows v0.1.6 kit enumerates bundled mod manifests using
+legacy Windows paths. Core checks the longest bundled manifest at the proposed
+installation or relocation destination and again before launch. The rule follows
+the reviewed archive digest into retained installations. The same stock player
+reached the game on a shorter managed path. [Windows path receipt](https://github.com/boburning/portcove/issues/435#issuecomment-6899919050)
 
 Core's managed PS1 builder runs with `--no-toolchain-download` and with
 `HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp

@@ -2737,6 +2737,211 @@ fn retention_catalog(listings: &[(&str, Option<&crate::IgdbArtwork>)]) -> crate:
         .unwrap()
 }
 
+type EditionCoverListing<'a> = (
+    &'a str,
+    &'a str,
+    &'a [&'a str],
+    Option<&'a crate::IgdbArtwork>,
+);
+
+fn edition_cover_catalog(listings: &[EditionCoverListing<'_>]) -> crate::Catalog {
+    let mut document = retention_catalog(
+        &listings
+            .iter()
+            .map(|(port_id, _, _, cover)| (*port_id, *cover))
+            .collect::<Vec<_>>(),
+    )
+    .listing_document()
+    .clone();
+    document.format_version = 3;
+    for listing in &mut document.listings {
+        let (_, game_id, editions, _) = listings
+            .iter()
+            .find(|(id, _, _, _)| *id == listing.id.as_str())
+            .unwrap();
+        listing.original_game = Some(crate::OriginalGameIdentity {
+            format_version: 1,
+            id: (*game_id).into(),
+            evidence_urls: vec!["https://example.invalid/game".into()],
+            source_editions: editions
+                .iter()
+                .map(|id| crate::SourceEdition {
+                    id: (*id).into(),
+                    title: (*id).into(),
+                    system: Some("nintendo-64".into()),
+                    evidence_urls: vec!["https://example.invalid/edition".into()],
+                })
+                .collect(),
+        });
+    }
+    crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap()
+}
+
+#[test]
+fn matching_edition_inherits_a_reviewed_cover_across_display_and_handoff() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let bytes = coloured_jpeg([180, 42, 60]);
+    let mut shared = retention_mapping("editioncover", &bytes);
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let direct = retention_mapping("directcover", &coloured_jpeg([20, 25, 80]));
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("second-donor", "original-game", &["console"], Some(&shared)),
+        ("receiver", "original-game", &["console"], None),
+        ("direct", "original-game", &["console"], Some(&direct)),
+        ("another-game", "another-game", &["console"], None),
+        ("another-edition", "original-game", &["remaster"], None),
+        (
+            "multi-edition",
+            "original-game",
+            &["console", "remaster"],
+            None,
+        ),
+        ("unknown-edition", "original-game", &[], None),
+    ]));
+    let receiver = "receiver";
+    let slot = ArtworkSlot::Cover;
+    let state = service.artwork(receiver, slot).unwrap();
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = state.resolved_source else {
+        panic!("the matching edition must resolve the shared cover");
+    };
+    assert_eq!(igdb_cover(&service, receiver), Some(shared.clone()));
+    assert_eq!(igdb_cover(&service, "direct"), Some(direct));
+    for other in [
+        "another-game",
+        "another-edition",
+        "multi-edition",
+        "unknown-edition",
+    ] {
+        assert!(igdb_cover(&service, other).is_none(), "{other}");
+    }
+    assert_eq!(
+        service
+            .artwork(receiver, ArtworkSlot::Detail)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback,
+    );
+    published_cover(&service, &shared, || Ok(bytes)).unwrap();
+    let thumbnail = service
+        .artwork_thumbnail(receiver, slot, state.choice.revision)
+        .unwrap();
+    assert_eq!(thumbnail.asset_sha256, cache_id);
+    assert!(!thumbnail.png.is_empty());
+    let handoff = service
+        .destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(
+        matches!(handoff.source, DestinationArtworkSource::CatalogDefault { artwork } if artwork == shared)
+    );
+
+    let local = image_file(temporary.path(), "chosen.png", image::ImageFormat::Png);
+    let chosen = service
+        .import_artwork(receiver, slot, &local, state.choice.revision)
+        .unwrap();
+    assert!(matches!(
+        chosen.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let reset = service
+        .reset_artwork(receiver, slot, chosen.choice.revision)
+        .unwrap();
+    assert!(
+        matches!(reset.resolved_source, ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork == shared)
+    );
+
+    service.replace_catalog_for_test(edition_cover_catalog(&[(
+        receiver,
+        "original-game",
+        &["console"],
+        None,
+    )]));
+    assert!(cached_original(&service, &shared));
+    assert!(igdb_cover(&service, receiver).is_none());
+    assert_eq!(
+        service
+            .artwork_thumbnail(receiver, slot, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+}
+
+#[test]
+fn automatic_cover_rejects_conflicting_mappings_and_port_specific_donors() {
+    use crate::IgdbArtworkMatch;
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let specific = retention_mapping("specificcover", &coloured_jpeg([5, 10, 15]));
+    let mut first = retention_mapping("firstcover", &coloured_jpeg([140, 45, 205]));
+    first.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let mut other = retention_mapping("secondcover", &coloured_jpeg([60, 150, 81]));
+    other.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let receiver = ("receiver", "original-game", &["console"][..], None);
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("specific", "original-game", &["console"], Some(&specific)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        ("other", "original-game", &["console"], Some(&other)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        (
+            "other",
+            "original-game",
+            &["console", "remaster"],
+            Some(&other),
+        ),
+    ]));
+    assert_eq!(igdb_cover(&service, "receiver"), Some(first));
+}
+
+#[test]
+fn automatic_cover_preserves_reviewed_collection_identity() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let mut shared = retention_mapping("sharedcover", &coloured_jpeg([55, 90, 125]));
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let member = retention_mapping("membercover", &coloured_jpeg([20, 45, 70]));
+    let mut document = edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("collection", "original-game", &["console"], None),
+    ])
+    .listing_document()
+    .clone();
+    document.format_version = 11;
+    document
+        .listings
+        .iter_mut()
+        .find(|listing| listing.id == "collection")
+        .unwrap()
+        .collection_covers = Some(vec![member.clone()]);
+    let catalog = crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap();
+    service.replace_catalog_for_test(catalog);
+    assert!(igdb_cover(&service, "collection").is_none());
+    let handoff = service
+        .destination_artwork("collection", DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert_eq!(handoff.source, DestinationArtworkSource::GeneratedFallback);
+    let original = service.catalog().listing("collection").unwrap();
+    assert_eq!(original.collection_covers, Some(vec![member]));
+}
+
 /// Uses the production publication route, including its artwork lock and retention.
 fn published_cover(
     service: &PortcoveService,

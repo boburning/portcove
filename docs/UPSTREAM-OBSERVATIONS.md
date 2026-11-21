@@ -243,6 +243,28 @@ provenance linking the selected compiled asset to its source and dependencies.
 Unavailable runtime metadata can be retried without losing the checked game
 table.
 
+For a matched N64 runtime and pinned hash dependency, the observer can associate
+a selected published artifact digest with an Actions output at the same
+upstream repository and source commit. The observer requires a successful
+same-repository first attempt, the output's own run identity, and run readback
+before retaining a match. A bounded search resumes from the retained position.
+Packages without a match stay unknown. An exact match remains available after
+the Actions artifact expires, including when other selected packages change
+at the same repository and commit. This establishes a provider-reported build-to-release
+digest link. Effective checkout and dependency behavior, the job that produced
+the output, and native original-file acceptance need separate evidence.
+
+For outputs with an identifiable upload step, the observer reads that step
+and the earlier checkout step from the exact run attempt. The upload log must
+identify the same digest, artifact ID and size. The checkout log must report
+the selected repository, source commit, runtime and xxHash revisions. The
+checkpoint retains checked job and step identities and log digests. Missing
+or unusable job evidence leaves the affected package unknown and advances the
+search to other packages. Shared budget and rate-limit deferrals still apply.
+Raw logs and signed download addresses stay out of the checkpoint. This records
+checkout and upload observations from the same job. Later build steps and
+native behavior still require their own evidence.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag
@@ -357,8 +379,17 @@ The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
 the existing collection allowance with the configured Shipwright source and
 preserve the regular rotation and checkpoint handling. A due appointed GitHub source takes its bounded provider refresh even if a Core
 binding change also permits offline reprojection of earlier facts. An incomplete
-refresh retains the prior observation and freshness clock. Manual dispatch uses
-the ordinary rotation.
+refresh retains the prior observation and freshness clock. Manual dispatch has
+no scheduled appointments.
+
+Each hosted batch offers at most one early turn to the oldest eligible
+listing-only source with missing or expired provider freshness. Its turn follows
+the appointed scopes and healthy managed sources whose provider receipt is
+missing or will expire by the batch deadline. The remaining sources retain
+their usual order. The listing turn uses the ordinary source quantum and the
+same request, runtime, and byte limits. If the prior turns use the batch
+capacity, the listing waits in its existing durable position. The priority
+changes neither freshness evidence nor continuation rules.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
@@ -1304,11 +1335,20 @@ retain exact bytes and revision. The unchanged signer still verifies the entire
 prior repository and historical revision bounds before renewal. Publication uses
 the existing official-policy namespace and keys.
 
-The target remains a partial directory under the existing eight-MiB limit. It
-admits whole canonical rows, prioritizes prior rows before new observations, and
-never drops requirements to make a row fit. Omissions and source exceptions appear
-in `observation-projection.json` beside the publication evidence; omission does not
-mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+The signed target reserves each previously admitted identity and each matching
+operational catalog guide within the existing eight-MiB limit. Initial admission
+uses the reviewed operational declaration even when an upstream observation is
+unavailable. A previously signed identity missing from the canonical directory
+requires an explicit withdrawal. The signer’s historical verification can renew
+the exact previous bytes when current verification is unavailable. This path
+makes no new admission or provider claim.
+
+The projection reserves complete current guides and still-valid applicable prior
+observations before filling remaining space with optional enrichment. Under
+pressure it can omit an expired observation at its recorded freshness boundary.
+Its receipt lists deferred enrichment and omitted discovery rows separately.
+An over-budget required set preserves the published target and reports failure.
+Omitted discovery rows use the client’s embedded fallback. Existing scheduled renewals refresh
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 

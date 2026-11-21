@@ -1,4 +1,5 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import { compactOpenXPortable, projectOpenXPortable } from "./catalog-openx-portable.mts";
 import {
   compactAlephOnePinnedWindows,
   projectAlephOnePinnedWindows,
@@ -2125,5 +2126,48 @@ void test("implementation descriptions project without changing source, route or
     });
     assert.deepEqual(projectAuthoredPort(varied)!.release, before.release);
     assert.deepEqual(projectAuthoredPort(varied)!.source_profile, before.source_profile);
+  }
+});
+
+void test("OpenXW and OpenXvT share their exact package selectors and local config path", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter((record) => record.openx_portable_v1);
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "star-wars-x-wing-openxw",
+    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+  ]);
+  for (const record of family) {
+    const id = record.listing.id;
+    const explicit = projectOpenXPortable(record);
+    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)));
+    assert.deepEqual(compactOpenXPortable(explicit), record);
+    assert.deepEqual(explicit.integration?.persistent_paths, ["config.yaml"]);
+    assert.deepEqual(
+      explicit.integration?.reviewed_package_layouts,
+      record.integration?.reviewed_package_layouts,
+    );
+
+    const otherIdentity = structuredClone(record);
+    otherIdentity.upstream_lineage!.origin.repository!.id = "1";
+    assert.throws(() => checkedAuthoredPort(otherIdentity), /reviewed OpenXW or OpenXvT/u);
+
+    const missingOrigin = structuredClone(record);
+    Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /reviewed OpenXW or OpenXvT/u);
+
+    const duplicate = structuredClone(record);
+    duplicate.integration!.persistent_paths = [];
+    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+    delete duplicate.integration!.persistent_paths;
+    (duplicate.integration!.release as Record<string, unknown>).linux_tar_xz = false;
+    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+
+    const changedWriter = structuredClone(explicit);
+    changedWriter.integration!.persistent_paths = ["different.yaml"];
+    assert.equal(compactOpenXPortable(changedWriter), changedWriter);
+    const changedArchive = structuredClone(explicit);
+    (changedArchive.integration!.release as Record<string, unknown>).linux_tar_xz = false;
+    assert.equal(compactOpenXPortable(changedArchive), changedArchive);
   }
 });
