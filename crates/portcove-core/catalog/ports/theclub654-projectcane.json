@@ -7,7 +7,7 @@
     "project_url": "https://github.com/theclub654/ProjectCane",
     "issue_number": 1871,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/theclub654/ProjectCane",
     "artwork": {
@@ -35,7 +35,7 @@
         }
       ],
       "warnings": [
-        "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. A Linux-named release file does not establish a Linux route when the inspected source documentation says Windows only.",
+        "Use only the software and original data you are permitted to use. Upstream’s full-game and Windows claims are not Portcove gameplay or native observations. The separately documented Linux AppImage uses a different setup. This guide covers only the reviewed Windows player.",
         "Keep those files together; player settings are also stored in its save payload. Preserve any custom locations used by your own build. Portcove does not convert console saves or certify compatibility between ProjectCane builds."
       ],
       "references": [

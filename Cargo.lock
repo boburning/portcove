@@ -3650,6 +3650,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
+ "base64 0.23.1",
  "crc32fast",
  "directories",
  "ed25519-dalek",

@@ -4188,9 +4188,20 @@ function DetailManageSection({
               You maintain this folder and its updates. Review Saves & backups for any data Portcove
               can protect.
             </p>
-            <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-              Edit external launch details
-            </Button>
+            {external && !model.installReadbackRequired && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  reveal("files", "detail-game-actions", {
+                    focus: "[data-external-runtime-next-action]",
+                  })
+                }
+              >
+                {usesUserSelectedRuntime(model.port, model.status)
+                  ? "Open launch details"
+                  : "Open game folder controls"}
+              </Button>
+            )}
           </div>
         )}
       </CurrentStateSummary>
