@@ -281,8 +281,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     env:
-      SOURCE_HEAD: 88b481b4d003146bc145df320fdbcd6d15c4a601
-      SOURCE_TREE: 2d6e57cf4b901624adf1914880cc0ee948f96119
+      SOURCE_HEAD: 0a7261ac4a1b2206d60c13ba7f020f18968db7d4
+      SOURCE_TREE: 982b184038d286e315000e1457878e43ee27e0e8
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
