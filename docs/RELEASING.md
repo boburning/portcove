@@ -209,12 +209,6 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   because the expired catalog is still read as authenticated history: its
   signatures, version floors and unchanging published files are checked, but its
   expiry is not. No manual step is needed.
-  The publisher inventories every retained file and checks its digest again when
-  signing or assembly uses its bytes. It loads one bounded history file at a
-  time and retains the original URLs. The retention budget is 768 MiB for the
-  signed catalog and 900 MB for the complete Pages tree, including browse and
-  application files. Publication reports the complete tree size before push.
-  [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 - **Signing:**
   - `prepare` builds the CLI and release tools, inspects the bundle with Core,
     reads the published catalog and plans the next version of every online role.
