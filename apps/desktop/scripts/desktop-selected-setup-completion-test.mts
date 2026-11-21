@@ -84,6 +84,7 @@ type CompletionCapture = Awaited<
 >;
 interface CompletionObservations {
   sources: SourceRecord[] | undefined;
+  source_refresh_recovery?: { registration_preserved: true };
   pointer_inputs?: WebKitPointerObservation[];
   completed_sources?: unknown;
   geometry?: Record<string, CompletionCapture["observation"]>;
@@ -728,6 +729,33 @@ export async function selectedSetupCompletionScenario({
       const choices = [fixture.port, fixture.refreshPort, reviewPort]
         .map((item) => `Open ${item.name} details`)
         .sort();
+      const continuationState = await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const section = document.querySelector('[aria-label="Continue to a game"]');
+            if (!section || document.querySelector('[aria-label="Source import review"]'))
+              return false;
+            const controls = [...section.querySelectorAll("button")];
+            const retry = controls.find((item) => item.textContent?.trim() === "Retry refresh");
+            if (retry) return retry.disabled ? false : "retry";
+            return controls.some((item) => !item.disabled) ? "ready" : false;
+          }),
+        30_000,
+        "Registration did not expose the port choices or a safe refresh action",
+      );
+      let priorSources: SourceRecord[] | undefined;
+      if (continuationState === "retry") {
+        priorSources = await read("get_sources");
+        assert.equal(priorSources.length, 1);
+        const registered = required(priorSources[0]);
+        assert.equal(registered.profile_id, owned.profiles[0]);
+        assertOwnedSelectedSetupPath(registered.path, owned.gamePath);
+        await click(
+          By.xpath(
+            '//*[@aria-label="Continue to a game"]//button[normalize-space(.)="Retry refresh"]',
+          ),
+        );
+      }
       await browser.wait(
         async () =>
           executeBrowserScript(
@@ -750,6 +778,14 @@ export async function selectedSetupCompletionScenario({
         "Registration must focus the independent port choices",
       );
       report.observations.sources = await read("get_sources");
+      if (priorSources) {
+        assert.deepEqual(
+          report.observations.sources,
+          priorSources,
+          "Retry refresh must preserve the exact Core registration",
+        );
+        report.observations.source_refresh_recovery = { registration_preserved: true };
+      }
       assert.equal(report.observations.sources.length, 1);
       assert.equal(required(report.observations.sources[0]).profile_id, owned.profiles[0]);
       assert.deepEqual(core(["source", "list"]), report.observations.sources);
