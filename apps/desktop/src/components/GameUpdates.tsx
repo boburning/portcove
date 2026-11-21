@@ -133,7 +133,7 @@ function gameUpdateCompletionMessage(
 ) {
   if (result && acquired)
     return acquired.phase === "acquired"
-      ? "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged."
+      ? "Update archive downloaded. Your installed version and saves were preserved during the download."
       : "The download needs attention. Check its status before continuing.";
   if (result && selection.kind === "discard")
     return "Downloaded update deleted. Installed versions and saved data are unchanged.";
@@ -791,10 +791,6 @@ function RetainedUpdateArchive({
         {formatBytes(acquisition.release.asset.size)}
       </p>
       {currentVersion && <p className="mt-2 text-sm">Version you’re using: {currentVersion}</p>}
-      <p className="mt-2 text-xs text-pc-muted-foreground">
-        Downloading an update leaves the installed version and its saves as they are. Prepare or
-        install the update separately.
-      </p>
       <details className="mt-2 text-xs">
         <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           Download details
