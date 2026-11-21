@@ -121,6 +121,26 @@ fn bounded_digest(path: &Path, expected_sha256: &str, expected_bytes: u64) -> Re
 }
 
 fn verify_files(path: &Path, plan: &GithubCompoundPlan) -> Result<()> {
+    if !(1..=MAX_WRAPPER_BYTES).contains(&plan.wrapper_bytes)
+        || plan.members.is_empty()
+        || plan.members.len() > crate::mod_package::MAX_MEMBERS
+        || plan
+            .members
+            .values()
+            .try_fold(0u64, |total, member| {
+                if !(1..=recomp_companion_review::MAX_MEMBER_BYTES).contains(&member.size) {
+                    return None;
+                }
+                total
+                    .checked_add(member.size)
+                    .filter(|bytes| *bytes <= MAX_WRAPPER_BYTES)
+            })
+            .is_none()
+    {
+        return Err(PortcoveError::verification(
+            "private compound plan exceeds the reviewed file bounds",
+        ));
+    }
     crate::path::refuse_symlink_ancestors(path)?;
     bounded_digest(
         &path.join("wrapper.zip"),
@@ -465,7 +485,9 @@ impl PortcoveService {
         Ok(plan)
     }
 
-    /// Read a stored choice only when the private plan and every file still match.
+    /// Read a historical choice only when its retained build and stored files
+    /// still match. A future activation must separately match the current setup
+    /// and its exact consent before touching native files.
     pub fn verify_github_compound_consent(
         &self,
         port_id: &str,
@@ -552,6 +574,11 @@ mod tests {
                 ),
             ]),
         };
+        let root = tempfile::tempdir().unwrap();
+        let mut oversized = plan.clone();
+        oversized.wrapper_bytes = MAX_WRAPPER_BYTES + 1;
+        let err = verify_files(root.path(), &oversized).unwrap_err();
+        assert!(err.to_string().contains("exceeds the reviewed file bounds"));
         let choice = GithubCompoundConsent {
             plan_sha256: plan.sha256().unwrap(),
             native_libraries: BTreeMap::from([("mod.dll".into(), "c".repeat(64))]),
