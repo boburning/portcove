@@ -72,7 +72,7 @@
     },
     "decisions": []
   },
-  "openx_portable_v1": true,
+  "openx_portable_v1": "1367490590",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

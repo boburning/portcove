@@ -1,3 +1,4 @@
+import { SetupLaunchDraftsProvider } from "./features/browsing/setup-launch-drafts";
 import {
   FavoriteGameButton,
   FavoritePreferenceFailure,
@@ -230,19 +231,21 @@ function PortcoveApp() {
   return (
     <GameFileScanProvider key={bootstrap.generation} generation={bootstrap.generation}>
       <SetupReviewSelectionProvider>
-        <Workspace
-          bootstrap={bootstrap}
-          initialBrowsingContext={
-            bootstrap.library_root
-              ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
-              : undefined
-          }
-          rememberBrowsingContext={rememberBrowsingContext}
-          switchLibrary={switchFromSettings}
-          resetLibrary={resetFromSettings}
-          returnToSelection={returnToSelection}
-          consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
-        />
+        <SetupLaunchDraftsProvider>
+          <Workspace
+            bootstrap={bootstrap}
+            initialBrowsingContext={
+              bootstrap.library_root
+                ? browsingContexts.get(libraryBrowsingKey(bootstrap.library_root))
+                : undefined
+            }
+            rememberBrowsingContext={rememberBrowsingContext}
+            switchLibrary={switchFromSettings}
+            resetLibrary={resetFromSettings}
+            returnToSelection={returnToSelection}
+            consumeLibrarySelectionReturn={consumeLibrarySelectionReturn}
+          />
+        </SetupLaunchDraftsProvider>
       </SetupReviewSelectionProvider>
     </GameFileScanProvider>
   );
