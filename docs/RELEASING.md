@@ -215,14 +215,17 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   the observation once half that window has elapsed. Authored guide changes,
   new release facts, and changes to the permitted freshness window bypass this
   deduplication. Existing incomplete collection and failure rules still apply.
-- **Late Pages readback:** The existing twice-daily catalog schedule checks
-  the previous catalog commit from the pinned Pages branch before preparing a
-  new publication. A separate seven-day receipt identifies the earlier Pages
-  commit, source commit and catalog tree, plus the run that observed them.
-  It requires the exact timestamp before and after reading affected immutable
-  targets and the generated browse samples. A queued, unavailable or replaced
-  generation leaves this observation unconfirmed and does not stop publication.
-  This readback grants no signing or publication authority.
+- **Late Pages readback:** The existing twice-daily catalog schedule checks the
+  previous commit from the pinned Pages branch before selecting the next
+  publication source. A seven-day artifact identifies the earlier Pages commit,
+  source commit and catalog tree, plus the run that observed them. An exact
+  receipt requires the timestamp to match before and after reading active role
+  metadata, affected immutable targets, browse samples and any new checkpoint
+  objects. The observation records whether Pages still served the exact
+  predecessor, reported a higher timestamp during readback, or returned
+  incomplete evidence. These outcomes leave the publication unconfirmed and
+  allow the next publication to continue. This readback grants no signing or
+  publication authority.
 - **Signing:**
   - `prepare` builds the CLI and release tools, inspects the bundle with Core,
     reads the published catalog and plans the next version of every online role.
