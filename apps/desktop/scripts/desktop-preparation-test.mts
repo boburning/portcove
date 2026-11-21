@@ -2385,7 +2385,12 @@ export async function preparationScenarios({
               async function checkFocusedResizeAt200() {
                 await browser.manage().window().setRect({ width: 1366, height: 768 });
                 const target = '.collection-entry button[aria-label^="More actions for "]';
-                const more = await browser.findElement(By.css(target));
+                let more = await browser.findElement(By.css(target));
+                const origin = await more.getAttribute("data-detail-origin");
+                assert.ok(origin, "The Library menu must expose its exact return identity");
+                const sameAction = By.css(
+                  target + "[data-detail-origin=" + JSON.stringify(origin) + "]",
+                );
                 const waitForVisibleAction = () =>
                   browser.wait(
                     () =>
@@ -2501,8 +2506,16 @@ export async function preparationScenarios({
                   { width: 960, height: 640 },
                   { width: 1366, height: 768 },
                 ]) {
+                  const priorElement = await more.getId();
                   await browser.manage().window().setRect(requestedWindow);
                   const state = await measure();
+                  // The native viewport may replace the DOM node. Observe the same
+                  // logical action without focusing it or choosing another card.
+                  more = await browser.wait(
+                    until.elementLocated(sameAction),
+                    5_000,
+                    "The same Library menu did not survive resizing",
+                  );
                   const continuity = await executeBrowserScript(
                     browser,
                     launchContinuityPoint,
@@ -2510,6 +2523,7 @@ export async function preparationScenarios({
                   );
                   observations.push({
                     phase: "focused-resize-200",
+                    origin_element_replaced: (await more.getId()) !== priorElement,
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
                     ...state,
