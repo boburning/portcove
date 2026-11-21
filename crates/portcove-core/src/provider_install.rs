@@ -18,10 +18,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AssetConflict, PortDefinition, PortcoveError, PortcoveService, ProfileRevision,
-    ProfileUpdatePolicy, ProviderFileCandidate, ProviderFreshness, ProviderPackageRef,
-    ProviderProject, ProviderRequirement, RecompExecution, Result, asset_conflicts,
-    inspect_asset_archive,
+    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
+    ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, ProviderProject,
+    ProviderRequirement, RecompExecution, Result, asset_conflicts, inspect_asset_archive,
     mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
     profile,
     profile_deploy::{
