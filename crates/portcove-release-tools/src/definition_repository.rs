@@ -347,6 +347,11 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
             sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
+    } else if context
+        .targets
+        .contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+    {
+        return invalid("cover observations require a previous authenticated catalog checkpoint");
     } else if context.bootstrap_history || context.history_store.is_some() {
         return invalid("catalog history requires an authenticated predecessor");
     } else if !config.previous_repository.is_null() {

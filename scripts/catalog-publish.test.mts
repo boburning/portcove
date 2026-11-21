@@ -873,6 +873,65 @@ void test("compact activation requires both capabilities from the reviewed relea
   );
 });
 
+void test("a quiet listing renewal reuses the exact covered fallback after an ambiguous write", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { advanceArtworkCheckpoint, coverDeclarationScope } =
+    await import("./listing-artwork-checkpoint.mts");
+  const artwork = {
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "fixture",
+    match_kind: "port" as const,
+    image_id: "cofixture",
+    image_sha256: "a".repeat(64),
+  };
+  const row = { ...fixtureListing, artwork };
+  const canonical = { format_version: 11, listings: [row] };
+  const write = (
+    previous: Buffer | null,
+    checkpoint?: ReturnType<typeof advanceArtworkCheckpoint>,
+  ) =>
+    projectListingDelivery(
+      canonical,
+      [],
+      previous,
+      0,
+      undefined,
+      canonical,
+      new Set([row.id]),
+      Date.parse("2026-11-22T00:00:00.000Z"),
+      [],
+      false,
+      undefined,
+      checkpoint,
+    );
+  const prior = write(null);
+  const observed = {
+    id: row.id,
+    artwork,
+    scope: coverDeclarationScope(row, artwork),
+    report: "sha256:" + "d".repeat(64),
+    status: "propose_fallback",
+    observed_at: "2026-11-21T12:00:00.000Z",
+  };
+  const gone = advanceArtworkCheckpoint(null, [observed]);
+  const removed = write(prior.bytes, gone);
+  assert.equal(decodedListingDelivery(removed.bytes).directory.listings[0].artwork, undefined);
+  const checkpoint = gone.finish(removed.bytes)!;
+  assert.deepEqual(write(prior.bytes, gone).bytes, removed.bytes);
+  const reopen = advanceArtworkCheckpoint({ bytes: checkpoint, listing: removed.bytes }, []);
+  const renewed = write(removed.bytes, reopen);
+  assert.equal(renewed.changed, false);
+  assert.deepEqual(reopen.finish(renewed.bytes), checkpoint);
+  const restored = advanceArtworkCheckpoint({ bytes: checkpoint, listing: removed.bytes }, [
+    { ...observed, status: "verified_accepted_bytes", observed_at: "2026-11-22T12:00:00.000Z" },
+  ]);
+  const recovery = write(renewed.bytes, restored);
+  assert.equal(recovery.revision, removed.revision + 1);
+  assert.deepEqual(decodedListingDelivery(recovery.bytes).directory.listings[0].artwork, artwork);
+});
+
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
   const { fixtureListing, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -1043,13 +1102,15 @@ void test("descriptive delivery encodes an exact GitHub slash tag from a retaine
   }
 });
 
-void test("only the dynamic listing target is excluded from fixed input comparison", async () => {
+void test("derived listing targets and the cover checkpoint are excluded from fixed input comparison", async () => {
   const { sameStaticPublicationTargets } = await import("./catalog-publish.mts");
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
   const fixed = { "definitions/index.json": "a".repeat(64) };
   assert.equal(
     sameStaticPublicationTargets(fixed, {
       ...fixed,
       "policy/official/catalog.listings.json": "b".repeat(64),
+      [artworkCheckpointTarget]: "d".repeat(64),
     }),
     true,
   );

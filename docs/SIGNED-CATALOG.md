@@ -196,6 +196,16 @@ history pointer cannot trigger a new bootstrap.
 
 ## Capacity diagnostics and retained representations
 
+The opt-in cover checkpoint uses the existing official policy role and
+requires an authenticated catalog history predecessor. It binds the exact
+active listing bytes, the previous cover checkpoint and the exact image SHA
+for each authored cover scope. A confirmed Gone can omit that cover.
+Unavailable evidence and changed bytes preserve existing decisions. A later
+validated read of the same accepted bytes can restore that cover. The
+publisher copies the exact prior pair during historical renewal. The signer
+refuses a missing checkpoint, a predecessor mismatch or a stale decision.
+The current publishing workflow leaves this option disabled.
+
 Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the
 current source, compact document, representative escaped format-1 envelope and
 remaining parser headroom. The tool reads the existing Core limit constants; it

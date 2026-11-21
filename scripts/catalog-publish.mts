@@ -25,6 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { decodeTufRoleKey } from "./tuf-role-key.mts";
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
@@ -399,7 +400,11 @@ export function sameStaticPublicationTargets(
 ) {
   const previous = { ...published };
   delete previous[historyTarget];
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
@@ -549,7 +554,7 @@ async function main(argv: string[]) {
       console.log(`catalog-history/${name} ${entry.sha256} ${entry.bytes}`);
     }
   } else if (command === "unchanged") {
-    // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
+    // Derived listing targets and their checkpoint refresh on the existing cadence.
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
     console.log(

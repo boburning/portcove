@@ -26,13 +26,13 @@ type Checkpoint = {
   entries: Row[];
 };
 
-export function coverDeclarationScope(row: Record<string, unknown>) {
+export function coverDeclarationScope(row: Record<string, unknown>, artwork: unknown) {
   return orderedJsonSha256([
     row.id,
     row.project_url ?? null,
     row.original_game ?? null,
-    row.artwork ?? null,
-    row.collection_covers ?? null,
+    Array.isArray(row.collection_covers) ? "collection" : "single",
+    artwork,
   ]);
 }
 
@@ -127,14 +127,13 @@ export function advanceArtworkCheckpoint(
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([, row]) => row);
   return {
-    apply(listing: Record<string, unknown>) {
+    apply(listing: Record<string, unknown>, declaration = listing) {
       if (typeof listing.id !== "string") return listing;
-      const scope = coverDeclarationScope(listing);
       const gone = (artwork: { image_id: string; image_sha256: string }) =>
         entries.get(
           key({
             id: String(listing.id),
-            scope,
+            scope: coverDeclarationScope(declaration, artwork),
             image_id: artwork.image_id,
             prior_sha256: artwork.image_sha256,
           }),

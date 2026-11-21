@@ -19,6 +19,13 @@ import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
+  advanceArtworkCheckpoint,
+  artworkCheckpointMax,
+  artworkCheckpointTarget,
+  readArtworkCheckpoint,
+} from "./listing-artwork-checkpoint.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import {
   observeScummvmGameData,
   projectScummvmGameData,
   projectScummvmPreparation,
@@ -269,6 +276,7 @@ export function projectListingDelivery(
   reviewedWithdrawals: readonly string[] = [],
   requireComplete = false,
   scummvmGameData?: ScummvmGameDataObservation,
+  artwork?: ReturnType<typeof advanceArtworkCheckpoint>,
 ) {
   const raw = directory(canonical);
   const previousDocument = previous
@@ -329,7 +337,8 @@ export function projectListingDelivery(
           isRecord(listing.upstream_observation)),
     )
     .map((listing) => {
-      const result = structuredClone(listing);
+      const declaration = declarations.get(listing.id)!;
+      const result = structuredClone(artwork?.apply(listing, declaration) ?? listing);
       const old = previousListings.get(listing.id);
       let comparable = listing;
       // Pre-format-13 signed rows could not carry typed scenes.
@@ -346,10 +355,15 @@ export function projectListingDelivery(
         if (media.length > 0) comparable.media = media;
         else delete comparable.media;
       }
+      const withoutCovers = (row: Record<string, unknown>) => {
+        if (!artwork) return row;
+        const { artwork: _artwork, collection_covers: _collection, ...identity } = row;
+        return identity;
+      };
       const prior =
         old &&
-        listingDeclarationHash(withoutScummvmGameData(old, comparable)) ===
-          listingDeclarationHash(comparable) &&
+        listingDeclarationHash(withoutCovers(withoutScummvmGameData(old, comparable))) ===
+          listingDeclarationHash(withoutCovers(comparable)) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -520,6 +534,17 @@ export async function verifiedPriorListing(
   verification: unknown,
   carrier = listingDeliveryTarget,
 ): Promise<Buffer | null> {
+  const bytes = await verifiedPriorTarget(prior, verification, carrier, maximum);
+  if (bytes) readDeliveryCarrier(bytes, carrier);
+  return bytes;
+}
+
+async function verifiedPriorTarget(
+  prior: string,
+  verification: unknown,
+  carrier: string,
+  limit: number,
+): Promise<Buffer | null> {
   if (
     !isRecord(verification) ||
     verification.schema_version !== 1 ||
@@ -535,10 +560,9 @@ export async function verifiedPriorListing(
   const entry = verifiedFiles.find((raw) => isRecord(raw) && raw.target === target);
   if (!isRecord(entry) || entry.sha256 !== identity)
     throw new Error("Prior listing is not referenced by verified repository inventory");
-  const bytes = await readControllerToolFile(path.join(prior, target), maximum);
+  const bytes = await readControllerToolFile(path.join(prior, target), limit);
   if (bytes.length !== entry.bytes || hash(bytes) !== identity)
     throw new Error("Prior signed listing bytes differ");
-  readDeliveryCarrier(bytes, carrier);
   return bytes;
 }
 
@@ -605,6 +629,8 @@ export async function prepareObservationBundle(options: {
   releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
   readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
+  coverCheckpoint?: boolean;
+  readCoverHealth?: typeof readHostedCoverHealth;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
@@ -631,6 +657,7 @@ export async function prepareObservationBundle(options: {
     : null;
   let previous: Buffer | null = null;
   let previousWire: Buffer | null = null;
+  let previousCover: Buffer | null = null;
   let retainedLegacy: Buffer | null = null;
   let useCompact = options.compact === true;
   let priorCompact = false;
@@ -673,6 +700,13 @@ export async function prepareObservationBundle(options: {
       );
       previousWire = await verifiedPriorListing(prior, report, previousCarrier);
       previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
+      previousCover = await verifiedPriorTarget(
+        prior,
+        report,
+        artworkCheckpointTarget,
+        artworkCheckpointMax,
+      );
+      if (previousCover) readArtworkCheckpoint(previousCover, previous!);
       if (useCompact)
         retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
     } catch (error) {
@@ -684,6 +718,19 @@ export async function prepareObservationBundle(options: {
         previousCarrier,
       );
       previousWire = renewal.wire;
+      const coverDigest = publishedTargets(options.prior)[artworkCheckpointTarget];
+      if (coverDigest !== undefined) {
+        if (!/^[a-f0-9]{64}$/u.test(coverDigest))
+          throw new Error("Invalid prior cover checkpoint digest");
+        const raw = await readControllerToolFile(
+          path.join(options.prior, `targets/${coverDigest}.${artworkCheckpointTarget}`),
+          artworkCheckpointMax,
+        );
+        if (hash(raw) !== coverDigest)
+          throw new Error("Historical cover checkpoint digest differs");
+        readArtworkCheckpoint(raw, renewal.bytes);
+        previousCover = raw;
+      }
       // An expired baseline can renew its exact existing representation. First
       // compact publication requires a separately current authenticated legacy.
       useCompact = priorCompact;
@@ -808,6 +855,33 @@ export async function prepareObservationBundle(options: {
       );
     }
   }
+  const coverEnabled = options.coverCheckpoint === true || previousCover !== null;
+  if (
+    coverEnabled &&
+    (!options.prior ||
+      !Object.hasOwn(
+        publishedTargets(options.prior),
+        "policy/official/catalog.history-checkpoint.json",
+      ))
+  )
+    throw new Error("Cover observations require an existing protected publisher checkpoint");
+  let coverEvidence: Awaited<ReturnType<typeof readHostedCoverHealth>> = null;
+  if (coverEnabled && !renewal && options.observe !== false) {
+    try {
+      coverEvidence = await (options.readCoverHealth ?? readHostedCoverHealth)();
+    } catch (error) {
+      diagnostics.push(
+        `cover evidence unavailable: ${error instanceof Error ? error.message.slice(0, 180) : "read failed"}`,
+      );
+    }
+  }
+  const cover =
+    coverEnabled && !renewal
+      ? advanceArtworkCheckpoint(
+          previousCover && previous ? { bytes: previousCover, listing: previous } : null,
+          coverEvidence ? applicableCoverHealth(canonical, coverEvidence) : [],
+        )
+      : undefined;
   const project = (
     observations: readonly Record<string, unknown>[],
     scummvm?: ScummvmGameDataObservation,
@@ -824,6 +898,7 @@ export async function prepareObservationBundle(options: {
       withdrawal?.withdrawn_ids,
       useCompact,
       scummvm,
+      cover,
     );
   let projected = renewal ?? project(candidates, gameData);
   const inspect = (bytes: Buffer) => {
@@ -871,8 +946,13 @@ export async function prepareObservationBundle(options: {
     unlinkSync(destination);
   }
   writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
+  const coverBytes = renewal ? previousCover : cover?.finish(projected.bytes);
+  if (coverBytes)
+    writeFileSync(path.join(bundle, artworkCheckpointTarget), coverBytes, { flag: "wx" });
   if (compactWire) {
     writeFileSync(path.join(bundle, compactListingDeliveryTarget), compactWire, { flag: "wx" });
+  }
+  if (compactWire || coverBytes) {
     cli(["--json", "catalog", "inspect-definition-publication", bundle]);
   }
   const report = {
@@ -941,6 +1021,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "offline-targets": { type: "string" },
       offline: { type: "boolean", default: false },
       compact: { type: "boolean", default: false },
+      "cover-checkpoint": { type: "boolean", default: false },
       "released-reader": { type: "string" },
       "released-reader-sha256": { type: "string" },
     },
@@ -972,6 +1053,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         compact: values.compact,
+        coverCheckpoint: values["cover-checkpoint"],
         ...(values["released-reader"] && values["released-reader-sha256"]
           ? {
               releasedReader: {

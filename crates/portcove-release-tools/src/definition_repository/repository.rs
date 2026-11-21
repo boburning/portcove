@@ -156,6 +156,8 @@ async fn authenticate(
             }
             let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
                 portcove_listing_carrier::MAX_BYTES as u64
+            } else if name.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -189,6 +191,7 @@ async fn authenticate(
         }
     }
     bundle::listing_targets(&logical.files)?;
+    bundle::checked_cover_checkpoint(&logical.files)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -257,6 +260,20 @@ pub(super) async fn inspect_prior(
     .await?;
     let roles = current_roles(&files)?;
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
+    let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
+    if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
+        return invalid("cover observations require authenticated catalog history");
+    }
+    portcove_listing_carrier::check_cover_checkpoint_successor(
+        prior_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        next_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+    )
+    .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
     let thin = context.thin_history && pointer.is_some();
     let mut floors = HistoricalRevisionFloors::default();
     verify_history(context, &files, |role, targets| {
@@ -569,6 +586,8 @@ impl HistoricalRevisionFloors {
             })?;
             let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
                 portcove_listing_carrier::MAX_BYTES
+            } else if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX
             } else if target.raw() == "definitions/index.json" {
                 DEFINITION_INDEX_MAX as usize
             } else if definition_role {
@@ -585,6 +604,11 @@ impl HistoricalRevisionFloors {
             // The physical body is immutable, but every signed reference must
             // independently agree with its measured length and digest.
             if !self.seen.insert(path) {
+                continue;
+            }
+            if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                // The current authenticated target and its direct successor
+                // are validated together before a role key is used.
                 continue;
             }
             let body = current.historical_body(target.raw(), raw)?;

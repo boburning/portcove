@@ -257,23 +257,23 @@ export function applicableCoverHealth(
   if (!isRecord(source) || !Array.isArray(source.listings))
     throw new Error("Cover receipt has no producer declaration scope");
   const original = new Map(
-    (source.listings as unknown[])
-      .filter(isRecord)
-      .map((row) => [row.id, coverDeclarationScope(row)]),
+    (source.listings as unknown[]).filter(isRecord).map((row) => [row.id, row]),
   );
   return current.listings.flatMap((row) => {
-    const scope = coverDeclarationScope(row);
-    if (typeof row.id !== "string" || original.get(row.id) !== scope) return [];
+    const originalRow = original.get(row.id);
+    if (typeof row.id !== "string" || !originalRow) return [];
     const covers = validArtworkMapping(row.artwork)
       ? [row.artwork]
       : validArtworkCollection(row.collection_covers)
         ? row.collection_covers
         : [];
     return covers.flatMap((artwork) => {
+      const scope = coverDeclarationScope(row, artwork);
       const fact = evidence.facts.get(`port:${row.id}@${artwork.image_id}`);
       if (
         !isRecord(fact) ||
         (fact.status !== "unchanged" && fact.status !== "gone" && fact.status !== "mismatch") ||
+        scope !== coverDeclarationScope(originalRow, artwork) ||
         orderedJsonSha256(fact.artwork) !== orderedJsonSha256(artwork)
       )
         return [];
