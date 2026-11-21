@@ -60,6 +60,7 @@ import {
   type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
+import { reconcileIntakeHandoffReceipts } from "./maintenance-intake-receipts.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
 import { targetsDigest } from "./release-content-scan.mts";
@@ -367,6 +368,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--delivery",
     "--upstream",
     "--hosted-intake",
+    "--reconcile-intake",
     "--targets",
     "--reassess changed",
   ])
@@ -377,6 +379,19 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
+  const finalReceiptCheck = collect!.steps.at(-1)!;
+  assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
+  assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the backup for independent restore proof"),
+  );
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the report, digest and evidence"),
+  );
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
@@ -2843,6 +2858,98 @@ void test(
     assert.deepEqual(
       readOpenHandoffs(reader).map(({ subject_key }) => subject_key),
       [blockedKey, heldKey],
+    );
+
+    const proof = {
+      run: "881",
+      attempt: "1",
+      head: "f".repeat(40),
+      request_sha256: "a".repeat(64),
+      body_sha256: "b".repeat(64),
+      published_at: new Date(Date.now() + 3000).toISOString(),
+      checkpoint_required: true,
+      original_slots: [{ port_key: "example-game", repository_id: 7 }],
+    };
+    const finish = (overrides = {}) =>
+      request(40, {
+        executor_receipt: proof,
+        slots: [
+          slot({
+            port_key: "amended-key",
+            delivery_status: "existing",
+            linked_issue: 123,
+            existing: true,
+          }),
+        ],
+        delivered: 0,
+        existing: 1,
+        ...overrides,
+      });
+    const reconcile = (row: HostedRequestStatus) =>
+      reconcileIntakeHandoffReceipts(executor, async () => ({ queue: queue(), requests: [row] }));
+    assert.deepEqual(
+      (await reconcile(finish())).completed,
+      [],
+      "missing required durable checkpoint",
+    );
+    const legacy = { ...proof, checkpoint_required: false };
+    assert.deepEqual(
+      (
+        await reconcile(
+          finish({ status: "complete_with_holds", held: 1, pending: 1, executor_receipt: legacy }),
+        )
+      ).completed,
+      [],
+    );
+    assert.deepEqual(
+      (await reconcile(finish({ withdrawn: true, executor_receipt: legacy }))).completed,
+      [],
+    );
+    assert.deepEqual(
+      (
+        await reconcile(
+          finish({
+            executor_receipt: {
+              ...legacy,
+              original_slots: [{ port_key: "other", repository_id: 8 }],
+            },
+          }),
+        )
+      ).completed,
+      [],
+    );
+    const receiptBody = "exact authenticated native bot receipt";
+    const receiptDigest = createHash("sha256").update(receiptBody).digest("hex");
+    runSql(
+      store.owner,
+      `INSERT INTO portcove_maintenance.discovery_intake_batches(request_comment,request_sha256,revision,receipt_body)
+      VALUES(40,'${proof.request_sha256}',1,'${receiptBody}');`,
+    );
+    assert.deepEqual(
+      (await reconcile(finish())).completed,
+      [],
+      "conflicting database and bot receipt",
+    );
+    const agreed = finish({ executor_receipt: { ...proof, body_sha256: receiptDigest } });
+    const result = await reconcile(agreed);
+    assert.deepEqual(result.completed, [
+      {
+        operation_id: plan("hosted-intake-holds", 40, 2),
+        receipt_reference: "https://github.com/boburning/portcove/issues/177#issuecomment-41",
+        receipt_sha256: receiptDigest,
+        run: "881",
+        attempt: "1",
+      },
+    ]);
+    assert.deepEqual(
+      (await reconcile(agreed)).completed,
+      [],
+      "no duplicate receipt after resumption",
+    );
+    assert.equal(
+      recordHandoffOperations(executor).planned,
+      0,
+      "same completed fence cannot open another plan",
     );
   },
 );
