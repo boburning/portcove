@@ -33,6 +33,7 @@ mod observation;
 mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub use exact::{ExactReleaseIdentity, ExactReleaseSelection};
+pub(crate) use exact::{ExactReleaseQuery, is_published as is_exact_release_published};
 pub use managed_variant::ManagedPackageVariant;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
@@ -70,6 +71,20 @@ pub trait ReleaseProvider: Send + Sync {
             .and_then(|release| {
                 crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
             })
+    }
+
+    /// Observe one tag under the current route rules for later confirmation.
+    async fn review_exact(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _scope: Option<&crate::DefinitionAcquisitionScope>,
+        _version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        Err(PortcoveError::unsupported(
+            "the release provider cannot observe an exact historical release",
+        ))
     }
 
     /// Resolve only the identified historical release and package. Providers
@@ -1380,6 +1395,28 @@ fn merge_checksum_entries(
 
 #[async_trait]
 impl ReleaseProvider for GithubReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        let inferred = self.inferred_acquisition_scope(port, scope)?;
+        let query = ExactReleaseQuery::Review(version);
+        query.require_route(
+            port,
+            channel,
+            platform,
+            crate::ReleaseSource::Github,
+            scope.or(inferred.as_ref()),
+        )?;
+        self.resolve_exact_bounded(port, channel, platform, query)
+            .await
+            .map(|(_, pin)| pin)
+    }
+
     async fn resolve_exact(
         &self,
         port: &PortDefinition,
@@ -1758,6 +1795,37 @@ impl GithubReleaseProvider {
         Ok(assets)
     }
 
+    fn inferred_acquisition_scope(
+        &self,
+        port: &PortDefinition,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        if let (None, Some(library)) = (scope, &self.library) {
+            let (catalog, _) = library.load_catalog()?;
+            return crate::definition_repository::publisher_policy::acquisition_scope(
+                library, &catalog, &port.id,
+            );
+        }
+        Ok(None)
+    }
+
+    async fn resolve_exact_bounded(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedGithub, ExactReleaseSelection)> {
+        tokio::time::timeout(
+            self.network_bounds.request,
+            self.resolve_exact_observed(port, channel, platform, query),
+        )
+        .await
+        .map_err(|_| {
+            PortcoveError::network("the exact GitHub release exceeded the provider request budget")
+        })?
+    }
+
     async fn resolve_scoped_selection(
         &self,
         port: &PortDefinition,
@@ -1766,15 +1834,7 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         selection: GithubSelection<'_>,
     ) -> Result<crate::ScopedResolvedRelease> {
-        let inferred = match (scope, &self.library) {
-            (None, Some(library)) => {
-                let (catalog, _) = library.load_catalog()?;
-                crate::definition_repository::publisher_policy::acquisition_scope(
-                    library, &catalog, &port.id,
-                )?
-            }
-            _ => None,
-        };
+        let inferred = self.inferred_acquisition_scope(port, scope)?;
         let scope = scope.or(inferred.as_ref());
         #[cfg(feature = "qualification-fixtures")]
         let bound_scope = self.bind_qualification_scope(scope)?;
@@ -1808,16 +1868,10 @@ impl GithubReleaseProvider {
     ) -> Result<ResolvedGithub> {
         if let GithubSelection::Exact(pin) = selection {
             pin.require_context(port, channel, platform, scope)?;
-            return tokio::time::timeout(
-                self.network_bounds.request,
-                self.resolve_exact_observed(port, channel, platform, pin),
-            )
-            .await
-            .map_err(|_| {
-                PortcoveError::network(
-                    "the exact GitHub release exceeded the provider request budget",
-                )
-            })?;
+            return self
+                .resolve_exact_bounded(port, channel, platform, ExactReleaseQuery::Saved(pin))
+                .await
+                .map(|(release, _)| release);
         }
         if selection
             .variant()

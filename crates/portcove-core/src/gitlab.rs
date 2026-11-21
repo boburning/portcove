@@ -17,7 +17,7 @@ use crate::{
     ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
     library::HttpCacheEntry,
     release::{
-        PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
+        ExactReleaseQuery, PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
         RELEASE_CACHE_MAX_ENTRIES, ReleaseSelectionCacheKey, bounded_response_bytes, paginated_url,
     },
 };
@@ -515,6 +515,21 @@ impl GitlabReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for GitlabReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        let query = ExactReleaseQuery::Review(version);
+        query.require_route(port, channel, platform, ReleaseSource::Gitlab, scope)?;
+        self.resolve_exact_bounded(port, channel, platform, query)
+            .await
+            .map(|(_, pin)| pin)
+    }
+
     async fn resolve_exact(
         &self,
         port: &PortDefinition,
@@ -524,14 +539,9 @@ impl ReleaseProvider for GitlabReleaseProvider {
         pin: &ExactReleaseSelection,
     ) -> Result<crate::ScopedResolvedRelease> {
         pin.require_context(port, channel, platform, scope)?;
-        let selected = tokio::time::timeout(
-            self.network_bounds.request,
-            self.resolve_exact_observed(port, channel, platform, pin),
-        )
-        .await
-        .map_err(|_| {
-            PortcoveError::network("the exact GitLab release exceeded the provider request budget")
-        })??;
+        let (selected, _) = self
+            .resolve_exact_bounded(port, channel, platform, ExactReleaseQuery::Saved(pin))
+            .await?;
         crate::ScopedResolvedRelease::legacy(selected).for_selection(port, platform, channel)
     }
 

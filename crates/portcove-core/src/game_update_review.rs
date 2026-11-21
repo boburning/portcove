@@ -183,6 +183,15 @@ impl PortcoveService {
             sources,
             activate,
         ))?);
+        let digest = if let Some(pin) = &plan.exact_release {
+            crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove exact release review v1",
+                digest,
+                pin,
+            ))?)
+        } else {
+            digest
+        };
         if let Some(shared) = &plan.shared_preferences {
             return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
                 "Portcove managed shared preference review v1",

@@ -33,6 +33,48 @@ impl CompositeReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for CompositeReleaseProvider {
+    async fn review_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        version: &str,
+    ) -> Result<ExactReleaseSelection> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .review_exact(port, channel, platform, scope, version)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                let query = crate::release::ExactReleaseQuery::Review(version);
+                query.require_route(
+                    port,
+                    channel,
+                    platform,
+                    ReleaseSource::DirectManifest,
+                    scope,
+                )?;
+                let release = resolve_direct(port, channel, platform)?;
+                query.bind(
+                    port,
+                    platform,
+                    &release,
+                    crate::ExactReleaseIdentity::DirectManifest,
+                )
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
     async fn resolve_exact(
         &self,
         port: &PortDefinition,

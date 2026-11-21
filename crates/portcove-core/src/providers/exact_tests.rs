@@ -151,6 +151,13 @@ async fn exact_history_github_respects_cache_channel_stream_and_artifact_identit
             .version,
         "v2.0.0"
     );
+    assert_eq!(
+        provider
+            .review_exact(&port, CHANNEL, PLATFORM, None, &pin.version)
+            .await
+            .unwrap(),
+        pin
+    );
     let exact = provider
         .resolve_exact(&port, CHANNEL, PLATFORM, None, &pin)
         .await
@@ -284,6 +291,13 @@ async fn exact_history_gitlab_revalidates_tag_links_and_registry_without_fallbac
             .unwrap()
             .version,
         "v2.0.0"
+    );
+    assert_eq!(
+        provider
+            .review_exact(&port, CHANNEL, PLATFORM, None, &pin.version)
+            .await
+            .unwrap(),
+        pin
     );
     let exact = provider
         .resolve_exact(&port, CHANNEL, PLATFORM, None, &pin)

@@ -1,10 +1,11 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use super::*;
 
 /// An exact release and package chosen for one port, channel and platform.
 /// Only the configured provider can supply their current metadata and download URL.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ExactReleaseSelection {
     pub port_id: String,
@@ -18,7 +19,7 @@ pub struct ExactReleaseSelection {
     pub identity: ExactReleaseIdentity,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "provider", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum ExactReleaseIdentity {
     Github {
@@ -36,28 +37,41 @@ pub enum ExactReleaseIdentity {
     DirectManifest,
 }
 
-impl ExactReleaseSelection {
-    pub(crate) fn require_context(
-        &self,
+#[derive(Clone, Copy)]
+pub(crate) enum ExactReleaseQuery<'a> {
+    Review(&'a str),
+    Saved(&'a ExactReleaseSelection),
+}
+
+impl<'a> ExactReleaseQuery<'a> {
+    pub(crate) fn version(self) -> &'a str {
+        match self {
+            Self::Review(version) => version,
+            Self::Saved(pin) => &pin.version,
+        }
+    }
+
+    pub(crate) fn expected(self) -> Option<&'a ExactReleaseSelection> {
+        match self {
+            Self::Saved(pin) => Some(pin),
+            Self::Review(_) => None,
+        }
+    }
+
+    pub(crate) fn require_route(
+        self,
         port: &PortDefinition,
         channel: ReleaseChannel,
         platform: Platform,
+        expected_provider: crate::ReleaseSource,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<()> {
-        let provider = match &self.identity {
-            ExactReleaseIdentity::Github { .. } => crate::ReleaseSource::Github,
-            ExactReleaseIdentity::Gitlab { .. } => crate::ReleaseSource::Gitlab,
-            ExactReleaseIdentity::DirectManifest => crate::ReleaseSource::DirectManifest,
-        };
-        if self.port_id != port.id
-            || self.channel != channel
-            || self.platform != platform
-            || provider != port.release.provider
+        if port.release.provider != expected_provider
             || !port.channels.contains(&channel)
             || !port.platforms.contains(&platform)
         {
             return Err(PortcoveError::verification(
-                "the exact release selection does not match this provider, port, channel and platform",
+                "the exact release selection does not match this provider, channel and platform",
             ));
         }
         if port.release.managed_build.contains_key(&platform) {
@@ -68,68 +82,210 @@ impl ExactReleaseSelection {
                 "this route requires its authorized curated release selection",
             ));
         }
-        if let Some(hold) = &port.managed_acquisition_hold
-            && (hold.excluded_artifacts.is_empty() || hold.excludes(&self.version, &self.sha256))
-        {
+        if let Some(hold) = &port.managed_acquisition_hold {
             return Err(PortcoveError::unsupported(hold.reason.clone()));
         }
+        require_version(
+            self.version(),
+            expected_provider != crate::ReleaseSource::DirectManifest,
+        )
+    }
 
-        let valid_name = |name: &str| {
-            !name.is_empty()
-                && name.len() <= 255
-                && name != "."
-                && name != ".."
-                && !name.chars().any(|c| c.is_control() || c == '\\')
+    pub(crate) fn bind(
+        self,
+        port: &PortDefinition,
+        platform: Platform,
+        release: &ResolvedRelease,
+        identity: ExactReleaseIdentity,
+    ) -> Result<ExactReleaseSelection> {
+        let candidate = ExactReleaseSelection {
+            port_id: port.id.clone(),
+            platform,
+            channel: release.channel,
+            version: release.version.clone(),
+            filename: release.asset.name.clone(),
+            size: release.asset.size,
+            sha256: release.asset.sha256.to_ascii_lowercase(),
+            identity,
         };
-        let valid_git_tag = || {
-            self.version
+        candidate.require_context(port, release.channel, platform, None)?;
+        if candidate.version != self.version()
+            || self
+                .expected()
+                .is_some_and(|expected| !candidate.same_artifact(expected))
+        {
+            return Err(PortcoveError::verification(
+                "the published release or package differs from the exact selection",
+            ));
+        }
+        Ok(candidate)
+    }
+}
+
+fn require_version(version: &str, hosted: bool) -> Result<()> {
+    if version.is_empty()
+        || version.len() > 255
+        || version.chars().any(|c| c.is_control() || c == '\\')
+        || (hosted
+            && version
                 .split('/')
-                .all(|part| part != "." && part != ".." && !part.is_empty())
+                .any(|part| part.is_empty() || part == "." || part == ".."))
+    {
+        return Err(PortcoveError::verification(
+            "the exact release has an invalid tag or version",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn is_published(published_at: Option<&str>) -> bool {
+    published_at
+        .and_then(|value| {
+            time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
+        })
+        .is_some_and(|instant| instant <= time::OffsetDateTime::now_utc())
+}
+
+impl ExactReleaseIdentity {
+    fn provider(&self) -> crate::ReleaseSource {
+        match self {
+            Self::Github { .. } => crate::ReleaseSource::Github,
+            Self::Gitlab { .. } => crate::ReleaseSource::Gitlab,
+            Self::DirectManifest => crate::ReleaseSource::DirectManifest,
+        }
+    }
+
+    fn valid(&self) -> bool {
+        let valid_commit = |sha: &str| {
+            sha.len() == 40
+                && sha
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
         };
-        let valid_commit =
-            |sha: &str| sha.len() == 40 && sha.bytes().all(|byte| byte.is_ascii_hexdigit());
-        let valid_identity = match &self.identity {
-            ExactReleaseIdentity::Github {
+        match self {
+            Self::Github {
                 repository_id,
                 release_id,
                 asset_id,
                 commit_sha1,
             } => {
-                *repository_id > 0
-                    && *release_id > 0
-                    && *asset_id > 0
-                    && valid_commit(commit_sha1)
-                    && valid_git_tag()
+                *repository_id > 0 && *release_id > 0 && *asset_id > 0 && valid_commit(commit_sha1)
             }
-            ExactReleaseIdentity::Gitlab {
+            Self::Gitlab {
                 project_id,
                 link_id,
                 package_file_id,
                 commit_sha1,
             } => {
-                *project_id > 0
-                    && *link_id > 0
-                    && *package_file_id > 0
-                    && valid_commit(commit_sha1)
-                    && valid_git_tag()
+                *project_id > 0 && *link_id > 0 && *package_file_id > 0 && valid_commit(commit_sha1)
             }
-            ExactReleaseIdentity::DirectManifest => true,
-        };
+            Self::DirectManifest => true,
+        }
+    }
+}
+
+impl ExactReleaseSelection {
+    pub(crate) fn require_context(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<()> {
+        self.require_persisted(&port.id, channel)?;
+        if self.platform != platform {
+            return Err(PortcoveError::verification(
+                "the saved exact release belongs to a different platform",
+            ));
+        }
+        ExactReleaseQuery::Saved(self).require_route(
+            port,
+            channel,
+            platform,
+            self.identity.provider(),
+            scope,
+        )
+    }
+
+    pub(crate) fn require_persisted(&self, port_id: &str, channel: ReleaseChannel) -> Result<()> {
+        if self.port_id != port_id || self.channel != channel {
+            return Err(PortcoveError::verification(
+                "the saved exact release belongs to a different port or channel",
+            ));
+        }
+        require_version(
+            &self.version,
+            self.identity.provider() != crate::ReleaseSource::DirectManifest,
+        )?;
         crate::archive::validate_relative_path(&self.filename, false)?;
         crate::archive::validate_download_progress(0, self.size)?;
-        if !valid_name(&self.version)
-            || !valid_name(&self.filename)
-            || self.filename.contains('/')
+        if self.filename.is_empty()
+            || self.filename.len() > 255
+            || self.filename.contains(['/', '\\'])
             || self.filename.to_ascii_lowercase().starts_with(".portcove-")
             || self.size == 0
             || !is_sha256(&self.sha256)
-            || !valid_identity
+            || !self.identity.valid()
         {
             return Err(PortcoveError::verification(
                 "the exact release selection lacks valid artifact identity or SHA-256",
             ));
         }
         Ok(())
+    }
+
+    pub(crate) fn decode(
+        port_id: &str,
+        channel: ReleaseChannel,
+        json: Option<&str>,
+    ) -> Result<Option<Self>> {
+        json.map(|json| {
+            let pin: Self = serde_json::from_str(json)?;
+            pin.require_persisted(port_id, channel)?;
+            Ok(pin)
+        })
+        .transpose()
+    }
+
+    pub(crate) fn require_saved_variant(
+        &self,
+        port: &PortDefinition,
+        variant: &ManagedPackageVariant,
+    ) -> Result<Option<String>> {
+        variant.require_contract(port, self.channel, self.platform)?;
+        let ExactReleaseIdentity::Github {
+            repository_id,
+            commit_sha1,
+            ..
+        } = &self.identity
+        else {
+            return Err(PortcoveError::conflict(
+                "the exact selection differs from the installed package choice",
+            ));
+        };
+        if *repository_id != variant.repository_id()
+            || !variant.matches(&self.version, &self.filename)
+        {
+            return Err(PortcoveError::conflict(
+                "the exact selection differs from the installed package choice",
+            ));
+        }
+        if variant.requires_explicit_proof() {
+            variant.require_tag_commit(&self.version, &self.filename, commit_sha1)?;
+            return Ok(Some(commit_sha1.clone()));
+        }
+        Ok(None)
+    }
+
+    fn same_artifact(&self, expected: &Self) -> bool {
+        self.identity == expected.identity
+            && self.port_id == expected.port_id
+            && self.platform == expected.platform
+            && self.channel == expected.channel
+            && self.version == expected.version
+            && self.filename == expected.filename
+            && self.size == expected.size
+            && self.sha256.eq_ignore_ascii_case(&expected.sha256)
     }
 
     pub(crate) fn require_artifact(&self, release: &ResolvedRelease) -> Result<()> {
@@ -153,23 +309,18 @@ impl GithubReleaseProvider {
         port: &PortDefinition,
         channel: ReleaseChannel,
         platform: Platform,
-        pin: &ExactReleaseSelection,
-    ) -> Result<ResolvedGithub> {
-        let ExactReleaseIdentity::Github {
-            repository_id,
-            release_id,
-            asset_id,
-            commit_sha1,
-        } = &pin.identity
-        else {
-            return Err(PortcoveError::verification(
-                "expected an exact GitHub selection",
-            ));
-        };
-
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedGithub, ExactReleaseSelection)> {
+        let tag = query.version();
+        let expected = query.expected();
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = self.get_json(&repository_url).await?;
-        if repository.id != Some(*repository_id) {
+        let repository_id = repository.id.filter(|id| *id > 0).ok_or_else(|| {
+            PortcoveError::verification("the GitHub repository has no stable identity")
+        })?;
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            ExactReleaseIdentity::Github { repository_id: previous, .. } if *previous == repository_id
+        )) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub repository identity changed",
             ));
@@ -179,9 +330,14 @@ impl GithubReleaseProvider {
         tag_url
             .path_segments_mut()
             .map_err(|_| PortcoveError::state("invalid GitHub release URL"))?
-            .extend(["releases", "tags", &pin.version]);
+            .extend(["releases", "tags", tag]);
         let mut release: GithubRelease = self.get_json(tag_url.as_str()).await?;
-        if release.id != Some(*release_id) || release.tag_name != pin.version {
+        let release_id = fresh_release_id(&release)?;
+        if release.tag_name != tag || expected.is_some_and(|pin| {
+            !matches!(&pin.identity,
+                ExactReleaseIdentity::Github { release_id: previous, .. } if *previous == release_id
+            )
+        }) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub release identity changed",
             ));
@@ -191,7 +347,7 @@ impl GithubReleaseProvider {
             port,
             channel,
             platform,
-            |release| !release.draft,
+            |release| !release.draft && is_published(release.published_at.as_deref()),
         )
         .is_none()
         {
@@ -207,7 +363,16 @@ impl GithubReleaseProvider {
             .saved_release_assets(&port.release.repository, &release, None, &mut refresh)
             .await?;
         let asset = choose_asset(port, platform, &release.assets)?;
-        if asset.id != Some(*asset_id) || asset.name != pin.filename || asset.size != pin.size {
+        let asset_id = asset
+            .id
+            .expect("complete inventory requires a stable asset ID");
+        if expected.is_some_and(|pin| {
+            pin.filename != asset.name
+                || pin.size != asset.size
+                || !matches!(&pin.identity,
+                    ExactReleaseIdentity::Github { asset_id: previous, .. } if *previous == asset_id
+                )
+        }) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub package identity changed",
             ));
@@ -218,7 +383,7 @@ impl GithubReleaseProvider {
         expected_url
             .path_segments_mut()
             .map_err(|_| PortcoveError::state("invalid GitHub asset URL"))?
-            .extend(["releases", "download", &pin.version, &pin.filename]);
+            .extend(["releases", "download", tag, &asset.name]);
         if asset.browser_download_url != expected_url.as_str()
             && asset.browser_download_url != expected_url.as_str().replace('+', "%2B")
         {
@@ -232,16 +397,15 @@ impl GithubReleaseProvider {
             .ok_or_else(|| {
                 PortcoveError::verification("the exact package requires its published SHA-256")
             })?;
-        if !sha256.eq_ignore_ascii_case(&pin.sha256) {
+        if expected.is_some_and(|pin| !sha256.eq_ignore_ascii_case(&pin.sha256)) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub package SHA-256 changed",
             ));
         }
-        if !self
-            .github_tag_commit(port, &pin.version, None)
-            .await?
-            .eq_ignore_ascii_case(commit_sha1)
-        {
+        let commit_sha1 = self.github_tag_commit(port, tag, None).await?;
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            ExactReleaseIdentity::Github { commit_sha1: previous, .. } if previous == &commit_sha1
+        )) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub tag points to a different commit",
             ));
@@ -264,9 +428,9 @@ impl GithubReleaseProvider {
         };
         let identity = crate::definition_acquisition::GithubArtifactIdentity {
             repository: port.release.repository.clone(),
-            repository_id: *repository_id,
-            release_id: *release_id,
-            asset_id: *asset_id,
+            repository_id,
+            release_id,
+            asset_id,
             tag: release.tag_name.clone(),
         };
         identity.validate()?;
@@ -282,13 +446,26 @@ impl GithubReleaseProvider {
             },
             uploader_continuity: Some(continuity.record(asset)),
         };
-        pin.require_artifact(&selected)?;
-        Ok(ResolvedGithub {
-            release: selected,
-            identity: Some(identity),
-            explicit_tag_commit: None,
-            activity: Some(repository.activity(&port.release.repository)),
-            fallback_reason: None,
-        })
+        let pin = query.bind(
+            port,
+            platform,
+            &selected,
+            ExactReleaseIdentity::Github {
+                repository_id,
+                release_id,
+                asset_id,
+                commit_sha1,
+            },
+        )?;
+        Ok((
+            ResolvedGithub {
+                release: selected,
+                identity: Some(identity),
+                explicit_tag_commit: None,
+                activity: Some(repository.activity(&port.release.repository)),
+                fallback_reason: None,
+            },
+            pin,
+        ))
     }
 }

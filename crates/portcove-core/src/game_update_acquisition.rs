@@ -33,6 +33,18 @@ impl AcquiredInputs {
 fn definition_digest(port: &PortDefinition) -> Result<String> {
     Ok(crate::signed_catalog::digest(&serde_json::to_vec(port)?))
 }
+fn exact_release_digest(plan: &crate::InstallPlan) -> Result<Option<String>> {
+    plan.exact_release
+        .as_ref()
+        .map(|pin| {
+            Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove acquired exact release v1",
+                pin,
+            ))?))
+        })
+        .transpose()
+}
+
 fn assets_for(plan: &crate::InstallPlan) -> Vec<crate::ReleaseAsset> {
     std::iter::once(plan.release.asset.clone())
         .chain(
@@ -85,6 +97,13 @@ impl PortcoveService {
             ));
         }
         let status = self.status(&reviewed.plan.port_id)?;
+        if status.channel != reviewed.plan.channel
+            || status.exact_release != reviewed.plan.exact_release
+        {
+            return Err(PortcoveError::conflict(
+                "the release preference changed; review acquisition again",
+            ));
+        }
         if status.acquisition.is_some() {
             return Err(PortcoveError::conflict(
                 "discard the existing archive before another acquisition",
@@ -158,6 +177,7 @@ impl PortcoveService {
                     definition_sha256: definition_digest(self.catalog.port(port_id)?)?,
                     assets: assets_for(&reviewed.plan),
                     explicit_package_proof_sha256: reviewed.explicit_package_proof_sha256.clone(),
+                    exact_release_sha256: exact_release_digest(&reviewed.plan)?,
                 })?;
                 record.persist(&store)?;
                 #[cfg(test)]
@@ -268,6 +288,7 @@ impl PortcoveService {
         if scope.is_some()
             || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
             || saved.is_some()
+            || reviewed_status.exact_release.is_some()
         {
             let resolution = operation
                 .interruptible(self.resolve_release_with_variant(
@@ -275,6 +296,7 @@ impl PortcoveService {
                     release.channel,
                     platform,
                     saved.as_ref(),
+                    reviewed_status.exact_release.as_ref(),
                 ))
                 .await?;
             if resolution.release != *release
@@ -285,9 +307,10 @@ impl PortcoveService {
                     "reviewed release changed before immutable acquisition",
                 ));
             }
-            if saved.is_some() {
+            if saved.is_some() || reviewed_status.exact_release.is_some() {
                 let status = self.status(&port.id)?;
                 if status.channel != reviewed_status.channel
+                    || status.exact_release != reviewed_status.exact_release
                     || serde_json::to_value((&status.active, &status.staged))?
                         != serde_json::to_value((&reviewed_status.active, &reviewed_status.staged))?
                 {
@@ -336,6 +359,7 @@ impl PortcoveService {
             (payload.definition_sha256 == definition_digest(self.catalog.port(&plan.port_id)?)?
                 && payload.explicit_package_proof_sha256.as_deref()
                     == explicit_package_proof_sha256
+                && payload.exact_release_sha256 == exact_release_digest(plan)?
                 && payload.assets == assets_for(plan))
             .then(|| view.clone()),
         )
@@ -362,6 +386,7 @@ impl PortcoveService {
         let payload = record.payload();
         if payload.view != *view
             || payload.explicit_package_proof_sha256 != reviewed.explicit_package_proof_sha256
+            || payload.exact_release_sha256 != exact_release_digest(&reviewed.plan)?
             || payload.definition_sha256 != definition_digest(self.catalog.port(&view.port_id)?)?
             || payload.assets != assets_for(&reviewed.plan)
         {

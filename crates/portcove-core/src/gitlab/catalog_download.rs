@@ -70,42 +70,47 @@ fn validate_file(file: &GitlabPackageFile) -> Result<()> {
 }
 
 impl GitlabReleaseProvider {
+    pub(super) async fn resolve_exact_bounded(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedRelease, ExactReleaseSelection)> {
+        tokio::time::timeout(
+            self.network_bounds.request,
+            self.resolve_exact_observed(port, channel, platform, query),
+        )
+        .await
+        .map_err(|_| {
+            PortcoveError::network("the exact GitLab release exceeded the provider request budget")
+        })?
+    }
+
     pub(super) async fn resolve_exact_observed(
         &self,
         port: &PortDefinition,
         channel: ReleaseChannel,
         platform: Platform,
-        pin: &ExactReleaseSelection,
-    ) -> Result<ResolvedRelease> {
-        let crate::ExactReleaseIdentity::Gitlab {
-            project_id,
-            link_id: expected_link,
-            package_file_id,
-            commit_sha1,
-        } = &pin.identity
-        else {
-            return Err(PortcoveError::verification(
-                "expected an exact GitLab selection",
-            ));
-        };
-        let (project_url, observed_project, canonical) =
+        query: ExactReleaseQuery<'_>,
+    ) -> Result<(ResolvedRelease, ExactReleaseSelection)> {
+        let tag = query.version();
+        let expected = query.expected();
+        let (project_url, project_id, canonical) =
             self.catalog_project(&port.release.repository).await?;
-        if observed_project != *project_id {
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { project_id: previous, .. } if *previous == project_id
+        )) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitLab project identity changed",
             ));
         }
-        let release = self
-            .catalog_release(&project_url, *project_id, &pin.version)
-            .await?;
-        let published = release.released_at.as_deref().and_then(|value| {
-            time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339).ok()
-        });
+        let release = self.catalog_release(&project_url, project_id, tag).await?;
         if crate::release::select_channel_candidate(
             std::slice::from_ref(&release),
             channel,
             port.release.rolling_tag.as_deref(),
-            |_| published.is_some_and(|instant| instant <= time::OffsetDateTime::now_utc()),
+            |release| crate::release::is_exact_release_published(release.released_at.as_deref()),
             |candidate| is_beta_tag(&candidate.tag_name),
             |candidate| candidate.tag_name.as_str(),
         )
@@ -120,14 +125,17 @@ impl GitlabReleaseProvider {
         tag_url
             .path_segments_mut()
             .map_err(|_| PortcoveError::state("invalid GitLab tag URL"))?
-            .extend(["repository", "tags", &pin.version]);
+            .extend(["repository", "tags", tag]);
         let reference: GitlabTag = self.get_json(tag_url.as_str()).await?;
-        if reference.name != pin.version || !reference.commit.id.eq_ignore_ascii_case(commit_sha1) {
+        let commit_sha1 = reference.commit.id.to_ascii_lowercase();
+        if reference.name != tag || expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { commit_sha1: previous, .. } if *previous == commit_sha1
+        )) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitLab tag points to a different commit",
             ));
         }
-        let links = self.catalog_links(&project_url, &pin.version).await?;
+        let links = self.catalog_links(&project_url, tag).await?;
         let mut identities = HashSet::new();
         for link in &links {
             if !identities.insert(link_id(link)?) {
@@ -137,7 +145,10 @@ impl GitlabReleaseProvider {
             }
         }
         let link = choose_link(port, platform, &links)?;
-        if link_id(link)? != *expected_link {
+        let selected_link = link_id(link)?;
+        if expected.is_some_and(|pin| !matches!(&pin.identity,
+            crate::ExactReleaseIdentity::Gitlab { link_id: previous, .. } if *previous == selected_link
+        )) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitLab release link identity changed",
             ));
@@ -146,18 +157,17 @@ impl GitlabReleaseProvider {
             .catalog_registry_index(
                 &project_url,
                 &canonical,
-                *project_id,
+                project_id,
                 &release,
                 std::slice::from_ref(link),
             )
             .await?;
-        let reference = index.references.get(expected_link).ok_or_else(|| {
+        let reference = index.references.get(&selected_link).ok_or_else(|| {
             PortcoveError::unsupported("the exact GitLab package requires a project registry file")
         })?;
         let file = self
             .catalog_registry_file(reference, &index.files)
             .await?
-            .filter(|file| file.id == *package_file_id)
             .ok_or_else(|| PortcoveError::verification("the exact GitLab registry file changed"))?;
         validate_file(file)?;
         if conflicts_with_platform(&file.file_name.to_ascii_lowercase(), platform)
@@ -191,8 +201,18 @@ impl GitlabReleaseProvider {
             },
             uploader_continuity: None,
         };
-        pin.require_artifact(&selected)?;
-        Ok(selected)
+        let candidate = query.bind(
+            port,
+            platform,
+            &selected,
+            crate::ExactReleaseIdentity::Gitlab {
+                project_id,
+                link_id: selected_link,
+                package_file_id: file.id,
+                commit_sha1,
+            },
+        )?;
+        Ok((selected, candidate))
     }
 
     async fn catalog_project(&self, repository: &str) -> Result<(String, u64, String)> {
