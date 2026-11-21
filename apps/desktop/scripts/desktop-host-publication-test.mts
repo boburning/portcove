@@ -277,11 +277,6 @@ export async function hostPublicationScenario(context: Context) {
           text,
         );
       };
-      const resumeMenu = () =>
-        reviewControls(browser).click(
-          By.xpath('//summary[normalize-space(.)="Resume an interrupted bundle operation"]'),
-        );
-
       const creation = await arm("recovery_bundle_copied", library);
       await storage();
       await click("Create recovery bundle");
@@ -431,10 +426,19 @@ export async function hostPublicationScenario(context: Context) {
         false,
       );
       assert.equal((await confirmActiveSource()).id, activeSource.id);
-      await storage();
-      await resumeMenu();
-      await click("Resume bundle restore");
-      await field("Restore destination", destination);
+      const reviewRecoveredDestination = async () => {
+        await storage();
+        await click("Inspect or restore a bundle");
+        await field("Recovery bundle folder", bundle);
+        await click("Verify bundle");
+        await waitText("Bundle verified");
+        await field("Restore destination", destination);
+        await click("Review restore");
+      };
+      await reviewRecoveredDestination();
+      await waitText("An interrupted restore is waiting in this folder.");
+      await preserved();
+      await capture("interrupted-bundle-restore-rediscovered");
       await reviewControls(browser).click(
         By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle restore"]'),
       );
@@ -452,6 +456,24 @@ export async function hostPublicationScenario(context: Context) {
       assert.equal(archived.transfer_id, journal.transfer_id);
       await assertIdentity(save);
       await assertIdentity(bundleIdentity);
+      const archivedIdentity = await fileIdentity(
+        path.join(destination, "recovery", "library-import.json"),
+      );
+      await click("Close");
+      await browser.wait(
+        async () => (await browser.findElements(By.css('[role="dialog"]'))).length === 0,
+        60_000,
+      );
+      await reviewRecoveredDestination();
+      await waitText("This bundle was restored to this folder.");
+      await click("Check restored library");
+      await waitText("Library restored");
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      await assertIdentity(archivedIdentity);
+      await assertIdentity(restored);
+      await assertIdentity(save);
+      await assertIdentity(bundleIdentity);
+      await capture("interrupted-bundle-restore-readback");
       copying.result.resumed = { transfer, archived, restored };
     } catch (error) {
       report.failure = errorMessage(error);

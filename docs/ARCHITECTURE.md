@@ -2896,7 +2896,9 @@ interrupted intent offers **Resume bundle creation**. When the authenticated
 intent matches a publication at that destination, **Verify published bundle**
 reads the exact receipt and checks its contents without replaying the copy.
 Select **Inspect or restore a bundle** to verify a finished copy and review a
-separate restore. After a restore completes, choose the restored folder through library
+separate restore. A fresh review of the same bundle and restore folder
+rediscovers its authenticated transfer. Resume checks an interrupted copy,
+and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
 

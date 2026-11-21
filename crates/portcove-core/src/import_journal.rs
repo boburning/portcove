@@ -107,6 +107,58 @@ pub(crate) fn recovery_restore_fingerprint(
 }
 
 impl ImportJournal {
+    /// Rediscover the selected bundle's operation at a known destination without
+    /// acquiring a transfer lease or opening the destination for mutation.
+    pub fn review_bundle_recovery(
+        destination: &Path,
+        selected: &LibraryRecoveryBundle,
+    ) -> Option<PortcoveError> {
+        crate::path::refuse_symlink_ancestors(&std::path::absolute(destination).ok()?).ok()?;
+        let destination = fs::canonicalize(destination).ok()?;
+        let journal = Self::read_recovery(&destination).ok()??;
+        let bundle = journal.bundle.as_ref()?;
+        if journal.plan.destination_root != destination
+            || bundle.bundle_id != selected.bundle_id
+            || bundle.bundle_path != selected.path
+            || bundle.receipt_sha256 != selected.receipt_sha256
+            || [&bundle.bundle_path, &journal.plan.metadata.original_root]
+                .iter()
+                .any(|root| destination.starts_with(root) || root.starts_with(&destination))
+        {
+            return None;
+        }
+        let action = match journal.phase {
+            TransferPhase::Published | TransferPhase::Complete => {
+                let plan = recovery_restore_fingerprint(
+                    &bundle.bundle_path,
+                    &bundle.receipt_sha256,
+                    &journal.plan.plan_sha256,
+                )
+                .ok()?;
+                PortcoveError::conflict(
+                    "This bundle was restored to this folder. Check the recorded restore result.",
+                )
+                .detail("recovery_action", "read_published_recovery_restore")
+                .detail("import_destination", destination.display().to_string())
+                .detail("transfer_id", &journal.transfer_id)
+                .detail("recovery_restore_plan_sha256", plan)
+            }
+            TransferPhase::Copying | TransferPhase::Verified => journal.error(
+                PortcoveError::conflict("An interrupted restore is waiting in this folder."),
+            ),
+            TransferPhase::Aborted => return None,
+        };
+        Some(
+            action
+                .detail("recovery_bundle_id", &bundle.bundle_id)
+                .detail("recovery_bundle_receipt_sha256", &bundle.receipt_sha256)
+                .detail(
+                    "recovery_bundle_path",
+                    bundle.bundle_path.display().to_string(),
+                ),
+        )
+    }
+
     pub fn require_published_bundle_review(&self, expected_plan: &str) -> Result<()> {
         let bundle = self.bundle.as_ref().ok_or_else(|| {
             PortcoveError::conflict("this destination belongs to a manual library import")
