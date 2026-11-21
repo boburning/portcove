@@ -272,6 +272,12 @@ fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
     service.require_selected_loader_for_install(&old).unwrap();
     service.prepare_native_mod_list_locked(id).unwrap();
 
+    let another_plain = service
+        .copy_profile(id, &default.id, "Plain setup")
+        .unwrap();
+    let error = service.activate_profile(id, &another_plain.id).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+
     // Recover a switch whose journal predates the current loader admission.
     let path_layout = Layout::for_user(&service.library().user_dir(id));
     fs::create_dir_all(path_layout.store()).unwrap();

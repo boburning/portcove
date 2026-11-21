@@ -1867,6 +1867,7 @@ impl PortcoveService {
     /// Makes a profile that already exists the owner of live data. Departing and
     /// arriving progress move whole; mods are reconciled from the exact revision.
     pub fn activate_profile(&self, port_id: &str, profile_id: &str) -> Result<ProfileRevision> {
+        self.catalog().port(port_id)?;
         let path_layout = Layout::for_user(&self.library.user_dir(port_id));
         let _guard = self.library.try_lock_port(port_id, "activate-profile")?;
         self.recover_switch_locked(port_id, &path_layout)?;
@@ -1880,6 +1881,11 @@ impl PortcoveService {
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
         let target_layout = self.layout_for_revision(&target)?;
         let departing_layout = self.layout_for_revision(&departing)?;
+        if departing_layout.is_none() && target_layout.is_none() {
+            return Err(PortcoveError::unsupported(
+                "neither setup has a reviewed mod loader",
+            ));
+        }
         let layout = target_layout.as_ref().unwrap_or(&path_layout);
         // Refuse before anything is parked or marked, so a refusal changes nothing.
         self.require_revision_loader(&target)?;
@@ -2070,6 +2076,14 @@ impl PortcoveService {
         }
         let target_layout = self.layout_for_revision(&target)?;
         if selected == to && selected_revision == revision {
+            let departure_setup = profile::profile_by_id(&connection, port_id, &from)?;
+            let departure =
+                profile::revision_by_number(&connection, &from, departure_setup.current_revision)?;
+            if target_layout.is_none() && self.layout_for_revision(&departure)?.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "neither setup has a reviewed mod loader",
+                ));
+            }
             fs::remove_file(journal)?;
             return Ok(());
         }
@@ -2080,6 +2094,11 @@ impl PortcoveService {
         }
         let departing = profile::revision_by_number(&connection, &selected, selected_revision)?;
         let departing_layout = self.layout_for_revision(&departing)?;
+        if departing_layout.is_none() && target_layout.is_none() {
+            return Err(PortcoveError::unsupported(
+                "neither setup has a reviewed mod loader",
+            ));
+        }
         if let Some(observed_layout) = departing_layout.as_ref().or(target_layout.as_ref()) {
             require_clean(
                 &observe(observed_layout, &[&departing, &target])?,

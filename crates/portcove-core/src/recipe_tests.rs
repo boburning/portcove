@@ -955,8 +955,8 @@ fn consented_staged_nrm_import_uses_the_exact_recipe_runtime_while_an_older_buil
         name,
         &[
             ("mod.json", manifest),
-            ("mod_binary.bin", b" "),
-            ("mod_syms.bin", b" "),
+            ("mod_binary.bin", b"\0"),
+            ("mod_syms.bin", b"\0"),
         ],
     );
     let bytes = fs::read(&package).unwrap();
