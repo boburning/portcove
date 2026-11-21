@@ -5378,6 +5378,281 @@ async fn managed_scope_withdrawal_invalidates_captured_proof_and_missing_admissi
 }
 
 #[tokio::test]
+async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
+    use crate::{ReleaseProvider, adapter::Adapter};
+    let platform = crate::Platform::WindowsX86_64;
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.platforms = vec![platform];
+    port.executable_hints = [(platform, vec!["fixture.exe".into()])].into();
+    document.ports.push(port.clone());
+    let baseline = Catalog::from_document(document.clone()).unwrap();
+    let wire = serde_json::json!({
+        "asset_rules":{"windows-x86-64":{"include":["portable"],"exclude":["debug"],"tag_pattern":"v2*","prerelease":"never"}},
+        "package_format":{"windows-x86-64":"tar.xz"},
+        "launch":{"windows-x86-64":{"arguments":["--data",{"path":"user_data"}],"environment":{"FIXTURE_DATA":{"path":"install_root"}}}}
+    });
+    port.reviewed_launch_contract_v1 = Some(serde_json::from_value(wire.clone()).unwrap());
+    *document.ports.last_mut().unwrap() = port;
+    assert!(Catalog::from_document(document.clone()).is_err());
+    let authored = Catalog::from_indexed_document(document, Some(ID), None).unwrap();
+    assert!(authored.export_document(3).is_err());
+    let indexed =
+        crate::test_fixture::IndexedCatalogFixture::with_projection_schema(&authored, ID, 3);
+
+    for (schema, features) in [(3, None), (4, Some(serde_json::json!([])))] {
+        let denied = indexed.with_entry(7, |entry| {
+            entry["definition_schema"] = schema.into();
+            if let Some(features) = features {
+                entry["required_features"] = features;
+            }
+        });
+        let index = crate::DefinitionContentIndex::parse(&denied.index).unwrap();
+        assert!(
+            index
+                .inspect_entry("official", ID, &denied.contents[0].1)
+                .is_err()
+        );
+    }
+    let bundle = indexed.with_entry(7, |entry| {
+        entry["definition_schema"] = 4.into();
+        entry["required_features"] = serde_json::json!(["runtime.reviewed-package-and-launch-v1"]);
+    });
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let grant = managed_policy_for(&targets, false);
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&grant).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let policy_proof = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    assert!(
+        library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .is_none()
+    );
+    library
+        .apply_definition_publisher_policy(&policy_proof, Some(&candidate))
+        .unwrap();
+    let eligible = library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    assert!(
+        crate::InstallQualification::from_catalog(eligible.projection().catalog(), ID, platform)
+            .unwrap_err()
+            .message
+            .contains("exact admitted indexed entry")
+    );
+
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
+    let catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
+        &library.connection().unwrap(),
+        &baseline,
+        now_unix(),
+    )
+    .unwrap()
+    .unwrap()
+    .0;
+    let availability_fixture = RepositoryFixture::new();
+    let availability_key = Key::new(availability_fixture._directory.path());
+    let mut availability_targets = targets[..targets.len() - 1].to_vec();
+    let availability = availability_for(&availability_targets, ID, 1);
+    availability_targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&availability).unwrap(),
+    ));
+    let availability_root = availability_fixture
+        .publish_with_policy(
+            &availability_targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&availability_key, 1)),
+        )
+        .await;
+    let availability_candidate = acquire(&availability_fixture, &availability_root)
+        .await
+        .unwrap();
+    let availability_proof = acquire_policy(&availability_fixture, &availability_root, ID)
+        .await
+        .unwrap();
+    let (_availability_dir, availability_library) = self::library();
+    policy::install_authority_for_test(&availability_library, &availability_root).unwrap();
+    availability_library
+        .apply_definition_publisher_policy(&availability_proof, Some(&availability_candidate))
+        .unwrap();
+    let eligible = availability_library
+        .assess_definition_candidate(&availability_candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    availability_library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
+    let availability_catalog =
+        crate::definition_candidate::selection::load_selected_definition_catalog(
+            &availability_library.connection().unwrap(),
+            &baseline,
+            now_unix(),
+        )
+        .unwrap()
+        .unwrap()
+        .0;
+    assert!(policy::acquisition_scope(&availability_library, &availability_catalog, ID).is_err());
+
+    let mut scope = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap();
+
+    let mut builder = tar::Builder::new(Vec::new());
+    let payload = b"owned portable player fixture";
+    let mut header = tar::Header::new_gnu();
+    header.set_mode(0o755);
+    header.set_size(payload.len() as u64);
+    header.set_cksum();
+    builder
+        .append_data(&mut header, "fixture.exe", &payload[..])
+        .unwrap();
+    let archive = crate::archive::encode_xz_fixture(&builder.into_inner().unwrap());
+    let digest = hex::encode(Sha256::digest(&archive));
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let portable = format!("{}/fixture.tar.xz", server.origin);
+    let asset = serde_json::json!({
+        "name":"unseen-windows-x64-portable.tar.xz", "browser_download_url":portable,
+        "size":archive.len(), "digest":format!("sha256:{digest}")
+    });
+    let mut debug = asset.clone();
+    debug["name"] = "unseen-windows-x64-portable-debug.tar.xz".into();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(serde_json::json!([{
+        "id":10,"tag_name":"v2","draft":false,"prerelease":false,"published_at":null,
+        "assets":[debug,asset]
+    }]));
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let resolved = provider
+        .resolve_scoped(
+            catalog.port(ID).unwrap(),
+            ReleaseChannel::Stable,
+            platform,
+            Some(&scope),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        resolved.release.asset.name,
+        "unseen-windows-x64-portable.tar.xz"
+    );
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let operation = crate::OperationCoordinator::new("install", None);
+    let request = |qualification| crate::InstallRequest {
+        port_id: ID.into(),
+        release: resolved.release.clone(),
+        output_root: library.versions_dir().join(ID),
+        activate: true,
+        managed: None,
+        qualification,
+    };
+    let qualification = crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+    let error = installer
+        .install(request(qualification.clone()), &operation, |_| {})
+        .await
+        .unwrap_err();
+    assert!(error.message.contains("independent acquisition authority"));
+    let availability_qualification =
+        crate::InstallQualification::from_catalog(&availability_catalog, ID, platform).unwrap();
+    let availability_request = crate::InstallRequest {
+        output_root: availability_library.versions_dir().join(ID),
+        ..request(availability_qualification)
+    };
+    let error = crate::Installer::new(availability_library)
+        .unwrap()
+        .install(availability_request, &operation, |_| {})
+        .await
+        .unwrap_err();
+    assert!(error.message.contains("independent acquisition authority"));
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+    server.bytes(&archive);
+    let operation = crate::OperationCoordinator::new("install", None);
+    let installed = installer
+        .install(
+            request(
+                qualification
+                    .with_acquisition_resolution(resolved.clone())
+                    .unwrap(),
+            ),
+            &operation,
+            |_| {},
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        fs::read(installed.path.join("fixture.exe")).unwrap(),
+        payload
+    );
+    assert_eq!(installed.artifact.sha256, digest);
+    let retained = installer.retained_catalog(&installed).unwrap().unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            retained
+                .port(ID)
+                .unwrap()
+                .reviewed_launch_contract_v1
+                .as_ref()
+        )
+        .unwrap(),
+        wire,
+    );
+    let spec = crate::adapter::standard(crate::AdapterKind::NativePortable)
+        .launch_spec_with_executable(
+            crate::adapter::LaunchSpecRequest {
+                library: &library,
+                port: retained.port(ID).unwrap(),
+                platform,
+                install_root: &installed.path,
+                selected_executable: &installed.path.join("fixture.exe"),
+                source: None,
+                source_record: None,
+                disc_progress: None,
+            },
+            &|| Ok(()),
+        )
+        .unwrap();
+    assert_eq!(
+        spec.arguments,
+        vec![
+            "--data".to_owned(),
+            library.user_dir(ID).to_str().unwrap().to_owned()
+        ]
+    );
+    assert_eq!(
+        spec.environment["FIXTURE_DATA"],
+        installed.path.to_str().unwrap()
+    );
+}
+
+#[tokio::test]
 async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect_before_contact() {
     use crate::ReleaseProvider;
     let (_fixture, _key, _root, _directory, library, catalog, mut scope) = managed_fixture().await;
@@ -7070,3 +7345,225 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
 
 #[path = "listing_delivery_tests.rs"]
 mod descriptive_listing_delivery;
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[tokio::test]
+async fn authenticated_forgejo_grant_resolves_downloads_and_verifies_through_service() {
+    authenticated_forge_install_fixture(false).await;
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[tokio::test]
+async fn authenticated_gitlab_grant_resolves_the_plain_link_and_verifies_through_service() {
+    authenticated_forge_install_fixture(true).await;
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+async fn authenticated_forge_install_fixture(gitlab: bool) {
+    use std::io::{Cursor, Write};
+    use std::sync::Arc;
+
+    let payload = b"#!/bin/sh\nexit 0\n";
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            "fixture",
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive.write_all(payload).unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let archive_digest = hex::encode(Sha256::digest(&bytes));
+    let asset_url = "https://assets.forge.example/fixture.zip";
+
+    let selector = serde_json::json!({
+        "platform": "linux-x86-64", "channel": "stable",
+        "instance": {"dialect": if gitlab { "gitlab-v4" } else { "forgejo-v1" },
+            "api_root": if gitlab { "https://forge.example/api/v4" } else { "https://forge.example/api/v1" },
+            "web_host": "forge.example", "asset_hosts": ["assets.forge.example"]},
+        "artifact": {"repository": "group/fixture", "repository_id": 10, "tag": "v1",
+            "release_id": if gitlab { None } else { Some(20) }, "asset_id": 30, "name": "fixture.zip",
+            "url": asset_url, "size": bytes.len(), "sha256": archive_digest}
+    });
+    let mut port = serde_json::to_value(&metadata_catalog().ports()[0]).unwrap();
+    port["adapter"] = serde_json::json!("native-portable");
+    port["project_url"] = serde_json::json!("https://forge.example/group/fixture");
+    port["release"] =
+        serde_json::json!({"provider": "reviewed-forge", "repository": "group/fixture"});
+    let projection = serde_json::to_vec(&serde_json::json!({
+        "contract_schema": 3, "representation": "catalog_projection",
+        "catalog": {"schema_version": 3, "ports": [port.clone()],
+            "source_catalog": {"evidence": [], "identities": [], "contracts": [], "validators": []}},
+        "reviewed_forge": selector
+    })).unwrap();
+    let leaf_digest = hex::encode(Sha256::digest(&projection));
+    let leaf = format!("sha256/{leaf_digest}.json");
+    let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
+    let entry = serde_json::to_vec(&serde_json::json!({
+        "definition_schema": 4, "namespace":"official", "stable_id":ID, "revision":7,
+        "required_capabilities":crate::test_fixture::definition_requirements(&typed, 1),
+        "required_features":["release.reviewed-forge-v1"],
+        "port": port, "source_contracts":[leaf], "execution_contract":leaf, "persistence_contract":leaf,
+        "artifact_bindings":[], "evidence_references":[]
+    })).unwrap();
+    let entry_digest = hex::encode(Sha256::digest(&entry));
+    let entry_target = format!("sha256/{entry_digest}.json");
+    let index = serde_json::to_vec(&serde_json::json!({
+        "index_schema":1,
+        "definitions":[{"namespace":"official","stable_id":ID,"revision":7,"target":entry_target}],
+        "contents":[{"target":entry_target,"sha256":entry_digest,"length":entry.len()},
+            {"target":leaf,"sha256":leaf_digest,"length":projection.len()}]
+    }))
+    .unwrap();
+    let mut targets = vec![
+        (INDEX_TARGET.to_owned(), index),
+        (entry_target, entry),
+        (leaf, projection),
+    ];
+    let mut grant = availability_for(&targets, ID, 1);
+    grant["policy_schema"] = 5.into();
+    grant["grant_id"] = "reviewed-forge-v1-fixture".into();
+    grant["decision"]["status"] = "managed_forge_v1".into();
+    grant["decision"]["selection"] = selector;
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&grant).unwrap(),
+    ));
+
+    let unsigned = targets.iter().cloned().collect();
+    let inspection =
+        crate::definition_publication::inspect_definition_publication_bytes(&unsigned).unwrap();
+    let [prepared] = inspection.definitions.as_slice() else {
+        panic!("one inert forge definition must be inspected");
+    };
+    assert_eq!(prepared.stable_id, ID);
+    assert_eq!(prepared.policy_schema, 5);
+    assert_eq!(prepared.grant_id, "reviewed-forge-v1-fixture");
+    assert_eq!(prepared.launch_target, None);
+    assert_eq!(prepared.launch_revision, None);
+
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .is_err()
+    );
+    policy::install_authority_for_test(&library, &root).unwrap();
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap()
+    );
+    let selection = library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library
+        .select_definition_candidate_fixture(selection)
+        .unwrap();
+    let (catalog, _) = library.load_catalog().unwrap();
+    let scope = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap();
+    assert!(scope.forge.is_some());
+    assert_eq!(scope.max_redirects, 0);
+    assert_eq!(scope.curated_checks, None);
+    assert!(scope.require_current().is_ok());
+    assert!(
+        scope
+            .require_asset_url("https://assets.forge.example/fixture.zip")
+            .is_ok()
+    );
+    assert!(
+        scope
+            .require_asset_url("https://example.org/fixture.zip")
+            .is_err()
+    );
+    let server = AcquisitionHttp::new();
+    let releases =
+        crate::CompositeReleaseProvider::with_forge_fixture(&library, &server.origin).unwrap();
+    let service =
+        crate::PortcoveService::with_provider(library.clone(), Arc::new(releases)).unwrap();
+    let fixture_metadata = || {
+        if gitlab {
+            server.json(serde_json::json!({"id":10,"path_with_namespace":"group/fixture","web_url":"https://forge.example/group/fixture"}));
+            server.json(serde_json::json!({
+                "tag_name":"v1","upcoming_release":false,
+                "assets":{"links":[{
+                    "id":30,"name":"fixture.zip","url":asset_url,
+                    "direct_asset_url":"https://forge.example/group/fixture/-/releases/v1/downloads/fixture.zip"
+                }]}
+            }));
+        } else {
+            server.json(serde_json::json!({"id":10,"full_name":"group/fixture","html_url":"https://forge.example/group/fixture"}));
+            server.json(serde_json::json!({
+                "id":20,"tag_name":"v1","draft":false,"prerelease":false,
+                "assets":[{"id":30,"name":"fixture.zip","size":bytes.len(),"browser_download_url":asset_url}]
+            }));
+        }
+    };
+
+    fixture_metadata();
+    server.bytes(&vec![b'x'; bytes.len()]);
+    assert!(
+        service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .is_err()
+    );
+    assert!(library.all_installs().unwrap().is_empty());
+    assert_eq!(server.requests.lock().unwrap().len(), 3);
+
+    fixture_metadata();
+    server.bytes(&bytes);
+    let installed = service
+        .install(ID, None, None, None, false, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(installed.artifact.sha256, archive_digest);
+    assert_eq!(installed.artifact.size, bytes.len() as u64);
+    assert_eq!(
+        std::fs::read(installed.path.join("fixture")).unwrap(),
+        payload
+    );
+    assert!(
+        crate::Installer::new(library.clone())
+            .unwrap()
+            .verify(&installed)
+            .unwrap()
+            .valid
+    );
+    let requests = server.requests.lock().unwrap();
+    let expected = if gitlab {
+        [
+            "GET /api/v4/projects/group%2Ffixture ",
+            "GET /api/v4/projects/group%2Ffixture/releases/v1 ",
+            "GET /fixture.zip ",
+        ]
+    } else {
+        [
+            "GET /api/v1/repos/group/fixture ",
+            "GET /api/v1/repos/group/fixture/releases/tags/v1 ",
+            "GET /fixture.zip ",
+        ]
+    };
+    assert_eq!(requests.len(), expected.len() * 2);
+    for (request, prefix) in requests.iter().zip(expected.into_iter().cycle()) {
+        assert!(request.starts_with(prefix), "{request:?}");
+        assert!(!request.to_ascii_lowercase().contains("\nauthorization:"));
+    }
+}

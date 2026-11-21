@@ -214,7 +214,73 @@ pub(crate) fn require_native_appimage_artifact(
     Ok(())
 }
 
+/// One Windows provider lane owns the tuple. Historical contracts and
+/// independently pinned Direct/curated packages keep their own rules.
+pub(crate) fn validate_applies_to(port: &PortDefinition) -> Result<()> {
+    let Some(artifacts) = &port.managed_runtime_applies_to else {
+        return Ok(());
+    };
+    let reusable = matches!(
+        port.managed_initialization,
+        Some(
+            crate::ManagedInitialization::TfeDarkForcesPortableV1
+                | crate::ManagedInitialization::ChocolateFamilyPortableV1
+        )
+    ) || port.runtime_data_policy
+        == Some(crate::RuntimeDataPolicy::VersionLocalRetroAchievementsV1)
+        || port.managed_shared_preferences
+            == Some(crate::PreparedSharedPreferencesContract::GbRecompiledWindowsV1);
+    let mut versions = std::collections::HashSet::new();
+    if !reusable
+        || port.platforms != [Platform::WindowsX86_64]
+        || port.release.provider != crate::ReleaseSource::Github
+        || port.release.reviewed_package_choices_v2.is_some()
+        || !port.release.curated.is_empty()
+        || !port.release.direct.is_empty()
+        || artifacts.is_empty()
+        || artifacts.len() > 64
+        || artifacts.iter().any(|artifact| {
+            artifact.version.is_empty()
+                || artifact.version.len() > 128
+                || !artifact.version.bytes().all(|byte| byte.is_ascii_graphic())
+                || artifact.size == 0
+                || artifact.sha256.len() != 64
+                || !artifact.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+                || !versions.insert(&artifact.version)
+        })
+    {
+        return Err(PortcoveError::verification(
+            "reviewed runtime artifacts require a bounded exact list on one reusable managed GitHub Windows route",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn require_applies_to(
+    port: &PortDefinition,
+    version: &str,
+    size: u64,
+    sha256: &str,
+    platform: Option<Platform>,
+) -> Result<()> {
+    let Some(artifacts) = &port.managed_runtime_applies_to else {
+        return Ok(());
+    };
+    validate_applies_to(port)?;
+    if platform != Some(Platform::WindowsX86_64)
+        || !artifacts.iter().any(|row| {
+            row.version == version && row.size == size && row.sha256.eq_ignore_ascii_case(sha256)
+        })
+    {
+        return Err(PortcoveError::verification(
+            "package is outside the retained runtime compatibility artifact list",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_release_rules(port: &PortDefinition) -> Result<()> {
+    validate_applies_to(port)?;
     if port.release.provider == crate::ReleaseSource::DirectManifest {
         artifact(port)?;
         return Ok(());
@@ -312,6 +378,7 @@ pub(crate) fn require_artifact(
     actual: &ArtifactIdentity,
     platform: Option<Platform>,
 ) -> Result<()> {
+    require_applies_to(port, version, actual.size, &actual.sha256, platform)?;
     if requires_provider_resolution(port) {
         validate_release_rules(port)?;
         crate::archive::validate_relative_path(&actual.asset_name, false)?;
@@ -621,6 +688,71 @@ mod tests {
                 crate::runtime::validate(&port).is_err(),
                 "legacy exact policies cannot acquire dynamic meaning"
             );
+        }
+    }
+
+    #[test]
+    fn exact_compatibility_list_carries_a_new_reviewed_release_without_new_behavior() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for id in PORTS.into_iter().chain([
+            "chocolate-doom-family",
+            "chocolate-heretic",
+            "chocolate-hexen",
+        ]) {
+            let mut port = catalog.port(id).unwrap().clone();
+            let earlier = crate::RuntimePolicyArtifact {
+                version: "v90.1".into(),
+                size: 25_721,
+                sha256: "aa".repeat(32),
+            };
+            let new = crate::RuntimePolicyArtifact {
+                version: "v91.2".into(),
+                size: 31_291,
+                sha256: "bb".repeat(32),
+            };
+            let platform = Some(Platform::WindowsX86_64);
+            port.managed_runtime_applies_to = Some(vec![earlier.clone()]);
+            validate_applies_to(&port).unwrap();
+            require_applies_to(
+                &port,
+                &earlier.version,
+                earlier.size,
+                &earlier.sha256,
+                platform,
+            )
+            .unwrap();
+            assert!(
+                require_applies_to(&port, &new.version, new.size, &new.sha256, platform).is_err()
+            );
+
+            port.managed_runtime_applies_to = Some(vec![earlier.clone(), new.clone()]);
+            require_applies_to(
+                &port,
+                &new.version,
+                new.size,
+                &new.sha256.to_uppercase(),
+                platform,
+            )
+            .unwrap();
+            assert!(
+                require_applies_to(&port, &new.version, earlier.size, &new.sha256, platform)
+                    .is_err()
+            );
+            assert!(
+                require_applies_to(&port, &new.version, new.size, &earlier.sha256, platform)
+                    .is_err()
+            );
+            assert!(require_applies_to(&port, &new.version, new.size, &new.sha256, None).is_err());
+
+            let mut document = catalog.authoritative_document();
+            *document
+                .ports
+                .iter_mut()
+                .find(|row| row.id == port.id)
+                .unwrap() = port.clone();
+            assert!(crate::Catalog::from_document(document).is_err());
+            port.managed_runtime_applies_to = Some(vec![new.clone(), new]);
+            assert!(validate_applies_to(&port).is_err());
         }
     }
 

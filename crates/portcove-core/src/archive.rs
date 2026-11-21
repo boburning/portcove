@@ -126,11 +126,33 @@ pub(crate) fn extract_archive_with_checkpoint(
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ArchiveFormat {
+    Zip,
+    TarGzip,
+    TarXz,
+    SevenZip,
+}
+
+impl ArchiveFormat {
+    fn from_name(name: &str) -> Option<Self> {
+        let name = name.to_ascii_lowercase();
+        if name.ends_with(".zip") {
+            Some(Self::Zip)
+        } else if name.ends_with(".tar.gz") || name.ends_with(".tgz") {
+            Some(Self::TarGzip)
+        } else if name.ends_with(".tar.xz") {
+            Some(Self::TarXz)
+        } else if name.ends_with(".7z") {
+            Some(Self::SevenZip)
+        } else {
+            None
+        }
+    }
+}
+
 pub(crate) fn can_extract_download_archive(asset_name: &str) -> bool {
-    let name = asset_name.to_ascii_lowercase();
-    [".zip", ".tar.gz", ".tgz", ".7z", ".tar.xz"]
-        .iter()
-        .any(|extension| name.ends_with(extension))
+    ArchiveFormat::from_name(asset_name).is_some()
 }
 
 /// The extra formats belong to explicit player-owned setup.
@@ -141,27 +163,67 @@ pub(crate) fn extract_download_archive_with_checkpoint(
     expected_compressed_size: u64,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    let name = asset_name.to_ascii_lowercase();
-    if name.ends_with(".7z") {
-        checkpoint()?;
-        let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
-        sevenz::extract(source, destination, compressed_size, checkpoint)
-    } else if name.ends_with(".tar.xz") {
-        extract_tar_xz_with_checkpoint(
+    match ArchiveFormat::from_name(asset_name) {
+        Some(ArchiveFormat::SevenZip) => {
+            checkpoint()?;
+            let compressed_size = validate_compressed_size(source, expected_compressed_size)?;
+            sevenz::extract(source, destination, compressed_size, checkpoint)
+        }
+        Some(ArchiveFormat::TarXz) => extract_tar_xz_with_checkpoint(
             source,
             destination,
             expected_compressed_size,
             true,
             checkpoint,
-        )
-    } else {
-        extract_archive_with_checkpoint(
+        ),
+        _ => extract_archive_with_checkpoint(
             source,
             destination,
             asset_name,
             expected_compressed_size,
             checkpoint,
-        )
+        ),
+    }
+}
+
+pub(crate) fn extract_reviewed_package(
+    source: &Path,
+    destination: &Path,
+    asset_name: &str,
+    expected_size: u64,
+    format: crate::PackageFormat,
+    allow_links: bool,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    if !format.matches(asset_name) {
+        return Err(PortcoveError::verification(
+            "archive name differs from its reviewed format",
+        ));
+    }
+    let compressed = validate_compressed_size(source, expected_size)?;
+    let mut magic = [0; 6];
+    File::open(source)?.read_exact(&mut magic)?;
+    if !format.matches_magic(&magic) {
+        return Err(PortcoveError::verification(
+            "archive magic differs from its reviewed format",
+        ));
+    }
+    match format {
+        crate::PackageFormat::Zip => extract_zip(source, destination, compressed, checkpoint),
+        crate::PackageFormat::TarGzip => {
+            extract_tar_gz(source, destination, compressed, checkpoint)
+        }
+        crate::PackageFormat::TarXz => extract_tar_xz_with_checkpoint(
+            source,
+            destination,
+            expected_size,
+            allow_links,
+            checkpoint,
+        ),
+        crate::PackageFormat::SevenZip => {
+            sevenz::extract(source, destination, compressed, checkpoint)
+        }
     }
 }
 
@@ -962,6 +1024,81 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    #[test]
+    fn existing_archive_types_keep_their_extraction_route() {
+        for (name, format) in [
+            ("portable-Windows.ZIP", ArchiveFormat::Zip),
+            ("portable-Windows.tar.gz", ArchiveFormat::TarGzip),
+            ("portable-win.TGZ", ArchiveFormat::TarGzip),
+            ("portable-Windows.tar.xz", ArchiveFormat::TarXz),
+            ("portable-Windows.7z", ArchiveFormat::SevenZip),
+        ] {
+            assert_eq!(ArchiveFormat::from_name(name), Some(format));
+            assert!(can_extract_download_archive(name));
+        }
+        let fixture = xz_fixture();
+        let scratch = tempdir().unwrap();
+        let asset = "unseen-player-Windows.tar.xz";
+        let path = scratch.path().join(asset);
+        let output = scratch.path().join("checked");
+        fs::create_dir(&output).unwrap();
+        fs::write(&path, &fixture).unwrap();
+        extract_download_archive_with_checkpoint(
+            &path,
+            &output,
+            asset,
+            fixture.len() as u64,
+            &|| Ok(()),
+        )
+        .unwrap();
+        assert!(fs::read_dir(&output).unwrap().next().is_some());
+
+        let rejected = scratch.path().join("mismatch");
+        fs::create_dir(&rejected).unwrap();
+        assert!(
+            extract_download_archive_with_checkpoint(
+                &path,
+                &rejected,
+                "unseen-player-Windows.ZIP",
+                fixture.len() as u64,
+                &|| Ok(()),
+            )
+            .is_err()
+        );
+        assert!(fs::read_dir(&rejected).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn portable_tar_xz_refuses_traversal_before_writes() {
+        let scratch = tempdir().unwrap();
+        let input = scratch.path().join("unsafe.tar.gz");
+        write_tar_gz_raw_paths(
+            &input,
+            &[("../escaped.exe", tar::EntryType::Regular, b"fixture", 0o755)],
+        );
+        let mut raw = Vec::new();
+        GzDecoder::new(File::open(input).unwrap())
+            .read_to_end(&mut raw)
+            .unwrap();
+        let fixture = encode_xz_fixture(&raw);
+        let path = scratch.path().join("portable-Windows.tar.xz");
+        fs::write(&path, &fixture).unwrap();
+        let output = scratch.path().join("checked");
+        fs::create_dir(&output).unwrap();
+        assert!(
+            extract_download_archive_with_checkpoint(
+                &path,
+                &output,
+                "portable-Windows.tar.xz",
+                fixture.len() as u64,
+                &|| Ok(()),
+            )
+            .is_err()
+        );
+        assert!(fs::read_dir(&output).unwrap().next().is_none());
+        assert!(!scratch.path().join("escaped.exe").exists());
+    }
 
     // The pre-#989 implementation is retained only as a test oracle.
     fn reference_collision_insert(

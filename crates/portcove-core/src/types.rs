@@ -491,6 +491,7 @@ pub enum ReleaseSource {
     #[default]
     Github,
     Gitlab,
+    ReviewedForge,
     DirectManifest,
     UserPrepared,
 }
@@ -706,6 +707,14 @@ pub struct ReviewedPackageChoicesV2 {
     pub repository_id: u64,
     pub prefix: String,
     pub choices: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RuntimePolicyArtifact {
+    pub version: String,
+    pub size: u64,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1008,6 +1017,9 @@ pub struct PortDefinition {
     /// Reviewed engine save identifier used only to bound managed GB save paths.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_shared_preferences_save_id: Option<String>,
+    /// Exact reviewed packages using this existing managed runtime behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_runtime_applies_to: Option<Vec<RuntimePolicyArtifact>>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -1016,6 +1028,8 @@ pub struct PortDefinition {
     pub launch_environment: BTreeMap<String, String>,
     #[serde(default)]
     pub launch_arguments: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_launch_contract_v1: Option<crate::ReviewedLaunchContractV1>,
     #[serde(default)]
     pub runtime_subdirectory: Option<String>,
     /// Per-platform runtime subdirectories for packages whose wrapper folder is named differently
@@ -1093,6 +1107,34 @@ pub struct PortDefinition {
 }
 
 impl PortDefinition {
+    pub(crate) fn reviewed_package_format(
+        &self,
+        platform: Platform,
+    ) -> Option<crate::PackageFormat> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .package_format
+            .get(&platform)
+            .copied()
+    }
+
+    pub(crate) fn reviewed_asset_rules(&self, platform: Platform) -> Option<&crate::AssetRules> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .asset_rules
+            .get(&platform)
+    }
+
+    pub(crate) fn reviewed_launch_values(
+        &self,
+        platform: Platform,
+    ) -> Option<&crate::LaunchValues> {
+        self.reviewed_launch_contract_v1
+            .as_ref()?
+            .launch
+            .get(&platform)
+    }
+
     /// Catalog-authored upstream state, independent of repository observations.
     pub fn declared_upstream_status(&self) -> Option<UpstreamStatus> {
         (self.upstream_status != UpstreamStatus::Active || self.upstream_active_reviewed)

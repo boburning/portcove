@@ -250,7 +250,68 @@ impl Catalog {
         Self::from_document(serde_json::from_str(value)?)
     }
 
-    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
+    pub(crate) fn from_document(document: CatalogDocument) -> Result<Self> {
+        Self::from_indexed_document(document, None, None)
+    }
+
+    pub(crate) fn from_indexed_document(
+        mut document: CatalogDocument,
+        selected: Option<&str>,
+        retained: Option<&Catalog>,
+    ) -> Result<Self> {
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.release.provider == ReleaseSource::ReviewedForge)
+        {
+            let retained_selection = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        serde_json::to_vec(previous).ok().is_some_and(|bytes| {
+                            serde_json::to_vec(port).is_ok_and(|candidate| candidate == bytes)
+                        })
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !retained_selection {
+                return Err(crate::reviewed_forge::independent_admission_required());
+            }
+        }
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            let already_scoped = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.reviewed_launch_contract_v1 == port.reviewed_launch_contract_v1
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_scoped {
+                return Err(PortcoveError::unsupported(
+                    "named package and launch declarations require a scoped indexed entry",
+                ));
+            }
+            crate::reviewed_launch_contract::validate(port)?;
+        }
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.managed_runtime_applies_to.is_some())
+        {
+            let already_retained = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.managed_runtime_applies_to == port.managed_runtime_applies_to
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_retained {
+                return Err(PortcoveError::unsupported(
+                    "reviewed runtime compatibility artifacts require a scoped indexed entry",
+                ));
+            }
+            crate::managed_runtime_policy::validate_applies_to(port)?;
+        }
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -345,6 +406,24 @@ impl Catalog {
 
     /// Export the requested catalog shape without discarding guide reference text.
     pub fn export_document(&self, schema_version: u32) -> Result<CatalogDocument> {
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent named package and launch declarations",
+            ));
+        }
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.managed_runtime_applies_to.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent reviewed runtime compatibility artifacts",
+            ));
+        }
         if !matches!(schema_version, 1..=3) {
             return Err(PortcoveError::unsupported(
                 "unsupported catalog export schema",
@@ -833,16 +912,19 @@ impl Catalog {
             if let Some(settings) = &port.game_settings {
                 settings.validate_port(port)?;
             }
-            let native_archive_release = port.release.provider == ReleaseSource::Github
-                || (port.release.provider == ReleaseSource::DirectManifest
-                    && port.release.direct.values().all(|release| {
-                        reqwest::Url::parse(&release.url).is_ok_and(|url| {
-                            let path = url.path().to_ascii_lowercase();
-                            [".zip", ".tar.gz", ".tgz"]
-                                .iter()
-                                .any(|suffix| path.ends_with(suffix))
-                        })
-                    }));
+            let native_archive_release = matches!(
+                port.release.provider,
+                ReleaseSource::Github | ReleaseSource::ReviewedForge
+            ) || (port.release.provider
+                == ReleaseSource::DirectManifest
+                && port.release.direct.values().all(|release| {
+                    reqwest::Url::parse(&release.url).is_ok_and(|url| {
+                        let path = url.path().to_ascii_lowercase();
+                        [".zip", ".tar.gz", ".tgz"]
+                            .iter()
+                            .any(|suffix| path.ends_with(suffix))
+                    })
+                }));
             if port.adapter == AdapterKind::NativePortable
                 && (!native_archive_release
                     || port.bios_source_profile.is_some()
@@ -1255,6 +1337,21 @@ impl Catalog {
                             "{} must resolve from its game upstream, not the RetComM launcher",
                             port.id
                         )));
+                    }
+                }
+                ReleaseSource::ReviewedForge => {
+                    if !valid_repository_path(&port.release.repository)
+                        || port.channels != [ReleaseChannel::Stable]
+                        || port.release.rolling_tag.is_some()
+                        || !port.release.direct.is_empty()
+                        || !port.release.user_prepared.is_empty()
+                        || !port.release.curated.is_empty()
+                        || !port.release.managed_build.is_empty()
+                        || !port.bundled_runtime.is_empty()
+                    {
+                        return Err(PortcoveError::verification(
+                            "reviewed forge requires one exact independently admitted stable acquisition",
+                        ));
                     }
                 }
                 ReleaseSource::DirectManifest => {
@@ -2227,7 +2324,7 @@ fn valid_direct_release_url(value: &str) -> bool {
     false
 }
 
-fn is_safe_environment_name(value: &str) -> bool {
+pub(crate) fn is_safe_environment_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters
         .next()

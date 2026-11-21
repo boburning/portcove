@@ -131,6 +131,27 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
     ) {
       throw new Error("Format-1 signed catalogs cannot deliver reviewed package choices.");
     }
+    if (
+      "release" in port &&
+      port.release &&
+      typeof port.release === "object" &&
+      "provider" in port.release &&
+      port.release.provider === "reviewed-forge"
+    ) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver reviewed alternate forge selectors. Use a compatible indexed definition.",
+      );
+    }
+    if ("reviewed_launch_contract_v1" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver reviewed package and launch declarations. Use a compatible indexed definition.",
+      );
+    }
+    if ("managed_runtime_applies_to" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver reviewed runtime compatibility artifacts. Use a compatible indexed definition.",
+      );
+    }
     if ("mod_loader" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver native mod loader bindings. Use a compatible indexed definition.",
@@ -142,10 +163,11 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
       typeof port.game_settings === "object" &&
       "format_version" in port.game_settings &&
       port.game_settings.format_version === 2
-    )
+    ) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver package-only settings authority. Use a compatible indexed definition.",
       );
+    }
     if ("mod_provider_bindings" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",

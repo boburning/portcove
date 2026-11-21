@@ -47,12 +47,15 @@ pub(crate) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
         return smb1r::validate(spec);
     }
     if spec.shared_preferences == Some(PreparedSharedPreferencesContract::Regaiden041Windows)
-        && (spec.version != "0.4.1"
-            || spec.archive_name != "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip"
-            || spec.archive_size != 33_085_815
+        && (!crate::historical_artifacts::PackageContract::Regaiden041PreparedWindows
+            .package()
+            .matches_package(
+                &spec.version,
+                &spec.archive_name,
+                spec.archive_size,
+                &spec.archive_sha256,
+            )
             || spec.executable != "Resident_Evil_Gaiden__USA_.exe"
-            || spec.archive_sha256
-                != "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
             || spec.library_user_data
             || spec.source_argument_extension.as_deref() != Some("gbc")
             || !spec

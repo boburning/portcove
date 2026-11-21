@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use super::{GithubRelease, choose_asset, is_beta_release, parse_digest, select_channel_candidate};
+use super::{GithubRelease, choose_asset, parse_digest, select_channel_candidate};
 use crate::{
     API_SCHEMA_VERSION, AdapterKind, Platform, PortDefinition, PortcoveError, ReleaseAsset,
     ReleaseChannel, ReleaseSource, ResolvedRelease, Result, path::read_bounded_regular,
@@ -346,12 +346,13 @@ fn project_channel(
         |release| {
             !release.provider.draft
                 && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
+                && super::reviewed_release_eligible(port, platform, &release.provider)
                 // Uncollected assets cannot establish that this release belongs
                 // to another platform's stream. Stop at that unknown candidate.
                 && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
                     || super::native_release_applies_to_platform(port, platform, &release.provider))
         },
-        |release| is_beta_release(&release.provider),
+        |release| super::reviewed_is_beta_release(port, platform, &release.provider),
         |release| release.provider.tag_name.as_str(),
     );
     let mut output = ChannelObservation {
@@ -446,6 +447,7 @@ fn project_channel(
             |release| {
                 !release.provider.draft
                     && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
+                    && super::reviewed_release_eligible(port, platform, &release.provider)
                     && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
                         || (super::native_release_applies_to_platform(
                             port,
@@ -466,7 +468,7 @@ fn project_channel(
                                         .is_some())
                             })))
             },
-            |release| is_beta_release(&release.provider),
+            |release| super::reviewed_is_beta_release(port, platform, &release.provider),
             |release| release.provider.tag_name.as_str(),
         );
         let Some(fallback) = fallback else {

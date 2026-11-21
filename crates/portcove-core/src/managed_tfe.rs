@@ -15,15 +15,13 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
     if port.managed_initialization.is_none() {
         return Ok(());
     }
+    let legacy = crate::historical_artifacts::PackageContract::TfeDarkForces122420.package();
     let exact_release = port
         .release
         .direct
         .get(&crate::Platform::WindowsX86_64)
         .is_some_and(|release| {
-            release.version == "1.22.420"
-                && release.size == 10_561_878
-                && release.sha256
-                    == "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
+            legacy.matches_bytes(&release.version, release.size, &release.sha256)
         });
     let reviewed_release = match port.managed_initialization {
         Some(crate::ManagedInitialization::TfeDarkForces122420) => exact_release,

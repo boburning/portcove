@@ -1,5 +1,5 @@
 use super::*;
-use crate::release::GithubAsset;
+use crate::release::{GithubAsset, is_beta_release};
 use serde_json::json;
 
 const REPOSITORY_ID: u64 = 472575717;

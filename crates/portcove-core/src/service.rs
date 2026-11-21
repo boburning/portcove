@@ -4120,6 +4120,7 @@ impl PortcoveService {
         let managed = self
             .managed_preparation(
                 port,
+                &qualification,
                 source,
                 bios,
                 platform,
@@ -4535,6 +4536,7 @@ impl PortcoveService {
     async fn managed_preparation<F>(
         &self,
         port: &PortDefinition,
+        qualification: &crate::install::InstallQualification,
         source: Option<SourceRecord>,
         bios: Option<SourceRecord>,
         platform: Platform,
@@ -4581,8 +4583,9 @@ impl PortcoveService {
             .or_else(|| hint.strip_suffix(".EXE"))
             .unwrap_or(hint)
             .to_string();
+        let toolchain = qualification.psx_toolchain(&port.id)?;
         let toolchain_root =
-            crate::psx::ensure_toolchain(&self.library, platform, operation, emit).await?;
+            crate::psx::ensure_toolchain(&self.library, &toolchain, operation, emit).await?;
         let runtime_source_directory = (port.runtime_source_materialization
             == Some(crate::RuntimeSourceMaterialization::PsxRawSet))
         .then(|| port.runtime_source_filename.as_ref().map(PathBuf::from))

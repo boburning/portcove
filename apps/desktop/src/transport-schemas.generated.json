@@ -5468,6 +5468,41 @@
         ],
         "type": "object"
       },
+      "AssetRules": {
+        "additionalProperties": false,
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prerelease": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PrereleaseRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag_pattern": {
+            "description": "An exact tag or a literal tag prefix ending in a single asterisk.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -6417,6 +6452,59 @@
           }
         ]
       },
+      "LaunchPath": {
+        "enum": [
+          "install_root",
+          "user_data",
+          "source",
+          "cache"
+        ],
+        "type": "string"
+      },
+      "LaunchPathValue": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/LaunchPath"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "LaunchValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/LaunchPathValue"
+          }
+        ]
+      },
+      "LaunchValues": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Replaces the declaration's static argument list before adapter arguments.",
+            "items": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "environment": {
+            "additionalProperties": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "LoaderContractRef": {
         "additionalProperties": false,
         "properties": {
@@ -6671,6 +6759,15 @@
         ],
         "type": "object"
       },
+      "PackageFormat": {
+        "enum": [
+          "zip",
+          "tar.gz",
+          "tar.xz",
+          "7z"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "allow_empty_middle": {
@@ -6883,6 +6980,16 @@
               }
             ]
           },
+          "managed_runtime_applies_to": {
+            "description": "Exact reviewed packages using this existing managed runtime behavior.",
+            "items": {
+              "$ref": "#/$defs/RuntimePolicyArtifact"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "managed_shared_preferences": {
             "anyOf": [
               {
@@ -6999,6 +7106,16 @@
           },
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
+          },
+          "reviewed_launch_contract_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedLaunchContractV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reviewed_package_layouts": {
             "additionalProperties": false,
@@ -7547,6 +7664,14 @@
           }
         ]
       },
+      "PrereleaseRule": {
+        "enum": [
+          "flag",
+          "markers",
+          "never"
+        ],
+        "type": "string"
+      },
       "RelativeSourceMemberIdentity": {
         "additionalProperties": false,
         "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
@@ -7611,6 +7736,7 @@
         "enum": [
           "github",
           "gitlab",
+          "reviewed-forge",
           "direct-manifest",
           "user-prepared"
         ],
@@ -7834,6 +7960,66 @@
         ],
         "type": "object"
       },
+      "ReviewedLaunchContractV1": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_rules": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              }
+            },
+            "type": "object"
+          },
+          "launch": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              }
+            },
+            "type": "object"
+          },
+          "package_format": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "ReviewedPackageChoicesV2": {
         "additionalProperties": false,
         "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
@@ -7948,6 +8134,28 @@
           "version-local-retroachievements-v1"
         ],
         "type": "string"
+      },
+      "RuntimePolicyArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
       },
       "RuntimeSourceMaterialization": {
         "oneOf": [
@@ -37049,6 +37257,41 @@
         ],
         "type": "object"
       },
+      "AssetRules": {
+        "additionalProperties": false,
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prerelease": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PrereleaseRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag_pattern": {
+            "description": "An exact tag or a literal tag prefix ending in a single asterisk.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -37816,6 +38059,59 @@
           }
         ]
       },
+      "LaunchPath": {
+        "enum": [
+          "install_root",
+          "user_data",
+          "source",
+          "cache"
+        ],
+        "type": "string"
+      },
+      "LaunchPathValue": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/LaunchPath"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "LaunchValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/LaunchPathValue"
+          }
+        ]
+      },
+      "LaunchValues": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Replaces the declaration's static argument list before adapter arguments.",
+            "items": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "environment": {
+            "additionalProperties": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "LoaderContractRef": {
         "additionalProperties": false,
         "properties": {
@@ -38046,6 +38342,15 @@
         ],
         "type": "object"
       },
+      "PackageFormat": {
+        "enum": [
+          "zip",
+          "tar.gz",
+          "tar.xz",
+          "7z"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "allow_empty_middle": {
@@ -38214,6 +38519,14 @@
           }
         ]
       },
+      "PrereleaseRule": {
+        "enum": [
+          "flag",
+          "markers",
+          "never"
+        ],
+        "type": "string"
+      },
       "ReleaseAsset": {
         "properties": {
           "name": {
@@ -38251,6 +38564,7 @@
         "enum": [
           "github",
           "gitlab",
+          "reviewed-forge",
           "direct-manifest",
           "user-prepared"
         ],
@@ -38474,6 +38788,66 @@
         ],
         "type": "object"
       },
+      "ReviewedLaunchContractV1": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_rules": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              }
+            },
+            "type": "object"
+          },
+          "launch": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              }
+            },
+            "type": "object"
+          },
+          "package_format": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "ReviewedPackageChoicesV2": {
         "additionalProperties": false,
         "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
@@ -38588,6 +38962,28 @@
           "version-local-retroachievements-v1"
         ],
         "type": "string"
+      },
+      "RuntimePolicyArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
       },
       "RuntimeSourceMaterialization": {
         "oneOf": [
@@ -39060,6 +39456,16 @@
           }
         ]
       },
+      "managed_runtime_applies_to": {
+        "description": "Exact reviewed packages using this existing managed runtime behavior.",
+        "items": {
+          "$ref": "#/$defs/RuntimePolicyArtifact"
+        },
+        "type": [
+          "array",
+          "null"
+        ]
+      },
       "managed_shared_preferences": {
         "anyOf": [
           {
@@ -39176,6 +39582,16 @@
       },
       "release": {
         "$ref": "#/$defs/ReleaseSpec"
+      },
+      "reviewed_launch_contract_v1": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ReviewedLaunchContractV1"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "reviewed_package_layouts": {
         "additionalProperties": false,
@@ -55748,6 +56164,41 @@
         ],
         "type": "object"
       },
+      "AssetRules": {
+        "additionalProperties": false,
+        "properties": {
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "include": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "prerelease": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PrereleaseRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tag_pattern": {
+            "description": "An exact tag or a literal tag prefix ending in a single asterisk.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -56734,6 +57185,59 @@
           }
         ]
       },
+      "LaunchPath": {
+        "enum": [
+          "install_root",
+          "user_data",
+          "source",
+          "cache"
+        ],
+        "type": "string"
+      },
+      "LaunchPathValue": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/LaunchPath"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "LaunchValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/LaunchPathValue"
+          }
+        ]
+      },
+      "LaunchValues": {
+        "additionalProperties": false,
+        "properties": {
+          "arguments": {
+            "description": "Replaces the declaration's static argument list before adapter arguments.",
+            "items": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "environment": {
+            "additionalProperties": {
+              "$ref": "#/$defs/LaunchValue"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "LoaderContractRef": {
         "additionalProperties": false,
         "properties": {
@@ -56988,6 +57492,15 @@
         ],
         "type": "object"
       },
+      "PackageFormat": {
+        "enum": [
+          "zip",
+          "tar.gz",
+          "tar.xz",
+          "7z"
+        ],
+        "type": "string"
+      },
       "PersistentFilePattern": {
         "properties": {
           "allow_empty_middle": {
@@ -57200,6 +57713,16 @@
               }
             ]
           },
+          "managed_runtime_applies_to": {
+            "description": "Exact reviewed packages using this existing managed runtime behavior.",
+            "items": {
+              "$ref": "#/$defs/RuntimePolicyArtifact"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "managed_shared_preferences": {
             "anyOf": [
               {
@@ -57316,6 +57839,16 @@
           },
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
+          },
+          "reviewed_launch_contract_v1": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedLaunchContractV1"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reviewed_package_layouts": {
             "additionalProperties": false,
@@ -57864,6 +58397,14 @@
           }
         ]
       },
+      "PrereleaseRule": {
+        "enum": [
+          "flag",
+          "markers",
+          "never"
+        ],
+        "type": "string"
+      },
       "RelativeSourceMemberIdentity": {
         "additionalProperties": false,
         "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
@@ -57928,6 +58469,7 @@
         "enum": [
           "github",
           "gitlab",
+          "reviewed-forge",
           "direct-manifest",
           "user-prepared"
         ],
@@ -58151,6 +58693,66 @@
         ],
         "type": "object"
       },
+      "ReviewedLaunchContractV1": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_rules": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/AssetRules"
+              }
+            },
+            "type": "object"
+          },
+          "launch": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/LaunchValues"
+              }
+            },
+            "type": "object"
+          },
+          "package_format": {
+            "additionalProperties": false,
+            "properties": {
+              "linux-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-aarch64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "macos-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              },
+              "windows-x86-64": {
+                "$ref": "#/$defs/PackageFormat"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "ReviewedPackageChoicesV2": {
         "additionalProperties": false,
         "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
@@ -58265,6 +58867,28 @@
           "version-local-retroachievements-v1"
         ],
         "type": "string"
+      },
+      "RuntimePolicyArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
       },
       "RuntimeSourceMaterialization": {
         "oneOf": [

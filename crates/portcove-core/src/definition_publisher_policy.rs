@@ -353,6 +353,13 @@ enum PolicyDecision {
         )]
         curated_checks: Option<u32>,
     },
+    ManagedForgeV1 {
+        definition_revision: u64,
+        index_sha256: String,
+        definition_sha256: String,
+        template: String,
+        selection: crate::reviewed_forge::ReviewedForgeSelection,
+    },
     Revoked,
 }
 
@@ -442,6 +449,18 @@ impl PolicyDocument {
                     && same_set(operations, old_operations)
                     && curated_checks == old_curated_checks
             }
+            (
+                PolicyDecision::ManagedForgeV1 {
+                    template,
+                    selection,
+                    ..
+                },
+                PolicyDecision::ManagedForgeV1 {
+                    template: previous_template,
+                    selection: previous_selection,
+                    ..
+                },
+            ) => template == previous_template && selection == previous_selection,
             _ => false,
         }
     }
@@ -511,20 +530,48 @@ impl PolicyDocument {
                 "legacy policy has an unknown curated safety field",
             ));
         }
-        if !matches!(value.policy_schema, 1..=4) {
-            return Err(PortcoveError::unsupported(
-                "unsupported publisher policy schema",
-            ));
-        }
-        let restricted = crate::definition_acquisition::restricted_grant(&value.grant_id);
-        if (value.policy_schema == 1
-            && (restricted || matches!(value.decision, PolicyDecision::ManagedGithub { .. })))
-            || (matches!(value.policy_schema, 2..=4)
-                && (!restricted || matches!(value.decision, PolicyDecision::Availability { .. })))
-        {
+        let github_grant = value
+            .grant_id
+            .starts_with(crate::definition_acquisition::MANAGED_GRANT_PREFIX);
+        let forge_grant = value
+            .grant_id
+            .starts_with(crate::definition_acquisition::REVIEWED_FORGE_GRANT_PREFIX);
+        let valid_scope = match value.policy_schema {
+            1 => {
+                !github_grant
+                    && !forge_grant
+                    && matches!(
+                        value.decision,
+                        PolicyDecision::Availability { .. } | PolicyDecision::Revoked
+                    )
+            }
+            2..=4 => {
+                github_grant
+                    && matches!(
+                        value.decision,
+                        PolicyDecision::ManagedGithub { .. } | PolicyDecision::Revoked
+                    )
+            }
+            5 => {
+                forge_grant
+                    && matches!(
+                        value.decision,
+                        PolicyDecision::ManagedForgeV1 { .. } | PolicyDecision::Revoked
+                    )
+            }
+            _ => {
+                return Err(PortcoveError::unsupported(
+                    "unsupported publisher policy schema",
+                ));
+            }
+        };
+        if !valid_scope {
             return Err(PortcoveError::unsupported(
                 "publisher policy schema and grant scope disagree",
             ));
+        }
+        if let PolicyDecision::ManagedForgeV1 { selection, .. } = &value.decision {
+            selection.validate_grant()?;
         }
         if let PolicyDecision::ManagedGithub {
             repository_id,
@@ -574,6 +621,13 @@ impl PolicyDocument {
             definition_sha256,
             template,
             ..
+        }
+        | PolicyDecision::ManagedForgeV1 {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            template,
+            ..
         } = &value.decision
             && (*definition_revision == 0
                 || !valid_sha256(index_sha256)
@@ -595,6 +649,12 @@ impl PolicyDocument {
             ..
         }
         | PolicyDecision::ManagedGithub {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            ..
+        }
+        | PolicyDecision::ManagedForgeV1 {
             definition_revision,
             index_sha256,
             definition_sha256,
@@ -635,6 +695,13 @@ impl PolicyDocument {
             definition_sha256,
             template,
             ..
+        }
+        | PolicyDecision::ManagedForgeV1 {
+            definition_revision,
+            index_sha256,
+            definition_sha256,
+            template,
+            ..
         }) = &self.decision
         else {
             return Ok(false);
@@ -670,6 +737,12 @@ impl PolicyDocument {
                     }
                 }
                 _ => crate::DefinitionAcquisitionScope::validate_port(entry.port())?,
+            }
+        }
+        if let PolicyDecision::ManagedForgeV1 { selection, .. } = &self.decision {
+            selection.validate_granted_port(entry.port())?;
+            if projection.reviewed_forge()?.as_ref() != Some(selection) {
+                return Ok(false);
             }
         }
         Ok(entry.namespace() == self.namespace
@@ -1127,7 +1200,9 @@ impl Library {
         policy.provenance.require_fresh()?;
         if matches!(
             policy.document.decision,
-            PolicyDecision::Availability { .. } | PolicyDecision::ManagedGithub { .. }
+            PolicyDecision::Availability { .. }
+                | PolicyDecision::ManagedGithub { .. }
+                | PolicyDecision::ManagedForgeV1 { .. }
         ) {
             let candidate = candidate.ok_or_else(|| {
                 PortcoveError::usage(
@@ -1162,6 +1237,11 @@ impl Library {
             &policy.document.stable_id,
         )?;
         if let Some((previous, identity, _)) = &previous {
+            if (previous.policy_schema == 5) != (policy.document.policy_schema == 5) {
+                return Err(PortcoveError::unsupported(
+                    "reviewed forge grants cannot replace another publisher scope",
+                ));
+            }
             if launch_assessment::established_revision(
                 &transaction,
                 &policy.document.namespace,
@@ -1377,6 +1457,9 @@ pub(crate) fn acquisition_scope(
     catalog: &crate::Catalog,
     port_id: &str,
 ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+    let reviewed_forge = catalog
+        .port(port_id)
+        .is_ok_and(|port| port.release.provider == crate::ReleaseSource::ReviewedForge);
     let connection = library.connection()?;
     let transaction = connection.unchecked_transaction()?;
     let Some(identity) = catalog.definition_selection(port_id) else {
@@ -1384,6 +1467,9 @@ pub(crate) fn acquisition_scope(
             return Err(PortcoveError::unsupported(
                 "restricted acquisition requires its exact selected definition",
             ));
+        }
+        if reviewed_forge {
+            return Err(crate::reviewed_forge::independent_admission_required());
         }
         return Ok(None);
     };
@@ -1396,6 +1482,9 @@ pub(crate) fn acquisition_scope(
             return Err(PortcoveError::unsupported(
                 "restricted grant has no authenticated acquisition admission",
             ));
+        }
+        if reviewed_forge {
+            return Err(crate::reviewed_forge::independent_admission_required());
         }
         return Ok(None);
     };
@@ -1418,18 +1507,34 @@ pub(crate) fn acquisition_scope(
             "acquisition publisher scope changed; assess it again",
         ));
     }
-    let PolicyDecision::ManagedGithub {
-        repository_id,
-        artifact_hosts,
-        max_redirects,
-        curated_checks,
-        ..
-    } = document.decision
-    else {
-        return Err(PortcoveError::unsupported(
-            "publisher policy does not authorize acquisition",
-        ));
-    };
+    let (repository_id, artifact_hosts, max_redirects, curated_checks, forge) =
+        match document.decision {
+            PolicyDecision::ManagedGithub {
+                repository_id,
+                artifact_hosts,
+                max_redirects,
+                curated_checks,
+                ..
+            } if !reviewed_forge => (
+                repository_id,
+                artifact_hosts,
+                max_redirects,
+                curated_checks,
+                None,
+            ),
+            PolicyDecision::ManagedForgeV1 { selection, .. } if reviewed_forge => (
+                selection.repository_id(),
+                selection.asset_hosts(),
+                0,
+                None,
+                Some(selection),
+            ),
+            _ => {
+                return Err(PortcoveError::unsupported(
+                    "publisher policy does not authorize this acquisition",
+                ));
+            }
+        };
     let scope = crate::DefinitionAcquisitionScope {
         library: library.clone(),
         identity: Some(identity.clone()),
@@ -1444,6 +1549,7 @@ pub(crate) fn acquisition_scope(
         grant_id: document.grant_id,
         policy_revision: document.policy_revision,
         curated_checks,
+        forge,
         #[cfg(any(test, feature = "qualification-fixtures"))]
         fixture_origin: None,
     };
@@ -1468,7 +1574,12 @@ pub(crate) fn validate_current_acquisition(
             "acquisition publisher admission disappeared",
         ));
     };
-    if !matches!(document.decision, PolicyDecision::ManagedGithub { .. })
+    let same_scope = match (&document.decision, &scope.forge) {
+        (PolicyDecision::ManagedGithub { .. }, None) => true,
+        (PolicyDecision::ManagedForgeV1 { selection, .. }, Some(forge)) => selection == forge,
+        _ => false,
+    };
+    if !same_scope
         || provenance.target_sha256 != scope.policy_sha256
         || provenance.anchor_sha256 != scope.anchor_sha256
         || document.grant_id != scope.grant_id
@@ -1575,8 +1686,10 @@ pub(crate) fn continues_retained_launch(
     else {
         return Ok(false);
     };
-    if !matches!(document.decision, PolicyDecision::ManagedGithub { .. })
-        || provenance.root_sha256 != identity.repository_root_sha256
+    if !matches!(
+        document.decision,
+        PolicyDecision::ManagedGithub { .. } | PolicyDecision::ManagedForgeV1 { .. }
+    ) || provenance.root_sha256 != identity.repository_root_sha256
         || document.grant_id != identity.grant_id
         || !(floor..=document.policy_revision).contains(&identity.policy_revision)
     {
@@ -1607,7 +1720,10 @@ pub(crate) fn allows_operation(
                 )?,
         );
     };
-    let managed = matches!(document.decision, PolicyDecision::ManagedGithub { .. });
+    let managed = matches!(
+        document.decision,
+        PolicyDecision::ManagedGithub { .. } | PolicyDecision::ManagedForgeV1 { .. }
+    );
     let permitted = match context.operation {
         DefinitionOperation::Availability => !matches!(document.decision, PolicyDecision::Revoked),
         DefinitionOperation::Install

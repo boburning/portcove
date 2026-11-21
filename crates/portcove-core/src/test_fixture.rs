@@ -352,9 +352,9 @@ pub(crate) fn indexed_fixture_document_for_port(
         .iter_mut()
         .find(|port| port.id == port_id)
         .unwrap();
-    let port = catalog.port(port_id).unwrap();
-    selected.mod_loader.clone_from(&port.mod_loader);
-    selected.game_settings.clone_from(&port.game_settings);
+    let original = catalog.port(port_id).unwrap();
+    selected.mod_loader.clone_from(&original.mod_loader);
+    selected.game_settings.clone_from(&original.game_settings);
     document
 }
 
@@ -426,14 +426,27 @@ pub(crate) struct IndexedCatalogFixture<'a> {
 
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
+        let schema = if catalog.port(port_id).unwrap().mod_loader.is_some() {
+            3
+        } else {
+            1
+        };
+        Self::with_projection_schema(catalog, port_id, schema)
+    }
+
+    pub(crate) fn with_projection_schema(
+        catalog: &'a crate::Catalog,
+        port_id: &str,
+        schema: u32,
+    ) -> Self {
         use sha2::{Digest, Sha256};
-        let port = catalog.port(port_id).unwrap();
+        let document = indexed_fixture_document_for_port(catalog, port_id);
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
-        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
+        let port = catalog.port(port_id).unwrap();
         let mut contract = serde_json::to_vec(&serde_json::json!({
             "contract_schema":schema,"representation":"catalog_projection",
-            "catalog":indexed_fixture_document_for_port(catalog, port_id)
+            "catalog":document
         }))
         .unwrap();
         contract.push(b'\n');
@@ -450,6 +463,14 @@ impl<'a> IndexedCatalogFixture<'a> {
     }
 
     pub(crate) fn at_revision(&self, revision: u64) -> IndexedCatalogBundle {
+        self.with_entry(revision, |_| {})
+    }
+
+    pub(crate) fn with_entry(
+        &self,
+        revision: u64,
+        change: impl FnOnce(&mut serde_json::Value),
+    ) -> IndexedCatalogBundle {
         use serde_json::json;
         use sha2::{Digest, Sha256};
         let contract = &self.contract;
@@ -610,13 +631,14 @@ impl<'a> IndexedCatalogFixture<'a> {
         } else {
             1
         };
-        let entry = serde_json::to_vec_pretty(&json!({
-        "definition_schema":if port.mod_loader.is_some() { 3 } else { 1 },"namespace":"official","stable_id":port_id,"revision":revision,
-        "required_capabilities":definition_requirements(port, capability_version),
-        "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
-        "artifact_bindings":[],"evidence_references":[]
-    }))
-    .unwrap();
+        let mut document = json!({
+            "definition_schema":if port.mod_loader.is_some() {3} else {1},"namespace":"official","stable_id":port_id,"revision":revision,
+            "required_capabilities":definition_requirements(port, capability_version),
+            "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
+            "artifact_bindings":[],"evidence_references":[]
+        });
+        change(&mut document);
+        let entry = serde_json::to_vec_pretty(&document).unwrap();
         let entry_sha256 = hex::encode(Sha256::digest(&entry));
         let entry_target = format!("sha256/{entry_sha256}.json");
         let contents = [
