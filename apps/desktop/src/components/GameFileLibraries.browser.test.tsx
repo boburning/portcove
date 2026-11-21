@@ -1857,6 +1857,7 @@ it("returns from the saved scan to the originating game section and its Discover
     await expect.element(page.getByRole("button", { name: label, exact: true })).toHaveFocus();
     expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
   } finally {
+    await root.rerender(null);
     transport.dispose();
     localStorage.clear();
   }
