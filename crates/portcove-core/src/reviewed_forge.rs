@@ -1,28 +1,21 @@
 #[cfg(test)]
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::path::{Path, PathBuf};
+use std::{future::Future, sync::Arc};
 
 use std::net::IpAddr;
 
 use reqwest::Url;
-#[cfg(test)]
 use reqwest::{Client, Response, dns, redirect};
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
 use crate::{
-    Installer, OperationCoordinator, ReleaseAsset, ReleaseProvider, ResolvedRelease,
-    ScopedResolvedRelease,
-    archive::validate_download_size,
+    DefinitionAcquisitionScope, Platform, PortDefinition, PortcoveError, ReleaseAsset,
+    ReleaseChannel, ResolvedRelease, Result, ScopedResolvedRelease,
+    archive::validate_download_progress,
     release::{PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, bounded_response_bytes},
 };
-use crate::{
-    Platform, PortDefinition, PortcoveError, ReleaseChannel, Result,
-    archive::validate_download_progress,
-};
+#[cfg(test)]
+use crate::{Installer, OperationCoordinator, ReleaseProvider, archive::validate_download_size};
 
 /// An exact instance selection. Executable acquisition requires a separate grant.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,21 +79,167 @@ impl ReviewedForgeSelection {
     }
 }
 
+impl ReviewedForgeArtifact {
+    fn asset(&self) -> ReleaseAsset {
+        ReleaseAsset {
+            name: self.name.clone(),
+            url: self.url.clone(),
+            size: self.size,
+            sha256: self.sha256.clone(),
+        }
+    }
+}
+
+impl ReviewedForgeSelection {
+    pub(crate) fn validate_grant(&self) -> Result<()> {
+        if !matches!(
+            self.instance.dialect,
+            ForgeDialect::ForgejoV1 | ForgeDialect::GitlabV4
+        ) || self.channel != ReleaseChannel::Stable
+            || !self
+                .artifact
+                .sha256
+                .bytes()
+                .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+        {
+            return Err(independent_admission_required());
+        }
+        self.instance.validate(&self.artifact)?;
+        Ok(())
+    }
+
+    pub(crate) fn validate_granted_port(&self, port: &PortDefinition) -> Result<()> {
+        self.validate_grant()?;
+        self.validate_subject(port)?;
+        if port.adapter != crate::AdapterKind::NativePortable
+            || !port.release.curated.is_empty()
+            || !port.bundled_runtime.is_empty()
+            || !port.release.managed_build.is_empty()
+            || !port.release.direct.is_empty()
+            || port.release.grant_declared_executable
+            || ![".zip", ".tar.gz", ".tgz"]
+                .iter()
+                .any(|suffix| self.artifact.name.to_ascii_lowercase().ends_with(suffix))
+            || port.mod_loader.is_some()
+            || port.reviewed_launch_contract_v1.is_some()
+        {
+            return Err(independent_admission_required());
+        }
+        let project = Url::parse(&port.project_url).map_err(|_| invalid_instance())?;
+        if !safe_https(&project)
+            || project.host_str() != Some(self.instance.web_host.as_str())
+            || project.path() != format!("/{}", self.artifact.repository)
+            || project.query().is_some()
+        {
+            return Err(invalid_instance());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn repository_id(&self) -> u64 {
+        self.artifact.repository_id
+    }
+
+    pub(crate) fn asset_hosts(&self) -> Vec<String> {
+        self.instance.asset_hosts.clone()
+    }
+
+    pub(crate) fn require_asset(
+        &self,
+        release: &ResolvedRelease,
+        platform: Platform,
+    ) -> Result<()> {
+        if self.platform != platform
+            || self.channel != release.channel
+            || self.artifact.tag != release.version
+            || self.artifact.asset() != release.asset
+        {
+            return Err(asset_mismatch());
+        }
+        Ok(())
+    }
+
+    pub(crate) async fn resolve_scoped(
+        &self,
+        scope: &DefinitionAcquisitionScope,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+    ) -> Result<ScopedResolvedRelease> {
+        if self.platform != platform || self.channel != channel {
+            return Err(independent_admission_required());
+        }
+        scope.require_port(port)?;
+        scope.require_current()?;
+        let route = self.instance.route(&self.artifact)?;
+        let client = metadata_client()?;
+        route
+            .resolve(|url| {
+                let client = &client;
+                async move {
+                    scope.require_current()?;
+                    let reply = request(client, url).await?;
+                    if reply.status() != reqwest::StatusCode::OK {
+                        return Err(PortcoveError::network(
+                            "reviewed forge metadata request failed",
+                        ));
+                    }
+                    bounded_response_bytes(
+                        reply,
+                        PROVIDER_JSON_MAX_BYTES,
+                        "reviewed forge metadata",
+                    )
+                    .await
+                }
+            })
+            .await?;
+        ScopedResolvedRelease::managed(
+            ResolvedRelease {
+                version: self.artifact.tag.clone(),
+                channel,
+                published_at: None,
+                asset: self.artifact.asset(),
+                uploader_continuity: None,
+            },
+            scope.clone(),
+        )?
+        .for_selection(port, platform, channel)
+    }
+}
+
+pub(crate) fn public_transport(builder: reqwest::ClientBuilder) -> reqwest::ClientBuilder {
+    builder
+        .no_proxy()
+        .https_only(true)
+        .dns_resolver(Arc::new(PublicDns))
+}
+
+fn metadata_client() -> Result<Client> {
+    let bounds = PROVIDER_NETWORK_BOUNDS;
+    public_transport(Client::builder())
+        .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(bounds.connect)
+        .read_timeout(bounds.read_idle)
+        .timeout(bounds.request)
+        .redirect(redirect::Policy::none())
+        .build()
+        .map_err(|_| PortcoveError::network("reviewed forge transport unavailable"))
+}
+
 pub(crate) fn independent_admission_required() -> PortcoveError {
     PortcoveError::unsupported(
         "reviewed forge acquisition requires an independent exact publisher grant",
     )
 }
 
-#[cfg(test)]
 struct ForgeRoute<'a> {
     instance: &'a ReviewedForge,
     artifact: &'a ReviewedForgeArtifact,
     api: Url,
+    #[cfg(test)]
     download: Url,
 }
 
-#[cfg(test)]
 #[derive(Deserialize)]
 struct Repository {
     id: u64,
@@ -110,7 +249,6 @@ struct Repository {
     web_url: Option<String>,
 }
 
-#[cfg(test)]
 #[derive(Deserialize)]
 struct Release {
     id: Option<u64>,
@@ -120,7 +258,6 @@ struct Release {
     assets: ReleaseAssets,
 }
 
-#[cfg(test)]
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum ReleaseAssets {
@@ -128,7 +265,6 @@ enum ReleaseAssets {
     Links { links: Vec<Attachment> },
 }
 
-#[cfg(test)]
 #[derive(Deserialize)]
 struct Attachment {
     id: u64,
@@ -194,14 +330,14 @@ impl ReviewedForge {
         Ok((api, download))
     }
 
-    #[cfg(test)]
     fn route<'a>(&'a self, artifact: &'a ReviewedForgeArtifact) -> Result<ForgeRoute<'a>> {
-        let (api, download) = self.validate(artifact)?;
+        let (api, _download) = self.validate(artifact)?;
         Ok(ForgeRoute {
             instance: self,
             artifact,
             api,
-            download,
+            #[cfg(test)]
+            download: _download,
         })
     }
 }
@@ -301,12 +437,7 @@ impl ReviewedForgeReleaseProvider {
     }
 
     fn accepted_asset(&self) -> ReleaseAsset {
-        ReleaseAsset {
-            name: self.accepted.name.clone(),
-            url: self.accepted.url.clone(),
-            size: self.accepted.size,
-            sha256: self.accepted.sha256.clone(),
-        }
+        self.accepted.asset()
     }
 
     async fn acquire(
@@ -381,7 +512,6 @@ impl ReleaseProvider for ReviewedForgeReleaseProvider {
     }
 }
 
-#[cfg(test)]
 impl ForgeRoute<'_> {
     fn repository_url(&self) -> Url {
         let mut url = self.api.clone();
@@ -491,6 +621,7 @@ impl ForgeRoute<'_> {
         Ok(())
     }
 
+    #[cfg(test)]
     async fn download(
         &self,
         client: &Client,
@@ -551,7 +682,6 @@ fn allows_asset(allowed: &[String], url: &Url) -> bool {
             .is_some_and(|host| allowed.iter().any(|value| value == host))
 }
 
-#[cfg(test)]
 fn parse_metadata<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(bytes)?;
     Ok(serde_json::from_value(value.0)?)
@@ -598,7 +728,6 @@ fn invalid_destination() -> PortcoveError {
     PortcoveError::verification("reviewed forge asset host or URL is outside its exact policy")
 }
 
-#[cfg(test)]
 fn asset_mismatch() -> PortcoveError {
     PortcoveError::verification("reviewed forge asset identity differs or is ambiguous")
 }
@@ -630,7 +759,6 @@ fn request_client(asset_hosts: Option<Vec<String>>) -> Result<Client> {
         .map_err(|_| PortcoveError::network("reviewed forge transport unavailable"))
 }
 
-#[cfg(test)]
 async fn request(client: &Client, url: Url) -> Result<Response> {
     client
         .get(url)
@@ -639,10 +767,8 @@ async fn request(client: &Client, url: Url) -> Result<Response> {
         .map_err(|_| PortcoveError::network("reviewed forge request failed"))
 }
 
-#[cfg(test)]
 struct PublicDns;
 
-#[cfg(test)]
 impl dns::Resolve for PublicDns {
     fn resolve(&self, name: dns::Name) -> dns::Resolving {
         let host = name.as_str().to_owned();
@@ -664,7 +790,6 @@ impl dns::Resolve for PublicDns {
     }
 }
 
-#[cfg(test)]
 fn public_address(address: IpAddr) -> bool {
     // The simple staging policy permits global unicast IPv4 and the currently
     // allocated IPv6 global-unicast range. Special-use and transition ranges fail closed.

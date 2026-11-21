@@ -1653,6 +1653,8 @@ fn multi_track_psx_disc_sets_require_their_reader_capability() {
 #[test]
 fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_authority() {
     let mut document = generic_projection();
+    document["contract_schema"] = json!(3);
+    document["catalog"]["schema_version"] = json!(3);
     document["catalog"]["ports"]
         .as_array_mut()
         .unwrap()
@@ -1662,6 +1664,13 @@ fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_autho
         .unwrap()
         .truncate(1);
     let port = &mut document["catalog"]["ports"][0];
+    port["adapter"] = json!("native-portable");
+    port.as_object_mut().unwrap().remove("source_profile");
+    document["catalog"]["source_catalog"] = json!({
+        "evidence": [], "identities": [], "contracts": [], "validators": []
+    });
+    let port = &mut document["catalog"]["ports"][0];
+    port["project_url"] = json!("https://forge.example/group/fixture");
     port["release"]["provider"] = json!("reviewed-forge");
     port["release"]["repository"] = json!("group/fixture");
     let selector = json!({
@@ -1691,6 +1700,41 @@ fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_autho
         proposal.snapshot().projection().unwrap().contract_bytes(),
         contract.as_slice(),
     );
+    let index_hash = "c".repeat(64);
+    let mut policy = json!({
+        "policy_schema": 5,
+        "namespace": proposal.entry().namespace(),
+        "stable_id": proposal.entry().port().id,
+        "policy_revision": 1,
+        "grant_id": "reviewed-forge-v1-fixture",
+        "decision": {
+            "status": "managed_forge_v1",
+            "definition_revision": proposal.entry().revision(),
+            "index_sha256": index_hash,
+            "definition_sha256": crate::signed_catalog::digest(proposal.entry().bytes()),
+            "template": proposal.entry().port().adapter,
+            "selection": selector.clone()
+        }
+    });
+    let inspect_policy = |value: &Value| {
+        crate::definition_repository::publisher_policy::inspect_publication_policy(
+            &serde_json::to_vec(value).unwrap(),
+            &proposal,
+            &index_hash,
+        )
+    };
+    assert!(inspect_policy(&policy).is_ok());
+    for schema in [1, 2, 3, 4, 6] {
+        policy["policy_schema"] = json!(schema);
+        assert!(inspect_policy(&policy).is_err());
+    }
+    policy["policy_schema"] = json!(5);
+    let mut wrong_pin = policy.clone();
+    wrong_pin["decision"]["selection"]["artifact"]["sha256"] = json!("b".repeat(64));
+    assert!(inspect_policy(&wrong_pin).is_err());
+    let mut extra_authority = policy;
+    extra_authority["decision"]["max_redirects"] = json!(1);
+    assert!(inspect_policy(&extra_authority).is_err());
     for invalid in [json!(null), json!({}), {
         let mut changed = selector;
         changed["platform"] = json!("macos-x86-64");

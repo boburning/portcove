@@ -64,12 +64,22 @@ It binds the API dialect and root, public web host, asset host allowlist, and
 the immutable repository, release and archive identity. Historical readers
 refuse the new source. Forge selectors are outside the advisory envelope.
 
-The qualification fixture uses the shared release provider and bounded
-installer transfer with independently issued matching fixture data.
-The operational provider chain refuses this source until protected publisher
-policy can issue a matching non-GitHub executable grant. An inspected
-definition cannot issue that grant. Existing GitHub and GitLab selection keeps
-its authority and transport. Naev stays upstream-owned.
+A separate schema-5 publisher policy decision, `managed_forge_v1`, must use
+a `reviewed-forge-v1-*` grant ID and repeat the complete reviewed selector in
+`selection`. The installed publisher role must authenticate it against the
+exact definition and index hashes. Version 1 accepts one stable native portable
+archive on one platform. The API and archive requests use reviewed public HTTPS
+origins, with no proxy, credentials or redirects. The installer verifies the
+signed archive size and SHA-256 using the normal transfer and staging path.
+A different release, host or archive needs a new independently reviewed
+decision. A schema-5 revocation uses the same grant family.
+
+Deploy compatible readers before publishing any schema-5 policy. Existing
+GitHub and GitLab selection keeps its authority and transport. The forge grant
+cannot replace an existing publisher scope or authorize curated acquisitions.
+No production grants are included, and Naev remains upstream-owned. The
+qualification fixture covers both dialects and separately verifies provider
+identity, bounded transfer and refusal of changed bytes or a foreign redirect.
 
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.

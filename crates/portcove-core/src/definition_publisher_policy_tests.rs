@@ -7345,3 +7345,111 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
 
 #[path = "listing_delivery_tests.rs"]
 mod descriptive_listing_delivery;
+
+#[tokio::test]
+async fn authenticated_forge_grant_admits_only_its_exact_non_curated_definition() {
+    let selector = serde_json::json!({
+        "platform": "linux-x86-64", "channel": "stable",
+        "instance": {"dialect": "forgejo-v1", "api_root": "https://forge.example/api/v1",
+            "web_host": "forge.example", "asset_hosts": ["assets.forge.example"]},
+        "artifact": {"repository": "group/fixture", "repository_id": 10, "tag": "v1",
+            "release_id": 20, "asset_id": 30, "name": "fixture.zip",
+            "url": "https://assets.forge.example/fixture.zip", "size": 10, "sha256": "a".repeat(64)}
+    });
+    let mut port = serde_json::to_value(&metadata_catalog().ports()[0]).unwrap();
+    port["adapter"] = serde_json::json!("native-portable");
+    port["project_url"] = serde_json::json!("https://forge.example/group/fixture");
+    port["release"] =
+        serde_json::json!({"provider": "reviewed-forge", "repository": "group/fixture"});
+    let projection = serde_json::to_vec(&serde_json::json!({
+        "contract_schema": 3, "representation": "catalog_projection",
+        "catalog": {"schema_version": 3, "ports": [port.clone()],
+            "source_catalog": {"evidence": [], "identities": [], "contracts": [], "validators": []}},
+        "reviewed_forge": selector
+    })).unwrap();
+    let leaf_digest = hex::encode(Sha256::digest(&projection));
+    let leaf = format!("sha256/{leaf_digest}.json");
+    let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
+    let entry = serde_json::to_vec(&serde_json::json!({
+        "definition_schema": 4, "namespace":"official", "stable_id":ID, "revision":7,
+        "required_capabilities":crate::test_fixture::definition_requirements(&typed, 1),
+        "required_features":["release.reviewed-forge-v1"],
+        "port": port, "source_contracts":[leaf], "execution_contract":leaf, "persistence_contract":leaf,
+        "artifact_bindings":[], "evidence_references":[]
+    })).unwrap();
+    let entry_digest = hex::encode(Sha256::digest(&entry));
+    let entry_target = format!("sha256/{entry_digest}.json");
+    let index = serde_json::to_vec(&serde_json::json!({
+        "index_schema":1,
+        "definitions":[{"namespace":"official","stable_id":ID,"revision":7,"target":entry_target}],
+        "contents":[{"target":entry_target,"sha256":entry_digest,"length":entry.len()},
+            {"target":leaf,"sha256":leaf_digest,"length":projection.len()}]
+    }))
+    .unwrap();
+    let mut targets = vec![
+        (INDEX_TARGET.to_owned(), index),
+        (entry_target, entry),
+        (leaf, projection),
+    ];
+    let mut grant = availability_for(&targets, ID, 1);
+    grant["policy_schema"] = 5.into();
+    grant["grant_id"] = "reviewed-forge-v1-fixture".into();
+    grant["decision"]["status"] = "managed_forge_v1".into();
+    grant["decision"]["selection"] = selector;
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&grant).unwrap(),
+    ));
+
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let admission = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .is_err()
+    );
+    policy::install_authority_for_test(&library, &root).unwrap();
+    assert!(
+        library
+            .apply_definition_publisher_policy(&admission, Some(&candidate))
+            .unwrap()
+    );
+    let selection = library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library
+        .select_definition_candidate_fixture(selection)
+        .unwrap();
+    let (catalog, _) = library.load_catalog().unwrap();
+    let scope = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap();
+    assert!(scope.forge.is_some());
+    assert_eq!(scope.max_redirects, 0);
+    assert_eq!(scope.curated_checks, None);
+    assert!(scope.require_current().is_ok());
+    assert!(
+        scope
+            .require_asset_url("https://assets.forge.example/fixture.zip")
+            .is_ok()
+    );
+    assert!(
+        scope
+            .require_asset_url("https://example.org/fixture.zip")
+            .is_err()
+    );
+}

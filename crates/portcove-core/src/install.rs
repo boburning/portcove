@@ -1354,6 +1354,14 @@ impl Installer {
                         "installation acquisition proof changed",
                     ));
                 }
+                if let Some(forge) = &scope.forge {
+                    resolution.require_selection(
+                        port,
+                        request.qualification.platform,
+                        request.release.channel,
+                    )?;
+                    forge.require_asset(&request.release, request.qualification.platform)?;
+                }
                 scope.require_current()?;
                 scope.require_asset_url(&request.release.asset.url)?;
                 if let Some(record) = catalog
@@ -2409,7 +2417,13 @@ impl Installer {
             Some(scope) => {
                 scope.require_current()?;
                 scope.require_asset_url(&asset.url)?;
-                reqwest::Client::builder()
+                let builder = reqwest::Client::builder();
+                let builder = if scope.forge.is_some() {
+                    crate::reviewed_forge::public_transport(builder)
+                } else {
+                    builder
+                };
+                builder
                     .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
                     .connect_timeout(self.network_bounds.0)
                     .read_timeout(self.network_bounds.1)

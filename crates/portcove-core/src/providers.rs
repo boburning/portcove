@@ -43,7 +43,12 @@ impl ReleaseProvider for CompositeReleaseProvider {
             return Err(crate::cartridge_build::retired_creation());
         }
         if port.release.provider == ReleaseSource::ReviewedForge {
-            return Err(crate::reviewed_forge::independent_admission_required());
+            let scope = scope.ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            let forge = scope
+                .forge
+                .as_ref()
+                .ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            return forge.resolve_scoped(scope, port, channel, platform).await;
         }
         match scope {
             scope if port.release.provider == ReleaseSource::Github => {

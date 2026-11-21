@@ -1032,3 +1032,12 @@ generated outputs intact. Keep deliberate pins and release-specific evidence
 with their scope. Keep exact original-file requirements and dependencies explicit.
 See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
 prepared route retaining explicit retail-ROM and save/state limitations.
+
+### Exact releases on reviewed forge instances
+
+For stable native portable packages on Forgejo or a self-hosted GitLab, use the
+named `release.reviewed-forge-v1` capability and one reviewed selector per
+indexed subject. Supply the exact project origin, API dialect and root,
+reviewed asset hosts, repository identity, release, archive identity, size and
+SHA-256. Eligibility also requires a separate authenticated publisher decision.
+See [reviewed forge qualification](DEFINITION-DELIVERY.md#qualification-for-separately-reviewed-forges).

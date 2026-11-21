@@ -251,6 +251,13 @@ impl DefinitionCatalogProjection {
         &self.entry
     }
 
+    pub(crate) fn reviewed_forge(
+        &self,
+    ) -> Result<Option<crate::reviewed_forge::ReviewedForgeSelection>> {
+        let document: ProjectionDocument = serde_json::from_slice(self.contract_bytes())?;
+        Ok(document.reviewed_forge)
+    }
+
     pub fn contract_target(&self) -> &str {
         self.entry.execution_contract()
     }

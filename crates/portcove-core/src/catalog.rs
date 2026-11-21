@@ -262,6 +262,23 @@ impl Catalog {
         for port in document
             .ports
             .iter()
+            .filter(|port| port.release.provider == ReleaseSource::ReviewedForge)
+        {
+            let retained_selection = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        serde_json::to_vec(previous).ok().is_some_and(|bytes| {
+                            serde_json::to_vec(port).is_ok_and(|candidate| candidate == bytes)
+                        })
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !retained_selection {
+                return Err(crate::reviewed_forge::independent_admission_required());
+            }
+        }
+        for port in document
+            .ports
+            .iter()
             .filter(|port| port.reviewed_launch_contract_v1.is_some())
         {
             let already_scoped = retained.is_some_and(|baseline| {
@@ -886,16 +903,19 @@ impl Catalog {
                     .detail("port_id", &port.id));
                 }
             }
-            let native_archive_release = port.release.provider == ReleaseSource::Github
-                || (port.release.provider == ReleaseSource::DirectManifest
-                    && port.release.direct.values().all(|release| {
-                        reqwest::Url::parse(&release.url).is_ok_and(|url| {
-                            let path = url.path().to_ascii_lowercase();
-                            [".zip", ".tar.gz", ".tgz"]
-                                .iter()
-                                .any(|suffix| path.ends_with(suffix))
-                        })
-                    }));
+            let native_archive_release = matches!(
+                port.release.provider,
+                ReleaseSource::Github | ReleaseSource::ReviewedForge
+            ) || (port.release.provider
+                == ReleaseSource::DirectManifest
+                && port.release.direct.values().all(|release| {
+                    reqwest::Url::parse(&release.url).is_ok_and(|url| {
+                        let path = url.path().to_ascii_lowercase();
+                        [".zip", ".tar.gz", ".tgz"]
+                            .iter()
+                            .any(|suffix| path.ends_with(suffix))
+                    })
+                }));
             if port.adapter == AdapterKind::NativePortable
                 && (!native_archive_release
                     || port.bios_source_profile.is_some()
