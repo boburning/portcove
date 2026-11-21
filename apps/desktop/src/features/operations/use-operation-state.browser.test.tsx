@@ -2,17 +2,19 @@ import { act, memo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { useOperationState } from "./use-operation-state";
-import { targetInvocationContext } from "./invocation-state";
+import { desktopApi } from "../../api";
+import { applyReviewedSourceImport } from "../source-intake/source-registration-receipt";
+import { matchingSavedSource, targetInvocationContext } from "./invocation-state";
 import { failureReport, portStatus } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
 import { InvocationOwnerProvider } from "./invocation-owner";
-import { installRecord } from "../../components/rendered-test-fixtures";
+import { installRecord, sourceImportFixtures } from "../../components/rendered-test-fixtures";
 import {
   OperationPresentationProvider,
   presentPortAction,
   useOperationPresentation,
 } from "./operation-presentation";
-import type { ActivityRecord, OperationEvent } from "../../types";
+import type { ActivityRecord, OperationEvent, SourceRecord } from "../../types";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -24,6 +26,7 @@ let state!: ReturnType<typeof useOperationState>;
 const refresh = vi.fn<() => Promise<unknown>>();
 const invalidate = vi.fn();
 const openActivity = vi.fn();
+const openSavedSource = vi.fn<(source: SourceRecord) => void>();
 let startedReadRevision = 1;
 const startedWorkspaceReadRevision = () => startedReadRevision;
 function Fixture({
@@ -31,11 +34,13 @@ function Fixture({
   activities = [],
   onActivity = false,
   workspaceReadRevision = 1,
+  sources = [],
 }: {
   generation?: number;
   activities?: ActivityRecord[];
   onActivity?: boolean;
   workspaceReadRevision?: number;
+  sources?: SourceRecord[];
 }) {
   state = useOperationState({
     refresh,
@@ -52,6 +57,10 @@ function Fixture({
       clearError={() => state.setError(undefined)}
       openActivity={openActivity}
       onActivity={onActivity}
+      openSavedSource={(record) => {
+        const source = matchingSavedSource(record, sources, generation, workspaceReadRevision);
+        return source ? () => openSavedSource(source) : undefined;
+      }}
     />
   );
 }
@@ -73,6 +82,7 @@ beforeEach(async () => {
   refresh.mockReset().mockResolvedValue(undefined);
   invalidate.mockReset();
   openActivity.mockReset();
+  openSavedSource.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -302,6 +312,62 @@ it("retains a confirmed install result and its History link through another oper
   expect(openActivity).toHaveBeenLastCalledWith("owned-install", "history");
   await act(async () => state.dismissInvocation(records[0]!.id));
   expect(result.isConnected).toBe(false);
+});
+
+it("retains the exact source or BIOS receipt after a failed readback without opening a replacement", async () => {
+  const { source, plan, result } = sourceImportFixtures();
+  const imported = result("copied");
+  const apply = vi.spyOn(desktopApi, "importSource").mockResolvedValue(imported);
+  try {
+    startedReadRevision = 2;
+    refresh.mockRejectedValueOnce(new Error("Library read interrupted"));
+    await act(async () => {
+      const outcome = await applyReviewedSourceImport({
+        perform: state.perform,
+        plan: plan("copy"),
+        action: "Save BIOS file location",
+        label: "Required BIOS",
+        generation: 7,
+        refresh,
+      });
+      expect(outcome).toEqual({ result: imported, refreshFailed: true });
+      await state.perform("later task", async () => undefined);
+    });
+    const record = [...state.invocations.values()][0]!;
+    expect(record.sourceRegistration).toEqual({ source, afterRead: 2 });
+    const notice = () =>
+      host.querySelector<HTMLElement>('[data-invocation-id="' + record.id + '"]');
+    const openButton = () =>
+      [...(notice()?.querySelectorAll("button") ?? [])].find(
+        (button) => button.textContent === "View saved location",
+      );
+    expect(notice()?.textContent).toContain("Saved file location for Required BIOS");
+    expect(notice()?.textContent).toContain(source.path);
+    expect(openButton()).toBeUndefined();
+
+    await act(async () => root.render(<Fixture sources={[source]} workspaceReadRevision={2} />));
+    expect(openButton()).toBeUndefined();
+    const replacement = { ...source, storage_sha256: "b".repeat(64) };
+    await act(async () =>
+      root.render(<Fixture sources={[replacement]} workspaceReadRevision={3} />),
+    );
+    expect(openButton()).toBeUndefined();
+    await act(async () => root.render(<Fixture sources={[source]} workspaceReadRevision={4} />));
+    await act(async () => openButton()?.click());
+    expect(openSavedSource).toHaveBeenCalledExactlyOnceWith(source);
+    await act(async () => root.render(<Fixture sources={[]} workspaceReadRevision={5} />));
+    expect(openButton()).toBeUndefined();
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      source.profile_id,
+      source.path,
+      "copy",
+      plan("copy").plan_sha256,
+      7,
+      expect.any(Function),
+    );
+  } finally {
+    apply.mockRestore();
+  }
 });
 
 it("reveals a known task instead of re-opening Activity while Activity is open", async () => {

@@ -1,3 +1,9 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+  sourceImportCancelledWithoutChanges,
+} from "../features/source-intake/source-registration-receipt";
 import { gameIdentityLabel } from "../port-identity";
 import { countMessage } from "../localization";
 import { FolderSetupChoice } from "./FolderSetupChoice";
@@ -1043,6 +1049,7 @@ export function GameFileLibraries({
   scanAfterAdd?: boolean;
   onOpenScan?: (() => void) | undefined;
 }) {
+  const perform = useOperationPresentation()?.perform;
   const headingId = `${instanceId}-heading`;
   const returnOrigin = `${instanceId}-setup`;
   const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
@@ -1147,12 +1154,7 @@ export function GameFileLibraries({
     refreshConfirmed &&
     !workspaceRefreshFailed &&
     registeredSource &&
-    registeredSources.some(
-      (source) =>
-        source.profile_id === registeredSource.profile_id &&
-        source.path === registeredSource.path &&
-        source.sha256 === registeredSource.sha256,
-    ),
+    registeredSources.some((source) => JSON.stringify(source) === JSON.stringify(registeredSource)),
   );
   const {
     heading,
@@ -1310,14 +1312,20 @@ export function GameFileLibraries({
       "Saving game-file location…",
       async () => {
         if (!plan) return;
-        const result = await desktopApi.importSource(
-          plan.profile_id,
-          plan.source.path,
-          plan.mode,
-          plan.plan_sha256,
+        const { result, refreshFailed } = await applyReviewedSourceImport({
+          perform,
+          plan,
           generation,
-        );
-        if (!accepts()) return;
+          label:
+            profiles.find((profile) => profile.id === plan.profile_id)?.label ?? plan.profile_id,
+          action: "Save game-file location",
+          refresh: onAdded,
+        }).catch((value: unknown) => {
+          if (sourceImportCancelledWithoutChanges(value)) throw value;
+          setPlan(undefined);
+          throw new Error(sourceImportApplyError(value));
+        });
+        if (!accepts() || result === undefined) return;
         if (!result) {
           setNotice(
             "Adding game files was cancelled. Check the current state before trying again.",
@@ -1326,16 +1334,10 @@ export function GameFileLibraries({
         }
         restoreReviewFocus();
         setPlan(undefined);
-        setNotice(sourceImportNotice(result));
-        setRefreshConfirmed(false);
+        setNotice(refreshFailed ? sourceImportRefreshNotice(result) : sourceImportNotice(result));
+        setRefreshConfirmed(!refreshFailed);
         setRegisteredSource(result.registered);
-        try {
-          await onAdded?.();
-          setRefreshConfirmed(true);
-          focusSetupAfterReview();
-        } catch {
-          setNotice(sourceImportRefreshNotice(result));
-        }
+        if (!refreshFailed) focusSetupAfterReview();
       },
       "Adding game files was cancelled. Refresh the workspace to confirm the current state.",
     );

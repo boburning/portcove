@@ -1073,9 +1073,10 @@ async fn add_source(
     profile_id: String,
     path: PathBuf,
     expected_sha256: Option<String>,
+    generation: u64,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         if let Some(digest) = expected_sha256 {
             service
                 .register_source_with_digest(&profile_id, &path, &digest)
@@ -1675,6 +1676,7 @@ async fn import_source(
             return Err(PortcoveError::conflict(
                 "the source import changed after review; review the move again",
             )
+            .with_mutation_state(portcove_core::MutationState::NoChanges)
             .into());
         }
         if !confirm_destructive(
