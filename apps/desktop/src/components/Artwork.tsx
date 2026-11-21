@@ -38,7 +38,8 @@ import { controlFocus } from "./ui/control-style";
 import { ExternalLink } from "./ExternalLink";
 import { BackgroundFramingEditor } from "./BackgroundFramingEditor";
 import type { BackgroundPreviewProps } from "../hero-media";
-import { SteamGridDbPicker, steamGridDbErrorText } from "./SteamGridDbPicker";
+import { SteamGridDbPicker } from "./SteamGridDbPicker";
+import { steamGridDbErrorText } from "../steamgriddb-error";
 import type { SteamGridDbCandidate } from "../types";
 
 export function ArtworkImage({
@@ -361,6 +362,7 @@ function ArtworkSheetContents({
               port={port}
               previewPort={previewPort?.id === port.id ? previewPort : port}
               slot={slot}
+              active={selected === slot}
               Preview={Preview}
               previewActions={previewActions}
               isCurrentOpening={isCurrentOpening}
@@ -401,6 +403,7 @@ function ArtworkSlotControl({
   port,
   previewPort,
   slot,
+  active,
   Preview,
   previewActions,
   isCurrentOpening,
@@ -409,6 +412,7 @@ function ArtworkSlotControl({
   previewPort: BackgroundPreviewProps["port"];
   isCurrentOpening: () => boolean;
   slot: ArtworkSlot;
+  active: boolean;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
 }) {
@@ -919,6 +923,14 @@ function ArtworkSlotControl({
       {findOpen && (
         <div hidden={hasReview} inert={hasReview}>
           <SteamGridDbPicker
+            key={JSON.stringify([
+              cache?.generation,
+              port.id,
+              port.presentation?.original_game?.id,
+              slot,
+            ])}
+            active={active && !hasReview}
+            generation={cache?.generation}
             slot={slot}
             initialTerm={port.name ?? ""}
             disabled={pending || !display.state || Boolean(display.stale)}

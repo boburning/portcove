@@ -1345,6 +1345,83 @@ describe("SteamGridDB picker", () => {
     expect(search).not.toHaveBeenCalled();
   });
 
+  it("returns to the selected artwork role after cancelling or saving the key", async () => {
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });
+    const save = vi.spyOn(desktopApi, "setSteamGridDbKey").mockResolvedValue({ configured: true });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames");
+    const listings = vi.spyOn(desktopApi, "checkSteamGridDbListings");
+    await render();
+    await open();
+    await click("logo", "Find on SteamGridDB");
+    const configure = page.getByRole("button", { name: "Set up SteamGridDB key", exact: true });
+    await configure.click();
+    const heading = page.getByRole("heading", { name: "Set up your SteamGridDB key" });
+    await expect.element(heading).toHaveFocus();
+    const key = page.getByLabelText("SteamGridDB API key", { exact: true });
+    await key.fill("discard-this-fixture");
+    await page.getByRole("button", { name: "Cancel key setup", exact: true }).click();
+    await expect.element(configure).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
+
+    await configure.click();
+    await expect.element(key).toHaveValue("");
+    await key.fill("fixture-only-key");
+    await page.getByRole("button", { name: "Save key", exact: true }).click();
+    const searchBox = page.getByRole("textbox", { name: "Game name to search on SteamGridDB" });
+    await expect.element(searchBox).toHaveAttribute("id", "steamgriddb-search-logo");
+    await expect.element(searchBox).toHaveFocus();
+    expect(save).toHaveBeenCalledExactlyOnceWith("fixture-only-key");
+    expect(search).not.toHaveBeenCalled();
+    expect(listings).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the device key when returning to key setup from another artwork role", async () => {
+    let configured = false;
+    const secureStore = deferredStatus();
+    vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockImplementation(async () => ({ configured }));
+    const save = vi.spyOn(desktopApi, "setSteamGridDbKey").mockImplementation(async () => {
+      const result = await secureStore.promise;
+      configured = result.configured;
+      return result;
+    });
+    const search = vi.spyOn(desktopApi, "searchSteamGridDbGames");
+    try {
+      await render();
+      await open();
+      await click("logo", "Find on SteamGridDB");
+      const configure = page.getByRole("button", { name: "Set up SteamGridDB key", exact: true });
+      await configure.click();
+      const key = page.getByLabelText("SteamGridDB API key", { exact: true });
+      await key.fill("retired-fixture-secret");
+
+      await click("cover", "Find on SteamGridDB");
+      await configure.click();
+      await expect.element(key).toHaveValue("");
+      await key.fill("current-fixture-secret");
+      await page.getByRole("button", { name: "Save key", exact: true }).click();
+      await expect.poll(() => save.mock.calls.length).toBe(1);
+
+      await page.getByRole("tab", { name: "Logo", exact: true }).click();
+      await expect.element(key).toHaveValue("");
+      await key.fill("competing-fixture-secret");
+      const saveKey = page.getByRole("button", { name: "Save key", exact: true });
+      await saveKey.click();
+      await expect
+        .element(page.getByText(/Another SteamGridDB key change is finishing/))
+        .toBeVisible();
+      await act(async () => secureStore.resolve({ configured: true }));
+      // A fresh status read sends this role back to search using the now-saved key.
+      await saveKey.click();
+      await expect
+        .element(page.getByRole("textbox", { name: "Game name to search on SteamGridDB" }))
+        .toHaveAttribute("id", "steamgriddb-search-logo");
+      expect(save).toHaveBeenCalledExactlyOnceWith("current-fixture-secret");
+      expect(search).not.toHaveBeenCalled();
+    } finally {
+      secureStore.resolve({ configured: true });
+    }
+  });
+
   it("searches, previews locally, chooses by revision and credits the artist", async () => {
     await page.viewport(960, 800);
     document.documentElement.dataset.theme = "dark";
