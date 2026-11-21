@@ -455,6 +455,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn compound_consent_is_neither_a_wrapper_hash_nor_an_nrm_choice() {
+        let (_temporary, _service, install) = crate::retained_build::tests::fixture();
+        let build = crate::install::retained_build_identity_for_install(&install).unwrap();
+        let plan = GithubCompoundPlan {
+            profile_id: "fixture".into(),
+            profile_revision: 1,
+            profile_revision_sha256: "f".repeat(64),
+            build,
+            loader: ModEngine::N64Recomp.reference(),
+            runtime_version: "1.2.2".into(),
+            repository: "Owner/Mod".into(),
+            repository_id: 1,
+            release_id: 2,
+            release_tag: "v1".into(),
+            asset_id: 3,
+            wrapper_sha256: "a".repeat(64),
+            wrapper_bytes: 256,
+            members: BTreeMap::from([
+                (
+                    "mod.nrm".into(),
+                    RecompCompanionMemberV1 {
+                        size: 10,
+                        sha256: "b".repeat(64),
+                        role: RecompCompanionRole::Nrm,
+                    },
+                ),
+                (
+                    "mod.dll".into(),
+                    RecompCompanionMemberV1 {
+                        size: 30,
+                        sha256: "c".repeat(64),
+                        role: RecompCompanionRole::PrimaryLibrary,
+                    },
+                ),
+            ]),
+        };
+        let choice = GithubCompoundConsent {
+            plan_sha256: plan.sha256().unwrap(),
+            native_libraries: BTreeMap::from([("mod.dll".into(), "c".repeat(64))]),
+        };
+        assert!(exact_consent(&plan, &choice).is_ok());
+        let wrapper_only = GithubCompoundConsent {
+            plan_sha256: plan.wrapper_sha256.clone(),
+            ..choice.clone()
+        };
+        assert!(exact_consent(&plan, &wrapper_only).is_err());
+        let nrm_only = GithubCompoundConsent {
+            native_libraries: BTreeMap::from([("mod.nrm".into(), "b".repeat(64))]),
+            ..choice.clone()
+        };
+        assert!(exact_consent(&plan, &nrm_only).is_err());
+        let mut successor = plan;
+        successor.members.get_mut("mod.dll").unwrap().sha256 = "d".repeat(64);
+        assert!(exact_consent(&successor, &choice).is_err());
+    }
+
+    #[test]
     #[ignore = "requires verified upstream ZIP fixtures in PORTCOVE_TEST_COMPOUND_WRAPPERS"]
     fn genuine_companion_successor_requires_its_own_choice_and_survives_reopen() {
         let root = PathBuf::from(std::env::var_os("PORTCOVE_TEST_COMPOUND_WRAPPERS").unwrap());
