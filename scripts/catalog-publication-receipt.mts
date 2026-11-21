@@ -7,6 +7,11 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import { priorVersions, publishedTargets } from "./catalog-publish.mts";
 import {
+  compactListingDeliveryTarget,
+  listingDeliveryMaximum,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
+import {
   catalogDefinitionContentBytes,
   catalogDefinitionIndexBytes,
 } from "./release-catalog-publication-contract.mts";
@@ -15,7 +20,6 @@ import { isRecord } from "./runtime-values.mts";
 
 const pages = "https://boburning.github.io/portcove/catalog/";
 const index = "definitions/index.json";
-const listings = "policy/official/catalog.listings.json";
 const maximumReadbackBytes = 32 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const digest = /^[a-f0-9]{64}$/u;
@@ -46,7 +50,8 @@ function immutablePath({ target, sha256 }: Identity) {
   return `targets/${sha256}.${target}`;
 }
 function targetLimit(target: string) {
-  if (target === listings) return 8 * 1024 ** 2;
+  if (target === listingDeliveryTarget || target === compactListingDeliveryTarget)
+    return listingDeliveryMaximum;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -159,11 +164,16 @@ async function readState(site: string | null) {
       launchScope,
     });
   }
+  const activeListingTarget = Object.hasOwn(targets, compactListingDeliveryTarget)
+    ? compactListingDeliveryTarget
+    : listingDeliveryTarget;
   return {
     versions,
     timestamp,
     index: indexIdentity,
-    listings: Object.hasOwn(targets, listings) ? identity(targets, listings) : null,
+    listings: Object.hasOwn(targets, activeListingTarget)
+      ? identity(targets, activeListingTarget)
+      : null,
     definitions,
   };
 }

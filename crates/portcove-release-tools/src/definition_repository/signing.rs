@@ -222,9 +222,13 @@ pub(super) fn targets(context: &Context, role: DefinitionOnlineRole) -> Result<T
         _extra: Default::default(),
     })
 }
-pub(super) fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
+fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
+    meta_identity(bytes.len() as u64, &sha(bytes), version)
+}
+
+pub(super) fn meta_identity(length: u64, sha256: &str, version: NonZeroU64) -> Result<Metafile> {
     Ok(serde_json::from_value(
-        serde_json::json!({"version":version,"length":bytes.len(),"hashes":{"sha256":sha(bytes)}}),
+        serde_json::json!({"version":version,"length":length,"hashes":{"sha256":sha256}}),
     )?)
 }
 pub(super) fn snapshot(context: &Context, roles: &Files) -> Result<Snapshot> {
@@ -383,7 +387,7 @@ pub async fn sign_definition_role(
     }
     let base = path.parent().unwrap_or(Path::new("."));
     let context_path = io::resolve(base, &config.context)?;
-    let context = load_context(&context_path).await?;
+    let context = load_context_mode(&context_path, true).await?;
     if role == DefinitionOnlineRole::Targets && context.next_top.is_none() {
         return invalid("catalog Targets signing requires explicit online renewal mode");
     }
