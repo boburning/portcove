@@ -1,3 +1,4 @@
+import { failureReport } from "../test-fixtures";
 import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
@@ -1607,7 +1608,10 @@ it("reports cancelled source addition while keeping its review and completed sca
   const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
   expect(renderedReview?.textContent).toContain("File check: Edition identified");
   expect(renderedReview?.textContent).toContain("Additional space needed: 0 B");
-  vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
+  const cancelled = failureReport();
+  cancelled.code = "cancelled";
+  cancelled.presentation.mutation_state = "no_changes";
+  vi.mocked(desktopApi.importSource).mockRejectedValueOnce(cancelled);
   await click("Use current location");
   expect(document.body.textContent).toContain(
     "Adding game files was cancelled. Refresh the workspace to confirm the current state.",

@@ -1,3 +1,8 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+} from "../features/source-intake/source-registration-receipt";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
@@ -104,6 +109,7 @@ function useSourceIntakeSession({
   hostTools = [],
   hostToolActions,
 }: SourceIntakeDialogProps) {
+  const perform = useOperationPresentation()?.perform;
   const opener = useRef(typeof document === "undefined" ? null : document.activeElement);
   const copy = sourceIntakeCopy(request.purpose);
   const [result, setResult] = useState<SourceIntakeInspection>();
@@ -269,31 +275,30 @@ function useSourceIntakeSession({
     setBusy(`${presentation.label}…`);
     setError(undefined);
     try {
-      const imported = await desktopApi.importSource(
-        plan.profile_id,
-        plan.source.path,
-        plan.mode,
-        plan.plan_sha256,
-        request.generation,
-      );
-      if (intent.current !== current) return;
+      const { result: imported, refreshFailed } = await applyReviewedSourceImport({
+        perform,
+        plan,
+        generation: request.generation,
+        label: request.profile.label,
+        action: request.purpose === "bios" ? "Save BIOS file location" : "Save game-file location",
+        refresh: onAdded,
+      });
+      if (intent.current !== current || imported === undefined) return;
       setPlan(undefined);
       if (!imported)
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
         setSaved(imported.registered);
-        setNotice(sourceImportNotice(imported));
-        try {
-          await onAdded?.();
-        } catch {
-          if (intent.current === current) {
-            setRefreshFailed(true);
-            setNotice(sourceImportRefreshNotice(imported));
-          }
-        }
+        setRefreshFailed(refreshFailed);
+        setNotice(
+          refreshFailed ? sourceImportRefreshNotice(imported) : sourceImportNotice(imported),
+        );
       }
     } catch (value) {
-      if (intent.current === current) setError(errorText(value));
+      if (intent.current === current) {
+        setPlan(undefined);
+        setError(sourceImportApplyError(value));
+      }
     } finally {
       if (intent.current === current) setBusy("");
     }
