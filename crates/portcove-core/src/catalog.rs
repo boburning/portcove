@@ -433,7 +433,14 @@ impl Catalog {
     }
 
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+            return;
+        };
+        // The floor fences both bundled and legacy scopes. Only the currently
+        // admitted definition for this exact subject may appoint a scope again.
+        let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
+            && self.definition_selection(port_id).is_some();
+        if !has_admitted_scope {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
         }
     }

@@ -75,9 +75,10 @@ pub(crate) fn bindings(port: &PortDefinition) -> Vec<ModProviderBinding> {
 }
 
 pub(crate) fn configured_bindings(port: &PortDefinition) -> Option<&[ModProviderBinding]> {
-    port.mod_provider_bindings
-        .as_deref()
-        .or_else(|| port.legacy_mod_provider_held.then_some(&[]))
+    if port.legacy_mod_provider_held {
+        return Some(&[]);
+    }
+    port.mod_provider_bindings.as_deref()
 }
 
 pub(crate) fn reference_matches(
