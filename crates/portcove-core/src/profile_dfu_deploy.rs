@@ -438,6 +438,9 @@ impl PortcoveService {
             return Err(save_group_drift());
         }
         let departed = if live.is_some() {
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark,
+            )?;
             let preserved = staging.keep();
             let departed = preserved.join("departing");
             crate::durability::rename_noreplace(&active, &departed)?;

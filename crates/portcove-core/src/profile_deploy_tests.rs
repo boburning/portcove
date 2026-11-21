@@ -3895,13 +3895,17 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
         .require_restore_profile_projection(PORT, &user)
         .unwrap();
     let marker = user.join("Portable.txt");
+    let manual_backup_path = canonical_mod.parent().unwrap().join("manual/keep.dfmod");
+    let backup = service.create_backup(PORT).unwrap();
     fs::remove_file(&marker).unwrap();
+    let without_marker = service.create_backup(PORT).unwrap();
     assert!(
         service
             .require_restore_profile_projection(PORT, &user)
             .is_err()
     );
     fs::write(&marker, b"invalid").unwrap();
+    let invalid_marker = service.create_backup(PORT).unwrap();
     assert!(
         service
             .require_restore_profile_projection(PORT, &user)
@@ -3911,6 +3915,100 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     service
         .require_restore_profile_projection(PORT, &user)
         .unwrap();
+
+    fs::create_dir_all(manual_backup_path.parent().unwrap()).unwrap();
+    fs::write(&manual_backup_path, b"manual canonical mod").unwrap();
+    let with_manual_file = service.create_backup(PORT).unwrap();
+    assert!(!without_marker.path.join("data/Portable.txt").exists());
+    assert_eq!(
+        fs::read(invalid_marker.path.join("data/Portable.txt")).unwrap(),
+        b"invalid"
+    );
+    assert_eq!(
+        fs::read(
+            with_manual_file
+                .path
+                .join("data")
+                .join(crate::profile_loader::DFU_MODS)
+                .join("manual/keep.dfmod")
+        )
+        .unwrap(),
+        b"manual canonical mod"
+    );
+    let restore = |service: &PortcoveService, backup_id: &str| {
+        let action = crate::BackupAction::Restore;
+        let preview = service.preview_backup_action(PORT, backup_id, action)?;
+        let authorization =
+            service.authorize_backup_action(PORT, backup_id, action, &preview.preview_sha256)?;
+        service.restore_backup(PORT, backup_id, &authorization.token)
+    };
+    let error = restore(&service, &backup.id).unwrap_err();
+    assert_eq!(error.details["unknown_package"], "manual");
+    assert_eq!(
+        fs::read(&manual_backup_path).unwrap(),
+        b"manual canonical mod"
+    );
+    fs::remove_file(&manual_backup_path).unwrap();
+    fs::remove_dir(manual_backup_path.parent().unwrap()).unwrap();
+
+    let canonical_progress = user.join("PortableAppdata/progress");
+    fs::write(&canonical_progress, b"current progress").unwrap();
+    for (declined, expected) in [
+        (&without_marker, "portable_marker"),
+        (&invalid_marker, "Portable.txt"),
+        (&with_manual_file, "unknown_package"),
+    ] {
+        let manifest = fs::read(declined.path.join("backup.json")).unwrap();
+        let error = restore(&service, &declined.id).unwrap_err();
+        assert!(
+            error.details.contains_key(expected) || error.message.contains(expected),
+            "{error:?}"
+        );
+        assert!(fs::read(&marker).unwrap().is_empty());
+        assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
+        assert_eq!(
+            fs::read(&declined.path.join("backup.json")).unwrap(),
+            manifest
+        );
+        assert_eq!(fs::read(&canonical_mod).unwrap(), data);
+        assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+        assert!(!manual_backup_path.exists());
+    }
+    restore(&service, &backup.id).unwrap();
+    struct StopAfterRestorePublish;
+    impl crate::operation::LifecycleFaultInjector for StopAfterRestorePublish {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            if point == crate::operation::LifecycleFaultPoint::RestorePublished {
+                return Err(PortcoveError::state(
+                    "fixture stopped after restore publication",
+                ));
+            }
+            Ok(())
+        }
+    }
+    fs::write(&canonical_progress, b"pre-interruption progress").unwrap();
+    let interrupted_restore = PortcoveService::with_faults(
+        service.library().clone(),
+        std::sync::Arc::new(StopAfterRestorePublish),
+    )
+    .unwrap();
+    let failure = restore(&interrupted_restore, &backup.id).unwrap_err();
+    assert!(
+        failure
+            .message
+            .contains("fixture stopped after restore publication")
+    );
+    let restored_service = PortcoveService::new_read_only(service.library().clone()).unwrap();
+    restored_service
+        .recover_lifecycle_operations_for_test()
+        .unwrap();
+    assert!(fs::read(&marker).unwrap().is_empty());
+    assert_eq!(
+        fs::read(&canonical_progress).unwrap(),
+        b"keep newer progress"
+    );
+    assert_eq!(fs::read(&runtime_scaffold).unwrap(), scaffold);
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
 
     let clean = service
         .create_clean_profile(PORT, &profile.id, "Clean", applied.revision)
@@ -3993,6 +4091,62 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     fs::write(&runtime_mod, b"outside edit").unwrap();
     assert!(reopened.activate_profile(PORT, &clean.id).is_err());
     assert_eq!(fs::read(&runtime_mod).unwrap(), b"outside edit");
+    fs::write(&runtime_mod, data).unwrap();
+
+    struct WriteProgressBeforePark(PathBuf);
+    impl crate::operation::LifecycleFaultInjector for WriteProgressBeforePark {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            if point == crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark {
+                fs::write(&self.0, b"native progress after preimage review")?;
+            }
+            Ok(())
+        }
+    }
+    let interrupted = PortcoveService::with_faults(
+        reopened.library().clone(),
+        std::sync::Arc::new(WriteProgressBeforePark(runtime_progress.clone())),
+    )
+    .unwrap();
+    let error = interrupted.activate_profile(PORT, &clean.id).unwrap_err();
+    assert!(error.message.contains("runtime progress differs"));
+    assert!(projection.journal().is_file());
+    let selected = || profile::selection(&reopened.library().connection().unwrap(), PORT).unwrap();
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert_eq!(
+        fs::read(&runtime_progress).unwrap(),
+        b"native progress after preimage review"
+    );
+    let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+    assert!(recovered.activate_profile(PORT, &clean.id).is_err());
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert_eq!(
+        fs::read(&runtime_progress).unwrap(),
+        b"native progress after preimage review"
+    );
+    assert_eq!(
+        fs::read(
+            projection
+                .parked(&profile.id)
+                .join("PortableAppdata/progress")
+        )
+        .unwrap(),
+        b"keep newer progress"
+    );
+
+    // Model a player preserving the newer data separately before completing
+    // the already-reviewed switch. Routine recovery must never choose for them.
+    let preserved = temporary.path().join("preserved-progress");
+    fs::rename(&runtime_progress, &preserved).unwrap();
+    fs::write(&runtime_progress, b"keep newer progress").unwrap();
+    recovered.activate_profile(PORT, &clean.id).unwrap();
+    assert!(!projection.journal().exists());
+    assert!(!runtime_progress.exists());
+    assert_eq!(
+        fs::read(&preserved).unwrap(),
+        b"native progress after preimage review"
+    );
+    recovered.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
 }
 
 #[test]
