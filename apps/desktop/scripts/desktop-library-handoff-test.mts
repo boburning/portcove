@@ -46,45 +46,56 @@ import {
 } from "./desktop-review-controls.mts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 
+/** Prepare the isolated source before the desktop can take a library lease. */
+export async function prepareLibraryRecoveryBundleFixture({
+  library,
+  output,
+  command,
+  tool,
+}: Pick<HandoffContext, "library" | "output" | "command"> & { tool: string }) {
+  assert.equal(process.platform, "win32");
+  assert.equal(path.resolve(library), path.resolve(output, "library"));
+  const original = path.join(output, "bundle-adoption-source");
+  const portId = "zelda64-recomp";
+  const port = transportValue("port", command(["catalog", "show", portId]));
+  await mkdir(original);
+  await copyFile(tool, path.join(original, required(port.executable_hints["windows-x86-64"]?.[0])));
+  await writeFile(path.join(original, "general.json"), "{}\n", {
+    flag: "wx",
+  });
+  command(["adopt", original, "--port", portId, "--yes"]);
+  const paths = transportValue("port_paths", command(["paths", portId]));
+  const active = required(transportValue("status", command(["status", portId])).active);
+  const save = path.join(paths.user_data_root, "owned-bundle-save.bin");
+  await writeFile(save, "owned save before backup", { flag: "wx" });
+  const backup = transportValue("backup", command(["backup", "create", portId]));
+  const originalBackup = await fileIdentity(path.join(backup.path, "data", path.basename(save)));
+  return { source: library, portId, active, save, backup, originalBackup };
+}
+
+export type LibraryRecoveryBundleFixture = Awaited<
+  ReturnType<typeof prepareLibraryRecoveryBundleFixture>
+>;
+
 export async function libraryRecoveryBundleScenario({
   browser,
   invoke,
   scenario,
-  library,
   output,
   artifacts,
   command,
-  tool,
+  fixture,
   chooseOwnedLibrary,
   restartApplication,
 }: Omit<HandoffContext, "confirmNative"> &
-  Pick<PreparationContext, "tool" | "chooseOwnedLibrary" | "restartApplication">) {
+  Pick<PreparationContext, "chooseOwnedLibrary" | "restartApplication"> & {
+    fixture: LibraryRecoveryBundleFixture | undefined;
+  }) {
   await scenario("native-library-recovery-bundle", async () => {
-    assert.equal(process.platform, "win32");
-    assert.equal(path.resolve(library), path.resolve(output, "library"));
-    const source = path.join(output, "bundle-working-library");
-    const original = path.join(output, "bundle-adoption-source");
     const bundle = path.join(output, "verified-bundle");
     const corrupt = path.join(output, "tampered-bundle");
     const destination = path.join(output, "restored-library");
-    const portId = "zelda64-recomp";
-    const owned = (args: readonly string[]) => command(args, source);
-    const port = transportValue("port", command(["catalog", "show", portId]));
-    await mkdir(original);
-    await copyFile(
-      tool,
-      path.join(original, required(port.executable_hints["windows-x86-64"]?.[0])),
-    );
-    await writeFile(path.join(original, "general.json"), "{}\n", {
-      flag: "wx",
-    });
-    owned(["adopt", original, "--port", portId, "--yes"]);
-    const paths = transportValue("port_paths", owned(["paths", portId]));
-    const active = required(transportValue("status", owned(["status", portId])).active);
-    const save = path.join(paths.user_data_root, "owned-bundle-save.bin");
-    await writeFile(save, "owned save before backup", { flag: "wx" });
-    const backup = transportValue("backup", owned(["backup", "create", portId]));
-    const originalBackup = await fileIdentity(path.join(backup.path, "data", path.basename(save)));
+    const { source, portId, active, save, backup, originalBackup } = required(fixture);
     const metadataLeaf = "portcove-recovery-bundle.json";
     const saveRelative = path.relative(await realpath(source), await realpath(save));
     assert.ok(saveRelative && !path.isAbsolute(saveRelative) && !saveRelative.startsWith(".."));
@@ -166,9 +177,6 @@ export async function libraryRecoveryBundleScenario({
     const inspect = (root: string) =>
       read("library_recovery_bundle", "inspect_library_recovery_bundle", { path: root });
 
-    // Bind the driver to an explicitly separate harness library before touching UI.
-    success(await invoke("set_default_library", { path: source }));
-    await browser.navigate().refresh();
     const initial = await identity(source);
     let controls = await location();
     await controls.click(controls.button("Create recovery bundle"));

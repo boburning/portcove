@@ -89,6 +89,7 @@ import {
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mts";
 import { preparationScenarios } from "./desktop-preparation-test.mts";
+import { prepareLibraryRecoveryBundleFixture } from "./desktop-library-handoff-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
 import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
@@ -2863,6 +2864,16 @@ try {
     selection.selected_scenarios[0] === "native-default-cover-cache-conditions"
   )
     firstOfflineCover = await createImageRefusal();
+  const libraryRecoveryBundleFixture = selection.selected_scenarios.includes(
+    "native-library-recovery-bundle",
+  )
+    ? await prepareLibraryRecoveryBundleFixture({
+        library,
+        output,
+        command: ownedFixtureCommand({ cli: required(values["preparation-cli"]), library, output }),
+        tool: required(values["preparation-tool"]),
+      })
+    : undefined;
   await startDriver(firstOfflineCover?.environment);
   await connect();
   if (runnerMetadata.acceptance_bindings) {
@@ -5112,6 +5123,7 @@ try {
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(libraryRecoveryBundleFixture ? { libraryRecoveryBundleFixture } : {}),
                 ...(executionPlan.fixtures.updateReviewJourney
                   ? { catalogPath: required(installFixture).catalogPath }
                   : {}),

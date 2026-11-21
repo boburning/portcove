@@ -740,7 +740,9 @@ mod tests {
                 )
             });
             reached.recv_timeout(timeout).unwrap();
-            let stage = fs::read_dir(workspace.path())
+            // The plan resolves the destination parent to its canonical path, including
+            // the extended-length prefix on Windows. Match the reported path exactly.
+            let stage = fs::read_dir(plan.destination_root.parent().unwrap())
                 .unwrap()
                 .map(|entry| entry.unwrap().path())
                 .find(|path| path.join(JOURNAL_FILE).is_file())
