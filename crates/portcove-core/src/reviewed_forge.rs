@@ -1,12 +1,15 @@
-use std::{future::Future, io::Write, net::IpAddr, path::Path, sync::Arc};
+use std::{
+    future::Future,
+    net::IpAddr,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use futures_util::{Stream, StreamExt};
-use reqwest::{Client, Response, Url, dns, header};
+use reqwest::{Client, Response, Url, dns, redirect};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
 
 use crate::{
-    PortcoveError, Result,
+    Installer, OperationCoordinator, PortcoveError, ReleaseAsset, Result,
     archive::{validate_download_progress, validate_download_size},
     release::{PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, bounded_response_bytes},
 };
@@ -136,7 +139,7 @@ impl ReviewedForge {
         }
         validate_download_progress(0, artifact.size)?;
         let download = Url::parse(&artifact.url).map_err(|_| invalid_destination())?;
-        if !self.allows_asset(&download) || download.query().is_some() {
+        if !allows_asset(&self.asset_hosts, &download) {
             return Err(invalid_destination());
         }
         Ok(ForgeRoute {
@@ -147,22 +150,15 @@ impl ReviewedForge {
         })
     }
 
-    fn allows_asset(&self, url: &Url) -> bool {
-        safe_https(url)
-            && url
-                .host_str()
-                .is_some_and(|host| self.asset_hosts.iter().any(|allowed| allowed == host))
-    }
-
     /// Fetches one reviewed artifact into the caller's private staging directory.
     /// A temporary file becomes available only after the reviewed hash and size match.
     pub async fn fetch(
         &self,
         artifact: &ReviewedForgeArtifact,
         private_staging: &Path,
-    ) -> Result<tempfile::NamedTempFile> {
+    ) -> Result<VerifiedForgeDownload> {
         let route = self.route(artifact)?;
-        let metadata = request_client(true)?;
+        let metadata = request_client(None)?;
         route
             .resolve(|url| {
                 let metadata = &metadata;
@@ -183,11 +179,7 @@ impl ReviewedForge {
             })
             .await?;
 
-        let client = request_client(false)?;
-        let total = crate::provider_http::download_deadline(artifact.size);
-        tokio::time::timeout(total, route.download(&client, private_staging))
-            .await
-            .map_err(|_| PortcoveError::network("reviewed forge download timed out"))?
+        route.download(private_staging).await
     }
 }
 
@@ -300,86 +292,63 @@ impl ForgeRoute<'_> {
         Ok(())
     }
 
-    fn redirect(&self, url: &Url, location: &str) -> Result<Url> {
-        let next = url.join(location).map_err(|_| invalid_destination())?;
-        if !self.instance.allows_asset(&next) {
-            return Err(invalid_destination());
-        }
-        Ok(next)
+    async fn download(&self, private_staging: &Path) -> Result<VerifiedForgeDownload> {
+        let client = request_client(Some(self.instance.asset_hosts.clone()))?;
+        let directory = tempfile::tempdir_in(private_staging)?;
+        let path = directory.path().join("archive");
+        let operation = OperationCoordinator::new("reviewed forge qualification", None);
+        let asset = ReleaseAsset {
+            name: self.artifact.name.clone(),
+            url: self.download.as_str().into(),
+            size: self.artifact.size,
+            sha256: self.artifact.sha256.clone(),
+        };
+        Installer::download_with_client(&client, &asset, &path, &operation, &mut |_| {}).await?;
+        let expected_size = self.artifact.size;
+        let staged = tokio::task::spawn_blocking(move || {
+            let (digest, actual_size) =
+                crate::adapter::hash_file_bounded_with_checkpoint(&path, expected_size, || Ok(()))?;
+            Ok::<_, PortcoveError>((directory, path, digest, actual_size))
+        })
+        .await
+        .map_err(|_| PortcoveError::verification("reviewed forge verification worker failed"))??;
+        let (directory, path, digest, actual_size) = staged;
+        verify_artifact(self.artifact, &digest, actual_size)?;
+        Ok(VerifiedForgeDownload {
+            _directory: directory,
+            path,
+        })
     }
+}
 
-    async fn download(
-        &self,
-        client: &Client,
-        private_staging: &Path,
-    ) -> Result<tempfile::NamedTempFile> {
-        let mut url = self.download.clone();
-        for _ in 0..=4 {
-            let response = request(client, url.clone()).await?;
-            if response.status().is_redirection() {
-                let location = response
-                    .headers()
-                    .get(header::LOCATION)
-                    .and_then(|value| value.to_str().ok())
-                    .ok_or_else(invalid_destination)?;
-                url = self.redirect(&url, location)?;
-                continue;
-            }
-            if response.status() != reqwest::StatusCode::OK {
-                return Err(PortcoveError::network(
-                    "reviewed forge asset request failed",
-                ));
-            }
-            if let Some(length) = response.content_length() {
-                validate_download_size(length, self.artifact.size)?;
-            }
-            let stream = response.bytes_stream().map(|part| {
-                part.map_err(|_| PortcoveError::network("reviewed forge asset could not be read"))
-            });
-            return self.verify_to_stage(stream, private_staging).await;
-        }
-        Err(PortcoveError::verification(
-            "reviewed forge asset exceeded its redirect bound",
-        ))
-    }
+/// A qualification download whose lifetime is limited to private scratch.
+pub struct VerifiedForgeDownload {
+    _directory: tempfile::TempDir,
+    path: PathBuf,
+}
 
-    async fn verify_to_stage<S, B>(
-        &self,
-        parts: S,
-        directory: &Path,
-    ) -> Result<tempfile::NamedTempFile>
-    where
-        S: Stream<Item = Result<B>> + Unpin,
-        B: AsRef<[u8]>,
-    {
-        let mut staged = tempfile::NamedTempFile::new_in(directory)?;
-        self.verify_stream(parts, &mut staged).await?;
-        Ok(staged)
+impl VerifiedForgeDownload {
+    pub fn path(&self) -> &Path {
+        &self.path
     }
+}
 
-    async fn verify_stream<S, B>(&self, mut parts: S, destination: &mut impl Write) -> Result<()>
-    where
-        S: Stream<Item = Result<B>> + Unpin,
-        B: AsRef<[u8]>,
-    {
-        let mut hasher = Sha256::new();
-        let mut size = 0_u64;
-        while let Some(part) = parts.next().await {
-            let part = part?;
-            let bytes = part.as_ref();
-            size = size.saturating_add(bytes.len() as u64);
-            validate_download_progress(size, self.artifact.size)?;
-            hasher.update(bytes);
-            destination.write_all(bytes)?;
-        }
-        validate_download_size(size, self.artifact.size)?;
-        if !hex::encode(hasher.finalize()).eq_ignore_ascii_case(&self.artifact.sha256) {
-            return Err(PortcoveError::verification(
-                "reviewed forge asset digest differs",
-            ));
-        }
-        Ok(())
+fn verify_artifact(artifact: &ReviewedForgeArtifact, digest: &str, size: u64) -> Result<()> {
+    validate_download_size(size, artifact.size)?;
+    if !digest.eq_ignore_ascii_case(&artifact.sha256) {
+        return Err(PortcoveError::verification(
+            "reviewed forge asset digest differs",
+        ));
     }
+    Ok(())
+}
+
+fn allows_asset(allowed: &[String], url: &Url) -> bool {
+    safe_https(url)
+        && url.query().is_none()
+        && url
+            .host_str()
+            .is_some_and(|host| allowed.iter().any(|value| value == host))
 }
 
 fn parse_metadata<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
@@ -432,20 +401,26 @@ fn asset_mismatch() -> PortcoveError {
     PortcoveError::verification("reviewed forge asset identity differs or is ambiguous")
 }
 
-fn request_client(metadata: bool) -> Result<Client> {
+fn request_client(asset_hosts: Option<Vec<String>>) -> Result<Client> {
     let bounds = PROVIDER_NETWORK_BOUNDS;
     let builder = Client::builder()
         .no_proxy()
         .https_only(true)
         .dns_resolver(Arc::new(PublicDns))
-        .redirect(reqwest::redirect::Policy::none())
         .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(bounds.connect)
         .read_timeout(bounds.read_idle);
-    let builder = if metadata {
-        builder.timeout(bounds.request)
-    } else {
-        builder
+    let builder = match asset_hosts {
+        Some(hosts) => builder.redirect(redirect::Policy::custom(move |attempt| {
+            if attempt.previous().len() <= 4 && allows_asset(&hosts, attempt.url()) {
+                attempt.follow()
+            } else {
+                attempt.error("reviewed forge redirect exceeds its destination policy")
+            }
+        })),
+        None => builder
+            .redirect(redirect::Policy::none())
+            .timeout(bounds.request),
     };
     builder
         .build()

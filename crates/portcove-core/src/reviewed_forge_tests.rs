@@ -1,5 +1,6 @@
 use super::*;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 
 const PAYLOAD: &[u8] = b"reviewed archive fixture";
 
@@ -82,35 +83,24 @@ async fn reviewed_dialects_resolve_exact_assets_and_verify_the_stream() {
         let (result, urls) = resolve_fixture(&route, |_| {}).await;
         result.unwrap();
         assert_eq!(urls, [base.to_owned(), format!("{base}{leaf}")]);
-        let asset = route
-            .redirect(
-                &route.download,
-                "https://assets.reviewed.test/fixture.zip?signature=test",
-            )
-            .unwrap();
-        assert_eq!(asset.host_str(), Some("assets.reviewed.test"));
+        let asset = Url::parse("https://assets.reviewed.test/fixture.zip").unwrap();
+        assert!(allows_asset(&instance.asset_hosts, &asset));
         let staging = tempfile::tempdir().unwrap();
-        let (first, second) = PAYLOAD.split_at(5);
-        let file = route
-            .verify_to_stage(
-                futures_util::stream::iter([Ok(first), Ok(second)]),
-                staging.path(),
-            )
-            .await
-            .unwrap();
-        assert_eq!(std::fs::read(file.path()).unwrap(), PAYLOAD);
-        drop(file);
-        for bytes in [
-            b"reviewed archive wrong!!".as_slice(),
-            b"",
-            b"extra length exceeds the reviewed artifact",
+        let file = staging.path().join("fixture.zip");
+        for (bytes, good) in [
+            (PAYLOAD, true),
+            (b"reviewed archive wrong!!".as_slice(), false),
+            (b"".as_slice(), false),
+            (
+                b"extra length exceeds the reviewed artifact".as_slice(),
+                false,
+            ),
         ] {
-            assert!(
-                route
-                    .verify_to_stage(futures_util::stream::iter([Ok(bytes)]), staging.path())
-                    .await
-                    .is_err()
-            );
+            std::fs::write(&file, bytes).unwrap();
+            let (digest, size) =
+                crate::adapter::hash_file_bounded_with_checkpoint(&file, artifact.size, || Ok(()))
+                    .unwrap();
+            assert_eq!(verify_artifact(&artifact, &digest, size).is_ok(), good);
         }
     }
 }
@@ -147,7 +137,10 @@ async fn substitutions_and_unreviewed_destinations_hold() {
         "https://127.0.0.1/a",
         "https://[::1]/a",
     ] {
-        assert!(route.redirect(&route.download, forbidden).is_err());
+        assert!(!allows_asset(
+            &instance.asset_hosts,
+            &Url::parse(forbidden).unwrap()
+        ));
     }
     artifact.repository = "group/../fixture".to_owned();
     assert!(instance.route(&artifact).is_err());
