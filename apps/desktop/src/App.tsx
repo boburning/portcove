@@ -1874,6 +1874,7 @@ function CurrentSettingsView({
       ports={data.catalog?.ports ?? []}
       statuses={model.statusMap}
       doctor={data.doctor}
+      libraryRoot={bootstrap.library_root ?? ""}
       storage={data.storage}
       github={github}
       busy={operations.busy}
