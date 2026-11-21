@@ -433,6 +433,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
+            "native-reviewed-screenshot-display",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -2373,6 +2374,21 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
   assert.deepEqual(
     resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
     [id],
+  );
+});
+
+void test("reviewed screenshot observation binds the embedded listing source", () => {
+  const source = "crates/portcove-core/catalog/listings.json";
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-reviewed-screenshot-display"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+    1,
   );
 });
 
