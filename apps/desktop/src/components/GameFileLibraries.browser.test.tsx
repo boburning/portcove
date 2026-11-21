@@ -1937,73 +1937,82 @@ it("retains a scan failure that arrives while selected game details are open", a
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
 });
 
-it("keeps a committed source visible but holds setup until a failed refresh recovers", async () => {
-  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
-  const source = savedCandidate;
-  const plan: SourceImportPlan = {
-    schema_version: 1,
-    profile_id: "game",
-    mode: "use_current_location",
-    source,
-    admission_mode: "exact_identity",
-    destination: source.path,
-    destination_exists: true,
-    existing_registration: null,
-    reuse_existing: false,
-    required_bytes: 0,
-    source_guard_sha256: "b".repeat(64),
-    plan_sha256: "c".repeat(64),
-  };
-  vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
-  vi.mocked(desktopApi.importSource).mockResolvedValue({
-    import_id: "import-1",
-    profile_id: "game",
-    mode: "use_current_location",
-    outcome: "registered_current_location",
-    registered: source,
-    copied: false,
-    original_deleted: false,
-    original_retained: true,
-    retained_original_path: source.path,
-    recovered: false,
-  });
-  const onAdded = vi.fn().mockRejectedValue(new Error("refresh failed after import"));
-  const onOpenPort = vi.fn();
-  function Settings() {
-    const [registeredSources] = useState([source]);
-    const [setupSource, setSetupSource] = useSetupSource(registeredSources);
-    return (
-      <GameFileLibraries
-        generation={1}
-        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
-        profiles={[]}
-        registeredSources={registeredSources}
-        onAdded={onAdded}
-        onOpenPort={onOpenPort}
-        setupSource={setupSource}
-        setSetupSource={setSetupSource}
-      />
-    );
-  }
-  await root.rerender(<Settings />);
-  await click("Review game files");
-  await click("Use current location");
-  expect(desktopApi.importSource).toHaveBeenCalledOnce();
-  expect(onAdded).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain("The view couldn't refresh");
-  expect(document.body.textContent).toContain("the files were already added");
-  expect(document.body.textContent).toContain("before continuing to a game");
-  expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
-  expect(button("Open Game A details").disabled).toBe(true);
-  expect(onOpenPort).not.toHaveBeenCalled();
-  onAdded.mockResolvedValueOnce(undefined);
-  await click("Retry refresh");
-  expect(onAdded).toHaveBeenCalledTimes(2);
-  expect(button("Open Game A details").disabled).toBe(false);
-  await click("Open Game A details");
-  expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
-  expect(desktopApi.importSource).toHaveBeenCalledOnce();
-});
+it.each([false, true])(
+  "holds setup until a committed source refresh recovers (focus moved: %s)",
+  async (focusMoved) => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    const source = savedCandidate;
+    const plan: SourceImportPlan = {
+      schema_version: 1,
+      profile_id: "game",
+      mode: "use_current_location",
+      source,
+      admission_mode: "exact_identity",
+      destination: source.path,
+      destination_exists: true,
+      existing_registration: null,
+      reuse_existing: false,
+      required_bytes: 0,
+      source_guard_sha256: "b".repeat(64),
+      plan_sha256: "c".repeat(64),
+    };
+    vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+    vi.mocked(desktopApi.importSource).mockResolvedValue({
+      import_id: "import-1",
+      profile_id: "game",
+      mode: "use_current_location",
+      outcome: "registered_current_location",
+      registered: source,
+      copied: false,
+      original_deleted: false,
+      original_retained: true,
+      retained_original_path: source.path,
+      recovered: false,
+    });
+    const onAdded = vi.fn().mockRejectedValue(new Error("refresh failed after import"));
+    const onOpenPort = vi.fn();
+    function Settings() {
+      const [registeredSources] = useState([source]);
+      const [setupSource, setSetupSource] = useSetupSource(registeredSources);
+      return (
+        <GameFileLibraries
+          generation={1}
+          ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+          profiles={[]}
+          registeredSources={registeredSources}
+          onAdded={onAdded}
+          onOpenPort={onOpenPort}
+          setupSource={setupSource}
+          setSetupSource={setSetupSource}
+        />
+      );
+    }
+    await root.rerender(<Settings />);
+    await click("Review game files");
+    await click("Use current location");
+    expect(desktopApi.importSource).toHaveBeenCalledOnce();
+    expect(onAdded).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("The view couldn't refresh");
+    expect(document.body.textContent).toContain("the files were already added");
+    expect(document.body.textContent).toContain("before continuing to a game");
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(button("Open Game A details").disabled).toBe(true);
+    expect(onOpenPort).not.toHaveBeenCalled();
+    const heading = document.getElementById("game-file-libraries-heading");
+    expect(heading).not.toBeNull();
+    onAdded.mockImplementationOnce(async () => {
+      if (focusMoved) heading?.focus();
+    });
+    button("Retry refresh").focus();
+    await click("Retry refresh");
+    expect(onAdded).toHaveBeenCalledTimes(2);
+    expect(button("Open Game A details").disabled).toBe(false);
+    expect(document.activeElement).toBe(focusMoved ? heading : button("Open Game A details"));
+    await click("Open Game A details");
+    expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
+    expect(desktopApi.importSource).toHaveBeenCalledOnce();
+  },
+);
 
 it("preserves a saved root until removal is confirmed", async () => {
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(true);
