@@ -1372,6 +1372,11 @@ mod tests {
         sources
             .qualification
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
+        for port in &mut legacy.ports {
+            if port.id != "zelda64-recomp" {
+                port.mod_loader = None;
+            }
+        }
         let original = Catalog::from_json(&serde_json::to_string(&legacy).unwrap()).unwrap();
         let contract = InstalledContract::capture(&original, "zelda64-recomp").unwrap();
         let mut changed = original.authoritative_document();

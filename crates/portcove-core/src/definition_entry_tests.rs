@@ -109,8 +109,10 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
 #[test]
 fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("shipwright").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    // Isolate the loader schema fence from the separate provider capability.
+    port.mod_provider_bindings = None;
+    let mut entry = entry_for_port(&port);
     for schema in [1, 2, 3] {
         entry["definition_schema"] = json!(schema);
         let bytes = serde_json::to_vec(&entry).unwrap();
@@ -1119,6 +1121,7 @@ fn libultraship_windows_paths_require_the_owning_v2_template() {
 fn shipwright_working_directory_persistence_requires_the_v3_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("shipwright").unwrap().clone();
+    port.mod_provider_bindings = None;
     port.source_profile = None;
     port.presentation = None;
     let mut entry = entry_for_port(&port);
@@ -1468,10 +1471,13 @@ fn catalog_fixture() -> Value {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = &catalog.ports()[0];
     let mut entry = entry_for_port(port);
-    if port.windows_shipwright_persistence {
-        entry["required_capabilities"][0]["minimum_version"] = json!(3);
-        entry["required_capabilities"][0]["maximum_version"] = json!(3);
-    }
+    let minimum = if port.windows_shipwright_persistence {
+        3
+    } else {
+        1
+    };
+    entry["required_capabilities"] =
+        json!(crate::test_fixture::definition_requirements(port, minimum));
     entry
 }
 
@@ -1898,6 +1904,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
         value["stable_id"] = json!(port.id);
+        value["definition_schema"] = json!(if port.mod_loader.is_some() { 3 } else { 1 });
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
@@ -2248,7 +2255,11 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
-    value["port"]["persistent_paths"] = json!(["../outside"]);
+    let port = value["port"].as_object_mut().unwrap();
+    // Exercise generic persistence validation rather than the earlier loader fence.
+    port.remove("mod_loader");
+    port.remove("mod_provider_bindings");
+    port.insert("persistent_paths".into(), json!(["../outside"]));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
