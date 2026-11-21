@@ -85,6 +85,10 @@ impl PortcoveService {
             ));
         }
         let status = self.status(&reviewed.plan.port_id)?;
+        self.require_acquisition_state(&status)
+    }
+
+    pub(super) fn require_acquisition_state(&self, status: &crate::PortStatus) -> Result<()> {
         if status.acquisition.is_some() {
             return Err(PortcoveError::conflict(
                 "discard the existing archive before another acquisition",
