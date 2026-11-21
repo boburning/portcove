@@ -1,4 +1,8 @@
 import {
+  LibraryRecoveryBundleContinuation,
+  LibraryRecoveryBundleProvider,
+} from "./components/LibraryRecoveryBundle";
+import {
   FavoriteGameButton,
   FavoritePreferenceFailure,
 } from "./features/organization/OrganizationControls";
@@ -174,7 +178,9 @@ export default function App() {
     <TooltipProvider>
       <InterfaceSizeProvider>
         <InvocationOwnerProvider>
-          <PortcoveApp />
+          <LibraryRecoveryBundleProvider>
+            <PortcoveApp />
+          </LibraryRecoveryBundleProvider>
         </InvocationOwnerProvider>
       </InterfaceSizeProvider>
     </TooltipProvider>
@@ -1291,6 +1297,7 @@ type WorkspaceFeedbackModel = Pick<
 function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
   return (
     <div className="flow-root min-w-0" data-workspace-feedback>
+      <LibraryRecoveryBundleContinuation />
       <StatusLayer
         invocations={model.operations.invocations}
         operationEvents={model.operations.operationEvents}

@@ -1,5 +1,14 @@
 import { join } from "@tauri-apps/api/path";
-import { useId, useRef, useState, type RefObject } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import { countMessage } from "../localization";
@@ -8,6 +17,7 @@ import type {
   LibraryRecoveryBundle,
   LibraryRecoveryBundlePlan,
   LibraryRecoveryRestorePlan,
+  OperationEvent,
 } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
@@ -35,6 +45,9 @@ const descriptions = {
   resumeRestore: "Choose the destination folder from the interrupted restore.",
 } satisfies Record<Operation, string>;
 
+const bundleAuthority =
+  "Keep the original computer and its secure credential store available. Verification and restore both require them.";
+
 const coverageNames = {
   application_versions: "Installed game versions",
   user_data: "Library saves and settings",
@@ -52,14 +65,77 @@ const exclusionNames = {
   host_credentials: "Sign-in credentials",
 } satisfies Record<LibraryRecoveryBundle["exclusions"][number], string>;
 
-export function LibraryRecoveryBundleControls({
+type BundleScope = { generation: number; libraryRoot: string };
+type BundleOpening = BundleScope & { operation: Operation };
+type BundleOwner = {
+  hidden: boolean;
+  start: (opening: BundleOpening) => void;
+  reveal: () => void;
+};
+const BundleContext = createContext<BundleOwner | null>(null);
+
+export function LibraryRecoveryBundleProvider({ children }: { children: ReactNode }) {
+  const [opening, setOpening] = useState<BundleOpening>();
+  const [visible, setVisible] = useState(true);
+  return (
+    <BundleContext.Provider
+      value={{
+        hidden: opening !== undefined && !visible,
+        start: (next) => setOpening((current) => current ?? next),
+        reveal: () => setVisible(true),
+      }}
+    >
+      {children}
+      {opening && (
+        <RecoveryBundleDialog
+          {...opening}
+          visible={visible}
+          hide={() => setVisible(false)}
+          close={() => {
+            setVisible(true);
+            setOpening(undefined);
+          }}
+        />
+      )}
+    </BundleContext.Provider>
+  );
+}
+
+export function LibraryRecoveryBundleContinuation() {
+  const owner = useContext(BundleContext);
+  const button = useRef<HTMLButtonElement>(null);
+  const hidden = owner?.hidden ?? false;
+  useEffect(() => {
+    if (hidden) button.current?.focus();
+  }, [hidden]);
+  if (!owner?.hidden) return null;
+  return (
+    <Button ref={button} data-focusable variant="outline" size="sm" onClick={owner.reveal}>
+      View recovery bundle operation
+    </Button>
+  );
+}
+
+type BundleControlsProps = BundleScope & { disabled: boolean };
+
+export function LibraryRecoveryBundleControls(props: BundleControlsProps) {
+  const owner = useContext(BundleContext);
+  if (owner) return <BundleControls {...props} owner={owner} />;
+  return (
+    <LibraryRecoveryBundleProvider>
+      <LibraryRecoveryBundleControls {...props} />
+      <LibraryRecoveryBundleContinuation />
+    </LibraryRecoveryBundleProvider>
+  );
+}
+
+function BundleControls({
   generation,
+  libraryRoot,
   disabled,
-}: {
-  generation: number;
-  disabled: boolean;
-}) {
-  const [operation, setOperation] = useState<Operation>();
+  owner,
+}: BundleControlsProps & { owner: BundleOwner }) {
+  const open = (operation: Operation) => owner.start({ operation, generation, libraryRoot });
   return (
     <section className="mt-6 grid gap-3">
       <h3>Verified recovery bundles</h3>
@@ -68,16 +144,16 @@ export function LibraryRecoveryBundleControls({
         <Button
           variant="primary"
           size="sm"
-          disabled={disabled}
-          onClick={() => setOperation("create")}
+          disabled={disabled || owner.hidden}
+          onClick={() => open("create")}
         >
           {titles.create}
         </Button>
         <Button
           variant="outline"
           size="sm"
-          disabled={disabled}
-          onClick={() => setOperation("inspect")}
+          disabled={disabled || owner.hidden}
+          onClick={() => open("inspect")}
         >
           {titles.inspect}
         </Button>
@@ -90,28 +166,21 @@ export function LibraryRecoveryBundleControls({
           <Button
             variant="outline"
             size="sm"
-            disabled={disabled}
-            onClick={() => setOperation("resumeCreation")}
+            disabled={disabled || owner.hidden}
+            onClick={() => open("resumeCreation")}
           >
             {titles.resumeCreation}
           </Button>
           <Button
             variant="outline"
             size="sm"
-            disabled={disabled}
-            onClick={() => setOperation("resumeRestore")}
+            disabled={disabled || owner.hidden}
+            onClick={() => open("resumeRestore")}
           >
             {titles.resumeRestore}
           </Button>
         </div>
       </details>
-      {operation && (
-        <RecoveryBundleDialog
-          operation={operation}
-          generation={generation}
-          close={() => setOperation(undefined)}
-        />
-      )}
     </section>
   );
 }
@@ -119,10 +188,13 @@ export function LibraryRecoveryBundleControls({
 function RecoveryBundleDialog({
   operation,
   generation,
+  libraryRoot,
+  visible,
+  hide,
   close,
-}: {
-  operation: Operation;
-  generation: number;
+}: BundleOpening & {
+  visible: boolean;
+  hide: () => void;
   close: () => void;
 }) {
   const descriptionId = useId();
@@ -132,17 +204,27 @@ function RecoveryBundleDialog({
   const [destination, setDestination] = useState("");
   const [path, setPath] = useState("");
   const [creation, setCreation] = useState<LibraryRecoveryBundlePlan>();
+  const [createReceipt, setCreateReceipt] = useState<LibraryRecoveryBundlePlan>();
   const [verified, setVerified] = useState<LibraryRecoveryBundle>();
   const [restore, setRestore] = useState<LibraryRecoveryRestorePlan>();
   const [restored, setRestored] = useState<string>();
   const [transferred, setTransferred] = useState(false);
   const [pending, setPending] = useState("");
+  const copyInvocation = useRef<symbol>(undefined);
+  const [copyEvent, setCopyEvent] = useState<OperationEvent>();
+  const [cancelRequested, setCancelRequested] = useState(false);
+  const [cancelFailure, setCancelFailure] = useState<unknown>();
+  const cancelling = useRef(false);
   const [error, setError] = useState<unknown>();
   const [recovery, setRecovery] = useState<RecoveryStep>();
 
   const run = async (status: string, work: () => Promise<void>) => {
     if (inFlight.current) return;
     inFlight.current = true;
+    cancelling.current = false;
+    setCancelRequested(false);
+    setCancelFailure(undefined);
+    setCopyEvent(undefined);
     setPending(status);
     setError(undefined);
     try {
@@ -176,7 +258,7 @@ function RecoveryBundleDialog({
   };
 
   async function transfer<T>(
-    action: (currentGeneration: number) => Promise<T>,
+    action: (currentGeneration: number, onProgress: (event: OperationEvent) => void) => Promise<T>,
     kind: RecoveryStep["operation"],
   ): Promise<T> {
     const current = attempted.current ? await desktopApi.bootstrapStatus() : undefined;
@@ -184,18 +266,33 @@ function RecoveryBundleDialog({
       throw new Error(
         current.error ? errorText(current.error) : "Open your library and try again.",
       );
+    if (current && current.library_root !== libraryRoot)
+      throw new Error("Open the library used for this recovery operation and try again.");
     attempted.current = true;
     setTransferred(true);
     setCreation(undefined);
     setRestore(undefined);
+    const invocation = Symbol();
+    copyInvocation.current = invocation;
     try {
-      const result = await action(current?.generation ?? generation);
+      const result = await action(current?.generation ?? generation, (event) => {
+        if (copyInvocation.current !== invocation) return;
+        setCopyEvent((previous) =>
+          previous &&
+          previous.operation_id === event.operation_id &&
+          previous.sequence >= event.sequence
+            ? previous
+            : event,
+        );
+      });
       setRecovery(undefined);
       return result;
     } catch (failure) {
       const target = recoveryFolder(failure, kind);
       if (target) setRecovery({ operation: kind, path: target });
       throw failure;
+    } finally {
+      copyInvocation.current = undefined;
     }
   }
 
@@ -206,13 +303,15 @@ function RecoveryBundleDialog({
       if (target.operation === "resumeCreation") {
         setVerified(
           await transfer(
-            (current) => desktopApi.resumeLibraryRecoveryBundle(target.path, current),
+            (current, observe) =>
+              desktopApi.resumeLibraryRecoveryBundle(target.path, current, observe),
             target.operation,
           ),
         );
       } else {
         const result = await transfer(
-          (current) => desktopApi.resumeLibraryRecoveryRestore(target.path, current),
+          (current, observe) =>
+            desktopApi.resumeLibraryRecoveryRestore(target.path, current, observe),
           target.operation,
         );
         if (!result.completed) throw new Error("Portcove could not verify the restored library.");
@@ -222,10 +321,38 @@ function RecoveryBundleDialog({
   }
 
   function dismiss() {
-    if (inFlight.current) return;
+    if (inFlight.current) {
+      if (copyEvent) hide();
+      return;
+    }
     if (attempted.current) reloadWorkspace();
     else close();
   }
+
+  const copying =
+    copyEvent?.type === "progress" && copyEvent.phase === "Copying recovery data"
+      ? copyEvent
+      : undefined;
+  const verifying = copyEvent?.type === "progress" && !copying;
+  const cancelCopy = async () => {
+    const invocation = copyInvocation.current;
+    if (!copying || !invocation || cancelling.current) return;
+    const isCurrent = () => copyInvocation.current === invocation;
+    cancelling.current = true;
+    setCancelRequested(true);
+    setCancelFailure(undefined);
+    try {
+      const receipt = await desktopApi.cancelOperation(copying.operation_id);
+      if (!receipt.requested && isCurrent()) setCancelRequested(false);
+    } catch (failure) {
+      if (isCurrent()) {
+        setCancelFailure(failure);
+        setCancelRequested(false);
+      }
+    } finally {
+      if (isCurrent()) cancelling.current = false;
+    }
+  };
 
   const disabled = Boolean(pending) || transferred;
   const choosingBundle = operation === "inspect";
@@ -234,7 +361,7 @@ function RecoveryBundleDialog({
 
   return (
     <Dialog
-      open
+      open={visible}
       onOpenChange={(open) => {
         if (!open) dismiss();
       }}
@@ -246,7 +373,9 @@ function RecoveryBundleDialog({
         aria-describedby={descriptionId}
       >
         <DialogTitle>{titles[operation]}</DialogTitle>
-        <DialogDescription id={descriptionId}>{descriptions[operation]}</DialogDescription>
+        <DialogDescription id={descriptionId}>
+          {descriptions[operation]} {!verified && bundleAuthority}
+        </DialogDescription>
         <NavigationHints />
         {!transferred && (choosingBundle || resumeOperation) && (
           <FolderField
@@ -286,6 +415,7 @@ function RecoveryBundleDialog({
             <PathValue label="Source library" value={creation.source_root} />
             <PathValue label="Bundle destination" value={creation.destination_root} />
             <p>Required space {formatBytes(creation.required_bytes)}</p>
+            <p>Use a destination that supports folders private to your account.</p>
             <BundleCoverage coverage={creation.coverage} exclusions={creation.exclusions} />
           </section>
         )}
@@ -295,6 +425,7 @@ function RecoveryBundleDialog({
               Bundle verified
             </h3>
             <PathValue label="Bundle folder" value={verified.path} />
+            <p>{bundleAuthority}</p>
             <BundleCoverage coverage={verified.coverage} exclusions={verified.exclusions} />
             <details>
               <summary data-focusable>Verification details</summary>
@@ -324,8 +455,94 @@ function RecoveryBundleDialog({
             </p>
           </section>
         )}
-        {pending && <p role="status">{pending} Keep Portcove open until this finishes.</p>}
+        {pending && (
+          <div className="grid gap-2">
+            <p role="status">
+              {cancelRequested
+                ? "Stopping after the current copy checkpoint…"
+                : copying
+                  ? "Copying recovery data…"
+                  : verifying
+                    ? "Verifying recovery data. Keep Portcove open until verification finishes."
+                    : pending}
+            </p>
+            {copying && copying.total && copying.total > 0 ? (
+              <div className="grid gap-1">
+                <progress
+                  aria-label="Recovery data copied"
+                  className="w-full"
+                  value={copying.completed}
+                  max={copying.total}
+                />
+                <span>
+                  {formatBytes(copying.completed)} of {formatBytes(copying.total)}
+                </span>
+              </div>
+            ) : null}
+            {copying && (
+              <Button
+                data-focusable
+                variant="outline"
+                className="justify-self-start"
+                disabled={cancelRequested}
+                onClick={() => void cancelCopy()}
+              >
+                Cancel copy
+              </Button>
+            )}
+            <ActionReviewFailure error={cancelFailure} />
+          </div>
+        )}
         <ActionReviewFailure error={error} />
+        {error !== undefined && createReceipt && !recovery && !verified && (
+          <Button
+            data-focusable
+            variant="outline"
+            className="justify-self-start"
+            disabled={Boolean(pending)}
+            onClick={() =>
+              void run("Checking the reviewed bundle folder…", async () => {
+                const bundle = await desktopApi.inspectLibraryRecoveryBundle(
+                  createReceipt.destination_root,
+                  createReceipt.plan_sha256,
+                );
+                if (
+                  bundle.path !== createReceipt.destination_root ||
+                  bundle.source_library_id !== createReceipt.source_library_id
+                )
+                  throw new Error("The verified bundle does not match the reviewed copy.");
+                setVerified(bundle);
+              })
+            }
+          >
+            Check reviewed bundle again
+          </Button>
+        )}
+        {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
+          <section className="grid gap-2" aria-label="Retained update download">
+            <p>
+              Open Versions for the game below. If a download is still running, let it finish or
+              cancel it. If Versions offers preparation, you can review that step. You can also
+              review deleting the retained download. Then review bundle creation again.
+            </p>
+            <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+            <PathValue
+              label="Update download ID"
+              value={errorDetail(error, "acquisition_id") ?? ""}
+            />
+          </section>
+        )}
+        {errorDetail(error, "recovery_action") === "review_managed_installation_location" && (
+          <section className="grid gap-2" aria-label="Managed installation outside the library">
+            <p>
+              This installation blocks the bundle. Open Manage for the game below, choose Review
+              library default, then choose Review moving existing versions. After the versions move
+              to the library default, review bundle creation again.
+            </p>
+            <PathValue label="Port" value={errorDetail(error, "port_id") ?? ""} />
+            <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
+          </section>
+        )}
         {recovery && (
           <PathValue
             label={
@@ -335,8 +552,13 @@ function RecoveryBundleDialog({
           />
         )}
         <DialogFooter>
-          <Button data-focusable variant="outline" disabled={Boolean(pending)} onClick={dismiss}>
-            Close
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={Boolean(pending) && !copyEvent}
+            onClick={dismiss}
+          >
+            {pending && copyEvent ? "Hide details" : "Close"}
           </Button>
           {recovery && (
             <Button
@@ -355,13 +577,15 @@ function RecoveryBundleDialog({
               disabled={disabled || !destination.trim()}
               onClick={() => {
                 if (creation) {
+                  setCreateReceipt(creation);
                   void run("Copying and verifying your library…", async () => {
                     const bundle = await transfer(
-                      (current) =>
+                      (current, observe) =>
                         desktopApi.createLibraryRecoveryBundle(
                           creation.destination_root,
                           creation.plan_sha256,
                           current,
+                          observe,
                         ),
                       "resumeCreation",
                     );
@@ -408,12 +632,13 @@ function RecoveryBundleDialog({
                 if (restore) {
                   void run("Restoring and verifying the new library…", async () => {
                     const result = await transfer(
-                      (current) =>
+                      (current, observe) =>
                         desktopApi.restoreLibraryRecoveryBundle(
                           restore.bundle.path,
                           restore.destination_root,
                           restore.plan_sha256,
                           current,
+                          observe,
                         ),
                       "resumeRestore",
                     );
@@ -532,10 +757,16 @@ function BundleCoverage({
 }
 
 function recoveryFolder(error: unknown, operation: RecoveryStep["operation"]): string | undefined {
+  return errorDetail(
+    error,
+    operation === "resumeCreation" ? "recovery_staging" : "import_destination",
+  );
+}
+
+function errorDetail(error: unknown, key: string): string | undefined {
   if (!error || typeof error !== "object" || !("details" in error)) return;
   const details = error.details;
   if (!details || typeof details !== "object") return;
-  const key = operation === "resumeCreation" ? "recovery_staging" : "import_destination";
   if (!(key in details)) return;
   const value = (details as Record<string, unknown>)[key];
   return typeof value === "string" && value.length ? value : undefined;

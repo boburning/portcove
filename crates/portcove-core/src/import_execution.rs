@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ActivityStatus, InstallQualification, Installer, Library, LibraryImportPlan, LibraryMetadata,
-    Platform, PortcoveError, PortcoveService, Result,
+    LibraryRecoveryProgress, Platform, PortcoveError, PortcoveService, Result,
     import_journal::{BundleImportAdmission, ImportJournal},
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
@@ -45,19 +45,31 @@ impl PortcoveService {
     }
 
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, false, false, None)
+        recover_import(destination, false, false, None, &mut |_| Ok(()))
     }
 
     pub fn resume_library_recovery_restore(
         destination: &Path,
         expected_transfer_id: Option<&str>,
     ) -> Result<LibraryImportResult> {
-        recover_import(destination, false, true, expected_transfer_id)
+        Self::resume_library_recovery_restore_with_progress(
+            destination,
+            expected_transfer_id,
+            |_| Ok(()),
+        )
+    }
+
+    pub fn resume_library_recovery_restore_with_progress(
+        destination: &Path,
+        expected_transfer_id: Option<&str>,
+        mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
+    ) -> Result<LibraryImportResult> {
+        recover_import(destination, false, true, expected_transfer_id, &mut observe)
     }
 
     /// Retain and gate incomplete copies. This never deletes input or destination data.
     pub fn abort_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, true, false, None)
+        recover_import(destination, true, false, None, &mut |_| Ok(()))
     }
 }
 
@@ -81,6 +93,15 @@ pub(crate) fn start_reviewed_import(
     plan: LibraryImportPlan,
     bundle: Option<&crate::LibraryRecoveryBundle>,
     checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+) -> Result<LibraryImportResult> {
+    start_reviewed_import_with_progress(plan, bundle, checkpoint, &mut |_| Ok(()))
+}
+
+pub(crate) fn start_reviewed_import_with_progress(
+    plan: LibraryImportPlan,
+    bundle: Option<&crate::LibraryRecoveryBundle>,
+    checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
 ) -> Result<LibraryImportResult> {
     let transfer_id = uuid::Uuid::new_v4().to_string();
     let bundle = bundle
@@ -122,7 +143,8 @@ pub(crate) fn start_reviewed_import(
             .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
     )?;
     let target = Library::initialize(journal.plan.destination_root.clone(), lease)?;
-    continue_import(&target, &mut journal, checkpoint).map_err(|error| journal.error(error))
+    continue_import(&target, &mut journal, checkpoint, observe)
+        .map_err(|error| journal.error(error))
 }
 
 fn recover_import(
@@ -130,6 +152,7 @@ fn recover_import(
     abort: bool,
     bundle: bool,
     expected_transfer_id: Option<&str>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
 ) -> Result<LibraryImportResult> {
     let destination = fs::canonicalize(destination)?;
     if crate::library_authority::authority(&destination)?.is_some() {
@@ -180,7 +203,8 @@ fn recover_import(
         journal.write(true)?;
         Ok(result(&journal, false))
     } else {
-        continue_import(&target, &mut journal, &|_| Ok(())).map_err(|error| journal.error(error))
+        continue_import(&target, &mut journal, &|_| Ok(()), observe)
+            .map_err(|error| journal.error(error))
     }
 }
 
@@ -188,8 +212,10 @@ fn continue_import(
     target: &Library,
     journal: &mut ImportJournal,
     checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+    observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
 ) -> Result<LibraryImportResult> {
     if journal.phase == TransferPhase::Complete {
+        observe(LibraryRecoveryProgress::Verifying)?;
         if ImportJournal::read(target.root())?.is_some() {
             journal.archive()?;
         }
@@ -211,15 +237,19 @@ fn continue_import(
     if journal.phase == TransferPhase::Published {
         // The matching successful activity was checked while reading the journal. The restored
         // library may already contain new saves, so never replay or compare old payloads.
+        observe(LibraryRecoveryProgress::Verifying)?;
         return finish_import(journal);
     }
     checkpoint(TransferPhase::Copying)?;
     verify_input(journal)?;
-    crate::transfer_copy::copy_content(
+    crate::transfer_copy::copy_library_payload(
         &journal.plan.content_root,
         target.root(),
         &journal.plan.content,
+        &target.root().join(".portcove-transfer-work"),
+        observe,
     )?;
+    observe(LibraryRecoveryProgress::Verifying)?;
     let portability = crate::library_import::PortabilityCatalogs::from_root(
         &journal.plan.metadata,
         target.root(),

@@ -49,6 +49,7 @@ export function LibraryRecovery({
         Keep a verified recovery bundle, restore a copy, or change where this library is stored.
       </p>
       <LibraryRecoveryBundleControls
+        libraryRoot={libraryRoot}
         generation={generation}
         disabled={Boolean(busy) || preparing || !libraryRoot}
       />

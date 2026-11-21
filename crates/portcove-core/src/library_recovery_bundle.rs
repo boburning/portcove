@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod execution;
-pub use execution::{LibraryRecoveryBundle, LibraryRecoveryRestorePlan};
+pub use execution::{LibraryRecoveryBundle, LibraryRecoveryProgress, LibraryRecoveryRestorePlan};
 
 use crate::{
     LibraryContentKind, LibraryMetadata, LibraryTreePlan, PortcoveError, PortcoveService, Result,
