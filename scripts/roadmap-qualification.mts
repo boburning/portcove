@@ -510,7 +510,7 @@ export function planPortStageMigration(
 }
 
 function issueSection(body: unknown, heading: string) {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\$&");
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return (
     diagnosticText(body ?? "")
       .match(new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, "im"))?.[1]
