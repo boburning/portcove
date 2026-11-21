@@ -805,7 +805,7 @@ fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
 
 #[cfg(test)]
 mod capacity_tests {
-    use super::{public_history::PublicHistory, *};
+    use super::*;
 
     #[test]
     fn retained_bound_allows_the_observed_release_and_remains_finite() {
@@ -823,14 +823,18 @@ mod capacity_tests {
     fn proposed_floor_reuses_identical_hash_addressed_bytes() {
         let name = "policy/official/catalog.listings.json";
         let existing = b"retained directory".to_vec();
-        let prior = Files::from([
-            ("metadata/timestamp.json".into(), vec![1; 10]),
-            ("metadata/1.root.json".into(), vec![2; 12]),
-            (
-                public_target_path(name, &existing).unwrap(),
-                existing.clone(),
-            ),
-        ]);
+        let sandbox = tempfile::tempdir().unwrap();
+        let retained_target = public_target_path(name, &existing).unwrap();
+        for (path, bytes) in [
+            ("metadata/timestamp.json", vec![1; 10]),
+            ("metadata/1.root.json", vec![2; 12]),
+            (retained_target.as_str(), existing.clone()),
+        ] {
+            let path = sandbox.path().join(path);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        let prior = PublicHistory::read(sandbox.path()).unwrap();
         assert_eq!(
             proposed_target_floor(&prior, &Files::from([(name.into(), existing.clone())])).unwrap(),
             (2, 12 + existing.len() as u64),
