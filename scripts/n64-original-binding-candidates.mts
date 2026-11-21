@@ -203,7 +203,7 @@ export function n64PackagedInputLayout(port: Record<string, unknown>, platform: 
   return orderedJsonSha256({
     adapter: port.adapter,
     executable_hints: hints,
-    runtime_subdirectory: root ?? port.runtime_subdirectory,
+    runtime_subdirectory: root ?? port.runtime_subdirectory ?? undefined,
     archive_file_links: isRecord(port.release) && port.release.archive_file_links === true,
     launch_from_install_root: port.launch_from_install_root === true,
     n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent === true,

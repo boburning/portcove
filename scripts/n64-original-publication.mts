@@ -106,7 +106,7 @@ export function projectVerifiedN64OriginalAmendment(
   portId: string,
   amendment: RecordValue,
 ) {
-  const { entry, decision, port, projection, graph } = managedN64Entry(prior, portId);
+  const { entry, policy, decision, port, projection, graph } = managedN64Entry(prior, portId);
   const requirement = one(
     records(entry.required_capabilities),
     ({ template: key }) => key === template,
@@ -122,6 +122,11 @@ export function projectVerifiedN64OriginalAmendment(
     throw new Error("Observed repository differs from the retained approved repository");
   const release = record(port.release);
   const curated = record(release.curated);
+  const transitions =
+    policy.curated_transitions === undefined ? undefined : record(policy.curated_transitions);
+  if (transitions?.future_acceptance_lost === true)
+    throw new Error("Retained curated grant reports loss of future acceptance");
+  const statuses = transitions ? records(transitions.artifacts) : [];
   const packages = records(amendment.packages);
   if (packages.length === 0 || packages.length > 12) throw new Error("Missing exact package proof");
   for (const pkg of packages) {
@@ -147,6 +152,13 @@ export function projectVerifiedN64OriginalAmendment(
       throw new Error(
         "Package proof differs from the independently retained artifact or runtime layout",
       );
+    if (
+      statuses.some(
+        (transition) =>
+          transition.asset_id === accepted.asset_id && transition.status !== "cleared",
+      )
+    )
+      throw new Error("Retained curated grant holds this exact package");
   }
 
   for (const [platform, artifact] of Object.entries(curated)) {

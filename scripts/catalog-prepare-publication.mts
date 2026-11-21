@@ -292,7 +292,7 @@ async function main(argv: string[]) {
     const source = readCatalogSource(
       fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
     );
-    const bytes = await readControllerToolFile(path.resolve(checkpointPath), 128 * 1024 ** 2);
+    const bytes = await readControllerToolFile(path.resolve(checkpointPath), 32 * 1024 ** 2);
     const checkpoint: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     authored = {
       ...managedN64OriginalProjection(prior!, id, source.catalog, checkpoint),
