@@ -43,6 +43,11 @@ function document(bytes: Buffer | undefined) {
 }
 
 const psxToolFeature = "tools.psx-toolchain-v1";
+const reviewedForgeFeature = "release.reviewed-forge-v1";
+
+function forgeRelease(port: unknown) {
+  return isRecord(port) && isRecord(port.release) && port.release.provider === "reviewed-forge";
+}
 
 function exactAcceptedPsxToolArtifacts(projection: Record<string, unknown>, selected: unknown) {
   const supplied = projection.tool_artifacts;
@@ -59,13 +64,20 @@ function exactAcceptedPsxToolArtifacts(projection: Record<string, unknown>, sele
   )
     throw new Error("PS1 tool publication requires a complete schema-4 managed platform scope");
   const accepted: unknown = JSON.parse(
-    readFileSync(new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url),
+      "utf8",
+    ),
   );
   if (!Array.isArray(accepted)) throw new Error("compiled PS1 tool acceptance table is malformed");
   const seen = new Set<unknown>();
   for (const artifact of supplied) {
-    if (!isRecord(artifact) || !selected.platforms.includes(artifact.platform) ||
-        seen.has(artifact.platform) || !accepted.some((row) => isDeepStrictEqual(row, artifact)))
+    if (
+      !isRecord(artifact) ||
+      !selected.platforms.includes(artifact.platform) ||
+      seen.has(artifact.platform) ||
+      !accepted.some((row) => isDeepStrictEqual(row, artifact))
+    )
       throw new Error("PS1 tool proposal differs from the independently accepted executable pack");
     seen.add(artifact.platform);
   }
@@ -82,10 +94,14 @@ export function generatedPublicationProjection(
   const template = document(templateBytes);
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/u.test(portId) || !Array.isArray(catalog.ports))
     throw new Error("a generated operational catalog and exact stable ID are required");
+  const forge = Object.hasOwn(template, "reviewed_forge");
   if (
-    Object.keys(template).sort().join(",") !== (template.contract_schema === 4
-      ? "catalog,contract_schema,representation,tool_artifacts"
-      : "catalog,contract_schema,representation") ||
+    Object.keys(template).sort().join(",") !==
+      (template.contract_schema === 4
+        ? "catalog,contract_schema,representation,tool_artifacts"
+        : forge
+          ? "catalog,contract_schema,representation,reviewed_forge"
+          : "catalog,contract_schema,representation") ||
     (template.contract_schema !== 1 &&
       template.contract_schema !== 2 &&
       template.contract_schema !== 3 &&
@@ -114,6 +130,10 @@ export function generatedPublicationProjection(
     template.contract_schema !== 3
   )
     throw new Error("reviewed runtime compatibility artifacts require catalog projection schema 3");
+  if (forge !== forgeRelease(matches[0]) || (forge && template.contract_schema !== 3))
+    throw new Error(
+      "reviewed forge generation requires a schema-3 template with its exact selector and subject",
+    );
   if (template.contract_schema === 4) exactAcceptedPsxToolArtifacts(template, matches[0]);
   template.catalog.ports = matches;
   const bytes = Buffer.from(`${JSON.stringify(template, null, 2)}\n`);
@@ -191,24 +211,89 @@ export function assembleReviewedPublication(
   const selected = after.get(portId);
   if (!selected || [...after.keys()].some((id) => id !== portId && !before.has(id)))
     throw new Error("reviewed index does not describe one selected definition");
-  const entry = document(reviewed.get(selected.target));
+  const entryBytes = reviewed.get(selected.target);
+  const entry = document(entryBytes);
   const projected = document(projection);
-  if ("reviewed_forge" in projected)
-    throw new Error("reviewed alternate forge publication requires an independent executable acquisition grant; inspect the proposal without publication");
-  const ports = isRecord(projected.catalog) && Array.isArray(projected.catalog.ports)
-    ? projected.catalog.ports
-    : [];
+  const ports =
+    isRecord(projected.catalog) && Array.isArray(projected.catalog.ports)
+      ? projected.catalog.ports
+      : [];
+  const forge = Object.hasOwn(projected, "reviewed_forge");
+  const indexHash = hash(reviewed.get(indexTarget)!);
+  if (forge || ports.some(forgeRelease)) {
+    const policyTarget = `policy/official/${portId}.json`;
+    const launchTarget = `policy/official/${portId}.launch.json`;
+    const policyBytes = reviewed.get(policyTarget);
+    if (!policyBytes)
+      throw new Error(
+        "reviewed alternate forge publication requires an independent executable acquisition grant",
+      );
+    const policy = document(policyBytes);
+    const declared = document(
+      readFileSync(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url)),
+    );
+    const embedded =
+      Array.isArray(declared.ports) &&
+      declared.ports.some((port) => isRecord(port) && port.id === portId);
+    if (embedded || before.has(portId) || prior.has(policyTarget) || prior.has(launchTarget))
+      throw new Error(
+        "reviewed forge preparation requires a new subject without an existing publisher scope",
+      );
+    const decision = policy.decision;
+    if (
+      projected.contract_schema !== 3 ||
+      ports.length !== 1 ||
+      !forgeRelease(ports[0]) ||
+      !isRecord(projected.reviewed_forge) ||
+      entry.definition_schema !== 4 ||
+      entry.namespace !== "official" ||
+      entry.stable_id !== portId ||
+      entry.revision !== selected.revision ||
+      selected.target !== `sha256/${hash(entryBytes!)}.json` ||
+      !Array.isArray(entry.required_features) ||
+      !entry.required_features.includes(reviewedForgeFeature) ||
+      policy.policy_schema !== 5 ||
+      policy.namespace !== "official" ||
+      policy.stable_id !== portId ||
+      typeof policy.grant_id !== "string" ||
+      !/^reviewed-forge-v1-.+$/u.test(policy.grant_id) ||
+      !isRecord(decision) ||
+      decision.status !== "managed_forge_v1" ||
+      decision.definition_revision !== entry.revision ||
+      decision.definition_sha256 !== hash(entryBytes!) ||
+      decision.index_sha256 !== indexHash ||
+      !isRecord(entry.port) ||
+      decision.template !== entry.port.adapter ||
+      !isDeepStrictEqual(decision.selection, projected.reviewed_forge) ||
+      reviewed.has(launchTarget)
+    )
+      throw new Error(
+        "reviewed forge preparation requires the exact schema-5 acquisition grant and named definition, without a launch record",
+      );
+  }
   if (projected.contract_schema === 4 || "tool_artifacts" in projected) {
-    if (ports.length !== 1 || entry.definition_schema !== 4 ||
-        !Array.isArray(entry.required_features) || !entry.required_features.includes(psxToolFeature))
+    if (
+      ports.length !== 1 ||
+      entry.definition_schema !== 4 ||
+      !Array.isArray(entry.required_features) ||
+      !entry.required_features.includes(psxToolFeature)
+    )
       throw new Error("PS1 tool publication requires the named schema-4 reader");
     exactAcceptedPsxToolArtifacts(projected, ports[0]);
   }
   const namedFields = [
-    ["reviewed_launch_contract_v1", "runtime.reviewed-package-and-launch-v1", "named package and launch declarations"],
-    ["managed_runtime_applies_to", "runtime.reviewed-compatibility-artifacts-v1", "reviewed runtime compatibility artifacts"],
+    [
+      "reviewed_launch_contract_v1",
+      "runtime.reviewed-package-and-launch-v1",
+      "named package and launch declarations",
+    ],
+    [
+      "managed_runtime_applies_to",
+      "runtime.reviewed-compatibility-artifacts-v1",
+      "reviewed runtime compatibility artifacts",
+    ],
   ] as const;
-  let named = false;
+  let named = forge;
   for (const [field, feature, description] of namedFields) {
     if (!ports.some((port) => isRecord(port) && field in port)) continue;
     named = true;
@@ -250,7 +335,6 @@ export function assembleReviewedPublication(
 
   if (!isDeepStrictEqual(prior.get(listingTarget), reviewed.get(listingTarget)))
     throw new Error("managed definition preparation must preserve descriptive listing bytes");
-  const indexHash = hash(reviewed.get(indexTarget)!);
   for (const [id, previous] of before) {
     const replacement = after.get(id);
     if (
@@ -274,7 +358,7 @@ export function assembleReviewedPublication(
       !prior.get(policyTarget)!.equals(policyBytes),
     );
     if (
-      id !== portId &&
+      (id !== portId || oldPolicy.policy_schema === 5 || nextPolicy.policy_schema === 5) &&
       !isDeepStrictEqual(policySemantics(oldPolicy), policySemantics(nextPolicy))
     )
       throw new Error(`reviewed publisher grant changes retained scope for ${id}`);

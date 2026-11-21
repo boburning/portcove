@@ -123,6 +123,52 @@ function review(opportunity: unknown) {
   };
 }
 
+void test("semantic catalog policy schema 5 carries no launch identity", () => {
+  const { opportunity } = fixture();
+  const definition = {
+    namespace: "official",
+    stable_id: "fixture",
+    grant_id: "reviewed-forge-v1-fixture",
+    revision: 1,
+    definition_target: `sha256/${"b".repeat(64)}.json`,
+    policy_target: "policy/official/fixture.json",
+    policy_schema: 5,
+    policy_revision: 1,
+    launch_revision: null,
+    launch_target: null,
+  };
+  const input = (row: object) => ({
+    ...opportunity,
+    classification: { ...opportunity.classification, definitions: [row] },
+  });
+  assert.deepEqual(
+    inspectCatalogSemanticOpportunity(input(definition)).classification.definitions,
+    [definition],
+  );
+  assert.throws(
+    () =>
+      inspectCatalogSemanticOpportunity(
+        input({ ...definition, launch_target: "policy/official/fixture.launch.json" }),
+      ),
+    /launch identity differs/u,
+  );
+  for (const schema of [3, 4]) {
+    assert.throws(
+      () => inspectCatalogSemanticOpportunity(input({ ...definition, policy_schema: schema })),
+      /launch identity differs/u,
+    );
+    const legacy = {
+      ...definition,
+      policy_schema: schema,
+      launch_revision: 1,
+      launch_target: "policy/official/fixture.launch.json",
+    };
+    assert.deepEqual(inspectCatalogSemanticOpportunity(input(legacy)).classification.definitions, [
+      legacy,
+    ]);
+  }
+});
+
 void test("catalog availability policy identity needs no managed launch and stays purpose bound", () => {
   const f = fixture();
   const opportunity = {

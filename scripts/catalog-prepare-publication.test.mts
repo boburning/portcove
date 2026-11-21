@@ -30,10 +30,12 @@ function heldProjection(named = false) {
   );
   const catalog = named
     ? json({
-        ports: [{
-          id: heldId,
-          reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
-        }],
+        ports: [
+          {
+            id: heldId,
+            reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+          },
+        ],
       })
     : authored;
   const template = json({
@@ -244,7 +246,6 @@ void test("index additions refuse stale policy or launch inputs and revoked Cham
   );
 });
 
-
 void test("named package authoring binds schema 4 entry to the exact schema 3 leaf", async () => {
   const f = await fixture(true);
   const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
@@ -292,14 +293,192 @@ void test("an inert alternate forge proposal refuses production assembly at the 
   );
 });
 
+void test("a new generated forge projection assembles only with separate exact reviewed grant bytes", async () => {
+  const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
+  const id = "fixture-reviewed-forge";
+  const port = {
+    id,
+    name: "Forge proposal fixture",
+    summary: "Inert keyless fixture for a new subject.",
+    support_tier: "stable",
+    adapter: "native-portable",
+    platforms: ["linux-x86-64"],
+    channels: ["stable"],
+    project_url: "https://forge.example/group/fixture",
+    release: { provider: "reviewed-forge", repository: "group/fixture" },
+    executable_hints: { "linux-x86-64": ["fixture"] },
+  };
+  const selector = {
+    platform: "linux-x86-64",
+    channel: "stable",
+    instance: {
+      dialect: "forgejo-v1",
+      api_root: "https://forge.example/api/v1",
+      web_host: "forge.example",
+      asset_hosts: ["assets.forge.example"],
+    },
+    artifact: {
+      repository: "group/fixture",
+      repository_id: 10,
+      tag: "v1",
+      release_id: 20,
+      asset_id: 30,
+      name: "fixture.zip",
+      url: "https://assets.forge.example/fixture.zip",
+      size: 99,
+      sha256: "b".repeat(64),
+    },
+  };
+  const template = {
+    contract_schema: 3,
+    representation: "catalog_projection",
+    catalog: {
+      schema_version: 3,
+      source_catalog: { evidence: [], identities: [], contracts: [], validators: [] },
+      ports: [],
+    },
+    reviewed_forge: selector,
+  };
+  const generatedCatalog = json({ ports: [port] });
+  assert.throws(
+    () =>
+      generatedPublicationProjection(
+        generatedCatalog,
+        id,
+        json({ ...template, reviewed_forge: undefined }),
+      ),
+    /schema-3 template with its exact selector and subject/u,
+  );
+  const projection = generatedPublicationProjection(generatedCatalog, id, json(template));
+  const leaf = target(projection);
+  const definition = json({
+    definition_schema: 4,
+    required_features: ["release.reviewed-forge-v1"],
+    required_capabilities: [{ template: port.adapter, minimum_version: 1, maximum_version: 1 }],
+    namespace: "official",
+    stable_id: id,
+    revision: 1,
+    port,
+    source_contracts: [leaf],
+    execution_contract: leaf,
+    persistence_contract: leaf,
+    artifact_bindings: [],
+    evidence_references: [],
+  });
+  const index = JSON.parse(prior.get(indexTarget)!.toString()) as {
+    definitions: { namespace: string; stable_id: string; revision: number; target: string }[];
+    contents: { target: string; sha256: string; length: number }[];
+  };
+  index.definitions.push({
+    namespace: "official",
+    stable_id: id,
+    revision: 1,
+    target: target(definition),
+  });
+  for (const bytes of [definition, projection])
+    index.contents.push({
+      target: target(bytes),
+      sha256: hash(bytes),
+      length: bytes.length,
+    });
+  const indexBytes = json(index);
+  const priorPolicy = JSON.parse(prior.get(policyTarget)!.toString()) as {
+    policy_revision: number;
+    decision: object;
+  };
+  const rebound = json({
+    ...priorPolicy,
+    policy_revision: priorPolicy.policy_revision + 1,
+    decision: { ...priorPolicy.decision, index_sha256: hash(indexBytes) },
+  });
+  const priorLaunch = JSON.parse(prior.get(launchTarget)!.toString()) as { revision: number };
+  const reviewed = new Map([
+    ...prior,
+    [indexTarget, indexBytes],
+    [target(definition), definition],
+    [policyTarget, rebound],
+    [
+      launchTarget,
+      json({
+        ...priorLaunch,
+        revision: priorLaunch.revision + 1,
+        policy_sha256: hash(rebound),
+      }),
+    ],
+  ]);
+  const forgePolicy = `policy/official/${id}.json`;
+  assert.throws(
+    () => assembleReviewedPublication(prior, reviewed, id, projection),
+    /requires an independent executable acquisition grant/u,
+  );
+  const grant = {
+    policy_schema: 5,
+    namespace: "official",
+    stable_id: id,
+    policy_revision: 1,
+    grant_id: "reviewed-forge-v1-qualification-fixture",
+    decision: {
+      status: "managed_forge_v1",
+      definition_revision: 1,
+      index_sha256: hash(indexBytes),
+      definition_sha256: hash(definition),
+      template: port.adapter,
+      selection: selector,
+    },
+  };
+  const grantBytes = json(grant);
+  reviewed.set(forgePolicy, grantBytes);
+  const assembled = assembleReviewedPublication(prior, reviewed, id, projection);
+  assert.equal(assembled.files.get(forgePolicy), grantBytes);
+  assert.equal(assembled.files.get(leaf), projection);
+  assert.deepEqual(assembled.files.get(policyTarget), rebound);
+  assert.equal(assembled.files.has(`policy/official/${id}.launch.json`), false);
+  for (const decision of [
+    { ...grant.decision, definition_sha256: "e".repeat(64) },
+    { ...grant.decision, index_sha256: "e".repeat(64) },
+    {
+      ...grant.decision,
+      selection: { ...selector, artifact: { ...selector.artifact, asset_id: 31 } },
+    },
+  ])
+    assert.throws(
+      () =>
+        assembleReviewedPublication(
+          prior,
+          new Map([...reviewed, [forgePolicy, json({ ...grant, decision })]]),
+          id,
+          projection,
+        ),
+      /requires the exact schema-5 acquisition grant/u,
+    );
+  assert.throws(
+    () => assembleReviewedPublication(assembled.files, reviewed, id, projection),
+    /new subject without an existing publisher scope/u,
+  );
+  assert.throws(
+    () =>
+      assembleReviewedPublication(
+        prior,
+        new Map([...reviewed, [`policy/official/${id}.launch.json`, json({})]]),
+        id,
+        projection,
+      ),
+    /without a launch record/u,
+  );
+});
+
 void test("schema-4 PS1 tool generation accepts only the compiled exact pack for each lane", async () => {
   const id = "fixture-psx";
-  const artifacts = JSON.parse(readFileSync(
-    new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url),
-    "utf8",
-  )) as { platform: string; sha256: string }[];
+  const artifacts = JSON.parse(
+    readFileSync(
+      new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url),
+      "utf8",
+    ),
+  ) as { platform: string; sha256: string }[];
   const tool = artifacts[0]!;
-  const catalog = json({ ports: [{ id, adapter: "psx-recomp-managed", platforms: [tool.platform] }] });
+  const catalog = json({
+    ports: [{ id, adapter: "psx-recomp-managed", platforms: [tool.platform] }],
+  });
   const template = {
     contract_schema: 4,
     representation: "catalog_projection",
@@ -307,11 +486,18 @@ void test("schema-4 PS1 tool generation accepts only the compiled exact pack for
     tool_artifacts: [tool],
   };
   const projection = generatedPublicationProjection(catalog, id, json(template));
-  assert.deepEqual(JSON.parse(projection.toString()).tool_artifacts, [tool]);
+  const projected = JSON.parse(projection.toString()) as { tool_artifacts: unknown };
+  assert.deepEqual(projected.tool_artifacts, [tool]);
   assert.throws(
-    () => generatedPublicationProjection(catalog, id, json({
-      ...template, tool_artifacts: [{ ...tool, sha256: "c".repeat(64) }],
-    })),
+    () =>
+      generatedPublicationProjection(
+        catalog,
+        id,
+        json({
+          ...template,
+          tool_artifacts: [{ ...tool, sha256: "c".repeat(64) }],
+        }),
+      ),
     /differs from the independently accepted executable pack/u,
   );
   assert.throws(

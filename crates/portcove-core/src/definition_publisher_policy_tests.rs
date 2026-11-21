@@ -7430,6 +7430,18 @@ async fn authenticated_forge_install_fixture(gitlab: bool) {
         serde_json::to_vec(&grant).unwrap(),
     ));
 
+    let unsigned = targets.iter().cloned().collect();
+    let inspection =
+        crate::definition_publication::inspect_definition_publication_bytes(&unsigned).unwrap();
+    let [prepared] = inspection.definitions.as_slice() else {
+        panic!("one inert forge definition must be inspected");
+    };
+    assert_eq!(prepared.stable_id, ID);
+    assert_eq!(prepared.policy_schema, 5);
+    assert_eq!(prepared.grant_id, "reviewed-forge-v1-fixture");
+    assert_eq!(prepared.launch_target, None);
+    assert_eq!(prepared.launch_revision, None);
+
     let fixture = RepositoryFixture::new();
     let key = Key::new(fixture._directory.path());
     let root = fixture

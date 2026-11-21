@@ -1822,6 +1822,16 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+A new reviewed forge subject uses a schema-3 projection template with the exact
+`reviewed_forge` selector. Its reviewed indexed entry declares schema 4 and
+`release.reviewed-forge-v1`. Supply the separate schema-5 acquisition policy
+bytes for the exact selector, entry and complete index. This preparation refuses
+a subject already in the embedded operational catalog or prior managed bundle.
+A schema-5 policy has no launch record. The tool checks the supplied decision
+and preserves its bytes. Provider observations supply no acquisition authority.
+The authenticated publication review and released-reader gate still determine
+when a first activation can proceed.
+
 ### Prepare a literal launch declaration transition
 
 Use the exact current authenticated bundle as `PRIOR`. The candidate changes
