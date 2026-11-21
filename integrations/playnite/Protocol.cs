@@ -702,7 +702,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 100;
+        internal const int Schema = 101;
         internal static bool SupportsExternalRelink(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 72 &&
             Json.Number(capabilities, "schema_version") <= Schema &&

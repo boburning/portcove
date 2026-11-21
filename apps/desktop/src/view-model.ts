@@ -5,7 +5,11 @@ import {
   type CatalogQuery,
   type CatalogQueryContext,
 } from "./features/browsing/catalog-query";
-import { assessListingAvailability, availablePlatforms } from "./features/browsing/catalog-entry";
+import {
+  assessListingAvailability,
+  availablePlatforms,
+  listingActionAssessment,
+} from "./features/browsing/catalog-entry";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
@@ -222,7 +226,7 @@ function progressDetail(completed: number, total: number, unit: ProgressUnit | u
 }
 
 export type View = "library" | "catalog" | "updates" | "settings";
-export type DetailDestination = "updates" | "saves" | "files" | "manage";
+export type DetailDestination = "updates" | "saves" | "files" | "manage" | "artwork";
 export type Filter = "all" | "ready" | "setup" | "stable" | "beta" | "rolling";
 export type CatalogSort = "catalog" | "name" | "name-desc" | "recent" | "installed-first";
 export type PortReadiness =
@@ -339,6 +343,31 @@ export function portReadiness(status: PortStatus | undefined): PortReadiness {
 }
 
 /** Presentation only. Core still owns whether a launch is permitted. */
+export function continueActionPresentation(
+  port: CatalogEntry,
+  status: PortStatus | undefined,
+  blocked: boolean,
+) {
+  const launchable =
+    (!port.listing || listingActionAssessment(port.listingStatus, "launch").allowed) &&
+    !port.pendingSetup &&
+    status?.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !blocked;
+  const trial = hasUnconfirmedLaunchInput(status, port);
+  const previouslyPlayed = (status?.successful_launches ?? 0) > 0;
+  const label = launchable
+    ? status?.readiness?.pending_setup
+      ? "Launch to finish setup"
+      : trial
+        ? "Try launch"
+        : previouslyPlayed
+          ? "Continue playing"
+          : "Play"
+    : "Review launch";
+  return { launchable, trial, previouslyPlayed, label };
+}
+
 export function hasUnconfirmedLaunchInput(status: PortStatus | undefined, port?: CatalogEntry) {
   if (status?.external_runtime?.user_selected) return false;
   const readiness = status?.readiness;

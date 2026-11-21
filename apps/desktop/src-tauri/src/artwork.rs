@@ -1,11 +1,13 @@
 //! Native adapter for core-owned local artwork; no image or selection policy.
 use crate::{
-    DesktopResult, DesktopState, blocking_worker, initialization_snapshot, library_at_generation,
-    service_at_generation, state_generation,
+    DesktopResult, DesktopState, blocking_worker, desktop_contract::DesktopArtworkSelectionPreview,
+    initialization_snapshot, library_at_generation, service_at_generation, state_generation,
 };
 use base64::Engine as _;
 use portcove_core::{
-    ARTWORK_CACHE_MISS, ARTWORK_RETRY, ArtworkSlot, ArtworkState, ArtworkThumbnail, PortcoveService,
+    ARTWORK_CACHE_MISS, ARTWORK_RETRY, ArtworkFraming, ArtworkResolvedSource,
+    ArtworkSelectionFraming, ArtworkSelectionPreview, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    PortcoveService,
 };
 use serde::Serialize;
 use std::{
@@ -428,6 +430,49 @@ pub(crate) async fn get_catalog_media_thumbnail(
     .await
 }
 
+impl From<ArtworkSelectionPreview> for DesktopArtworkSelectionPreview {
+    fn from(preview: ArtworkSelectionPreview) -> Self {
+        Self {
+            original_sha256: preview.original_sha256,
+            png_base64: base64::engine::general_purpose::STANDARD.encode(preview.png),
+        }
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn preview_local_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    path: PathBuf,
+    generation: u64,
+) -> DesktopResult<DesktopArtworkSelectionPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let preview =
+            service_at_generation(&state, generation)?.preview_local_artwork(&port_id, &path)?;
+        crate::require_library_generation(crate::state_generation(&state), generation)?;
+        Ok(preview.into())
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_background_artwork_framing(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    expected_revision: u64,
+    generation: u64,
+    framing: Option<ArtworkFraming>,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_background_artwork_framing(&port_id, expected_revision, framing)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 pub(crate) async fn import_artwork(
     state: tauri::State<'_, DesktopState>,
@@ -436,11 +481,29 @@ pub(crate) async fn import_artwork(
     path: PathBuf,
     expected_revision: u64,
     generation: u64,
+    framing: Option<ArtworkSelectionFraming>,
 ) -> DesktopResult<ArtworkState> {
     let state = state.inner().clone();
     blocking_worker(move || {
         service_at_generation(&state, generation)?
-            .import_artwork(&port_id, slot, &path, expected_revision)
+            .import_artwork_with_framing(&port_id, slot, &path, expected_revision, framing)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn suppress_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    slot: ArtworkSlot,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .suppress_artwork(&port_id, slot, expected_revision)
             .map_err(Into::into)
     })
     .await

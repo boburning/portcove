@@ -7,7 +7,7 @@ use crate::artwork_store::{
     apply_listing_check, listing_checks,
 };
 use crate::{
-    ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role, SteamGridDbCheckEffect as Effect,
+    ArtworkProvider::Steamgriddb, SteamGridDbArtworkRole as Role, SteamGridDbCheckEffect as Effect,
     SteamGridDbListingResult as Listing, SteamGridDbSourceStatus as Source,
 };
 
@@ -46,6 +46,103 @@ fn cover(service: &PortcoveService) -> crate::ArtworkState {
     service
         .artwork("zelda64-recomp", ArtworkSlot::Cover)
         .unwrap()
+}
+
+#[test]
+fn colliding_logo_cannot_republish_an_evicted_grid() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let selected = choose_provider(&service, 0);
+    let sha256 = selected.choice.asset_sha256.as_ref().unwrap();
+    let original = crate::artwork::original_path(service.library(), sha256).unwrap();
+    assert!(original.is_file());
+    let removal = absent(&service, Source::Gone);
+    let [removed] = removal.images.as_slice() else {
+        panic!("expected exactly one withdrawal observation");
+    };
+    assert_eq!(removed.attribution.asset_id, 7);
+    assert_eq!(removed.effect, Effect::Removed);
+    assert!(!original.exists());
+    let old_cover = cover(&service);
+
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let result = service.choose_fetched_artwork(
+        &port,
+        ArtworkSlot::Logo,
+        42,
+        provider_candidate(
+            7,
+            Role::Logo,
+            12,
+            24,
+            "image/png",
+            encoded(12, 24, image::ImageFormat::Png),
+        ),
+        0,
+    );
+    assert!(result.is_err());
+    assert!(!original.exists());
+    let retained = cover(&service);
+    assert_eq!(retained.evicted_at, old_cover.evicted_at);
+    assert_eq!(retained.attribution, old_cover.attribution);
+    assert_eq!(retained.provider_listing, old_cover.provider_listing);
+    assert_eq!(retained.choice, old_cover.choice);
+}
+
+#[test]
+fn withdrawn_logo_preserves_a_grid_with_the_same_provider_id() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = open_service(&temporary.path().join("library"));
+    let chosen_cover = choose_provider(&service, 0);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let logo = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Logo,
+            42,
+            provider_candidate(
+                7,
+                Role::Logo,
+                24,
+                12,
+                "image/png",
+                encoded(24, 12, image::ImageFormat::Png),
+            ),
+            0,
+        )
+        .unwrap();
+    let cover_sha = chosen_cover.choice.asset_sha256.as_deref().unwrap();
+    let logo_sha = logo.choice.asset_sha256.as_deref().unwrap();
+    assert_ne!(cover_sha, logo_sha);
+    let cover_path = crate::artwork::original_path(service.library(), cover_sha).unwrap();
+    let logo_path = crate::artwork::original_path(service.library(), logo_sha).unwrap();
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            let mut report = prepared_report(&subjects, Listing::Listed, true, now);
+            assert_eq!(report.images.len(), 2);
+            let inspected_logo = report
+                .images
+                .iter_mut()
+                .find(|image| image.attribution.role == Role::Logo)
+                .unwrap();
+            inspected_logo.listing = Listing::NotListed;
+            inspected_logo.source = Source::Gone;
+            Ok(report)
+        })
+        .unwrap();
+    let removed = report
+        .images
+        .iter()
+        .find(|image| image.asset_sha256 == logo_sha)
+        .unwrap();
+    assert_eq!(removed.effect, Effect::Removed);
+    assert!(!logo_path.exists());
+    assert!(cover_path.is_file());
+    let retained = cover(&service);
+    assert_eq!(retained.attribution, chosen_cover.attribution);
+    assert_eq!(retained.choice, chosen_cover.choice);
+    assert!(retained.evicted_at.is_none());
+    assert!(retained.provider_listing[0].withdrawn_at.is_none());
 }
 
 #[test]
@@ -268,7 +365,10 @@ fn a_confirmed_withdrawal_removes_a_provider_only_copy_and_keeps_the_choice() {
     );
     // Steam and thumbnails see the same: nothing is handed out.
     let handoff = service
-        .destination_artwork("zelda64-recomp", Role::PortraitCover)
+        .destination_artwork(
+            "zelda64-recomp",
+            crate::DestinationArtworkRole::PortraitCover,
+        )
         .unwrap();
     assert_eq!(
         handoff.content,
@@ -657,7 +757,7 @@ fn a_copy_republished_before_its_choice_was_written_is_removed_again() {
         service
             .destination_artwork_bytes(
                 "zelda64-recomp",
-                Role::PortraitCover,
+                crate::DestinationArtworkRole::PortraitCover,
                 &service.library().identity_record().unwrap().id,
                 chosen.choice.revision,
                 &sha,
@@ -748,6 +848,16 @@ fn removals_are_bounded_per_call_and_the_rest_are_deferred() {
             b"stale",
         )
         .unwrap();
+    }
+    let hidden = service
+        .suppress_artwork(&port.id, ArtworkSlot::Logo, 0)
+        .unwrap();
+    assert!(hidden.choice.suppressed);
+    for sha in [&cover_sha, &detail_sha] {
+        assert_eq!(
+            fs::read(crate::artwork::original_path(service.library(), sha).unwrap()).unwrap(),
+            b"stale",
+        );
     }
     let _guard = service.library().try_lock_artwork().unwrap();
     let counts =

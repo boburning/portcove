@@ -229,12 +229,12 @@ export async function defaultCoverScenario({
               }
               await revealDetailSection(browser, "Manage");
               const controls = await browser.wait(
-                until.elementLocated(By.css(".artwork-controls > summary")),
+                until.elementLocated(By.css("[data-artwork-editor-trigger]")),
                 5_000,
               );
               await controls.click();
               diagnostics = await executeBrowserScript(browser, () =>
-                [...document.querySelectorAll(".artwork-controls [role=alert]")].map(
+                [...document.querySelectorAll(".artwork-sheet[open] [role=alert]")].map(
                   (item) => item.textContent,
                 ),
               );

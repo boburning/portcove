@@ -658,8 +658,18 @@ ratios instead of silently cropping important content; the letterboxed space sho
 a softened, blurred copy of the same artwork behind the whole image, removed for
 reduced transparency and forced colors. Wide detail imagery is
 optional; titles, status and actions remain readable outside images, including
-generated fallback states. Logos, icons, animation and a crop editor are not
-required for this slice.
+generated fallback states. Change artwork offers a separate Logo choice for
+Overview and Continue. When a logo cannot be read at its rendered size, the hero
+uses the Cover or title and preserves the saved choice for review.
+
+Change artwork labels Detail as **Background** and Landscape as **Wide cover**.
+A new Background opens a review with wide and narrow crop controls. The review
+uses the Overview and Continue hero layouts with the draft Background, current
+game identity, and the primary action when its label is available. Preview
+actions only show where controls sit. **Apply**
+saves the selected image and framing together. **Cancel** discards the draft
+and returns to the source control, including SteamGridDB search results when
+they were open. An existing Background offers **Adjust framing**.
 
 Library and Catalog use responsive portrait grids. Each artwork frame is 2:3;
 metadata adds height below the frame and never participates in its aspect ratio.

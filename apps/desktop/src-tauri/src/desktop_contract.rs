@@ -18,6 +18,12 @@ pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 
 pub(crate) type DesktopError = portcove_core::FailureReport;
 
+#[derive(Serialize, JsonSchema)]
+pub(crate) struct DesktopArtworkSelectionPreview {
+    pub(crate) original_sha256: String,
+    pub(crate) png_base64: String,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct DesktopWorkspaceSnapshot {
     /// Omitted only when `catalog_unchanged` is true.
@@ -494,6 +500,7 @@ pub fn export_transport_schemas() -> Value {
             "setup_launch_targets": output::<portcove_core::SetupLaunchTargets>(),
             "catalog_download_preview": output::<portcove_core::CatalogDownloadPreview>(),
             "pending_setup_record": output::<portcove_core::PendingSetupRecord>(),
+            "artwork_selection_preview": output::<DesktopArtworkSelectionPreview>(),
             "steam_entry_review": output::<SteamEntryReview>(),
             "steam_profiles": output::<Vec<String>>(),
             "steam_batch_review": output::<SteamBatchReview>(),
@@ -520,6 +527,7 @@ pub fn export_transport_schemas() -> Value {
             "steam_entry_selection": schemars::schema_for!(SteamEntrySelection),
             "steam_batch_selection": schemars::schema_for!(SteamBatchSelection),
             "steam_artwork_selection": schemars::schema_for!(SteamArtworkSelection),
+            "artwork_selection_framing": schemars::schema_for!(portcove_core::ArtworkSelectionFraming),
         },
         "events": events,
     })

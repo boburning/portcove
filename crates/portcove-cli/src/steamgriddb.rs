@@ -162,11 +162,12 @@ pub(crate) fn candidate_results(candidates: &[SteamGridDbCandidate]) -> String {
     )
 }
 
-fn role_name(role: portcove_core::DestinationArtworkRole) -> &'static str {
+fn role_name(role: portcove_core::SteamGridDbArtworkRole) -> &'static str {
     match role {
-        portcove_core::DestinationArtworkRole::PortraitCover => "cover",
-        portcove_core::DestinationArtworkRole::HeroBanner => "detail image",
-        portcove_core::DestinationArtworkRole::LandscapeCover => "landscape image",
+        portcove_core::SteamGridDbArtworkRole::PortraitCover => "cover",
+        portcove_core::SteamGridDbArtworkRole::HeroBanner => "detail image",
+        portcove_core::SteamGridDbArtworkRole::LandscapeCover => "landscape image",
+        portcove_core::SteamGridDbArtworkRole::Logo => "logo",
     }
 }
 
@@ -338,7 +339,7 @@ fn wait_text(seconds: u64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use portcove_core::{DestinationArtworkRole, SteamGridDbAuthor};
+    use portcove_core::{SteamGridDbArtworkRole, SteamGridDbAuthor};
 
     #[test]
     fn commands_parse_with_names_and_startup_modes() {
@@ -430,7 +431,7 @@ mod tests {
         assert!(!games.contains('\u{1b}'));
         let images = candidate_results(&[SteamGridDbCandidate {
             id: 9,
-            role: DestinationArtworkRole::HeroBanner,
+            role: SteamGridDbArtworkRole::HeroBanner,
             url: "https://cdn2.steamgriddb.com/hero/9.png".into(),
             thumb: "https://cdn2.steamgriddb.com/thumb/9.png".into(),
             mime: "image/png".into(),
@@ -466,7 +467,7 @@ mod tests {
                 provider: ArtworkProvider::Steamgriddb,
                 asset_id,
                 game_id: 7,
-                role: DestinationArtworkRole::PortraitCover,
+                role: SteamGridDbArtworkRole::PortraitCover,
                 author_name: "Art\u{1b}[31mist".into(),
                 author_steam64: None,
                 source_url: "https://cdn2.steamgriddb.com/grid/1.png".into(),

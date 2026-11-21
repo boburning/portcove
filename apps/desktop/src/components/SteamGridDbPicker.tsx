@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type {
   ArtworkSlot,
-  DestinationArtworkRole,
+  SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
 } from "../types";
-import { countMessage } from "../localization";
-import { errorText, failurePresentation } from "../view-model";
+import { steamGridDbErrorText } from "../steamgriddb-error";
+import { SteamGridDbSettings } from "./SteamGridDbSettings";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { controlFocus } from "./ui/control-style";
@@ -35,42 +35,24 @@ function retryAfterMs(error: unknown) {
   return Number.isSafeInteger(seconds) && seconds > 0 ? seconds * 1000 : 0;
 }
 
-/** The destination role each local slot takes from SteamGridDB. */
-const slotRoles: Record<ArtworkSlot, DestinationArtworkRole> = {
+/** The provider role each local slot takes from SteamGridDB. */
+const slotRoles: Record<ArtworkSlot, SteamGridDbArtworkRole> = {
   cover: "portrait_cover",
   detail: "hero_banner",
   landscape: "landscape_cover",
+  logo: "logo",
 };
 
 /** Preview frames follow each role's shape, so wide images are not squeezed. */
-const roleAspect: Record<DestinationArtworkRole, string> = {
+const roleAspect: Record<SteamGridDbArtworkRole, string> = {
   portrait_cover: "aspect-[2/3]",
   hero_banner: "aspect-[96/31]",
   landscape_cover: "aspect-[92/43]",
+  logo: "aspect-[3/2]",
 };
 
-export function steamGridDbRole(slot: ArtworkSlot): DestinationArtworkRole {
+export function steamGridDbRole(slot: ArtworkSlot): SteamGridDbArtworkRole {
   return slotRoles[slot];
-}
-
-/**
- * SteamGridDB messages are written for players; generic presentation summaries
- * would hide which provider step failed. Rate limits keep their retry time.
- */
-export function steamGridDbErrorText(error: unknown, includeRetryDelay = true) {
-  // A device-level cause (such as no secure credential store) has its own
-  // player summary; the provider message would only repeat technical detail.
-  const presentation = failurePresentation(error);
-  if (presentation?.presentation_key.startsWith("credential_store_")) return presentation.summary;
-  if (typeof error === "object" && error && "message" in error) {
-    const value = error as { message: unknown; details?: Record<string, string> };
-    const seconds = Number(value.details?.retry_after_seconds);
-    const message = String(value.message);
-    return includeRetryDelay && Number.isSafeInteger(seconds) && seconds > 0
-      ? `${message}. ${countMessage(seconds, "retryAfterSeconds")}`
-      : message;
-  }
-  return errorText(error);
 }
 
 /**
@@ -82,17 +64,24 @@ export function SteamGridDbPicker({
   slot,
   initialTerm,
   disabled,
+  selectionPending = false,
+  generation,
+  active = true,
   choose,
 }: {
   slot: ArtworkSlot;
   initialTerm: string;
   disabled: boolean;
+  selectionPending?: boolean;
+  generation?: number | undefined;
+  active?: boolean;
   choose: (gameId: number, candidate: SteamGridDbCandidate) => void;
 }) {
   const [status, setStatus] = useState<SteamGridDbKeyStatus>();
   const [readingStatus, setReadingStatus] = useState(true);
   const [statusReadAttempt, setStatusReadAttempt] = useState(0);
   const statusReadPending = useRef(true);
+  const [keySetup, setKeySetup] = useState(false);
   const [term, setTerm] = useState(initialTerm);
   const [games, setGames] = useState<SteamGridDbGame[]>();
   const [game, setGame] = useState<SteamGridDbGame>();
@@ -106,20 +95,23 @@ export function SteamGridDbPicker({
   const error = failure && steamGridDbErrorText(failure.error, blocked);
   const request = useRef(0);
   // Steps that remove the focused control move focus to the next useful one.
-  const pendingFocus = useRef<"images" | "matches" | "status">(undefined);
+  const pendingFocus = useRef<"images" | "matches" | "status" | "key-setup">(undefined);
   const backButton = useRef<HTMLButtonElement>(null);
   const matchList = useRef<HTMLUListElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
+  const setupButton = useRef<HTMLButtonElement>(null);
   const setupGuidance = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
+    if (!active || keySetup) return;
     if (pendingFocus.current === "status" && status === undefined) return;
     if (pendingFocus.current === "status" && status !== undefined)
       (status.configured ? searchInput.current : setupGuidance.current)?.focus();
+    if (pendingFocus.current === "key-setup") setupButton.current?.focus();
     if (pendingFocus.current === "images" && game) backButton.current?.focus();
     if (pendingFocus.current === "matches" && !game)
       matchList.current?.querySelector<HTMLButtonElement>("button")?.focus();
     pendingFocus.current = undefined;
-  }, [game, status]);
+  }, [game, status, keySetup, active]);
   useEffect(() => {
     if (!blocked) return;
     const timer = setTimeout(() => setBlockedFor(0), blockedFor);
@@ -223,12 +215,44 @@ export function SteamGridDbPicker({
         )}
       </div>
     );
+  if (active && keySetup && generation !== undefined)
+    return (
+      <SteamGridDbSettings
+        generation={generation}
+        keySetup={{
+          onCancel: () => {
+            pendingFocus.current = "key-setup";
+            setKeySetup(false);
+          },
+          onConfigured: (configured) => {
+            pendingFocus.current = "status";
+            setStatus(configured);
+            setKeySetup(false);
+          },
+        }}
+      />
+    );
   if (!status.configured)
     return (
-      <p ref={setupGuidance} tabIndex={-1} className={controlFocus}>
-        To find images on SteamGridDB, add your own SteamGridDB API key in Settings, under
-        Integrations.
-      </p>
+      <div className="mt-3 grid gap-2">
+        <p ref={setupGuidance} tabIndex={-1} className={controlFocus}>
+          To find images on SteamGridDB, add your own SteamGridDB API key. You can manage the saved
+          key in Settings, under Integrations.
+        </p>
+        {generation !== undefined && (
+          <Button
+            ref={setupButton}
+            data-focusable
+            variant="outline"
+            size="sm"
+            className="justify-self-start"
+            disabled={selectionPending}
+            onClick={() => setKeySetup(true)}
+          >
+            Set up SteamGridDB key
+          </Button>
+        )}
+      </div>
     );
   return (
     <div className="steamgriddb-picker mt-3 grid min-w-0 gap-3 wrap-anywhere" aria-busy={loading}>
@@ -236,7 +260,7 @@ export function SteamGridDbPicker({
         className="flex gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          if (term.trim()) search();
+          if (!selectionPending && term.trim()) search();
         }}
       >
         <label className="sr-only" htmlFor={`steamgriddb-search-${slot}`}>
@@ -249,6 +273,7 @@ export function SteamGridDbPicker({
           className="flex-1"
           value={term}
           maxLength={120}
+          disabled={selectionPending}
           onChange={(event) => setTerm(event.target.value)}
         />
         <Button
@@ -256,7 +281,7 @@ export function SteamGridDbPicker({
           variant="outline"
           size="sm"
           type="submit"
-          disabled={loading || blocked || !term.trim()}
+          disabled={selectionPending || loading || blocked || !term.trim()}
         >
           Search
         </Button>
@@ -276,8 +301,8 @@ export function SteamGridDbPicker({
                   data-focusable
                   variant="ghost"
                   size="sm"
-                  disabled={blocked}
-                  focusableWhenDisabled={blocked}
+                  disabled={selectionPending || blocked}
+                  focusableWhenDisabled={blocked && !selectionPending}
                   onClick={() => pickGame(match)}
                 >
                   {match.name}
@@ -297,6 +322,7 @@ export function SteamGridDbPicker({
               data-focusable
               variant="link"
               size="sm"
+              disabled={selectionPending}
               onClick={() => {
                 // Supersede any listing still in flight for the abandoned game.
                 request.current += 1;
@@ -322,7 +348,7 @@ export function SteamGridDbPicker({
                   <li key={candidate.id}>
                     <CandidateButton
                       candidate={candidate}
-                      disabled={disabled}
+                      disabled={disabled || loading}
                       choose={() => choose(game.id, candidate)}
                     />
                   </li>
@@ -333,6 +359,7 @@ export function SteamGridDbPicker({
                   data-focusable
                   variant="outline"
                   size="sm"
+                  disabled={selectionPending}
                   onClick={() => setShown((count) => count + PAGE)}
                 >
                   Show more images
@@ -350,7 +377,7 @@ export function SteamGridDbPicker({
             data-focusable
             variant="outline"
             size="sm"
-            disabled={loading || blocked}
+            disabled={selectionPending || loading || blocked}
             onClick={() => (game ? pickGame(game) : term.trim() && search())}
           >
             Try again

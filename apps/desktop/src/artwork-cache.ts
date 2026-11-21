@@ -1,6 +1,12 @@
 import { desktopApi } from "./api";
 import type { DesktopArtworkThumbnail } from "./api";
-import type { ArtworkSlot, ArtworkState, CatalogMediaAsset } from "./types";
+import type {
+  ArtworkFraming,
+  ArtworkSelectionFraming,
+  ArtworkSlot,
+  ArtworkState,
+  CatalogMediaAsset,
+} from "./types";
 import { errorText } from "./view-model";
 
 export interface ArtworkDisplay {
@@ -731,6 +737,7 @@ export class ArtworkCache {
     gameId: number,
     candidateId: number,
     stillCurrent: () => boolean,
+    ...framing: [framing?: ArtworkSelectionFraming]
   ) {
     return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
@@ -741,6 +748,7 @@ export class ArtworkCache {
         candidateId,
         revision,
         this.generation,
+        ...framing,
       );
       await this.display(portId, slot, state, stillCurrent);
       return state;
@@ -753,14 +761,48 @@ export class ArtworkCache {
     revision: number,
     path: string | null,
     stillCurrent: () => boolean,
+    ...framing: [framing?: ArtworkSelectionFraming]
   ) {
     return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
       const state =
         path === null
           ? await desktopApi.resetArtwork(portId, slot, revision, this.generation)
-          : await desktopApi.importArtwork(portId, slot, path, revision, this.generation);
+          : await desktopApi.importArtwork(
+              portId,
+              slot,
+              path,
+              revision,
+              this.generation,
+              ...framing,
+            );
       await this.display(portId, slot, state, stillCurrent);
+      return state;
+    });
+  }
+  suppress(portId: string, slot: ArtworkSlot, revision: number, stillCurrent: () => boolean) {
+    return this.schedule(undefined, async () => {
+      if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
+      const state = await desktopApi.suppressArtwork(portId, slot, revision, this.generation);
+      await this.display(portId, slot, state, stillCurrent);
+      return state;
+    });
+  }
+  setBackgroundFraming(
+    portId: string,
+    revision: number,
+    framing: ArtworkFraming | null,
+    stillCurrent: () => boolean,
+  ) {
+    return this.schedule(undefined, async () => {
+      if (!stillCurrent() || this.read(portId, "detail").stale) return undefined;
+      const state = await desktopApi.setBackgroundArtworkFraming(
+        portId,
+        revision,
+        this.generation,
+        framing,
+      );
+      await this.display(portId, "detail", state, stillCurrent);
       return state;
     });
   }

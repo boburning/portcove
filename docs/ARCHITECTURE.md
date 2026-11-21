@@ -771,6 +771,33 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
+Local Logo is an independent choice in library schema 74. It uses the same
+bounded static image ingest, content store, revision checks and read-only
+thumbnail path as the existing Cover, Detail and Landscape choices. Library
+metadata records a Logo selection or reset revision under schema 13.
+
+Library schema 76 records explicit role suppression alongside the choice
+revision. A suppressed slot carries no asset or framing. Core keeps a neutral
+fallback available and withholds automatic Cover, companion and collection
+images. Metadata schema 15 preserves a suppressed choice across export and
+restore. The destination handoff remains schema 4 and reports no local original
+for that role.
+
+Core stores versioned wide and narrow focal points with the selected Detail
+asset and its choice revision in library schema 75. Each coordinate is measured
+in ten-thousandths of the orientation-corrected image. Replacing the asset or
+returning to automatic artwork clears its framing. Exports that include framing
+require library metadata schema 14 and restore it against the same admitted
+choice. The destination handoff carries the original asset and its choice
+revision and omits these presentation points.
+
+A local or SteamGridDB artwork preview uses a bounded, orientation-corrected
+derivative and identifies the original by SHA-256. SteamGridDB preview resolves
+the exact provider collection for Cover, Detail, Landscape or Logo. Applying a
+reviewed selection reads the original again and verifies the reviewed digest and
+the expected role revision. Detail can include framing in the same commit.
+Preview creates no library choice or stored asset.
+
 Core validates bounded constituent-game `collection_covers` and resolves each requested
 member from the current or retained listing, with the expected digest and local Cover
 choice revision. Any explicit local choice suppresses the collection. Tauri delegates

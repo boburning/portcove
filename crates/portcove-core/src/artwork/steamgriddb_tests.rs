@@ -131,10 +131,10 @@ fn candidates_request_safe_static_filters_and_drop_unexpected_entries() {
         ]
     }));
     let candidates =
-        role_candidates(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover).unwrap();
+        role_candidates(&fixture, KEY, 42, SteamGridDbArtworkRole::PortraitCover).unwrap();
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].id, 1);
-    assert_eq!(candidates[0].role, DestinationArtworkRole::PortraitCover);
+    assert_eq!(candidates[0].role, SteamGridDbArtworkRole::PortraitCover);
     assert_eq!(candidates[0].author.name, "Artist");
     let path = fixture.requests.borrow()[0].0.clone();
     assert!(path.starts_with("/grids/game/42?dimensions=600x900"));
@@ -151,10 +151,34 @@ fn candidates_request_safe_static_filters_and_drop_unexpected_entries() {
 }
 
 #[test]
+fn logo_candidates_use_the_documented_png_only_collection() {
+    let fixture = Fixture::ok(serde_json::json!({
+        "success": true,
+        "data": [
+            image(1, serde_json::json!({})),
+            image(2, serde_json::json!({"mime": "image/jpeg"})),
+            image(3, serde_json::json!({"mime": "image/webp"})),
+            image(4, serde_json::json!({"epilepsy": true}))
+        ]
+    }));
+    let candidates = role_candidates(&fixture, KEY, 42, SteamGridDbArtworkRole::Logo).unwrap();
+    assert_eq!(candidates.len(), 1);
+    assert_eq!(candidates[0].id, 1);
+    assert_eq!(candidates[0].role, SteamGridDbArtworkRole::Logo);
+    let requests = fixture.requests.borrow();
+    assert!(
+        requests[0]
+            .0
+            .starts_with("/logos/game/42?mimes=image/png&types=static")
+    );
+    assert!(!requests[0].0.contains("dimensions"));
+}
+
+#[test]
 fn hero_and_landscape_use_their_own_collections_and_dimensions() {
     let fixture = Fixture::ok(serde_json::json!({"success": true, "data": []}));
-    role_candidates(&fixture, KEY, 5, DestinationArtworkRole::HeroBanner).unwrap();
-    role_candidates(&fixture, KEY, 5, DestinationArtworkRole::LandscapeCover).unwrap();
+    role_candidates(&fixture, KEY, 5, SteamGridDbArtworkRole::HeroBanner).unwrap();
+    role_candidates(&fixture, KEY, 5, SteamGridDbArtworkRole::LandscapeCover).unwrap();
     let requests = fixture.requests.borrow();
     assert!(
         requests[0]
@@ -166,7 +190,7 @@ fn hero_and_landscape_use_their_own_collections_and_dimensions() {
             .0
             .starts_with("/grids/game/5?dimensions=460x215,920x430")
     );
-    assert!(role_candidates(&fixture, KEY, 0, DestinationArtworkRole::HeroBanner).is_err());
+    assert!(role_candidates(&fixture, KEY, 0, SteamGridDbArtworkRole::HeroBanner).is_err());
 }
 
 #[test]
@@ -244,7 +268,7 @@ fn chosen_candidates_are_reresolved_and_fetched_without_the_key() {
     let mut fixture = listing();
     fixture.image = (200, None, vec![1, 2, 3]);
     let fetched =
-        fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 2).unwrap();
+        fetch_candidate(&fixture, KEY, 42, SteamGridDbArtworkRole::PortraitCover, 2).unwrap();
     assert_eq!(fetched.candidate.id, 2);
     assert_eq!(fetched.candidate.author.name, "Artist Two");
     assert_eq!(fetched.bytes, vec![1, 2, 3]);
@@ -260,13 +284,13 @@ fn chosen_candidates_are_reresolved_and_fetched_without_the_key() {
 fn vanished_candidates_are_not_found_without_an_image_request() {
     let fixture = listing();
     let error =
-        fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 9).unwrap_err();
+        fetch_candidate(&fixture, KEY, 42, SteamGridDbArtworkRole::PortraitCover, 9).unwrap_err();
     assert_eq!(error.code, crate::ErrorCode::NotFound);
     assert!(fixture.images.borrow().is_empty());
     let mut rejected = Fixture::status(401, "{}".into());
     rejected.image = (200, None, vec![1]);
     assert_eq!(
-        fetch_candidate(&rejected, KEY, 42, DestinationArtworkRole::PortraitCover, 1)
+        fetch_candidate(&rejected, KEY, 42, SteamGridDbArtworkRole::PortraitCover, 1)
             .unwrap_err()
             .code,
         crate::ErrorCode::Usage
@@ -291,7 +315,7 @@ fn image_host_failures_map_to_explicit_outcomes() {
     ] {
         let mut fixture = listing();
         fixture.image = (status, retry, body);
-        let error = fetch_candidate(&fixture, KEY, 42, DestinationArtworkRole::PortraitCover, 1)
+        let error = fetch_candidate(&fixture, KEY, 42, SteamGridDbArtworkRole::PortraitCover, 1)
             .unwrap_err();
         assert_eq!(error.code, code, "status {status}");
         if status == 429 {
@@ -376,9 +400,9 @@ fn steamgriddb_live_search_and_candidates() {
         games[0].id
     );
     for role in [
-        DestinationArtworkRole::PortraitCover,
-        DestinationArtworkRole::LandscapeCover,
-        DestinationArtworkRole::HeroBanner,
+        SteamGridDbArtworkRole::PortraitCover,
+        SteamGridDbArtworkRole::LandscapeCover,
+        SteamGridDbArtworkRole::HeroBanner,
     ] {
         let candidates = role_candidates(&HttpTransport, key, games[0].id, role).unwrap();
         eprintln!("live {role:?}: {} candidates", candidates.len());
@@ -401,8 +425,8 @@ fn steamgriddb_live_fetch_matches_listing() {
     let key = "proxyinjectedplaceholder00000000";
     let games = search_games(&HttpTransport, key, "Super Mario 64").unwrap();
     for role in [
-        DestinationArtworkRole::PortraitCover,
-        DestinationArtworkRole::HeroBanner,
+        SteamGridDbArtworkRole::PortraitCover,
+        SteamGridDbArtworkRole::HeroBanner,
     ] {
         let listed = role_candidates(&HttpTransport, key, games[0].id, role).unwrap();
         let first = listed.first().expect("no candidates");

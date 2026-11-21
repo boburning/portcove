@@ -2,7 +2,10 @@ import type { GameComparison, GameComparisonRequest } from "./types";
 import type {
   ArtworkSlot,
   ArtworkState,
-  DestinationArtworkRole,
+  ArtworkFraming,
+  ArtworkSelectionFraming,
+  ArtworkSelectionPreview,
+  SteamGridDbArtworkRole,
   SteamGridDbCandidate,
   SteamGridDbGame,
   SteamGridDbKeyStatus,
@@ -299,12 +302,40 @@ export const desktopApi = {
   clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
   searchSteamGridDbGames: (term: string) =>
     invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
-  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
+  steamGridDbCandidates: (gameId: number, role: SteamGridDbArtworkRole) =>
     invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
   checkSteamGridDbListings: (generation: number) =>
     invoke<SteamGridDbListingReport>("check_steamgriddb_listings", { generation }),
+  previewLocalArtwork: (portId: string, path: string, generation: number) =>
+    invoke<ArtworkSelectionPreview>("preview_local_artwork", { portId, path, generation }),
+  previewSteamGridDbArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    gameId: number,
+    candidateId: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkSelectionPreview>("preview_steamgriddb_artwork", {
+      portId,
+      slot,
+      gameId,
+      candidateId,
+      generation,
+    }),
+  setBackgroundArtworkFraming: (
+    portId: string,
+    expectedRevision: number,
+    generation: number,
+    framing: ArtworkFraming | null,
+  ) =>
+    invoke<ArtworkState>("set_background_artwork_framing", {
+      portId,
+      expectedRevision,
+      generation,
+      framing,
+    }),
   chooseSteamGridDbArtwork: (
     portId: string,
     slot: ArtworkSlot,
@@ -312,6 +343,7 @@ export const desktopApi = {
     candidateId: number,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("choose_steamgriddb_artwork", {
       portId,
@@ -320,6 +352,7 @@ export const desktopApi = {
       candidateId,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   importArtwork: (
     portId: string,
@@ -327,6 +360,7 @@ export const desktopApi = {
     path: string,
     expectedRevision: number,
     generation: number,
+    ...[framing]: [framing?: ArtworkSelectionFraming]
   ) =>
     invoke<ArtworkState>("import_artwork", {
       portId,
@@ -334,6 +368,7 @@ export const desktopApi = {
       path,
       expectedRevision,
       generation,
+      ...(framing ? { framing } : {}),
     }),
   modSetups: (portId: string, generation: number) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
@@ -698,6 +733,18 @@ export const desktopApi = {
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
       portId,
       path,
+      generation,
+    }),
+  suppressArtwork: (
+    portId: string,
+    slot: ArtworkSlot,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<ArtworkState>("suppress_artwork", {
+      portId,
+      slot,
+      expectedRevision,
       generation,
     }),
   resetArtwork: (portId: string, slot: ArtworkSlot, expectedRevision: number, generation: number) =>

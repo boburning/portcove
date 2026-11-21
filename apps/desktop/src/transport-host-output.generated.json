@@ -768,6 +768,23 @@
     "title": "ApplicationUpdateStatus",
     "type": "object"
   },
+  "artwork_selection_preview": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "original_sha256": {
+        "type": "string"
+      },
+      "png_base64": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "original_sha256",
+      "png_base64"
+    ],
+    "title": "DesktopArtworkSelectionPreview",
+    "type": "object"
+  },
   "automatic_snapshots_enabled": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "boolean",

@@ -332,7 +332,8 @@ export default interface Resources {
     "hero": {
       "continueLabel": "{{title}} recently played",
       "credits": "Image credits",
-      "detailLabel": "{{title}} game details"
+      "detailLabel": "{{title}} game details",
+      "openDetails": "Game details"
     },
     "implementation": {
       "choose": "Choose <name/>",
@@ -737,6 +738,20 @@ export default interface Resources {
       "more": "More actions for {{name}}",
       "project": "Upstream project",
       "steam": "Steam shortcut"
+    },
+    "artwork": {
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "previewFailed": "The preview could not open. Cancel and choose an image again.",
+      "reviewAutomatic": "Use the default artwork for this role when available.",
+      "reviewChange": "Review artwork change",
+      "reviewHide": "Hide artwork for this role. Other roles stay as they are.",
+      "reviewImage": "Review {{role}}",
+      "reviewLocalImage": "Local image",
+      "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
+      "reviewProviderImage": "SteamGridDB image by {{author}}",
+      "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
+      "scopeCurrentPort": "Artwork changes apply only to this port."
     },
     "capabilities": {
       "assessment": "Assessment details",

@@ -229,6 +229,40 @@ describe("controller and modal integration", () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it("adjusts an opted-in native range without moving controller focus", async () => {
+    const change = vi.fn();
+    function RangeFixture() {
+      useGamepadNavigation(() => undefined);
+      const [value, setValue] = useState(2250);
+      return (
+        <input
+          aria-label="Horizontal framing"
+          type="range"
+          min={0}
+          max={10000}
+          step={1}
+          value={value}
+          data-controller-range
+          onInput={(event) => {
+            setValue(event.currentTarget.valueAsNumber);
+            change(event.currentTarget.valueAsNumber);
+          }}
+        />
+      );
+    }
+    await root.rerender(<RangeFixture />);
+    const range = document.querySelector<HTMLInputElement>("[data-controller-range]")!;
+    range.focus();
+    await frame([15]);
+    await frame();
+    expect(change).toHaveBeenLastCalledWith(2350);
+    expect(document.activeElement).toBe(range);
+    await frame([14]);
+    await frame();
+    expect(change).toHaveBeenLastCalledWith(2250);
+    expect(document.activeElement).toBe(range);
+  });
+
   it("reaches unchecked radio and inactive tab controls with D-pad and confirms them with A", async () => {
     function ChoiceFixture() {
       useGamepadNavigation(() => undefined);

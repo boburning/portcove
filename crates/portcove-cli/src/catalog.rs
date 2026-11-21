@@ -16,6 +16,10 @@ pub(crate) use render::{
     definition_capabilities, proposal_inspection, publication_inspection, upstream_observation,
 };
 
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_COMMAND: &str =
+    "catalog.inspect-definition-publication";
+pub(crate) const DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA: u32 = 100;
+
 #[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub(crate) struct CatalogSourceArgs {
@@ -293,7 +297,7 @@ impl CatalogCommand {
             Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
-            Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
+            Self::InspectDefinitionPublication { .. } => DEFINITION_PUBLICATION_INSPECTION_COMMAND,
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",

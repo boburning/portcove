@@ -41,6 +41,11 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
         assert!(output.status.success(), "{args:?}: {output:?}");
         let document = json_stdout(&output);
         assert_eq!(document["ok"], true, "{args:?}: {document}");
+        assert_eq!(
+            document["schema_version"],
+            portcove_core::API_SCHEMA_VERSION,
+            "{args:?}: {document}"
+        );
         document["data"].clone()
     };
     let show = |slot: &str| {
@@ -83,6 +88,21 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
         .each_ref()
         .map(|state| state["choice"]["asset_sha256"].as_str().unwrap().to_owned());
     assert_ne!(ids[0], ids[1]);
+    let logo = run(&[
+        "--json",
+        "artwork",
+        "import",
+        "zelda64-recomp",
+        images[1].0.to_str().unwrap(),
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "0",
+    ]);
+    assert_eq!(logo["choice"]["slot"], "logo");
+    assert_eq!(logo["choice"]["revision"], 1);
+    assert_eq!(logo["choice"]["asset_sha256"], ids[1]);
+    assert_eq!(show("logo")["choice"], logo["choice"]);
     // Existing slot clients and the optional destination consumer share exactly
     // the admitted original/choice, through separate compiled CLI invocations.
     let handoff = run(&[
@@ -159,6 +179,19 @@ fn artwork_cli_keeps_cover_and_detail_independent_through_the_local_lifecycle() 
     let _: portcove_core::DestinationArtworkHandoff = serde_json::from_value(hero.clone()).unwrap();
     assert_eq!(hero["content"]["reason"], "selected_image_not_wide");
     assert_eq!(hero["choice"], choices[1]["choice"]);
+    let reset = run(&[
+        "--json",
+        "artwork",
+        "reset",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "1",
+    ]);
+    assert_eq!(reset["choice"]["revision"], 2);
+    assert!(reset["choice"]["asset_sha256"].is_null());
+    assert_eq!(show("detail")["choice"], choices[1]["choice"]);
     for (index, id) in ids.iter().enumerate() {
         assert_eq!(choices[index]["resolved_source"]["asset_sha256"], *id);
         assert_eq!(
@@ -509,4 +542,51 @@ fn artwork_cli_preserves_choices_and_requires_explicit_unused_removal() {
     );
     assert!(!library.join("artwork").join(id).exists());
     assert_eq!(std::fs::read(source).unwrap(), bytes);
+}
+
+#[test]
+fn artwork_cli_suppression_is_distinct_from_returning_to_automatic() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("library");
+    let run = |args: &[&str]| {
+        let output = portcove(&library, args);
+        assert!(output.status.success(), "{args:?}: {output:?}");
+        json_stdout(&output)
+    };
+    let hidden = run(&[
+        "--json",
+        "artwork",
+        "suppress",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "0",
+    ]);
+    assert_eq!(hidden["command"], "artwork.suppress");
+    let choice = &hidden["data"]["choice"];
+    assert_eq!(choice["revision"], 1);
+    assert_eq!(choice["suppressed"], true);
+    assert!(choice["asset_sha256"].is_null());
+    let show = run(&[
+        "--json",
+        "artwork",
+        "show",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+    ]);
+    assert_eq!(&show["data"]["choice"], choice);
+    let reset = run(&[
+        "--json",
+        "artwork",
+        "reset",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "1",
+    ]);
+    assert_eq!(reset["data"]["choice"]["revision"], 2);
+    assert!(reset["data"]["choice"].get("suppressed").is_none());
 }

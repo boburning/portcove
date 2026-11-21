@@ -1,7 +1,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{ArtworkAttribution, ArtworkChoice, ArtworkSlot, LocalArtworkAsset, original_bytes};
+use super::{
+    ArtworkAttribution, ArtworkChoice, ArtworkSlot, LocalArtworkAsset, SteamGridDbArtworkRole,
+    original_bytes,
+};
 use crate::{LibraryIdentity, PortcoveError, PortcoveService, Result};
 
 /// This optional handoff evolves independently of API envelopes and events.
@@ -53,6 +56,58 @@ pub enum DestinationArtworkContent {
     },
 }
 
+// Keep the version-4 schema and reader independent of local presentation data.
+#[derive(Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+struct DestinationArtworkChoice {
+    port_id: String,
+    slot: DestinationArtworkSlot,
+    revision: u64,
+    asset_sha256: Option<String>,
+}
+
+impl From<DestinationArtworkChoice> for ArtworkChoice {
+    fn from(value: DestinationArtworkChoice) -> Self {
+        Self {
+            port_id: value.port_id,
+            slot: match value.slot {
+                DestinationArtworkSlot::Cover => ArtworkSlot::Cover,
+                DestinationArtworkSlot::Detail => ArtworkSlot::Detail,
+                DestinationArtworkSlot::Landscape => ArtworkSlot::Landscape,
+            },
+            revision: value.revision,
+            asset_sha256: value.asset_sha256,
+            framing: None,
+            suppressed: false,
+        }
+    }
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+enum DestinationArtworkSlot {
+    Cover,
+    Detail,
+    Landscape,
+}
+
+#[derive(JsonSchema)]
+#[serde(deny_unknown_fields)]
+#[allow(
+    dead_code,
+    reason = "schema projection of the version-4 destination attribution"
+)]
+struct DestinationArtworkAttribution {
+    provider: super::ArtworkProvider,
+    asset_id: u64,
+    game_id: u64,
+    role: DestinationArtworkRole,
+    author_name: String,
+    author_steam64: Option<String>,
+    source_url: String,
+    fetched_at: i64,
+}
+
 /// An observation, never provider permission, destination ownership or write consent.
 /// Portrait exposes the validated local cover original; hero banner and landscape
 /// cover expose the validated local detail or landscape original only when it is
@@ -66,12 +121,14 @@ pub struct DestinationArtworkHandoff {
     pub library: LibraryIdentity,
     pub port_id: String,
     pub role: DestinationArtworkRole,
+    #[schemars(with = "Option<DestinationArtworkChoice>")]
     pub choice: Option<ArtworkChoice>,
     pub source: DestinationArtworkSource,
     pub selected_asset_sha256: Option<String>,
     pub content: DestinationArtworkContent,
     /// Provider credits for the selected local image, shown by a destination that
     /// presents the image; empty for a purely local import and every other source.
+    #[schemars(with = "Vec<DestinationArtworkAttribution>")]
     pub attribution: Vec<ArtworkAttribution>,
 }
 
@@ -82,6 +139,10 @@ impl DestinationArtworkHandoff {
             || self.library.id.is_empty()
             || self.library.root.as_os_str().is_empty()
             || self.port_id.is_empty()
+            || self
+                .choice
+                .as_ref()
+                .is_some_and(|choice| choice.framing.is_some() || choice.suppressed)
             || self.attribution.len() > MAX_ATTRIBUTIONS
             || (!self.attribution.is_empty()
                 && !matches!(self.source, DestinationArtworkSource::LocalImport { .. }))
@@ -89,6 +150,9 @@ impl DestinationArtworkHandoff {
             return Err(invalid());
         }
         for attribution in &self.attribution {
+            if attribution.role == SteamGridDbArtworkRole::Logo {
+                return Err(invalid());
+            }
             crate::artwork_store::validate_attribution(attribution)?;
         }
         if let Some(id) = &self.selected_asset_sha256 {
@@ -237,7 +301,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             library: LibraryIdentity,
             port_id: String,
             role: DestinationArtworkRole,
-            choice: Option<ArtworkChoice>,
+            choice: Option<DestinationArtworkChoice>,
             source: DestinationArtworkSource,
             selected_asset_sha256: Option<String>,
             content: DestinationArtworkContent,
@@ -249,7 +313,7 @@ impl<'de> Deserialize<'de> for DestinationArtworkHandoff {
             library: wire.library,
             port_id: wire.port_id,
             role: wire.role,
-            choice: wire.choice,
+            choice: wire.choice.map(Into::into),
             source: wire.source,
             selected_asset_sha256: wire.selected_asset_sha256,
             content: wire.content,
@@ -394,10 +458,16 @@ impl PortcoveService {
         };
         if let Some(slot) = slot {
             let connection = self.library().connection()?;
-            let choice = crate::artwork_store::choice(&connection, port_id, slot)?;
+            let mut choice = crate::artwork_store::choice(&connection, port_id, slot)?;
+            let automatic = choice.is_automatic();
+            choice.framing = None;
+            choice.suppressed = false;
             if let Some(id) = &choice.asset_sha256 {
                 let asset = crate::artwork_store::asset(&connection, id)?;
-                handoff.attribution = crate::artwork_store::attributions(&connection, id)?;
+                handoff.attribution = crate::artwork_store::attributions(&connection, id)?
+                    .into_iter()
+                    .filter(|record| record.role != SteamGridDbArtworkRole::Logo)
+                    .collect();
                 handoff.source = DestinationArtworkSource::LocalImport {
                     asset: asset.clone(),
                 };
@@ -439,12 +509,14 @@ impl PortcoveService {
                 };
             } else if role == DestinationArtworkRole::PortraitCover {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
-                self.require_current_artwork_listing(&port)?;
-                if let Some(artwork) = self.automatic_cover(&port) {
-                    handoff.source = DestinationArtworkSource::CatalogDefault {
-                        artwork: artwork.clone(),
-                    };
-                    handoff.selected_asset_sha256 = Some(artwork.image_sha256.clone());
+                if automatic {
+                    self.require_current_artwork_listing(&port)?;
+                    if let Some(artwork) = self.automatic_cover(&port) {
+                        handoff.source = DestinationArtworkSource::CatalogDefault {
+                            artwork: artwork.clone(),
+                        };
+                        handoff.selected_asset_sha256 = Some(artwork.image_sha256.clone());
+                    }
                 }
                 handoff.content = DestinationArtworkContent::Unavailable {
                     reason: DestinationArtworkUnavailableReason::NoLocalOriginal,

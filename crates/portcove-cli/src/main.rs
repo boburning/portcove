@@ -465,7 +465,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     {
         render_read_success(
             mode,
-            "catalog.inspect-definition-publication",
+            catalog::DEFINITION_PUBLICATION_INSPECTION_COMMAND,
             portcove_core::inspect_definition_publication(directory)?,
             |report| catalog::publication_inspection(report, cli.technical_details),
         )?;
@@ -3688,6 +3688,15 @@ fn launcher_batch_items(
     Ok((items, Vec::new()))
 }
 
+fn response_schema_version(command: &str) -> u32 {
+    // The release inspector decodes a fixed envelope for this report.
+    if command == catalog::DEFINITION_PUBLICATION_INSPECTION_COMMAND {
+        catalog::DEFINITION_PUBLICATION_INSPECTION_RESPONSE_SCHEMA
+    } else {
+        API_SCHEMA_VERSION
+    }
+}
+
 fn render_read_success<T, F>(mode: OutputMode, command: &str, data: T, renderer: F) -> Result<()>
 where
     T: Serialize + JsonSchema,
@@ -3706,7 +3715,7 @@ where
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse {
-                schema_version: API_SCHEMA_VERSION,
+                schema_version: response_schema_version(command),
                 ok: true,
                 command: command.into(),
                 data: Some(data),
@@ -3716,7 +3725,7 @@ where
         OutputMode::Jsonl => println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
-                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": true,
+                "schema_version": response_schema_version(command), "type": "result", "ok": true,
                 "command": command, "data": data
             }))?
         ),
@@ -3733,7 +3742,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technica
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse::<serde_json::Value> {
-                schema_version: API_SCHEMA_VERSION,
+                schema_version: response_schema_version(command),
                 ok: false,
                 command: command.into(),
                 data: None,
@@ -3744,7 +3753,7 @@ fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technica
         OutputMode::Jsonl => println!(
             "{}",
             serde_json::to_string(&serde_json::json!({
-                "schema_version": API_SCHEMA_VERSION, "type": "result", "ok": false,
+                "schema_version": response_schema_version(command), "type": "result", "ok": false,
                 "command": command, "error": api_error(error)
             }))
             .unwrap_or_else(|_| "{\"ok\":false}".into())
@@ -3837,6 +3846,16 @@ fn execute_artwork(
                 |result| human_adapters::artwork_state(result, service.catalog()),
             )
         }
+        ArtworkCommand::Suppress {
+            port_id,
+            slot,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.suppress_artwork(&port_id, slot.into(), expected_revision)?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
         ArtworkCommand::ClearCache => {
             render_read_success(mode, name, service.clear_artwork_cache()?, |result| {
                 format!(
