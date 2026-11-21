@@ -856,7 +856,6 @@ export async function sourceDialogScenario({
     const sourceRegistrationIndex = activities.findIndex(
       (item) => item.id === sourceRegistration.id,
     );
-    const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
@@ -867,13 +866,13 @@ export async function sourceDialogScenario({
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
     await browser.wait(until.elementLocated(By.css(".activity-list")), 15_000);
-    if (sourceActivityInRecentPreview)
+    if (sourceRegistrationIndex < 8)
       await browser.wait(until.elementLocated(sourceActivity), 15_000);
-    assert.equal(
-      (await browser.findElements(sourceActivity)).length,
-      sourceActivityInRecentPreview ? 1 : 0,
-      `source registration at history index ${sourceRegistrationIndex} must match the recent preview`,
-    );
+    // History and the CLI can have different feed revisions while background
+    // tasks settle. A displayed link must still point to this exact Core row.
+    const sourceActivityLinks = await browser.findElements(sourceActivity);
+    assert.ok(sourceActivityLinks.length <= 1, "History duplicated the exact source action");
+    const sourceActivityInRecentPreview = sourceActivityLinks.length === 1;
     if (sourceActivityInRecentPreview) {
       await click(sourceActivity);
       await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
@@ -1011,7 +1010,7 @@ export async function sourceDialogScenario({
             policy: "original folder and profile with no new discovery or registration",
             escape_restored_focus: true,
           },
-          source_activity_history_index: sourceRegistrationIndex,
+          source_activity_core_index_at_read: sourceRegistrationIndex,
           source_activity_in_recent_preview: sourceActivityInRecentPreview,
           source_activity_opened_game_files_settings: sourceActivityInRecentPreview,
           source_activity_settings_control_focused: sourceActivityInRecentPreview,
