@@ -37,6 +37,7 @@ interface ExternalReport {
   rejected_preview?: Pick<FailureReport, "code"> &
     Pick<FailureReport["presentation"], "mutation_state" | "phase">;
   registered?: PortStatus;
+  relinked?: PortStatus;
   protected_files?: FileIdentity[];
   removed?: PortStatus;
   error?: string;
@@ -52,7 +53,7 @@ function success(value: unknown) {
 }
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, lstat, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
@@ -180,6 +181,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     steps: [],
   };
   const choose = By.xpath('//button[normalize-space(.)="Choose game folder"]');
+  const changeFolder = By.xpath('//button[normalize-space(.)="Change game folder…"]');
   const stop = By.xpath('//button[normalize-space(.)="Stop using this installation"]');
   const dialogFor = (kind: string) =>
     By.css(`[role="dialog"][aria-describedby="external-${kind}-description"]`);
@@ -224,12 +226,15 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       assert.equal(after.sha256, before.sha256);
     }
   }
-  async function selectFolder(name: string) {
-    await browser.findElement(choose).click();
-    const selection = object(await selectPicker(name, fixture.directory));
+  async function pickFolder(name: string, directory: string) {
+    const selection = object(await selectPicker(name, directory));
     assert.equal(selection.selected, true);
     assert.equal(selection.supplied_directory, true);
     assert.equal(selection.cancelled, false);
+  }
+  async function selectFolder(name: string) {
+    await browser.findElement(choose).click();
+    await pickFolder(name, fixture.directory);
     const review = await reviewed("register", "Use this installation");
     const text = await review.dialog.getText();
     assert.ok(text.includes(fixture.port.release.user_prepared["windows-x86-64"].version));
@@ -241,9 +246,9 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     await writeFile(file, Buffer.from(await browser.takeScreenshot(), "base64"), { flag: "wx" });
     artifacts.push(file);
   }
-  const sameDirectory = (value: string) =>
+  const sameDirectory = (value: string, expected = fixture.directory) =>
     path.resolve(value.startsWith("\\\\?\\") ? value.slice(4) : value).toLowerCase() ===
-    path.resolve(fixture.directory).toLowerCase();
+    path.resolve(expected).toLowerCase();
   try {
     report.picker_cancel = await pickerObservation;
     assert.equal(object(report.picker_cancel).cancelled, true);
@@ -369,9 +374,96 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       fixture.port.release.user_prepared["windows-x86-64"].immutable_tree_sha256,
     );
     await retainFiles();
+    const replacement = path.join(output, "replacement-player-owned-runtime");
+    await mkdir(replacement);
+    const replacementFiles = await Promise.all(
+      fixture.identities.map(async (original) => {
+        const target = path.join(replacement, path.basename(original.path));
+        await copyFile(original.path, target);
+        return fileIdentity(target);
+      }),
+    );
+    await browser.findElement(changeFolder).click();
+    await pickFolder("external-runtime-relink-picker", replacement);
+    async function reviewedReplacement() {
+      const result = await reviewed("register", "Change folder");
+      const paths = await Promise.all(
+        (await result.dialog.findElements(By.css("code.path-value"))).map((entry) =>
+          entry.getText(),
+        ),
+      );
+      assert.equal(paths.length, 3);
+      const [previous, proposed, executable] = paths;
+      assert.ok(previous && proposed && executable);
+      assert.equal(sameDirectory(previous), true);
+      assert.equal(sameDirectory(proposed, replacement), true);
+      assert.equal(sameDirectory(path.dirname(executable), replacement), true);
+      assert.equal(path.basename(executable), "game.exe");
+      return result;
+    }
+    review = await reviewedReplacement();
+    await screenshot("external-runtime-relink-review");
+    await review.action.click();
+    await confirmNative(
+      "Change game folder",
+      "Cancel",
+      fixture.port.id,
+      "external-runtime-relink-cancel",
+    );
+    review = await reviewedReplacement();
+    assert.deepEqual((await status()).external_runtime, record);
+    await retainFiles([...fixture.identities, ...replacementFiles]);
+    report.steps.push("native-relink-cancellation-retains-the-checked-candidate-and-registration");
+
+    const changedFile = path.join(replacement, "unknown-save.bin");
+    const checkedBytes = await readFile(changedFile);
+    try {
+      await writeFile(changedFile, "Replacement bytes changed after review.\n");
+      const changedIdentity = await fileIdentity(changedFile);
+      await review.action.click();
+      review = await reviewed("register", "Check again");
+      assert.equal((await review.dialog.findElements(buttonFor("Change folder"))).length, 0);
+      assert.deepEqual((await status()).external_runtime, record);
+      await retainFiles([
+        ...fixture.identities,
+        ...replacementFiles.map((item) => (item.path === changedFile ? changedIdentity : item)),
+      ]);
+    } finally {
+      await writeFile(changedFile, checkedBytes);
+    }
+    report.steps.push("changed-replacement-requires-a-new-core-check-before-it-can-be-used");
+    await review.action.click();
+    review = await reviewedReplacement();
+    assert.deepEqual((await status()).external_runtime, record);
+    await review.action.click();
+    await confirmNative(
+      "Change game folder",
+      "Change folder",
+      fixture.port.id,
+      "external-runtime-relink-accept",
+    );
+    await closed("register");
+    report.relinked = await status();
+    const relinked = report.relinked.external_runtime;
+    assert.ok(relinked);
+    assert.equal(sameDirectory(relinked.path, replacement), true);
+    assert.equal(sameDirectory(path.dirname(relinked.executable), replacement), true);
+    assert.equal(path.basename(relinked.executable), "game.exe");
+    assert.deepEqual(relinked, {
+      ...record,
+      path: relinked.path,
+      executable: relinked.executable,
+    });
+    await retainFiles([...fixture.identities, ...replacementFiles]);
+    report.steps.push("freshly-checked-replacement-requires-explicit-use-and-exact-core-readback");
+
     const unknown = path.join(fixture.directory, "new-user-save.dat");
     await writeFile(unknown, "New external save written after registration.\n", { flag: "wx" });
-    const protectedFiles = [...fixture.identities, await fileIdentity(unknown)];
+    const protectedFiles = [
+      ...fixture.identities,
+      ...replacementFiles,
+      await fileIdentity(unknown),
+    ];
     artifacts.push(unknown);
     report.protected_files = protectedFiles;
     await browser.findElement(stop).click();
@@ -379,7 +471,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     await screenshot("external-runtime-remove-review");
     await review.dialog.findElement(buttonFor("Cancel")).click();
     await closed("remove");
-    assert.deepEqual((await status()).external_runtime, record);
+    assert.deepEqual((await status()).external_runtime, relinked);
     await retainFiles(protectedFiles);
     await browser.findElement(stop).click();
     review = await reviewed("remove", "Stop using this installation");
@@ -391,7 +483,7 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
       "external-runtime-removal-cancel",
     );
     await closed("remove");
-    assert.deepEqual((await status()).external_runtime, record);
+    assert.deepEqual((await status()).external_runtime, relinked);
     await retainFiles(protectedFiles);
     report.steps.push("renderer-and-native-removal-cancellation-retain-registration-and-files");
     await browser.findElement(stop).click();

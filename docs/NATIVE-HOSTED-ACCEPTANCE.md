@@ -376,10 +376,14 @@ These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
 synthetic profile and qualification-only closed-client observation; no actual
-Steam client is launched. External-runtime registration uses inert executable
-bytes and never claims to launch that game. Controlled read failures and injected
-input observations retain their fixture labels. No private originals, real user
-profile, release signing or physical controller are required by this selection.
+Steam client is launched. The external-runtime review uses inert executable
+bytes. It checks that cancelling a native relink keeps the checked candidate,
+changed files require a fresh check, and explicit consent changes the same
+registration to the reviewed folder. Relinking and removing the registration
+preserve files in both folders. The scenario does not launch the fixture.
+Controlled read failures and injected input observations retain their fixture
+labels. No private originals, real user profile, release signing or physical
+controller are required by this selection.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
