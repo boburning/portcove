@@ -79665,8 +79665,8 @@
             "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           },
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
+            "title": "Prepare and register the Linux player",
+            "instruction": "Use the official Linux x86-64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together. Place your own matching classic First Encounter .gro files and its Help and Levels folders in that encounter folder. Use glibc 2.34 or newer with system SDL2, zlib and Vorbis (libvorbisfile.so.3). Select x64/SamTFE/Bin/SeriousSam and choose that Bin folder as its working directory. Keep the supplied engine libraries beside the executable and keep the complete encounter and its effective player profile."
           }
         ],
         "warnings": [
@@ -79681,10 +79681,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "serious-sam-the-first-encounter",
@@ -79693,7 +79689,11 @@
           "https://github.com/tx00100xt/SeriousSamClassic"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "serious-sam-the-second-encounter-serioussamclassic",
@@ -79736,8 +79736,8 @@
             "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           },
           {
-            "title": "Prepare the upstream Linux player",
-            "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
+            "title": "Prepare and register the Linux player",
+            "instruction": "Use the official Linux x86-64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together. Place your own matching classic Second Encounter .gro files, including the Levels archive, and its Help folder in that encounter folder. Use glibc 2.34 or newer with system SDL2, zlib and Vorbis (libvorbisfile.so.3). Select x64/SamTSE/Bin/SeriousSam and choose that Bin folder as its working directory. Keep the supplied engine libraries beside the executable and keep the complete encounter and its effective player profile."
           }
         ],
         "warnings": [
@@ -79752,10 +79752,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "serious-sam-the-second-encounter",
@@ -79764,7 +79760,11 @@
           "https://github.com/tx00100xt/SeriousSamClassic"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "sexy-parodius-sexyparorecomp",
