@@ -877,7 +877,8 @@ void test("the first cover checkpoint requires the released reader to inspect bo
   const { requireExactReleasedCoverInspection } =
     await import("./listing-observation-delivery.mts");
   const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
-  const { compactListingDeliveryTarget } = await import("./listing-directory-carrier.mts");
+  const { compactListingDeliveryTarget, listingDeliveryTarget } =
+    await import("./listing-directory-carrier.mts");
   const cover = Buffer.from("fixture cover");
   const compact = Buffer.from("fixture compact");
   const row = {
@@ -885,17 +886,44 @@ void test("the first cover checkpoint requires the released reader to inspect bo
     bytes: cover.length,
     sha256: overlaySha256(cover.toString()),
   };
+  // Match the released CLI envelope and the public machine-contract test.
   const report = {
+    schema_version: 100,
     ok: true,
     command: "catalog.inspect-definition-publication",
     data: {
-      schema_version: 1,
+      publication_schema: 2,
       authority: "none",
       files: [row],
       listings: { target: compactListingDeliveryTarget, sha256: overlaySha256(compact.toString()) },
     },
+    error: null,
   };
   requireExactReleasedCoverInspection(report, cover, compact);
+  for (const data of [
+    { ...report.data, publication_schema: 1 },
+    { ...report.data, publication_schema: undefined, schema_version: 1 },
+    { ...report.data, listings: { ...report.data.listings, target: listingDeliveryTarget } },
+  ]) {
+    assert.throws(
+      () => requireExactReleasedCoverInspection({ ...report, data }, cover, compact),
+      /active compact listing/u,
+    );
+  }
+  for (const invalidRow of [
+    { ...row, sha256: "f".repeat(64) },
+    { ...row, target: compactListingDeliveryTarget },
+  ]) {
+    assert.throws(
+      () =>
+        requireExactReleasedCoverInspection(
+          { ...report, data: { ...report.data, files: [invalidRow] } },
+          cover,
+          compact,
+        ),
+      /exact cover checkpoint/u,
+    );
+  }
   assert.throws(
     () =>
       requireExactReleasedCoverInspection(

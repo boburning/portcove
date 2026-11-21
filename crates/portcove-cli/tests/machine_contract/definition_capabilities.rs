@@ -81,6 +81,73 @@ fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
     );
     assert!(!result.status.success());
     assert!(!library.exists());
+
+    std::fs::remove_file(bundle.join("extra.json")).unwrap();
+    let policy = bundle.join("policy/official");
+    std::fs::create_dir_all(&policy).unwrap();
+    let legacy = include_bytes!(
+        "../../../portcove-core/src/testdata/listing-observation-delivery.generated.json"
+    );
+    let compact = include_bytes!(
+        "../../../portcove-core/src/testdata/compact-listing-delivery.generated.json"
+    );
+    let compact_identity: serde_json::Value = serde_json::from_slice(compact).unwrap();
+    let cover = json!({
+        "checkpoint_schema": 1,
+        "listing_sha256": compact_identity["decoded_sha256"],
+        "prior_checkpoint_sha256": null,
+        "entries": [{
+            "id": "fixture", "scope": "a".repeat(64), "image_id": "coFixture",
+            "prior_sha256": "b".repeat(64), "observed_at": "2026-11-21T12:00:00.000Z",
+            "receipt": format!("sha256:{}", "c".repeat(64)), "state": "gone",
+        }],
+    });
+    let above_generic_policy_limit = 64 * 1024 + 1;
+    let mut cover = serde_json::to_vec(&cover).unwrap();
+    cover.resize(above_generic_policy_limit, b' ');
+    let mut compact = compact.to_vec();
+    compact.resize(above_generic_policy_limit, b' ');
+    std::fs::write(policy.join("catalog.listings.json"), legacy).unwrap();
+    std::fs::write(policy.join("catalog.listings.compact.json"), compact).unwrap();
+    std::fs::write(policy.join("catalog.cover-checkpoint.json"), cover).unwrap();
+    let result = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "inspect-definition-publication",
+            bundle.to_str().unwrap(),
+        ],
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stdout)
+    );
+    let response = json_stdout(&result);
+    assert_eq!(response["error"], serde_json::Value::Null);
+    let data = &response["data"];
+    assert_eq!(data["publication_schema"], 2);
+    assert!(data.get("schema_version").is_none());
+    assert_eq!(data["authority"], "none");
+    let files = data["files"].as_array().unwrap();
+    assert_eq!(files.len(), 4);
+    let compact_target = "policy/official/catalog.listings.compact.json";
+    let report_file = |target| files.iter().find(|file| file["target"] == target).unwrap();
+    assert_eq!(data["listings"]["target"], compact_target);
+    assert_eq!(
+        data["listings"]["sha256"],
+        report_file(compact_target)["sha256"]
+    );
+    assert_eq!(
+        report_file(compact_target)["bytes"],
+        above_generic_policy_limit as u64
+    );
+    assert_eq!(
+        report_file("policy/official/catalog.cover-checkpoint.json")["bytes"],
+        above_generic_policy_limit as u64
+    );
+    assert!(!library.exists());
 }
 
 #[test]

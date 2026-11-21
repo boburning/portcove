@@ -609,9 +609,10 @@ export function requireExactReleasedCoverInspection(
   if (
     !isRecord(inspection) ||
     inspection.ok !== true ||
+    inspection.error !== null ||
     inspection.command !== "catalog.inspect-definition-publication" ||
     !isRecord(inspection.data) ||
-    inspection.data.schema_version !== 1 ||
+    inspection.data.publication_schema !== 2 ||
     inspection.data.authority !== "none" ||
     !isRecord(inspection.data.listings) ||
     inspection.data.listings.target !== compactListingDeliveryTarget ||
