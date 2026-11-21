@@ -555,6 +555,16 @@ export const desktopApi = {
     generation: number,
     provider?: string,
   ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+  jakModsSetupUrl: (portId: string, generation: number) =>
+    invoke<string | null>("jakmods_setup_url", { portId, generation }),
+  jakModsCatalog: (portId: string, generation: number) =>
+    invoke<import("./types").JakModsCatalog>("get_jakmods_catalog", { portId, generation }),
+  openJakModsResource: (
+    portId: string,
+    generation: number,
+    expectedUrl: string,
+    projectId?: string,
+  ) => invoke<void>("open_jakmods_resource", { portId, generation, projectId, expectedUrl }),
   modProviderCatalog: (portId: string, source: string, generation: number) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,

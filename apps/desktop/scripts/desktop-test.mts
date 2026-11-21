@@ -154,7 +154,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
-import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
+import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -3950,6 +3950,15 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
+  await reviewedScreenshotScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    library,
+    artifacts,
+    capture: captureScenarioScreenshot,
+  });
   for (const cacheConditions of [true, false]) {
     await defaultCoverScenario({
       browser,

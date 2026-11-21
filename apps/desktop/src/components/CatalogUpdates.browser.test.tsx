@@ -10,7 +10,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogProvenance, DoctorReport } from "../types";
-import { CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
 import { SettingsView } from "./Chrome";
 
 it("requires explicit review, invalidates changed candidates and uses core provenance after publication", async () => {
@@ -333,6 +333,26 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   }
+});
+
+it("labels selected definitions separately from a signed catalog version", () => {
+  const expiresAt = 1789706400;
+  const html = renderToStaticMarkup(
+    <CatalogOrigin
+      provenance={{
+        origin: "definition_selected",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: expiresAt,
+        fallback_reasons: [],
+      }}
+    />,
+  );
+  expect(html).toContain("Using selected catalog definitions");
+  expect(html).toContain("Valid until");
+  expect(html).toContain(new Date(expiresAt * 1000).toLocaleString());
+  expect(html).not.toContain("Signed catalog");
 });
 
 it("keeps fallback diagnostics in distinct technical disclosures with safe summaries", () => {

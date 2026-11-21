@@ -9,7 +9,7 @@ fn target(bytes: &[u8]) -> String {
 fn projection() -> Value {
     let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
-        "contract_schema": 1, "representation": "catalog_projection",
+        "contract_schema": 3, "representation": "catalog_projection",
         "catalog": catalog
     })
 }
@@ -52,6 +52,142 @@ fn canonical_projection_materializes_typed_defaults_and_is_idempotent() {
     sparse["catalog"]["ports"][0]["unsupported_authored_field"] = json!(true);
     std::fs::write(&path, serde_json::to_vec(&sparse).unwrap()).unwrap();
     assert!(canonical_definition_projection(&path).is_err());
+}
+
+#[test]
+fn indexed_loader_entry_and_projection_share_the_schema_fence() {
+    let base = Catalog::embedded().unwrap();
+    let port_id = "banjo-recomp";
+    let bundle = crate::test_fixture::indexed_catalog_bundle(&base, port_id);
+    let index = DefinitionContentIndex::parse(&bundle.index).unwrap();
+    let mut selected = None;
+    let mut contract = None;
+    for (_, bytes) in &bundle.contents {
+        let document: Value = serde_json::from_slice(bytes).unwrap();
+        if document.get("definition_schema").is_some() {
+            assert_eq!(document["definition_schema"], 3);
+            selected = Some(bytes);
+        } else {
+            assert_eq!(document["contract_schema"], 3);
+            contract = Some(bytes);
+        }
+    }
+    let entry_bytes = selected.unwrap();
+    let contract = contract.unwrap();
+    let accepted = index
+        .inspect_catalog_projection("official", port_id, entry_bytes, contract)
+        .unwrap();
+    assert_eq!(
+        accepted.entry().port().mod_loader,
+        base.port(port_id).unwrap().mod_loader
+    );
+    assert_eq!(
+        accepted
+            .snapshot()
+            .catalog()
+            .unwrap()
+            .port(port_id)
+            .unwrap()
+            .mod_loader,
+        base.port(port_id).unwrap().mod_loader
+    );
+    assert_eq!(accepted.contract_bytes(), contract.as_slice());
+    for schema in [1, 2] {
+        let mut historic: Value = serde_json::from_slice(contract).unwrap();
+        historic["contract_schema"] = json!(schema);
+        let position = historic["catalog"]["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|port| port["id"] == port_id)
+            .unwrap();
+        let bytes = serde_json::to_vec(&historic).unwrap();
+        assert!(
+            inspect(&entry(&historic, &bytes, position), &bytes)
+                .unwrap_err()
+                .message
+                .contains("require indexed definition schema 3")
+        );
+    }
+}
+
+#[test]
+fn full_indexed_projection_cannot_appoint_a_sibling_loader() {
+    let baseline = Catalog::embedded().unwrap();
+    let stable_id = "render96ex";
+    let loader_id = "banjo-recomp";
+    let mut document = projection();
+    document["contract_schema"] = json!(1);
+    let ports = document["catalog"]["ports"].as_array().unwrap();
+    let selected_index = ports
+        .iter()
+        .position(|port| port["id"] == stable_id)
+        .unwrap();
+    let loader_index = ports
+        .iter()
+        .position(|port| port["id"] == loader_id)
+        .unwrap();
+
+    let legacy_leaf = serde_json::to_vec(&document).unwrap();
+    let legacy = inspect(
+        &entry(&document, &legacy_leaf, selected_index),
+        &legacy_leaf,
+    )
+    .unwrap();
+    assert_eq!(legacy.catalog().source_catalog(), baseline.source_catalog());
+    assert!(
+        legacy
+            .snapshot()
+            .catalog()
+            .unwrap()
+            .port(loader_id)
+            .unwrap()
+            .mod_loader
+            .is_none()
+    );
+    let effective = legacy.catalog_for_selection(&baseline).unwrap();
+    for port in baseline
+        .ports()
+        .iter()
+        .filter(|port| port.mod_loader.is_some())
+    {
+        assert_ne!(port.id, stable_id);
+        assert_eq!(
+            effective.port(&port.id).unwrap().mod_loader,
+            port.mod_loader
+        );
+    }
+    assert_eq!(legacy.contract_bytes(), legacy_leaf);
+
+    document["catalog"]["ports"][loader_index]["mod_loader"] =
+        serde_json::to_value(&baseline.port(loader_id).unwrap().mod_loader).unwrap();
+    for schema in [1, 3] {
+        document["contract_schema"] = json!(schema);
+        let leaf = serde_json::to_vec(&document).unwrap();
+        let selected = entry(&document, &leaf, selected_index);
+        let entry_bytes = serde_json::to_vec(&selected).unwrap();
+        let index = index(&[(&selected, &entry_bytes)], &leaf);
+        let snapshot = DefinitionSnapshot {
+            namespace: "official".into(),
+            stable_id: stable_id.into(),
+            index_json: String::from_utf8(index.bytes().to_vec()).unwrap(),
+            entry_json: String::from_utf8(entry_bytes.clone()).unwrap(),
+            contract_json: String::from_utf8(leaf.clone()).unwrap(),
+        };
+        for error in [
+            index
+                .inspect_catalog_projection("official", stable_id, &entry_bytes, &leaf)
+                .unwrap_err(),
+            snapshot.catalog().unwrap_err(),
+        ] {
+            assert!(
+                error
+                    .message
+                    .contains("native mod loader bindings must belong to the selected definition")
+            );
+            assert_eq!(error.details["port_id"], loader_id);
+        }
+    }
 }
 
 #[test]
@@ -515,7 +651,7 @@ fn indexed_projection_cannot_supply_reviewed_package_choices() {
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({
-        "contract_schema": 1, "representation": "catalog_projection",
+        "contract_schema": 3, "representation": "catalog_projection",
         "catalog": catalog.authoritative_document()
     });
     let contract = serde_json::to_vec(&document).unwrap();
@@ -670,6 +806,56 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
             .message
             .contains("selected definition")
     );
+}
+
+#[test]
+fn enforced_n64_release_inputs_require_migration_reader() {
+    let mut catalog = Catalog::embedded().unwrap().authoritative_document();
+    catalog
+        .ports
+        .retain(|port| port.id == "harvest-moon-64-recomp");
+    let sources = catalog.source_catalog.as_mut().unwrap();
+    sources
+        .contracts
+        .retain(|contract| contract.port_id == "harvest-moon-64-recomp");
+    sources
+        .qualification
+        .retain(|fact| fact.scope.port_id == "harvest-moon-64-recomp");
+    let evidence = sources
+        .evidence
+        .iter()
+        .find(|item| item.role == crate::CatalogEvidenceRole::UpstreamSupport)
+        .unwrap()
+        .id
+        .clone();
+    let contract = &mut sources.contracts[0];
+    contract.evidence_ids.push(evidence);
+    contract
+        .n64_recomp_inputs_v1
+        .push(crate::N64RecompOriginalInput {
+            upstream_ref: "new-release".into(),
+            artifact_sha256: "a".repeat(64),
+            game_id: "harvest_moon_64".into(),
+            rom_xxh3_64: "0123456789abcdef".into(),
+        });
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection", "catalog": catalog,
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 11, "maximum_version": 11
+    }]);
+    inspect(&selected, &contract).unwrap();
 }
 
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
@@ -829,7 +1015,7 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
         1
     };
     json!({
-        "definition_schema": 1, "namespace": "official", "stable_id": port["id"],
+        "definition_schema": document["contract_schema"], "namespace": "official", "stable_id": port["id"],
         "revision": 1, "port": port,
         "required_capabilities": crate::test_fixture::definition_requirements(&typed, version),
         "source_contracts": [reference], "execution_contract": reference,
@@ -936,13 +1122,15 @@ fn complete_indexed_projections_keep_package_only_settings_with_the_selected_por
     let mut complete = projection();
     let ports = complete["catalog"]["ports"].as_array().unwrap();
     let settings_port = "super-mario-world-recomp";
+    let sibling_port = "render96ex";
+    assert!(baseline.port(sibling_port).unwrap().mod_loader.is_none());
     let settings_index = ports
         .iter()
         .position(|port| port["id"] == settings_port)
         .unwrap();
     let sibling_index = ports
         .iter()
-        .position(|port| port["id"] == "zelda64-recomp")
+        .position(|port| port["id"] == sibling_port)
         .unwrap();
     let settings = serde_json::to_value(
         baseline
@@ -1324,6 +1512,8 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
         .as_str()
         .unwrap()
         .to_owned();
+    document["catalog"]["ports"][0]["mod_loader"] =
+        json!(original.port(&old_id).unwrap().mod_loader);
     document["catalog"]["ports"][0]["id"] = json!("redistributable-definition-fixture");
     // The synthetic ID has no official Shipwright persistence authority.
     document["catalog"]["ports"][0]
@@ -1420,12 +1610,12 @@ fn unsupported_contracts_and_unknown_nested_semantics_fail_closed() {
     for field in ["contract_schema", "representation", "unexpected"] {
         let mut changed = document.clone();
         changed[field] = if field == "contract_schema" {
-            json!(2)
+            json!(99)
         } else {
             json!("future")
         };
         let bytes = serde_json::to_vec(&changed).unwrap();
-        assert!(inspect(&entry(&changed, &bytes, 0), &bytes).is_err());
+        assert!(inspect(&entry(&document, &bytes, 0), &bytes).is_err());
     }
     for path in [
         vec!["catalog"],

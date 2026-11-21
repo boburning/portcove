@@ -74,6 +74,20 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+### Exact release withdrawal in status
+
+Status reports curated distribution withdrawal only for the exact recommended
+artifact or exact active installation. In machine output, the Install
+assessment identifies the installed copy with `retained: true`. The reason
+is `curated_distribution_withdrawn`. The badge and details use the catalog
+maintainer when no further explanation is recorded. Both appear when both
+releases are withdrawn. Status omits an actionable cached update offer only
+when the cached metadata identifies one exact admitted artifact whose
+distribution is withdrawn. The stored check remains available as historical
+evidence, even after a different artifact becomes the recommendation.
+Installed launch and rollback keep their existing checks. Local files and
+saves are preserved.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
@@ -1825,7 +1839,18 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
-Ordinary executable updates do not refresh artwork.
+Due refresh of a retained cover revalidates its approved IGDB game ID, slug
+and cover role. An accepted mapping can be revalidated by exact ID and slug
+even when the listing lacks an original title. This does not establish a new
+artwork relationship or runtime eligibility. If the exact identity cannot be
+confirmed, retain its allowed mapping. A different game or role needs separate reviewed preparation. Exact
+confirmed Gone still removes the affected image references.
+For a bounded retained-cover pass, add `--artwork-retained-limit COUNT` to
+`@due`. This selects up to 400 due rows with an accepted cover or cover collection
+and reports how many due rows were outside the current pass. An attempted row
+goes behind rows with older attempts so unresolved identity holds do not starve
+the rest of that workset. New and ambiguous cover identities keep their separate
+review path. Ordinary executable updates do not refresh artwork.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
@@ -2605,6 +2630,13 @@ original game inputs or bundled runtimes:
 - `missing_persistent_parents`: parents of declared persistent paths the
   package does not ship.
 
+For a declared Linux portable data directory, a missing directory and an empty
+directory beside the selected executable represent the same package shape. Core
+checks the staged path before excluding it from the top-level directory set.
+Aliases, links and any packaged contents still fail the portable data checks.
+Existing recorded shapes stay intact, and future generated baselines for such a
+route must use the updated derivation inputs.
+
 Managed extraction never creates links: ZIP links are refused and an allowed
 TAR.XZ file link is written as a copy of its in-archive target, so every
 shipped file is a regular file the shape sees and links are not a blind spot.
@@ -3134,6 +3166,16 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Use an exact `integration.mod_provider_bindings` scope with an already reviewed
+loader. Shipwright declares its GameBanana game ID and Zelda 64: Recompiled
+declares its Thunderstore community. Ordinary projects, files and compatible
+updates within those scopes use the existing provider selectors. Retained
+package references can still replay their original compiled binding. When an
+indexed provider selection expires or is withdrawn, new provider operations
+wait for a current authenticated selection. Use the
+[indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
+when delivering a binding through the signed feed.
 
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored

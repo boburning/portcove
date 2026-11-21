@@ -49,7 +49,8 @@ jobs:
   contracts:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # The normal contract suite takes almost four minutes after setup.
+    timeout-minutes: 10
     # Job-level so issue-comment and dispatch intake runs are never grouped with it.
     concurrency:
       group: hosted-discovery-intake-contracts-${{ github.event.pull_request.number }}
@@ -115,12 +116,13 @@ jobs:
           REPOSITORY_TOKEN: ${{ github.token }}
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_DISCOVERY_DATABASE_URL || '' }}
           PORTCOVE_NEON_METER_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_NEON_METER_TOKEN || '' }}
+          PORTCOVE_MAINTENANCE_PURPOSE: ${{ github.event_name == 'schedule' && 'schedule' || 'intake' }}
           HOSTED_INTAKE_MODE: ${{ inputs.mode }}
           HOSTED_INTAKE_AUDIT_CONTINUATIONS: ${{ inputs.audit_continuations }}
           HOSTED_INTAKE_AUDIT_REQUEST: ${{ inputs.audit_request }}
           HOSTED_INTAKE_PROBE: ${{ inputs.probe_issue }}
       - name: Link completed intake to its original maintenance handoff
-        if: github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && (inputs.mode == 'receipts' || steps.execute.outcome == 'success')
+        if: github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && inputs.mode != 'resume-audits' && (inputs.mode == 'receipts' || steps.execute.outcome == 'success')
         env:
           GH_TOKEN: ${{ github.token }}
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
@@ -135,7 +137,7 @@ jobs:
           const passes = existsSync(root) ? readdirSync(root).filter(name => /^pass-[1-9]\d?$/.test(name)) : [];
           for (const directory of [root, ...passes.map(name => `${root}/${name}`)]) {
           if (existsSync(directory)) for (const name of readdirSync(directory)) {
-            if (!/^(?:summary|inventory-recollection|write-probe|write-proof-\d+|audit-repairs-\d+|hold-\d+-[a-z0-9-]+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
+            if (!/^(?:summary|scheduled-receipts|inventory-recollection|write-probe|write-proof-\d+|audit-repairs-\d+|hold-\d+-[a-z0-9-]+|doctor-\d+-\d+|global-doctor-\d+|failure-\d+|receipt-\d+|api-observations|budget)\.json$/.test(name)) continue;
             const bytes = readFileSync(`${directory}/${name}`);
             if (bytes.length <= 262144) console.log(JSON.stringify({ file: `${directory}/${name}`, evidence: JSON.parse(bytes) }));
           }

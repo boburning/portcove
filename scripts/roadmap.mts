@@ -14,6 +14,7 @@ import {
   qualifiedPlatforms,
   validatePortStageSemantics,
   planPortStageReconciliation,
+  planPortStageMigration,
   validatePortIssueCoverage,
   qualificationCatalogObservation,
   issueFreeCatalogIds,
@@ -1449,9 +1450,15 @@ export function parseArguments(argv: readonly string[]) {
     const name = separator < 0 ? token : token.slice(0, separator);
     const inline = separator < 0 ? undefined : token.slice(separator + 1);
     if (
-      ["--apply", "--recover", "--json", "--summary", "--help", "--linux-beta-706"].includes(
-        name,
-      ) &&
+      [
+        "--apply",
+        "--recover",
+        "--json",
+        "--summary",
+        "--help",
+        "--linux-beta-706",
+        "--stage-migration-dry-run",
+      ].includes(name) &&
       inline === undefined
     ) {
       options[name] = true;
@@ -1471,7 +1478,7 @@ roadmap items are stored in the repository.
 
 Usage:
   node scripts/roadmap.mts check
-  node scripts/roadmap.mts doctor [--issue <number>] [--expected-head <sha>] [--json]
+  node scripts/roadmap.mts doctor [--issue <number> | --stage-migration-dry-run] [--expected-head <sha>] [--json]
   node scripts/roadmap.mts bootstrap
   node scripts/roadmap.mts capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
   node scripts/roadmap.mts normalize-port --issue <number>
@@ -1509,7 +1516,7 @@ const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>
     "check",
   ],
   doctor: [
-    "Use --issue N for direct affected-record validation. Omit --issue for a full inventory audit after substantial Roadmap changes or for release readiness. --expected-head binds the checkout; --json retains scope and failure diagnostics.",
+    "Use --issue N for direct affected-record validation. Omit --issue for a full inventory audit after substantial Roadmap changes or for release readiness. --stage-migration-dry-run reads active and archived items for #4850 without changing the Project. --expected-head binds the checkout; --json retains scope and failure diagnostics.",
     "doctor --json",
   ],
   bootstrap: [
@@ -2535,6 +2542,7 @@ export class RoadmapClient {
       details: suppliedDetails = null,
       itemIds,
       includeItemRevision = false,
+      includeIssueStateReason = false,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
@@ -2544,6 +2552,7 @@ export class RoadmapClient {
       details?: ProjectDetails | null;
       itemIds?: readonly string[];
       includeItemRevision?: boolean;
+      includeIssueStateReason?: boolean;
     } = {},
   ) {
     const details = suppliedDetails ?? (await this.projectDetails(number));
@@ -2557,7 +2566,8 @@ export class RoadmapClient {
     const fields = includeFields
       ? "fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } }"
       : "";
-    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
+    const stateReason = includeIssueStateReason ? "stateReason" : "";
+    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${stateReason} ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
     let nodes: unknown[];
     if (itemIds !== undefined) {
       nodes = [];
@@ -2604,6 +2614,16 @@ export class RoadmapClient {
       if (!isRecord(node) || typeof node.id !== "string")
         throw new Error("incomplete GitHub inventory: malformed Project item identity");
       const sourceContent = completeProjectContent(node.content, includeBodies);
+      if (
+        includeIssueStateReason &&
+        sourceContent.__typename === "Issue" &&
+        sourceContent.stateReason !== null &&
+        typeof sourceContent.stateReason !== "string"
+      )
+        throw new InventoryError(
+          "inventory_incomplete",
+          "Project issue closure reason is unavailable",
+        );
       const content = sourceContent
         ? {
             ...sourceContent,
@@ -4333,7 +4353,7 @@ export function evaluateRoadmapDoctor({
   risk706Approval: unknown;
   now: string;
 }) {
-  const stage = validatePortStageSemantics(catalog, items);
+  const stage = validatePortStageSemantics(catalog, items, config.repository, repositoryIssues);
   const readiness = analyzeReleaseReadiness(items, config.active_release, { risk706Approval, now });
   const roadmapErrors = [
     ...readiness.migrationConflicts.map(
@@ -4375,9 +4395,17 @@ export function evaluateRoadmapDoctor({
     const error = new Error(
       `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
     );
-    throw Object.assign(error, { doctorErrors: [...drift, ...roadmapErrors] });
+    throw Object.assign(error, {
+      doctorErrors: [...drift, ...roadmapErrors],
+      derivedStageDrift: stage.derivedStageDrift,
+    });
   }
-  return { warnings: stage.warnings, diagnostics: stage.diagnostics, readiness };
+  return {
+    warnings: stage.warnings,
+    diagnostics: stage.diagnostics,
+    derivedStageDrift: stage.derivedStageDrift,
+    readiness,
+  };
 }
 
 export interface DoctorRepositoryInventoryAttempt {
@@ -4816,6 +4844,7 @@ export async function runDoctor(
     items,
     warnings: stage.warnings,
     diagnostics: stage.diagnostics,
+    derivedStageDrift: stage.derivedStageDrift,
     repositoryIssueInventoryAttempts,
     inventory,
     projectInventorySource: inventory
@@ -4875,6 +4904,45 @@ export function roadmapCommandHelp(command: string, config?: RoadmapConfig) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+async function runStageMigrationDryRun(config: RoadmapConfig, client: RoadmapClient) {
+  const inventory = requireRoadmapInventory(
+    await collectRoadmapInventory(client, undefined, { scope: "port-stage-migration" }),
+    config.repository,
+    client,
+  );
+  const context = await client.completeProjectContext(config.project.number);
+  const field = context.fields.find((entry) => entry.name === "Port stage");
+  if (!field?.id || !field.options?.length || inventory.projectId !== context.details.id)
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Project Port stage field identity is unavailable",
+    );
+  const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
+  const directory: unknown = JSON.parse(await readFile(listingsPath, "utf8"));
+  const issueFreeIds = issueFreeCatalogIds(catalog, directory);
+  const report = planPortStageMigration(
+    catalog,
+    [...inventory.items, ...inventory.archivedItems],
+    config.repository,
+    inventory.issues,
+    issueFreeIds,
+    directory,
+  );
+  return {
+    scope: { kind: "port-stage-migration", archive: "active-and-archived" },
+    stageMigration: {
+      project_id: inventory.projectId,
+      repository_id: inventory.repository_node_id,
+      observed_at: inventory.observed_at,
+      field_id: field.id,
+      observed_options: field.options,
+      ...report,
+    },
+    warnings: [],
+    diagnostics: [],
+  };
 }
 
 async function main(argv: readonly string[], commandScope?: RoadmapRequestScope) {
@@ -4943,14 +5011,24 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       return;
     }
     if (parsed.command === "doctor") {
+      const stageMigration = parsed.options["--stage-migration-dry-run"] === true;
       if (
         parsed.positionals.length ||
+        ("--stage-migration-dry-run" in parsed.options &&
+          (!stageMigration || parsed.options["--issue"] !== undefined)) ||
         Object.keys(parsed.options).some(
-          (key) => !["--issue", "--expected-head", "--json", "--summary"].includes(key),
+          (key) =>
+            ![
+              "--issue",
+              "--expected-head",
+              "--json",
+              "--summary",
+              "--stage-migration-dry-run",
+            ].includes(key),
         )
       )
         throw new Error(
-          "Usage: roadmap.mts doctor [--issue N] [--expected-head SHA] [--json]. Run with --help for an example.",
+          "Usage: roadmap.mts doctor [--issue N | --stage-migration-dry-run] [--expected-head SHA] [--json]. Run with --help for an example.",
         );
       let context;
       let report;
@@ -5002,6 +5080,7 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
                 const doctorConfig = await loadConfig({ requireProjectNumber: true });
                 const doctorClient = await RoadmapClient.connect(doctorConfig, scope);
                 readClients.push(doctorClient);
+                if (stageMigration) return runStageMigrationDryRun(doctorConfig, doctorClient);
                 if (parsed.options["--issue"] !== undefined) {
                   const value = requiredOption(parsed.options, "--issue");
                   if (!/^[1-9]\d*$/u.test(value) || !Number.isSafeInteger(Number(value)))
@@ -5017,28 +5096,41 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
         });
         report = {
           format: 1,
-          kind: "roadmap-doctor",
+          kind: stageMigration ? "roadmap-port-stage-migration" : "roadmap-doctor",
           status: "passed",
           context: checked.context,
           scope: "scope" in checked.result ? checked.result.scope : { kind: "global" },
           coverage: "complete",
           global_health: "scope" in checked.result ? "not_evaluated" : "passed",
           counts:
-            "fields" in checked.result
+            "stageMigration" in checked.result
               ? {
-                  fields: checked.result.fields.length,
-                  views: checked.result.views.length,
-                  issues: checked.result.repositoryIssues.length,
-                  items: checked.result.items.length,
+                  ...checked.result.stageMigration.counts,
+                  ...checked.result.stageMigration.historical_assignment_counts,
                 }
-              : { issues: checked.result.scope.checked_issues.length },
+              : "fields" in checked.result
+                ? {
+                    fields: checked.result.fields.length,
+                    views: checked.result.views.length,
+                    issues: checked.result.repositoryIssues.length,
+                    items: checked.result.items.length,
+                  }
+                : { issues: checked.result.scope.checked_issues.length },
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
+          ...("derivedStageDrift" in checked.result
+            ? { derived_stage_drift: checked.result.derivedStageDrift }
+            : {}),
+          ...("stageMigration" in checked.result
+            ? { stage_migration: checked.result.stageMigration }
+            : {}),
           repository_issue_inventory: repositoryIssueInventoryAttempts,
           project_inventory_source:
             "projectInventorySource" in checked.result
               ? checked.result.projectInventorySource
-              : "direct-issue-memberships",
+              : stageMigration
+                ? "project-items-connection-active-and-archived"
+                : "direct-issue-memberships",
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.observations),
           metrics: doctorApiMetrics(readClients),
@@ -5047,19 +5139,24 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       } catch (error) {
         report = {
           format: 1,
-          kind: "roadmap-doctor",
+          kind: stageMigration ? "roadmap-port-stage-migration" : "roadmap-doctor",
           status: "failed",
           scope:
             qualificationField(error, "doctorScope") ??
-            (parsed.options["--issue"] === undefined
-              ? { kind: "global" }
-              : { kind: "issues", issues: [Number(parsed.options["--issue"])] }),
+            (stageMigration
+              ? { kind: "port-stage-migration", archive: "active-and-archived" }
+              : parsed.options["--issue"] === undefined
+                ? { kind: "global" }
+                : { kind: "issues", issues: [Number(parsed.options["--issue"])] }),
           coverage: Array.isArray(qualificationField(error, "doctorErrors"))
             ? "complete"
             : "inconclusive",
           global_health: "not_evaluated",
           failure_kind: inventoryFailureKind(error),
           diagnosis: doctorFailureDiagnostics(error),
+          ...(Array.isArray(qualificationField(error, "derivedStageDrift"))
+            ? { derived_stage_drift: qualificationField(error, "derivedStageDrift") }
+            : {}),
           planning_findings_evaluated: Array.isArray(qualificationField(error, "doctorErrors")),
           context,
           repository_issue_inventory: repositoryIssueInventoryAttempts,
@@ -5086,16 +5183,18 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       } catch {
         reference = "retention unavailable";
       }
+      const errors = "errors" in report ? report.errors : [];
       if (parsed.options["--summary"]) {
         if (reference === "retention unavailable")
           throw new Error("Roadmap summary raw retention failed");
-        if (!context) throw new Error((report.errors ?? []).join("; "));
+        if (!context) throw new Error(errors.join("; "));
         console.log(summarizeReport("doctor", report, reference).text);
       } else if (parsed.options["--json"])
         console.log(JSON.stringify({ ...report, evidence: reference }));
       else if (context) console.log(summarizeReport("doctor", report, reference).text);
-      else console.error((report.errors ?? []).join("\n"));
-      if (!parsed.options["--json"] && report.status === "passed") console.log(roadmapViewGuidance);
+      else console.error(errors.join("\n"));
+      if (!stageMigration && !parsed.options["--json"] && report.status === "passed")
+        console.log(roadmapViewGuidance);
       return;
     }
     if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");

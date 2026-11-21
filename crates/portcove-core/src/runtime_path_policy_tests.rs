@@ -448,6 +448,8 @@ fn move_previews_check_retained_policy_before_creating_destinations() {
             .find(|port| port.id == port_id)
             .unwrap();
         port.adapter = AdapterKind::StagedSourcePortable;
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.platforms = vec![Platform::WindowsX86_64];
         port.executable_hints = [(Platform::WindowsX86_64, vec!["nested/inert.exe".into()])].into();
         port.setup_executable_hints.clear();
