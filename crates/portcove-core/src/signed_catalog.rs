@@ -265,6 +265,12 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
                 ));
             }
         }
+        if port.mod_loader.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver native mod loader bindings",
+            ));
+        }
+        port.mod_loader.clone_from(&original.mod_loader);
         if port.mod_provider_bindings.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver mod provider bindings",

@@ -87,6 +87,71 @@ fn installing_into_the_selected_profile_deploys_exact_bytes_and_records_a_revisi
 }
 
 #[test]
+fn an_unseen_port_deploys_exact_bytes_and_updates_only_its_authored_native_list() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    let id = "unseen-libultraship-fixture";
+    let catalog = crate::Catalog::from_json(&serde_json::json!({
+        "schema_version": 1,
+        "ports": [{
+            "id": id,
+            "name": "Unseen libultraship fixture",
+            "summary": "Native mod contract deployment test.",
+            "project_url": "https://github.com/fixture/unseen-libultraship",
+            "support_tier": "beta",
+            "channels": ["stable"],
+            "platforms": [platform],
+            "adapter": "libultraship-portable",
+            "release": {"repository": "fixture/unseen-libultraship"},
+            "executable_hints": { (serde_json::to_value(platform).unwrap().as_str().unwrap()): ["fixture.exe"] },
+            "persistent_paths": ["mods", "unseen.json"],
+            "mod_loader": {
+                "contract": {"id": "libultraship", "version": "1"},
+                "repository": "fixture/unseen-libultraship",
+                "minimum_version": "1.3.0",
+                "platforms": [platform],
+                "settings_file": "unseen.json"
+            }
+        }]
+    }).to_string()).unwrap();
+    crate::retained_build::tests::install_fixture_port(
+        &library,
+        &catalog,
+        id,
+        "unseen-runtime",
+        "v1.4.0",
+        b"inert runtime",
+        true,
+    );
+    let mut service = PortcoveService::new_read_only(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let profile = service.ensure_default_profile(id).unwrap();
+    let user = service.library().user_dir(id);
+    fs::create_dir_all(&user).unwrap();
+    let settings = user.join("unseen.json");
+    fs::write(&settings, br#"{"other_setting":true}"#).unwrap();
+    let package = archive(
+        temporary.path(),
+        "unseen-addon.o2r",
+        &[("assets/model", b"new bytes")],
+    );
+
+    let revision = service
+        .install_mod_package(id, &profile.id, &package, 1)
+        .unwrap();
+    assert_eq!(revision.loader.unwrap().id, "libultraship");
+    assert_eq!(
+        fs::read(user.join("mods/unseen-addon.o2r")).unwrap(),
+        fs::read(&package).unwrap()
+    );
+    let native: serde_json::Value = serde_json::from_slice(&fs::read(settings).unwrap()).unwrap();
+    assert_eq!(native["CVars"]["gSettings"]["EnabledMods"], "unseen-addon");
+    assert_eq!(native["other_setting"], true);
+    assert!(!user.join("shipofharkinian.json").exists());
+}
+
+#[test]
 fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     let w = world();
     let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

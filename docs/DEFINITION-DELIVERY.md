@@ -945,8 +945,8 @@ Presentation extensions are explicitly segregated from these required fields.
 
 `DefinitionContentIndex::inspect_entry(namespace, stable_id, bytes)` implements
 the entry inspection boundary. It verifies the indexed target bytes before JSON
-decoding and requires schema 1 and exact namespace, stable ID and revision
-agreement. The port ID must match that stable ID. The initial `port` value must
+decoding and requires a supported entry schema and exact namespace, stable ID
+and revision agreement. The port ID must match that stable ID. The initial `port` value must
 contain the complete serialization of the existing `PortDefinition`, including
 default-valued fields. Comparing its typed projection rejects unknown fields at
 every nested port boundary without changing legacy catalog parsing. Object key
@@ -2013,6 +2013,35 @@ that the runtime file matches the normalized original's SHA-256 and size. A
 bound release needs a checked original. A binding for a different release or
 artifact supplies no compatibility verdict. A literal value in upstream source
 needs evidence of the applicable runtime check before it can become a binding.
+
+### Native mod loader bindings
+
+Indexed definition schema 3 carries the reviewed `mod_loader` declaration.
+The entry retains the ordinary requirements for its adapter and other fields.
+Existing reader versions continue to reject unrecognized entry schemas, and
+legacy signed catalog envelopes cannot appoint a loader.
+
+A binding declares a versioned engine, GitHub release repository, minimum
+stable release, applicable platforms, and native settings file. N64 Recomp also
+declares the native game. Each loader platform needs executable hints, and
+both the `mods` directory and settings file must be persistent paths. Core
+requires the exact retained installation to match before enabling managed mods.
+A stable successor in the declared release series uses the same loader.
+
+The authored Shipwright and Zelda 64: Recompiled bindings match the existing
+native settings and platform contracts. Historical definitions keep their
+loader interpretation. Indexed successors preserve the established loader
+and native settings so interrupted writes can resume with the same facts.
+
+Banjo: Recompiled v1.0.2 identifies its native game as `bk` and registers its
+application configuration root. Its pinned N64ModernRuntime scans that root's
+`mods` directory for NRM packages and reads `enabled_mods` and `mod_order`
+from `mods.json`. This establishes the source contract for local NRM packages
+on its declared managed platforms. The binding supplies no provider scope or
+texture-pack support.
+[Banjo v1.0.2 source](https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/src/main/main.cpp)
+[Pinned native list implementation](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/mods.cpp)
+[Pinned configuration paths](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/recomp.cpp)
 
 ### Reviewed mod provider bindings
 

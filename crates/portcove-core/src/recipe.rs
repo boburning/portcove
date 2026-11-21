@@ -329,6 +329,9 @@ impl ProfileRecipe {
         if self.settings.len() > MAX_RECIPE_SETTINGS
             || (self.format == LEGACY_RECIPE_FORMAT && !self.settings.is_empty())
             || (!self.settings.is_empty()
+                && !self.loader.as_ref().is_some_and(|loader| {
+                    *loader == crate::profile_loader::ModEngine::N64Recomp.reference()
+                })
                 && crate::native_mod_list::recomp_game(&self.port_id).is_none())
         {
             return Err(invalid(
@@ -562,11 +565,12 @@ impl PortcoveService {
         } else {
             revision.loader.clone()
         };
-        let settings = match crate::native_mod_list::recomp_game(port_id) {
-            Some(game) => {
-                recomp_mod_settings::export(&self.deploy_layout(port_id)?, game, &revision)?
-            }
-            None => Vec::new(),
+        let settings = if let Ok(layout) = self.deploy_layout(port_id)
+            && let Some(game) = layout.recomp_game()
+        {
+            recomp_mod_settings::export(&layout, game, &revision)?
+        } else {
+            Vec::new()
         };
         let originals = revision
             .originals
@@ -867,13 +871,15 @@ impl PortcoveService {
             &mut holds,
         )?;
         let user = self.library.user_dir(&recipe.port_id);
-        let layout = crate::profile_deploy::Layout::for_user(&user);
+        let layout = self
+            .deploy_layout(&recipe.port_id)
+            .unwrap_or_else(|_| crate::profile_deploy::Layout::for_user(&user));
         let catalog = self.catalog();
         let (acquisition_bytes, _) = verified_acquisitions(catalog, recipe, &layout, acquisitions)?;
         let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let mut code_approval = Vec::new();
         let mut provider_checks = Vec::new();
-        let recomp_game = crate::native_mod_list::recomp_game(&recipe.port_id);
+        let recomp_game = layout.recomp_game();
         let connection = self.library.connection()?;
         let packages = recipe
             .packages
@@ -1019,7 +1025,7 @@ impl PortcoveService {
             .collect::<Result<Vec<_>>>()?;
         // The game must be able to load the enabled packages unambiguously, as for
         // any new revision.
-        if crate::native_mod_list::loader_list(&recipe.port_id).is_some() {
+        if layout.loader_list().is_some() {
             let enabled = recipe
                 .packages
                 .iter()
@@ -1044,7 +1050,7 @@ impl PortcoveService {
             && packages
                 .iter()
                 .all(|package| package.status == RecipeInputStatus::Available)
-            && let Some(game) = crate::native_mod_list::recomp_game(&recipe.port_id)
+            && let Some(game) = layout.recomp_game()
             && let Err(error) =
                 recomp_mod_settings::validate_portable(&layout, game, recipe, |native_id| {
                     acquisition_bytes
@@ -1306,7 +1312,7 @@ fn review_native_requirements(
     runtime: &str,
     acquired: &BTreeMap<String, AcquiredPackage>,
 ) -> Result<()> {
-    let builtin = crate::native_mod_list::recomp_builtins(game);
+    let builtin = layout.recomp_builtins();
     let mut enabled = BTreeMap::new();
     for package in &recipe.packages {
         let retained = layout.package(&package.sha256, &package.native_id);
@@ -1344,7 +1350,7 @@ fn review_native_requirements(
     crate::profile_loader::validate_recomp_versions(
         &enabled,
         runtime.strip_prefix('v').unwrap_or(runtime),
-        game,
+        builtin,
     )
 }
 
@@ -1476,7 +1482,7 @@ fn verified_acquisitions(
             ));
         }
         // The plan is input. Recheck actual code facts from its exact staged bytes.
-        let runs_code = if let Some(game) = crate::native_mod_list::recomp_game(&recipe.port_id) {
+        let runs_code = if let Some(game) = layout.recomp_game() {
             let observed = crate::inspect_recomp_mod(&path, game)?;
             if observed.sha256 != package.sha256
                 || package.native_id != format!("{}.nrm", observed.native_id)

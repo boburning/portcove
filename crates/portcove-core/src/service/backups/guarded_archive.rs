@@ -145,7 +145,7 @@ impl PortcoveService {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
         let guarded = settings_deletion
-            || crate::native_mod_list::loader_list(&operation.port_id).is_some()
+            || self.deploy_layout(&operation.port_id).is_ok()
             || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
@@ -203,7 +203,7 @@ impl PortcoveService {
             )?;
             (binding, partitioned)
         } else {
-            if crate::native_mod_list::loader_list(&operation.port_id).is_some()
+            if self.deploy_layout(&operation.port_id).is_ok()
                 && crate::profile::selection(&self.library.connection()?, &operation.port_id)?
                     .is_some()
             {

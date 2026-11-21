@@ -20,6 +20,23 @@ pub(crate) fn install_port(
     active: bool,
 ) -> InstallRecord {
     let catalog = Catalog::embedded().unwrap();
+    let version = match port_id {
+        "shipwright" => "v9.3.1",
+        "zelda64-recomp" => "v1.2.2",
+        _ => "v1",
+    };
+    install_fixture_port(library, &catalog, port_id, id, version, bytes, active)
+}
+
+pub(crate) fn install_fixture_port(
+    library: &Library,
+    catalog: &Catalog,
+    port_id: &str,
+    id: &str,
+    version: &str,
+    bytes: &[u8],
+    active: bool,
+) -> InstallRecord {
     let platform = Platform::current().unwrap();
     let port = catalog.port(port_id).unwrap();
     let path = library.versions_dir().join(port_id).join(id);
@@ -34,12 +51,7 @@ pub(crate) fn install_port(
         size: bytes.len() as u64,
     };
     let qualification =
-        crate::InstallQualification::from_catalog(&catalog, port_id, platform).unwrap();
-    let version = match port_id {
-        "shipwright" => "v9.3.1",
-        "zelda64-recomp" => "v1.2.2",
-        _ => "v1",
-    };
+        crate::InstallQualification::from_catalog(catalog, port_id, platform).unwrap();
     let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
         .unwrap()
         .create_manifest(id, port_id, version, &artifact, &qualification, &path)

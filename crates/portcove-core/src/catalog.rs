@@ -777,6 +777,7 @@ impl Catalog {
                     port.id
                 )));
             }
+            crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;

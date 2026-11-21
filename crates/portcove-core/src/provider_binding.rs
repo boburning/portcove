@@ -158,7 +158,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let Some(bindings) = &port.mod_provider_bindings else {
         return Ok(());
     };
-    let valid = crate::profile_deploy::adapter_extensions(&port.id).is_some()
+    let valid = crate::profile_loader::configured_loader(port).is_some()
         && capability(port).is_some()
         && bindings.len() <= 2
         && bindings

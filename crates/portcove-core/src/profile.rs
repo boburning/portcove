@@ -592,7 +592,9 @@ impl PortcoveService {
         next.loader =
             self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
         // A revision the game could not load unambiguously is never recorded.
-        crate::profile_deploy::require_projectable(port_id, &next)?;
+        if let Ok(layout) = self.deploy_layout(port_id) {
+            crate::profile_deploy::require_projectable(&layout, &next)?;
+        }
         self.require_revision_loader(&next)?;
         // Mod code the player has not allowed is never recorded as a setup to run.
         if let Ok(layout) = self.deploy_layout(port_id) {
@@ -765,7 +767,9 @@ impl PortcoveService {
         });
         revision.loader =
             self.profile_loader_binding(&revision.build, declared_loader, needs_loader)?;
-        crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
+        if let Ok(layout) = self.deploy_layout(&profile.port_id) {
+            crate::profile_deploy::require_projectable(&layout, &revision)?;
+        }
         self.require_revision_loader(&revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;

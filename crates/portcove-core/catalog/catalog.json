@@ -29022,6 +29022,19 @@
       "name": "Ship of Harkinian",
       "summary": "Native Ocarina of Time port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Shipwright",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "HarbourMasters/Shipwright",
+        "minimum_version": "9.2.3",
+        "settings_file": "shipofharkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
       "mod_provider_bindings": [
         {
           "provider": "gamebanana",
@@ -29938,6 +29951,22 @@
       "name": "Zelda 64: Recompiled",
       "summary": "Native Majora's Mask recompilation.",
       "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "Zelda64Recomp/Zelda64Recomp",
+        "minimum_version": "1.2.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "mm"
+      },
       "mod_provider_bindings": [
         {
           "provider": "thunderstore",
@@ -30110,6 +30139,22 @@
         "windows-x86-64"
       ],
       "adapter": "n64-recomp-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "BanjoRecomp/BanjoRecomp",
+        "minimum_version": "1.0.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "bk"
+      },
       "release": {
         "repository": "BanjoRecomp/BanjoRecomp",
         "asset_hints": {

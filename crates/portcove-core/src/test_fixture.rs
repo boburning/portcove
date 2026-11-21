@@ -582,7 +582,7 @@ impl<'a> IndexedCatalogFixture<'a> {
             1
         };
         let entry = serde_json::to_vec_pretty(&json!({
-        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
+        "definition_schema":if port.mod_loader.is_some() { 3 } else { 1 },"namespace":"official","stable_id":port_id,"revision":revision,
         "required_capabilities":definition_requirements(port, capability_version),
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]

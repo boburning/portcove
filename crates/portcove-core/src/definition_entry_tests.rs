@@ -70,6 +70,7 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("shipwright").unwrap().clone();
     port.upstream_active_reviewed = true;
+    port.mod_loader = None;
     let binding = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
     port.mod_provider_bindings = Some(vec![binding.clone()]);
     let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
@@ -100,6 +101,27 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
                     accepted.port().mod_provider_bindings.as_deref(),
                     Some(std::slice::from_ref(&binding))
                 );
+            }
+        }
+    }
+}
+
+#[test]
+fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("shipwright").unwrap();
+    let mut entry = entry_for_port(port);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if schema == 3 {
+                assert_eq!(result.unwrap().port().mod_loader, port.mod_loader);
+            } else {
+                assert!(result.unwrap_err().message.contains("definition schema 3"));
             }
         }
     }
@@ -1456,7 +1478,7 @@ fn catalog_fixture() -> Value {
 fn entry_for_port(port: &crate::PortDefinition) -> Value {
     let contract = target(b"{}");
     json!({
-        "definition_schema": 1, "namespace": "official", "stable_id": port.id,
+        "definition_schema": if port.mod_loader.is_some() { 3 } else { 1 }, "namespace": "official", "stable_id": port.id,
         "revision": 1, "required_capabilities": [{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
         "port": port, "source_contracts": [], "execution_contract": contract,
         "persistence_contract": contract, "artifact_bindings": [], "evidence_references": []
