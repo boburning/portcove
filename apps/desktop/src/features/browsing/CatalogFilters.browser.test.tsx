@@ -266,7 +266,7 @@ it("leads with routine Discover choices and exposes technical choices on request
   ).toEqual(["Device eligibility", "Library membership", "Game files", "Port options"]);
   const more = page.getByText("More filters", { exact: true });
   expect(more.element().closest("details")?.open).toBe(false);
-  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).not.toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).not.toBeInTheDocument();
   await more.click();
   await expect.element(page.getByRole("button", { name: /^Setup methods:/ })).toBeVisible();
   await click("Windows (2)");
@@ -301,7 +301,9 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
     .element(page.getByRole("heading", { name: "Discover filters", exact: true }))
     .toHaveFocus();
   await expect.element(page.getByRole("button", { name: /^Device eligibility:/ })).toBeVisible();
-  await expect.element(page.getByRole("button", { name: /^Original system:/ })).not.toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: /^Original system:/ }))
+    .not.toBeInTheDocument();
   await click("Windows (1)");
   await closeFilterPanel();
   await expect
@@ -701,7 +703,7 @@ it("labels filters, groups and chips in the current language", async () => {
     const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
     expect(
       [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
-    ).toEqual(["يعمل على", "النظام الأصلي", "قنوات التحديث"]);
+    ).toEqual(["ملفات اللعبة", "انتباه التثبيت", "التحديثات الملاحظة"]);
     await act(async () => button("تم").click());
     expect(document.body.textContent).toContain("خيارات المنفذ: منفذ واحد");
     expect(document.body.textContent).not.toContain("Port options");
