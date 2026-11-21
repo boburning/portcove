@@ -579,7 +579,13 @@ export async function selectedSetupCompletionScenario({
         assert.equal((await read("get_game_file_roots")).length, 2);
         await click(rootAction("Remove"));
         await click(rootAction("Stop scanning this folder"));
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        // The 4x pointer reached the confirmation in run 44945214480,
+        // but the workspace was still settling the removal after 6.8 s.
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 1,
+          30_000,
+          "Core did not finish removing the reviewed folder",
+        );
         assert.deepEqual(await read("get_game_file_roots"), [first]);
         for (const directory of [extra, replacement])
           assert.equal(
