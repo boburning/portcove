@@ -527,10 +527,14 @@ export async function selectPrimaryNavigation(
   assert.ok(destination, `Visible primary navigation destination missing: ${label}`);
   await clickVisible(browser, destination, options);
   await browser.wait(
-    async () => {
-      const sheets = await browser.findElements(By.css(".navigation-sheet"));
-      return !(await Promise.all(sheets.map((sheet) => sheet.isDisplayed()))).some(Boolean);
-    },
+    () =>
+      executeBrowserScript(browser, () =>
+        [...document.querySelectorAll(".navigation-sheet")].every(
+          (sheet) =>
+            sheet.getClientRects().length === 0 ||
+            ["hidden", "collapse"].includes(getComputedStyle(sheet).visibility),
+        ),
+      ),
     5_000,
     "The narrow navigation sheet must close after choosing a destination",
   );
