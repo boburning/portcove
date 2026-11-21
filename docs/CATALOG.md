@@ -3674,7 +3674,8 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for portable routes with matching GitHub lineage,
+Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
+(as a string) for portable routes with matching GitHub lineage,
 reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,

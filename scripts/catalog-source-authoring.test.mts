@@ -2155,21 +2155,31 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
 
     const another = structuredClone(record);
     another.listing.id = "compatible-player";
-    another.upstream_lineage!.target_key = another.listing.id;
+    another.upstream_lineage!.target_key = "original-game-shared-by-alternatives";
     another.listing.project_url = "https://github.com/example/compatible-player";
     another.upstream_lineage!.origin.project_url = another.listing.project_url;
     another.upstream_lineage!.origin.repository!.id = "12345";
+    another.openx_portable_v1 = "12345";
     (another.integration!.release as Record<string, unknown>).repository =
       "example/compatible-player";
     assert.deepEqual(compactOpenXPortable(projectOpenXPortable(another)), another);
 
     const otherIdentity = structuredClone(record);
     otherIdentity.upstream_lineage!.origin.project_url = "https://github.com/example/other";
-    assert.throws(() => checkedAuthoredPort(otherIdentity), /matching GitHub lineage/u);
+    assert.throws(() => checkedAuthoredPort(otherIdentity), /accepted lineage identity/u);
 
     const missingOrigin = structuredClone(record);
     Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
-    assert.throws(() => checkedAuthoredPort(missingOrigin), /matching GitHub lineage/u);
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /lineage|upstream/iu);
+
+    const wrongId = structuredClone(record);
+    wrongId.upstream_lineage!.origin.repository!.id = "1";
+    assert.throws(() => checkedAuthoredPort(wrongId), /repository ID differs/u);
+    assert.deepEqual(projectOpenXPortable({ ...record, openx_portable_v1: true }), explicit);
+    assert.throws(
+      () => projectOpenXPortable({ ...wrongId, openx_portable_v1: true }),
+      /historical portable package identity/iu,
+    );
 
     const wrongLayout = structuredClone(record);
     const layouts = wrongLayout.integration!.reviewed_package_layouts as Record<string, unknown>;

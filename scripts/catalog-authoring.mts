@@ -134,7 +134,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
   /** Shared Windows ZIP, Linux TAR.XZ and local config.yaml for matching reviewed routes. */
-  openx_portable_v1?: true;
+  openx_portable_v1?: true | string;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
