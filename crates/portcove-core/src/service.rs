@@ -15472,6 +15472,7 @@ fn main() {
         let mut document = service.catalog().authoritative_document();
         let mut port = service.catalog().port("zelda64-recomp").unwrap().clone();
         port.id = "external-source-probe".into();
+        port.mod_loader = None;
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
         port.manually_validated_platforms.clear();
@@ -16036,6 +16037,7 @@ fn main() {
             .unwrap()
             .clone();
         port.id = "external-probe".into();
+        port.mod_loader = None;
         port.name = "External probe".into();
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
