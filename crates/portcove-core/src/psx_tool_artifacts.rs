@@ -43,16 +43,10 @@ impl ToolchainArtifact {
     }
 
     pub(crate) fn cache_coordinate(&self) -> String {
-        if embedded(self.platform).is_ok_and(|default| default == self) {
-            match self.platform {
-                Platform::MacosAarch64 => format!("{}-macos-arm64-native-python", self.version),
-                Platform::MacosX86_64 => format!("{}-macos-x64-native-python", self.version),
-                _ => self.version.clone(),
-            }
-        } else {
-            use sha2::{Digest, Sha256};
-            let bytes = serde_json::to_vec(self).expect("tool artifacts are serializable");
-            format!("artifact-{}", hex::encode(Sha256::digest(bytes)))
+        match self.platform {
+            Platform::MacosAarch64 => format!("{}-macos-arm64-native-python", self.version),
+            Platform::MacosX86_64 => format!("{}-macos-x64-native-python", self.version),
+            _ => self.version.clone(),
         }
     }
 }
@@ -167,22 +161,32 @@ pub(crate) fn selected(
     port_id: &str,
     platform: Platform,
 ) -> Result<ToolchainArtifact> {
+    let accepted = embedded(platform)?;
     if catalog.definition_selection(port_id).is_some() {
         let snapshot = catalog.definition_snapshot(port_id).ok_or_else(|| {
             PortcoveError::verification("admitted PS1 definition lost its exact snapshot")
         })?;
         if let Some(artifacts) = snapshot.selected_psx_tools()? {
-            return artifacts
+            let proposed = artifacts
                 .into_iter()
                 .find(|artifact| artifact.platform == platform)
                 .ok_or_else(|| {
                     PortcoveError::verification(
                         "signed PS1 toolchain does not cover the requested platform",
                     )
-                });
+                })?;
+            // Definition admission governs the game subject. It cannot admit
+            // a separate executable tool pack.
+            if &proposed != accepted {
+                return Err(PortcoveError::verification(
+                    "PS1 toolchain artifact lacks independent executable acceptance",
+                )
+                .detail("port_id", port_id)
+                .detail("proposed_sha256", &proposed.sha256));
+            }
         }
     }
-    Ok(embedded(platform)?.clone())
+    Ok(accepted.clone())
 }
 
 pub(crate) fn embedded(platform: Platform) -> Result<&'static ToolchainArtifact> {

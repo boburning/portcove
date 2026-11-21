@@ -1650,26 +1650,18 @@ fn multi_track_psx_disc_sets_require_their_reader_capability() {
     assert!(error.message.contains("capability version 4"), "{error:?}");
 }
 
-// The shipped tool selector has never seen this release or its archive bytes.
-// Only an admitted schema-4 subject may select it.
 #[test]
-fn named_psx_toolchain_survives_retention_and_refuses_unadmitted_data() {
+fn signed_psx_toolchain_proposals_require_independent_acceptance_after_reopening() {
     use crate::psx_tool_artifacts::{embedded, selected};
     let baseline = Catalog::embedded().unwrap();
     let id = "alexbeav-alone-in-the-dark-the-new-nightmare-recomp";
     let port = baseline.port(id).unwrap();
     let platform = port.platforms[0];
-    let mut artifacts: Vec<_> = port
+    let artifacts: Vec<_> = port
         .platforms
         .iter()
         .map(|&platform| embedded(platform).unwrap().clone())
         .collect();
-    let artifact = &mut artifacts[0];
-    artifact.version = "7.4.1".into();
-    artifact.url = artifact.url.replace("/v1.0.14/", "/v7.4.1/");
-    artifact.sha256 = "7".repeat(64);
-    artifact.size -= 1;
-    let expected = artifact.clone();
     let mut document = json!({
         "contract_schema":4,
         "representation":"catalog_projection",
@@ -1696,23 +1688,55 @@ fn named_psx_toolchain_survives_retention_and_refuses_unadmitted_data() {
         selected(&historic, id, platform).unwrap(),
         *embedded(platform).unwrap()
     );
-    let mut admission = historic.definition_selection(id).unwrap().clone();
-    admission.definition_revision = projection.entry().revision();
-    admission.provenance.index_sha256 = projection.snapshot().index_sha256();
-    catalog
-        .retain_definition_selection(std::sync::Arc::new(admission))
-        .unwrap();
-    let chosen = selected(&catalog, id, platform).unwrap();
-    assert_eq!(chosen, expected);
-    assert_ne!(
-        chosen.cache_coordinate(),
-        embedded(platform).unwrap().cache_coordinate()
+    let admit = |projection: &DefinitionCatalogProjection, catalog: &mut Catalog| {
+        let mut admission = historic.definition_selection(id).unwrap().clone();
+        admission.definition_revision = projection.entry().revision();
+        admission.provenance.index_sha256 = projection.snapshot().index_sha256();
+        catalog
+            .retain_definition_selection(std::sync::Arc::new(admission))
+            .unwrap();
+    };
+    admit(&projection, &mut catalog);
+    assert_eq!(
+        selected(&catalog, id, platform).unwrap(),
+        *embedded(platform).unwrap()
     );
     let retained = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
     assert_eq!(
         selected(&retained.catalog(id).unwrap(), id, platform).unwrap(),
-        expected
+        *embedded(platform).unwrap()
     );
+
+    for changed_release in [false, true] {
+        let mut proposal = document.clone();
+        let artifact = &mut proposal["tool_artifacts"][0];
+        artifact["sha256"] = json!("7".repeat(64));
+        if changed_release {
+            artifact["version"] = json!("7.4.1");
+            artifact["url"] = json!(
+                artifact["url"]
+                    .as_str()
+                    .unwrap()
+                    .replace("/v1.0.14/", "/v7.4.1/")
+            );
+            artifact["size"] = json!(artifact["size"].as_u64().unwrap() - 1);
+        }
+        let proposed_bytes = serde_json::to_vec(&proposal).unwrap();
+        let mut proposed_entry = entry(&proposal, &proposed_bytes, 0);
+        proposed_entry["required_features"] = definition["required_features"].clone();
+        let projection = inspect(&proposed_entry, &proposed_bytes).unwrap();
+        let mut catalog = projection.catalog().clone();
+        admit(&projection, &mut catalog);
+        let retained = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
+        for catalog in [catalog, retained.catalog(id).unwrap()] {
+            let refusal = selected(&catalog, id, platform).unwrap_err();
+            assert!(
+                refusal
+                    .message
+                    .contains("independent executable acceptance")
+            );
+        }
+    }
 
     let mut missing = definition.clone();
     missing["required_features"]

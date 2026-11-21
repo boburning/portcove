@@ -1575,18 +1575,19 @@ installed or updated.
 ### Managed PS1 toolchain artifacts
 
 The bundled defaults live in `crates/portcove-core/catalog/tool-artifacts.json`.
-An admitted managed PS1 definition may instead bind one exact pack per
+An admitted managed PS1 definition may propose one exact pack per
 declared platform through projection schema 4 and the
 `tools.psx-toolchain-v1` required feature. Each row fixes the publisher release,
 ZIP size and SHA-256, Python, CMake and Ninja layout, and the Mac executable
 member identities. Core refuses another repository, unexpected layout,
 duplicate platform, missing platform, or a mismatched archive digest.
 
-Legacy definitions and existing preparations keep the bundled cache coordinates
-and receipt format. A different admitted artifact receives its own cache
-coordinate. Acquisition, download resume, reopening and build consume the
-same reviewed identity from the retained definition. This contract leaves
-player-selected chdman and DolphinTool paths under their existing trust checks.
+Acquisition, download resume, reopening and build require the exact bundled
+tool pack. A proposal that differs from the independently pinned artifact
+fails before acquisition or cache use, including after reopening. Legacy
+definitions and existing preparations keep their cache coordinates and receipt
+format. Player-selected chdman and DolphinTool paths use their existing trust
+checks.
 
 ## Default covers
 

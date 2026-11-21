@@ -165,8 +165,6 @@ struct ManagedMarker<'a> {
     source_storage_sha256: &'a str,
     bios_source_sha256: Option<&'a str>,
     toolchain_version: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    toolchain_artifact_sha256: Option<&'a str>,
 }
 
 // The marker is immutable generation evidence, not mutable runtime state.
@@ -796,8 +794,6 @@ fn prepare_install_inner(
             source_storage_sha256: &preparation.source.storage_sha256,
             bios_source_sha256: preparation.bios.as_ref().map(|bios| bios.sha256.as_str()),
             toolchain_version: &artifact.version,
-            toolchain_artifact_sha256: (psx_tool_artifacts::embedded(platform)? != artifact)
-                .then_some(artifact.sha256.as_str()),
         })?,
     )?;
     Ok(())
@@ -2253,7 +2249,6 @@ pub(crate) fn bios_launch_fixture_for(
             source_storage_sha256: "unused-fixture-disc",
             bios_source_sha256: Some(&bios.sha256),
             toolchain_version: TOOLCHAIN_VERSION,
-            toolchain_artifact_sha256: None,
         })
         .unwrap(),
     )
