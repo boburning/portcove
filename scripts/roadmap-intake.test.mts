@@ -2,6 +2,7 @@ import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts"
 import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import assert from "node:assert/strict";
+import { initialPortStage } from "./roadmap-qualification.mts";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -1205,4 +1206,27 @@ void test("direct port intake retains reviewed source-title ownership after orig
   });
   assert.equal(matches.length, 1);
   assert.ok(matches[0]!.reasons.some((reason) => reason.startsWith("normalized title")));
+});
+
+void test("port intake derives only an exact operational binding and preserves held values", () => {
+  const port = {
+    id: "fixture",
+    project_url: "https://github.com/example/fixture",
+    platforms: ["windows-x86-64"],
+    automated_tested_platforms: ["windows-x86-64"],
+    manually_validated_platforms: ["windows-x86-64"],
+  };
+  const upstream = port.project_url;
+  const stage = initialPortStage({ ports: [port] }, port.id, upstream);
+  assert.equal(stage, "Supported");
+  assert.equal(portFieldInitialization(null, stage)["Port stage"], "Supported");
+  assert.equal(
+    portFieldInitialization({ "port stage": "Source contract known" }, stage)["Port stage"],
+    undefined,
+  );
+  assert.equal(initialPortStage({ ports: [port, port] }, port.id, upstream), "Watchlist");
+  assert.equal(
+    initialPortStage({ ports: [port] }, port.id, "https://github.com/example/other"),
+    "Watchlist",
+  );
 });

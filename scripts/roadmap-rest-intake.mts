@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
 import type { Octokit } from "@octokit/core";
 import { prepareCanonicalPortIssue, neutralPortFields } from "./roadmap-issue.mts";
+import {
+  initialPortStage,
+  qualificationCatalogObservation,
+  requireAssignablePortStage,
+} from "./roadmap-qualification.mts";
 import { requireRepositoryIssueInventory } from "./repository-issue-inventory.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
 import type { RestInventoryReader } from "./github-rest-inventory.mts";
@@ -99,6 +105,20 @@ export class RestPortIntakeClient {
           ).records
         : undefined,
     );
+    const stage = input.catalogId
+      ? initialPortStage(
+          qualificationCatalogObservation(
+            JSON.parse(
+              readFileSync(
+                new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+                "utf8",
+              ),
+            ),
+          ),
+          input.catalogId,
+          input.upstream,
+        )
+      : neutralPortFields["Port stage"];
     const response = await this.api.write("POST", `repos/${this.config.repository}/issues`, {
       title,
       body,
@@ -122,7 +142,7 @@ export class RestPortIntakeClient {
     this.created.set(issue.node_id, issue.number);
     await input.onIssueCreated?.(issue);
     const item = await this.ensureIssueItem(issue.node_id);
-    await this.setItemFields(item.id, neutralPortFields);
+    await this.setItemFields(item.id, { ...neutralPortFields, "Port stage": stage });
     return { ...issue, itemId: item.id };
   }
 
@@ -298,6 +318,7 @@ export class RestPortIntakeClient {
   }
 
   async setItemFields(itemId: string, values: Readonly<Record<string, string>>) {
+    requireAssignablePortStage("Port stage", values["Port stage"]);
     this.fields = undefined;
     const before = await this.readItem(itemId);
     const updates = Object.entries(values).map(([name, value]) => {

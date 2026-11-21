@@ -19,6 +19,8 @@ import {
   qualificationCatalogObservation,
   issueFreeCatalogIds,
   catalogQualificationSummary,
+  initialPortStage,
+  requireAssignablePortStage,
 } from "./roadmap-qualification.mts";
 export {
   qualifiedPlatforms,
@@ -388,6 +390,7 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
         throw new Error(
           `${diagnosticText(transition.to)} is not a valid ${fieldName} target option`,
         );
+      requireAssignablePortStage(fieldName, transition.to);
       if (transition.from === transition.to)
         throw new Error(`${update.target} ${fieldName} transition does not change the value`);
       const expected = transition.expected_identity;
@@ -1333,7 +1336,10 @@ export function materializeViews(config: Pick<RoadmapConfig, "views" | "active_r
 
 export { validateDurableIssueBody } from "./roadmap-issue.mts";
 
-export function portFieldInitialization(item: RoadmapIssueItem | null) {
+export function portFieldInitialization(
+  item: RoadmapIssueItem | null,
+  initialStage: string = neutralPortFields["Port stage"],
+) {
   const updates: Record<string, string> = {};
   for (const [field, value] of Object.entries(neutralPortFields)) {
     const current = fieldValue(item, field);
@@ -1342,7 +1348,7 @@ export function portFieldInitialization(item: RoadmapIssueItem | null) {
         ? current !== "Port"
         : current === undefined || current === null || current === ""
     ) {
-      updates[field] = value;
+      updates[field] = field === "Port stage" ? initialStage : value;
     }
   }
   return updates;
@@ -3568,6 +3574,7 @@ export class RoadmapClient {
     fieldName: string,
     value: unknown,
   ) {
+    requireAssignablePortStage(fieldName, value);
     const field = fields.find((candidate) => candidate.name === fieldName);
     if (!field) throw new Error(`Project field not found: ${fieldName}`);
     const option = field.options?.find((candidate) => candidate.name === value);
@@ -3655,8 +3662,10 @@ export class RoadmapClient {
             mutation.fieldId !== expected.field_id ||
             mutation.value.singleSelectOptionId !== expected.option_id ||
             (transition.from !== null &&
-              this.fieldMutationInput(context, item.id, fieldName, transition.from).value
-                .singleSelectOptionId !== expected.from_option_id))
+              context.fields
+                .find((field) => field.name === fieldName)
+                ?.options?.find((option) => option.name === transition.from)?.id !==
+                expected.from_option_id))
         )
           throw new Error(
             `set-many expected field or option identity changed for ${update.target} ${fieldName}`,
@@ -3822,6 +3831,7 @@ export class RoadmapClient {
     fields: Readonly<Record<string, string>>;
   }) {
     validateGitHubBody(body);
+    requireAssignablePortStage("Port stage", fields["Port stage"]);
     const { details } = await this.projectContext();
     if (!details.id) throw new Error("Project identity is unavailable");
     let result;
@@ -3882,6 +3892,13 @@ export class RoadmapClient {
           ).records
         : undefined,
     );
+    const initialStage = catalogId
+      ? initialPortStage(
+          qualificationCatalogObservation(JSON.parse(readFileSync(catalogPath, "utf8"))),
+          catalogId,
+          upstream,
+        )
+      : undefined;
     if (inventory) invalidateRoadmapInventory(inventory);
     const issue = repositoryIssueObservation(
       (
@@ -3896,9 +3913,7 @@ export class RoadmapClient {
     // Retain canonical identity before a separately fallible Project mutation.
     await onIssueCreated(issue);
     const item = await this.ensureIssueItem(issue.node_id);
-    await this.setItemFields(item.id, {
-      ...neutralPortFields,
-    });
+    await this.setItemFields(item.id, portFieldInitialization(null, initialStage));
     return { ...issue, itemId: item.id };
   }
 
@@ -4059,7 +4074,10 @@ export class RoadmapClient {
     });
     const bodyChanged = body !== issue.body;
     const existingItem = existingItems[0] ?? null;
-    const fieldUpdates = portFieldInitialization(existingItem);
+    const fieldUpdates = portFieldInitialization(
+      existingItem,
+      catalogId ? initialPortStage(catalog, catalogId, form.upstream) : undefined,
+    );
 
     if (inventory) invalidateRoadmapInventory(inventory);
     if (bodyChanged) {
@@ -5356,6 +5374,7 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
           throw new Error(
             `${value} is not a valid ${field} option; allowed: ${definition.options.join(" | ")}`,
           );
+        requireAssignablePortStage(field, value);
         values[field] = value;
       }
       if (!Object.keys(values).length) throw new Error("set requires at least one field option");

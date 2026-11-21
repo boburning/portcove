@@ -11,6 +11,7 @@ import {
   portKeyMarkers,
   normalizePortKey,
   normalizedPortTitle,
+  normalizedUpstream,
   issueNumber,
   discoveredPortIssues,
   portIdentity,
@@ -171,6 +172,30 @@ const historicalStages = [
   "Manual qualification",
 ] as const;
 type DerivedPortStage = (typeof derivedStages)[number];
+
+export function requireAssignablePortStage(field: string, value: unknown) {
+  if (field !== "Port stage" || value === undefined) return;
+  if (historicalStages.some((stage) => stage === value))
+    throw new Error(`Historical Port stage cannot be assigned: ${diagnosticText(value)}`);
+  if (![...manualStages, ...derivedStages].some((stage) => stage === value))
+    throw new Error("Unsupported Port stage assignment");
+}
+
+export function initialPortStage(
+  catalog: QualificationCatalogObservation,
+  catalogId: string,
+  upstream: string,
+) {
+  const ports = (catalog.ports ?? []).filter((port) => port.id === catalogId);
+  const port = ports[0];
+  if (
+    ports.length !== 1 ||
+    !port ||
+    normalizedUpstream(port.project_url) !== normalizedUpstream(upstream)
+  )
+    return "Watchlist";
+  return catalogStage(port, catalog.source_catalog?.qualification ?? []).stage;
+}
 
 function catalogStage(port: QualificationPortObservation, records: readonly unknown[]) {
   const automated = automatedPlatforms(port, records);
@@ -442,7 +467,7 @@ export function planPortStageMigration(
 }
 
 function issueSection(body: unknown, heading: string) {
-  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\$&");
   return (
     diagnosticText(body ?? "")
       .match(new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, "im"))?.[1]

@@ -1502,3 +1502,21 @@ void test("capacity continuation binds the complete caller identity before waiti
   );
   assert.equal(calls, 1);
 });
+
+void test("routine batch planning allows historical stages only as transition preimages", () => {
+  const spec = (from: string, to: string) => ({
+    schema_version: 1,
+    updates: [{ target: "#1", fields: { "Port stage": { from, to } } }],
+  });
+  for (const stage of [
+    "Source contract known",
+    "Release integrity qualified",
+    "Manual qualification",
+  ]) {
+    assert.throws(
+      () => validateSetManySpec(config, spec("Watchlist", stage)),
+      /Historical Port stage/,
+    );
+    assert.equal(validateSetManySpec(config, spec(stage, "Researching")).assignments, 1);
+  }
+});

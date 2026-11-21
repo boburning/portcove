@@ -597,3 +597,12 @@ void test("inventory recovery cannot renew a failed page's SDK attempt allowance
   await assert.rejects(inventory.get("repos/example/repo/issues"));
   assert.equal(dispatched, 3);
 });
+
+await test("REST intake refuses historical stage assignments before a write", async () => {
+  const { client, writes } = fixture();
+  await assert.rejects(
+    client.setItemFields("PVTI-new", { "Port stage": "Manual qualification" }),
+    /Historical Port stage/,
+  );
+  assert.deepEqual(writes, []);
+});
