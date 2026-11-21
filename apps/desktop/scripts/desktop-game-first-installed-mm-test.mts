@@ -28,7 +28,7 @@ import {
   captureAccessibilityReport,
   clearCatalogFilters,
   clickVisible,
-  openCatalogFilters,
+  openMoreCatalogFilters,
   selectCatalogPort,
   revealDetailSection,
   selectGameFilesSettings,
@@ -160,19 +160,10 @@ async function filterInstalledMM(
   method: "portable-package" | "portable-recompilation",
 ) {
   await clearCatalogFilters(browser);
-  await openCatalogFilters(browser);
+  await openMoreCatalogFilters(browser);
   await click(By.css('button[aria-label^="Original system:"]'));
   await click(By.css('label[for$=":originalSystems:nintendo-gamecube"] [role="checkbox"]'));
   await click(By.css('button[aria-label="Close Original system choices"]'));
-  const advanced = await browser.findElement(
-    By.xpath(
-      '//section[@aria-label="Filter options"]//summary[normalize-space(.)="Advanced filters"]',
-    ),
-  );
-  if (
-    (await (await advanced.findElement(By.xpath("parent::details"))).getAttribute("open")) === null
-  )
-    await clickVisible(browser, advanced);
   await click(By.css('button[aria-label^="Setup methods:"]'));
   await click(By.css(`label[for$=":installationMethods:${method}"] [role="checkbox"]`));
   await click(By.css('button[aria-label="Close Setup methods choices"]'));

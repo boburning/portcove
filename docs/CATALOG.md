@@ -1844,9 +1844,10 @@ after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
 invalidate the affected result. Ordinary preparation and explicit or due refresh
 retain separate per-ID results so an ordinary run preserves the last live
-refresh observation. Earlier attempt receipts remain available.
-The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
-progress. It can retire when those checkpoints no longer need to resume.
+refresh observation. Explicit and due refreshes reuse completed live observations
+for up to 28 days. An older or unknown observation requires a new bounded read.
+Earlier attempt receipts remain available. The exact old whole-batch reader
+serves ordinary preparation in pre-#3766 checkpoints with no per-ID progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
@@ -4026,8 +4027,17 @@ candidate chains and independent role failures. Preparation may fill a missing
 background and propose one screenshot when a subject has none. It preserves
 reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal. Preparation proposes remote URLs,
-provenance, hashes and provider terms; it grants no admission, signing, publication
+requests do not establish absence or withdrawal.
+
+The artwork evidence includes background and screenshot coverage by port,
+original release and IGDB game identity. It records existing catalog images,
+fresh proposals and exact observed withdrawals separately. An empty provider
+inventory is missing evidence for that role in that provider. A failed,
+incomplete or unrun query remains unknown. Conflicting provider identities
+stay visible for review. The default report also retains listing-only entries
+outside the proposal input, including their already reviewed media.
+
+Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
 
@@ -4766,3 +4776,29 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Package-only settings defaults
+
+Use `game_settings.format_version: 2` for one independent whole-file setting
+that a verified Windows package ships. Declare its exact persistent path,
+format, byte bound and release archive identities. Leave the file's `settings`
+array empty. This authorizes the existing Core settings update and recovery
+protocol for a supported managed package and keeps scalar editing unavailable.
+
+For a ready staged-source GitHub package, the declaration applies when the
+file is a standalone persistent path, the runtime uses the existing mirrored
+data contract, and no partitioned or runtime-data policy owns the file. Check
+the exact package member and the upstream code that reads it. Core captures
+the bytes from verified acquisition, before persistence restoration can
+replace the packaged file. A later stable patch in an enrolled numeric
+major/minor series uses the same declaration when the normal acquisition
+path independently admits its ZIP. An explicitly enrolled release retains
+its exact archive digest. A new series needs review of the package layout
+and configuration consumer. Previously installed packages without a captured
+baseline remain held if activation needs that baseline. Retain the ordinary
+settings recovery and guarded backup receipts.
+
+The change from Super Mario World Recompiled v0.15.9 to v0.15.10 has an exact
+Windows archive and independent `config.ini` comparison. v0.15.11 retains the
+v0.15.10 settings bytes. The scopes and evidence are in
+[the package settings observation](qualification/smw-package-settings-defaults-2026-11-21.md).

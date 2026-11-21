@@ -301,7 +301,18 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   );
   assert.equal(result.status, 0, result.stderr);
   const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
-  const media = records(record(evidence.game_media).records);
+  const gameMedia = record(evidence.game_media);
+  const media = records(gameMedia.records);
+  const coverage = records(gameMedia.coverage);
+  assert.ok(coverage.every((item) => item.port_id === "shipwright"));
+  const exactCoverage = coverage.filter((item) => record(item.subject).kind === "port");
+  assert.deepEqual(
+    exactCoverage.map((item) => [item.role, item.provider, item.state]),
+    [
+      ["header", "igdb", "unknown"],
+      ["screenshot", "igdb", "unknown"],
+    ],
+  );
   const exactPort = media.filter((item) => record(item.subject).kind === "port");
   assert.deepEqual(
     exactPort.map((item) => item.role),
