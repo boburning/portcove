@@ -1756,6 +1756,35 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+### Stage an observed N64 original-input amendment
+
+Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
+--original-input-checkpoint CHECKPOINT --validator CORE_CLI` with the complete
+configured observer checkpoint and the retained official managed bundle.
+The same inputs work with `prepare`, plus the existing
+`--reviewed REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` options. Both
+commands derive the amendment from the current checkout's authored catalog,
+observer selection and reviewed package receipts. The Core producer validates
+the resulting projection, and the existing prepare step inspects the complete
+prior and proposed bundles.
+
+The amendment requires an existing official schema-4 managed grant. Every
+effective package must match the retained curated repository, release, commit,
+platform, digest and reviewed runtime layout. The candidate preserves the port,
+older input bindings, publisher grant, and launch assessments. It raises the
+required reader minimum within the existing maximum to capability 10 for an
+informational original or 11 for an enforced legacy contract. An unsupported
+maximum holds preparation. The existing protected publisher authenticates the
+prior publication and controls signing. New curated identities remain on the
+independent acquisition admission route.
+
+This preparation mode is opt-in and the scheduled publisher does not invoke it.
+The current managed index has one N64 definition, Chameleon Twist JP
+Recompiled, with an independently accepted Windows v0.1 archive and a
+capability-1 ceiling. Harvest Moon 64 Recompiled has checked input receipts
+for its managed selections, but has no entry in the official managed bundle.
+Neither supplies an eligible publication candidate for this mode.
+
 ### Historical coordinator
 
 The automatic catalog authoring boundary is the fixed inert source subtree
