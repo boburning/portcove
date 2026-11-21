@@ -1092,6 +1092,7 @@ void test("an explicit refresh reuses a recent result and samples an older one a
   let imageId = "firstimage";
   const options = {
     root: scratch,
+    identities: {},
     inspector: {
       ...fixture.inspector,
       inspectGame(identity: Parameters<typeof fixture.inspector.inspectGame>[0]) {

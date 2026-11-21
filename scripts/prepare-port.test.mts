@@ -1871,8 +1871,9 @@ void test("bounded artwork batch enriches listing-only records in the complete l
     assert.equal(additions.length, 2);
     const acceptedCover = accepted.records.find((record) => record.listing.artwork)!;
     const acceptedCollection = accepted.records.find(
-      (record) => record.listing.collection_covers?.length,
-    )!;
+      ({ listing }) =>
+        Array.isArray(listing.collection_covers) && listing.collection_covers.length > 0,
+    );
     assert.ok(acceptedCover);
     assert.ok(acceptedCollection);
     const selectedPortIds = [
