@@ -25,6 +25,7 @@ import { promisify, parseArgs, isDeepStrictEqual } from "node:util";
 const HELP = `Capture core diagnostics with an existing verified Portcove CLI and prepare an unassessed test checklist.
 
 Usage: node scripts/qualification-report.mts --cli FILE --library DIRECTORY --output DIRECTORY
+       node scripts/qualification-report.mts --successor-preview CATALOG [--successor-cases FILE]
        node scripts/qualification-report.mts --help
 
 Required arguments:
@@ -37,6 +38,8 @@ Options:
                            of read-only capture. See docs/CATALOG.md.
   --settings-case FILE     Run the bounded native Libultraship consumer probe in
                            its marked disposable scope. No live library enrollment.
+  --successor-preview CATALOG  Print the dormant read-only support successor report.
+  --successor-cases FILE       Optional reviewed input for the preview.
   --help               Show this help without executing the CLI or writing a report.
 
 The report retains the selected CLI SHA-256 and core evidence. Gameplay, audio,
@@ -548,6 +551,8 @@ if (import.meta.main) {
       output: { type: "string" },
       "preparation-case": { type: "string" },
       "settings-case": { type: "string" },
+      "successor-preview": { type: "string" },
+      "successor-cases": { type: "string" },
       help: { type: "boolean" },
     },
   });
@@ -555,6 +560,28 @@ if (import.meta.main) {
     process.stdout.write(HELP);
     process.exit(0);
   }
+  if (values["successor-preview"] !== undefined) {
+    if (
+      values.cli ||
+      values.library ||
+      values.output ||
+      values["preparation-case"] ||
+      values["settings-case"]
+    )
+      throw new Error(
+        "Successor preview cannot be combined with qualification execution or capture",
+      );
+    const { readQualificationSuccessorPreview } =
+      await import("./qualification-successor-preview.mts");
+    const report = await readQualificationSuccessorPreview(
+      values["successor-preview"],
+      values["successor-cases"],
+    );
+    process.stdout.write(`${JSON.stringify(report)}\n`);
+    process.exit(0);
+  }
+  if (values["successor-cases"] !== undefined)
+    throw new Error("--successor-cases requires --successor-preview");
   for (const name of ["cli", "library", "output"] as const) {
     if (!values[name])
       throw new Error(
