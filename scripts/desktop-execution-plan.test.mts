@@ -1653,6 +1653,26 @@ void test("Linux interruption is standalone, production-featured and retains nam
     );
 });
 
+void test("publication checkpoint waits for the observed clock and keeps the full exit margin", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
+  );
+  runDesktopModuleFixture(
+    entry,
+    `
+    const {checkpointClockReady}=await import(entry);
+    const marker={entered_unix_ms:1001,deadline_unix_ms:50000};
+    assert.equal(checkpointClockReady(marker,1000),false);
+    assert.equal(checkpointClockReady(marker,1001),true);
+    assert.equal(checkpointClockReady(marker,19999),true);
+    assert.throws(()=>checkpointClockReady(marker,20000),/remaining/);
+    assert.throws(()=>checkpointClockReady({...marker, entered_unix_ms:"1001"},1001),/entry timestamp/);
+    assert.throws(()=>checkpointClockReady({...marker, deadline_unix_ms:1000},1001),/deadline/);
+  `,
+  );
+});
+
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {
   const entry = new URL(
     "../apps/desktop/scripts/desktop-host-publication-test.mts",
