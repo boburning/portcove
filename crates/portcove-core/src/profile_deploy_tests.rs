@@ -302,6 +302,39 @@ fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
     assert_eq!(selected.build.install_id, new.id);
 }
 #[test]
+fn a_committed_switch_removes_its_journal_without_readmitting_the_departing_setup() {
+    let w = world();
+    let layout = Layout::for_user(&user(&w));
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::create_dir_all(&layout.user).unwrap();
+    let preserved = layout.user.join("player-progress.fixture");
+    fs::write(&preserved, b"newer progress").unwrap();
+    write_journal(
+        &layout,
+        "retired-departing-profile",
+        &w.default,
+        1,
+        Phase::Deployed,
+        &[],
+    )
+    .unwrap();
+
+    // With the selection already committed, neither old runtime nor a new
+    // projection is needed to retire the receipt.
+    let latest = w.service.library().all_installs().unwrap().pop().unwrap();
+    fs::remove_file(latest.path.join(".portcove-manifest.json")).unwrap();
+    w.service
+        .finish_interrupted_switch_locked("starship", &layout)
+        .unwrap();
+    assert!(!layout.journal().exists());
+    assert_eq!(fs::read(preserved).unwrap(), b"newer progress");
+    assert_eq!(
+        profile::selection(&w.service.library().connection().unwrap(), "starship").unwrap(),
+        Some((w.default, 1))
+    );
+}
+
+#[test]
 fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     let w = world();
     let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

@@ -2068,6 +2068,12 @@ impl PortcoveService {
         let connection = self.library.connection()?;
         let (selected, selected_revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("profile switch has no selection"))?;
+        if selected == to && selected_revision == revision {
+            // Selection is the commit point. Only retire the receipt, even if a
+            // former setup or runtime is no longer eligible for another switch.
+            fs::remove_file(journal)?;
+            return Ok(());
+        }
         let target = profile::revision_by_number(&connection, &to, revision)?;
         if target.build.port_id != port_id {
             return Err(PortcoveError::verification(
@@ -2075,18 +2081,6 @@ impl PortcoveService {
             ));
         }
         let target_layout = self.layout_for_revision(&target)?;
-        if selected == to && selected_revision == revision {
-            let departure_setup = profile::profile_by_id(&connection, port_id, &from)?;
-            let departure =
-                profile::revision_by_number(&connection, &from, departure_setup.current_revision)?;
-            if target_layout.is_none() && self.layout_for_revision(&departure)?.is_none() {
-                return Err(PortcoveError::unsupported(
-                    "neither setup has a reviewed mod loader",
-                ));
-            }
-            fs::remove_file(journal)?;
-            return Ok(());
-        }
         if selected != from {
             return Err(PortcoveError::conflict(
                 "profile switch source is no longer selected",
