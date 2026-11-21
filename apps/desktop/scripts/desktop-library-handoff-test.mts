@@ -292,6 +292,11 @@ export async function libraryRecoveryBundleScenario({
     await field("Recovery bundle folder", corrupt);
     await controls.click(controls.button("Verify bundle"));
     await refuses("Review restore");
+    await waitText("Portcove couldn’t verify this bundle.");
+    assert.doesNotMatch(
+      await (await modal()).getText(),
+      /couldn't confirm whether anything changed/u,
+    );
     assert.equal(
       object(await invoke("inspect_library_recovery_bundle", { path: corrupt })).ok,
       false,

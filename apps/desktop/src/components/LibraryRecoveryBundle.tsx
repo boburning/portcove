@@ -19,7 +19,7 @@ import type {
   LibraryRecoveryRestorePlan,
   OperationEvent,
 } from "../types";
-import { errorText, formatBytes } from "../view-model";
+import { errorText, failurePresentation, formatBytes } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
@@ -229,10 +229,20 @@ function RecoveryBundleDialog({
   const [cancelRequested, setCancelRequested] = useState(false);
   const [cancelFailure, setCancelFailure] = useState<unknown>();
   const cancelling = useRef(false);
-  const [error, setError] = useState<unknown>();
+  const [failure, setFailure] = useState<{ error: unknown; action: "verify" | "review" }>();
+  const error = failure?.error;
+  const verificationFailed = failure?.action === "verify";
+  const verificationFeedback = verificationFailed ? failurePresentation(error) : undefined;
+  const needsFolderGuidance =
+    verificationFailed &&
+    (!verificationFeedback || verificationFeedback.presentation_key === "verification_failed");
   const [recovery, setRecovery] = useState<RecoveryStep>();
 
-  const run = async (status: string, work: () => Promise<void>) => {
+  const run = async (
+    status: string,
+    work: () => Promise<void>,
+    action: "verify" | "review" = "review",
+  ) => {
     if (inFlight.current) return;
     inFlight.current = true;
     cancelling.current = false;
@@ -240,11 +250,11 @@ function RecoveryBundleDialog({
     setCancelFailure(undefined);
     setCopyEvent(undefined);
     setPending(status);
-    setError(undefined);
+    setFailure(undefined);
     try {
       await work();
-    } catch (failure) {
-      setError(failure);
+    } catch (error) {
+      setFailure({ error, action });
     } finally {
       inFlight.current = false;
       setPending("");
@@ -264,7 +274,7 @@ function RecoveryBundleDialog({
     setRecovery(undefined);
     setVerified(undefined);
     setRestore(undefined);
-    setError(undefined);
+    setFailure(undefined);
   };
   const editDestination = (value: string) => {
     setDestination(value);
@@ -273,7 +283,7 @@ function RecoveryBundleDialog({
     setRestoreReceipt(undefined);
     setRecovery(undefined);
     setRestore(undefined);
-    setError(undefined);
+    setFailure(undefined);
   };
 
   async function transfer<T>(
@@ -532,7 +542,15 @@ function RecoveryBundleDialog({
             <ActionReviewFailure error={cancelFailure} />
           </div>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            needsFolderGuidance
+              ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
+              : undefined
+          }
+          showMutationSummary={!verificationFailed}
+        />
         {createReceipt &&
           (createReceipt.bundle_id || error !== undefined) &&
           !recovery &&
@@ -707,8 +725,10 @@ function RecoveryBundleDialog({
               variant="primary"
               disabled={disabled || !path.trim()}
               onClick={() => {
-                void run("Verifying the bundle…", async () =>
-                  setVerified(await desktopApi.inspectLibraryRecoveryBundle(path)),
+                void run(
+                  "Verifying the bundle…",
+                  async () => setVerified(await desktopApi.inspectLibraryRecoveryBundle(path)),
+                  "verify",
                 );
               }}
             >
