@@ -3,6 +3,11 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { readCatalogSource } from "./catalog-authoring.mts";
+import {
+  catalogObservationSources,
+  newCatalogObserverCheckpoint,
+} from "./catalog-upstream-observer.mts";
+import observerConfig from "../release/upstream-observer.json" with { type: "json" };
 import { readCatalogPublicationBundle } from "./release-catalog-inspection.mts";
 import { n64PackagedInputLayout } from "./n64-original-binding-candidates.mts";
 import { assembleReviewedPublication } from "./catalog-prepare-publication.mts";
@@ -32,6 +37,7 @@ type Entry = {
   persistence_contract: string;
   source_contracts: string[];
   port: Record<string, unknown> & {
+    platforms: string[];
     release: {
       curated: Record<
         string,
@@ -64,10 +70,16 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
   );
   const original = await readCatalogPublicationBundle(bundlePath, performance.now() + 5000);
   const catalogPath = fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url));
-  const { catalog } = readCatalogSource(catalogPath);
+  const authored = readCatalogSource(catalogPath);
+
   const index = JSON.parse(original.get(indexPath)!.toString()) as Index;
   const row = index.definitions.find((item) => item.stable_id === id)!;
   const entry = JSON.parse(original.get(row.target)!.toString()) as Entry;
+  const catalog = {
+    ...authored.catalog,
+    ports: [...authored.catalog.ports, entry.port],
+    listings: authored.directory.listings,
+  };
   const oldProjection = original.get(entry.execution_contract)!;
   const originalProjection = JSON.parse(oldProjection.toString()) as Projection;
   const contractId = originalProjection.catalog.source_catalog.contracts[0]!.id;
@@ -97,7 +109,15 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     upstream_support_evidence: {
       id: "sample-upstream-evidence",
       role: "upstream_support",
+      authority: "Rainchus/ChameleonTwist1-JP-Recomp",
       authority_ref: legacyCurated.commit_sha1,
+      reviewed_at: "2026-11-20",
+      claim: "Fixture for a declared original-file digest",
+      immutable_url:
+        "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/" +
+        legacyCurated.commit_sha1 +
+        "/README.md",
+      live_url: null,
     },
   };
   assert.throws(
@@ -155,7 +175,58 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
   entry.required_capabilities[0]!.minimum_version = 11;
   entry.required_capabilities[0]!.maximum_version = 12;
   replaceEntry(prior, false);
-  assert.throws(() => managedN64OriginalProjection(prior, id, catalog, null), /checkpoint/iu);
+  assert.throws(() => managedN64OriginalProjection(prior, id, catalog, null, 12), /checkpoint/iu);
+  const source = catalogObservationSources(catalog).sources.find((source) =>
+    source.ports.some((port) => port.id === id && port.original_source_family === "n64-recomp"),
+  )!;
+  const now = Date.parse("2026-11-20T18:00:00Z");
+  const staleAt = new Date(now - 12 * 3600000).toISOString();
+  const facts = "a".repeat(64);
+  const config = {
+    ...observerConfig,
+    format: 2,
+    asset_scope: "core-channel-candidates" as const,
+    policy_input_sha256: facts,
+    port_id: id,
+    repository: source.repository,
+    repository_id: policy.decision.repository_id,
+  };
+  const checkpoint = newCatalogObserverCheckpoint();
+  checkpoint.sources[source.key] = {
+    repository: source.repository,
+    repository_id: config.repository_id,
+    attempted_sequence: 0,
+    completed_at: staleAt,
+    freshness_observed_at: staleAt,
+    last_change_at: staleAt,
+    change_intervals: 0,
+    mean_change_interval_ms: null,
+    next_due_at: null,
+    result_sha256: facts,
+    completed_scope_sha256: facts,
+    last_complete_facts_sha256: facts,
+    last_complete_policies: source.ports.map(({ id }) => ({
+      port_id: id,
+      repository_id: config.repository_id,
+      facts_sha256: facts,
+    })),
+    retry_at: null,
+    exception_key: null,
+    selection_progress: null,
+    policy_progress: null,
+    current_config: config,
+    last_complete_config: config,
+    retired_configs: [],
+  };
+  assert.throws(
+    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, 12, now),
+    /missing, stale or incomplete/iu,
+  );
+  checkpoint.sources[source.key]!.freshness_observed_at = new Date(now).toISOString();
+  assert.throws(
+    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, 12, now),
+    /does not supply one verified N64 amendment/iu,
+  );
   assert.throws(
     () => projectVerifiedN64OriginalAmendment(prior, "harvest-moon-64-recomp", amendment),
     /target is missing/iu,
@@ -186,6 +257,42 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     () => projectVerifiedN64OriginalAmendment(held, id, amendment),
     /loss of future acceptance/iu,
   );
+
+  const uncuratedSibling = new Map(prior);
+  entry.port.platforms.push("linux-x86-64");
+  const priorProjectionPath = entry.execution_contract;
+  const mixed = JSON.parse(oldProjection.toString()) as Projection & {
+    catalog: { ports: unknown[] };
+  };
+  mixed.catalog.ports = [entry.port];
+  const mixedProjection = json(mixed);
+  entry.execution_contract = entry.persistence_contract = target(mixedProjection);
+  entry.source_contracts = [entry.execution_contract];
+  uncuratedSibling.set(entry.execution_contract, mixedProjection);
+  replaceEntry(uncuratedSibling, false);
+  assert.throws(
+    () => projectVerifiedN64OriginalAmendment(uncuratedSibling, id, amendment),
+    /without an exact curated artifact/iu,
+  );
+  const sibling = "linux-x86-64";
+  entry.port.release.curated[sibling] = {
+    ...legacyCurated,
+    platform: sibling,
+  } as typeof legacyCurated;
+  const sharedProjection = json(mixed);
+  entry.execution_contract = entry.persistence_contract = target(sharedProjection);
+  entry.source_contracts = [entry.execution_contract];
+  uncuratedSibling.set(entry.execution_contract, sharedProjection);
+  replaceEntry(uncuratedSibling, false);
+  assert.throws(
+    () => projectVerifiedN64OriginalAmendment(uncuratedSibling, id, amendment),
+    /shared with an unproved platform/iu,
+  );
+  entry.port.platforms.pop();
+  delete entry.port.release.curated[sibling];
+  entry.execution_contract = entry.persistence_contract = priorProjectionPath;
+  entry.source_contracts = [priorProjectionPath];
+  replaceEntry(prior, false);
 
   const output = projectVerifiedN64OriginalAmendment(prior, id, amendment);
   assert.equal(output.reader, 11);
