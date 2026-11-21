@@ -432,6 +432,21 @@ impl Catalog {
         }
     }
 
+    /// A sibling projection cannot appoint or remove package-only settings.
+    pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+                && original
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+            {
+                port.game_settings.clone_from(&original.game_settings);
+            }
+        }
+    }
+
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
         if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;

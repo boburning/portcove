@@ -1004,7 +1004,10 @@ All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
 affects only that inspection and leaves the index and other inspections unchanged.
 Other catalog ports preserve the self-contained legacy graph; their presence does
-not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+not admit additional indexed definitions. Package-only settings belong to the
+selected port. Older complete projections omit those settings from unrelated
+ports. At selection, the effective catalog keeps any package-only settings
+already admitted for those ports. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
 or installation. Its validated catalog now carries the selected port's exact
