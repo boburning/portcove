@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,7 @@ import {
   checkDesktopCommandContract,
   checkDesktopEventContract,
   checkTransportContract,
+  retainTransportDrift,
   checkDesktopExporterParity,
   buildSchemaExporters,
   extractDeclaredDesktopCommands,
@@ -41,6 +43,68 @@ const schemas = {
     },
   },
 };
+
+void test("transport drift retains only canonical exporter bytes with exact hosted provenance", () => {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const runnerTemp = mkdtempSync(path.join(os.tmpdir(), "portcove-transport-drift-test-"));
+  try {
+    const snapshot = path.join(root, "apps/desktop/src/transport-schemas.generated.json");
+    const checked = readFileSync(snapshot);
+    const [commit, tree] = execFileSync("git", ["rev-parse", "HEAD", "HEAD^{tree}"], {
+      cwd: root,
+      encoding: "utf8",
+    })
+      .trim()
+      .split(/\r?\n/u);
+    const environment = {
+      GITHUB_ACTIONS: "true",
+      GITHUB_SHA: commit,
+      GITHUB_RUN_ID: "77",
+      GITHUB_RUN_ATTEMPT: "2",
+      GITHUB_JOB: "fast_rust_transport",
+      RUNNER_TEMP: runnerTemp,
+    };
+    const drift = new Map<"transport-schemas.generated.json", string>();
+    const recordCanonical = (canonical: string) =>
+      drift.set("transport-schemas.generated.json", canonical);
+    const canonical = renderTransportSchemas(schemas);
+    assert.deepEqual(checkTransportContract(schemas, canonical, recordCanonical), []);
+    retainTransportDrift(root, drift, environment);
+    assert.deepEqual(readdirSync(runnerTemp), []);
+    assert.deepEqual(checkTransportContract(schemas, "{}", recordCanonical), [
+      "Generated transport schemas differ from the Rust output contract",
+    ]);
+    retainTransportDrift(root, drift, { ...environment, GITHUB_SHA: "a".repeat(40) });
+    const artifact = path.join(runnerTemp, "portcove-transport-drift");
+    assert.equal(existsSync(artifact), false);
+    retainTransportDrift(root, drift, environment);
+    assert.deepEqual(readdirSync(artifact).sort(), [
+      "manifest.json",
+      "transport-schemas.generated.json",
+    ]);
+    const retained = readFileSync(path.join(artifact, "transport-schemas.generated.json"));
+    assert.deepEqual(retained, Buffer.from(canonical));
+    assert.deepEqual(JSON.parse(readFileSync(path.join(artifact, "manifest.json"), "utf8")), {
+      format: 1,
+      kind: "transport-schema-drift",
+      run: "77",
+      attempt: "2",
+      job: "fast_rust_transport",
+      commit,
+      tree,
+      files: [
+        {
+          name: "transport-schemas.generated.json",
+          bytes: retained.length,
+          sha256: createHash("sha256").update(retained).digest("hex"),
+        },
+      ],
+    });
+    assert.deepEqual(readFileSync(snapshot), checked);
+  } finally {
+    rmSync(runnerTemp, { recursive: true, force: true });
+  }
+});
 
 const exporterRoot = path.resolve("fixture");
 const exporterPaths = {
@@ -179,6 +243,7 @@ void test("transport metrics distinguish schema status from execution failure", 
   // parent environment or injecting a replacement metrics implementation.
   const script = `
     import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
     import { spawnSync } from "node:child_process";
     import { exportSchemas } from ${JSON.stringify(module.href)};
     const data = ${JSON.stringify({ ...schemas, status: schemas.response })};
