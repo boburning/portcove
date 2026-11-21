@@ -1,6 +1,7 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import { n64AuthoringScope, planN64OriginalBindings } from "./n64-original-binding-candidates.mts";
 import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
 import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
@@ -1506,6 +1507,36 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         },
         { platform: "windows-x86-64", state: "no-current-artifact" },
       ]);
+      const migratedSources = {
+        ...authoringCatalog.source_catalog,
+        contracts: authoringCatalog.source_catalog.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            {
+              upstream_ref: "older",
+              artifact_sha256: "c".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "1111111111111111",
+            },
+          ],
+        })),
+      };
+      const port = authoringCatalog.ports[0];
+      assert.ok(observation?.last_complete && port);
+      const migratedScope = n64AuthoringScope(port, migratedSources);
+      assert.ok(migratedScope);
+      const migratedPlan = planN64OriginalBindings(port, migratedSources, {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...compiled,
+            authoring_scope_sha256: migratedScope,
+          },
+        },
+      });
+      assert.equal(migratedPlan?.platforms[0]?.state, "awaiting-effective-build-proof");
+
       const changedDefinition = {
         ...authoringCatalog,
         ports: authoringCatalog.ports.map((port) =>

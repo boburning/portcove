@@ -116,15 +116,18 @@ export function planN64OriginalBindings(
     if (
       contracts.length === 1 &&
       isRecord(contract) &&
+      (contract.validator_contract_id === null || contract.validator_contract_id === undefined) &&
       profiles.length === 1 &&
       isRecord(profiles[0]) &&
       profiles[0].kind === "file"
     ) {
-      if (contract.admission_mode === "enforced")
-        contractState = "legacy-contract-migration-required";
-      else if (
+      if (contract.admission_mode === "enforced") {
+        contractState =
+          Array.isArray(contract.n64_recomp_inputs_v1) && contract.n64_recomp_inputs_v1.length > 0
+            ? undefined
+            : "legacy-contract-migration-required";
+      } else if (
         contract.admission_mode === "informational" &&
-        (contract.validator_contract_id === null || contract.validator_contract_id === undefined) &&
         Array.isArray(contract.supported_variant_ids) &&
         (contract.supported_variant_ids.length === 0 ||
           contract.variant_list_recognition_only === true)
