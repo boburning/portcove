@@ -4046,6 +4046,25 @@ contract, launch arguments and package-layout review remain explicit.
 `prepare-port.mts` compacts an exact match. Use the explicit integration when
 the title uses a different writer path or a player-owned profile.
 
+The ScummVM listing-only family uses `scummvm_game_setup_v1` to author the
+reviewed archive name, exact extracted folder when needed, edition prompt and
+any warning. The guide is shared. The official player repository ID and
+canonical games-page fragment identify the title without relying on its name.
+These facts describe the reviewed setup example and leave the runtime and
+saved target with the player.
+
+The scheduled signed descriptive publisher separately reads the official
+ScummVM website's game-download table. It verifies the repository identity,
+fixed source path, current commit before and after reading, and exact Git blob.
+It adds a bounded reference with upstream edition labels and archive filenames
+to an already-admitted listing with the matching engine and game ID. The
+reference sends players to the canonical games page for downloads and notes.
+Existing preparation examples, identities and operation eligibility stay with
+their original authorities. A failed or drifting read retains compatible
+last-good guidance from the verified signed directory. A complete read that
+no longer lists a game's archives removes the observation. The publisher
+records the observed commit, blob and content digest.
+
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into
