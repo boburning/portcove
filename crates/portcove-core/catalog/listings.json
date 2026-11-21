@@ -1,5 +1,5 @@
 {
-  "format_version": 12,
+  "format_version": 14,
   "listings": [
     {
       "id": "shipwright",
@@ -7183,6 +7183,18 @@
         "macos-aarch64"
       ],
       "download_block_reason": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh bundled-package acquisition remains held for the documented mixed/uncertain game-data, music and soundfont permissions. Reconsider after exact component grants or a compatible clean official data/package route is accepted. A conditional permitted-existing-copy route does not clear those assets.",
+          "tracking_issue": 2913
+        }
+      ],
       "artwork": {
         "game_id": 586,
         "cover_id": 130164,
@@ -7666,6 +7678,18 @@
       "release_url": "https://github.com/yvt/openspades/releases",
       "setup_url": "https://openspades.yvt.jp/",
       "download_block_reason": "Use the publisher’s complete Windows or Intel Mac release, or install the Linux community Flatpak. The old desktop release assets have no publisher SHA-256.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "Use the publisher’s complete Windows or Intel Mac release, or install the Linux community Flatpak. The old desktop release assets have no publisher SHA-256.",
+          "tracking_issue": 5755
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -16513,6 +16537,18 @@
         "https://www.patreon.com/Pyrdacor"
       ],
       "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
+          "tracking_issue": 2625
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Pyrdacor/Ambermoon.net/blob/v1.15.2/README.md",
         "steps": [
@@ -17069,6 +17105,18 @@
       "release_url": "https://armagetronad.org/downloads.php",
       "setup_url": "https://armagetronad.org/downloads.php",
       "download_block_reason": "Get the game client from the official download page. The project serves these packages through Launchpad.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get the game client from the official download page. The project serves these packages through Launchpad.",
+          "tracking_issue": 6458
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -18513,6 +18561,18 @@
       "release_url": "https://github.com/masterspike52/reNut/releases",
       "recommended_download_channel": "beta",
       "download_block_reason": "Fresh Portcove downloads remain paused until attributable terms cover reNut and its bundled resources. Named SDK or tool licences do not resolve that existing condition. You can prepare and add an existing copy you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Fresh Portcove downloads remain paused until attributable terms cover reNut and its bundled resources. Named SDK or tool licences do not resolve that existing condition. You can prepare and add an existing copy you have permission to use.",
+          "tracking_issue": 161
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -19370,6 +19430,18 @@
       "availability": "packages",
       "setup_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
       "download_block_reason": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+          "tracking_issue": 6132
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
         "steps": [
@@ -20419,6 +20491,18 @@
         "help_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md"
       },
       "download_block_reason": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route.",
+          "tracking_issue": 1865
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "parasite-eve",
@@ -20475,6 +20559,18 @@
         "help_url": "https://github.com/Blizz127/xenogears-decomp-port/blob/33a7260a242b23079836a178943ce8b8e25325b6/README.md"
       },
       "download_block_reason": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Published r5 includes transcribed retail tables and code from an upstream decompilation with no published license; its parent MIT grant excludes that work. Resolve permission for the affected package scope or supply a reviewed released replacement that removes it. Future-source fixes do not establish a repaired downloadable artifact. Permitted existing copies remain external.",
+          "tracking_issue": 1909
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "xenogears",
@@ -21438,6 +21534,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the launcher embeds fighter portraits and the title font extracted from the game disc. They can resume when upstream publishes a package that creates them from your own disc.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the launcher embeds fighter portraits and the title font extracted from the game disc. They can resume when upstream publishes a package that creates them from your own disc.",
+          "tracking_issue": 2434
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
         "warnings": [
@@ -21798,6 +21906,18 @@
         "linux-x86-64"
       ],
       "download_block_reason": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+          "tracking_issue": 2841
+        }
+      ],
       "artwork": {
         "game_id": 1070,
         "cover_id": 401336,
@@ -22542,6 +22662,18 @@
       ],
       "availability": "packages",
       "download_block_reason": "Portcove downloads are on hold because the Windows installer and Linux archive include music from the project’s nonfree soundtrack repository. The setup guide covers copies you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are on hold because the Windows installer and Linux archive include music from the project’s nonfree soundtrack repository. The setup guide covers copies you have permission to use.",
+          "tracking_issue": 6133
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/raceintospace/raceintospace/releases/tag/v2.0.0",
         "steps": [
@@ -22711,6 +22843,18 @@
         "macos-aarch64"
       ],
       "download_block_reason": "Portcove downloads are held for the bundled Wolfenstein 3D shareware data. Debian-derived packages supply the C-Dogs campaigns without that bundle.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are held for the bundled Wolfenstein 3D shareware data. Debian-derived packages supply the C-Dogs campaigns without that bundle.",
+          "tracking_issue": 6048
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "c-dogs",
@@ -22782,6 +22926,18 @@
         ]
       },
       "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "third-party-component-terms",
+          "explanation": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
+          "tracking_issue": 1850
+        }
+      ],
       "recommended_download_channel": "beta",
       "original_game": {
         "format_version": 1,
@@ -22980,6 +23136,18 @@
       "setup_url": "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#clone-and-complete-your-working-copy",
       "release_url": "https://github.com/civctp2/civctp2/releases/tag/Apolyton-Edition-2025-01-20",
       "download_block_reason": "The community packages include game assets whose distribution terms still need review. Use the setup guide with a copy you’re entitled to use. Portcove can offer downloads once the exact package contents are cleared.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The community packages include game assets whose distribution terms still need review. Use the setup guide with a copy you’re entitled to use. Portcove can offer downloads once the exact package contents are cleared.",
+          "tracking_issue": 6125
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -23230,6 +23398,18 @@
         "help_url": "https://github.com/Endprodukt/cannonball-dx/blob/afbe061c50ad1aa50795daa98e4ab689a4d3ca46/README.md"
       },
       "download_block_reason": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The published CannonballDX_1.04.zip includes an OutRun ROM archive. The engine licenses do not establish permission for those original-game contents, so Portcove does not acquire this package. Existing permitted copies remain external. Reconsider with an asset-free player package or attributable permission for the included game data.",
+          "tracking_issue": 1132
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "outrun",
@@ -23290,6 +23470,18 @@
         "help_url": "https://github.com/djyt/cannonball#readme"
       },
       "download_block_reason": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "New package acquisition remains on hold pending accepted publisher-integrity, original ROM-set and applicable redistribution evidence. An existing permitted working copy can still be registered.",
+          "tracking_issue": 120
+        }
+      ],
       "original_game_title": "OutRun",
       "original_game": {
         "format_version": 1,
@@ -23377,6 +23569,18 @@
       "availability": "source-only",
       "setup_url": "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
       "download_block_reason": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+          "tracking_issue": 5913
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -23886,6 +24090,18 @@
         ]
       },
       "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+          "tracking_issue": 2647
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "cave-story",
@@ -23920,6 +24136,18 @@
       },
       "release_url": "https://github.com/sciaschi/CBFD-Recompiled/releases",
       "download_block_reason": "The released player is built with original Conker machine-code segments. Portcove package downloads are paused until an attributable grant or reviewed basis covers acquisition of those segments, or an upstream package derives them locally from the player's own ROM.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The released player is built with original Conker machine-code segments. Portcove package downloads are paused until an attributable grant or reviewed basis covers acquisition of those segments, or an upstream package derives them locally from the player's own ROM.",
+          "tracking_issue": 1216
+        }
+      ],
       "original_game_title": "Conker's Bad Fur Day",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -24244,6 +24472,18 @@
         ]
       },
       "download_block_reason": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+          "tracking_issue": 125
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "chameleon-twist",
@@ -25186,6 +25426,18 @@
       "release_url": "https://colobot.info/download-colobot-gold/",
       "setup_url": "https://colobot.info/download-colobot-gold/",
       "download_block_reason": "Install and update Colobot through the publisher or your package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Install and update Colobot through the publisher or your package manager.",
+          "tracking_issue": 6526
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -25391,6 +25643,18 @@
       "project_url": "https://github.com/sulix/omnispeak",
       "availability": "packages",
       "download_block_reason": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",
+          "tracking_issue": 2648
+        }
+      ],
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
       "issue_number": 2648,
       "listed_at": "2026-10-25",
@@ -25742,6 +26006,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+          "tracking_issue": 361
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "condemned-2-bloodshot",
@@ -25806,6 +26082,18 @@
         "help_url": "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
       },
       "download_block_reason": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "no-useful-route",
+          "explanation": "The existing v0.1.0-beta release is a scene prototype without runnable game logic or levels; it is the same artifact covered by this port’s owner-approved useful-output hold. Reconsider fresh setup when upstream supplies a useful game runtime or a separately evidenced useful operation. Already registered permitted development copies retain their contracts.",
+          "tracking_issue": 123
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "conker-s-bad-fur-day",
@@ -27779,6 +28067,18 @@
         ]
       },
       "download_block_reason": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh Core acquisition of the selected Finest Hour Windows installer/required remaster-pack asset set is held: upstream identifies original COD.PAK textures and remastered game models in that pack, but an applicable grant for those selected components has not been established by the code/tool licenses. Resume with attributable permission/authorized source for the selected asset set or a separately reviewed supported preparation route excluding the unresolved components. An independently permitted completed copy remains distinct; successor-process continuation is not offered by its conditional ordinary-entry guide.",
+          "tracking_issue": 2785
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "call-of-duty-finest-hour",
@@ -27869,6 +28169,18 @@
       "availability": "packages",
       "setup_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports#using-a-release-launcher",
       "download_block_reason": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+          "tracking_issue": 6005
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -28745,6 +29057,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused while the selected package’s bundled game/default.xexp title-update patch has no established separate acquisition permission. Keep an existing permitted copy. Reconsider when upstream establishes the patch’s compatible distribution basis or supplies a package that imports it from your own game.",
+          "tracking_issue": 367
+        }
+      ],
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -29788,6 +30112,18 @@
       "release_url": "https://ddnet.org/downloads/",
       "setup_url": "https://ddnet.org/downloads/",
       "download_block_reason": "Get the package for your device from DDNet’s downloads page. Use the matching package source for updates.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get the package for your device from DDNet’s downloads page. Use the matching package source for updates.",
+          "tracking_issue": 6435
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -30117,6 +30453,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+          "tracking_issue": 1122
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dead-rising-2-case-west",
@@ -30186,6 +30534,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+          "tracking_issue": 1121
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dead-rising-2-case-zero",
@@ -30331,6 +30691,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+          "tracking_issue": 812
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -31271,6 +31643,18 @@
       "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v1.1.0",
       "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
       "download_block_reason": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+          "tracking_issue": 4759
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -31892,6 +32276,18 @@
         ]
       },
       "download_block_reason": "The package includes gameplay music whose source and permissions still need review. Use a copy you already have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "The package includes gameplay music whose source and permissions still need review. Use a copy you already have permission to use.",
+          "tracking_issue": 6740
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "digger",
@@ -32249,6 +32645,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+          "tracking_issue": 1568
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dirt-dash",
@@ -32583,7 +32991,19 @@
           }
         ]
       },
-      "download_block_reason": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it."
+      "download_block_reason": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it.",
+          "tracking_issue": 2830
+        }
+      ]
     },
     {
       "id": "dkc1-recomp",
@@ -33375,7 +33795,19 @@
           }
         ]
       },
-      "download_block_reason": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy."
+      "download_block_reason": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy.",
+          "tracking_issue": 5664
+        }
+      ]
     },
     {
       "id": "doom-dsda-doom",
@@ -33432,7 +33864,19 @@
           }
         ]
       },
-      "download_block_reason": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy."
+      "download_block_reason": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "third-party-component-terms",
+          "explanation": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy.",
+          "tracking_issue": 5665
+        }
+      ]
     },
     {
       "id": "doom-ii-crispy-doom-family",
@@ -33714,7 +34158,19 @@
           }
         ]
       },
-      "download_block_reason": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy."
+      "download_block_reason": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy.",
+          "tracking_issue": 5669
+        }
+      ]
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -33839,7 +34295,19 @@
           }
         ]
       },
-      "download_block_reason": "The bundled original game title screens need a redistribution record. Use the upstream project or your distribution package."
+      "download_block_reason": "The bundled original game title screens need a redistribution record. Use the upstream project or your distribution package.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The bundled original game title screens need a redistribution record. Use the upstream project or your distribution package.",
+          "tracking_issue": 5689
+        }
+      ]
     },
     {
       "id": "doom-the-ultimate-doom-crispy-doom-family",
@@ -35537,6 +36005,18 @@
         ]
       },
       "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+          "tracking_issue": 5909
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "dune-ii",
@@ -35670,6 +36150,18 @@
       "release_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/releases/tag/v1.4.0.6103",
       "setup_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
       "download_block_reason": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+          "tracking_issue": 6110
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
         "steps": [
@@ -35738,6 +36230,18 @@
       "release_url": "https://github.com/Joshspeakman/dungeon-siege-macos/releases/tag/beta-3",
       "setup_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
       "download_block_reason": "Open the publisher’s preview release for the DMG. It requires Apple Silicon and macOS 27.2 or later.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s preview release for the DMG. It requires Apple Silicon and macOS 27.2 or later.",
+          "tracking_issue": 6104
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Joshspeakman/dungeon-siege-macos/blob/beta-3/README.md",
         "steps": [
@@ -36504,6 +37008,18 @@
       "release_url": "https://github.com/power-pudu/egg-of-time/releases",
       "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
       "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+          "tracking_issue": 3740
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -37022,6 +37538,18 @@
         ]
       },
       "download_block_reason": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "Fresh acquisition of the selected LCSNative Windows player is held while an attributable permission or authorized-source basis for its statically linked, original-derived Liberty City Stories generated game-code component remains unresolved. The PSPRecomp runtime MIT licence and possession of the required EBOOT.ELF do not establish that separate component’s permission. Resume on an applicable reviewed basis or a supported route excluding it; independently permitted existing completed copies remain distinct.",
+          "tracking_issue": 1836
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "grand-theft-auto-liberty-city-stories",
@@ -37178,6 +37706,18 @@
       "release_url": "https://github.com/maxgraf96/ee-macos/releases/tag/v0.8.2",
       "setup_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
       "download_block_reason": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+          "tracking_issue": 6117
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
         "steps": [
@@ -37509,6 +38049,18 @@
       "availability": "packages",
       "setup_url": "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
       "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled in-game broadcast graphics reuse art from the original Xbox game. Use the upstream setup guide with a copy you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Portcove downloads are on hold pending review of whether the bundled in-game broadcast graphics reuse art from the original Xbox game. Use the upstream setup guide with a copy you have permission to use.",
+          "tracking_issue": 6003
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -37668,6 +38220,18 @@
         ]
       },
       "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material.",
+          "tracking_issue": 2570
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "eternal-darkness-sanity-s-requiem",
@@ -37936,6 +38500,18 @@
       "release_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
       "setup_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
       "download_block_reason": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+          "tracking_issue": 6474
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -38428,6 +39004,18 @@
       },
       "recommended_download_channel": "beta",
       "download_block_reason": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+          "tracking_issue": 346
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
         "warnings": [
@@ -39530,6 +40118,18 @@
         ]
       },
       "download_block_reason": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "The selected Final Fantasy Tactics setup kit explicitly supplies no separate grant for game-owned files, including its own widescreen code and modified runtime scope. The framework PolyForm Noncommercial grant does not license that separate scope. Fresh acquisition stays held until attributable applicable permission or a reviewed released replacement resolves it. This condition grants no permission to use an existing copy.",
+          "tracking_issue": 327
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "final-fantasy-tactics",
@@ -40362,6 +40962,18 @@
       "release_url": "https://www.freeciv.org/download.html",
       "setup_url": "https://www.freeciv.org/download.html",
       "download_block_reason": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+          "tracking_issue": 6502
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -40425,6 +41037,18 @@
       "release_url": "https://www.freecol.org/download.html",
       "setup_url": "https://www.freecol.org/documentation/",
       "download_block_reason": "Install and update FreeCol through the publisher or your package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Install and update FreeCol through the publisher or your package manager.",
+          "tracking_issue": 6520
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -41705,6 +42329,18 @@
       "release_url": "https://github.com/segovia-no/GH3-macOS-Recomp/releases/tag/v0.1.0",
       "setup_url": "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
       "download_block_reason": "Open the publisher’s release to download GH3 Builder. The inspected kit includes Apple Silicon tools and libraries built for macOS 26.5.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s release to download GH3 Builder. The inspected kit includes Apple Silicon tools and libraries built for macOS 26.5.",
+          "tracking_issue": 6106
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/segovia-no/GH3-macOS-Recomp/blob/v0.1.0/docs/guides/install.md",
         "steps": [
@@ -42173,6 +42809,18 @@
       "release_url": "https://www.gnu.org/software/freedink/",
       "setup_url": "https://formulae.brew.sh/formula/freedink",
       "download_block_reason": "Install and update FreeDink through your package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Install and update FreeDink through your package manager.",
+          "tracking_issue": 6536
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -42265,6 +42913,18 @@
         ]
       },
       "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question.",
+          "tracking_issue": 2881
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "go-go-ackman",
@@ -42659,6 +43319,18 @@
       "availability": "unknown",
       "setup_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
       "download_block_reason": "New downloads are unavailable because this targets the cancelled GoldenEye 007 XBLA remaster and no authorized, reproducible setup from your own original files is established. A retail N64 ROM is a different edition. Existing installations retain their contracts. Downloads can resume after the responsible owner accepts a lawful exact-input route.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "no-useful-route",
+          "explanation": "New downloads are unavailable because this targets the cancelled GoldenEye 007 XBLA remaster and no authorized, reproducible setup from your own original files is established. A retail N64 ROM is a different edition. Existing installations retain their contracts. Downloads can resume after the responsible owner accepts a lawful exact-input route.",
+          "tracking_issue": 163
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "goldeneye-007",
@@ -43519,6 +44191,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+          "tracking_issue": 6134
+        }
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -43542,6 +44226,18 @@
       "platforms": [],
       "availability": "unknown",
       "download_block_reason": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+          "tracking_issue": 3480
+        }
+      ],
       "issue_number": 3480,
       "original_game": {
         "format_version": 1,
@@ -43570,6 +44266,18 @@
       "platforms": [],
       "availability": "unknown",
       "download_block_reason": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+          "tracking_issue": 3479
+        }
+      ],
       "issue_number": 3479,
       "original_game": {
         "format_version": 1,
@@ -44030,6 +44738,18 @@
         "linux-x86-64"
       ],
       "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. The archived project explicitly declines to license its code. Downloads can resume after review identifies the re3 project’s own GTA III package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted re3 copy with its original PC game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. The archived project explicitly declines to license its code. Downloads can resume after review identifies the re3 project’s own GTA III package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted re3 copy with its original PC game files.",
+          "tracking_issue": 2852
+        }
+      ],
       "artwork": {
         "game_id": 730,
         "cover_id": 120932,
@@ -44081,6 +44801,18 @@
         "linux-x86-64"
       ],
       "download_block_reason": "Downloads are paused. The archived mirror carries both Vice City and GTA III. The archived project explicitly declines to license its code. Downloads can resume after review identifies the reVC project’s own Vice City package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted reVC copy with its original PC game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Downloads are paused. The archived mirror carries both Vice City and GTA III. The archived project explicitly declines to license its code. Downloads can resume after review identifies the reVC project’s own Vice City package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted reVC copy with its original PC game files.",
+          "tracking_issue": 2853
+        }
+      ],
       "artwork": {
         "game_id": 733,
         "cover_id": 120935,
@@ -44340,6 +45072,18 @@
       "release_url": "https://github.com/noahbaxter/GHClassic/releases/tag/v0.9",
       "recommended_download_channel": "beta",
       "download_block_reason": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
+          "tracking_issue": 3000
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "guitar-hero-ii",
@@ -44702,6 +45446,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
+          "tracking_issue": 1874
+        }
+      ],
       "manual_setup": {
         "help_url": "https://pvzge.com/en/guide/FAQ.html",
         "warnings": [
@@ -45715,6 +46471,18 @@
       "release_url": "https://www.hedgewars.org/download.html",
       "setup_url": "https://www.hedgewars.org/download.html",
       "download_block_reason": "Use the publisher's Windows or Intel Mac installer, or install the Linux package through your package manager or Flathub.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the publisher's Windows or Intel Mac installer, or install the Linux package through your package manager or Flathub.",
+          "tracking_issue": 6423
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -46942,6 +47710,18 @@
       },
       "release_url": "https://github.com/igawa6/dualsouls/releases",
       "download_block_reason": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The selected upstream README states that the APK contains Hollow Knight compiled game code; its redistribution audit also identifies the patch as carrying game content. No publisher permission for that distribution is established here. Fresh Portcove downloads remain unavailable until an attributable grant or a package that creates those materials from the player’s own inputs resolves this boundary. Existing permitted copies keep their files and upstream ownership.",
+          "tracking_issue": 1829
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "hollow-knight",
@@ -49070,6 +49850,18 @@
         "help_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md"
       },
       "download_block_reason": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct.",
+          "tracking_issue": 1891
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "super-mario-world",
@@ -49102,6 +49894,18 @@
       ],
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+          "tracking_issue": 3507
+        }
+      ],
       "issue_number": 3507,
       "listed_at": "2026-10-25",
       "artwork": {
@@ -49881,6 +50685,18 @@
         ]
       },
       "download_block_reason": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-prohibition",
+          "explanation": "New downloads are waiting for an applicable attributable permission covering the selected linked recompiled binary/package. Upstream expressly excludes redistribution of generated game code and built binaries that link it; host-side MIT and old matching package bytes do not override that condition. Reconsider a reviewed permitted or asset-clean package route; lawful existing private copies remain a separate use question.",
+          "tracking_issue": 129
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "kameo-elements-of-power",
@@ -50085,6 +50901,18 @@
       "setup_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
       "release_url": "https://github.com/sacredbanana/lab3d-sdl/releases/tag/4.4.0",
       "download_block_reason": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+          "tracking_issue": 6129
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
         "steps": [
@@ -50165,6 +50993,18 @@
         "help_url": "https://github.com/VlcekM/MeitouClient/releases/tag/launcher-v1.15.0"
       },
       "download_block_reason": "Use the linked Meitou Launcher release for the Windows, Linux or Mac launcher. The publisher also ships separate game builds and updater data.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the linked Meitou Launcher release for the Windows, Linux or Mac launcher. The publisher also ships separate game builds and updater data.",
+          "tracking_issue": 6062
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "kenshi",
@@ -51011,6 +51851,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the package includes scene images captured from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+          "tracking_issue": 2586
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "kingdom-hearts-chain-of-memories-gba",
@@ -51894,6 +52746,18 @@
       "release_url": "https://github.com/LaPingvino/The-Puzzle-Pits/releases/tag/v0.1.0",
       "setup_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
       "download_block_reason": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+          "tracking_issue": 6079
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
         "steps": [
@@ -52534,6 +53398,18 @@
         ]
       },
       "download_block_reason": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+          "tracking_issue": 6090
+        }
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -53050,6 +53926,18 @@
         "windows-x86-64"
       ],
       "download_block_reason": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+          "tracking_issue": 2836
+        }
+      ],
       "artwork": {
         "game_id": 18998,
         "cover_id": 137555,
@@ -53112,6 +54000,18 @@
         ]
       },
       "download_block_reason": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts.",
+          "tracking_issue": 162
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "lollipop-chainsaw",
@@ -53158,6 +54058,18 @@
       "release_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
       "setup_url": "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
       "download_block_reason": "Open the publisher’s preview release and choose the Windows ZIP or Linux tar.gz for your computer.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s preview release and choose the Windows ZIP or Linux tar.gz for your computer.",
+          "tracking_issue": 6085
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
         "steps": [
@@ -53383,6 +54295,18 @@
       },
       "release_url": "https://github.com/freefrank/LostOdysseyRecomp/releases/tag/v1.1.0",
       "download_block_reason": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Portcove downloads are on hold while the prepared runtime, save behavior and update ownership are verified.",
+          "tracking_issue": 744
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "lost-odyssey",
@@ -53474,7 +54398,19 @@
           "-Mac.dmg"
         ]
       },
-      "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content."
+      "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content.",
+          "tracking_issue": 1898
+        }
+      ]
     },
     {
       "id": "luanti",
@@ -53984,6 +54920,18 @@
       ],
       "availability": "packages",
       "download_block_reason": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+          "tracking_issue": 5434
+        }
+      ],
       "setup_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions",
       "release_url": "https://github.com/Kippykip/OpenMB2/releases/tag/v1.0.2",
       "manual_setup": {
@@ -55956,6 +56904,18 @@
       "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
       "original_game_title": "Mega Man X (USA) (Rev 1)",
       "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
+          "tracking_issue": 146
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md",
         "steps": [
@@ -56340,6 +57300,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc.",
+          "tracking_issue": 1672
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "mercenaries-playground-of-destruction",
@@ -56599,6 +57571,18 @@
         ]
       },
       "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established.",
+          "tracking_issue": 2729
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "mario-forever",
@@ -57425,6 +58409,18 @@
       "release_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/releases/tag/v1.3",
       "setup_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
       "download_block_reason": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+          "tracking_issue": 6109
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
         "steps": [
@@ -57630,6 +58626,18 @@
       "release_url": "https://anuke.itch.io/mindustry",
       "setup_url": "https://mindustrygame.github.io/wiki/",
       "download_block_reason": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+          "tracking_issue": 6506
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -58142,6 +59150,18 @@
       "issue_number": 2950,
       "release_url": "https://github.com/morerokk/MHGURecomp/releases/tag/0.17.8",
       "download_block_reason": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files.",
+          "tracking_issue": 2950
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "monster-hunter-generations-ultimate",
@@ -59086,6 +60106,18 @@
       },
       "original_game_title": "Battle Arena Toshinden",
       "download_block_reason": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+          "tracking_issue": 826
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -60160,6 +61192,18 @@
       ],
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable while the release’s translated game executable, package provenance, applicable rights and checksum/own-disc setup route remain unresolved. PC movie slowdowns remain. Information about the manual route is retained; this does not establish permission to redistribute the package or confirm gameplay.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "New downloads are unavailable while the release’s translated game executable, package provenance, applicable rights and checksum/own-disc setup route remain unresolved. PC movie slowdowns remain. Information about the manual route is retained; this does not establish permission to redistribute the package or confirm gameplay.",
+          "tracking_issue": 3402
+        }
+      ],
       "issue_number": 3402,
       "listed_at": "2026-10-25",
       "artwork": {
@@ -60712,6 +61756,18 @@
       "setup_url": "https://naev.org/downloads/",
       "release_url": "https://codeberg.org/naev/naev/releases/latest",
       "download_block_reason": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+          "tracking_issue": 6817
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -61738,6 +62794,18 @@
       "release_url": "https://neverball.org/download",
       "setup_url": "https://neverball.org/download",
       "download_block_reason": "The stable Windows ZIP is on Neverball’s original release host. Use that ZIP or your Linux package manager for the desktop game.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "The stable Windows ZIP is on Neverball’s original release host. Use that ZIP or your Linux package manager for the desktop game.",
+          "tracking_issue": 6400
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -61831,6 +62899,18 @@
         ]
       },
       "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate.",
+          "tracking_issue": 1817
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "lego-dimensions",
@@ -61931,6 +63011,18 @@
       "issue_number": 2696,
       "listed_at": "2026-10-25",
       "download_block_reason": "Use a setup copy you already have permission to use. The installer acquires additional build tools and compiles code from the original game. Portcove has no qualified download and build route.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use a setup copy you already have permission to use. The installer acquires additional build tools and compiles code from the original game. Portcove has no qualified download and build route.",
+          "tracking_issue": 2696
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/f13c779d35b3ebed597573948c7d3f6e6a7671a6/README.md",
         "steps": [
@@ -62923,6 +64015,18 @@
       },
       "original_game_title": "Bloody Roar II",
       "download_block_reason": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+          "tracking_issue": 827
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -63392,7 +64496,19 @@
           }
         ]
       },
-      "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed."
+      "download_block_reason": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The v1.9.5 Windows ZIP includes original Monster Hunter Tri Wii disc files, including the RMHP08 boot header and main.dol. Portcove downloads are paused until a clean upstream package is reviewed.",
+          "tracking_issue": 3419
+        }
+      ]
     },
     {
       "id": "ocho-kart-recomp-kymie131-el-chavo-kart",
@@ -63489,6 +64605,18 @@
         ]
       },
       "download_block_reason": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "The selected LICENSE/NOTICE excludes recovered game code, console SDK/runtime and symbol data and asserts no applicable permission for their distribution. Fresh self-service acquisition remains held until an attributable permitted basis for the exact selected package/components is reviewed, or a reviewed clean alternative resolves that condition. This does not grant or prohibit use of another already permitted copy.",
+          "tracking_issue": 1846
+        }
+      ],
       "availability_override_reason": "GitHub no longer shows this project's repository (checked November 15, 2026). Portcove keeps this listing so an installation you maintain can still be added and played. If the project becomes available again, Portcove can review it again.",
       "original_game": {
         "format_version": 1,
@@ -63666,6 +64794,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements.",
+          "tracking_issue": 1796
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "battle-arena-toshinden-game-boy",
@@ -63963,6 +65103,18 @@
         ]
       },
       "download_block_reason": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+          "tracking_issue": 5721
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "one-must-fall-2097",
@@ -64225,6 +65377,18 @@
       "release_url": "https://sourceforge.net/projects/oarena/files/",
       "setup_url": "https://sourceforge.net/projects/oarena/files/",
       "download_block_reason": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+          "tracking_issue": 6385
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -64289,6 +65453,18 @@
       "release_url": "https://www.openclonk.org/download/",
       "setup_url": "https://www.openclonk.org/download/",
       "download_block_reason": "Install and update OpenClonk through the publisher or your package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Install and update OpenClonk through the publisher or your package manager.",
+          "tracking_issue": 6529
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -64426,6 +65602,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "no-useful-route",
+          "explanation": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+          "tracking_issue": 743
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -67133,6 +68321,18 @@
       "setup_url": "https://github.com/petarov/alleycat.exe#readme",
       "release_url": "https://github.com/petarov/alleycat.exe/releases",
       "download_block_reason": "Fresh package/build acquisition remains held under #2827: upstream embeds original CAT.EXE data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh package/build acquisition remains held under #2827: upstream embeds original CAT.EXE data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+          "tracking_issue": 2827
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/petarov/alleycat.exe#readme",
         "warnings": [
@@ -67200,6 +68400,18 @@
       "setup_url": "https://github.com/petarov/saboteur2#readme",
       "release_url": "https://github.com/petarov/saboteur2/releases",
       "download_block_reason": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+          "tracking_issue": 2722
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/petarov/saboteur2#readme",
         "warnings": [
@@ -67844,6 +69056,18 @@
       "release_url": "https://github.com/sp00nznet/pod-recomp/releases/tag/v0.1.0",
       "setup_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
       "download_block_reason": "Use the publisher’s setup outside Portcove. It can install build tools and compiles your owned POD Gold files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the publisher’s setup outside Portcove. It can install build tools and compiles your owned POD Gold files.",
+          "tracking_issue": 6091
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
         "steps": [
@@ -68968,6 +70192,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. They can resume when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused because the release packages include header.bin, a copy of the original Pokémon Platinum cartridge header with the Nintendo logo data. They can resume when upstream publishes a package that creates it from your own original. You can add a complete copy you are permitted to use.",
+          "tracking_issue": 373
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-platinum",
@@ -69591,6 +70827,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission.",
+          "tracking_issue": 174
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-yellow",
@@ -69671,6 +70919,18 @@
       "release_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/releases/tag/v0.2.1",
       "setup_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
       "download_block_reason": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+          "tracking_issue": 6100
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
         "steps": [
@@ -70186,6 +71446,18 @@
       ],
       "availability": "packages",
       "download_block_reason": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+          "tracking_issue": 5673
+        }
+      ],
       "setup_url": "https://github.com/missingno7/pre2_port/blob/v0.4.0/README.md#getting-started--how-to-actually-run-it",
       "release_url": "https://github.com/missingno7/pre2_port/releases/tag/v0.4.0",
       "manual_setup": {
@@ -70930,6 +72202,18 @@
       "platforms": [],
       "availability": "unavailable",
       "download_block_reason": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+          "tracking_issue": 3130
+        }
+      ],
       "issue_number": 3130,
       "listed_at": "2026-10-25",
       "artwork": {
@@ -71257,6 +72541,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+          "tracking_issue": 1565
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "prop-cycle",
@@ -72131,6 +73427,18 @@
       "release_url": "https://github.com/Paril/q2repro/releases/tag/nightly",
       "setup_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
       "download_block_reason": "Use the publisher’s Windows nightly and the matching SDL dependency. For Linux, build from the pinned source.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the publisher’s Windows nightly and the matching SDL dependency. For Linux, build from the pinned source.",
+          "tracking_issue": 6102
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
         "steps": [
@@ -72671,6 +73979,18 @@
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
       "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+          "tracking_issue": 122
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "oddworld-abes-exoddus",
@@ -72729,6 +74049,18 @@
         "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
       },
       "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+          "tracking_issue": 133
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "oddworld-abes-oddysee",
@@ -72800,6 +74132,18 @@
       "availability": "unknown",
       "setup_url": "https://github.com/khasinski/rage-racer-pc",
       "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+          "tracking_issue": 349
+        }
+      ],
       "original_game_title": "Rage Racer",
       "manual_setup": {
         "help_url": "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",
@@ -72891,6 +74235,18 @@
         "windows-x86-64"
       ],
       "download_block_reason": "Downloads are paused. The Windows package includes a native engine linked with Redux code. The project’s distribution notes say the combined engine still needs its native-engine terms and source obligations resolved. A clarified release or a package without that engine can be reviewed. You can register a permitted existing launcher and keep your own ROM and data folder.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "third-party-component-terms",
+          "explanation": "Downloads are paused. The Windows package includes a native engine linked with Redux code. The project’s distribution notes say the combined engine still needs its native-engine terms and source obligations resolved. A clarified release or a package without that engine can be reviewed. You can register a permitted existing launcher and keep your own ROM and data folder.",
+          "tracking_issue": 2861
+        }
+      ],
       "artwork": {
         "game_id": 2899,
         "cover_id": 320119,
@@ -73261,6 +74617,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+          "tracking_issue": 1566
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "rave-racer",
@@ -73800,6 +75168,18 @@
       "release_url": "https://github.com/sp00nznet/redalert2-recomp/releases/latest",
       "setup_url": "https://github.com/sp00nznet/redalert2-recomp#getting-started",
       "download_block_reason": "The publisher’s installer builds both players from your own game files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "The publisher’s installer builds both players from your own game files.",
+          "tracking_issue": 5744
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -73931,6 +75311,18 @@
         ]
       },
       "download_block_reason": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files.",
+          "tracking_issue": 6668
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "the-elder-scrolls-adventures-redguard",
@@ -75073,6 +76465,18 @@
       ],
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable while the committed game-derived C and applicable package redistribution rights remain unresolved. A full playthrough and VSLink are unconfirmed by Portcove. Information about the own-disc preview is retained under its existing identity; package rights and trust require review before automated distribution.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are unavailable while the committed game-derived C and applicable package redistribution rights remain unresolved. A full playthrough and VSLink are unconfirmed by Portcove. Information about the own-disc preview is retained under its existing identity; package rights and trust require review before automated distribution.",
+          "tracking_issue": 3400
+        }
+      ],
       "issue_number": 3400,
       "listed_at": "2026-10-25",
       "artwork": {
@@ -75118,6 +76522,18 @@
       "release_url": "https://www.kartkrew.org/",
       "setup_url": "https://www.kartkrew.org/news/2025-11-02_dr-robotniks-ring-racers-version-24.html",
       "download_block_reason": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+          "tracking_issue": 6412
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -76755,6 +78171,18 @@
       "platforms": [],
       "availability": "unknown",
       "download_block_reason": "New downloads and distribution are unavailable because the original project has not chosen a license. An attributable license is required before those offers can resume. Windows and macOS are planned, unvalidated hosts. This entry remains available for information.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads and distribution are unavailable because the original project has not chosen a license. An attributable license is required before those offers can resume. Windows and macOS are planned, unvalidated hosts. This entry remains available for information.",
+          "tracking_issue": 3371
+        }
+      ],
       "issue_number": 3371,
       "listed_at": "2026-10-25",
       "artwork": {
@@ -76808,6 +78236,18 @@
       "release_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
       "setup_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
       "download_block_reason": "Use the upstream desktop package or your Linux package manager. The game assets come with the full packages.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the upstream desktop package or your Linux package manager. The game assets come with the full packages.",
+          "tracking_issue": 6417
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -76898,6 +78338,18 @@
         ]
       },
       "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+          "tracking_issue": 4262
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "wetrix",
@@ -80303,6 +81755,18 @@
         ]
       },
       "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-prohibition",
+          "explanation": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+          "tracking_issue": 358
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "silent-hill-downpour",
@@ -80433,6 +81897,18 @@
         ]
       },
       "download_block_reason": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "third-party-component-terms",
+          "explanation": "The inspected Windows package contains achievement.wav, steam.wav, trophy.wav and swish.wav whose exact source bytes are explicitly excluded from the project’s licence grant. Fresh acquisition stays held until attributable applicable sound permission or a reviewed released package removes or replaces those assets. The PC-code and named origin grants do not resolve this separate audio condition. Keep only an independently permitted existing copy; this condition grants no permission to acquire or execute it.",
+          "tracking_issue": 351
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "silent-hill",
@@ -80754,6 +82230,18 @@
         ]
       },
       "download_block_reason": "The selected Skate 3 package/component use and redistribution basis and complete notices remain unresolved under canonical issue #150. Fresh acquisition stays held until attributable operation-specific rights/notices or a reviewed permitted asset-clean or non-distributive owned-input route establishes the selected package/source contract. Upstream own-copy play instructions do not certify unacquired package contents or grant all third-party rights. This condition does not prohibit an already-permitted private prepared copy or make new Xbox-family infrastructure a prerequisite.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "The selected Skate 3 package/component use and redistribution basis and complete notices remain unresolved under canonical issue #150. Fresh acquisition stays held until attributable operation-specific rights/notices or a reviewed permitted asset-clean or non-distributive owned-input route establishes the selected package/source contract. Upstream own-copy play instructions do not certify unacquired package contents or grant all third-party rights. This condition does not prohibit an already-permitted private prepared copy or make new Xbox-family infrastructure a prerequisite.",
+          "tracking_issue": 150
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "skate-3",
@@ -81731,6 +83219,18 @@
         ]
       },
       "download_block_reason": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "Fresh acquisition of the Free Riders compiled game translations remains held: the selected title/package notices exclude those generated original-derived components from the project grant. Resume with applicable permission for that exact component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+          "tracking_issue": 1450
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "sonic-free-riders",
@@ -81948,6 +83448,18 @@
       "release_url": "https://github.com/STJr/SRB2/releases",
       "setup_url": "https://flathub.org/apps/org.srb2.SRB2",
       "download_block_reason": "Get the game from Sonic Team Junior or Flathub and update it through the same source.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get the game from Sonic Team Junior or Flathub and update it through the same source.",
+          "tracking_issue": 6738
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -83075,6 +84587,18 @@
       ],
       "availability": "packages",
       "download_block_reason": "The release bundles modified Spelunky game data. Portcove needs an exact record of the applicable game-data permission and notices before offering Download. The setup guide covers a copy you already have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The release bundles modified Spelunky game data. Portcove needs an exact record of the applicable game-data permission and notices before offering Download. The setup guide covers a copy you already have permission to use.",
+          "tracking_issue": 6056
+        }
+      ],
       "setup_url": "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md",
       "release_url": "https://github.com/yancharkin/SpelunkyClassicHD/releases/tag/1.2.2",
       "manual_setup": {
@@ -83899,6 +85423,18 @@
       "release_url": "https://github.com/JHGuitarFreak/UQM-MegaMod/releases/tag/0.8.5",
       "setup_url": "https://uqm-mods.sourceforge.net/Download",
       "download_block_reason": "Use the upstream installer, Linux package or Flatpak. The packages include modified game content and use their own installation and replacement tools.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the upstream installer, Linux package or Flatpak. The packages include modified game content and use their own installation and replacement tools.",
+          "tracking_issue": 6061
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -84549,6 +86085,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "The exact 0.9.7 and 0.9.8 Windows and experimental Linux packages include two game-derived texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "The exact 0.9.7 and 0.9.8 Windows and experimental Linux packages include two game-derived texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+          "tracking_issue": 343
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
         "steps": [
@@ -84664,6 +86212,18 @@
       "availability": "unknown",
       "setup_url": "https://github.com/elyosh/OpenTIE",
       "download_block_reason": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused while the selected package permissions are being reviewed. The guide covers a copy you are already permitted to use.",
+          "tracking_issue": 1975
+        }
+      ],
       "artwork": {
         "game_id": 166,
         "cover_id": 106709,
@@ -86305,6 +87865,18 @@
       "release_url": "https://github.com/sergiou87/open-supaplex/releases/tag/v7.2.2",
       "setup_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
       "download_block_reason": "Use a copy you have permission to use. The publisher packages include original Supaplex resources and community level packs.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Use a copy you have permission to use. The publisher packages include original Supaplex resources and community level packs.",
+          "tracking_issue": 5684
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
         "steps": [
@@ -89538,6 +91110,18 @@
       "release_url": "https://www.teeworlds.com/?page=downloads",
       "setup_url": "https://www.teeworlds.com/?page=docs",
       "download_block_reason": "Choose a download from the Teeworlds project or install the game through your package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Choose a download from the Teeworlds project or install the game through your package manager.",
+          "tracking_issue": 6509
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -90660,6 +92244,18 @@
       "setup_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/README.md#install-and-play",
       "release_url": "https://github.com/idkFoxes/open-thandor/releases/tag/v1.0.7",
       "download_block_reason": "The Patch 7 installer contains wizard images made from an original Thandor screenshot and logo. Portcove can offer the package when an asset-clean installer is available or permission covers these images.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "The Patch 7 installer contains wizard images made from an original Thandor screenshot and logo. Portcove can offer the package when an asset-clean installer is available or permission covers these images.",
+          "tracking_issue": 6121
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/docs/BUILDING.md#patch-installer",
         "steps": [
@@ -92434,6 +94030,18 @@
       "release_url": "https://powdertoy.co.uk/Download/Platforms.html",
       "setup_url": "https://powdertoy.co.uk/Download/Platforms.html",
       "download_block_reason": "Choose the package for your system from the publisher’s download page.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Choose the package for your system from the publisher’s download page.",
+          "tracking_issue": 6491
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -93567,6 +95175,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+          "tracking_issue": 1569
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "time-crisis",
@@ -94010,6 +95630,18 @@
       "availability": "packages",
       "setup_url": "https://github.com/MatheusLeffa/Tobal2Recomp/tree/d73623e3d2631a9d944d394cad0556fd815e7529#playing",
       "download_block_reason": "Portcove downloads are on hold while the contents and provenance of the bundled English disc overlay are reviewed. You can use this guide with a setup kit you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Portcove downloads are on hold while the contents and provenance of the bundled English disc overlay are reviewed. You can use this guide with a setup kit you have permission to use.",
+          "tracking_issue": 6008
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -94154,6 +95786,18 @@
         ]
       },
       "download_block_reason": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove cannot offer this download while permission for the bundled original C71 DSP BIOS and Namco-derived program code remains unresolved. The upstream MIT grant excludes Namco game code. Reconsider after an attributable grant or an upstream package/preparation route that removes the ungranted content. Existing permitted copies can still be registered without adopting their files.",
+          "tracking_issue": 1567
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "tokyo-wars",
@@ -94335,6 +95979,18 @@
         ]
       },
       "download_block_reason": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Portcove downloads are paused until permission for the bundled disc-derived native cache is established or upstream supplies an appropriately licensed replacement package. You can add a complete copy you are permitted to use.",
+          "tracking_issue": 169
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "tomba-2",
@@ -95129,6 +96785,18 @@
       ],
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable while the committed/distributed translated game C and package provenance remain unresolved. Gameplay completion is unconfirmed. Information about the standalone own-disc route and optional RetComM integration is retained; these do not clear the generated-code acquisition condition.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "legacy-rights-review",
+          "explanation": "New downloads are unavailable while the committed/distributed translated game C and package provenance remain unresolved. Gameplay completion is unconfirmed. Information about the standalone own-disc route and optional RetComM integration is retained; these do not clear the generated-code acquisition condition.",
+          "tracking_issue": 3401
+        }
+      ],
       "issue_number": 3401,
       "original_game": {
         "format_version": 1,
@@ -97353,6 +99021,18 @@
         ]
       },
       "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold.",
+          "tracking_issue": 1910
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "yu-gi-oh-forbidden-memories",
@@ -97508,6 +99188,18 @@
       ],
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
+          "tracking_issue": 3461
+        }
+      ],
       "issue_number": 3461,
       "original_game": {
         "format_version": 1,
@@ -97543,6 +99235,18 @@
       "release_url": "https://unvanquished.net/download/",
       "setup_url": "https://unvanquished.net/download/",
       "download_block_reason": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+          "tracking_issue": 6468
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -97597,6 +99301,18 @@
       "availability": "packages",
       "release_url": "https://sc2.sourceforge.net/downloads.php",
       "download_block_reason": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+          "tracking_issue": 6376
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -99152,6 +100868,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "bundled-game-data",
+          "explanation": "New downloads are waiting for applicable permission covering the selected package’s upstream-disclosed embedded Konami static game data and Sony BIOS-derived kanji. The project GPL grant expressly excludes those inherited/original-derived components. Reconsider an exact attributable permitted package/component route, reviewed asset-clean alternative or lawful owned-input prepared route; a local build or old matching digest alone does not expand that grant.",
+          "tracking_issue": 347
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "vandal-hearts",
@@ -101036,6 +102764,18 @@
         "help_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
       },
       "download_block_reason": "The current upstream is a renderer prototype with no published player archive and no demonstrated useful game output; its build guide still names another game. Fresh player acquisition remains on the existing useful-output hold. Reconsider when a useful runnable Wave Race player or title-specific reproducible preparation is available. Already registered development copies retain their existing contract.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "no-useful-route",
+          "explanation": "The current upstream is a renderer prototype with no published player archive and no demonstrated useful game output; its build guide still names another game. Fresh player acquisition remains on the existing useful-output hold. Reconsider when a useful runnable Wave Race player or title-specific reproducible preparation is available. Already registered development copies retain their existing contract.",
+          "tracking_issue": 168
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "wave-race-64",
@@ -101391,6 +103131,18 @@
       "release_url": "https://wiki.wesnoth.org/Download",
       "setup_url": "https://wiki.wesnoth.org/Download",
       "download_block_reason": "Choose the stable build on the official Downloads page and use its installer, application bundle, or Linux package manager.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Choose the stable build on the official Downloads page and use its installer, application bundle, or Linux package manager.",
+          "tracking_issue": 6447
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -101692,6 +103444,18 @@
       "release_url": "https://github.com/widelands/widelands/releases/latest",
       "setup_url": "https://www.widelands.org/wiki/Game%20Manual/",
       "download_block_reason": "Install and update Widelands through the publisher or the package manager you choose.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Install and update Widelands through the publisher or the package manager you choose.",
+          "tracking_issue": 6518
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -101812,6 +103576,18 @@
       "availability": "packages",
       "setup_url": "https://github.com/RighteousRyan1/TanksRebirth/tree/59a29ec272275ed655b70fc85d078f0b0a8aee02",
       "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+          "tracking_issue": 6004
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -102022,6 +103798,18 @@
       "setup_url": "https://openprivateer.org/",
       "release_url": "https://github.com/schlangz/openprivateer-project/releases/tag/build_20261113_0111",
       "download_block_reason": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "safety-evidence-mismatch",
+          "explanation": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+          "tracking_issue": 6119
+        }
+      ],
       "manual_setup": {
         "help_url": "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
         "steps": [
@@ -104253,6 +106041,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "package-facts-unresolved",
+          "explanation": "New downloads are waiting for attributable permission covering the selected project/package and any bundled original-derived texture material. The documented v1.1 release includes an optional 4x texture pack; the source tree excludes original data but does not establish the applicable package or texture redistribution grant. Reconsider on an exact attributable permitted or asset-clean package, or a separately reviewed lawful owned-input alternative.",
+          "tracking_issue": 356
+        }
+      ],
       "manual_setup": {
         "help_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
         "steps": [
@@ -104601,6 +106401,18 @@
       "release_url": "https://xonotic.org/download/",
       "setup_url": "https://xonotic.org/download/",
       "download_block_reason": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "upstream-owned-route",
+          "explanation": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+          "tracking_issue": 6394
+        }
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -105285,6 +107097,18 @@
         "match_kind": "underlying-game"
       },
       "download_block_reason": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established.",
+      "restrictions": [
+        {
+          "id": "download",
+          "effect": "hold",
+          "operations": [
+            "download"
+          ],
+          "reason": "no-useful-route",
+          "explanation": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established.",
+          "tracking_issue": 128
+        }
+      ],
       "original_game": {
         "format_version": 1,
         "id": "the-legend-of-zelda-link-s-awakening-dx-hd",

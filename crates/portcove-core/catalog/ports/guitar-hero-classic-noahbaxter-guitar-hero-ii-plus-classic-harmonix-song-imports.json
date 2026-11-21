@@ -42,7 +42,16 @@
     },
     "release_url": "https://github.com/noahbaxter/GHClassic/releases/tag/v0.9",
     "recommended_download_channel": "beta",
-    "download_block_reason": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Portcove has identified the upstream v0.9 game packages. Package acquisition remains on hold until their contents and permission to use them through Portcove are reviewed.",
+        "tracking_issue": 3000
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "guitar-hero-ii",

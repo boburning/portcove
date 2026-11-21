@@ -40,7 +40,16 @@
       ],
       "help_url": "https://github.com/AliveTeam/alive_reversing#readme"
     },
-    "download_block_reason": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Fresh downloads remain held pending an attributable distribution grant for the shipped engine and assets and a supported release package. The current debug packages have publisher checksums. Use an existing copy you are permitted to use.",
+        "tracking_issue": 133
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "oddworld-abes-oddysee",

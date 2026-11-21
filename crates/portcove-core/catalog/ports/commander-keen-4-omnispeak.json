@@ -15,7 +15,16 @@
     "original_game_title": "Commander Keen 4",
     "project_url": "https://github.com/sulix/omnispeak",
     "availability": "packages",
-    "download_block_reason": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",
+        "tracking_issue": 2648
+      }
+    ],
     "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
     "issue_number": 2648,
     "listed_at": "2026-10-25",
