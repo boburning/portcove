@@ -2060,6 +2060,14 @@ The native game ID must name the definition's normalized runtime file. The
 contract cites upstream support evidence. Indexed projections carrying these
 bindings require N64 recomp portable version 10 for the selected definition.
 
+A definition that adds release inputs to an enforced legacy contract requires
+N64 recomp portable version 11. Keep the existing accepted variants in the
+profile and contract. A file matching one of the profile's published runtime
+inputs can be registered as an original. Portcove checks the selected release
+and artifact before using that file. A release without an exact binding still
+requires an edition in its legacy list. Every port using the migrated profile
+must be an N64 Recomp port with an enforced legacy game contract.
+
 The matching release and artifact select the requirement during managed
 installation, activation, rollback and launch. Core checks the selected
 registration's storage and content identities and compares the upstream digest
@@ -2068,6 +2076,10 @@ that the runtime file matches the normalized original's SHA-256 and size. A
 bound release needs a checked original. A binding for a different release or
 artifact supplies no compatibility verdict. A literal value in upstream source
 needs evidence of the applicable runtime check before it can become a binding.
+Existing registrations remain available as exact local instances. When the
+default no longer fits a retained build, Portcove can recheck a unique matching
+saved instance within its bounded lookup. A selected setup with an exact
+original binding keeps that original.
 
 ### Reviewed mod provider bindings
 
