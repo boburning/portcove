@@ -196,6 +196,10 @@ const maximumBatchBytes = 512 * 1024 * 1024;
 // Provider metadata, generic errors and caller-supplied status properties cannot.
 const goneImageObservations = new WeakMap<object, string>();
 
+export function isConfirmedIgdbImageGone(error: unknown, imageId: string) {
+  return isRecord(error) && goneImageObservations.get(error) === imageId;
+}
+
 function goneImageException(kind: IgdbArtworkMatch, imageId: string): ArtworkException {
   return { ...exception(kind, "image-gone"), image_id: imageId, http_status: 410 };
 }
@@ -598,7 +602,7 @@ async function inspectCoverContent(
     context.signal?.throwIfAborted();
     if (!content) throw new Error("Image observation disappeared.");
   } catch (error) {
-    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
+    if (isConfirmedIgdbImageGone(error, imageId)) {
       context.goneImages.add(imageId);
       exceptions.push(goneImageException(kind, imageId));
     } else {
