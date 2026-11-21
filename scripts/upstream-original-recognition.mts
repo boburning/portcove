@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import { orderedJsonSha256 } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
+  readUpstreamBuildObservation,
+  type UpstreamBuildObservation,
+} from "./upstream-github-build-output.mts";
+import {
   checkN64GameEntries,
   n64GameTablePath,
   parseN64GameTable,
@@ -143,6 +147,7 @@ type N64Evidence = SourceIdentity &
     parser: "n64-recomp-game-entry-v1";
     coverage: "source-declaration";
     runtime_source?: N64RuntimeSourceObservation;
+    build_outputs?: UpstreamBuildObservation;
   };
 
 type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
@@ -504,6 +509,7 @@ export function readOriginalSourceProgress(
     )
       return;
     const runtime = readN64RuntimeSourceObservation(fact.runtime_source);
+    const builds = readUpstreamBuildObservation(fact.build_outputs, source);
     evidence = {
       ...source,
       parser: fact.parser,
@@ -511,6 +517,7 @@ export function readOriginalSourceProgress(
       source_path: n64GameTablePath,
       games,
       ...(runtime ? { runtime_source: runtime } : {}),
+      ...(builds ? { build_outputs: builds } : {}),
     };
   } else {
     if (

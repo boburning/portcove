@@ -143,7 +143,7 @@ jobs:
           sources=(--catalog-only)
           if [[ "$PORTCOVE_MAINTENANCE_PURPOSE" == schedule ]]; then
             sources=(--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN
-              --release-health --release-content --publication --delivery --upstream --hosted-intake
+              --release-health --release-content --publication --delivery --upstream --hosted-intake --reconcile-intake
               --progress scripts/upstream-progress/sources-v1.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
@@ -323,6 +323,7 @@ jobs:
           digest = load(work / "maintenance-report/digest/digest.json") or {}
           manifest = load(work / "maintenance-backup/store/manifest.json") or {}
           server = load(evidence_dir / "server.json") or {}
+          collected = load(evidence_dir / "collect.json") or {}
           times = {}
           if (evidence_dir / "step-times.tsv").is_file():
               for line in (evidence_dir / "step-times.tsv").read_text().splitlines():
@@ -349,6 +350,7 @@ jobs:
               "report_snapshot_at": (manifest or load(work / "maintenance-report/previous-recovery.json") or {}).get("created_at")
                                     if inventory else None,
               "report_scope": inventory.get("scope"),
+              "intake_receipts": (collected.get("hosted_intake") or {}).get("receipts"),
               "subjects": len(inventory.get("subjects", [])),
               "pending_changes": len(digest.get("entries", [])),
               "sources": sources,
@@ -413,6 +415,11 @@ jobs:
           path: work/maintenance-backup/store/
           if-no-files-found: error
           retention-days: 30
+      - name: Check original intake receipt reconciliation
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' }}
+        run: |
+          jq '.hosted_intake.receipts' work/maintenance-evidence/collect.json
+          jq -e '.hosted_intake.receipts.status == "passed"' work/maintenance-evidence/collect.json > /dev/null
 
   restore-proof:
     needs: collect

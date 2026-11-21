@@ -35,6 +35,7 @@ import {
 } from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactOpenXPortable } from "./catalog-openx-portable.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import {
   compactRazeWindowsProfile,
@@ -277,6 +278,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       field: "openmohaa_portable_v1",
       scope: "Official stable OpenMoHAA archives and the reviewed edition launcher and data paths.",
       next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
+    });
+  }
+  if (record.openx_portable_v1) {
+    projections.push({
+      field: "openx_portable_v1",
+      scope: "Reviewed OpenXW and OpenXvT archive selectors and local config.yaml.",
+      next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
     });
   }
   if (record.raze_windows_profile_v1) {
@@ -1222,6 +1230,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenX = compactOpenXPortable(record);
+    if (compactOpenX !== record) record = checkedAuthoredPort(compactOpenX);
     const compactOpenGoal = compactOpenGoalSetup(record);
     if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
     const compactRsdkv4 = compactRsdkv4PortableData(record);

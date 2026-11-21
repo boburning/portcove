@@ -579,6 +579,40 @@ function testMeter(transferBytes: number): NeonMeter {
   };
 }
 
+void test(
+  "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+  { skip: server.skip ?? false },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner, as } = fixture.start("receipt-admission");
+    migrate(owner);
+    runSql(
+      owner,
+      "CREATE ROLE receipt_only LOGIN NOINHERIT; GRANT portcove_maintenance_executor TO receipt_only WITH INHERIT FALSE;",
+    );
+    const login = as("receipt_only");
+    assert.throws(() => migrationStatus(login), /permission denied/u);
+    assert.deepEqual(migrationStatus(login, undefined, true), migrationStatus(owner));
+    const input = {
+      meter: testMeter(0),
+      request: "native-receipt",
+      operation: "handoffs" as const,
+      reason: "test",
+    };
+    assert.throws(() => acquireMaintenanceReservation(login, input), /permission denied/u);
+    const admission = acquireMaintenanceReservation(login, { ...input, executor: true });
+    assert.ok(admission.attempt_id);
+    assert.equal(admission.operation_reservation_bytes, 8_000_000);
+    assert.equal(
+      runSql(
+        owner,
+        "SELECT requested_by FROM portcove_maintenance_meta.resource_admissions WHERE request_key='native-receipt';",
+      ).trim(),
+      "receipt_only",
+    );
+  },
+);
+
 void test("Neon Free readings preserve missing dimensions and require an active period", () => {
   const sampledAt = "2026-11-20T20:43:15.000Z";
   const project = {

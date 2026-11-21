@@ -75,6 +75,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 unicode-normalization = "0.1.26"
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 url = "2.5.8"
+xxhash-rust = { version = "0.8.19", default-features = false, features = ["xxh3"] }
 # Keep Cargo resolution on the reviewed ZIP release instead of a younger compatible version.
 zip = { version = "=9.4.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = [

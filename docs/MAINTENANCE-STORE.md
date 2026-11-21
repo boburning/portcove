@@ -1125,11 +1125,9 @@ names against the registry.
   assessment, and a change is reported (the digest and the report's Core and
   Changes columns), not reinterpreted as attention.
 
-**Recording.** `collect --all` records handoffs in the collection transaction,
-and only after a `complete` run of the deciding source: the release-health,
-upstream-observation, hosted-intake or release-content run. While that run is
-`partial` or `failed`, no handoff of its kinds is recorded, changed or cleared, even for
-subjects it did observe.
+**Recording.** `collect --all` records handoffs in the collection transaction.
+Upstream observation, hosted intake and release content require a complete run
+of the deciding source. Release health also reports complete coverage per port.
 
 - Each attention subject gets an assessment `handoff:<kind>:<source subject>`
   with state `needs-attention`. Its input digest covers the kind, the source
@@ -1155,12 +1153,36 @@ subjects it did observe.
   transition. A return to an earlier condition is flagged.
 - A subject that never needed attention gets no row. A `needs-attention` subject
   whose condition is gone in a complete run transitions to `clear`.
-- A `partial` or `failed` run and a sample collection neither record nor clear
-  handoffs.
+- A partial release-health run may open or clear a handoff only for a port
+  the monitor assessed freshly and completely. Gaps retain the previous state.
+  Failed reads, sample collections and partial reads of other sources leave their
+  existing handoffs in place. The scheduled monitor continues checking reviewed
+  historical GitHub locations. When every relocation condition has a reviewed
+  accounting decision and a recorded resume condition, its evidence remains in
+  the health report and its handoff clears.
 - An open handoff of a kind no longer in the registry clears on the next complete
   run of any handoff source, so a removed kind never lingers as open work.
 - Unlike source subjects, a handoff's first transition is a pending notification,
   because a handoff appearing is itself the change.
+
+**Hosted intake receipts.** An owner-authored #177 request can finish an existing
+hosted-intake handoff through the ordinary worker, including audit-only recovery.
+The intake workflow reads back the authenticated bot receipt and records its
+comment URL and exact body digest against the original planned operation. The
+daily inventory reuses its one verified native queue read to reconcile before
+refreshing handoff conditions. Failed or partial intake reads retain the original
+plan. A receipt transaction failure records an intake-specific gap. Other source
+collections, reporting, backup and restore continue, and the receipt outcome is
+checked after the report and backup are retained. An owner can use the intake workflow's `receipts` mode after an
+interruption. These paths make no new intake or Project mutation. They require
+a complete request with every slot resolved, its applicable full audit, the
+original request and receipt identity, and an exact current operation, assessment
+and source-generation fence. For recorded checkpoints the database must agree
+with the published receipt. Each previously held slot must match the original
+or authorized amended identity and a delivered or pre-existing issue. Replays
+leave the same operation and receipt in place. Partial or held requests,
+withdrawals, restored inactive stores and unrelated executor handoffs retain
+their existing state.
 
 **Operations.** No migration was added; handoffs use the existing `operations`
 table and its guard.
@@ -1192,7 +1214,7 @@ node scripts/maintenance-inventory.mts handoffs --record
   - It moves each planned handoff operation whose subject has moved on (cleared,
     a newer condition, or a newer applicable assessment) from `planned` to
     `abandoned` at revision + 1, and plans its replacement in the same pass.
-  - It never dispatches or completes an operation, and receipt columns stay
+  - The planning command never dispatches or completes an operation. Separate native intake reconciliation can record a matching execution receipt. Other receipt columns stay
     empty. The guard refuses a plan at a stale fence and any revival of an
     abandoned plan, so a restored or stale worker cannot replay side effects or
     overwrite newer state.

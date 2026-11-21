@@ -44,6 +44,7 @@ import {
   observerStreamingSnapshotLimit,
 } from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -71,6 +72,7 @@ function repositoryMetadataReader(
         allowRequest: (method, url) =>
           method === "GET" &&
           (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+            isUpstreamBuildMetadataUrl(url) ||
             /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
               url.pathname,
             ) ||
@@ -192,6 +194,7 @@ export async function runCatalogUpstreams(
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     requestLimit?: number;
+    reserveExpiredListingTurn?: boolean;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
@@ -321,6 +324,7 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
+      reserveExpiredListingTurn: runtime.reserveExpiredListingTurn === true,
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
@@ -761,6 +765,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           requestLimit,
+          reserveExpiredListingTurn: true,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},

@@ -3060,6 +3060,11 @@ export interface PortSourceContract {
   id: string;
   immutable_review_url: string;
   live_review_url: string | null;
+  /**
+   * Required ROM identity for the selected upstream game and exact artifact.
+   * This digests the padded, normalized N64 bytes the runtime checks.
+   */
+  n64_recomp_inputs_v1?: N64RecompOriginalInput[];
   port_id: string;
   profile_id: string;
   /**
@@ -3080,6 +3085,12 @@ export interface PortSourceContract {
 }
 export interface SourceContractApplicability {
   artifact_sha256: string | null;
+  upstream_ref: string;
+}
+export interface N64RecompOriginalInput {
+  artifact_sha256: string;
+  game_id: string;
+  rom_xxh3_64: string;
   upstream_ref: string;
 }
 export interface CatalogEvidence {

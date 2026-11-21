@@ -426,6 +426,25 @@ impl DefinitionContentIndex {
                 }
             }
         }
+        if let Some(sources) = catalog.source_catalog() {
+            for contract in sources
+                .contracts
+                .iter()
+                .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
+            {
+                if contract.port_id != stable_id
+                    || !entry.capabilities().checks.iter().any(|check| {
+                        check.requirement.template == "n64-recomp-portable"
+                        && check.requirement.minimum_version
+                            >= crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
+                    })
+                {
+                    return Err(PortcoveError::verification(
+                        "N64 release input requires the selected definition and its release-input reader capability",
+                    ));
+                }
+            }
+        }
         // Track counts live in the source profile, so only the projection can
         // tell that the entry's disc set needs a reader that keeps every track.
         if catalog.requires_psx_multi_track_set(port)
