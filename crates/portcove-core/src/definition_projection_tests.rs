@@ -55,6 +55,35 @@ fn canonical_projection_materializes_typed_defaults_and_is_idempotent() {
 }
 
 #[test]
+fn indexed_loader_entry_and_projection_share_the_schema_fence() {
+    let base = Catalog::embedded().unwrap();
+    let port_id = "banjo-recomp";
+    let bundle = crate::test_fixture::indexed_catalog_bundle(&base, port_id);
+    let index = DefinitionContentIndex::parse(&bundle.index).unwrap();
+    let mut entry = None;
+    let mut contract = None;
+    for (_, bytes) in &bundle.contents {
+        let document: Value = serde_json::from_slice(bytes).unwrap();
+        if document.get("definition_schema").is_some() {
+            assert_eq!(document["definition_schema"], 3);
+            entry = Some(bytes);
+        } else {
+            assert_eq!(document["contract_schema"], 3);
+            contract = Some(bytes);
+        }
+    }
+    let entry = entry.unwrap();
+    let contract = contract.unwrap();
+    let accepted = index
+        .inspect_catalog_projection("official", port_id, entry, contract)
+        .unwrap();
+    assert_eq!(
+        accepted.entry().port().mod_loader,
+        base.port(port_id).unwrap().mod_loader
+    );
+}
+
+#[test]
 fn legacy_chameleon_projection_adds_only_its_reviewed_contract_to_schema_three() {
     // The retained qualification bundle contains the exact published index,
     // entry and terminal contract, before it was applied to a schema-3 client.

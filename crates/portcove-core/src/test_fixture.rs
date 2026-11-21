@@ -401,14 +401,15 @@ impl<'a> IndexedCatalogFixture<'a> {
         use sha2::{Digest, Sha256};
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
+        let port = catalog.port(port_id).unwrap();
+        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
-            "contract_schema":1,"representation":"catalog_projection",
+            "contract_schema":schema,"representation":"catalog_projection",
             "catalog":indexed_fixture_document(catalog)
         }))
         .unwrap();
         contract.push(b'\n');
         let contract_sha256 = hex::encode(Sha256::digest(&contract));
-        let port = catalog.port(port_id).unwrap();
         Self {
             port: if port_id == "opentyrian-opentyrian" {
                 std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
