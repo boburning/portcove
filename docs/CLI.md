@@ -456,11 +456,17 @@ so an earlier strict retained reader can still open its established launch contr
 Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
 through format 12 keep earlier descriptive media and omit the new typed records.
 
+Listing format 14 adds typed acquisition restrictions (`restrictions`). Exports
+through format 13 omit them and keep the derived `download_block_reason`, which
+always equals the explanation of the first download hold. See
+[acquisition restrictions](CATALOG.md#acquisition-restrictions).
+
 The catalog listing document has its own format version. Readers accept formats
-1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–14 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
-and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
+format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
+screenshots and format 14 adds typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted

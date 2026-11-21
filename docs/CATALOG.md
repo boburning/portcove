@@ -245,7 +245,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   or third-party acquisition of its package keeps its hold whatever the code
   basis.
 - **Bundled game data stays held.** A package that bundles original game data
-  keeps its `download_block_reason`. That covers ROM, disc or BIOS contents,
+  keeps its listing download hold (see [acquisition restrictions](#acquisition-restrictions)). That covers ROM, disc or BIOS contents,
   original executables, copied ROM or cartridge headers, textures, models,
   audio, music, video, text tables or images extracted or captured from the
   game, art derived from them that the game uses, and shader caches, shader
@@ -279,10 +279,11 @@ upstream itself publishes and holds a package only for concrete reasons.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Later releases stay offered
   unless one bundles game data outside the owner exceptions or a verified
-  rights-holder request arrives; either restores the listing's
-  `download_block_reason`. A listing hold applies to every platform of the
+  rights-holder request arrives; either restores the listing's download hold.
+  Every migrated listing hold applies to every platform and release of the
   port, so a port keeps its hold while one platform's route, such as an
-  existing non-owning integration, still needs a separate decision. The owner
+  existing non-owning integration, still needs a separate decision. A
+  narrower scope is a later reviewed data change with exact evidence. The owner
   confirmed this on November 13, 2026. Core enforces one fresh route per host:
   it refuses the listing download (`managed-route`) only where this library's
   own Install assessment for the host is allowed or waiting for the player's
@@ -308,6 +309,80 @@ upstream itself publishes and holds a package only for concrete reasons.
 - **Existing holds** stay in force until each is re-reviewed against this
   policy; the re-review is recorded in its owning issue or a dated evidence
   record, and the policy itself lifts no hold.
+
+### Acquisition restrictions
+
+Both carriers express a restriction as the same typed decision, which Core's
+`acquisition_restriction` module evaluates once for Desktop and the CLI
+([#8538](https://github.com/boburning/portcove/issues/8538)). The listing
+authors `listing.restrictions`; a managed integration authors
+`integration.acquisition_restrictions`. Authoring refuses the legacy
+`download_block_reason` and `managed_acquisition_hold` keys; the generator
+derives them.
+
+Each decision has a slug `id`, an `effect` (`hold` or `permit`), a nonempty set
+of `operations` and an optional `scope`. A listing names `download`,
+`register-external` or `launch`; an integration names `download`, `install`,
+`update`, `adopt`, `activate` or `prepare`. Removal, rollback and backup are
+never restricted. The scope lists exact `platforms`, `releases`, `artifacts`
+(version, lowercase SHA-256 and optional file name), source `inputs` and
+`components`; an empty dimension is unconstrained. A listing scopes releases
+or artifacts only with a `release_url` or download asset hints.
+
+A hold requires a descriptive `reason` code and a bounded player
+`explanation`; a permit carries neither. `reason`, `reconsider_when` and
+`tracking_issue` describe the decision and are never evaluated. The reason
+codes are `bundled-game-data`, `upstream-owned-route`,
+`package-facts-unresolved`, `legacy-rights-review`, `no-useful-route`,
+`upstream-prohibition`, `safety-evidence-mismatch`,
+`third-party-component-terms`, `known-defective-artifact` and
+`upstream-transition-unreviewed`. Core reads an older untyped listing string as
+a whole-listing download hold with the reader-only code `legacy-unclassified`;
+authoring refuses that code.
+
+Evaluation rules:
+
+- Within one carrier the most specific matching decision wins: artifacts, then
+  releases, then inputs or components, then platforms, then the whole port. A
+  hold wins a tie.
+- A hold from either carrier wins; a permit cancels only holds in its own
+  carrier. A permit never overrides a trust, integrity, definition-eligibility
+  or curated-revocation failure.
+- A permit must share an operation with a hold in its carrier and cannot repeat
+  that hold's scope, so data cannot grant by itself.
+- A hold whose scoped identity can never be proven, such as the release package
+  of an adopted folder, fails closed with Core's own explanation. A hold whose
+  identity is resolved later does not withhold an offer; Core repeats the check
+  on the actual bytes. A permit matches only known values, and Core checks the
+  downloaded bytes again before moving a file into place.
+
+Port and listing action assessments report a held action as not offered, with
+its reason code in `restriction`; attaching an existing copy applies
+`register-external` decisions and Launch applies `launch` decisions. The
+download offer drops a held sibling asset and names it in its limitations; when
+every asset is held the offer is refused with the explanation.
+
+Listing format 14 carries `restrictions`. In a format-14 document the legacy
+`download_block_reason` must equal the explanation of the first hold that
+names `download`, at any scope, so a reader limited to format 13 is never less
+restricted than a capable one. Exports below format 14 omit `restrictions` and
+keep that string. Signed listing delivery stays at format 11; a delivered
+listing that repeats the current string for the same project and game keeps
+the typed restrictions, and any other delivered value replaces them.
+
+The managed wire format is unchanged. The generator emits typed integration
+data as the existing `managed_acquisition_hold` and refuses typed data that
+struct cannot represent exactly; Core normalizes the hold back to typed
+decisions when it loads. A typed definition field is not yet deliverable: it
+needs a reader gate that older applications refuse, which waits for the named
+definition features of [#8496](https://github.com/boburning/portcove/pull/8496).
+
+The one-shot `scripts/migrate-acquisition-restrictions.mts` re-expressed every
+existing hold at the scope and operations Core enforced: 152 listing rows as a
+whole-listing download hold with the explanation carried verbatim, and 5
+managed holds in the canonical form below. It narrowed, cleared and reworded
+nothing. Each narrowing is a later data change under the rights-basis decision
+authority.
 
 ### Upstream listing and distribution requests
 
@@ -848,9 +923,10 @@ authored component's permission; under the
 component grant is a recorded note, not an acquisition hold. Retain a named
 acquisition condition at its exact operation scope. When fresh
 self-service acquisition is held, the authored listing can set
-`download_block_reason` to a bounded practical explanation and reconsideration
-condition. This restriction requires listing format 2 or later; Core refuses download options,
-preview and mutation before contacting the provider. This restriction grants no
+a `download` hold in `listing.restrictions` with a bounded practical explanation
+and reconsideration condition. Core refuses download options, preview and
+mutation before contacting the provider, except for an asset a scoped permit
+names, which is checked again on its downloaded bytes. This restriction grants no
 permission to acquire, register or execute an existing copy and does not rewrite
 its retained contract. Keep useful existing permitted-copy instructions and
 upstream links. Remove a restriction only after reviewing the changed fact.
@@ -981,7 +1057,7 @@ the local hash and the command says so. Kept paths (`--persistent`) require an
 explicit `--saves` choice, and a listing without `original_game_title` needs
 `--original-game-title`. `--repository`, `--channel`, `--env` and repeated
 `--launch-arg` values (written in order) cover the other declarations. It refuses
-a listing that still has a `download_block_reason`, or whose summary names a
+a listing whose restrictions still hold `download`, or whose summary names a
 structured fact such as the release channel, before writing anything. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
 `target/debug/portcove`), and each managed platform needs an archive that the host
 can inspect, so a Windows host promotes only Windows. The guide, rights warnings,
@@ -2375,16 +2451,21 @@ pins use their existing release contracts.
 
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
-`managed_acquisition_hold` instead of port-specific Core code. A hold without
-`excluded_artifacts` refuses fresh Install, Update, catalog download and managed
-adoption before provider contact. Its `activation_reason` refuses activation and
-recovery of a staged or interrupted package unless its version and SHA-256 match
-one of the `reviewed_artifacts`.
+[acquisition restrictions](#acquisition-restrictions) instead of port-specific
+Core code. Two canonical forms are deliverable as the generated
+`managed_acquisition_hold`. A route-wide transition hold has an `acquisition`
+hold on `download`, `install`, `update` and `adopt`, an `activation` hold on
+`activate`, and one `reviewed-N` permit on `activate` per reviewed artifact.
+It refuses fresh Install, Update, catalog download and managed adoption before
+provider contact, and refuses activation and recovery of a staged or
+interrupted package unless its version and SHA-256 match a reviewed permit.
 
-A hold with `excluded_artifacts` identifies excluded packages by version and
-SHA-256. If the selected platform's package matches an exclusion, Core looks for
-a `reviewed_artifacts` match on that platform and channel and includes the hold
-reason in the install plan. Release observations record `reviewed-artifact-excluded`
+An exclusion form scopes `excluded-acquisition` and `excluded-activation` holds
+to exact artifacts and adds one `reviewed` permit on `install`, `update` and
+`activate`. It identifies excluded packages by version and SHA-256. If the
+selected platform's package matches an exclusion, Core looks for a reviewed
+permit match on that platform and channel and includes the hold
+explanation in the install plan. Release observations record `reviewed-artifact-excluded`
 for the candidate and retain the selected fallback as its own result. The fallback
 must match the reviewed digest using
 GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
@@ -2394,8 +2475,9 @@ can choose the reviewed fallback through Update when the installed artifact
 differs from the selected fallback.
 
 Review changes to the hold on the canonical port issue. A selected independent
-definition may preserve or strengthen the embedded restrictions. It cannot drop
-an exclusion or add a reviewed fallback. Embedded catalog changes reach players
+definition may keep or add restriction: every embedded hold must remain with at
+least its operations and scope, and every permit must already be reviewed in
+the embedded definition. It cannot drop an exclusion or add a reviewed fallback. Embedded catalog changes reach players
 with an application release. Independent delivery remains with #246.
 
 An integration may also record `reviewed_package_layouts`, one bounded fingerprint
@@ -4207,7 +4289,7 @@ read; record/project preparation does not gain a new request or approval gate.
 This feedback does not infer permission, a hold, support or ownership from prose.
 An already published package and technical fit do not resolve an existing named
 condition. Carry a reviewed operation condition through the existing
-`download_block_reason` contract where applicable.
+[acquisition restrictions](#acquisition-restrictions) where applicable.
 
 For a proposed `native-portable` record, the completion receipt also shows literal
 package-hint matches among the supported ZIP/tar.gz/tgz archives for each declared platform, whether each matching asset has
