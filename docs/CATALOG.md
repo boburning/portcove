@@ -3686,8 +3686,9 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
-and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
+(as a string) for portable routes with matching GitHub lineage,
+reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,
 reviewed package layout, external SDL profile and qualification explicit.
@@ -4016,24 +4017,38 @@ establish a selected source edition.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
-image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
-bounded authenticated transport. Key art requires a positive `image_type.id/name`
-classification; conceptual art and unknown classifications do not qualify. Source
-image-type IDs are observed rather than hard-coded.
+image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
+the same paced, bounded authenticated transport. Key art and backgrounds share the
+artwork query for the exact game. Key art requires a positive `image_type.id/name`
+classification. A background specifically requires Key Art Without Logo and a
+decoded image at least 3:2. An original-game screenshot identifies its subject in
+the caption. Source image-type IDs are observed rather than hard-coded.
 
 The optional image-type inventory uses IGDB's maximum 500-record page and a
 separate one-record overflow query when the page is full. Overflow, malformed
 responses and provider failures remain unknown; they never establish missing key
 art. Role preparation classifies each image using its expanded `image_type.id/name`
 relationship and does not require a separate inventory request.
-Original identity facts bind `source_edition_id` explicitly; optional
-`hero_media_edition_neutral` records reviewed
-applicability. Image records are bound to the verified game ID before download.
+Original identity facts bind `source_edition_id` explicitly. Optional
+`hero_media_edition_neutral` records reviewed applicability for logo and key art.
+Proposed backgrounds and screenshots retain their exact edition binding.
+Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
-candidate chains and independent role failures. Exact HTTP410 observations sweep
+candidate chains and independent role failures. Preparation may fill a missing
+background and propose one screenshot when a subject has none. It preserves
+reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal. Preparation proposes remote URLs,
-provenance, hashes and provider terms; it grants no admission, signing, publication
+requests do not establish absence or withdrawal.
+
+The artwork evidence includes background and screenshot coverage by port,
+original release and IGDB game identity. It records existing catalog images,
+fresh proposals and exact observed withdrawals separately. An empty provider
+inventory is missing evidence for that role in that provider. A failed,
+incomplete or unrun query remains unknown. Conflicting provider identities
+stay visible for review. The default report also retains listing-only entries
+outside the proposal input, including their already reviewed media.
+
+Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
 
@@ -4752,3 +4767,29 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Package-only settings defaults
+
+Use `game_settings.format_version: 2` for one independent whole-file setting
+that a verified Windows package ships. Declare its exact persistent path,
+format, byte bound and release archive identities. Leave the file's `settings`
+array empty. This authorizes the existing Core settings update and recovery
+protocol for a supported managed package and keeps scalar editing unavailable.
+
+For a ready staged-source GitHub package, the declaration applies when the
+file is a standalone persistent path, the runtime uses the existing mirrored
+data contract, and no partitioned or runtime-data policy owns the file. Check
+the exact package member and the upstream code that reads it. Core captures
+the bytes from verified acquisition, before persistence restoration can
+replace the packaged file. A later stable patch in an enrolled numeric
+major/minor series uses the same declaration when the normal acquisition
+path independently admits its ZIP. An explicitly enrolled release retains
+its exact archive digest. A new series needs review of the package layout
+and configuration consumer. Previously installed packages without a captured
+baseline remain held if activation needs that baseline. Retain the ordinary
+settings recovery and guarded backup receipts.
+
+The change from Super Mario World Recompiled v0.15.9 to v0.15.10 has an exact
+Windows archive and independent `config.ini` comparison. v0.15.11 retains the
+v0.15.10 settings bytes. The scopes and evidence are in
+[the package settings observation](qualification/smw-package-settings-defaults-2026-11-21.md).

@@ -1353,7 +1353,7 @@ export function createIgdbInspector(
   // One authenticated, paced and bounded metadata transport for game identities and
   // their image relationships. The retained game_requests metric counts these calls.
   async function inspectMetadata(
-    endpoint: "games" | "logos" | "artworks" | "image_types",
+    endpoint: "games" | "logos" | "artworks" | "screenshots" | "image_types",
     body: string,
   ): Promise<unknown> {
     const auth = await token();
@@ -1496,11 +1496,15 @@ export function createIgdbInspector(
         }; limit 21;`,
       );
     },
-    async inspectGameMedia(gameId: number, kind: "logo" | "key_art"): Promise<unknown> {
+    async inspectGameMedia(
+      gameId: number,
+      role: "logo" | "key_art" | "screenshot",
+    ): Promise<unknown> {
       if (!positiveId(gameId)) throw new Error("Invalid game media identity.");
+      const fields = "id,game,image_id,width,height,alpha_channel,animated";
       return inspectMetadata(
-        kind === "logo" ? "logos" : "artworks",
-        `fields id,game,image_id,width,height,alpha_channel,animated,image_type.id,image_type.name; where game = ${gameId}; sort id asc; limit 21;`,
+        gameMediaRoles[role].endpoint,
+        `fields ${fields}${role === "screenshot" ? "" : ",image_type.id,image_type.name"}; where game = ${gameId}; sort id asc; limit 21;`,
       );
     },
     async inspectImageTypes(): Promise<unknown> {
@@ -1524,12 +1528,12 @@ export function createIgdbInspector(
     },
     async inspectMediaImage(
       imageId: string,
-      kind: "logo" | "key_art",
+      role: GameMediaRole,
       remainingBytes = maximumBatchBytes,
     ) {
       const result = await inspectRemoteImage(
         imageId,
-        kind === "logo" ? "logo_med_2x" : "720p",
+        gameMediaRoles[role].variant,
         remainingBytes,
       );
       if (
@@ -1537,8 +1541,8 @@ export function createIgdbInspector(
         result.validator !== "portcove-core" ||
         !positiveId(result.width) ||
         !positiveId(result.height) ||
-        result.width > (kind === "logo" ? 568 : 1280) ||
-        result.height > (kind === "logo" ? 320 : 720)
+        result.width > (role === "logo" ? 568 : 1280) ||
+        result.height > (role === "logo" ? 320 : 720)
       )
         throw new Error("Game media did not pass its core content and fit-variant contract.");
       return {
@@ -1553,24 +1557,38 @@ export function createIgdbInspector(
   };
 }
 
-type HeroRole = "key_art" | "logo";
+const gameMediaRoles = {
+  key_art: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game key art" },
+  logo: { endpoint: "logos", kind: "logo", variant: "logo_med_2x", caption: "Game logo" },
+  header: { endpoint: "artworks", kind: "artwork", variant: "720p", caption: "Game background" },
+  screenshot: {
+    endpoint: "screenshots",
+    kind: "screenshot",
+    variant: "720p",
+    caption: "Game screenshot",
+  },
+} as const;
+type GameMediaRole = keyof typeof gameMediaRoles;
 type HeroIdentity = {
   declaration: unknown;
   subject: CatalogMediaSubject;
-  neutral: boolean | undefined;
+  foregroundNeutral: boolean | undefined;
 };
 type HeroImageCandidate = Record<string, unknown> & { id: number; game: number; image_id: string };
 type HeroMediaRecord = {
   port_id: string;
-  role: HeroRole;
+  role: GameMediaRole;
   subject: CatalogMediaSubject;
   reason: string;
   image_id?: string;
+  provider_game_id?: number;
+  withdrawn_image_ids?: string[];
 };
 type HeroPreparationContext = {
   inspector: Parameters<typeof prepareCatalogGameMedia>[1]["inspector"];
   signal: AbortSignal | undefined;
   games: Map<string, Promise<unknown>>;
+  artworks: Map<number, Promise<unknown>>;
   goneImages: Set<string>;
 };
 
@@ -1587,7 +1605,7 @@ function declaredHeroMediaIdentities(port: ArtworkPort, input: unknown): HeroIde
         evidence_url: port.project_url,
       },
       subject: { kind: "port", port_id: port.id },
-      neutral: undefined,
+      foregroundNeutral: undefined,
     },
   ];
   // An offered edition is never a selected edition. Require an explicit binding;
@@ -1609,7 +1627,7 @@ function declaredHeroMediaIdentities(port: ArtworkPort, input: unknown): HeroIde
         game_id: original.id,
         source_edition_id: underlying.source_edition_id,
       },
-      neutral:
+      foregroundNeutral:
         typeof underlying.hero_media_edition_neutral === "boolean"
           ? underlying.hero_media_edition_neutral
           : undefined,
@@ -1644,57 +1662,59 @@ async function inspectHeroIdentity(identity: HeroIdentity, context: HeroPreparat
 function eligibleHeroImage(
   value: unknown,
   game: ObservedGame,
-  role: HeroRole,
-  gone: Set<string>,
+  role: GameMediaRole,
 ): value is HeroImageCandidate {
   if (
     !isRecord(value) ||
     !positiveId(value.id) ||
     value.game !== game.id ||
     !matchesString(imagePattern, value.image_id) ||
-    gone.has(value.image_id) ||
     value.animated === true
   )
     return false;
-  if (role === "logo") return true;
+  if (role === "logo" || role === "screenshot") return true;
   const type = value.image_type;
-  return isRecord(type) && positiveId(type.id) && isIgdbKeyArtTypeName(type.name);
+  if (!isRecord(type) || !positiveId(type.id)) return false;
+  const name = normalizedArtworkTypeName(type.name);
+  return role === "header"
+    ? name === "keyartwithoutlogo"
+    : name === "keyart" || name === "keyartwithlogo" || name === "keyartwithoutlogo";
 }
 function heroImageHasLogo(record: HeroImageCandidate) {
   return (
     isRecord(record.image_type) &&
-    typeof record.image_type.name === "string" &&
-    record.image_type.name.toLowerCase().replace(/[^a-z]/g, "") === "keyartwithlogo"
+    normalizedArtworkTypeName(record.image_type.name) === "keyartwithlogo"
   );
 }
-function heroImageCandidates(
-  observed: unknown,
-  game: ObservedGame,
-  role: HeroRole,
-  gone: Set<string>,
-) {
+function heroImageCandidates(observed: unknown, game: ObservedGame, role: GameMediaRole) {
   if (!Array.isArray(observed) || observed.length >= 21)
     throw new Error("Game image inventory is invalid or incomplete.");
   return observed
-    .filter((value): value is HeroImageCandidate => eligibleHeroImage(value, game, role, gone))
+    .filter((value): value is HeroImageCandidate => eligibleHeroImage(value, game, role))
     .sort((a, b) => Number(heroImageHasLogo(b)) - Number(heroImageHasLogo(a)) || a.id - b.id);
 }
 
 function heroAssetProposal(
   candidate: HeroImageCandidate,
   game: ObservedGame,
-  role: HeroRole,
+  role: GameMediaRole,
   identity: HeroIdentity,
   image: Awaited<ReturnType<HeroPreparationContext["inspector"]["inspectMediaImage"]>>,
 ): CatalogMediaAsset {
   const type = isRecord(candidate.image_type) ? candidate.image_type : undefined;
+  const { caption, variant, kind } = gameMediaRoles[role];
+  const foregroundNeutral =
+    role === "logo" || role === "key_art" ? identity.foregroundNeutral : undefined;
   return {
     id: `igdb-${role.replaceAll("_", "-")}-${identity.subject.kind}-${candidate.id}`,
     role,
     subject: identity.subject,
-    ...(identity.neutral === undefined ? {} : { edition_neutral: identity.neutral }),
-    caption: role === "logo" ? "Game logo" : "Game key art",
-    url: `https://images.igdb.com/igdb/image/upload/t_${role === "logo" ? "logo_med_2x" : "720p"}/${candidate.image_id}.png`,
+    ...(foregroundNeutral === undefined ? {} : { edition_neutral: foregroundNeutral }),
+    caption:
+      role === "screenshot" && identity.subject.kind === "original"
+        ? "Original game screenshot"
+        : caption,
+    url: `https://images.igdb.com/igdb/image/upload/t_${variant}/${candidate.image_id}.png`,
     sha256: image.sha256,
     width: image.width,
     height: image.height,
@@ -1705,13 +1725,13 @@ function heroAssetProposal(
     igdb: {
       game_id: game.id,
       record_id: candidate.id,
-      kind: role === "logo" ? "logo" : "artwork",
+      kind,
       image_id: candidate.image_id,
       game_slug: game.slug,
       ...(typeof candidate.alpha_channel === "boolean"
         ? { alpha_channel: candidate.alpha_channel }
         : {}),
-      ...(type && positiveId(type.id) && typeof type.name === "string"
+      ...(role !== "screenshot" && type && positiveId(type.id) && typeof type.name === "string"
         ? { image_type: type.id, image_type_name: type.name }
         : {}),
     },
@@ -1732,37 +1752,57 @@ function observeWithdrawnHeroImage(
     if (isRecord(asset) && isRecord(asset.igdb) && asset.igdb.image_id === gone)
       media.splice(index, 1);
   }
+  return gone;
 }
 async function inspectHeroRole(
   game: ObservedGame,
-  role: HeroRole,
+  role: GameMediaRole,
   identity: HeroIdentity,
   media: unknown[],
   context: HeroPreparationContext,
 ) {
-  const observed = await context.inspector.inspectGameMedia(game.id, role);
-  const candidates = heroImageCandidates(observed, game, role, context.goneImages);
-  let reason = candidates.length ? "images-unavailable-or-unsuitable" : "no-suitable-role-observed";
+  const artwork = role === "key_art" || role === "header";
+  if (artwork && !context.artworks.has(game.id))
+    context.artworks.set(
+      game.id,
+      Promise.resolve().then(() => context.inspector.inspectGameMedia(game.id, "key_art")),
+    );
+  const observed = artwork
+    ? await context.artworks.get(game.id)
+    : await context.inspector.inspectGameMedia(game.id, role);
+  const eligible = heroImageCandidates(observed, game, role);
+  const withdrawn = new Set(
+    eligible.map(({ image_id }) => image_id).filter((id) => context.goneImages.has(id)),
+  );
+  const candidates = eligible.filter(({ image_id }) => !withdrawn.has(image_id));
+  let reason = "no-suitable-role-observed";
+  if (candidates.length) reason = "images-unavailable-or-unsuitable";
+  else if (Array.isArray(observed) && observed.length === 0) reason = "provider-role-empty";
   // Finite candidate chain; one bad file does not erase another media role.
   for (const candidate of candidates.slice(0, 4)) {
     context.signal?.throwIfAborted();
     if (context.goneImages.has(candidate.image_id)) continue;
     try {
       const image = await context.inspector.inspectMediaImage(candidate.image_id, role);
-      return {
-        asset: heroAssetProposal(candidate, game, role, identity, image),
-        reason: "role-selected",
-      };
+      if (role === "header" && image.width * 2 < image.height * 3) continue;
+      const asset = heroAssetProposal(candidate, game, role, identity, image);
+      if (
+        (role === "header" || role === "screenshot") &&
+        media.some((existing) => isRecord(existing) && existing.id === asset.id)
+      )
+        continue;
+      return { asset, reason: "role-selected", withdrawn };
     } catch (error) {
       context.signal?.throwIfAborted();
-      observeWithdrawnHeroImage(error, media, context);
+      const gone = observeWithdrawnHeroImage(error, media, context);
+      if (gone === candidate.image_id) withdrawn.add(gone);
       if (error instanceof ArtworkBatchExhausted) {
         reason = "batch-provider-budget-exhausted";
         break;
       }
     }
   }
-  return { asset: undefined, reason };
+  return { asset: undefined, reason, withdrawn };
 }
 
 function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
@@ -1783,7 +1823,28 @@ async function prepareHeroIdentity(
   context: HeroPreparationContext,
 ) {
   const identified = await inspectHeroIdentity(identity, context);
-  for (const role of ["key_art", "logo"] as const) {
+  for (const role of Object.keys(gameMediaRoles) as GameMediaRole[]) {
+    if (role === "header" || role === "screenshot") {
+      const existing = media.filter(
+        (asset) =>
+          isRecord(asset) &&
+          asset.role === role &&
+          !(isRecord(asset.igdb) && context.goneImages.has(String(asset.igdb.image_id))),
+      );
+      const retained = existing.some(
+        (asset) => isRecord(asset) && sameMediaSubject(asset.subject, identity.subject),
+      );
+      if (retained || existing.length >= (role === "header" ? 2 : 8)) {
+        records.push({
+          port_id: portId,
+          role,
+          subject: identity.subject,
+          reason: retained ? "existing-scene-retained" : "scene-role-capacity",
+          ...(identified.game ? { provider_game_id: identified.game.id } : {}),
+        });
+        continue;
+      }
+    }
     if (!identified.game) {
       records.push({ port_id: portId, role, subject: identity.subject, reason: identified.reason });
       continue;
@@ -1796,6 +1857,8 @@ async function prepareHeroIdentity(
         role,
         subject: identity.subject,
         reason: selected.reason,
+        provider_game_id: identified.game.id,
+        ...(selected.withdrawn.size ? { withdrawn_image_ids: [...selected.withdrawn] } : {}),
         ...(selected.asset?.igdb ? { image_id: selected.asset.igdb.image_id } : {}),
       });
     } catch (error) {
@@ -1808,6 +1871,7 @@ async function prepareHeroIdentity(
           error instanceof ArtworkBatchExhausted
             ? "batch-provider-budget-exhausted"
             : "media-provider-unavailable-or-incomplete",
+        provider_game_id: identified.game.id,
       });
     }
   }
@@ -1873,7 +1937,7 @@ function removeWithdrawnCatalogMedia(
   return companions;
 }
 
-/** Propose descriptive foreground assets through the existing identity/provider
+/** Propose descriptive game media through the existing identity/provider
  * authority. This grants no publication or image-payload export rights. */
 export async function prepareCatalogGameMedia(
   catalog: ArtworkCatalog,
@@ -1895,13 +1959,14 @@ export async function prepareCatalogGameMedia(
     new Set(selected).size !== selected.length ||
     selected.some((id) => !catalog.ports.some((port) => port.id === id))
   )
-    throw new Error("Game media worksets require at most400 unique catalog port ids.");
+    throw new Error("Game media worksets require at most 400 unique catalog port ids.");
   const result = structuredClone(catalog);
   const records: HeroMediaRecord[] = [];
   const context: HeroPreparationContext = {
     inspector: options.inspector,
     signal: options.signal,
     games: new Map(),
+    artworks: new Map(),
     goneImages: new Set(options.knownGoneImageIds ?? []),
   };
   for (const port of result.ports) {
@@ -1924,14 +1989,9 @@ function sameMediaSubject(value: unknown, subject: CatalogMediaSubject) {
     : value.game_id === subject.game_id && value.source_edition_id === subject.source_edition_id;
 }
 
-function isIgdbKeyArtTypeName(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length <= 128 &&
-    ["keyart", "keyartwithlogo", "keyartwithoutlogo"].includes(
-      value.toLowerCase().replace(/[^a-z0-9]/g, ""),
-    )
-  );
+function normalizedArtworkTypeName(value: unknown): string | undefined {
+  if (typeof value === "string" && value.length <= 128 && !/[\p{Cc}]/u.test(value))
+    return value.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
 }
 
 // Reuse the actual core decoder through its existing CLI import into a fresh

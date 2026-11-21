@@ -3629,7 +3629,7 @@ void test("official URL preparation compacts both exact OpenX portable package r
       const candidate = checkedAuthoredPort(
         JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
       );
-      assert.equal(candidate.openx_portable_v1, true);
+      assert.equal(candidate.openx_portable_v1, String(repositoryId));
       assert.equal(result.report.operational_changed, false);
       assert.deepEqual(result.report.changed_records, [id]);
       assert.deepEqual(projectOpenXPortable(candidate).integration, explicit.integration);

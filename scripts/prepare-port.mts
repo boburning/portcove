@@ -283,7 +283,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
   if (record.openx_portable_v1) {
     projections.push({
       field: "openx_portable_v1",
-      scope: "Reviewed OpenXW and OpenXvT archive selectors and local config.yaml.",
+      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
       next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
     });
   }

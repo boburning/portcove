@@ -770,6 +770,7 @@ impl PortcoveService {
         install_root: &Path,
         persistent_root: &Path,
         user_root: &Path,
+        excluded: Option<&str>,
     ) -> Result<Option<Vec<PathBuf>>> {
         let Some(install) = self.psx_data_install(port, install_root)? else {
             return Ok(None);
@@ -788,6 +789,9 @@ impl PortcoveService {
         )?;
         for entry in entries {
             let relative = entry.relative;
+            if excluded == Some(relative.as_str()) {
+                continue;
+            }
             let from = persistent_root.join(&relative);
             let to = entry.canonical;
             // Package identity compares complete content, not publisher timestamps.
