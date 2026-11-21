@@ -254,6 +254,7 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
       mismatches.push(`${command}: ${reason}`);
       return Promise.resolve(refusal());
     };
+    if (args.generation !== options.generation) return deny("generation changed");
     if (command === "export_library_metadata") {
       if (args.path === options.metadataPath) {
         observation.outcome = "forwarded";
@@ -263,7 +264,6 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
       observation.outcome = "refused";
       return Promise.resolve(refusal("Owned presentation metadata export refusal."));
     }
-    if (args.generation !== options.generation) return deny("generation changed");
     if (command === "assess_port_intents") {
       return Promise.resolve(
         reply(
