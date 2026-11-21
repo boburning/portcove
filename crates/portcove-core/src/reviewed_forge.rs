@@ -281,6 +281,7 @@ struct Release {
     tag_name: String,
     draft: Option<bool>,
     prerelease: Option<bool>,
+    upcoming_release: Option<bool>,
     assets: ReleaseAssets,
 }
 
@@ -297,7 +298,6 @@ struct Attachment {
     name: String,
     size: Option<u64>,
     browser_download_url: Option<String>,
-    direct_asset_url: Option<String>,
     url: Option<String>,
 }
 
@@ -597,7 +597,9 @@ impl ForgeRoute<'_> {
         let release: Release = parse_metadata(&bytes)?;
         let stable = match self.instance.dialect {
             ForgeDialect::GitlabV4 => {
-                release.draft != Some(true) && release.prerelease != Some(true)
+                release.upcoming_release == Some(false)
+                    && release.draft != Some(true)
+                    && release.prerelease != Some(true)
             }
             _ => release.draft == Some(false) && release.prerelease == Some(false),
         };
@@ -632,7 +634,9 @@ impl ForgeRoute<'_> {
             .filter(|asset| asset.id == self.artifact.asset_id || asset.name == self.artifact.name);
         let asset = selected.next().ok_or_else(asset_mismatch)?;
         let location = if gitlab {
-            asset.direct_asset_url.as_ref().or(asset.url.as_ref())
+            // GitLab's direct asset alias can redirect to the link URL.
+            // Only the independently pinned destination is eligible here.
+            asset.url.as_ref()
         } else {
             asset.browser_download_url.as_ref()
         };

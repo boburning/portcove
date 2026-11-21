@@ -35,8 +35,9 @@ fn fixtures(dialect: ForgeDialect) -> [Value; 2] {
         json!({"id":10, "full_name":"group/fixture", "html_url":"https://web.forge.test/group/fixture"})
     };
     let release = if gitlab {
-        json!({"tag_name":"stable/reviewed", "assets":{"links":[{
-            "id":30, "name":"fixture.zip", "direct_asset_url":"https://web.forge.test/fixture.zip"
+        json!({"tag_name":"stable/reviewed", "upcoming_release":false, "assets":{"links":[{
+            "id":30, "name":"fixture.zip", "url":"https://web.forge.test/fixture.zip",
+            "direct_asset_url":"https://web.forge.test/group/nested/fixture/-/releases/stable%2Freviewed/downloads/fixture.zip"
         }]}})
     } else {
         json!({"id":20, "tag_name":"stable/reviewed", "draft":false, "prerelease":false, "assets":[{
@@ -108,6 +109,51 @@ async fn reviewed_dialects_resolve_exact_assets_and_verify_the_stream() {
             assert_eq!(verify_artifact(&artifact, &digest, size).is_ok(), good);
         }
     }
+}
+
+#[tokio::test]
+async fn gitlab_requires_a_published_release_and_its_exact_destination_not_the_alias() {
+    let (instance, artifact) = fixture("gitlab-v4");
+    let route = instance.route(&artifact).unwrap();
+    assert!(resolve_fixture(&route, |_| {}).await.0.is_ok());
+    for upcoming in [json!(true), Value::Null, json!("false")] {
+        assert!(
+            resolve_fixture(&route, |release| {
+                release["upcoming_release"] = upcoming;
+            })
+            .await
+            .0
+            .is_err()
+        );
+    }
+    assert!(
+        resolve_fixture(&route, |release| {
+            release.as_object_mut().unwrap().remove("upcoming_release");
+        })
+        .await
+        .0
+        .is_err()
+    );
+    assert!(
+        resolve_fixture(&route, |release| {
+            let link = release["assets"]["links"][0].as_object_mut().unwrap();
+            let destination = link.remove("url").unwrap();
+            link.insert("direct_asset_url".into(), destination);
+        })
+        .await
+        .0
+        .is_err()
+    );
+    assert!(
+        resolve_fixture(&route, |release| {
+            let link = &mut release["assets"]["links"][0];
+            link["url"] = json!("https://web.forge.test/another.zip");
+            link["direct_asset_url"] = json!(artifact.url);
+        })
+        .await
+        .0
+        .is_err()
+    );
 }
 
 #[tokio::test]

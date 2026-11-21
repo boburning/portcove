@@ -7348,7 +7348,18 @@ mod descriptive_listing_delivery;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[tokio::test]
-async fn authenticated_forge_grant_resolves_downloads_and_verifies_through_service() {
+async fn authenticated_forgejo_grant_resolves_downloads_and_verifies_through_service() {
+    authenticated_forge_install_fixture(false).await;
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[tokio::test]
+async fn authenticated_gitlab_grant_resolves_the_plain_link_and_verifies_through_service() {
+    authenticated_forge_install_fixture(true).await;
+}
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+async fn authenticated_forge_install_fixture(gitlab: bool) {
     use std::io::{Cursor, Write};
     use std::sync::Arc;
 
@@ -7367,10 +7378,11 @@ async fn authenticated_forge_grant_resolves_downloads_and_verifies_through_servi
 
     let selector = serde_json::json!({
         "platform": "linux-x86-64", "channel": "stable",
-        "instance": {"dialect": "forgejo-v1", "api_root": "https://forge.example/api/v1",
+        "instance": {"dialect": if gitlab { "gitlab-v4" } else { "forgejo-v1" },
+            "api_root": if gitlab { "https://forge.example/api/v4" } else { "https://forge.example/api/v1" },
             "web_host": "forge.example", "asset_hosts": ["assets.forge.example"]},
         "artifact": {"repository": "group/fixture", "repository_id": 10, "tag": "v1",
-            "release_id": 20, "asset_id": 30, "name": "fixture.zip",
+            "release_id": if gitlab { None } else { Some(20) }, "asset_id": 30, "name": "fixture.zip",
             "url": asset_url, "size": bytes.len(), "sha256": archive_digest}
     });
     let mut port = serde_json::to_value(&metadata_catalog().ports()[0]).unwrap();
@@ -7475,11 +7487,22 @@ async fn authenticated_forge_grant_resolves_downloads_and_verifies_through_servi
     let service =
         crate::PortcoveService::with_provider(library.clone(), Arc::new(releases)).unwrap();
     let fixture_metadata = || {
-        server.json(serde_json::json!({"id":10,"full_name":"group/fixture","html_url":"https://forge.example/group/fixture"}));
-        server.json(serde_json::json!({
-            "id":20,"tag_name":"v1","draft":false,"prerelease":false,
-            "assets":[{"id":30,"name":"fixture.zip","size":bytes.len(),"browser_download_url":asset_url}]
-        }));
+        if gitlab {
+            server.json(serde_json::json!({"id":10,"path_with_namespace":"group/fixture","web_url":"https://forge.example/group/fixture"}));
+            server.json(serde_json::json!({
+                "tag_name":"v1","upcoming_release":false,
+                "assets":{"links":[{
+                    "id":30,"name":"fixture.zip","url":asset_url,
+                    "direct_asset_url":"https://forge.example/group/fixture/-/releases/v1/downloads/fixture.zip"
+                }]}
+            }));
+        } else {
+            server.json(serde_json::json!({"id":10,"full_name":"group/fixture","html_url":"https://forge.example/group/fixture"}));
+            server.json(serde_json::json!({
+                "id":20,"tag_name":"v1","draft":false,"prerelease":false,
+                "assets":[{"id":30,"name":"fixture.zip","size":bytes.len(),"browser_download_url":asset_url}]
+            }));
+        }
     };
 
     fixture_metadata();
@@ -7513,11 +7536,19 @@ async fn authenticated_forge_grant_resolves_downloads_and_verifies_through_servi
             .valid
     );
     let requests = server.requests.lock().unwrap();
-    let expected = [
-        "GET /api/v1/repos/group/fixture ",
-        "GET /api/v1/repos/group/fixture/releases/tags/v1 ",
-        "GET /fixture.zip ",
-    ];
+    let expected = if gitlab {
+        [
+            "GET /api/v4/projects/group%2Ffixture ",
+            "GET /api/v4/projects/group%2Ffixture/releases/v1 ",
+            "GET /fixture.zip ",
+        ]
+    } else {
+        [
+            "GET /api/v1/repos/group/fixture ",
+            "GET /api/v1/repos/group/fixture/releases/tags/v1 ",
+            "GET /fixture.zip ",
+        ]
+    };
     assert_eq!(requests.len(), expected.len() * 2);
     for (request, prefix) in requests.iter().zip(expected.into_iter().cycle()) {
         assert!(request.starts_with(prefix), "{request:?}");
