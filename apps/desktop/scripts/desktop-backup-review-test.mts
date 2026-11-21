@@ -356,9 +356,17 @@ export async function backupReviewScenario({
       "changed after review",
     );
     await observeProtection("native-protection-after-reviewed-restore");
-    await clickVisible(
-      await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
+    const deleteTrigger = By.css(
+      `${backupSectionSelector} [data-backup-id="${selected.id}"] button[data-backup-action="delete"]:not(:disabled)`,
     );
+    // Hosted Windows observed a workspace refresh and a capabilities read
+    // after the confirmed restore. Keep waiting for the exact row to settle.
+    const deleteButton = await browser.wait(
+      until.elementLocated(deleteTrigger),
+      30_000,
+      "The selected backup's Delete control did not become enabled after restore",
+    );
+    await clickVisible(deleteButton);
     await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
     const deleteActionStyles = await assertDestructiveReviewAction(
       browser,
