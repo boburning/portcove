@@ -2,6 +2,7 @@ import {
   CurrentGamePlayControl,
   currentGamePlayKey,
 } from "../features/app-shell/current-game-play";
+import { AutomaticSnapshotsSummary } from "./AutomaticSnapshotsSetting";
 import { useAppTranslation } from "../localization";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
@@ -1319,6 +1320,9 @@ function SavesStorageGroup({
           </div>
           <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
         </header>
+        {status?.active && !status.external_runtime && (
+          <AutomaticSnapshotsSummary generation={libraryGeneration} />
+        )}
         <div className="detail-saved-data-summary">
           <div className="detail-saved-data-fact">
             <Icon glyph={FileArchive} size="lg" />
@@ -2901,10 +2905,9 @@ function VersionRollback({
         Restore previous version
       </Button>
       <p className="text-sm text-pc-muted-foreground">
-        This switches game software and keeps current saved data. Unless you turned it off in
-        Settings, or this game has no saves that Portcove manages, Portcove first takes an automatic
-        snapshot of its saves and settings. Older software may not understand newer saves or
-        configuration. Saved-data restore is a separate reviewed action in Saves.
+        This switches game software and keeps current saved data. Older software may not understand
+        newer saves or configuration. Saved-data restore is a separate reviewed action in Saves
+        &amp; backups.
       </p>
       {rollback.blocked && (
         <p role="status" data-rollback-assessment>
@@ -4371,6 +4374,9 @@ function DetailVersionsSection({
               ) : undefined
             }
           />
+        )}
+        {!external && model.status?.active && (
+          <AutomaticSnapshotsSummary generation={model.libraryGeneration} />
         )}
         {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
         {!external && model.port.release.provider !== "user-prepared" && (

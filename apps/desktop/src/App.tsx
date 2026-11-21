@@ -168,6 +168,7 @@ import {
   type View,
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
+import { AutomaticSnapshotsProvider } from "./components/AutomaticSnapshotsSetting";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { referenceIdentity } from "./shared/reference-identity";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
@@ -1229,7 +1230,12 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <AutomaticSnapshotsProvider generation={model.bootstrap.generation}>
+      <WorkspaceView {...model} />
+    </AutomaticSnapshotsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
