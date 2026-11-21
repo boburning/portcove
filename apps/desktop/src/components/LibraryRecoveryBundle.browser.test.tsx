@@ -377,6 +377,50 @@ it("resumes only the transfer identified by the reviewed restore check", async (
   );
 });
 
+it("verifies a published receipt after a fresh review without copying or resuming", async () => {
+  vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
+    message:
+      "A previous copy was published to this folder. Check the bundle to verify its contents.",
+    details: {
+      recovery_action: "read_published_recovery_bundle",
+      recovery_destination: destination,
+      recovery_bundle_id: bundle.bundle_id,
+      recovery_source_library_id: bundle.source_library_id,
+      recovery_plan_sha256: plan.plan_sha256,
+    },
+  });
+  const read = vi
+    .spyOn(desktopApi, "inspectLibraryRecoveryBundle")
+    .mockResolvedValueOnce({ ...bundle, bundle_id: "another-bundle" })
+    .mockResolvedValue(bundle);
+  const copy = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle");
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Create recovery bundle", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
+  await dialog.getByRole("textbox", { name: "New bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Review bundle creation" }).click();
+  const verify = dialog.getByRole("button", { name: "Verify published bundle" });
+  await expect.element(verify).toBeVisible();
+  expect(read).not.toHaveBeenCalled();
+  await verify.click();
+  await expect
+    .element(dialog.getByText("The verified bundle does not match the reviewed copy."))
+    .toBeVisible();
+  await expect.element(dialog.getByText("Bundle verified")).not.toBeInTheDocument();
+  await expect.element(verify).toHaveFocus();
+  await verify.click();
+  await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
+  expect(read.mock.calls).toEqual([
+    [destination, plan.plan_sha256],
+    [destination, plan.plan_sha256],
+  ]);
+  expect(copy).not.toHaveBeenCalled();
+  expect(resume).not.toHaveBeenCalled();
+});
+
 it("offers the exact interrupted creation after a fresh review and clears it when the folder changes", async () => {
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({

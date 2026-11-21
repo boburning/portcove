@@ -61,7 +61,13 @@ impl PortcoveService {
         &self,
         destination: &Path,
     ) -> Result<LibraryRecoveryBundlePlan> {
-        let (plan, _, _) = prepare(self, destination, Creation::New)?;
+        let (plan, _, _) = prepare(self, destination, Creation::New).map_err(|error| {
+            if error.code == crate::ErrorCode::Conflict {
+                execution::published_creation_readback(self, destination).unwrap_or(error)
+            } else {
+                error
+            }
+        })?;
         require_capacity(&plan)?;
         Ok(plan)
     }

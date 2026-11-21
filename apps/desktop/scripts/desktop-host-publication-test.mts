@@ -317,9 +317,43 @@ export async function hostPublicationScenario(context: Context) {
       await waitText(path.basename(stage));
       await staysIncomplete();
       await capture("interrupted-bundle-creation-rediscovered");
+      const publication = await arm("recovery_bundle_published", library);
       await reviewControls(browser).click(
         By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle creation"]'),
       );
+      await publication.wait();
+      const publishedManifest = await fileIdentity(
+        path.join(bundle, "portcove-recovery-bundle.json"),
+      );
+      const publishedSave = await fileIdentity(path.join(bundle, "content", relativeSave));
+      assert.equal(publishedSave.sha256, save.sha256);
+      const staysPublished = async () => {
+        await assertIdentity(creationIntent);
+        await assertIdentity(publishedManifest);
+        await assertIdentity(publishedSave);
+        await assertIdentity(save);
+        await assert.rejects(access(path.join(stage, "payload")), { code: "ENOENT" });
+      };
+      browser = await interruptHost(
+        "bundle-creation-published",
+        async (application) => {
+          await publication.held(application);
+          await staysPublished();
+        },
+        async () => {
+          await staysPublished();
+          await publication.disarm();
+        },
+        false,
+      );
+      assert.equal((await confirmActiveSource()).id, activeSource.id);
+      await storage();
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("A previous copy was published to this folder.");
+      await staysPublished();
+      await click("Verify published bundle");
       await waitText("Bundle verified");
       await capture("interrupted-bundle-creation-resumed");
       const verified = transportValue(
@@ -327,7 +361,9 @@ export async function hostPublicationScenario(context: Context) {
         success(await invoke("inspect_library_recovery_bundle", { path: bundle })),
       );
       assert.equal(verified.source_library_id, activeSource.id);
-      const bundleIdentity = await fileIdentity(path.join(bundle, "portcove-recovery-bundle.json"));
+      await staysPublished();
+      const bundleIdentity = publishedManifest;
+      publication.result.readback = { publishedManifest, publishedSave, verified };
       assert.equal(
         (await fileIdentity(path.join(bundle, "content", relativeSave))).sha256,
         save.sha256,
