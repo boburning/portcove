@@ -1393,20 +1393,34 @@ export async function installScenarios({
       gates.push(gate);
       return { release, gate };
     };
-    const acquire = async (release: Awaited<ReturnType<InstallFixture["publishRelease"]>>) => {
+    const acquire = async (
+      release: Awaited<ReturnType<InstallFixture["publishRelease"]>>,
+      fromExistingReview = false,
+    ) => {
       const generation = (await bootstrap()).generation;
       const plan = transportValue(
         "game_update_plan",
         success(await invoke("plan_game_update_acquisition", { portId: port.id, generation })),
       );
+      const asset = plan.plan.release.asset;
       assert.equal(plan.activate, false);
-      assert.equal(plan.plan.release.asset.sha256, release.sha256);
-      await reviewGameUpdateDisposition(browser, "download");
-      // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
-      // opened after 15 s once (cause not diagnosed; 14.9 s in the passing run). It
-      // shares the acquisition budget.
+      assert.equal(asset.sha256, release.sha256);
+      assert.equal(asset.size, release.size);
+      if (fromExistingReview) {
+        const activationPlan = transportValue(
+          "game_update_plan",
+          success(
+            await invoke("plan_game_update", { portId: port.id, activate: true, generation }),
+          ),
+        );
+        assert.equal(activationPlan.activate, true);
+        assert.equal(activationPlan.archive_only_plan_sha256, plan.plan_sha256);
+        assert.deepEqual(activationPlan.plan.release.asset, asset);
+      }
       const reviewWaitStarted = Date.now();
-      await browser.wait(
+      await reviewGameUpdateDisposition(browser, fromExistingReview ? "install" : "download");
+      // Hosted Windows can need more than 15 s to settle this exact review.
+      const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         acquisitionScriptBudgetMs,
       );
@@ -1414,6 +1428,24 @@ export async function installScenarios({
         Number(observations.slowest_download_review_ms ?? 0),
         Date.now() - reviewWaitStarted,
       );
+      let reviewedArchive;
+      if (fromExistingReview) {
+        const source = new URL(asset.url);
+        await browser.wait(
+          async () => {
+            const text = await review.getText();
+            return (
+              text.includes("Archive files") &&
+              text.includes(asset.name) &&
+              text.includes(source.origin + source.pathname)
+            );
+          },
+          acquisitionScriptBudgetMs,
+          "The existing activation review must disclose the exact archive before acquisition",
+        );
+        reviewedArchive = await review.getText();
+      }
+      // No second confirmation is issued before the real held transfer is observed.
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
       const transferWaitStarted = Date.now();
@@ -1438,7 +1470,11 @@ export async function installScenarios({
       }, 15_000);
       assert.ok(transferring);
       assert.equal(transferring.release.asset.sha256, release.sha256);
-      return { plan, transferring };
+      return {
+        plan,
+        transferring,
+        ...(reviewedArchive ? { reviewed_archive: reviewedArchive } : {}),
+      };
     };
     const finish = async (
       transfer: Awaited<ReturnType<typeof acquire>>,
@@ -1643,7 +1679,7 @@ export async function installScenarios({
       const beforeV2 = await preserve();
       observations.initial_launch = { preserved_baseline: beforeV2 };
       observations.acquire_then_play = { release: v2.release, before: beforeV2 };
-      const transferV2 = await acquire(v2.release);
+      const transferV2 = await acquire(v2.release, true);
       observations.acquire_then_play = {
         release: v2.release,
         before: beforeV2,
