@@ -2,7 +2,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use reqwest::Url;
-use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::{
@@ -11,13 +12,15 @@ use crate::{
 };
 
 const API: &str = "https://www.quaddicted.com/api/v1/";
-const DIRECTORY: &str = "https://www.quaddicted.com/db/";
+pub(crate) const DIRECTORY: &str = "https://www.quaddicted.com/db/v2/";
+const MAP_PAGE: &str = "https://www.quaddicted.com/db/v2/maps/";
 const FILTER: &str = "+tags:\"game=quake\" +tags:\"game_mode=singleplayer\"";
 const PAGE_SIZE: usize = 24;
 const MAX_PAGE: u32 = 20;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum QuakeEngine {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum QuakeEngine {
     VkQuake,
     Ironwail,
 }
@@ -37,15 +40,15 @@ pub(crate) fn source(port: &PortDefinition, platform: Platform) -> Option<QuakeE
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum QuaddictedEngineCompatibility {
+pub enum QuaddictedEngineCompatibility {
     Unverified,
     DeclaresAnotherRequiredEngine,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct QuaddictedInstallNotes {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct QuaddictedInstallNotes {
     pub extract: Option<String>,
     pub extract_mapping: BTreeMap<String, String>,
     pub command_line: Vec<String>,
@@ -53,9 +56,10 @@ pub(crate) struct QuaddictedInstallNotes {
     pub dependencies: Vec<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct QuaddictedEntry {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct QuaddictedEntry {
     pub title: String,
+    pub page_url: String,
     pub filename: Option<String>,
     pub authors: Vec<String>,
     pub release_date: Option<String>,
@@ -73,10 +77,10 @@ pub(crate) struct QuaddictedEntry {
     pub install_notes: QuaddictedInstallNotes,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub(crate) struct QuaddictedPage {
-    pub attribution: &'static str,
-    pub source_url: &'static str,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct QuaddictedPage {
+    pub attribution: String,
+    pub source_url: String,
     pub engine: QuakeEngine,
     pub page: u32,
     pub entries: Vec<QuaddictedEntry>,
@@ -110,6 +114,43 @@ impl QuaddictedReader {
             })
             .await
     }
+
+    pub(crate) async fn review_page(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        url: &str,
+    ) -> Result<String> {
+        let engine = source(port, platform).ok_or_else(|| {
+            PortcoveError::unsupported("this platform has no reviewed Quaddicted browser")
+        })?;
+        if url == DIRECTORY {
+            return Ok(url.into());
+        }
+        let sha = url
+            .strip_prefix(MAP_PAGE)
+            .filter(|value| valid_sha256(value))
+            .ok_or_else(|| {
+                PortcoveError::verification("the page is outside the reviewed Quaddicted directory")
+            })?;
+        let result = self
+            .http
+            .observe(
+                query_url(&format!("{FILTER} +sha256:{sha}"), 0, 2)?,
+                |value| project(value, engine, 0),
+            )
+            .await?;
+        if result.freshness == crate::ProviderFreshness::Stale
+            || result.value.unreadable_rows != 0
+            || result.value.entries.len() != 1
+            || result.value.entries[0].page_url != url
+        {
+            return Err(PortcoveError::verification(
+                "Quaddicted did not confirm this reviewed page",
+            ));
+        }
+        Ok(url.into())
+    }
 }
 
 fn endpoint(search: Option<&str>, page: u32) -> Result<Url> {
@@ -133,12 +174,23 @@ fn endpoint(search: Option<&str>, page: u32) -> Result<Url> {
         let term = term.replace('-', "\\-");
         query.push_str(&format!(" +filenames_txt:*{term}*"));
     }
+    query_url(&query, page as usize * PAGE_SIZE, PAGE_SIZE)
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn query_url(query: &str, start: usize, rows: usize) -> Result<Url> {
     let mut url = Url::parse(API).map_err(|error| PortcoveError::state(error.to_string()))?;
     url.query_pairs_mut()
-        .append_pair("q", &query)
+        .append_pair("q", query)
         .append_pair("fl", "sha256,tags,urls,bytes,install,notes")
-        .append_pair("rows", &PAGE_SIZE.to_string())
-        .append_pair("start", &(page as usize * PAGE_SIZE).to_string())
+        .append_pair("rows", &rows.to_string())
+        .append_pair("start", &start.to_string())
         .append_pair("sort", "release_date_dt DESC, sha256 ASC");
     Ok(url)
 }
@@ -162,8 +214,8 @@ fn project(value: &Value, engine: QuakeEngine, page: u32) -> Result<QuaddictedPa
     }
     entries.retain(|entry| !duplicated.contains(&entry.claimed_sha256));
     Ok(QuaddictedPage {
-        attribution: "Quaddicted",
-        source_url: DIRECTORY,
+        attribution: "Quaddicted".into(),
+        source_url: DIRECTORY.into(),
         engine,
         page,
         unreadable_rows: rows.len() - entries.len(),
@@ -174,11 +226,7 @@ fn project(value: &Value, engine: QuakeEngine, page: u32) -> Result<QuaddictedPa
 
 fn entry(row: &Value, engine: QuakeEngine) -> Option<QuaddictedEntry> {
     let sha = row.get("sha256")?.as_str()?;
-    if sha.len() != 64
-        || !sha
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-    {
+    if !valid_sha256(sha) {
         return None;
     }
     let tags = row
@@ -270,6 +318,7 @@ fn entry(row: &Value, engine: QuakeEngine) -> Option<QuaddictedEntry> {
     dependencies.extend(text_values("dependency"));
     Some(QuaddictedEntry {
         title,
+        page_url: format!("{MAP_PAGE}{sha}"),
         filename,
         authors: text_values("author"),
         release_date: text_values("release_date").into_iter().next(),

@@ -106,6 +106,7 @@ mod github_mods;
 mod jakmods;
 mod mod_package;
 mod mod_provider;
+mod moddb_feed;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
@@ -123,6 +124,7 @@ mod provider_install;
 mod provider_update;
 mod psx;
 mod quaddicted;
+mod quake_mod_browser;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
@@ -562,3 +564,10 @@ pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 pub const LIBRARY_SCHEMA_VERSION: u32 = database::CURRENT_SCHEMA_VERSION as u32;
 /// Cross-process exclusion capability required by application update metadata.
 pub const APPLICATION_UPDATE_LOCK_PROTOCOL: &str = "library-lock-v1";
+
+pub use moddb_feed::FileNotice as ModDbFileNotice;
+pub use quaddicted::{
+    QuaddictedEngineCompatibility, QuaddictedEntry, QuaddictedInstallNotes, QuaddictedPage,
+    QuakeEngine,
+};
+pub use quake_mod_browser::ModDbFileNotices;

@@ -3,6 +3,8 @@ use quick_xml::{
     events::{BytesStart, Event},
     name::ResolveResult,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use time::{
     OffsetDateTime, UtcOffset,
@@ -23,8 +25,8 @@ const ATOM_NS: &str = "http://www.w3.org/2005/Atom";
 
 /// Mod DB's Files channel also contains tutorials and patches. A notice
 /// identifies a page to open, without classifying it as an installable release.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct FileNotice {
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct FileNotice {
     pub source_id: String,
     pub title: String,
     pub page_url: String,
@@ -67,18 +69,7 @@ impl Item {
             return Err("Mod DB file identity is invalid");
         }
         let url = self.link.ok_or("Mod DB file page is missing")?;
-        let slug = url
-            .strip_prefix(FILES_PAGE)
-            .and_then(|rest| rest.strip_prefix('/'))
-            .ok_or("Mod DB file page is outside the reviewed scope")?;
-        if slug.len() > 128
-            || !slug.split('-').all(|part| {
-                !part.is_empty()
-                    && part
-                        .bytes()
-                        .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
-            })
-        {
+        if !valid_notice_url(&url) {
             return Err("Mod DB file page is outside the reviewed scope");
         }
         let published_at = self
@@ -98,6 +89,20 @@ impl Item {
             published_at,
         })
     }
+}
+
+pub(crate) fn valid_notice_url(url: &str) -> bool {
+    url.strip_prefix(FILES_PAGE)
+        .and_then(|rest| rest.strip_prefix('/'))
+        .is_some_and(|slug| {
+            slug.len() <= 128
+                && slug.split('-').all(|part| {
+                    !part.is_empty()
+                        && part
+                            .bytes()
+                            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+                })
+        })
 }
 
 fn attribute(tag: &BytesStart<'_>, key: &str) -> Result<Option<String>, &'static str> {
