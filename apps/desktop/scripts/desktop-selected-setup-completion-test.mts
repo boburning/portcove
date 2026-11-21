@@ -818,9 +818,12 @@ export async function selectedSetupCompletionScenario({
         5_000,
         "Selected setup must open the expected game details",
       );
+      // Hosted GTK run 44955127222 reached this exact review's Working state
+      // before the settled installation plan was available for observation.
       await browser.wait(
         until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-        15_000,
+        45_000,
+        "The first exact queued installation review did not finish checking",
       );
       assert.deepEqual(
         await read("get_statuses"),
