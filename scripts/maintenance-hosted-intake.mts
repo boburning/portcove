@@ -203,7 +203,9 @@ export async function hostedIntakeObservation(
 }
 
 /** The complete read-only status read, GET-only within the executor's request budget. */
-export async function readHostedIntake(): Promise<HostedStatusAll> {
+export async function readHostedIntake(
+  checkpointEnvironment?: NodeJS.ProcessEnv,
+): Promise<HostedStatusAll> {
   const { hostedStatusAll, readOnlyHostedBridge } = await import("./hosted-discovery-intake.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { validateConfig } = await import("./roadmap.mts");
@@ -215,7 +217,11 @@ export async function readHostedIntake(): Promise<HostedStatusAll> {
     credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
     deadline,
   });
-  return await hostedStatusAll(bridge);
+  const { postgresIntakeCheckpoints } = await import("./hosted-discovery-intake-checkpoint.mts");
+  return await hostedStatusAll(
+    bridge,
+    checkpointEnvironment ? postgresIntakeCheckpoints(checkpointEnvironment) : undefined,
+  );
 }
 
 const stored = (payload: unknown) => payload as HostedIntakeFact | null | undefined;

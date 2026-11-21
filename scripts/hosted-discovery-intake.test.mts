@@ -10,6 +10,7 @@ import {
   HostedIntakeBridge,
   parseHostedRequest,
   assertHostedEvent,
+  selectHostedRequests,
   verifyOwnerAuditRun,
   hostedRequestMarker,
   hostedBody,
@@ -2260,10 +2261,65 @@ async function verifyAuditRecovery(schema: 1 | 2) {
     return await inventory(cache, full);
   };
   const originalProposalRun = "800/1@" + "e".repeat(40);
-  await assert.rejects(
-    f.bridge.process(f.request, f.all(), schema === 2 ? { origin: originalProposalRun } : {}),
-    /Unrelated Roadmap edit/u,
-  );
+  if (schema === 2) {
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].audit_pending) throw new Error("Interrupted before first audit projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { origin: originalProposalRun }),
+      /Interrupted before first audit projection/u,
+    );
+    f.bridge.persist = publish;
+    const native = await f.bridge.status(f.request, f.all());
+    assert.equal(native.audit_pending, undefined);
+    assert.equal(native.audit_retry, undefined);
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    const scheduledBinding = collected.audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    const verifyOrigin = async (request: number, origin: string) => {
+      assert.equal(request, f.request.id);
+      assert.equal(origin, originalProposalRun);
+    };
+    const comment = f.comments.get(native.receipt_comment!)!;
+    const original = comment.body;
+    comment.body += "\n";
+    assert.equal((await f.bridge.status(f.request, f.all(), store)).audit_retry, undefined);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /ahead of or differs/u,
+    );
+    assert.notEqual(comment.body, original);
+    comment.body = original;
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin: async () => {
+          throw new Error("Original owner action could not be verified");
+        },
+      }),
+      /original owner action/iu,
+    );
+    assert.equal(comment.body, original);
+    const duplicate = { ...comment, id: comment.id + 1000 };
+    await assert.rejects(
+      f.bridge.process(f.request, [...f.all(), duplicate], {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin,
+      }),
+      /ambiguous hosted receipt/iu,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /Unrelated Roadmap edit/u,
+    );
+  } else {
+    await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  }
   assert.equal(f.creations, candidates.length);
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
@@ -2352,6 +2408,9 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       /Worker interrupted/u,
     );
     f.bridge.persist = publish;
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    assert.equal(collected.audit_retry?.binding, scheduledBinding);
     f.bridge.inventory = async () => {
       throw new Error("Already verified audit must not repeat");
     };
@@ -2378,6 +2437,17 @@ void test("legacy audit recovery preserves delivered candidates without reopenin
   verifyAuditRecovery(1));
 void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", () =>
   verifyAuditRecovery(2));
+
+void test("scheduled selections retain an unavailable request and independent bound audits", async () => {
+  const f = await fixture();
+  const absent = f.request.id + 1;
+  const selected = [absent, f.request.id];
+  assert.deepEqual(selectHostedRequests([f.request], selected, true), [
+    { id: absent, request: undefined },
+    { id: f.request.id, request: f.request },
+  ]);
+  assert.throws(() => selectHostedRequests([f.request], selected, false), /no longer available/u);
+});
 
 function amendmentFor(
   f: Awaited<ReturnType<typeof fixture>>,

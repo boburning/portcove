@@ -413,6 +413,29 @@ function auditMayResume(receipt: Receipt) {
   );
 }
 
+type IntakeCheckpoint = NonNullable<ReturnType<HostedIntakeCheckpointStore["load"]>>;
+
+/** Binds an unpublished audit authorization to its exact live predecessor. */
+function unpublishedAuditBinding(
+  saved: IntakeCheckpoint,
+  current: Comment,
+  receipt: Receipt,
+  checkpoint: Receipt,
+) {
+  if (
+    saved.previous_receipt_sha256 !== observationHash(current.body) ||
+    saved.request_sha256 !== receipt.request_sha256 ||
+    !isDeepStrictEqual(saved.candidates, checkpointSlots(checkpoint)) ||
+    !auditMayResume(checkpoint) ||
+    checkpoint.status !== "applying" ||
+    checkpoint.request_sha256 !== receipt.request_sha256 ||
+    checkpoint.plan_sha256 !== receipt.plan_sha256 ||
+    !isDeepStrictEqual(checkpoint.delivery, receipt.delivery)
+  )
+    return undefined;
+  return auditBinding(checkpoint, current.id);
+}
+
 export function verifyOwnerAuditRun(row: unknown, request: number, origin: string) {
   if (
     !isRecord(row) ||
@@ -1353,7 +1376,11 @@ export class HostedIntakeBridge {
     d.status = "existing";
     await persist();
   }
-  async status(request: Comment, all: Comment[]) {
+  async status(
+    request: Comment,
+    all: Comment[],
+    auditCheckpoints?: Pick<HostedIntakeCheckpointStore, "load">,
+  ) {
     trustedHostedComment(request, this.client.config.owner);
     const proposal = parseHostedRequest(request.body);
     const found = all.filter(
@@ -1416,10 +1443,45 @@ export class HostedIntakeBridge {
           throw new Error("Complete logical batch lacks its required full doctor");
       }
     }
-    const retryBinding =
+    let retryBinding =
       receipt && found[0] && auditMayResume(receipt)
         ? auditBinding(receipt, found[0].id)
         : undefined;
+    const current = found[0];
+    if (
+      auditCheckpoints &&
+      current &&
+      receipt &&
+      receipt.status !== "complete" &&
+      receipt.delivery.length > 10 &&
+      receipt.delivery.every((d) => !missingDeliveryProof(d))
+    ) {
+      const saved = auditCheckpoints.load(request.id);
+      if (saved && saved.receipt_body !== current.body) {
+        const liveBinding = retryBinding;
+        retryBinding = undefined;
+        const checkpoint = readHostedReceipt(
+          { ...request, body: saved.receipt_body },
+          request,
+          proposal,
+          lineage?.bodyRequest ?? request.id,
+          all,
+          this.client.config.owner,
+          this.client.config.repository,
+        );
+        retryBinding = unpublishedAuditBinding(saved, current, receipt, checkpoint);
+        if (
+          !retryBinding &&
+          liveBinding &&
+          saved.previous_receipt_sha256 === observationHash(current.body) &&
+          saved.request_sha256 === receipt.request_sha256 &&
+          isDeepStrictEqual(saved.candidates, checkpointSlots(checkpoint)) &&
+          (checkpoint.status === "complete" || auditMayResume(checkpoint)) &&
+          auditBinding(checkpoint, current.id) === liveBinding
+        )
+          retryBinding = liveBinding;
+      }
+    }
     const error = receipt?.error ?? diagnostic?.error;
     const failure = isRecord(error) ? error : undefined;
     const legacyRecoverable =
@@ -1667,7 +1729,20 @@ export class HostedIntakeBridge {
     const freshAmendments = async () => {
       for (const { comment } of amendments) await this.fresh(comment);
     };
-    const assertCurrentAuditRequest = (comments: Comment[]) => {
+    const assertCurrentAuditRequest = (comments: Comment[], expected?: Comment) => {
+      if (expected) {
+        const receipts = comments.filter(
+          (comment) =>
+            comment.user.login === "github-actions[bot]" &&
+            comment.body.startsWith(receiptMarker(request.id)),
+        );
+        if (
+          receipts.length !== 1 ||
+          receipts[0]?.id !== expected.id ||
+          receipts[0].body !== expected.body
+        )
+          throw new Error("The scheduled audit receipt identity or preimage changed");
+      }
       for (const comment of comments) {
         const selection = hostedRequestSelection(comment, this.client.config.owner);
         if (
@@ -1698,11 +1773,8 @@ export class HostedIntakeBridge {
         this.client.config.owner,
         this.client.config.repository,
       );
-      if (scheduledBinding !== undefined) {
-        if (
-          auditBinding(receipt, prior.id) !== scheduledBinding ||
-          (receipt.status !== "complete" && !auditMayResume(receipt))
-        )
+      if (scheduledBinding !== undefined && receipt.status === "complete") {
+        if (auditBinding(receipt, prior.id) !== scheduledBinding)
           throw new Error("The current native receipt does not authorize this scheduled audit");
         if (!verifyOrigin || !receipt.audit_origin)
           throw new Error("Missing native audit origin verification");
@@ -1719,8 +1791,6 @@ export class HostedIntakeBridge {
         return receipt;
       }
     }
-    if (auditOnly && !receipt?.audit_pending)
-      throw new Error("Audit mode requires a retained batch with its full audit pending");
     const hasAmendments = amendments.length > 0;
     const authorizedImport =
       proposal.schema_version === 1 &&
@@ -1744,7 +1814,7 @@ export class HostedIntakeBridge {
     let checkpointFailure: { error: unknown } | undefined;
     const requestHash = observationHash(request.body);
     const checkpointAndPublish = async (next: Receipt, previous?: Comment) => {
-      if (scheduledBinding) assertCurrentAuditRequest(await this.comments());
+      if (scheduledBinding) assertCurrentAuditRequest(await this.comments(), previous);
       if (!checkpointStore) {
         await freshAmendments();
         return await this.persist(next, previous);
@@ -1770,8 +1840,10 @@ export class HostedIntakeBridge {
         throw error;
       }
     };
+    if (auditOnly && !saved && !receipt?.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
     if (checkpointStore && !saved && prior) {
-      if (!authorizedImport || !receipt)
+      if (scheduledBinding !== undefined || !authorizedImport || !receipt)
         throw new Error(
           "GitHub intake receipt has no PostgreSQL checkpoint; reconcile the restored store",
         );
@@ -1805,6 +1877,7 @@ export class HostedIntakeBridge {
         checkpointSlots(receipt),
       );
     }
+    let recovery: { receipt: Receipt; body: string } | undefined;
     if (saved) {
       const projected = { ...request, body: saved.receipt_body };
       const checkpointReceipt = readHostedReceipt(
@@ -1826,38 +1899,65 @@ export class HostedIntakeBridge {
           "PostgreSQL checkpoint has no confirmed GitHub receipt marker; reconcile before retrying",
         );
       if (prior.body !== saved.receipt_body) {
-        if (auditOnly) {
-          if (
-            scheduledBinding &&
-            (auditBinding(checkpointReceipt, prior.id) !== scheduledBinding ||
-              (checkpointReceipt.status !== "complete" && !auditMayResume(checkpointReceipt)))
-          )
-            throw new Error("Stored checkpoint changed the authorized scheduled audit");
-          if (!checkpointReceipt.audit_pending && checkpointReceipt.status !== "complete")
-            throw new Error("Stored checkpoint is outside the requested final audit");
-          if (checkpointReceipt.status === "complete")
-            await this.status(
-              request,
-              all.map((comment) =>
-                comment.id === prior?.id ? { ...comment, body: saved.receipt_body } : comment,
-              ),
-            );
-        }
         if (observationHash(prior.body) !== saved.previous_receipt_sha256)
           throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
-        await this.fresh(request);
-        await freshAmendments();
-        await freshLineage();
-        if (scheduledBinding) assertCurrentAuditRequest(await this.comments());
-        prior = await this.persist(checkpointReceipt, prior, saved.receipt_body);
-        receipt = checkpointReceipt;
-        if (receipt.status === "complete") {
+        recovery = { receipt: checkpointReceipt, body: saved.receipt_body };
+      }
+    }
+    if (scheduledBinding !== undefined) {
+      let authorized: Receipt | undefined;
+      if (receipt && prior) {
+        if (
+          saved &&
+          recovery &&
+          unpublishedAuditBinding(saved, prior, receipt, recovery.receipt) === scheduledBinding
+        ) {
+          authorized = recovery.receipt;
+        } else if (
+          auditMayResume(receipt) &&
+          auditBinding(receipt, prior.id) === scheduledBinding
+        ) {
+          authorized = receipt;
+        }
+      }
+      if (!authorized)
+        throw new Error("The current native receipt does not authorize this scheduled audit");
+      if (!verifyOrigin || !authorized.audit_origin)
+        throw new Error("Missing native audit origin verification");
+      await verifyOrigin(request.id, authorized.audit_origin);
+      assertCurrentAuditRequest(all);
+    }
+    if (auditOnly && !receipt?.audit_pending && !recovery?.receipt.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
+    if (prior && recovery) {
+      const { receipt: checkpointReceipt, body } = recovery;
+      if (auditOnly) {
+        if (
+          scheduledBinding &&
+          (auditBinding(checkpointReceipt, prior.id) !== scheduledBinding ||
+            (checkpointReceipt.status !== "complete" && !auditMayResume(checkpointReceipt)))
+        )
+          throw new Error("Stored checkpoint changed the authorized scheduled audit");
+        if (!checkpointReceipt.audit_pending && checkpointReceipt.status !== "complete")
+          throw new Error("Stored checkpoint is outside the requested final audit");
+        if (checkpointReceipt.status === "complete")
           await this.status(
             request,
-            all.map((comment) => (comment.id === prior?.id ? prior : comment)),
+            all.map((comment) => (comment.id === prior?.id ? { ...comment, body } : comment)),
           );
-          return receipt;
-        }
+      }
+      await this.fresh(request);
+      await freshAmendments();
+      await freshLineage();
+      if (scheduledBinding) assertCurrentAuditRequest(await this.comments(), prior);
+      prior = await this.persist(checkpointReceipt, prior, body);
+      receipt = checkpointReceipt;
+      if (receipt.status === "complete") {
+        await this.status(
+          request,
+          all.map((comment) => (comment.id === prior?.id ? prior : comment)),
+        );
+        return receipt;
       }
     }
     if (receipt) {
@@ -2420,6 +2520,7 @@ export interface HostedStatusAll {
  */
 export async function hostedStatusAll(
   bridge: Pick<HostedIntakeBridge, "comments" | "status" | "queue" | "client" | "statusBudget">,
+  auditCheckpoints?: Pick<HostedIntakeCheckpointStore, "load">,
 ): Promise<HostedStatusAll> {
   const all = await bridge.comments();
   const queue = bridge.queue;
@@ -2435,7 +2536,7 @@ export async function hostedStatusAll(
   const rows: HostedRequestStatus[] = [];
   for (const { comment, withdrawn, request } of selected) {
     try {
-      const status = await bridge.status(request, all);
+      const status = await bridge.status(request, all, withdrawn ? undefined : auditCheckpoints);
       rows.push({ ...status, withdrawn, superseded_by: [] });
     } catch (error) {
       if (error instanceof GitHubApiError) throw error;
@@ -2614,6 +2715,19 @@ export async function connectHostedGitHub(
   });
   return { client, project, repository };
 }
+export function selectHostedRequests(
+  available: Comment[],
+  selected: number[] | null,
+  scheduled: boolean,
+) {
+  if (selected === null) return available.map((request) => ({ id: request.id, request }));
+  return selected.map((id) => {
+    const request = available.find((comment) => comment.id === id);
+    if (!request && !scheduled) throw new Error("Continuation request is no longer available");
+    return { id, request };
+  });
+}
+
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const config = validateConfig(
@@ -2844,14 +2958,11 @@ async function main() {
         String(selected[0]) !== process.env.HOSTED_INTAKE_AUDIT_REQUEST)
     )
       throw new Error("Audit mode requires the exact owner-dispatched proposal ID");
-    const requests =
-      selected === null
-        ? available
-        : (selected as number[]).map((id) => {
-            const request = available.find((c) => c.id === id);
-            if (!request) throw new Error("Continuation request is no longer available");
-            return request;
-          });
+    const requests = selectHostedRequests(
+      available,
+      selected as number[] | null,
+      scheduled.length > 0,
+    );
     const outcomes: {
       counts?: ReturnType<typeof deliveryCounts>;
       request: number;
@@ -2859,8 +2970,9 @@ async function main() {
       continuation: string | null;
       progress: string | null;
     }[] = [];
-    for (const c of requests) {
+    for (const { id, request: c } of requests) {
       try {
+        if (!c) throw new Error("Continuation request is no longer available");
         const receipt = await bridge.process(c, comments, {
           resumeHolds: !auditOnly && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
           auditOnly,
@@ -2885,18 +2997,18 @@ async function main() {
         });
       } catch (error) {
         let continuation = bridge.continuation(error);
-        save(`failure-${c.id}`, sanitizeOperationError(error));
+        save(`failure-${id}`, sanitizeOperationError(error));
         try {
-          if (!auditOnly) await bridge.diagnostic(c, error, comments);
+          if (c && !auditOnly) await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
-          save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
+          save(`publication-failure-${id}`, sanitizeOperationError(publication));
         }
         outcomes.push({
-          request: c.id,
+          request: id,
           status: "incomplete",
           continuation,
-          progress: progress.get(c.id) ?? null,
+          progress: progress.get(id) ?? null,
         });
       }
     }

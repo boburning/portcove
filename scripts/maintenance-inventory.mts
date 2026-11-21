@@ -4436,7 +4436,9 @@ export async function main(argv = process.argv.slice(2)) {
               ),
             )
           : undefined,
-        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        hostedIntake: hostedSource
+          ? () => readHostedIntake(reconcileIntake ? environment : undefined)
+          : undefined,
         reconcileIntake: reconcileIntake
           ? async (queue) => {
               const { reconcileIntakeHandoffReceipts } =

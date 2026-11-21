@@ -309,7 +309,12 @@ the same intake worker after a complete native read. It resumes only an
 interrupted audit or a recorded inventory-change or budget continuation. The
 worker verifies the protected scheduled caller, original owner action,
 request-specific Actions run title, current request/plan/receipt binding and
-available durable checkpoints. Candidate work, withdrawn or superseded requests
+available durable checkpoints. If the worker stopped after committing the
+audit authorization to PostgreSQL and before updating GitHub, the collector
+can pass a retry from that checkpoint. Before projecting it, the worker checks
+the original owner action, the exact live predecessor and the retained delivery
+proofs. Each selected request has its own outcome, including a request withdrawn
+or removed after collection. Candidate work, withdrawn or superseded requests
 and permanent refusals stay outside this path. The original run and the later
 worker each retain their own receipts and budgets.
 
