@@ -28,6 +28,7 @@ import { Field } from "./ui/field";
 import { Input } from "./ui/input";
 
 type Operation = "create" | "inspect" | "resumeCreation" | "resumeRestore";
+type FailureAction = "verify" | "review" | "planRestore";
 type RecoveryStep = {
   operation: "resumeCreation" | "resumeRestore";
   path: string;
@@ -211,7 +212,9 @@ function RecoveryBundleDialog({
   close: () => void;
 }) {
   const descriptionId = useId();
+  const destinationErrorId = useId();
   const firstField = useRef<HTMLInputElement>(null);
+  const restoreDestinationField = useRef<HTMLInputElement>(null);
   const inFlight = useRef(false);
   const attempted = useRef(false);
   const [destination, setDestination] = useState("");
@@ -229,9 +232,15 @@ function RecoveryBundleDialog({
   const [cancelRequested, setCancelRequested] = useState(false);
   const [cancelFailure, setCancelFailure] = useState<unknown>();
   const cancelling = useRef(false);
-  const [failure, setFailure] = useState<{ error: unknown; action: "verify" | "review" }>();
+  const [failure, setFailure] = useState<{ error: unknown; action: FailureAction }>();
   const error = failure?.error;
   const verificationFailed = failure?.action === "verify";
+  const destinationOccupied =
+    failure?.action === "planRestore" &&
+    errorDetail(error, "import_destination_state") === "occupied";
+  useEffect(() => {
+    if (destinationOccupied && !pending) restoreDestinationField.current?.focus();
+  }, [destinationOccupied, pending]);
   const verificationFeedback = verificationFailed ? failurePresentation(error) : undefined;
   const needsFolderGuidance =
     verificationFailed &&
@@ -241,7 +250,7 @@ function RecoveryBundleDialog({
   const run = async (
     status: string,
     work: () => Promise<void>,
-    action: "verify" | "review" = "review",
+    action: FailureAction = "review",
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -447,7 +456,8 @@ function RecoveryBundleDialog({
             label={operation === "create" ? "New bundle folder" : "Restore destination"}
             value={destination}
             disabled={disabled}
-            fieldRef={operation === "create" ? firstField : undefined}
+            fieldRef={operation === "create" ? firstField : restoreDestinationField}
+            invalidDescriptionId={destinationOccupied ? destinationErrorId : undefined}
             change={editDestination}
             browse={() =>
               chooseFolder(
@@ -456,6 +466,14 @@ function RecoveryBundleDialog({
               )
             }
             chooseParent
+          />
+        )}
+        {destinationOccupied && (
+          <ActionReviewFailure
+            error={error}
+            summary="This folder contains existing data. Choose a new or empty folder to restore the library."
+            summaryId={destinationErrorId}
+            showMutationSummary={false}
           />
         )}
         {creation && (
@@ -542,15 +560,17 @@ function RecoveryBundleDialog({
             <ActionReviewFailure error={cancelFailure} />
           </div>
         )}
-        <ActionReviewFailure
-          error={error}
-          summary={
-            needsFolderGuidance
-              ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
-              : undefined
-          }
-          showMutationSummary={!verificationFailed}
-        />
+        {!destinationOccupied && (
+          <ActionReviewFailure
+            error={error}
+            summary={
+              needsFolderGuidance
+                ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
+                : undefined
+            }
+            showMutationSummary={!verificationFailed}
+          />
+        )}
         {createReceipt &&
           (createReceipt.bundle_id || error !== undefined) &&
           !recovery &&
@@ -758,36 +778,40 @@ function RecoveryBundleDialog({
                     acceptRestoredDestination(result, restore.destination_root);
                   });
                 } else {
-                  void run("Checking the restore destination…", async () => {
-                    try {
-                      const review = await desktopApi.planLibraryRecoveryRestore(
-                        verified.path,
-                        destination,
-                        generation,
-                      );
-                      if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
-                        setVerified(undefined);
-                        throw new Error("The bundle changed. Verify it again before restoring.");
+                  void run(
+                    "Checking the restore destination…",
+                    async () => {
+                      try {
+                        const review = await desktopApi.planLibraryRecoveryRestore(
+                          verified.path,
+                          destination,
+                          generation,
+                        );
+                        if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
+                          setVerified(undefined);
+                          throw new Error("The bundle changed. Verify it again before restoring.");
+                        }
+                        setRestore(review);
+                      } catch (failure) {
+                        const step = recoveryStep(failure, "resumeRestore");
+                        const readback = publishedRestoreReadback(failure);
+                        if (
+                          (step || readback) &&
+                          (errorDetail(failure, "recovery_bundle_id") !== verified.bundle_id ||
+                            errorDetail(failure, "recovery_bundle_path") !== verified.path ||
+                            errorDetail(failure, "recovery_bundle_receipt_sha256") !==
+                              verified.receipt_sha256)
+                        ) {
+                          setVerified(undefined);
+                          throw new Error("The bundle changed. Verify it again before restoring.");
+                        }
+                        setRecovery(step);
+                        setRestoreReceipt(readback);
+                        throw failure;
                       }
-                      setRestore(review);
-                    } catch (failure) {
-                      const step = recoveryStep(failure, "resumeRestore");
-                      const readback = publishedRestoreReadback(failure);
-                      if (
-                        (step || readback) &&
-                        (errorDetail(failure, "recovery_bundle_id") !== verified.bundle_id ||
-                          errorDetail(failure, "recovery_bundle_path") !== verified.path ||
-                          errorDetail(failure, "recovery_bundle_receipt_sha256") !==
-                            verified.receipt_sha256)
-                      ) {
-                        setVerified(undefined);
-                        throw new Error("The bundle changed. Verify it again before restoring.");
-                      }
-                      setRecovery(step);
-                      setRestoreReceipt(readback);
-                      throw failure;
-                    }
-                  });
+                    },
+                    "planRestore",
+                  );
                 }
               }}
             >
@@ -815,6 +839,7 @@ function FolderField({
   value,
   disabled,
   fieldRef,
+  invalidDescriptionId,
   change,
   browse,
   chooseParent,
@@ -823,6 +848,7 @@ function FolderField({
   value: string;
   disabled: boolean;
   fieldRef?: RefObject<HTMLInputElement | null> | undefined;
+  invalidDescriptionId?: string | undefined;
   change: (value: string) => void;
   browse: () => void;
   chooseParent?: boolean;
@@ -834,6 +860,8 @@ function FolderField({
           ref={fieldRef}
           data-focusable
           disabled={disabled}
+          aria-invalid={invalidDescriptionId ? true : undefined}
+          aria-describedby={invalidDescriptionId}
           value={value}
           onChange={(event) => change(event.target.value)}
         />
