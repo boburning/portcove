@@ -3311,6 +3311,7 @@ pub fn run() -> std::process::ExitCode {
             library_recovery_bundle::inspect_library_recovery_bundle,
             library_recovery_bundle::plan_library_recovery_restore,
             library_recovery_bundle::restore_library_recovery_bundle,
+            library_recovery_bundle::read_library_recovery_restore,
             library_recovery_bundle::resume_library_recovery_restore,
             library_transfer::plan_library_move,
             library_transfer::plan_library_import,

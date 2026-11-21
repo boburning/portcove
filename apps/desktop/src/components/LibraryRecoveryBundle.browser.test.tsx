@@ -248,7 +248,7 @@ it("returns keyboard focus to the entry action when closing a review before copy
   expect(create).not.toHaveBeenCalled();
 });
 
-it("verifies the bundle before a distinct restore review and keeps activation separate", async () => {
+async function openRestoreReview() {
   const verify = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
   const restoreReview = {
     bundle,
@@ -260,12 +260,12 @@ it("verifies the bundle before a distinct restore review and keeps activation se
   const review = vi
     .spyOn(desktopApi, "planLibraryRecoveryRestore")
     .mockResolvedValue(restoreReview);
-  const restore = vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle").mockResolvedValue({
+  const receipt = {
     completed: true,
     destination_root: restoreDestination,
     input_retained: true,
     transfer_id: "restore-1",
-  });
+  };
   await render(
     <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
   );
@@ -275,10 +275,17 @@ it("verifies the bundle before a distinct restore review and keeps activation se
   await dialog.getByRole("button", { name: "Verify bundle" }).click();
   expect(verify).toHaveBeenCalledExactlyOnceWith(destination);
   expect(review).not.toHaveBeenCalled();
-  expect(restore).not.toHaveBeenCalled();
   await dialog.getByRole("textbox", { name: "Restore destination" }).fill(restoreDestination);
   await dialog.getByRole("button", { name: "Review restore" }).click();
   expect(review).toHaveBeenCalledExactlyOnceWith(destination, restoreDestination, 7);
+  return { dialog, restoreReview, receipt };
+}
+
+it("verifies the bundle before a distinct restore review and keeps activation separate", async () => {
+  const restore = vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle");
+  const readRestore = vi.spyOn(desktopApi, "readLibraryRecoveryRestore");
+  const { dialog, restoreReview, receipt } = await openRestoreReview();
+  restore.mockResolvedValue(receipt);
   expect(restore).not.toHaveBeenCalled();
   await dialog.getByRole("button", { name: "Restore library", exact: true }).click();
   expect(restore).toHaveBeenCalledExactlyOnceWith(
@@ -293,6 +300,81 @@ it("verifies the bundle before a distinct restore review and keeps activation se
     .element(dialog.getByText("To use it, close this review", { exact: false }))
     .toBeVisible();
   expect(dialog.getByRole("button", { name: /^Open library$/ }).query()).toBeNull();
+  expect(readRestore).not.toHaveBeenCalled();
+});
+
+it.for([
+  { outcome: "lost reply", failure: new Error("The desktop reply was interrupted") },
+  {
+    outcome: "post-publication error",
+    failure: {
+      message: "Portcove could not archive the completed restore journal",
+      details: {
+        import_destination: restoreDestination,
+        recovery_action: "resume_library_recovery_restore",
+        transfer_id: "restore-1",
+      },
+    },
+  },
+])("checks the exact reviewed restore after $outcome", async ({ failure }) => {
+  const { dialog, restoreReview, receipt } = await openRestoreReview();
+  const restore = vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle").mockRejectedValue(failure);
+  const readRestore = vi
+    .spyOn(desktopApi, "readLibraryRecoveryRestore")
+    .mockResolvedValueOnce({ ...receipt, destination_root: source })
+    .mockResolvedValue(receipt);
+
+  await dialog.getByRole("button", { name: "Restore library", exact: true }).click();
+  const check = dialog.getByRole("button", { name: "Check reviewed restore again" });
+  await check.click();
+  await expect
+    .element(dialog.getByText("Portcove could not verify the reviewed restore destination."))
+    .toBeVisible();
+  await check.click();
+  await expect.element(dialog.getByText("Library restored", { exact: true })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Resume bundle restore" }))
+    .not.toBeInTheDocument();
+  expect(dialog.getByRole("button", { name: /^Open library$/ }).query()).toBeNull();
+  expect(readRestore.mock.calls).toEqual([
+    [restoreDestination, restoreReview.plan_sha256],
+    [restoreDestination, restoreReview.plan_sha256],
+  ]);
+  expect(restore).toHaveBeenCalledOnce();
+});
+
+it("resumes only the transfer identified by the reviewed restore check", async () => {
+  const { dialog, receipt } = await openRestoreReview();
+  vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle").mockRejectedValue(
+    new Error("The desktop reply was interrupted"),
+  );
+  vi.spyOn(desktopApi, "readLibraryRecoveryRestore").mockRejectedValue({
+    message: "The reviewed restore has not finished",
+    details: {
+      import_destination: restoreDestination,
+      recovery_action: "resume_library_recovery_restore",
+      transfer_id: receipt.transfer_id,
+    },
+  });
+  vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
+    ready: true,
+    generation: 8,
+    library_root: source,
+    error: null,
+    selection: null,
+  });
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryRestore").mockResolvedValue(receipt);
+
+  await dialog.getByRole("button", { name: "Restore library", exact: true }).click();
+  await dialog.getByRole("button", { name: "Check reviewed restore again" }).click();
+  await dialog.getByRole("button", { name: "Resume bundle restore" }).click();
+  await expect.element(dialog.getByText("Library restored", { exact: true })).toBeVisible();
+  expect(resume).toHaveBeenCalledExactlyOnceWith(
+    restoreDestination,
+    8,
+    expect.any(Function),
+    receipt.transfer_id,
+  );
 });
 
 it("resumes only the reported staging folder after reading the current generation", async () => {

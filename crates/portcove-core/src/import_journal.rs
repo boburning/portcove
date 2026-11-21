@@ -92,7 +92,46 @@ impl BundleImportAdmission {
     }
 }
 
+pub(crate) fn recovery_restore_fingerprint(
+    bundle_path: &Path,
+    receipt_sha256: &str,
+    import_plan_sha256: &str,
+) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        "portcove-library-recovery-restore-v1",
+        bundle_path,
+        receipt_sha256,
+        import_plan_sha256,
+    ))?)))
+}
+
 impl ImportJournal {
+    pub fn require_published_bundle_review(&self, expected_plan: &str) -> Result<()> {
+        let bundle = self.bundle.as_ref().ok_or_else(|| {
+            PortcoveError::conflict("this destination belongs to a manual library import")
+        })?;
+        let reviewed = recovery_restore_fingerprint(
+            &bundle.bundle_path,
+            &bundle.receipt_sha256,
+            &self.plan.plan_sha256,
+        )?;
+        if reviewed != expected_plan {
+            return Err(PortcoveError::conflict(
+                "the destination belongs to a different restore review",
+            ));
+        }
+        match self.phase {
+            TransferPhase::Published | TransferPhase::Complete => Ok(()),
+            TransferPhase::Copying | TransferPhase::Verified => Err(self.error(
+                PortcoveError::conflict("the reviewed restore has not finished"),
+            )),
+            TransferPhase::Aborted => {
+                Err(PortcoveError::conflict("the reviewed restore was stopped"))
+            }
+        }
+    }
+
     pub fn read(root: &Path) -> Result<Option<Self>> {
         Self::read_path(root, &root.join(JOURNAL))
     }

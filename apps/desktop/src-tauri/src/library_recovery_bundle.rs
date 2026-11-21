@@ -284,6 +284,18 @@ pub(crate) async fn restore_library_recovery_bundle(
 }
 
 #[tauri::command]
+pub(crate) async fn read_library_recovery_restore(
+    destination: PathBuf,
+    expected_plan: String,
+) -> DesktopResult<LibraryImportResult> {
+    blocking_worker(move || {
+        PortcoveService::read_library_recovery_restore(&destination, &expected_plan)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn resume_library_recovery_restore(
     app: tauri::AppHandle,
     webview: tauri::Webview,
@@ -291,13 +303,18 @@ pub(crate) async fn resume_library_recovery_restore(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     destination: PathBuf,
+    expected_transfer_id: Option<String>,
 ) -> DesktopResult<LibraryImportResult> {
     let state = state.inner().clone();
     blocking_worker(move || {
         observe_copy(&app, on_event.map(|id| id.channel_on(webview)), |observe| {
-            if let Some(result) =
-                resume_bundle_restore_blocking_startup(&state, generation, &destination, observe)?
-            {
+            if let Some(result) = resume_bundle_restore_blocking_startup(
+                &state,
+                generation,
+                &destination,
+                expected_transfer_id.as_deref(),
+                observe,
+            )? {
                 return Ok(result);
             }
             transfer_preserving_current_library(&state, generation, |active| {
@@ -305,7 +322,7 @@ pub(crate) async fn resume_library_recovery_restore(
                 require_separate_destination(active, &destination)?;
                 PortcoveService::resume_library_recovery_restore_with_progress(
                     &destination,
-                    None,
+                    expected_transfer_id.as_deref(),
                     observe,
                 )
             })
@@ -320,6 +337,7 @@ fn resume_bundle_restore_blocking_startup(
     state: &DesktopState,
     generation: u64,
     destination: &Path,
+    expected_transfer_id: Option<&str>,
     observe: &mut CopyObservation<'_>,
 ) -> DesktopResult<Option<LibraryImportResult>> {
     let lock_error = || DesktopError::from(PortcoveError::state("desktop state lock was poisoned"));
@@ -349,6 +367,12 @@ fn resume_bundle_restore_blocking_startup(
                 ))
             })?
             .clone();
+        if expected_transfer_id.is_some_and(|expected| expected != transfer_id) {
+            return Err(PortcoveError::conflict(
+                "the interrupted restore changed; review the current recovery",
+            )
+            .into());
+        }
         let failure = failure.clone();
         *startup = Err(PortcoveError::conflict("library transfer is in progress")
             .detail("transfer_in_progress", "true")
@@ -433,17 +457,32 @@ mod tests {
             launch_observer: Arc::new(Mutex::new(None)),
         };
         let sibling = temporary.path().join("another-library");
-        let wrong = resume_bundle_restore_blocking_startup(&state, 2, &sibling, &mut |_| Ok(()))
-            .unwrap_err();
+        let wrong =
+            resume_bundle_restore_blocking_startup(&state, 2, &sibling, None, &mut |_| Ok(()))
+                .unwrap_err();
         assert_eq!(wrong.message, failure.message);
         assert!(!sibling.exists());
         assert!(
-            resume_bundle_restore_blocking_startup(&state, 1, &destination, &mut |_| Ok(()))
+            resume_bundle_restore_blocking_startup(&state, 1, &destination, None, &mut |_| Ok(()))
                 .is_err()
         );
-        let actual =
-            resume_bundle_restore_blocking_startup(&state, 2, &destination, &mut |_| Ok(()))
-                .unwrap_err();
+        let replacement = resume_bundle_restore_blocking_startup(
+            &state,
+            2,
+            &destination,
+            Some("other-transfer"),
+            &mut |_| Ok(()),
+        )
+        .unwrap_err();
+        assert!(replacement.message.contains("interrupted restore changed"));
+        let actual = resume_bundle_restore_blocking_startup(
+            &state,
+            2,
+            &destination,
+            Some("fixture-transfer"),
+            &mut |_| Ok(()),
+        )
+        .unwrap_err();
         assert!(actual.message.contains("no library import journal"));
         let startup = crate::bootstrap_status(&state);
         assert!(!startup.ready);

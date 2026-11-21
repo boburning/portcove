@@ -277,12 +277,11 @@ fn prepare_restore(
             "bundle content changed while reviewing recovery",
         ));
     }
-    let plan_sha256 = sha256(&serde_json::to_vec(&(
-        "portcove-library-recovery-restore-v1",
+    let plan_sha256 = crate::import_journal::recovery_restore_fingerprint(
         &bundle.path,
         &bundle.receipt_sha256,
         &import.plan_sha256,
-    ))?);
+    )?;
     let review = LibraryRecoveryRestorePlan {
         bundle,
         destination_root: import.destination_root.clone(),
@@ -1006,10 +1005,16 @@ mod tests {
         crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
         assert!(PortcoveService::resume_library_recovery_restore(&manual_root, None).is_err());
 
-        let (_, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
+        let (restore_review, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
         crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
             .unwrap_err();
         assert!(PortcoveService::resume_library_import(&restore_root).is_err());
+        let incomplete = PortcoveService::read_library_recovery_restore(
+            &restore_review.destination_root,
+            &restore_review.plan_sha256,
+        )
+        .unwrap_err();
+        assert!(incomplete.message.contains("has not finished"));
         assert!(
             PortcoveService::resume_library_recovery_restore(&restore_root, Some("other-restore"))
                 .is_err()
@@ -1025,7 +1030,8 @@ mod tests {
         assert!(restored.completed);
 
         let published_root = workspace.path().join("published-restore");
-        let (_, publish_plan) = prepare_restore(&bundle.path, &published_root).unwrap();
+        let (publish_review, publish_plan) =
+            prepare_restore(&bundle.path, &published_root).unwrap();
         crate::import_execution::start_reviewed_import(publish_plan, Some(&bundle), &|phase| {
             if phase == TransferPhase::Published {
                 return Err(PortcoveError::state(
@@ -1036,6 +1042,51 @@ mod tests {
         })
         .unwrap_err();
         fs::rename(&bundle.path, workspace.path().join("offline-bundle")).unwrap();
+        let read_review = |review: &LibraryRecoveryRestorePlan| {
+            PortcoveService::read_library_recovery_restore(
+                &review.destination_root,
+                &review.plan_sha256,
+            )
+            .unwrap()
+        };
+        let published = read_review(&publish_review);
+        assert!(published.completed);
+        assert!(published_root.join(".portcove-import.json").exists());
+        assert_eq!(
+            read_review(&restore_review).transfer_id,
+            restored.transfer_id
+        );
+        assert!(
+            PortcoveService::read_library_recovery_restore(
+                &publish_review.destination_root,
+                &restore_review.plan_sha256,
+            )
+            .is_err()
+        );
+        let connection = Library::open(&published_root)
+            .unwrap()
+            .connection()
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE activity_history SET status='failed' WHERE id=?1",
+                [&published.transfer_id],
+            )
+            .unwrap();
+        assert!(
+            PortcoveService::read_library_recovery_restore(
+                &publish_review.destination_root,
+                &publish_review.plan_sha256,
+            )
+            .is_err()
+        );
+        connection
+            .execute(
+                "UPDATE activity_history SET status='succeeded' WHERE id=?1",
+                [&published.transfer_id],
+            )
+            .unwrap();
+        drop(connection);
         assert!(
             PortcoveService::resume_library_recovery_restore(&published_root, None)
                 .unwrap()
