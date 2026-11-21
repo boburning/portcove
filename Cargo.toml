@@ -129,6 +129,8 @@ opt-level = 1
 
 [profile.controller-tools.package.portcove-cli]
 opt-level = 1
+# The package profile otherwise resolves strip to the release default.
+strip = "symbols"
 
 # Preserve the GTK format fix until a compatible fixed RFD release is available.
 [patch.crates-io]
