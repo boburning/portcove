@@ -160,6 +160,26 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     /independently retained artifact/iu,
   );
 
+  const implicitRoot = { ...entry.port };
+  delete implicitRoot.runtime_subdirectory;
+  assert.equal(
+    n64PackagedInputLayout(implicitRoot, platform),
+    n64PackagedInputLayout(entry.port, platform),
+  );
+  const held = new Map(prior);
+  const heldPolicy = JSON.parse(prior.get(policyPath)!.toString()) as Policy;
+  held.set(
+    policyPath,
+    json({
+      ...heldPolicy,
+      curated_transitions: { future_acceptance_lost: true, artifacts: [] },
+    }),
+  );
+  assert.throws(
+    () => projectVerifiedN64OriginalAmendment(held, id, amendment),
+    /loss of future acceptance/iu,
+  );
+
   const output = projectVerifiedN64OriginalAmendment(prior, id, amendment);
   assert.equal(output.reader, 11);
   const updated = JSON.parse(output.draft.toString()) as Projection;
