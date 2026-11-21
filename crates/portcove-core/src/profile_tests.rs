@@ -138,6 +138,34 @@ fn companion_profile_custody_is_typed_but_held_before_any_writer() {
     let mut changed_nrm = restored.clone();
     changed_nrm.packages[0].sha256 = "e".repeat(64);
     assert!(profile_package_files(&changed_nrm).is_err());
+    let mut shared = restored.clone();
+    let mut alternate = shared.recomp_companion_sets_v1.as_ref().unwrap()[0].clone();
+    alternate.asset_id += 1;
+    let member = alternate.members.remove("example.nrm").unwrap();
+    alternate.members.insert("alternate.nrm".into(), member);
+    shared.packages.push(package("alternate.nrm", &[]));
+    shared
+        .recomp_companion_sets_v1
+        .as_mut()
+        .unwrap()
+        .push(alternate);
+    assert_eq!(profile_package_files(&shared).unwrap().len(), 4);
+    shared.packages[1].enabled = false;
+    assert!(
+        profile_package_files(&shared).is_err(),
+        "disabled owners cannot share live code"
+    );
+    shared.packages[1].enabled = true;
+    shared.recomp_companion_sets_v1.as_mut().unwrap()[1]
+        .members
+        .get_mut("example.so")
+        .unwrap()
+        .sha256 = "f".repeat(64);
+    assert!(
+        profile_package_files(&shared).is_err(),
+        "two exact owners cannot disagree on bytes"
+    );
+
     let mut colliding = restored;
     let members = &mut colliding.recomp_companion_sets_v1.as_mut().unwrap()[0].members;
     members.insert("EXAMPLE.SO".into(), members["example.so"].clone());

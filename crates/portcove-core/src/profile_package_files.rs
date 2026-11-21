@@ -153,6 +153,7 @@ pub(crate) fn profile_package_files(
                 set.wrapper_size,
             ]
             .contains(&0)
+            || set.wrapper_size > crate::recomp_companion_review::MAX_WRAPPER_BYTES
             || !digest(&set.wrapper_sha256)
             || !digest(&set.consent_sha256)
             || set
@@ -175,7 +176,7 @@ pub(crate) fn profile_package_files(
             if !crate::profile::valid_native_id(name)
                 || crate::archive::validate_relative_path(name, false).is_err()
                 || !group_names.insert(key.clone())
-                || member.size == 0
+                || !(1..=crate::recomp_companion_review::MAX_MEMBER_BYTES).contains(&member.size)
                 || !digest(&member.sha256)
             {
                 return Err(PortcoveError::verification(

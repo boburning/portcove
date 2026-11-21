@@ -16,7 +16,7 @@ use crate::{
 };
 
 pub(crate) const MAX_WRAPPER_BYTES: u64 = 256 * 1024 * 1024;
-const MAX_MEMBER_BYTES: u64 = 64 * 1024 * 1024;
+pub(crate) const MAX_MEMBER_BYTES: u64 = 64 * 1024 * 1024;
 const LIMITS: zip_read::Limits = zip_read::Limits {
     bytes: MAX_WRAPPER_BYTES,
     entries: 256,
