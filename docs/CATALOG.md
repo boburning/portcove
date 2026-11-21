@@ -2434,7 +2434,11 @@ verified GitHub repository, release, asset, tag, channel, filename, size and
 digest in the normal acquisition. The current full layout applies to other
 eligible packages. Portcove compares one complete layout and keeps the existing
 download rules, player release selection and retained install contracts.
-Signed delivery requires native-portable capability 42.
+Signed delivery requires native-portable capability 42. Archive inspection
+reports an unassessed scope when matching predecessor bytes lack exact
+provider attribution. The scheduled metadata handoff supplies context for the
+existing exact predecessor, while a different provider assignment must be
+established by the ordinary acquisition route.
 
 An independently reviewed managed GitHub archive with only the selected root
 executable and no fingerprinted directories can declare

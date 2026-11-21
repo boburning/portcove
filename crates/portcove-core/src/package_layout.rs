@@ -1394,6 +1394,18 @@ mod tests {
         let mut wrong_proof = resolve(port);
         wrong_proof.github_identity.as_mut().unwrap().asset_id += 1;
         assert!(require_predecessor(old.path(), &wrong_proof, &rule.artifact).is_err());
+        let mut successor = resolve(port);
+        successor.release.version = "v99.0.0".into();
+        successor.release.asset.url = format!(
+            "https://github.com/{}/releases/download/v99.0.0/{}",
+            port.release.repository, rule.artifact.asset_name
+        );
+        let identity = successor.github_identity.as_mut().unwrap();
+        identity.tag = successor.release.version.clone();
+        identity.release_id += 1;
+        identity.asset_id += 1;
+        assert!(require_predecessor(old.path(), &successor, &rule.artifact).is_err());
+        assert!(require_predecessor(nested.path(), &successor, &rule.artifact).is_ok());
         let mut redirected = resolve(port);
         redirected.release.asset.url = "https://example.invalid/redirected.tar.gz".into();
         assert!(require_predecessor(old.path(), &redirected, &rule.artifact).is_err());
@@ -1403,6 +1415,72 @@ mod tests {
         let mut inapplicable = port.clone();
         inapplicable.adapter = crate::AdapterKind::N64RecompPortable;
         assert!(validate(&inapplicable).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn offline_identical_predecessor_bytes_need_an_exact_observed_scope() {
+        use std::io::Write;
+        let temporary = tempfile::tempdir().unwrap();
+        let archive = temporary.path().join("fixture.zip");
+        let mut zip = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        for (file, permissions) in [("wrapper/dethrace", 0o755), ("wrapper/LICENSE", 0o644)] {
+            zip.start_file(
+                file,
+                zip::write::SimpleFileOptions::default().unix_permissions(permissions),
+            )
+            .unwrap();
+            zip.write_all(b"inert archive fixture").unwrap();
+        }
+        zip.finish().unwrap();
+        let bytes = fs::read(&archive).unwrap();
+        let sha256 = crate::signed_catalog::digest(&bytes);
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("dethrace-labs-dethrace").unwrap().clone();
+        let platform = Platform::LinuxX86_64;
+        let rule = &mut port
+            .reviewed_predecessor_package_layouts_v1
+            .get_mut(&platform)
+            .unwrap()[0];
+        rule.artifact = crate::ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            size: bytes.len() as u64,
+            sha256: sha256.clone(),
+        };
+        let observation = PackageLayoutObservation {
+            repository_id: rule.repository_id,
+            release_id: rule.release_id,
+            asset_id: rule.asset_id,
+            tag: rule.tag.clone(),
+            channel: rule.channel,
+            url: format!(
+                "https://github.com/{}/releases/download/{}/fixture.zip",
+                port.release.repository, rule.tag
+            ),
+        };
+        let inspect = |observation| {
+            crate::inspect_package_shape_archive_observed(
+                &archive,
+                &port,
+                platform,
+                bytes.len() as u64,
+                &sha256,
+                observation,
+            )
+        };
+        let inert = inspect(None).unwrap();
+        assert!(
+            matches!(inert.verdict, crate::ShapeVerdict::Unknown { ref detail, .. } if detail.as_ref().is_some_and(|message| message.contains("scope were not established")))
+        );
+        assert!(inert.predecessor_observation.is_none());
+        let exact = inspect(Some(&observation)).unwrap();
+        assert_eq!(exact.predecessor_observation, Some(observation.clone()));
+        assert!(!crate::package_shape::withholds_release(&exact.verdict));
+        let mismatched = PackageLayoutObservation {
+            asset_id: observation.asset_id + 1,
+            ..observation.clone()
+        };
+        assert!(inspect(Some(&mismatched)).is_err());
     }
 
     #[test]
