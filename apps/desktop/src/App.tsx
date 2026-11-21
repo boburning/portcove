@@ -61,6 +61,7 @@ import type { DetailOpening } from "./features/game-details/detail-sections";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
   focusSettingsTarget,
+  revealSettingsHeading,
   settingsCategoryForTarget,
 } from "./features/app-shell/focus-settings-target";
 import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
@@ -137,7 +138,7 @@ import {
 import { desktopApi } from "./api";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
-import { focusAndReveal, focusRegion } from "./focus";
+import { focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface, withLibraryVisibility } from "./use-command-surface";
@@ -806,7 +807,7 @@ function useWorkspace(props: WorkspaceProps) {
     () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
     [model.searchableGames, hiddenPortIds],
   );
-  const currentGame = ui.view === "library" || ui.view === "catalog" ? model.entry : undefined;
+  const currentGame = model.entry;
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
@@ -842,10 +843,7 @@ function useWorkspace(props: WorkspaceProps) {
     openSettingsCategory: (category) => {
       setPrimaryView("settings");
       ui.setSettingsCategory(category);
-      requestAnimationFrame(() => {
-        const heading = document.getElementById("settings-" + category + "-heading");
-        if (heading) focusAndReveal(heading);
-      });
+      revealSettingsHeading("settings-" + category + "-heading");
     },
   });
   const adopting = [...operations.pendingOperations.values()].some(
