@@ -2687,9 +2687,10 @@ That installer handles the extra native libraries in the ZIP. This route owns
 its own mod updates and files. Portcove's managed setups still require separate
 review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
 
-To inspect a local ZIP, run
-`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID ZIP`.
-The review compares the ZIP with the published SHA-256 and reports the exact
+To inspect a ZIP, run
+`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
+Provide the path to an intact local ZIP, or let Portcove fetch the selected
+GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
 mods and companion libraries for the selected platform. Use the intact ZIP in
 the upstream installer. The report cannot activate a Portcove setup.
 

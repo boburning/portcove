@@ -176,7 +176,7 @@ impl PortcoveService {
         platform: Platform,
         release_id: u64,
         asset_id: u64,
-        archive: &Path,
+        archive: Option<&Path>,
     ) -> Result<GithubModCompoundReview> {
         let port = self.catalog().port(port_id)?;
         let source = reviewed_source(port).ok_or_else(|| {
@@ -210,10 +210,34 @@ impl PortcoveService {
         let digest = selected.asset.published_sha256.as_deref().ok_or_else(|| {
             PortcoveError::verification("GitHub did not publish a SHA-256 for this local ZIP")
         })?;
-        let archive = archive.to_path_buf();
         let bytes = selected.asset.bytes;
         let digest = digest.to_owned();
+        let (archive, temporary) = if let Some(archive) = archive {
+            (archive.to_path_buf(), None)
+        } else {
+            let temporary = tempfile::tempdir()?;
+            let path = temporary.path().join("download.zip");
+            let library = self.library();
+            let http = ProviderHttp::new(Some(library.clone()), "GitHub Releases", "github.com")?
+                .with_backoff(library.github_mod_backoff.clone());
+            let (calculated, length) = http
+                .download_github_asset(
+                    source.repository_id,
+                    asset_id,
+                    bytes,
+                    &path,
+                    MAX_WRAPPER_BYTES,
+                )
+                .await?;
+            if calculated != digest || length != bytes {
+                return Err(PortcoveError::verification(
+                    "download differs from the reviewed GitHub asset",
+                ));
+            }
+            (path, Some(temporary))
+        };
         let review = tokio::task::spawn_blocking(move || {
+            let _download_custody = temporary;
             recomp_companion_review::review(
                 &archive,
                 bytes,

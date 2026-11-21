@@ -321,7 +321,7 @@ pub(crate) enum ProfileCommand {
         port_id: String,
         release_id: u64,
         asset_id: u64,
-        archive: PathBuf,
+        archive: Option<PathBuf>,
         /// Platform whose companion layout to inspect. Defaults to the current platform.
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
         platform: Option<String>,
@@ -947,7 +947,7 @@ pub(crate) async fn execute(
                     github_mod_platform(platform)?,
                     release_id,
                     asset_id,
-                    &archive,
+                    archive.as_deref(),
                 )
                 .await?;
             render_read_success(mode, name, result, |report| {
