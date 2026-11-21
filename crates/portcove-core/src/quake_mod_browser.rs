@@ -23,6 +23,8 @@ pub(crate) fn has_moddb_notices(port: &PortDefinition, platform: Platform) -> bo
         && quaddicted::source(port, platform) == Some(crate::QuakeEngine::VkQuake)
 }
 
+type Source = crate::ExternalModPortalSource;
+
 impl PortcoveService {
     /// Lists upstream Quake content with provider attribution and no acquisition authority.
     pub async fn quaddicted_catalog(
@@ -33,6 +35,12 @@ impl PortcoveService {
         page: u32,
     ) -> Result<Observed<QuaddictedPage>> {
         let port = self.catalog().port(port_id)?;
+        crate::external_mod_portal::require_binding(
+            self.catalog(),
+            port_id,
+            platform,
+            Source::Quaddicted,
+        )?;
         self.quaddicted_reader()?
             .browse(port, platform, filename_search, page)
             .await
@@ -46,6 +54,12 @@ impl PortcoveService {
         page_url: &str,
     ) -> Result<String> {
         let port = self.catalog().port(port_id)?;
+        crate::external_mod_portal::require_binding(
+            self.catalog(),
+            port_id,
+            platform,
+            Source::Quaddicted,
+        )?;
         self.quaddicted_reader()?
             .review_page(port, platform, page_url)
             .await
@@ -66,6 +80,12 @@ impl PortcoveService {
     ) -> Result<Observed<ModDbFileNotices>> {
         let port = self.catalog().port(port_id)?;
         require_moddb_notices(port, platform)?;
+        crate::external_mod_portal::require_binding(
+            self.catalog(),
+            port_id,
+            platform,
+            Source::ModDbArcaneDimensions,
+        )?;
         let library = self.library();
         let http = ProviderHttp::new(Some(library.clone()), "Mod DB", "moddb.com")?
             .with_backoff(library.moddb_backoff.clone());
@@ -92,6 +112,12 @@ impl PortcoveService {
         page_url: &str,
     ) -> Result<String> {
         require_moddb_notices(self.catalog().port(port_id)?, platform)?;
+        crate::external_mod_portal::require_binding(
+            self.catalog(),
+            port_id,
+            platform,
+            Source::ModDbArcaneDimensions,
+        )?;
         if page_url == moddb_feed::FILES_PAGE {
             return Ok(page_url.into());
         }

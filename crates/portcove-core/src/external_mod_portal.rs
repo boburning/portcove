@@ -54,14 +54,7 @@ fn bindings() -> &'static [Binding] {
     })
 }
 
-pub(crate) fn portals(
-    catalog: &Catalog,
-    id: &str,
-    platform: Option<Platform>,
-) -> Vec<ExternalModPortal> {
-    let Some(platform) = platform else {
-        return Vec::new();
-    };
+fn matching_binding(catalog: &Catalog, id: &str, platform: Platform) -> Option<&'static Binding> {
     let listing = catalog.listings().iter().find(|listing| listing.id == id);
     let port = catalog.port(id).ok();
     let (project, game) = if let Some(port) = port {
@@ -74,9 +67,9 @@ pub(crate) fn portals(
     } else if let Some(listing) = listing {
         (listing.project_url.as_str(), listing.original_game.as_ref())
     } else {
-        return Vec::new();
+        return None;
     };
-    let Some(game) = game else { return Vec::new() };
+    let game = game?;
     let defined_platform = port.is_some_and(|port| port.platforms.contains(&platform));
     let listed_platform = listing.is_some_and(|listing| {
         listing.project_url == project
@@ -87,16 +80,42 @@ pub(crate) fn portals(
             && listing.platforms.contains(&platform)
     });
     if !defined_platform && !listed_platform {
-        return Vec::new();
+        return None;
     }
-    bindings()
-        .iter()
-        .find(|binding| {
-            binding.port == id
-                && binding.game == game.id
-                && binding.project == project
-                && binding.platforms.contains(&platform)
-        })
+    bindings().iter().find(|binding| {
+        binding.port == id
+            && binding.game == game.id
+            && binding.project == project
+            && binding.platforms.contains(&platform)
+    })
+}
+
+pub(crate) fn require_binding(
+    catalog: &Catalog,
+    id: &str,
+    platform: Platform,
+    source: ExternalModPortalSource,
+) -> crate::Result<()> {
+    if matching_binding(catalog, id, platform)
+        .is_some_and(|binding| binding.portals.contains(&source))
+    {
+        return Ok(());
+    }
+    Err(crate::PortcoveError::unsupported(
+        "This port has no reviewed route for this source",
+    ))
+}
+
+pub(crate) fn portals(
+    catalog: &Catalog,
+    id: &str,
+    platform: Option<Platform>,
+) -> Vec<ExternalModPortal> {
+    let Some(platform) = platform else {
+        return Vec::new();
+    };
+    let port = catalog.port(id).ok();
+    matching_binding(catalog, id, platform)
         .into_iter()
         .flat_map(|binding| &binding.portals)
         .map(|source| ExternalModPortal {
@@ -173,6 +192,45 @@ mod tests {
                 for portal in offered {
                     assert_eq!(portal.url, portal.source.url());
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn discovery_and_prefetch_revoke_routes_after_project_or_game_identity_drift() {
+        let embedded = Catalog::embedded().unwrap();
+        let id = "quake-vkquake";
+        let platform = Platform::LinuxX86_64;
+        let sources = [
+            ExternalModPortalSource::Quaddicted,
+            ExternalModPortalSource::ModDbArcaneDimensions,
+        ];
+        for source in sources {
+            require_binding(&embedded, id, platform, source).unwrap();
+        }
+        for change_project in [false, true] {
+            let mut document = embedded.authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            if change_project {
+                port.project_url = "https://example.org/another-quake-engine".into();
+            } else {
+                port.presentation
+                    .as_mut()
+                    .unwrap()
+                    .original_game
+                    .as_mut()
+                    .unwrap()
+                    .id = "different-game".into();
+            }
+            assert_eq!(port.release.repository, "Novum/vkQuake");
+            let changed = Catalog::from_document(document).unwrap();
+            assert!(portals(&changed, id, Some(platform)).is_empty());
+            for source in sources {
+                assert!(require_binding(&changed, id, platform, source).is_err());
             }
         }
     }
