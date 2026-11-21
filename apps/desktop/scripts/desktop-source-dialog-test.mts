@@ -678,7 +678,13 @@ export async function sourceDialogScenario({
       (await browser.findElement(intakeDialog).getText()).includes("Checking won't change them."),
     );
     const chooseFiles = await browser.findElement(button("Choose game files to check"));
-    await browser.wait(until.elementIsEnabled(chooseFiles), 5_000);
+    // Windows job 136993142773 was still inspecting the registered input
+    // when this exact source review's secondary action was checked.
+    await browser.wait(
+      until.elementIsEnabled(chooseFiles),
+      30_000,
+      "The registered game-file check did not settle before source review",
+    );
     // This journey already supplies a registered path, so the automatic check
     // offers its candidate. Choosing different files is the secondary action.
     const useCurrentLocation = await browser.wait(
