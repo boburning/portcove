@@ -25,17 +25,17 @@ before choosing a definition. The source inventory is
 
 ### Named requirements for indexed entries
 
-Definition entry schema 3 adds a required `required_features` array and an
+Definition entry schema 4 adds a required `required_features` array and an
 optional `advisory` object. It keeps the existing integer capability vector,
 including all adapter range and historical operational minimum checks. A
-schema-3 entry must also name every applicable feature checked by Core's
+schema-4 entry must also name every applicable feature checked by Core's
 [feature registry](../crates/portcove-core/src/definition_capabilities.rs).
 For example, `port.release.linux_tar_xz` requires `native.linux-tar-xz`.
 A reader refuses unfamiliar required names and known operational uses that
 omit their feature. All operational fields still pass the complete typed
 entry and catalog projection checks. New operational behavior needs a new
 feature name and its validator. When the feature itself is the reader gate,
-the validator requires entry schema 3 and the declared feature while the
+the validator requires entry schema 4 and the declared feature while the
 adapter range can stay the same.
 
 An advisory object may contain up to 64 keys. Each key must have between 1
@@ -46,12 +46,12 @@ runtime behavior. New advisory keys need no engine or schema bump.
 Duplicate JSON keys and additional top-level entry fields still fail.
 The index and signing envelope keep their existing closed schemas.
 
-Schemas 1 and 2 keep their existing shapes and retain their prior behavior.
-Schema 3 may point to an unchanged catalog projection contract of schema 1
-or 2. Its exact indexed bytes, including the advisory object, remain bound
+Schemas 1 through 3 keep their existing shapes and retain their prior behavior.
+Schema 3 may point to an unchanged catalog projection contract of schema 1, 2,
+or 3. Its exact indexed bytes, including the advisory object, remain bound
 to authentication, retained identity, and installed contract storage. A
-reader limited to entry schemas 1 and 2 refuses a schema-3 entry, so use
-schema 3 only after the intended clients have received the reader and the
+reader limited to entry schemas 1 through 3 refuses a schema-4 entry, so use
+schema 4 only after the intended clients have received the reader and the
 #246 publication route has qualified it. The normal inspection path can
 check a proposed bundle before that rollout.
 
@@ -977,8 +977,8 @@ Presentation extensions are explicitly segregated from these required fields.
 
 `DefinitionContentIndex::inspect_entry(namespace, stable_id, bytes)` implements
 the entry inspection boundary. It verifies the indexed target bytes before JSON
-decoding and requires schema 1 and exact namespace, stable ID and revision
-agreement. The port ID must match that stable ID. The initial `port` value must
+decoding and requires a supported entry schema and exact namespace, stable ID
+and revision agreement. The port ID must match that stable ID. The initial `port` value must
 contain the complete serialization of the existing `PortDefinition`, including
 default-valued fields. Comparing its typed projection rejects unknown fields at
 every nested port boundary without changing legacy catalog parsing. Object key
@@ -1315,6 +1315,11 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
+Only the selected port can declare a native mod loader in an indexed projection,
+and that declaration requires entry and contract schema 3. Legacy full
+projections preserve unrelated loaders from the effective baseline. Unindexed
+installation captures omit sibling loader declarations while keeping their port
+and source records.
 For its own port, that transition may keep or narrow a managed acquisition hold
 but not remove it or add a reviewed artifact, may replace but not remove a
 reviewed package layout, and may keep or remove `release.accepted_uploaders`
@@ -2054,6 +2059,43 @@ that the runtime file matches the normalized original's SHA-256 and size. A
 bound release needs a checked original. A binding for a different release or
 artifact supplies no compatibility verdict. A literal value in upstream source
 needs evidence of the applicable runtime check before it can become a binding.
+
+### Native mod loader bindings
+
+Indexed definition schema 3 carries the reviewed `mod_loader` declaration.
+The entry retains the ordinary requirements for its adapter and other fields.
+Existing reader versions continue to reject unrecognized entry schemas, and
+legacy signed catalog envelopes cannot appoint a loader.
+
+A binding declares a versioned engine, GitHub release repository, minimum
+stable release, applicable platforms, and native settings file. N64 Recomp also
+declares the native game. Each loader platform needs executable hints, and
+both the `mods` directory and settings file must be persistent paths. Core
+requires the exact retained installation to match before enabling managed mods.
+A stable successor in the declared release series uses the same loader.
+
+The authored Shipwright and Zelda 64: Recompiled bindings match the existing
+native settings and platform contracts. Historical definitions keep their
+loader interpretation. Indexed successors preserve the established loader
+and native settings so interrupted writes can resume with the same facts.
+
+2 Ship 2 Harkinian 5.0.1 uses `2ship2harkinian.json` and stores the names
+without extensions in the `gSettings.EnabledMods` list. Its build enables OTR
+and O2R support, and the pinned archive manager gives the last archive
+priority. The binding covers the declared managed Windows and Linux targets.
+[2Ship mod menu](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/mm/2s2h/Enhancements/ModMenu/ModMenu.cpp)
+[2Ship build flags](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/CMakeLists.txt)
+[Pinned archive manager](https://github.com/kenix3/libultraship/blob/7cb10226e7875ec48ceec2f841d00afd84eef964/src/ship/resource/archive/ArchiveManager.cpp)
+
+Banjo: Recompiled v1.0.2 identifies its native game as `bk` and registers its
+application configuration root. Its pinned N64ModernRuntime scans that root's
+`mods` directory for NRM packages and reads `enabled_mods` and `mod_order`
+from `mods.json`. This establishes the source contract for local NRM packages
+on its declared managed platforms. The binding supplies no provider scope or
+texture-pack support.
+[Banjo v1.0.2 source](https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/src/main/main.cpp)
+[Pinned native list implementation](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/mods.cpp)
+[Pinned configuration paths](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/recomp.cpp)
 
 ### Reviewed mod provider bindings
 

@@ -11,6 +11,8 @@ fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
     for port in &mut catalog.ports {
         port.release.reviewed_package_choices_v2 = None;
+        port.mod_provider_bindings = None;
+        port.mod_loader = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
         for pattern in &mut port.persistent_file_patterns {
@@ -1122,6 +1124,43 @@ fn legacy_signed_catalog_cannot_supply_reviewed_package_choices() {
         signed_catalog::verify(&sign(&payload), trust, now),
         Err(error) if error.code == ErrorCode::Verification
             && error.message.contains("cannot deliver reviewed package choices")
+    ));
+}
+
+#[test]
+fn legacy_signed_catalog_keeps_compiled_provider_scopes() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let key = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let trust = std::slice::from_ref(&key);
+    let embedded = Catalog::embedded().unwrap();
+    let verified = signed_catalog::verify(&sign(&payload), trust, now).unwrap();
+    for id in ["shipwright", "zelda64-recomp"] {
+        let compiled = embedded.port(id).unwrap();
+        assert!(compiled.mod_provider_bindings.is_some());
+        assert_eq!(
+            verified.catalog.port(id).unwrap().mod_provider_bindings,
+            compiled.mod_provider_bindings,
+        );
+    }
+
+    // The compiled bindings are available to old readers via the fallback. The
+    // legacy envelope still cannot appoint an explicit scope, even if it echoes
+    // a compiled value.
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap()
+        .mod_provider_bindings
+        .clone_from(&embedded.port("shipwright").unwrap().mod_provider_bindings);
+    assert!(matches!(
+        signed_catalog::verify(&sign(&payload), trust, now),
+        Err(error) if error.message.contains("cannot deliver mod provider bindings")
     ));
 }
 

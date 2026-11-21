@@ -39,6 +39,7 @@ macro_rules! definition_features {
 }
 
 definition_features! {
+    ModLoader => "mods.native-loader-binding-v1", "port.mod_loader";
     ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
     ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";
     ReviewedPackageLayouts => "native.package-layouts-v1", "port.reviewed_package_layouts";

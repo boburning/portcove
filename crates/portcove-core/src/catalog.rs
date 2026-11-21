@@ -432,8 +432,27 @@ impl Catalog {
         }
     }
 
+    /// Legacy full projections carry graph rows for unrelated ports without
+    /// their loader bindings. Keep the bindings already present in the baseline.
+    pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_loader.clone_from(&original.mod_loader);
+            }
+        }
+    }
+
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+            return;
+        };
+        // The floor fences both bundled and legacy scopes. Only the currently
+        // admitted definition for this exact subject may appoint a scope again.
+        let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
+            && self.definition_selection(port_id).is_some();
+        if !has_admitted_scope {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
         }
     }
@@ -770,6 +789,7 @@ impl Catalog {
                     port.id
                 )));
             }
+            crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;

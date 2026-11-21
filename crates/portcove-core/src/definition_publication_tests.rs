@@ -19,8 +19,10 @@ fn fixture_with_entry(
     padded_leaf_bytes: Option<usize>,
     change_entry: impl FnOnce(&mut Value),
 ) -> BTreeMap<String, Vec<u8>> {
-    let mut document =
-        crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
+    let mut document = crate::test_fixture::indexed_fixture_document_for_port(
+        &crate::Catalog::embedded().unwrap(),
+        "shipwright",
+    );
     document
         .ports
         .iter_mut()
@@ -32,14 +34,15 @@ fn fixture_with_entry(
     }
     let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
-    let mut leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    let loader_schema = if port.mod_loader.is_some() { 3 } else { 1 };
+    let mut leaf = serde_json::to_vec(&json!({"contract_schema":loader_schema,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
     if let Some(bytes) = padded_leaf_bytes {
         assert!(leaf.len() < bytes);
         leaf.resize(bytes, b' ');
     }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
-    let mut entry = json!({"definition_schema":1,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
-        "required_capabilities":[{"template":"libultraship-portable","minimum_version":1,"maximum_version":1}],
+    let mut entry = json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
+        "required_capabilities":crate::test_fixture::definition_requirements(port, 1),
         "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]});
     change_entry(&mut entry);
     let entry = serde_json::to_vec(&entry).unwrap();
@@ -284,12 +287,13 @@ fn publication_refuses_a_valid_leaf_that_cannot_fit_the_escaped_selection() {
 fn publication_inspects_named_advice_without_changing_report_or_authority() {
     let build = |features| {
         fixture_with_entry(2, 0, None, |entry| {
-            entry["definition_schema"] = 3.into();
+            entry["definition_schema"] = 4.into();
             entry["required_features"] = features;
             entry["advisory"] = json!({"future-advice": "inert"});
         })
     };
-    let files = build(json!([]));
+    let files = build(json!(["mods.native-loader-binding-v1"]));
+    assert!(inspect_definition_publication_bytes(&build(json!([]))).is_err());
     let report = inspect_definition_publication_bytes(&files).unwrap();
     assert_eq!(report.publication_schema, 1);
     assert_eq!(report.authority, "none");

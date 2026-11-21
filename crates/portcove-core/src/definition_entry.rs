@@ -79,8 +79,8 @@ impl DefinitionEntryInspection {
     }
 
     pub(crate) fn accepts_projection_schema(&self, schema: u32) -> bool {
-        if self.schema_version == 3 {
-            matches!(schema, 1 | 2)
+        if self.schema_version == 4 {
+            matches!(schema, 1..=3)
         } else {
             self.schema_version == schema
         }
@@ -187,7 +187,7 @@ impl DefinitionContentIndex {
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let document: EntryDocument = serde_json::from_value(value.0)?;
-        if !matches!(document.definition_schema, 1..=3) {
+        if !matches!(document.definition_schema, 1..=4) {
             return Err(PortcoveError::unsupported(
                 "unsupported definition entry schema",
             ));
@@ -201,11 +201,11 @@ impl DefinitionContentIndex {
             ));
         }
         let required_features = match (document.definition_schema, document.required_features) {
-            (3, Some(names)) => Some(check_required_features(&names)?),
-            (1 | 2, None) if document.advisory.is_none() => None,
+            (4, Some(names)) => Some(check_required_features(&names)?),
+            (1..=3, None) if document.advisory.is_none() => None,
             _ => {
                 return Err(PortcoveError::verification(
-                    "named features and advisory data require definition schema 3 and an explicit required_features array",
+                    "named features and advisory data require definition schema 4 and an explicit required_features array",
                 ));
             }
         };
@@ -241,6 +241,15 @@ impl DefinitionContentIndex {
         if port.upstream_active_reviewed {
             require_feature(required_features.as_ref(), Feature::UpstreamActiveReviewed)?;
         }
+        crate::profile_loader::validate(&port)?;
+        if port.mod_loader.is_some() {
+            if document.definition_schema < 3 {
+                return Err(PortcoveError::verification(
+                    "native mod loader bindings require indexed definition schema 3",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ModLoader)?;
+        }
         crate::provider_binding::validate(&port)?;
         port.release.validate_github_streams(&port.platforms)?;
         if port.mod_provider_bindings.is_some() {
@@ -254,7 +263,7 @@ impl DefinitionContentIndex {
         }
         require_indexed_persistence(&port)?;
         // Retained-only exceptions predate named features. They cannot admit a
-        // new schema-3 shape that its creating reader would have refused.
+        // new schema-4 shape that its creating reader would have refused.
         let legacy_retained = retained && required_features.is_none();
         if !legacy_retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());

@@ -327,6 +327,25 @@ pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::Catal
     {
         *port = legacy_opentyrian_indexed_port(port);
     }
+    for port in &mut document.ports {
+        port.mod_loader = None;
+    }
+    document
+}
+
+pub(crate) fn indexed_fixture_document_for_port(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> crate::CatalogDocument {
+    let mut document = indexed_fixture_document(catalog);
+    let selected = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    selected
+        .mod_loader
+        .clone_from(&catalog.port(port_id).unwrap().mod_loader);
     document
 }
 
@@ -401,14 +420,15 @@ impl<'a> IndexedCatalogFixture<'a> {
         use sha2::{Digest, Sha256};
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
+        let port = catalog.port(port_id).unwrap();
+        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
-            "contract_schema":1,"representation":"catalog_projection",
-            "catalog":indexed_fixture_document(catalog)
+            "contract_schema":schema,"representation":"catalog_projection",
+            "catalog":indexed_fixture_document_for_port(catalog, port_id)
         }))
         .unwrap();
         contract.push(b'\n');
         let contract_sha256 = hex::encode(Sha256::digest(&contract));
-        let port = catalog.port(port_id).unwrap();
         Self {
             port: if port_id == "opentyrian-opentyrian" {
                 std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
@@ -590,7 +610,7 @@ impl<'a> IndexedCatalogFixture<'a> {
             1
         };
         let mut document = json!({
-            "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
+            "definition_schema":if port.mod_loader.is_some() {3} else {1},"namespace":"official","stable_id":port_id,"revision":revision,
             "required_capabilities":definition_requirements(port, capability_version),
             "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
             "artifact_bindings":[],"evidence_references":[]
@@ -672,7 +692,7 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
         assert_eq!(projection.entry().revision(), revision);
         assert_eq!(
             serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
-            serde_json::to_value(indexed_fixture_document(&catalog)).unwrap()
+            serde_json::to_value(indexed_fixture_document_for_port(&catalog, port_id)).unwrap()
         );
     }
 }

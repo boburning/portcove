@@ -2499,7 +2499,7 @@ async fn signed_named_advice_preserves_operational_and_installed_contracts() {
     let port_id = &catalog.ports()[0].id;
     let bundle =
         crate::test_fixture::IndexedCatalogFixture::new(&catalog, port_id).with_entry(7, |entry| {
-            entry["definition_schema"] = 3.into();
+            entry["definition_schema"] = 4.into();
             entry["required_features"] = serde_json::json!([]);
             entry["advisory"] = serde_json::json!({"future-summary": ["descriptive content"]});
         });
@@ -2549,7 +2549,7 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
     incompatible["stable_id"] = "future-incompatible".into();
     incompatible["revision"] = 8.into();
     incompatible["port"]["id"] = "future-incompatible".into();
-    incompatible["definition_schema"] = 3.into();
+    incompatible["definition_schema"] = 4.into();
     incompatible["required_features"] = serde_json::json!(["native.future-layout-v7"]);
     let incompatible = serde_json::to_vec_pretty(&incompatible).unwrap();
     let digest = hex::encode(Sha256::digest(&incompatible));
