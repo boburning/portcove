@@ -387,7 +387,7 @@ pub async fn sign_definition_role(
     }
     let base = path.parent().unwrap_or(Path::new("."));
     let context_path = io::resolve(base, &config.context)?;
-    let context = load_context(&context_path).await?;
+    let context = load_context_mode(&context_path, true).await?;
     if role == DefinitionOnlineRole::Targets && context.next_top.is_none() {
         return invalid("catalog Targets signing requires explicit online renewal mode");
     }

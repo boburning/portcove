@@ -29,6 +29,8 @@ import {
   sameTargets,
   signConfig,
   treeDigest,
+  limitSignerHistory,
+  stageHistoryObjects,
 } from "./catalog-publish.mts";
 import {
   describeCatalogPublication,
@@ -142,6 +144,92 @@ void test("Pages overlay refuses stale input, missing history, immutable replace
     /differs from receipt/u,
   );
   assert.equal(treeDigest(prior), baseline);
+});
+
+void test("signer inputs contain only live TUF files and two addressed history objects", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-thin-inputs-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const prior = path.join(work, "prior");
+  const history = path.join(work, "history");
+  const object = (body: string) => ({
+    bytes: Buffer.byteLength(body),
+    sha256: overlaySha256(body),
+  });
+  const tip = JSON.stringify({ files: [] });
+  const active = JSON.stringify({ tip: object(tip) });
+  const pointer = JSON.stringify({ active: object(active) });
+  const logical = "policy/official/catalog.history-checkpoint.json";
+  const pointerSha = overlaySha256(pointer);
+  overlayFile(work, "plan.json", JSON.stringify({ schema_version: 1, history: "segmented" }));
+  overlayFile(work, "root.json", JSON.stringify({ signed: { version: 1 } }));
+  overlayFile(
+    prior,
+    "metadata/timestamp.json",
+    JSON.stringify({
+      signed: { version: 2, meta: { "snapshot.json": { version: 2 } } },
+    }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.snapshot.json",
+    JSON.stringify({
+      signed: {
+        meta: {
+          "targets.json": { version: 1 },
+          "official-definitions.json": { version: 2 },
+          "official-policy.json": { version: 2 },
+        },
+      },
+    }),
+  );
+  overlayFile(prior, "metadata/1.root.json", "root");
+  overlayFile(prior, "metadata/1.targets.json", "targets");
+  overlayFile(
+    prior,
+    "metadata/2.official-definitions.json",
+    JSON.stringify({ signed: { targets: {} } }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.official-policy.json",
+    JSON.stringify({
+      signed: { targets: { [logical]: { hashes: { sha256: pointerSha } } } },
+    }),
+  );
+  overlayFile(prior, `targets/${pointerSha}.${logical}`, pointer);
+  overlayFile(prior, "metadata/1.snapshot.json", "earlier snapshot");
+  for (const bytes of [tip, active, "earlier history object"]) {
+    overlayFile(history, `sha256/${overlaySha256(bytes)}.json`, bytes);
+  }
+  limitSignerHistory(work);
+  assert.equal(existsSync(path.join(prior, "metadata/1.snapshot.json")), false);
+  assert.equal(readFileSync(path.join(prior, `targets/${pointerSha}.${logical}`), "utf8"), pointer);
+  assert.equal(
+    existsSync(path.join(history, `sha256/${overlaySha256("earlier history object")}.json`)),
+    false,
+  );
+  assert.equal(readFileSync(path.join(history, `sha256/${overlaySha256(tip)}.json`), "utf8"), tip);
+});
+
+void test("history staging is append-only and refuses stale publish custody", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-history-stage-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const source = path.join(work, "next");
+  const destination = path.join(work, "prior");
+  const old = `sha256/${overlaySha256("earlier")}.json`;
+  const next = `sha256/${overlaySha256("successor")}.json`;
+  overlayFile(destination, old, "earlier");
+  overlayFile(source, next, "successor");
+  const guard = treeDigest(destination);
+  assert.deepEqual(stageHistoryObjects(source, destination, guard), [next]);
+  assert.equal(readFileSync(path.join(destination, old), "utf8"), "earlier");
+  assert.throws(() => stageHistoryObjects(source, destination, guard), /changed since/u);
+  assert.deepEqual(stageHistoryObjects(source, destination, treeDigest(destination)), []);
+  overlayFile(source, next, "different");
+  assert.throws(
+    () => stageHistoryObjects(source, destination, treeDigest(destination)),
+    /immutable bounds/u,
+  );
 });
 
 void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
@@ -754,7 +842,7 @@ void test("the existing Pages readback emits the receipt only after matching liv
   const readback = steps[index]!.run!;
   assert.match(
     readback,
-    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
+    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \] && \[ "\$history_verified" = true \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
   );
   assert.equal(readback.match(/receipt=true/gu)?.length, 1);
   assert.match(
@@ -997,6 +1085,226 @@ void test("observation delivery accepts format-13 canonical input and uses Core'
     { format_version: 11, listings: [fixtureListing] },
   );
   assert.deepEqual(result.bytes, fixtureDelivery());
+});
+
+void test("compact activation requires both capabilities from the reviewed released reader", async () => {
+  const { requireCompactListingReader } = await import("./listing-observation-delivery.mts");
+  const { compactListingCarrier } = await import("./listing-directory-carrier.mts");
+  const capabilities = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers,
+    },
+  });
+  assert.throws(
+    () => requireCompactListingReader(capabilities([11, 12, 13], ["json-v1"]), 13),
+    /gzip-base64-json-v1 and listing format 13/u,
+  );
+  assert.throws(
+    () => requireCompactListingReader(capabilities([11, 12], [compactListingCarrier]), 13),
+    /gzip-base64-json-v1 and listing format 13/u,
+  );
+  assert.equal(
+    requireCompactListingReader(capabilities([11, 12, 13], [compactListingCarrier]), 13),
+    "fixture",
+  );
+});
+
+void test("format 14 edition bindings require both released capabilities and stay out of older projections", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const {
+    compactListingCarrier,
+    compactListingDecodedMaximum,
+    encodeCompactListing,
+    decodeRetainedCompactListing,
+  } = await import("./listing-directory-carrier.mts");
+  const release = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers,
+    },
+  });
+  assert.equal(
+    requireCompactListingReader(release([12, 13], [compactListingCarrier]), 13),
+    "fixture",
+  );
+  for (const reader of [release([12, 13], [compactListingCarrier]), release([14], ["json-v1"])])
+    assert.throws(
+      () => requireCompactListingReader(reader, 14),
+      /gzip-base64-json-v1 and listing format 14/u,
+    );
+  assert.equal(
+    requireCompactListingReader(release([12, 13, 14], [compactListingCarrier]), 14),
+    "fixture",
+  );
+
+  const edition = { id: "disc", title: "Original", system: "PlayStation", evidence_urls: [] };
+  const original = {
+    format_version: 1,
+    id: "original",
+    source_editions: [edition],
+    evidence_urls: [],
+  };
+  const binding = { game_id: "original", variant_id: "disc", representation_id: "disc-bin" };
+  const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { ...fixtureListing, original_game: original };
+  const format13 = { ...legacy, media: [scene] };
+  const current = {
+    ...format13,
+    original_game: {
+      ...original,
+      source_editions: [{ ...edition, verified_sources: [binding] }],
+    },
+  };
+  const canonical = { format_version: 14, listings: [current] };
+  const old = decodedListingDelivery(fixtureDelivery());
+  const prior13 = Buffer.from(
+    JSON.stringify({
+      ...old,
+      directory: { format_version: 13, listings: [format13] },
+    }),
+  );
+  const completeSnapshot = (source: unknown, projection: unknown, previous: Buffer) =>
+    projectListingDelivery(
+      source,
+      [],
+      previous,
+      0,
+      compactListingDecodedMaximum,
+      projection,
+      new Set(),
+      0,
+      [],
+      true,
+    );
+  const projected = completeSnapshot(canonical, canonical, prior13);
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 14);
+  assert.equal(projected.delivered_records, 1);
+  assert.deepEqual(projected.omitted, []);
+  assert.deepEqual(decoded.directory.listings[0]!.original_game, current.original_game);
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.equal(decoded.revision, old.revision + 1);
+
+  assert.throws(
+    () => completeSnapshot(canonical, { format_version: 13, listings: [format13] }, prior13),
+    /changed canonical identities or format/u,
+  );
+  const legacyProjection = projectListingDelivery(canonical, [], fixtureDelivery(), 0, undefined, {
+    format_version: 11,
+    listings: [legacy],
+  });
+  const oldDirectory = decodedListingDelivery(legacyProjection.bytes).directory;
+  assert.equal(oldDirectory.format_version, 11);
+  assert.deepEqual(oldDirectory.listings[0]!.original_game, original);
+  assert.equal(oldDirectory.listings[0]!.media, undefined);
+  const removed = completeSnapshot(
+    { format_version: 13, listings: [format13] },
+    { format_version: 14, listings: [format13] },
+    projected.bytes,
+  );
+  const withdrawn = decodedListingDelivery(removed.bytes).directory;
+  assert.equal(withdrawn.format_version, 14);
+  assert.deepEqual(withdrawn.listings[0]!.original_game, original);
+});
+
+void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { compactListingDecodedMaximum, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const implementation = { kind: "native_port" };
+  const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
+  const authored = { ...fixtureListing, implementation, media: [scene] };
+  const canonical = { format_version: 13, listings: [authored] };
+  const prior = fixtureDelivery();
+  const compact = projectListingDelivery(
+    canonical,
+    [],
+    prior,
+    0,
+    compactListingDecodedMaximum,
+    canonical,
+    new Set(),
+    0,
+    [],
+    true,
+  );
+  assert.equal(compact.delivered_records, 1);
+  assert.deepEqual(compact.omitted, []);
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(compact.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 13);
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.deepEqual(decoded.directory.listings[0]!.implementation, implementation);
+  const old = decodedListingDelivery(prior);
+  assert.deepEqual(
+    decoded.directory.listings[0]!.upstream_observation,
+    old.directory.listings[0]!.upstream_observation,
+  );
+  assert.equal(compact.retained, 1);
+  assert.equal(decoded.revision, old.revision + 1);
+  const changedSource = {
+    format_version: 13,
+    listings: [{ ...authored, project_url: "https://github.com/other/game" }],
+  };
+  const changed = projectListingDelivery(
+    changedSource,
+    [],
+    prior,
+    0,
+    compactListingDecodedMaximum,
+    changedSource,
+    new Set(),
+    0,
+    [],
+    true,
+  );
+  assert.equal(
+    decodedListingDelivery(changed.bytes).directory.listings[0]!.upstream_observation,
+    undefined,
+  );
+  assert.deepEqual(
+    projectListingDelivery(canonical, [], prior, 0, undefined, {
+      format_version: 11,
+      listings: [fixtureListing],
+    }).bytes,
+    prior,
+  );
+  const withdrawnScene = {
+    format_version: 12,
+    listings: [{ ...fixtureListing, implementation }],
+  };
+  const next = projectListingDelivery(
+    withdrawnScene,
+    [],
+    compact.bytes,
+    0,
+    compactListingDecodedMaximum,
+    { ...withdrawnScene, format_version: 13 },
+    new Set(),
+    0,
+    [],
+    true,
+  );
+  const nextDirectory = decodedListingDelivery(next.bytes).directory;
+  assert.equal(nextDirectory.format_version, 13);
+  assert.equal(nextDirectory.listings[0]!.media, undefined);
 });
 
 void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
@@ -1262,6 +1570,141 @@ void test("reviewed operational listings survive absent observations before opti
   );
 });
 
+void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {
+  const { createHash } = await import("node:crypto");
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { verifiedPriorListing, priorListingForRenewal } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingDeliveryTarget, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const prior = temp(t);
+  const decoded = fixtureDelivery();
+  const raw = encodeCompactListing(decoded);
+  const sha = createHash("sha256").update(raw).digest("hex");
+  const target = `targets/${sha}.${compactListingDeliveryTarget}`;
+  assert.deepEqual(encodeCompactListing(decoded), raw);
+  assert.deepEqual(decodeRetainedCompactListing(raw), decoded);
+  assert.deepEqual(
+    raw,
+    readFileSync(
+      new URL(
+        "../crates/portcove-core/src/testdata/compact-listing-delivery.generated.json",
+        import.meta.url,
+      ),
+    ),
+  );
+  site(prior, { [compactListingDeliveryTarget]: sha });
+  put(prior, target, raw.toString());
+  const report = {
+    schema_version: 1,
+    authority: "none",
+    files: [{ target, sha256: sha, bytes: raw.length }],
+  };
+  assert.deepEqual(await verifiedPriorListing(prior, report, compactListingDeliveryTarget), raw);
+  const renewal = await priorListingForRenewal(prior, 1, compactListingDeliveryTarget);
+  assert.deepEqual(renewal.bytes, decoded);
+  assert.deepEqual(renewal.wire, raw);
+  await assert.rejects(
+    verifiedPriorListing(
+      prior,
+      { ...report, files: [{ target, sha256: "c".repeat(64), bytes: raw.length }] },
+      compactListingDeliveryTarget,
+    ),
+    /not referenced/u,
+  );
+});
+
+void test("a reviewed legacy withdrawal keeps other legacy facts and compact-only guides", async () => {
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, reviewedLegacyWithdrawal } =
+    await import("./listing-observation-delivery.mts");
+  const legacy = fixtureDelivery();
+  const before = decodedListingDelivery(legacy);
+  const released = before.directory.listings[0]!;
+  const nextLegacy = {
+    ...before,
+    revision: 4,
+    withdrawn_ids: [released.id],
+    directory: { ...before.directory, listings: [] },
+  };
+  const wire = (value: unknown) => Buffer.from(JSON.stringify(value));
+  assert.deepEqual(reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 3), nextLegacy);
+  assert.throws(() => reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 4), /must advance/u);
+  assert.throws(
+    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, directory: before.directory }), 3),
+    /other facts/u,
+  );
+  assert.throws(
+    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, withdrawn_ids: [] }), 3),
+    /safety withdrawal/u,
+  );
+
+  const compactOnly = { ...released, id: "compact-only" };
+  const newerDirectory = {
+    ...before.directory,
+    listings: [...before.directory.listings, compactOnly],
+  };
+  const active = wire({ ...before, directory: newerDirectory, revision: 3 });
+  const refreshed = projectListingDelivery(
+    newerDirectory,
+    [],
+    active,
+    4,
+    undefined,
+    newerDirectory,
+    new Set(),
+    Date.now(),
+    [released.id],
+  );
+  const actual = decodedListingDelivery(refreshed.bytes);
+  assert.equal(actual.revision, 5);
+  assert.deepEqual(actual.withdrawn_ids, [released.id]);
+  assert.deepEqual(
+    actual.directory.listings.map((listing: { id: string }) => listing.id),
+    ["compact-only"],
+  );
+});
+
+void test("compact listing includes the complete canonical snapshot or fails at its true bound", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { compactListingDecodedMaximum, decodeRetainedCompactListing, encodeCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const listings = [
+    { id: "unobserved-listing", name: "Descriptive listing" },
+    { id: "operational-listing", name: "Operational listing" },
+    { id: "withdrawn-listing", name: "Withdrawn listing" },
+  ];
+  const canonical = { format_version: 11, listings };
+  const operationalIds = new Set(["operational-listing"]);
+  const project = (bound: number) =>
+    projectListingDelivery(
+      canonical,
+      [],
+      null,
+      0,
+      bound,
+      undefined,
+      operationalIds,
+      0,
+      ["withdrawn-listing"],
+      true,
+    );
+  const complete = project(compactListingDecodedMaximum);
+  const legacy = projectListingDelivery(canonical, [], null, 0, 1000, undefined, operationalIds);
+  assert.equal(legacy.delivered_records, 1);
+  assert.equal(complete.delivered_records, 2);
+  assert.deepEqual(complete.omitted, []);
+  assert.deepEqual(complete.omittedObservations, []);
+  assert.deepEqual(decodedListingDelivery(complete.bytes).directory.listings, [
+    listings[1],
+    listings[0],
+  ]);
+  const wire = encodeCompactListing(complete.bytes);
+  assert.deepEqual(decodeRetainedCompactListing(wire), complete.bytes);
+  assert.deepEqual(project(complete.bytes.length).bytes, complete.bytes);
+  assert.throws(() => project(complete.bytes.length - 1), /retaining last-good publication/u);
+});
+
 void test("signed directory retains equivalent completed evidence until its recorded midpoint", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -1298,4 +1741,281 @@ void test("signed directory retains equivalent completed evidence until its reco
   ]) {
     assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
   }
+});
+
+function decodedListingDelivery(bytes: Buffer) {
+  return JSON.parse(bytes.toString()) as {
+    revision: number;
+    withdrawn_ids: string[];
+    directory: { format_version: number; listings: ({ id: string } & Record<string, unknown>)[] };
+  };
+}
+
+void test("ScummVM game data reaches only an admitted guide and retains reviewed preparation", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { scummvmSetupGuide } = await import("./catalog-scummvm-game-setup.mts");
+  const { readScummvmGameData } = await import("./scummvm-game-data-observation.mts");
+  const sfinx = {
+    id: "scummvm-cge2-sfinx",
+    original_game_title: "Sfinx",
+    project_url: "https://github.com/scummvm/scummvm",
+    setup_url: "https://www.scummvm.org/games/#games-cge2:sfinx",
+  };
+  const guide = scummvmSetupGuide({
+    listing: sfinx,
+    upstream_lineage: {
+      origin: { project_url: sfinx.project_url, repository: { host: "github.com", id: "1358940" } },
+      decisions: [],
+    },
+    scummvm_game_setup_v1: { archive: "sfinx-en-v1.1.zip", folder: "sfinx-en-v1.1" },
+  });
+  assert.ok(guide);
+  assert.match(guide.steps[1]!.instruction, /select the sfinx-en-v1\.1 folder/u);
+  const canonical = {
+    format_version: 11,
+    listings: [
+      { ...sfinx, manual_setup: guide },
+      { ...sfinx, id: "unseen-scummvm-guide", manual_setup: guide },
+    ],
+  };
+  const source = (rows: string[], revision: string) =>
+    readScummvmGameData(Buffer.from(rows.join("\n")), revision.repeat(40));
+  const row = (edition: string, archive: string) =>
+    `- { category: games, game_id: 'cge2:sfinx', name: '${edition}', url: 'Sfinx/${archive}' }`;
+  const english = row("English v1.1", "sfinx-en-v1.1.zip");
+  const german = row("German v1.1", "sfinx-de-v1.1.zip");
+  const admitted = new Set([sfinx.id]);
+  const noGuidance = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+  );
+  const bounded = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    noGuidance.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english], "a"),
+  );
+  assert.deepEqual(bounded.bytes, noGuidance.bytes);
+  assert.equal(bounded.scummvm_guides, 0);
+  const first = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english], "a"),
+  );
+  const next = projectListingDelivery(
+    canonical,
+    [],
+    first.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english, german], "b"),
+  );
+  const parsed = JSON.parse(next.bytes.toString()) as {
+    directory: { listings: typeof canonical.listings };
+  };
+  assert.equal(parsed.directory.listings.length, 1);
+  assert.equal(parsed.directory.listings[0]?.id, sfinx.id);
+  assert.deepEqual(parsed.directory.listings[0]?.manual_setup.steps, guide.steps);
+  assert.match(
+    parsed.directory.listings[0]?.manual_setup.references.at(-1)?.instruction ?? "",
+    /German v1\.1 \(sfinx-de-v1\.1\.zip\)/u,
+  );
+  assert.equal(next.revision, first.revision + 1);
+  assert.deepEqual(projectListingDelivery(canonical, [], next.bytes).bytes, next.bytes);
+  const unrelated = source(
+    ["- { category: games, game_id: 'test:other', name: 'Other', url: 'Other/data.zip' }"],
+    "c",
+  );
+  const retired = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    unrelated,
+  );
+  const retiredParsed = JSON.parse(retired.bytes.toString()) as typeof parsed;
+  const retiredGuide = retiredParsed.directory.listings[0]?.manual_setup;
+  assert.ok(retiredGuide);
+  assert.doesNotMatch(JSON.stringify(retiredGuide), /sfinx-en-v1\.1|German v1\.1/u);
+  assert.equal(retiredGuide.references.length, 3);
+
+  const replacementOnly = source([row("English v2.0", "sfinx-en-v2.0.zip")], "d");
+  const replaced = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    replacementOnly,
+  );
+  assert.match(replaced.bytes.toString(), /English v2\.0/u);
+  assert.doesNotMatch(replaced.bytes.toString(), /sfinx-en-v1\.1|German v1\.1/u);
+  assert.deepEqual(projectListingDelivery(canonical, [], replaced.bytes).bytes, replaced.bytes);
+
+  const pressured = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    retired.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    replacementOnly,
+  );
+  assert.equal(pressured.scummvm_guides, 0);
+  assert.deepEqual(pressured.bytes, retired.bytes);
+  assert.deepEqual(projectListingDelivery(canonical, [], pressured.bytes).bytes, pressured.bytes);
+  const noCurrentZips = source(
+    [row("English v2.0", "sfinx-en-v2.0.tar.gz"), row("German v2.0", "sfinx-de-v2.0.7z")],
+    "e",
+  );
+  assert.equal(noCurrentZips.editions.size, 0);
+  const allZipsWithdrawn = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    retired.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    noCurrentZips,
+  );
+  assert.deepEqual(allZipsWithdrawn.bytes, retired.bytes);
+  for (const [broken, failure] of [
+    ["- { category: games, game_id: 'cge2:sfinx'", /YAML is invalid/u],
+    [row("German v2.0", ""), /archive paths/u],
+    [
+      row("German v2.0", "sfinx-de-v2.0.7z").replace("category: games", "category: addons"),
+      /no complete game rows/u,
+    ],
+  ] as const) {
+    let observation;
+    assert.throws(() => {
+      observation = source([broken], "f");
+    }, failure);
+    assert.deepEqual(
+      projectListingDelivery(
+        canonical,
+        [],
+        next.bytes,
+        0,
+        undefined,
+        undefined,
+        admitted,
+        0,
+        [],
+        false,
+        observation,
+      ).bytes,
+      next.bytes,
+    );
+  }
+
+  assert.throws(() => source([row("English v1.1", "../escape.zip")], "d"), /archive paths/u);
+});
+
+void test("ScummVM game data observer binds official repository and byte-exact current file", async () => {
+  const { observeScummvmGameData, readScummvmGameData } =
+    await import("./scummvm-game-data-observation.mts");
+  const revision = "a".repeat(40);
+  const bytes = Buffer.from(
+    "- { category: games, game_id: 'test:other', name: 'Other', url: 'Other/data.zip' }",
+  );
+  const expected = readScummvmGameData(bytes, revision);
+  const responses = (wrong: "repo" | "blob" | "revision" | "truncated" | null) => {
+    const urls: URL[] = [];
+    return {
+      urls,
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        urls.push(url);
+        if (url.pathname.endsWith("/commits")) {
+          assert.equal(url.searchParams.get("sha"), "master");
+          assert.equal(url.searchParams.get("path"), "data/en/game_downloads.yaml");
+          return Response.json([
+            { sha: wrong === "revision" && urls.length > 2 ? "b".repeat(40) : revision },
+          ]);
+        }
+        if (url.pathname.includes("/contents/")) {
+          assert.equal(url.searchParams.get("ref"), revision);
+          return Response.json({
+            path: "data/en/game_downloads.yaml",
+            type: "file",
+            encoding: "base64",
+            content: (wrong === "truncated" ? bytes.subarray(0, -1) : bytes).toString("base64"),
+            size: bytes.length,
+            sha: wrong === "blob" ? "b".repeat(40) : expected.blob,
+          });
+        }
+        return Response.json({
+          id: wrong === "repo" ? 10 : 5929844,
+          full_name: "scummvm/scummvm-web",
+          default_branch: "master",
+          archived: false,
+        });
+      },
+    };
+  };
+  const clean = responses(null);
+  assert.deepEqual(await observeScummvmGameData(undefined, clean.fetch), expected);
+  assert.equal(clean.urls.length, 5);
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("repo").fetch),
+    /authority changed/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("blob").fetch),
+    /blob does not match/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("truncated").fetch),
+    /blob does not match/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("revision").fetch),
+    /changed during/u,
+  );
 });

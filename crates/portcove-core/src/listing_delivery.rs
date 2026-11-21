@@ -1,11 +1,6 @@
 //! Descriptive directory delivery under the existing independent catalog policy role.
 //! This target cannot create a managed definition, publisher grant or executable contract.
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    io::Read as _,
-};
-
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
@@ -20,54 +15,9 @@ use crate::{
     PortcoveService, Result,
 };
 
-pub(crate) const TARGET: &str = "policy/official/catalog.listings.json";
-pub(crate) const MAX_BYTES: usize = 8 * 1024 * 1024;
-pub(crate) const MAX_COMPACT_DECODED_BYTES: usize = 32 * 1024 * 1024;
-pub(crate) const COMPACT_TARGET: &str = "policy/official/catalog.listings.compact.json";
-pub(crate) const COMPACT_CARRIER: &str = "gzip-base64-json-v1";
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CompactListingCarrier {
-    carrier: String,
-    decoded_bytes: usize,
-    decoded_sha256: String,
-    gzip_base64: String,
-}
-
-fn decode_compact_listing(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
-    const ERROR: &str = "invalid compact listing directory carrier";
-    if bytes.len() > MAX_BYTES {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    let carrier: CompactListingCarrier = serde_json::from_slice(bytes)?;
-    if carrier.carrier != COMPACT_CARRIER
-        || !(1..=MAX_COMPACT_DECODED_BYTES).contains(&carrier.decoded_bytes)
-    {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    let compressed = STANDARD
-        .decode(carrier.gzip_base64)
-        .map_err(|_| PortcoveError::verification(ERROR))?;
-    let mut gzip = flate2::bufread::GzDecoder::new(compressed.as_slice());
-    let mut output = Vec::with_capacity(carrier.decoded_bytes);
-    gzip.by_ref()
-        .take(carrier.decoded_bytes as u64)
-        .read_to_end(&mut output)
-        .map_err(|_| PortcoveError::verification(ERROR))?;
-    let mut extra = [0];
-    if output.len() != carrier.decoded_bytes
-        || gzip
-            .read(&mut extra)
-            .map_err(|_| PortcoveError::verification(ERROR))?
-            != 0
-        || !gzip.get_ref().is_empty()
-        || super::digest(&output) != carrier.decoded_sha256
-    {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    Ok((output, carrier.decoded_sha256))
-}
+pub(crate) use portcove_listing_carrier::{
+    COMPACT_CARRIER, COMPACT_TARGET, LEGACY_TARGET as TARGET, MAX_BYTES, MAX_COMPACT_DECODED_BYTES,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -78,8 +28,7 @@ pub(crate) struct ListingDeliveryDocument {
     pub directory: CatalogListingDocument,
 }
 
-const MAX_LISTING_ENTRIES: usize = 10_000;
-const MAX_COMPACT_RECORD_BYTES: usize = 1024 * 1024;
+use portcove_listing_carrier::{MAX_COMPACT_RECORD_BYTES, MAX_LISTING_ENTRIES, bounded_entries};
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -119,43 +68,6 @@ impl<'de> Deserialize<'de> for CompactListing {
             .map(Self)
             .map_err(serde::de::Error::custom)
     }
-}
-
-fn bounded_entries<'de, D, T>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    struct Entries<T>(std::marker::PhantomData<T>);
-
-    impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for Entries<T> {
-        type Value = Vec<T>;
-
-        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "at most {MAX_LISTING_ENTRIES} listing directory entries")
-        }
-
-        fn visit_seq<A: serde::de::SeqAccess<'de>>(
-            self,
-            mut seq: A,
-        ) -> std::result::Result<Vec<T>, A::Error> {
-            let mut entries = Vec::new();
-            while entries.len() < MAX_LISTING_ENTRIES {
-                let Some(value) = seq.next_element()? else {
-                    return Ok(entries);
-                };
-                entries.push(value);
-            }
-            if seq.next_element::<serde::de::IgnoredAny>()?.is_some() {
-                return Err(serde::de::Error::custom(
-                    "compact listing directory exceeds its entry bound",
-                ));
-            }
-            Ok(entries)
-        }
-    }
-
-    deserializer.deserialize_seq(Entries(std::marker::PhantomData))
 }
 
 #[cfg(test)]
@@ -960,7 +872,8 @@ async fn acquire_listings(repository: &Repository, root: &[u8]) -> Result<Authen
     let (bytes, provenance) =
         super::acquire_target_with_limit(repository, root, target, MAX_BYTES as u64).await?;
     let (bytes, proof) = if compact {
-        let (decoded, decoded_sha256) = decode_compact_listing(&bytes)?;
+        let (decoded, decoded_sha256) = portcove_listing_carrier::decode(&bytes)
+            .map_err(|error| PortcoveError::verification(error.to_string()))?;
         (
             decoded,
             ListingAdmissionProof::Compact(CompactListingProof {

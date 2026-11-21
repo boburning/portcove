@@ -1944,6 +1944,11 @@ resolve a condition. A reviewed Git-authored resolution may remove it in a newer
 authenticated snapshot. The reader retains snapshot replacement semantics rather
 than making an older restriction an additional policy authority.
 
+Compact preparation projects every canonical listing except explicit withdrawals
+and includes the applicable observations. Capacity exhaustion fails preparation
+and leaves the last-good publication in place. Existing legacy readers keep their
+separately authenticated 8 MiB target.
+
 Core atomically retains the exact target bytes and authenticated metadata
 provenance with the shared installed-authority replay floor. Lower metadata or
 feed revisions and changed bytes at an equal feed revision are refused. A newer

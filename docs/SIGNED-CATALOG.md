@@ -151,7 +151,10 @@ each referenced historical target body once. If Tough has already authenticated
 that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
 own inventory and keeps the existing write-time and post-write readbacks.
 
-Each descriptive target remains limited to 8 MiB per directory revision.
+Each descriptive target has an 8 MiB wire limit. The compact carrier has a
+separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
+Checkpoint segments preserve the exact legacy artifact and every immutable
+carrier body. Compact publication still requires explicit activation.
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
@@ -166,6 +169,30 @@ are fixed historical schema values.
 
 See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
 for the release prerequisite and the supported player path.
+
+## Authenticated publication history checkpoints
+
+The checkpoint prototype uses one standard official-policy target under the
+existing scoped delegation. The target names an active checkpoint by length and
+SHA-256. The checkpoint binds its predecessor timestamp, compiled root,
+delegated authority and exact revision floors. Immutable segments carry old
+file identities outside the legacy TUF URL tree. There are no custom Snapshot
+or Timestamp fields, which earlier release tools would refuse.
+
+The first checkpoint uses a fully verified predecessor. Once the current
+signed policy names a checkpoint, each signing job receives the active TUF
+roles and targets, a bounded active index and its tip segment. It verifies
+the TUF chain, authority, latest suffix and exact revision floors before using
+a role key. No file passed from the prepare job becomes signing authority.
+
+Keyless assembly restores the pinned Pages inputs, verifies the segment and
+parent chain against the actual historical SHA-256 inventory, and compares the
+independently signed role bodies with its own expected successor. Publication
+guards both the previous catalog and history trees and adds only addressed
+history objects. An expected missing checkpoint, unavailable segment, exceeded
+bound, stale Pages tree or changed body stops publication. Recover the exact
+addressed objects from the pinned last-good Git tree before retrying. A broken
+history pointer cannot trigger a new bootstrap.
 
 ## Capacity diagnostics and retained representations
 
