@@ -110,9 +110,16 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(
-        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
-    )?)
+    let mut document = crate::installed_contract::legacy_retained_document(catalog, port_id, None);
+    if let Some(port) = document.ports.iter_mut().find(|port| port.id == port_id)
+        && port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+    {
+        port.game_settings = None;
+    }
+    Ok(serde_json::to_string(&document)?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -298,6 +305,7 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -770,6 +778,7 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         })
     }
@@ -783,6 +792,7 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
