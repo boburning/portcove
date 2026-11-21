@@ -1,5 +1,6 @@
 //! Desktop library choice and live handoff. Durable selection stays in core.
 
+use crate::desktop_contract::{LibrarySelectionEffect, LibrarySelectionReview};
 use crate::{
     BootstrapStatus, DesktopError, DesktopResult, DesktopState, blocking_worker, bootstrap_status,
     initialize_desktop_selection, observe_launch_completion, ready, require_no_library_handoff,
@@ -8,8 +9,6 @@ use portcove_core::{
     ErrorCode, HostPreferenceStore, Library, LibrarySelection, LibrarySelectionContents,
     LibrarySelectionSource, PortcoveError,
 };
-use schemars::JsonSchema;
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -30,24 +29,6 @@ pub(crate) async fn get_library_identity(
         service.library().identity_record().map_err(Into::into)
     })
     .await
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum LibrarySelectionEffect {
-    Keep,
-    ChangeStartup,
-    Open,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-pub(crate) struct LibrarySelectionReview {
-    path: PathBuf,
-    source: LibrarySelectionSource,
-    effect: LibrarySelectionEffect,
-    contents: LibrarySelectionContents,
-    resets_preferences: bool,
-    review_sha256: String,
 }
 
 #[tauri::command]
@@ -241,7 +222,7 @@ fn selection_review(
         effect,
         contents,
         resets_preferences: saved_choice.is_none(),
-        review_sha256: format!("{:x}", Sha256::digest(binding)),
+        review_sha256: hex::encode(Sha256::digest(binding)),
     })
 }
 

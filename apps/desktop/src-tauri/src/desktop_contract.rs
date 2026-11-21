@@ -2,7 +2,8 @@
 //! Native policies, commands, storage, and event emission remain in their owners.
 
 use portcove_core::{
-    LibrarySelection, ReconcileResult, ReleaseChannel, SourceVerification, UpdateCheck,
+    LibrarySelection, LibrarySelectionContents, LibrarySelectionSource, ReconcileResult,
+    ReleaseChannel, SourceVerification, UpdateCheck,
 };
 use schemars::{JsonSchema, generate::SchemaSettings};
 use serde::{Deserialize, Serialize};
@@ -68,6 +69,24 @@ pub(crate) struct BootstrapStatus {
     pub(crate) selection: Option<LibrarySelection>,
     pub(crate) generation: u64,
     pub(crate) error: Option<DesktopError>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LibrarySelectionEffect {
+    Keep,
+    ChangeStartup,
+    Open,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct LibrarySelectionReview {
+    pub(crate) path: PathBuf,
+    pub(crate) source: LibrarySelectionSource,
+    pub(crate) effect: LibrarySelectionEffect,
+    pub(crate) contents: LibrarySelectionContents,
+    pub(crate) resets_preferences: bool,
+    pub(crate) review_sha256: String,
 }
 
 #[derive(Debug, Clone, Serialize, JsonSchema)]
@@ -441,7 +460,7 @@ pub fn export_transport_schemas() -> Value {
         "output": {
             "game_comparison": output::<portcove_core::GameComparison>(),
             "bootstrap_status": output::<BootstrapStatus>(),
-            "library_selection_review": output::<crate::library_selection::LibrarySelectionReview>(),
+            "library_selection_review": output::<LibrarySelectionReview>(),
             "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
