@@ -4786,3 +4786,33 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Frozen artifact readers
+
+Core compiles `historical-artifacts.json` into its offline reader. The table binds
+old DKR-R manifests to their frozen catalog, preserves the four historical
+Direct Windows reader exceptions and selects frozen package and cartridge
+interpretations. Each lookup keeps its creating reader's recorded coordinates.
+For example, an early DKR-R manifest may omit its platform, but must match the
+exact release, asset name, size, digest and executable basename. The Direct
+exception uses the version and digest from the retained Windows definition.
+
+Stored retained definitions and their registered manifests take precedence
+where the reader historically used them. Keep the frozen projections at their
+recorded revisions. The compiled table confers no publisher grant, replacement
+ownership, source approval or upstream package eligibility.
+
+Existing reusable managed profiles can select a new package through their
+ordinary reviewed GitHub rules and independent publisher grant. For single-lane
+Windows profiles that need an exact compatibility list, use
+`managed_runtime_applies_to` rows containing `version`, `size` and `sha256`.
+The list applies to the reusable TFE, Chocolate, RaceWave and GB Recompiled
+behaviors. The ordinary resolver checks the selected official package against
+the list before acquisition. Direct and curated lanes keep their existing
+separate bindings.
+
+Publication requires a schema 4 indexed entry declaring
+`runtime.reviewed-compatibility-artifacts-v1`, a schema 3 catalog projection
+and the independent exact publisher admission. Core reopens a prior install
+using its own captured list. Older definitions without the list retain their
+existing rules. Format-1 output cannot carry the list.

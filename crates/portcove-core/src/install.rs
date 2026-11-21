@@ -1165,11 +1165,7 @@ impl Installer {
             )?;
         }
         if request.qualification.managed_shared_preferences.is_some()
-            || request
-                .release
-                .asset
-                .sha256
-                .eq_ignore_ascii_case(crate::managed_shared_preferences::SHA)
+            || crate::managed_shared_preferences::known_artifact(&request.release.asset.sha256)
         {
             let port = catalog.port(&request.port_id)?;
             if request.qualification.retained_contract.is_none()
@@ -1294,6 +1290,19 @@ impl Installer {
             return Err(PortcoveError::unsupported(
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
+        }
+        if port.managed_runtime_applies_to.is_some() {
+            let resolution = request.qualification.acquisition.as_ref()
+                .filter(|resolved| resolved.scope.is_some())
+                .filter(|_| request.qualification.retained_contract.is_some())
+                .ok_or_else(|| PortcoveError::verification(
+                    "reviewed runtime compatibility artifacts require independent acquisition authority",
+                ))?;
+            resolution.require_selection(
+                port,
+                request.qualification.platform,
+                request.release.channel,
+            )?;
         }
         if crate::managed_runtime_policy::requires_provider_resolution_on(
             port,
@@ -3839,39 +3848,28 @@ pub(crate) fn retained_catalog_for_install(
     catalog_for_verified_manifest(install, &manifest)
 }
 
-#[derive(Deserialize)]
-struct LegacyDkrArtifact {
-    version: String,
-    platform: Platform,
-    asset_name: String,
-    size: u64,
-    sha256: String,
-    executable: String,
-}
+use crate::historical_artifacts::LegacyDkrArtifact;
 
 fn legacy_dkr_artifact(
     install: &InstallRecord,
     manifest: &InstallManifest,
-) -> Result<Option<LegacyDkrArtifact>> {
+) -> Result<Option<&'static LegacyDkrArtifact>> {
     if install.port_id != "dkr-r" || manifest.retained_contract.is_some() {
         return Ok(None);
     }
     // Only verified pre-contract manifests reach here. Never derive historical
     // launch or persistence from today's non-owning definition or host platform.
-    let artifacts: Vec<LegacyDkrArtifact> =
-        serde_json::from_str(include_str!("legacy_dkr/artifacts.json"))?;
-    let artifact = artifacts.into_iter().find(|artifact| {
-        install.version == artifact.version
-            && install.artifact.asset_name == artifact.asset_name
-            && install.artifact.size == artifact.size
-            && install.artifact.sha256 == artifact.sha256
-            && Path::new(&install.selected_executable).file_name()
-                == Some(std::ffi::OsStr::new(&artifact.executable))
-            && manifest
-                .platform
-                .is_none_or(|platform| platform == artifact.platform)
-            && manifest.runtime.is_none()
-    });
+    let artifact = crate::historical_artifacts::dkr_artifacts()
+        .iter()
+        .find(|row| {
+            manifest.runtime.is_none()
+                && row.matches(
+                    &install.version,
+                    manifest.platform,
+                    &install.artifact,
+                    &install.selected_executable,
+                )
+        });
     artifact.map(Some).ok_or_else(|| PortcoveError::verification(
         "legacy DKR-R installation is outside the recorded compatibility identities; preserve its files and review its original contract",
     ))
@@ -3894,7 +3892,7 @@ fn catalog_for_verified_manifest(
     if artifact.platform == Platform::LinuxX86_64 {
         document.ports[0]
             .executable_hints
-            .insert(artifact.platform, vec![artifact.executable]);
+            .insert(artifact.platform, vec![artifact.executable.clone()]);
     }
     crate::Catalog::from_json(&serde_json::to_string(&document)?).map(Some)
 }

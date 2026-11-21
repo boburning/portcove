@@ -256,3 +256,26 @@ void test("named package authoring binds schema 4 entry to the exact schema 3 le
     /named package and launch declarations require catalog projection schema 3/u,
   );
 });
+
+void test("an exact compatibility artifact list requires the named indexed writer", async () => {
+  const f = await fixture();
+  const catalog = JSON.parse(f.catalog.toString()) as {
+    ports: { id: string; managed_runtime_applies_to?: unknown }[];
+  };
+  const port = catalog.ports.find(({ id }) => id === heldId);
+  assert.ok(port);
+  port.managed_runtime_applies_to = [{ version: "v2", size: 31, sha256: "ee".repeat(32) }];
+  const oldProjection = json({
+    ...JSON.parse(f.template.toString()),
+    contract_schema: 2,
+  });
+  assert.throws(
+    () => generatedPublicationProjection(json(catalog), heldId, oldProjection),
+    /require catalog projection schema 3/u,
+  );
+  const namedProjection = generatedPublicationProjection(json(catalog), heldId, f.template);
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, namedProjection),
+    /require schema 4 and the named reader/u,
+  );
+});

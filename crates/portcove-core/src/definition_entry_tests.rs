@@ -2770,6 +2770,58 @@ fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
 }
 
 #[test]
+fn reviewed_runtime_compatibility_artifacts_require_named_entry_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("the-force-engine-dark-forces")
+        .unwrap()
+        .clone();
+    port.managed_runtime_applies_to = Some(vec![crate::RuntimePolicyArtifact {
+        version: "v91.2".into(),
+        size: 31_291,
+        sha256: "bc".repeat(32),
+    }]);
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(23);
+    entry["required_capabilities"][0]["maximum_version"] = json!(38);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!([
+        "staged.provider-resolution-v1",
+        "staged.reusable-runtime-policy-v1",
+        "staged.managed-initialization-v1",
+        "staged.ready-archive-v1"
+    ]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("runtime.reviewed-compatibility-artifacts-v1")
+    );
+    entry["required_features"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("runtime.reviewed-compatibility-artifacts-v1"));
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn named_entry_ignores_only_bounded_top_level_advice() {
     let mut entry = fixture();
     let legacy = inspect(&entry).unwrap();

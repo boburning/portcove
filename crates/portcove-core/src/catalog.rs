@@ -277,6 +277,24 @@ impl Catalog {
             }
             crate::reviewed_launch_contract::validate(port)?;
         }
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.managed_runtime_applies_to.is_some())
+        {
+            let already_retained = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.managed_runtime_applies_to == port.managed_runtime_applies_to
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_retained {
+                return Err(PortcoveError::unsupported(
+                    "reviewed runtime compatibility artifacts require a scoped indexed entry",
+                ));
+            }
+            crate::managed_runtime_policy::validate_applies_to(port)?;
+        }
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -378,6 +396,15 @@ impl Catalog {
         {
             return Err(PortcoveError::unsupported(
                 "legacy catalog export cannot represent named package and launch declarations",
+            ));
+        }
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.managed_runtime_applies_to.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent reviewed runtime compatibility artifacts",
             ));
         }
         if !matches!(schema_version, 1..=3) {

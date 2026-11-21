@@ -200,11 +200,9 @@ pub(crate) fn shipwright_windows_cwd_persistence(
         && port.adapter == crate::AdapterKind::LibultrashipPortable
         && port.user_data_environment.is_none()
         && (port.windows_shipwright_persistence
-            || (install.version == "9.3.1"
-                && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
-                && install.artifact.size == 72_980_600
-                && install.artifact.sha256
-                    == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"))
+            || crate::historical_artifacts::PackageContract::Shipwright931Windows
+                .package()
+                .matches_release(&install.version, Some(platform), &install.artifact))
 }
 
 /// Compare the retained execution/authority contract, excluding only display
@@ -253,6 +251,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         game_settings,
         managed_shared_preferences,
         managed_shared_preferences_save_id,
+        managed_runtime_applies_to,
         source_environment,
         user_data_environment,
         launch_environment,
@@ -336,6 +335,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     });
     if let Some(contract) = reviewed_launch_contract_v1 {
         compatibility["reviewed_launch_contract_v1"] = serde_json::json!(contract);
+    }
+    if let Some(artifacts) = managed_runtime_applies_to {
+        compatibility["managed_runtime_applies_to"] = serde_json::json!(artifacts);
     }
     // Only a declared marker joins the identity, so existing retained contracts keep theirs.
     if let Some(marker) = portable_marker_file {

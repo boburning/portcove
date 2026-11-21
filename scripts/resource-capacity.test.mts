@@ -20,6 +20,7 @@ interface WorkerEvent {
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
+import fileSystem from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
@@ -799,6 +800,35 @@ void test("host bridge preserves UTF-8 decoding, EOF and exact byte boundaries",
 });
 
 void test(
+  "host bridge refuses a public Linux custody directory before requesting either lease",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await fixture(t);
+    const directory = fileSystem.mkdtempSync(path.join(root, "public-custody-"));
+    fileSystem.chmodSync(directory, 0o777);
+    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => directory);
+    const spawnHost = t.mock.method(childProcess, "spawn", () =>
+      assert.fail("the Windows bridge must not start with public custody"),
+    );
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        acquireBridgedCapacity(bridgeConfig, "browser", {}, {}, async () =>
+          assert.fail("the Linux lease must not start with public custody"),
+        ),
+        /private Linux-backed temporary directory/u,
+      );
+      assert.equal(temporary.mock.callCount(), 1);
+      assert.equal(spawnHost.mock.callCount(), 0);
+      assert.deepEqual(await readdir(directory), []);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  },
+);
+
+void test(
   "host bridge Linux probe refuses changed custody, live children and missing cleanup",
   { skip: process.platform !== "linux" },
   async (t) => {
@@ -971,18 +1001,26 @@ void test("Windows bridge status receives a full queue within its response limit
   await assert.rejects(observeBridgedCapacity(oversized.config), { code: "ENOBUFS" });
 });
 
-void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
+void test(
+  "Linux bridge client preserves host queue refusal before local admission",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "queue");
+    let localAcquisitions = 0;
+    await assert.rejects(
+      acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
+        localAcquisitions++;
+        throw new Error("must not acquire locally");
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal(localAcquisitions, 0);
+    await host.close();
+  },
+);
+
+void test("Windows host bridge launcher rejects changed verifier bytes", async (t) => {
   const host = await mockHost(t, "queue");
-  let localAcquisitions = 0;
-  await assert.rejects(
-    acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
-      localAcquisitions++;
-      throw new Error("must not acquire locally");
-    }),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal(localAcquisitions, 0);
-  await host.close();
   await writeFile(host.entry, "throw Error('unbound replacement executed');");
   assert.throws(
     () =>

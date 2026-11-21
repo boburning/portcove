@@ -65,11 +65,9 @@ pub(super) fn execution_contract(
         || port.adapter != AdapterKind::LibultrashipPortable
         || port.source_profile.as_deref() != Some("ghostship-source")
         || install.port_id != port.id
-        || install.version != "2.0.0"
-        || install.artifact.asset_name != "Mary-Celeste-Alfa-Win64.zip"
-        || install.artifact.sha256
-            != "a49f4c791377fcc611264b8920f2c3254b3ab25747c2a59da9305c32f92a6d3f"
-        || install.artifact.size != 21_561_620
+        || !crate::historical_artifacts::PackageContract::Ghostship200Windows
+            .package()
+            .matches_release(&install.version, Some(host), &install.artifact)
         || !install
             .selected_executable
             .to_str()

@@ -72,6 +72,7 @@ definition_features! {
     PsxRetainedScope => "psx.texture-persistence-v1", "port persistence requires texture-pack retained scope";
     UserSelectedRuntime => "staged.user-selected-runtime-v1", "port.release.user_prepared.*.trust";
     ProviderResolution => "staged.provider-resolution-v1", "port runtime policy requires provider resolution";
+    ReviewedRuntimeArtifacts => "runtime.reviewed-compatibility-artifacts-v1", "port.managed_runtime_applies_to";
     ReusableRuntimePolicy => "staged.reusable-runtime-policy-v1", "port.managed_initialization / port.runtime_data_policy / port.managed_shared_preferences";
     SharedPreferences => "staged.shared-preferences-v1", "port.managed_shared_preferences";
     RuntimeData => "staged.runtime-data-policy-v1", "port.runtime_data_policy";

@@ -2,10 +2,14 @@
 use crate::{PortcoveError, Result, UserPreparedRuntimeSpec};
 
 pub(super) fn validate(spec: &UserPreparedRuntimeSpec) -> Result<()> {
-    if spec.version != "1.1-stable"
-        || spec.archive_name != "Windows.zip"
-        || spec.archive_size != 76_214_255
-        || spec.archive_sha256 != "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
+    if !crate::historical_artifacts::PackageContract::Smb1r11Windows
+        .package()
+        .matches_package(
+            &spec.version,
+            &spec.archive_name,
+            spec.archive_size,
+            &spec.archive_sha256,
+        )
         || spec.executable != "SMB1R.exe"
         || spec.immutable_tree_sha256
             != "a8cb5667881f64dead389d8e8dd821bd4787f2b345156953d645f27412398b6a"

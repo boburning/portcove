@@ -53,6 +53,7 @@ mod game_recommendations;
 mod game_settings;
 mod ghostship_data_store;
 mod gitlab;
+mod historical_artifacts;
 mod host_preferences;
 mod host_tools;
 mod import_execution;
