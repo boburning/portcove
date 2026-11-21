@@ -21,9 +21,7 @@
     "release_url": "https://github.com/OpenFodder/openfodder/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "OpenFodder-Installer.exe"
-      ]
+      "windows-x86-64": ["OpenFodder-Installer.exe"]
     },
     "manual_setup": {
       "steps": [
@@ -86,13 +84,8 @@
   "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
