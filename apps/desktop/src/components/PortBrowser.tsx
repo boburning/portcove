@@ -1475,7 +1475,7 @@ function PortCardStatus({
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  const taskPrimary = Boolean(action.busy && action.pending?.context.operation !== "launch");
+  const taskPrimary = Boolean(action.pending && action.pending.context.operation !== "launch");
   const canLaunch = cardCanLaunch(port, status, action, onLaunch);
   const reviewOrigin = `${detailOrigin}:review`;
   const reviewSetup = Boolean(
