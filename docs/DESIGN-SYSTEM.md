@@ -1142,7 +1142,9 @@ assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
 external runtimes and every other outcome keep the factual "Action · Title:
 finished." notice. A successful launch shows no visible notice; its announcement
-remains. Creating a Portcove-managed copy retains the exact installed version
+remains. A registered external installation with a managed route offers the
+separate managed-copy review in Game files, including on the listing detail.
+Creating a Portcove-managed copy retains the exact installed version
 in workspace feedback. If Portcove cannot refresh the library, the player can
 retry the refresh from that feedback. Open game appears when the current
 library confirms the exact installation and its game page is available. If the result is uncertain, the previous launch route stays on hold until a
