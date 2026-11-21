@@ -104,6 +104,14 @@ Launch values are literal strings or objects with a `path` of `user_data`,
 environment value. Source expansion needs the verified launch source.
 Existing path, executable and environment policies still apply.
 
+Reviewed forge qualification models the API dialect, API root, web host and
+exact asset hosts separately from the reviewed repository, release and artifact
+identity. The alternate-forge route is currently exercised by qualification
+fixtures. Naev's Codeberg listing and upstream-owned registration keep their
+existing scope. An indexed `reviewed-forge` selector requires a named definition reader.
+The operational resolver holds acquisition until protected publisher policy
+can issue an independent exact executable grant.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing

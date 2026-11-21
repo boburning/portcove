@@ -1377,6 +1377,12 @@ pub(crate) fn acquisition_scope(
     catalog: &crate::Catalog,
     port_id: &str,
 ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+    if catalog
+        .port(port_id)
+        .is_ok_and(|port| port.release.provider == crate::ReleaseSource::ReviewedForge)
+    {
+        return Err(crate::reviewed_forge::independent_admission_required());
+    }
     let connection = library.connection()?;
     let transaction = connection.unchecked_transaction()?;
     let Some(identity) = catalog.definition_selection(port_id) else {

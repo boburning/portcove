@@ -55,6 +55,22 @@ schema 4 only after the intended clients have received the reader and the
 #246 publication route has qualified it. The normal inspection path can
 check a proposed bundle before that rollout.
 
+### Qualification for separately reviewed forges
+
+The `reviewed-forge` release source requires an indexed entry with schema 4
+and `release.reviewed-forge-v1`. Its projection carries one typed
+`reviewed_forge` selector for the exact subject, stable channel and platform.
+It binds the API dialect and root, public web host, asset host allowlist, and
+the immutable repository, release and archive identity. Historical readers
+refuse the new source. Forge selectors are outside the advisory envelope.
+
+The qualification fixture uses the shared release provider and bounded
+installer transfer with independently issued matching fixture data.
+The operational provider chain refuses this source until protected publisher
+policy can issue a matching non-GitHub executable grant. An inspected
+definition cannot issue that grant. Existing GitHub and GitLab selection keeps
+its authority and transport. Naev stays upstream-owned.
+
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 

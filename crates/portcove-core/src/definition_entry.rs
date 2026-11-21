@@ -254,6 +254,14 @@ impl DefinitionContentIndex {
         if port.upstream_active_reviewed {
             require_feature(required_features.as_ref(), Feature::UpstreamActiveReviewed)?;
         }
+        if port.release.provider == crate::ReleaseSource::ReviewedForge {
+            if document.definition_schema != 4 {
+                return Err(PortcoveError::unsupported(
+                    "reviewed forge requires indexed definition schema 4",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ReviewedForge)?;
+        }
         crate::profile_loader::validate(&port)?;
         if port.managed_runtime_applies_to.is_some() {
             if required_features.is_none() {

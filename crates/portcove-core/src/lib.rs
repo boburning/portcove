@@ -138,6 +138,7 @@ mod relative_file_set;
 mod release;
 mod release_notes;
 mod retained_build;
+mod reviewed_forge;
 mod rom_patch;
 mod runtime;
 mod runtime_data_policy;

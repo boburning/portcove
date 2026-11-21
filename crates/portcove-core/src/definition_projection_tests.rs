@@ -1649,3 +1649,58 @@ fn multi_track_psx_disc_sets_require_their_reader_capability() {
     assert_eq!(error.code, crate::ErrorCode::Verification);
     assert!(error.message.contains("capability version 4"), "{error:?}");
 }
+
+#[test]
+fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_authority() {
+    let mut document = generic_projection();
+    document["catalog"]["ports"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    document["catalog"]["source_catalog"]["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    let port = &mut document["catalog"]["ports"][0];
+    port["release"]["provider"] = json!("reviewed-forge");
+    port["release"]["repository"] = json!("group/fixture");
+    let selector = json!({
+        "platform":"linux-x86-64", "channel":"stable",
+        "instance":{"dialect":"forgejo-v1", "api_root":"https://api.forge.example/api/v1",
+          "web_host":"forge.example","asset_hosts":["forge.example"]},
+        "artifact":{"repository":"group/fixture","repository_id":10,"tag":"v1",
+          "release_id":20,"asset_id":30,"name":"fixture.zip",
+          "url":"https://forge.example/fixture.zip","size":10,"sha256":"a".repeat(64)}
+    });
+    document["reviewed_forge"] = selector.clone();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    assert!(inspect(&selected, &contract).is_err());
+    selected["definition_schema"] = json!(4);
+    selected["required_features"] = json!([]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release.reviewed-forge-v1")
+    );
+    selected["required_features"] = json!(["release.reviewed-forge-v1"]);
+    let proposal = inspect(&selected, &contract).unwrap();
+    assert_eq!(proposal.contract_bytes(), contract.as_slice());
+    assert_eq!(
+        proposal.snapshot().projection().unwrap().contract_bytes(),
+        contract.as_slice(),
+    );
+    for invalid in [json!(null), json!({}), {
+        let mut changed = selector;
+        changed["platform"] = json!("macos-x86-64");
+        changed
+    }] {
+        document["reviewed_forge"] = invalid;
+        let contract = serde_json::to_vec(&document).unwrap();
+        let mut selected = entry(&document, &contract, 0);
+        selected["definition_schema"] = json!(4);
+        selected["required_features"] = json!(["release.reviewed-forge-v1"]);
+        assert!(inspect(&selected, &contract).is_err());
+    }
+}
