@@ -109,8 +109,11 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
 #[test]
 fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("shipwright").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    // Isolate the loader schema fence from the separate provider capability.
+    port.mod_provider_bindings = None;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
     for schema in [1, 2, 3] {
         entry["definition_schema"] = json!(schema);
         let bytes = serde_json::to_vec(&entry).unwrap();
@@ -2248,11 +2251,19 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
-    value["port"]["persistent_paths"] = json!(["../outside"]);
+    // Keep the fixture's authored settings targets in the persistence contract.
+    value["port"]["persistent_paths"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("../outside"));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
-    assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+    let error = crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).unwrap_err();
+    assert!(
+        error.message.contains("unsafe persistent path: ../outside"),
+        "{error}"
+    );
 }
 
 #[test]

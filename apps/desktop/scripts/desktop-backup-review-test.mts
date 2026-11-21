@@ -125,10 +125,8 @@ export async function backupReviewScenario({
       });
       artifacts.push(screenshot);
     };
-    // The panel is titled "Backups and updates" (backups.protection.title). It names
-    // installations by role and version, shows the managed folder path, and discloses
-    // the latest backup identifier on request.
-    const protectionSelector = 'section[aria-label="Backups and updates"]';
+    const savesSelector = 'section[aria-labelledby="detail-saves-and-storage"]';
+    const protectionSelector = `${savesSelector} > section[aria-label="Backups and updates"]`;
     const observeProtection = async (name: string) => {
       const currentInventory = inventory(port.id);
       const protection = currentInventory.protection;
@@ -136,8 +134,11 @@ export async function backupReviewScenario({
       assert.equal(protection.port_id, port.id);
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
       const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
-      const expected = [
-        "Latest backup information",
+      const expectedSummary = ["Latest backup information"];
+      if (protection.latest_completed_backup)
+        expectedSummary.push(protection.latest_completed_backup.id);
+      if (!complete) expectedSummary.push("We couldn’t confirm");
+      const expectedDetails = [
         protection.managed_data.path,
         // Each installation by its role heading, so a missing one is not hidden by
         // another installation or text that shares its version.
@@ -153,18 +154,29 @@ export async function backupReviewScenario({
             } · ${item.version}`,
         ),
       ];
-      if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
-      if (!complete) expected.push("We couldn’t confirm");
       await browser.wait(
         async () => {
-          const panel = await browser.findElement(By.css(protectionSelector));
-          // The backup identifier is disclosed on request; open it to observe it.
-          for (const summary of await panel.findElements(
-            By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
-          ))
-            await executeBrowserScript(browser, "arguments[0].click();", summary);
-          const rendered = await panel.getText();
-          return expected.every((value) => rendered.includes(value));
+          const [panel] = await browser.findElements(By.css(protectionSelector));
+          const [details] = await browser.findElements(
+            By.xpath(
+              '//section[@aria-labelledby="detail-saves-and-storage"]/details[summary[normalize-space(.)="Backup check details"]]',
+            ),
+          );
+          if (!panel || !details) return false;
+          const disclosures = [
+            ...(await panel.findElements(
+              By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
+            )),
+            ...(await details.findElements(By.xpath("self::details[not(@open)]/summary"))),
+          ];
+          for (const disclosure of disclosures)
+            await executeBrowserScript(browser, "arguments[0].click();", disclosure);
+          const summaryText = await panel.getText();
+          const detailsText = await details.getText();
+          return (
+            expectedSummary.every((value) => summaryText.includes(value)) &&
+            expectedDetails.every((value) => detailsText.includes(value))
+          );
         },
         15_000,
         "Backups and updates did not settle on the current Core inventory",

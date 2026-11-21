@@ -2367,6 +2367,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -5114,6 +5118,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }

@@ -2786,6 +2786,9 @@ pub enum OperationEventKind {
 pub struct CapabilityDocument {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub listing_formats: Vec<u32>,
+    /// Independently negotiated signed-directory transport representations.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub listing_delivery_carriers: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port_capability_schema: Option<u32>,
     pub schema_version: u32,
@@ -2812,6 +2815,11 @@ impl CapabilityDocument {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
             listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13],
+            listing_delivery_carriers: vec![
+                "json-v1".into(),
+                crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER
+                    .into(),
+            ],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

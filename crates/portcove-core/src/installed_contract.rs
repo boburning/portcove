@@ -92,6 +92,11 @@ pub(crate) struct InstalledContract {
 /// selecting the port, and the selected port can still use a shared profile.
 fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::CatalogDocument {
     let mut document = catalog.authoritative_document();
+    for port in &mut document.ports {
+        if port.id != selected && package_only_settings(port) {
+            port.game_settings = None;
+        }
+    }
     let excluded_ports = document
         .ports
         .iter()
@@ -148,6 +153,12 @@ fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::Catalo
     document
 }
 
+fn package_only_settings(port: &crate::PortDefinition) -> bool {
+    port.game_settings
+        .as_ref()
+        .is_some_and(crate::GameSettingsContract::package_only)
+}
+
 impl InstalledContract {
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
@@ -201,7 +212,10 @@ impl InstalledContract {
             definition,
             admission,
         };
-        if packaged_library {
+        if package_only_settings(port) {
+            contract.original_format = Some(contract.format);
+            contract.format = 12;
+        } else if packaged_library {
             contract.original_format = Some(contract.format);
             contract.format = 11;
         } else if catalog
@@ -258,9 +272,12 @@ impl InstalledContract {
             }
             (6..=8 | 10, Some(format @ 1..=3), None, None) => format,
             (9, Some(format @ 1..=3), Some(crate::PreparationMode::SourceOnly), None) => format,
-            (11, Some(format @ 1..=3), None | Some(crate::PreparationMode::SourceOnly), None) => {
-                format
-            }
+            (
+                11 | 12,
+                Some(format @ 1..=3),
+                None | Some(crate::PreparationMode::SourceOnly),
+                None,
+            ) => format,
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -299,7 +316,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=11) {
+        if matches!(self.format, 4..=12) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -364,6 +381,11 @@ impl InstalledContract {
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
         let port = catalog.port(&self.port_id)?;
+        if (self.format == 12) != package_only_settings(port) {
+            return Err(PortcoveError::verification(
+                "package-only settings require their retained interpretation envelope",
+            ));
+        }
         if (self.format == 11) != port.linux_packaged_library.is_some() {
             return Err(PortcoveError::verification(
                 "packaged Linux libraries require their retained interpretation envelope",
@@ -395,7 +417,7 @@ impl InstalledContract {
                 "retained executable-parent N64 contract requires its matching envelope",
             ));
         }
-        if (self.format == 7) != catalog.port(&self.port_id)?.mod_package_policy.is_some() {
+        if self.format != 12 && (self.format == 7) != port.mod_package_policy.is_some() {
             return Err(PortcoveError::verification(
                 "versioned mod package semantics require their retained interpretation envelope",
             ));
@@ -443,7 +465,7 @@ impl InstalledContract {
         if self.preparation_mode == Some(crate::PreparationMode::SourceOnly) {
             return Ok(self.clone());
         }
-        if self.format == 11 {
+        if matches!(self.format, 11 | 12) {
             let mut prepared = self.clone();
             prepared.preparation_mode = Some(crate::PreparationMode::SourceOnly);
             prepared.catalog(&self.port_id)?;
@@ -1140,6 +1162,53 @@ mod tests {
     }
 
     #[test]
+    fn package_only_settings_are_scoped_to_the_selected_installation() {
+        let catalog = Catalog::embedded().unwrap();
+        let smw = "super-mario-world-recomp";
+        let other = "zelda64-recomp";
+        let unrelated = InstalledContract::capture(&catalog, other).unwrap();
+        assert_eq!(unrelated.format, 1);
+        let retained = unrelated.catalog(other).unwrap();
+        assert!(retained.port(smw).unwrap().game_settings.is_none());
+        assert!(
+            retained
+                .source_profile("super-mario-world-snes-usa")
+                .is_ok()
+        );
+
+        let selected =
+            InstalledContract::capture_for_platform(&catalog, smw, Some(Platform::WindowsX86_64))
+                .unwrap();
+        assert_eq!(selected.format, 12);
+        assert!(package_only_settings(
+            selected.catalog(smw).unwrap().port(smw).unwrap()
+        ));
+        let mut downgraded = selected.clone();
+        downgraded.format = 6;
+        assert!(downgraded.catalog(smw).is_err());
+
+        let mut previous = catalog.authoritative_document();
+        previous
+            .ports
+            .iter_mut()
+            .find(|port| port.id == smw)
+            .unwrap()
+            .game_settings = None;
+        let previous = Catalog::from_document(previous).unwrap();
+        let historical = InstalledContract::capture(&previous, smw).unwrap();
+        assert_eq!(historical.format, 6);
+        assert!(
+            historical
+                .catalog(smw)
+                .unwrap()
+                .port(smw)
+                .unwrap()
+                .game_settings
+                .is_none()
+        );
+    }
+
+    #[test]
     fn unrelated_retention_excludes_new_native_relative_source_contracts() {
         let catalog = Catalog::embedded().unwrap();
         let stable = "zelda64-recomp";
@@ -1386,6 +1455,11 @@ mod tests {
         sources
             .qualification
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
+        for port in &mut legacy.ports {
+            if package_only_settings(port) {
+                port.game_settings = None;
+            }
+        }
         let original = Catalog::from_json(&serde_json::to_string(&legacy).unwrap()).unwrap();
         let contract = InstalledContract::capture(&original, "zelda64-recomp").unwrap();
         let mut changed = original.authoritative_document();
