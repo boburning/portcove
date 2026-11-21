@@ -96989,7 +96989,7 @@
           },
           {
             "title": "Choose the Linux or Mac nightly package",
-            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon. On Linux x86-64, select the complete official Nightly AppImage and its containing folder. Provide the host JACK and PipeWire libraries required by the package. If FUSE is unavailable, enter --appimage-extract-and-run as a separate first argument. On Intel or Apple Silicon Mac, keep openxcom.app intact and select Contents/MacOS/openxcom with its containing folder. Enter -master and xcom1 as separate arguments. Confirm the selected original and master game upstream before saving the registration. Use separate writable -user and -cfg folders for each game when you want to keep the profiles apart. Enter each option and its absolute path on separate lines."
           },
           {
             "title": "Prepare this title’s original data",
@@ -97011,12 +97011,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
       "original_game": {
         "format_version": 1,
@@ -97026,7 +97020,13 @@
           "https://github.com/OpenXcom/OpenXcom"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
@@ -97058,11 +97058,11 @@
           },
           {
             "title": "Set up the upstream Linux package",
-            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle."
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle. With the native Ubuntu 26.04 x86-64 Exult distribution, complete upstream setup with the packaged launcher first. Select /usr/lib/games/exult/exult and use a private working folder. Enter -c, the absolute path to your prepared configuration, and --si on separate argument lines."
           },
           {
             "title": "Prepare the official Mac app",
-            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Serpent Isle installation. The documented default original folder is /Library/Application Support/Exult/serpentisle. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/serpentisle, and every custom savegame, gamedat and mod location before replacing the app."
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Serpent Isle installation. The documented default original folder is /Library/Application Support/Exult/serpentisle. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/serpentisle, and every custom savegame, gamedat and mod location before replacing the app. On Intel or Apple Silicon Mac, keep the official Exult.app intact and select Contents/MacOS/exult and its containing folder. Enter -c and the absolute path to your prepared Exult configuration as separate arguments, followed by --si. Use the configuration for the matching original and preserve its actual save and gamedat locations before changing players. Launch Flatpak copies through their upstream route."
           },
           {
             "title": "Import this edition in the Android launcher",
@@ -97090,12 +97090,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://exult.info/download.html",
       "original_game": {
         "format_version": 1,
@@ -97114,7 +97108,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
@@ -97146,11 +97146,11 @@
           },
           {
             "title": "Set up the upstream Linux package",
-            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate."
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate. With the native Ubuntu 26.04 x86-64 Exult distribution, complete upstream setup with the packaged launcher first. Select /usr/lib/games/exult/exult and use a private working folder. Enter -c, the absolute path to your prepared configuration, and --bg on separate argument lines."
           },
           {
             "title": "Prepare the official Mac app",
-            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app."
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app. On Intel or Apple Silicon Mac, keep the official Exult.app intact and select Contents/MacOS/exult and its containing folder. Enter -c and the absolute path to your prepared Exult configuration as separate arguments, followed by --bg. Use the configuration for the matching original and preserve its actual save and gamedat locations before changing players. Launch Flatpak copies through their upstream route."
           },
           {
             "title": "Import this edition in the Android launcher",
@@ -97178,12 +97178,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://exult.info/download.html",
       "original_game": {
         "format_version": 1,
@@ -97202,7 +97196,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -104042,7 +104042,7 @@
           },
           {
             "title": "Choose the Linux or Mac nightly package",
-            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon. On Linux x86-64, select the complete official Nightly AppImage and its containing folder. Provide the host JACK and PipeWire libraries required by the package. If FUSE is unavailable, enter --appimage-extract-and-run as a separate first argument. On Intel or Apple Silicon Mac, keep openxcom.app intact and select Contents/MacOS/openxcom with its containing folder. Enter -master and xcom2 as separate arguments. Confirm the selected original and master game upstream before saving the registration. Use separate writable -user and -cfg folders for each game when you want to keep the profiles apart. Enter each option and its absolute path on separate lines."
           },
           {
             "title": "Prepare this title’s original data",
@@ -104064,12 +104064,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
       "original_game": {
         "format_version": 1,
@@ -104079,7 +104073,13 @@
           "https://github.com/OpenXcom/OpenXcom"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "x-men-children-of-the-atom-cps2-recomp",
