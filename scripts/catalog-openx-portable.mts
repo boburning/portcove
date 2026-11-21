@@ -1,34 +1,42 @@
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
 
-const reviewed = new Map([
-  ["star-wars-x-wing-openxw", { player: "OpenXW", repositoryId: "1393268483" }],
-  [
-    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
-    { player: "OpenXvT", repositoryId: "1367490590" },
-  ],
-]);
 const windows = "windows-x86-64";
 const linux = "linux-x86-64";
 
+function hasReviewedExecutable(layout: unknown, executable: string) {
+  return (
+    isRecord(layout) &&
+    Array.isArray(layout.executables) &&
+    layout.executables.includes(executable.toLowerCase())
+  );
+}
+
 function reviewedRoute(record: AuthoredPort) {
-  const { player, repositoryId } = reviewed.get(record.listing.id) ?? {};
   const { integration } = record;
   const release = integration?.release;
   const hints = integration?.executable_hints;
   const presentation = integration?.presentation;
   const layouts = integration?.reviewed_package_layouts;
-  const repository = record.upstream_lineage?.origin?.repository;
+  const lineage = record.upstream_lineage;
+  const origin = lineage?.origin;
+  const repository = origin?.repository;
+  const linuxHints = isRecord(hints) ? hints[linux] : undefined;
+  const player = Array.isArray(linuxHints) ? linuxHints[0] : undefined;
   if (
-    !player ||
+    typeof player !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(player) ||
     integration?.adapter !== "native-portable" ||
     JSON.stringify(integration.channels) !== '["stable"]' ||
     JSON.stringify(integration.platforms) !== JSON.stringify([windows, linux]) ||
     integration.source_profile !== undefined ||
     repository?.host !== "github.com" ||
-    repository.id !== repositoryId ||
+    !/^[1-9][0-9]*$/u.test(repository.id) ||
+    lineage?.target_key !== record.listing.id ||
+    origin?.project_url !== record.listing.project_url ||
     !isRecord(release) ||
-    release.repository !== `elyosh/${player}` ||
+    typeof release.repository !== "string" ||
+    !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/u.test(release.repository) ||
     record.listing.project_url !== `https://github.com/${release.repository}` ||
     Object.keys(release).some(
       (field) => !["repository", "asset_hints", "linux_tar_xz"].includes(field),
@@ -36,8 +44,8 @@ function reviewedRoute(record: AuthoredPort) {
     !isRecord(hints) ||
     JSON.stringify(hints) !== JSON.stringify({ [windows]: [`${player}.exe`], [linux]: [player] }) ||
     !isRecord(layouts) ||
-    !isRecord(layouts[windows]) ||
-    !isRecord(layouts[linux]) ||
+    !hasReviewedExecutable(layouts[windows], `${player}.exe`) ||
+    !hasReviewedExecutable(layouts[linux], player) ||
     !isRecord(presentation) ||
     presentation.installation_method !== "portable-package" ||
     !Array.isArray(presentation.source_requirements) ||
@@ -52,7 +60,9 @@ export function projectOpenXPortable(record: AuthoredPort): AuthoredPort {
   if (record.openx_portable_v1 === undefined) return record;
   const route = reviewedRoute(record);
   if (record.openx_portable_v1 !== true || !route)
-    throw new Error("OpenX portable facts require a reviewed OpenXW or OpenXvT GitHub route.");
+    throw new Error(
+      "Portable package facts require matching GitHub lineage, executable hints and reviewed layouts.",
+    );
   if (
     Object.hasOwn(route.release, "asset_hints") ||
     Object.hasOwn(route.release, "linux_tar_xz") ||

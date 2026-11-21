@@ -2133,14 +2133,19 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
   const { records } = readCatalogSource(catalogRoot);
   const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
   const family = records.filter((record) => record.openx_portable_v1);
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+  for (const historicalId of [
     "star-wars-x-wing-openxw",
     "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
-  ]);
+  ]) {
+    const historical = family.find(({ listing }) => listing.id === historicalId);
+    assert.ok(historical);
+    assert.deepEqual(projectAuthoredPort(historical), accepted.get(historicalId));
+  }
+  for (const record of records) {
+    assert.equal(compactOpenXPortable(record), record, record.listing.id);
+  }
   for (const record of family) {
-    const id = record.listing.id;
     const explicit = projectOpenXPortable(record);
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)));
     assert.deepEqual(compactOpenXPortable(explicit), record);
     assert.deepEqual(explicit.integration?.persistent_paths, ["config.yaml"]);
     assert.deepEqual(
@@ -2148,13 +2153,28 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
       record.integration?.reviewed_package_layouts,
     );
 
+    const another = structuredClone(record);
+    another.listing.id = "compatible-player";
+    another.upstream_lineage!.target_key = another.listing.id;
+    another.listing.project_url = "https://github.com/example/compatible-player";
+    another.upstream_lineage!.origin.project_url = another.listing.project_url;
+    another.upstream_lineage!.origin.repository!.id = "12345";
+    (another.integration!.release as Record<string, unknown>).repository =
+      "example/compatible-player";
+    assert.deepEqual(compactOpenXPortable(projectOpenXPortable(another)), another);
+
     const otherIdentity = structuredClone(record);
-    otherIdentity.upstream_lineage!.origin.repository!.id = "1";
-    assert.throws(() => checkedAuthoredPort(otherIdentity), /reviewed OpenXW or OpenXvT/u);
+    otherIdentity.upstream_lineage!.origin.project_url = "https://github.com/example/other";
+    assert.throws(() => checkedAuthoredPort(otherIdentity), /matching GitHub lineage/u);
 
     const missingOrigin = structuredClone(record);
     Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
-    assert.throws(() => checkedAuthoredPort(missingOrigin), /reviewed OpenXW or OpenXvT/u);
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /matching GitHub lineage/u);
+
+    const wrongLayout = structuredClone(record);
+    const layouts = wrongLayout.integration!.reviewed_package_layouts as Record<string, unknown>;
+    layouts["linux-x86-64"] = { executables: ["unexpected"] };
+    assert.throws(() => checkedAuthoredPort(wrongLayout), /reviewed layouts/u);
 
     const duplicate = structuredClone(record);
     duplicate.integration!.persistent_paths = [];

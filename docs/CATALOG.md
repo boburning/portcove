@@ -3674,8 +3674,8 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
-and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+Use the authoring-only `openx_portable_v1: true` for portable routes with matching GitHub lineage,
+reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,
 reviewed package layout, external SDL profile and qualification explicit.
