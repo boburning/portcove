@@ -1,3 +1,11 @@
+import {
+  acceptApprovedCovers,
+  activeApprovedCovers,
+  observeApprovedCoverHealth,
+  projectApprovedCovers,
+  protectedCoverApproval,
+  readApprovedCoverJournal,
+} from "./catalog-cover-approval.mts";
 /** Existing observer facts -> the existing signed descriptive target. No executable authority. */
 import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
 import { execFileSync } from "node:child_process";
@@ -5,7 +13,7 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs } from "node:util";
+import { isDeepStrictEqual, parseArgs } from "node:util";
 import { fitListingAdmissions } from "./listing-admission-budget.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
@@ -725,6 +733,99 @@ function isolatedEnvironment(root: string) {
   delete env.PORTCOVE_GITHUB_TOKEN;
   return env;
 }
+export async function verifyListingObservationPrior(options: {
+  site: string;
+  tools: string;
+  root: string;
+  offlineTargets: string;
+  workspace: string;
+  environment?: NodeJS.ProcessEnv;
+}) {
+  const prior = path.join(options.workspace, "verified-prior");
+  copyPriorRepository(options.site, prior);
+  const config = path.join(options.workspace, "verify.json");
+  const root = await readControllerToolFile(options.root, 1024 * 1024);
+  const top = await readControllerToolFile(options.offlineTargets, maximum);
+  writeFileSync(
+    config,
+    JSON.stringify({
+      schema_version: 1,
+      initial_root_profile: "single-owner-one-of-one-v1",
+      trusted_root: path.resolve(options.root),
+      trusted_root_sha256: hash(root),
+      offline_targets: path.resolve(options.offlineTargets),
+      offline_targets_sha256: hash(top),
+      repository: prior,
+    }),
+    { flag: "wx" },
+  );
+  const report: unknown = parseCatalogSource(
+    execFileSync(options.tools, ["verify-definition-repository", config], {
+      env: options.environment ?? isolatedEnvironment(options.workspace),
+      timeout: 90000,
+      maxBuffer: 4 * 1024 * 1024,
+      encoding: "utf8",
+    }),
+  );
+  if (!isRecord(report) || report.schema_version !== 1 || report.authority !== "none")
+    throw new Error("Prior catalog repository verification is unavailable");
+  return { prior, report };
+}
+
+export async function readAuthenticatedCoverPreimages(
+  options: Parameters<typeof verifyListingObservationPrior>[0],
+  canonical: Directory,
+  selected: readonly string[],
+) {
+  const { prior, report } = await verifyListingObservationPrior(options);
+  if (
+    typeof report.repository_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(report.repository_sha256)
+  )
+    throw new Error("Signed cover preimages require exact repository verification");
+  const wire = await verifiedPriorListing(prior, report, compactListingDeliveryTarget);
+  const checkpoint = await verifiedPriorTarget(
+    prior,
+    report,
+    artworkCheckpointTarget,
+    artworkCheckpointMax,
+  );
+  if (!wire || !checkpoint)
+    throw new Error("Cover replacement staging requires authenticated compact and cover targets");
+  const compact = readDeliveryCarrier(wire, compactListingDeliveryTarget);
+  const held = advanceArtworkCheckpoint({ bytes: checkpoint, listing: compact.bytes }, []);
+  const rows = new Map(compact.document.directory.listings.map((row) => [row.id, row]));
+  const preimages = new Map<string, unknown>();
+  const projected = projectApprovedCovers(
+    canonical,
+    readApprovedCoverJournal(report.cover_approvals),
+  );
+  const canonicalById = new Map(canonical.listings.map((row) => [row.id, row]));
+  for (const row of projected.listings) {
+    if (typeof row.id !== "string" || !selected.includes(row.id)) continue;
+    const known = rows.get(row.id);
+    const authored = canonicalById.get(row.id)!;
+    const declaration =
+      canonical.format_version === verifiedEditionsListingFormat
+        ? stripVerifiedSourceBindings(authored)
+        : authored;
+    if (
+      !known ||
+      coverDeclarationScope(declaration, row.artwork) !==
+        coverDeclarationScope(known, row.artwork) ||
+      (!isDeepStrictEqual(known.artwork, row.artwork) &&
+        !(
+          known.artwork === undefined &&
+          held.apply({ ...declaration, artwork: row.artwork }, declaration).artwork === undefined
+        ))
+    )
+      throw new Error("Selected cover does not match the authenticated effective preimage");
+    preimages.set(row.id, row.artwork);
+  }
+  if (preimages.size !== selected.length) throw new Error("Signed cover preimages are incomplete");
+  return { preimages, identity: report.repository_sha256 };
+}
+
 export async function prepareObservationBundle(options: {
   bundle: string;
   canonical: string;
@@ -744,7 +845,13 @@ export async function prepareObservationBundle(options: {
   readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
   coverCheckpoint?: boolean;
   readCoverHealth?: typeof readHostedCoverHealth;
+  coverApproval?: ReturnType<typeof protectedCoverApproval>;
 }) {
+  if (
+    options.coverApproval &&
+    (options.coverCheckpoint || options.compact || options.officialReleasedReader)
+  )
+    throw new Error("Cover replacement cannot appoint a different reader or checkpoint");
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
   const workspace = path.join(options.output, "observation-work");
@@ -760,7 +867,7 @@ export async function prepareObservationBundle(options: {
     isRecord(canonicalInput) &&
     Number.isSafeInteger(canonicalInput.format_version) &&
     Number(canonicalInput.format_version) > maximumProjectableListingFormat;
-  if (futureCanonical && (options.compact || options.coverCheckpoint))
+  if (futureCanonical && (options.compact || options.coverCheckpoint || options.coverApproval))
     throw new Error("Explicit listing activation requires a supported canonical format");
   // Only the bounded identity inventory is read until the prior wire format and
   // its eligibility for the reviewed edition projection have been established.
@@ -781,6 +888,7 @@ export async function prepareObservationBundle(options: {
   const authoredLegacy = existsSync(authoredPath)
     ? await readControllerToolFile(authoredPath, maximum)
     : null;
+  let coverApprovals = readApprovedCoverJournal(undefined);
   let previous: Buffer | null = null;
   let previousWire: Buffer | null = null;
   let previousCover: Buffer | null = null;
@@ -799,31 +907,14 @@ export async function prepareObservationBundle(options: {
     useCompact ||= priorCompact;
     const previousCarrier = priorCompact ? compactListingDeliveryTarget : listingDeliveryTarget;
     try {
-      const prior = path.join(workspace, "verified-prior");
-      copyPriorRepository(options.prior, prior);
-      const config = path.join(workspace, "verify.json");
-      const root = await readControllerToolFile(options.root, 1024 * 1024),
-        top = await readControllerToolFile(options.offlineTargets, maximum);
-      writeFileSync(
-        config,
-        JSON.stringify({
-          schema_version: 1,
-          initial_root_profile: "single-owner-one-of-one-v1",
-          trusted_root: path.resolve(options.root),
-          trusted_root_sha256: hash(root),
-          offline_targets: path.resolve(options.offlineTargets),
-          offline_targets_sha256: hash(top),
-          repository: prior,
-        }),
-      );
-      const report: unknown = JSON.parse(
-        execFileSync(options.tools, ["verify-definition-repository", config], {
-          env: environment,
-          timeout: 90000,
-          maxBuffer: 4 * 1024 * 1024,
-          encoding: "utf8",
-        }),
-      );
+      const { prior, report } = await verifyListingObservationPrior({
+        site: options.prior,
+        tools: options.tools,
+        root: options.root,
+        offlineTargets: options.offlineTargets,
+        workspace,
+        environment,
+      });
       previousWire = await verifiedPriorListing(prior, report, previousCarrier);
       previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
       previousCover = await verifiedPriorTarget(
@@ -833,9 +924,14 @@ export async function prepareObservationBundle(options: {
         artworkCheckpointMax,
       );
       if (previousCover) readArtworkCheckpoint(previousCover, previous!);
+      if (isRecord(report)) coverApprovals = readApprovedCoverJournal(report.cover_approvals);
       if (useCompact || options.compactIfCapable || options.officialReleasedReader)
         retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
     } catch (error) {
+      if (options.coverApproval)
+        throw new Error("Cover replacement requires currently authenticated prior targets", {
+          cause: error,
+        });
       // The signer authenticates the historical target before renewal. Never use
       // an unauthenticated observation, or replace a directory we could not read.
       renewal = await priorListingForRenewal(
@@ -889,6 +985,13 @@ export async function prepareObservationBundle(options: {
         listings: sourceCanonical.listings.map(stripVerifiedSourceBindings),
       }
     : sourceCanonical;
+  if (
+    options.coverApproval &&
+    (!priorCompact || !previousDocument || !previousCover || renewal || authoredLegacy)
+  )
+    throw new Error(
+      "Cover replacement requires established compact, legacy and cover-checkpoint delivery",
+    );
   const automatic =
     !options.compact && (options.compactIfCapable || options.officialReleasedReader);
   const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
@@ -898,6 +1001,8 @@ export async function prepareObservationBundle(options: {
     previousDocument !== null &&
     candidateFormat > previousDocument.directory.format_version;
   if ((futureCanonical && !editionCompatibility) || implicitElevation) {
+    if (options.coverApproval)
+      throw new Error("Cover replacement cannot change the active listing format");
     if (!renewal) {
       if (!previousWire || (priorCompact && !retainedLegacy))
         throw new Error("Cannot defer listing format change without authenticated prior targets");
@@ -1111,11 +1216,62 @@ export async function prepareObservationBundle(options: {
         scope: coverDeclarationScope(coverDeclarations.get(observation.id)!, observation.artwork),
       }))
     : applicableCovers;
+  if (options.coverApproval) {
+    const held = advanceArtworkCheckpoint({ bytes: previousCover!, listing: previous! }, []);
+    const baseline = new Map(canonical.listings.map((row) => [row.id, row]));
+    coverApprovals = await acceptApprovedCovers({
+      input: options.coverApproval,
+      prior: coverApprovals,
+      canonical: sourceCanonical,
+      compatibleCanonical: canonical,
+      previous: previousDocument!.directory,
+      priorWasWithdrawn(row, artwork) {
+        const declaration = baseline.get(row.id);
+        return Boolean(
+          declaration && held.apply({ ...declaration, artwork }, declaration).artwork === undefined,
+        );
+      },
+      canonicalSha: observationHash(sourceCanonical),
+      catalogSha: observationHash(current),
+      canonicalPath: options.canonical,
+      cli: options.cli,
+      scratch: workspace,
+    });
+  }
+  const activeApprovedIds = new Set(
+    activeApprovedCovers(coverApprovals, sourceCanonical).map((entry) => entry.id),
+  );
+  let approvedHealth: Awaited<ReturnType<typeof observeApprovedCoverHealth>> | undefined;
+  if (
+    activeApprovedIds.size &&
+    coverEnabled &&
+    !renewal &&
+    !options.coverApproval &&
+    options.observe !== false
+  ) {
+    try {
+      approvedHealth = await observeApprovedCoverHealth({
+        journal: coverApprovals,
+        canonical: sourceCanonical,
+        compatible: canonical,
+        now,
+        cli: options.cli,
+        scratch: workspace,
+      });
+    } catch (error) {
+      diagnostics.push(
+        `approved cover health unavailable: ${error instanceof Error ? error.message.slice(0, 180) : "read failed"}`,
+      );
+    }
+  }
   const cover =
     coverEnabled && !renewal
       ? advanceArtworkCheckpoint(
           previousCover && previous ? { bytes: previousCover, listing: previous } : null,
-          projectedCovers,
+          [
+            ...projectedCovers.filter((row) => !activeApprovedIds.has(row.id)),
+            ...(approvedHealth?.observations ?? []),
+          ],
         )
       : undefined;
   const project = (
@@ -1123,12 +1279,16 @@ export async function prepareObservationBundle(options: {
     scummvm?: ScummvmGameDataObservation,
   ) =>
     projectListingDelivery(
-      canonical,
-      observations,
+      projectApprovedCovers(canonical, coverApprovals, sourceCanonical.listings),
+      projectApprovedCovers(
+        { listings: [...observations] },
+        coverApprovals,
+        sourceCanonical.listings,
+      ).listings,
       previous,
       withdrawal?.revision ?? 0,
       useCompact ? compactListingDecodedMaximum : maximum,
-      compatible,
+      compatible && projectApprovedCovers(compatible, coverApprovals, sourceCanonical.listings),
       operationalIds,
       now,
       withdrawal?.withdrawn_ids,
@@ -1157,6 +1317,17 @@ export async function prepareObservationBundle(options: {
       inspect(
         Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
       );
+    }
+  }
+  if (options.coverApproval) {
+    const delivered = delivery(parseCatalogSource(projected.bytes.toString("utf8")));
+    const artworkById = new Map(delivered.directory.listings.map((row) => [row.id, row.artwork]));
+    for (const approved of coverApprovals.approvals) {
+      if (
+        approved.packet === options.coverApproval.digest &&
+        !isDeepStrictEqual(artworkById.get(approved.id), approved.candidate)
+      )
+        throw new Error("Prepared listing did not deliver an exact approved cover");
     }
   }
   // Stage the complete authenticated representation before copying the output bundle.
@@ -1246,6 +1417,7 @@ export async function prepareObservationBundle(options: {
           observed_game_keys: gameData.editions.size,
         }
       : null,
+    ...(options.coverApproval ? { cover_approvals: coverApprovals } : {}),
     canonical_sha256: hash(canonicalBytes),
     canonical_listing_format: sourceCanonical.format_version,
     catalog_sha256: hash(catalogBytes),
@@ -1318,6 +1490,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     throw new Error(
       "--official-released-reader selects official verification and conditional first activation",
     );
+  const coverApproval = protectedCoverApproval(process.env);
   console.log(
     JSON.stringify(
       await prepareObservationBundle({
@@ -1333,6 +1506,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         observe: !values.offline,
         compact: values.compact,
         coverCheckpoint: values["cover-checkpoint"],
+        ...(coverApproval ? { coverApproval } : {}),
         compactIfCapable: values["compact-if-capable"],
         officialReleasedReader: values["official-released-reader"],
         ...(values["released-reader"] && values["released-reader-sha256"]

@@ -28,6 +28,15 @@ on:
         description: Verify and admit the first cover checkpoint after compact delivery is active
         type: boolean
         default: false
+      cover_replacement_packet:
+        description: Exact review packet JSON (owner artwork approval)
+        type: string
+      cover_replacement_sha256:
+        description: SHA-256 of the exact review packet bytes
+        type: string
+      cover_replacement_preimages:
+        description: JSON object mapping every reviewed subject to its currently accepted cover SHA-256
+        type: string
 
 permissions:
   contents: read
@@ -40,7 +49,9 @@ jobs:
   prepare:
     if: >-
       github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) &&
+      ((!inputs.cover_replacement_packet && !inputs.cover_replacement_sha256 && !inputs.cover_replacement_preimages) ||
+      (github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == 'boburning'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -126,9 +137,17 @@ jobs:
         id: observe
         if: steps.decide.outputs.publish == 'true'
         env:
+          PORTCOVE_COVER_REVIEW_PACKET: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}
+          PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
+          PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
+          PORTCOVE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           ADMIT_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && inputs.admit_cover_checkpoint }}
         run: |
           set -euo pipefail
+          if [[ -n "$PORTCOVE_COVER_REVIEW_PACKET" && ! -f scripts/catalog-definition-reader-gate.mts ]]; then
+            echo "::error::Cover replacement requires the released reader publication gate"
+            exit 1
+          fi
           cover_options=()
           if [[ "$ADMIT_COVER_CHECKPOINT" == true ]]; then
             cover_options=(--official-released-reader --cover-checkpoint)
@@ -162,6 +181,7 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --observation-report "$RUNNER_TEMP/observation-bundle/report.json" \
             --prior "$PRIOR" --bootstrap-history >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
@@ -335,6 +355,16 @@ jobs:
             curl -fsSL --connect-timeout "$connect_seconds" --max-time "$request_seconds" \
               --max-filesize "$2" "$1" | sha256sum | cut -d' ' -f1 || true
           }
+          approved_policy=; approved_listing=
+          work="$RUNNER_TEMP/catalog-work"
+          if [ -f "$work/cover-approvals.json" ]; then
+            jq -e '.cover_approvals != null' "$work/assembly-report.json" >/dev/null
+            policy_version=$(jq -er '.versions.policy | select(test("^[1-9][0-9]*$"))' "$work/assembly-report.json")
+            approved_policy="metadata/$policy_version.official-policy.json"
+            policy_expected=$(sha256sum "$work/repository/$approved_policy" | cut -d' ' -f1)
+            listing_hash=$(jq -er '.signed.targets["policy/official/catalog.listings.compact.json"].hashes.sha256 | select(test("^[a-f0-9]{64}$"))' "$work/repository/$approved_policy")
+            approved_listing="targets/$listing_hash.policy/official/catalog.listings.compact.json"
+          fi
           attempt=0
           while [ "$SECONDS" -lt "$deadline" ]; do
             attempt=$((attempt + 1))
@@ -351,7 +381,14 @@ jobs:
                 break
               fi
             done <<< "$history_readback"
-            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
+            approvals_verified=true
+            if [ -n "$approved_policy" ]; then
+              if [ "$(fetch_digest "https://boburning.github.io/portcove/catalog/$approved_policy?run=$GITHUB_RUN_ID-$attempt" 8388608)" != "$policy_expected" ] ||
+                 [ "$(fetch_digest "https://boburning.github.io/portcove/catalog/$approved_listing?run=$GITHUB_RUN_ID-$attempt" 8388608)" != "$listing_hash" ]; then
+                approvals_verified=false
+              fi
+            fi
+            if [ "$approvals_verified" = true ] && [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
               echo "Pages serves the published timestamp and generated catalog pages."
               if node scripts/catalog-publication-receipt.mts --work "$RUNNER_TEMP/catalog-work" \
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \

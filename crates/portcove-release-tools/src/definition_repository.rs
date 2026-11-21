@@ -32,6 +32,9 @@ pub use signing::{sign_definition_role, sign_offline_definition_targets};
 type Result<T> = std::result::Result<T, TufRepositoryError>;
 type Files = BTreeMap<String, Vec<u8>>;
 const CONFIG_MAX: u64 = 64 * 1024;
+const COVER_CONTEXT_MAX: u64 = CONFIG_MAX + COVER_APPROVALS_MAX as u64;
+const COVER_APPROVALS_MAX: usize = 256 * 1024;
+const COVER_APPROVALS_CUSTOM: &str = "portcove_cover_approvals_v1";
 const ROOT_MAX: u64 = 1024 * 1024;
 const ROLE_MAX: u64 = 8 * 1024 * 1024;
 const INSPECTION_MAX: u64 = 4 * 1024 * 1024;
@@ -128,6 +131,8 @@ pub struct DefinitionRepositoryReport {
     pub versions: BTreeMap<String, String>,
     pub expires: BTreeMap<String, String>,
     pub index_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cover_approvals: Option<serde_json::Value>,
     pub authority: &'static str,
 }
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -164,6 +169,8 @@ struct ContextConfig {
     offline_targets: String,
     offline_targets_sha256: String,
     prepared_bundle: String,
+    #[serde(default)]
+    cover_approvals: Option<serde_json::Value>,
     inspection: String,
     inspection_sha256: String,
     #[serde(default)]
@@ -190,6 +197,7 @@ struct Context {
     online_targets: bool,
     targets: Files,
     index_sha256: String,
+    cover_approvals: Option<serde_json::Value>,
     versions: [NonZeroU64; 4],
     expires: [Timestamp; 4],
     at: Timestamp,
@@ -207,7 +215,7 @@ async fn load_context(path: &Path) -> Result<Context> {
 }
 
 async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
-    let config_raw = io::read(path, CONFIG_MAX)?;
+    let config_raw = io::read(path, COVER_CONTEXT_MAX)?;
     let config: ContextConfig = serde_json::from_slice(&config_raw)?;
     let online_targets =
         config.top_level_targets_profile == CatalogTargetsProfile::OnlineUnchangedAuthorityV1;
@@ -266,7 +274,7 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         policy::window(at, *expiry, if i == 3 { 86400 } else { 7 * 86400 })?;
     }
     let readback = vec![
-        (path.to_path_buf(), CONFIG_MAX, sha(&config_raw)),
+        (path.to_path_buf(), COVER_CONTEXT_MAX, sha(&config_raw)),
         (root_path.clone(), ROOT_MAX, sha(&root_bytes)),
         (top_path.clone(), ROLE_MAX, sha(&top_bytes)),
         (inspection_path.clone(), INSPECTION_MAX, sha(&manifest)),
@@ -301,6 +309,7 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         online_targets,
         targets,
         index_sha256,
+        cover_approvals: config.cover_approvals,
         versions,
         expires,
         at,
@@ -313,10 +322,29 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         readback,
         trees: vec![],
     };
+    if context.cover_approvals.is_some() && !config.previous_repository.is_string() {
+        return invalid("catalog cover approval requires an authenticated prior");
+    }
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
         let (prior, history) = repository::inspect_prior(&context, &previous).await?;
         context.prior = prior;
+        let prior_approvals = repository::authenticated_cover_approvals(&context.prior)?;
+        if let Some(next) = &context.cover_approvals {
+            let compact = context
+                .targets
+                .get(portcove_listing_carrier::COMPACT_TARGET);
+            if !context
+                .targets
+                .contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
+                || compact.is_none()
+            {
+                return invalid("catalog cover approval requires active cover and compact targets");
+            }
+            check_cover_approval_successor(prior_approvals.as_ref(), next, compact.unwrap())?;
+        } else {
+            context.cover_approvals = prior_approvals;
+        }
         if let Some(prepared) = history {
             if context
                 .targets
@@ -403,6 +431,111 @@ fn recheck(context: &Context) -> Result<()> {
         || Timestamp::now() >= context.top.signed.expires
     {
         return invalid("catalog inputs expired during operation");
+    }
+    Ok(())
+}
+
+fn cover_hash(raw: &serde_json::Value, length: usize) -> bool {
+    raw.as_str().is_some_and(|value| {
+        value.len() == length
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[serde_json::Value]> {
+    let invalid_value =
+        || TufRepositoryError::Invalid("catalog cover approval journal differs".into());
+    let packets = journal["consumed_packets"]
+        .as_array()
+        .ok_or_else(invalid_value)?;
+    let rows = journal["approvals"].as_array().ok_or_else(invalid_value)?;
+    let mut ids = std::collections::BTreeSet::new();
+    if journal["format_version"] != 1
+        || journal.as_object().map(serde_json::Map::len) != Some(3)
+        || packets.is_empty()
+        || packets.len() > 256
+        || rows.is_empty()
+        || rows.len() > 256
+        || serde_json::to_vec(journal)?.len() > COVER_APPROVALS_MAX
+        || packets.iter().any(|packet| !cover_hash(packet, 64))
+        || (0..packets.len()).any(|index| packets[index + 1..].contains(&packets[index]))
+        || rows.iter().any(|row| {
+            row.as_object().map(serde_json::Map::len) != Some(8)
+                || !row["id"]
+                    .as_str()
+                    .is_some_and(|id| !id.is_empty() && id.len() <= 128 && ids.insert(id))
+                || !packets.contains(&row["packet"])
+                || !cover_hash(&row["scope"], 64)
+                || !cover_hash(&row["source"], 40)
+                || !cover_hash(&row["candidate"]["image_sha256"], 64)
+                || !cover_hash(&row["authored"]["image_sha256"], 64)
+                || !row["run"].as_str().is_some_and(|run| {
+                    !run.is_empty()
+                        && run.len() <= 16
+                        && run.as_bytes()[0] != b'0'
+                        && run.bytes().all(|byte| byte.is_ascii_digit())
+                })
+                || !row["bytes"]
+                    .as_u64()
+                    .is_some_and(|bytes| (1..=16 * 1024 * 1024).contains(&bytes))
+        })
+    {
+        return Err(invalid_value());
+    }
+    Ok(packets)
+}
+
+fn check_cover_approval_successor(
+    prior: Option<&serde_json::Value>,
+    next: &serde_json::Value,
+    compact: &[u8],
+) -> Result<()> {
+    let new_packets = cover_approval_packets(next)?;
+    let old_packets = prior
+        .map(cover_approval_packets)
+        .transpose()?
+        .unwrap_or_default();
+    if !new_packets.starts_with(old_packets) || new_packets.len() != old_packets.len() + 1 {
+        return invalid("catalog cover approval does not advance the authenticated journal");
+    }
+    let final_packet = &new_packets[new_packets.len() - 1];
+    let previous = prior
+        .and_then(|prior| prior["approvals"].as_array())
+        .map(Vec::as_slice)
+        .unwrap_or_default();
+    let approved = next["approvals"].as_array().unwrap();
+    if previous.iter().any(|old| {
+        !approved
+            .iter()
+            .any(|row| row["id"] == old["id"] && (row == old || &row["packet"] == final_packet))
+    }) || approved
+        .iter()
+        .any(|row| &row["packet"] != final_packet && !previous.contains(row))
+    {
+        return invalid("catalog cover approval altered an unrelated journal row");
+    }
+    let (decoded, _) = portcove_listing_carrier::decode(compact)
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    let directory: serde_json::Value = serde_json::from_slice(&decoded)?;
+    let listings = directory["directory"]["listings"]
+        .as_array()
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog approved cover directory differs".into())
+        })?;
+    let mut changed = approved
+        .iter()
+        .filter(|row| &row["packet"] == final_packet)
+        .peekable();
+    if changed.peek().is_none()
+        || changed.any(|row| {
+            !listings
+                .iter()
+                .any(|listing| listing["id"] == row["id"] && listing["artwork"] == row["candidate"])
+        })
+    {
+        return invalid("catalog approved cover differs from the exact compact listing");
     }
     Ok(())
 }
