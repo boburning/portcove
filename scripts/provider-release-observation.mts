@@ -94,6 +94,11 @@ export async function observeProviderSource(
     charge: (bytes: number) => void;
     admit: () => void;
     reuseComplete?: boolean;
+    retainedCompletion?: {
+      observed_at: string;
+      facts_sha256: string;
+      completed_by_port: ReadonlyMap<string, string>;
+    };
     bindIdentity?: (identity: number) => Promise<void>;
     project: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   },
@@ -499,13 +504,38 @@ export async function observeProviderSource(
       "Provider fact interval requires fresh validation",
     );
   }
+  const retained = options.reuseComplete && requests === 0 ? options.retainedCompletion : undefined;
+  if (
+    retained &&
+    (retained.observed_at !== oldest || retained.facts_sha256 !== observationHash(facts))
+  )
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "Retained descriptive completion differs from the exact provider facts and clock",
+    );
+  const completionFor = (id: string) => {
+    if (!retained) return new Date(now()).toISOString();
+    const clock = retained.completed_by_port.get(id);
+    const completed = clock === undefined ? NaN : Date.parse(clock);
+    if (
+      !clock ||
+      !Number.isFinite(completed) ||
+      completed < Date.parse(oldest) ||
+      completed > now()
+    )
+      throw new ObservationFailure(
+        "invalid-checkpoint",
+        "Invalid retained descriptive completion clock",
+      );
+    return clock;
+  };
   const observations = source.ports.map((port) => ({
     format: 3,
     authority: "provider-observation-only",
     provider: source.provider,
     port_id: port.id,
     started_at: oldest,
-    completed_at: new Date(now()).toISOString(),
+    completed_at: completionFor(port.id),
     facts,
     facts_sha256: observationHash(facts),
   }));

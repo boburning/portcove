@@ -7,9 +7,10 @@ import {
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
 import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
+import { observeCollectionLayoutReady } from "./browser-readiness.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
-import type { PortDefinition, CatalogDocument } from "../src/transport-types.generated.d.ts";
+import type { IgdbArtwork, PortDefinition } from "../src/transport-types.generated.d.ts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import { transportValue } from "./transport-values.mts";
 type CoverContext = Pick<
@@ -25,6 +26,7 @@ type CoverContext = Pick<
   firstOffline?: Awaited<ReturnType<typeof createImageRefusal>>;
 };
 interface CoverImage {
+  portId: string | null;
   width: number;
   height: number;
   background: string;
@@ -37,18 +39,35 @@ type CaptureSettled = (name: string, selector: string, browser?: WebDriver) => P
 type Theme = "light" | "dark";
 interface CoverRow {
   id: string;
+  cardPortId: string;
   pass: string;
   theme: Theme;
   outer: IRectangle;
   viewport: { width: number; height: number };
-  cardMs: number;
-  cardImage: CoverImage;
+  cardMs: number | null;
+  cardImage: CoverImage | null;
+  cardMapping: IgdbArtwork | null;
   detailImage: CoverImage | null;
   mapping: NonNullable<NonNullable<PortDefinition["presentation"]>["artwork"]>;
 }
+interface DiscoverCoverTiming {
+  scope: "accepted-primary-covers";
+  pass: string;
+  viewport: { width: number; height: number; devicePixelRatio: number };
+  visibleIds: string[];
+  readyIds: string[];
+  startedAtEpochMs: number;
+  observedAtEpochMs: number;
+  firstReadyMs: number | null;
+  cohortReadyMs: number | null;
+}
+
+type CoverTimingWindow = Window & { portcoveDiscoverCoverTiming?: DiscoverCoverTiming };
+
 interface InspectContext {
   browser: WebDriver;
   ports: PortDefinition[];
+  covers: ReadonlyMap<string, IgdbArtwork>;
   ids: string[];
   detailIds: Set<string>;
   image: (selector: string) => Promise<CoverImage>;
@@ -64,6 +83,8 @@ interface MissingCacheContext extends Pick<
 > {
   browser: WebDriver;
   ports: PortDefinition[];
+  covers: ReadonlyMap<string, IgdbArtwork>;
+  coverPortId: string;
   cache: string;
   offlineEnvironment: NodeJS.ProcessEnv | undefined;
   refusedOrigins: string[];
@@ -71,11 +92,28 @@ interface MissingCacheContext extends Pick<
   captureSettled: CaptureSettled;
   onWithheld: (value: WithheldCover) => void;
 }
-async function catalogValue(invoke: CoverContext["invoke"]): Promise<CatalogDocument> {
-  const reply = await invoke("get_catalog");
+async function coverInventory(invoke: CoverContext["invoke"]) {
+  const bootstrap = await invoke("get_bootstrap_status");
+  assert.ok(isRecord(bootstrap));
+  assert.equal(bootstrap.ok, true);
+  const { generation } = transportValue("desktop_bootstrap_status", bootstrap.value);
+  const reply = await invoke("get_workspace_snapshot", { generation });
   assert.ok(isRecord(reply));
   assert.equal(reply.ok, true);
-  return transportValue("catalog", reply.value);
+  const snapshot = transportValue("desktop_workspace_snapshot", reply.value);
+  const ports = required(snapshot.catalog).ports;
+  const listings = required(snapshot.listing_catalog).listings;
+  const covers = new Map<string, IgdbArtwork>();
+  const primaryIds = [];
+  const companions = new Set(
+    ports.filter(({ presentation }) => presentation?.companion_cover).map(({ id }) => id),
+  );
+  for (const { id, artwork, collection_covers: collection } of listings) {
+    if (!artwork) continue;
+    covers.set(id, artwork);
+    if (!collection?.length && !companions.has(id)) primaryIds.push(id);
+  }
+  return { ports, covers, primaryIds };
 }
 function required<Value>(value: Value | undefined | null): Value {
   assert.ok(value !== undefined && value !== null);
@@ -84,7 +122,7 @@ function required<Value>(value: Value | undefined | null): Value {
 import { errorMessage, errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { WebDriver, By, Key, until } from "selenium-webdriver";
@@ -119,7 +157,7 @@ export async function defaultCoverScenario({
       let withheld: WithheldCover | undefined;
       let primaryFailure: { error: unknown } | undefined;
       try {
-        const catalog = await catalogValue(invoke);
+        const { ports, covers, primaryIds } = await coverInventory(invoke);
         const detailIds = new Set([
           "shipwright",
           "2ship2harkinian",
@@ -134,9 +172,10 @@ export async function defaultCoverScenario({
           "open-nectar-pikmin",
           "diddy-kong-racing-golden-balloon",
         ]);
-        const ids = selectDefaultCoverIds(catalog.ports, coverPortIds, cacheConditions);
+        const ids = selectDefaultCoverIds(ports, coverPortIds, cacheConditions);
         if (coverPortIds.length) for (const id of ids) detailIds.add(id);
         const rows: CoverRow[] = [];
+        const discoverTimings: DiscoverCoverTiming[] = [];
         const captureSettled: CaptureSettled = async (name, selector, currentBrowser = browser) => {
           await currentBrowser.wait(
             () =>
@@ -229,6 +268,7 @@ export async function defaultCoverScenario({
                 surface.remove();
               }
               return {
+                portId: frame.getAttribute("data-artwork-port-id"),
                 width: img.naturalWidth,
                 height: img.naturalHeight,
                 background: style.backgroundColor,
@@ -249,7 +289,8 @@ export async function defaultCoverScenario({
         const firstOfflineControl = firstOffline
           ? await observeMissingCover({
               browser,
-              ports: catalog.ports,
+              ports,
+              covers,
               refusedOrigins: firstOffline.origins,
               refusedImageRequestsBeforeControl: 0,
               invoke,
@@ -266,9 +307,27 @@ export async function defaultCoverScenario({
           artifacts.push(firstOfflineReport);
           browser = await restart("default-cover-after-first-offline");
         }
-        for (const [pass, theme, size] of coverPasses(cacheConditions)) {
+        const measureDiscover = cacheConditions && coverPortIds.length > 0;
+        const timingPath = path.join(output, "default-cover-discover-timing.jsonl");
+        if (measureDiscover) {
+          await writeFile(timingPath, "", { flag: "wx" });
+          artifacts.push(timingPath);
+        }
+        const recordDiscover = async (pass: string) => {
+          const timing = await observeDiscoverCovers(browser, pass, primaryIds);
+          discoverTimings.push(timing);
+          await appendFile(timingPath, JSON.stringify(timing) + "\n");
+        };
+        for (const [pass, defaultTheme, defaultSize] of coverPasses(cacheConditions)) {
+          const theme = measureDiscover ? "light" : defaultTheme;
+          const size = measureDiscover ? { width: 1280, height: 800 } : defaultSize;
           if (cacheConditions && pass === "offline-cached-restart") {
-            await verifyMappedCache(catalog.ports, ids, cache);
+            const measured = discoverTimings.flatMap((row) => row.readyIds);
+            const observed = rows.flatMap((row) => [
+              ...(row.cardImage ? [row.cardPortId] : []),
+              ...(row.detailImage ? [row.id] : []),
+            ]);
+            await verifyMappedCache(covers, [...new Set([...measured, ...observed])], cache);
             browser = await restart("default-cover-offline", undefined, offlineEnvironment);
           }
           await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
@@ -281,10 +340,18 @@ export async function defaultCoverScenario({
             width: innerWidth,
             height: innerHeight,
           }));
+          if (measureDiscover) {
+            await recordDiscover(pass);
+            if (pass === "cold-empty-cache") {
+              await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+              await recordDiscover("same-session-revisit");
+            }
+          }
           rows.push(
             ...(await inspectCoverPass({
               browser,
-              ports: catalog.ports,
+              ports,
+              covers,
               ids,
               detailIds,
               image,
@@ -299,7 +366,11 @@ export async function defaultCoverScenario({
         const negativeControl = cacheConditions
           ? await missingCacheNegativeControl({
               browser,
-              ports: catalog.ports,
+              ports,
+              covers,
+              coverPortId: required(
+                rows.find((row) => row.id === "dkr-r" && row.pass === "offline-cached-restart"),
+              ).cardPortId,
               cache,
               output,
               restart,
@@ -327,14 +398,16 @@ export async function defaultCoverScenario({
               selectionScope: coverPortIds.length ? "explicit-mapped-ports" : "all-mapped-ports",
               requestedPortIds: coverPortIds,
               observedPortIds: ids,
-              detailObservationPortIds: ids.filter((id) => detailIds.has(id)),
-              availableMappedCount: catalog.ports.filter((port) => port.presentation?.artwork)
-                .length,
+              detailObservationPortIds: [
+                ...new Set(rows.filter((row) => row.detailImage).map((row) => row.id)),
+              ],
+              availableMappedCount: ports.filter((port) => port.presentation?.artwork).length,
               firstOfflineControl,
               negativeControl,
               refusedOrigins,
-              catalogCount: catalog.ports.length,
+              catalogCount: ports.length,
               mappedCount: ids.length,
+              discoverTimings,
               rows,
             },
             null,
@@ -373,9 +446,12 @@ async function assertEmptyCache(cache: string) {
   assert.deepEqual(initial, [], "Cold display requires an actually empty isolated artwork cache");
 }
 
-async function verifyMappedCache(ports: PortDefinition[], ids: string[], cache: string) {
-  const mappings = new Map(ports.map((port) => [port.id, port.presentation?.artwork]));
-  for (const digest of new Set(ids.map((id) => required(mappings.get(id)).image_sha256))) {
+async function verifyMappedCache(
+  covers: ReadonlyMap<string, IgdbArtwork>,
+  ids: string[],
+  cache: string,
+) {
+  for (const digest of new Set(ids.map((id) => required(covers.get(id)).image_sha256))) {
     assert.match(digest, /^[a-f0-9]{64}$/);
     const bytes = await readFile(path.join(cache, `${digest}.jpg`));
     assert.equal(
@@ -386,9 +462,38 @@ async function verifyMappedCache(ports: PortDefinition[], ids: string[], cache: 
   }
 }
 
+async function findCoverCard(browser: WebDriver, id: string) {
+  // Membership is a JSON array. Match the whole quoted ID, which stays
+  // part of the group when the card's current action changes.
+  const member = JSON.stringify(JSON.stringify(id));
+  const selector = `.discover-game[data-discover-port-ids*=${member}] .discover-game-identity`;
+  const coverPortId = await browser.wait(
+    async () => {
+      if (!(await executeBrowserScript(browser, observeCollectionLayoutReady))) return null;
+      return executeBrowserScript(
+        browser,
+        (selector) => {
+          const card = document.querySelector(selector);
+          const frame = card?.querySelector<HTMLElement>(".collection-art");
+          const coverPortId = frame?.dataset.artworkPortId;
+          if (!card || !coverPortId) return null;
+          card.scrollIntoView({ block: "center", behavior: "instant" });
+          return coverPortId;
+        },
+        selector,
+      );
+    },
+    10_000,
+    `Discover cover for ${id} did not settle`,
+  );
+  return { selector, coverPortId: required(coverPortId) };
+}
+
 async function missingCacheNegativeControl({
   browser,
   ports,
+  covers,
+  coverPortId,
   cache,
   output,
   restart,
@@ -400,9 +505,7 @@ async function missingCacheNegativeControl({
   onWithheld,
 }: MissingCacheContext) {
   const refusedImageRequestsBeforeControl = assertCachedCoverTraffic(refusedOrigins, explicitScope);
-  const port = ports.find((port) => port.id === "dkr-r");
-  assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
-  const digest = port.presentation.artwork.image_sha256;
+  const digest = required(covers.get(coverPortId)).image_sha256;
   const candidate = {
     original: path.join(cache, `${digest}.jpg`),
     retained: path.join(output, `withheld-${digest}.jpg`),
@@ -418,6 +521,8 @@ async function missingCacheNegativeControl({
   return observeMissingCover({
     browser,
     ports,
+    covers,
+    expectedCoverPortId: coverPortId,
     refusedOrigins,
     refusedImageRequestsBeforeControl,
     invoke,
@@ -429,6 +534,8 @@ async function missingCacheNegativeControl({
 async function observeMissingCover({
   browser,
   ports,
+  covers,
+  expectedCoverPortId,
   refusedOrigins,
   refusedImageRequestsBeforeControl,
   invoke,
@@ -436,18 +543,19 @@ async function observeMissingCover({
   screenshot,
 }: Pick<
   MissingCacheContext,
-  "browser" | "ports" | "refusedOrigins" | "invoke" | "captureSettled"
+  "browser" | "ports" | "covers" | "refusedOrigins" | "invoke" | "captureSettled"
 > & {
+  expectedCoverPortId?: string;
   refusedImageRequestsBeforeControl: number;
   screenshot: string;
 }) {
   const port = ports.find((item) => item.id === "dkr-r");
   assert.ok(port?.presentation?.artwork, "Negative control requires the maintained DKR mapping");
-  const digest = port.presentation.artwork.image_sha256;
   await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
   await searchForCover(browser, port.name);
-  const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
-  await browser.wait(until.elementLocated(By.css(selector)), 10_000);
+  const { selector, coverPortId } = await findCoverCard(browser, port.id);
+  if (expectedCoverPortId) assert.equal(coverPortId, expectedCoverPortId);
+  const mapping = required(covers.get(coverPortId));
   await browser.wait(
     () =>
       refusedOrigins.filter((origin) => origin === "images.igdb.com").length >
@@ -459,11 +567,12 @@ async function observeMissingCover({
     () =>
       executeBrowserScript(
         browser,
-        (selector) => {
+        (selector, coverPortId) => {
           const card = document.querySelector(selector)?.closest("article.discover-game");
           const frame = card?.querySelector<HTMLElement>(".collection-art");
           return (
-            frame?.dataset.artworkSource === "generated_fallback" &&
+            frame?.dataset.artworkPortId === coverPortId &&
+            frame.dataset.artworkSource === "generated_fallback" &&
             !frame.querySelector("img") &&
             Array.from(card?.querySelectorAll(".discover-game-metadata > p") ?? []).some(
               (note) => note.textContent === "Image unavailable",
@@ -471,22 +580,21 @@ async function observeMissingCover({
           );
         },
         selector,
+        coverPortId,
       ),
     10_000,
     "Unavailable image must retain an honest generated fallback",
   );
-  const card = await browser.findElement(By.css(selector));
-  await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
   await captureSettled(screenshot, selector, browser);
-  const logical = await catalogValue(invoke);
   assert.deepEqual(
-    required(required(logical.ports.find((item) => item.id === port.id)).presentation).artwork,
-    port.presentation.artwork,
+    (await coverInventory(invoke)).covers.get(coverPortId),
+    mapping,
     "Missing bytes do not erase the accepted logical mapping",
   );
   return {
-    id: port.id,
-    digest,
+    id: coverPortId,
+    actionId: port.id,
+    digest: mapping.image_sha256,
     refusedImageRequests: refusedOrigins.filter((origin) => origin === "images.igdb.com").length,
     refusedImageRequestsBeforeControl,
     refusedImageRequestsDuringControl:
@@ -506,9 +614,116 @@ function coverPasses(
   ];
 }
 
+async function observeDiscoverCovers(
+  browser: WebDriver,
+  pass: string,
+  primaryIds: string[],
+): Promise<DiscoverCoverTiming> {
+  const discover = await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]'));
+  await executeBrowserScript(
+    browser,
+    (button, pass, primaryIds) => {
+      const observation = window as CoverTimingWindow;
+      delete observation.portcoveDiscoverCoverTiming;
+      const mapped = new Set(primaryIds);
+      const visible = new Set<string>();
+      const ready = new Set<string>();
+      const selector =
+        '[data-detail-origin^="catalog:card:"] .collection-art[data-artwork-port-id]';
+      button.addEventListener(
+        "click",
+        () => {
+          const started = performance.now();
+          const startedAtEpochMs = Date.now();
+          const viewport = { width: innerWidth, height: innerHeight, devicePixelRatio };
+          let firstReadyMs: number | null = null;
+          let observer: IntersectionObserver | undefined;
+          const inspect = (now: number) => {
+            const elapsed = Math.max(0, now - started);
+            const covers = document.querySelectorAll<HTMLElement>(selector);
+            if (!visible.size && !observer) {
+              const frames = new Map<Element, string>();
+              for (const frame of covers) {
+                const id = frame.dataset.artworkPortId;
+                if (id && mapped.has(id)) frames.set(frame, id);
+              }
+              if (frames.size) {
+                const reported = new Set<Element>();
+                observer = new IntersectionObserver((entries) => {
+                  for (const entry of entries) {
+                    reported.add(entry.target);
+                    const id = frames.get(entry.target);
+                    if (
+                      id &&
+                      entry.isIntersecting &&
+                      entry.intersectionRect.width > 0 &&
+                      entry.intersectionRect.height > 0
+                    )
+                      visible.add(id);
+                  }
+                  if (reported.size === frames.size) {
+                    observer?.disconnect();
+                    observer = undefined;
+                  }
+                });
+                for (const frame of frames.keys()) observer.observe(frame);
+              }
+            }
+            if (!observer) {
+              for (const frame of covers) {
+                const id = frame.dataset.artworkPortId;
+                if (!id || !visible.has(id) || ready.has(id)) continue;
+                if (frame.dataset.artworkSource !== "igdb_cover") continue;
+                const image = frame.querySelector("img");
+                if (image?.complete && image.naturalWidth) ready.add(id);
+              }
+            }
+            if (firstReadyMs === null && ready.size) firstReadyMs = elapsed;
+            const complete = visible.size > 0 && ready.size === visible.size;
+            if (complete || elapsed >= 15_000) {
+              observer?.disconnect();
+              observation.portcoveDiscoverCoverTiming = {
+                scope: "accepted-primary-covers",
+                pass,
+                viewport,
+                visibleIds: [...visible],
+                readyIds: [...ready],
+                startedAtEpochMs,
+                observedAtEpochMs: Date.now(),
+                firstReadyMs,
+                cohortReadyMs: complete ? elapsed : null,
+              };
+            } else {
+              requestAnimationFrame(inspect);
+            }
+          };
+          requestAnimationFrame(inspect);
+        },
+        { capture: true, once: true },
+      );
+    },
+    discover,
+    pass,
+    primaryIds,
+  );
+  await discover.click();
+  const result = await browser.wait(
+    async () => {
+      return executeBrowserScript(
+        browser,
+        () => (window as CoverTimingWindow).portcoveDiscoverCoverTiming ?? null,
+      );
+    },
+    20_000,
+    `No native Discover artwork timing for ${pass}`,
+  );
+  return required(result);
+}
+
 async function inspectCoverPass({
   browser,
   ports,
+  covers,
   ids,
   detailIds,
   image,
@@ -525,10 +740,8 @@ async function inspectCoverPass({
     await browser.findElement(By.xpath('//nav//button[contains(., "Discover")]')).click();
     await searchForCover(browser, port.name);
     const started = performance.now();
-    const selector = `[data-detail-origin="catalog:card:${id}"]`;
-    const card = await browser
-      .wait(until.elementLocated(By.css(selector)), 10_000)
-      .catch(async (error: unknown) => {
+    const { selector, coverPortId: cardPortId } = await findCoverCard(browser, id).catch(
+      async (error: unknown) => {
         let navigation: unknown;
         try {
           navigation = await executeBrowserScript(browser, () => ({
@@ -545,15 +758,45 @@ async function inspectCoverPass({
           `${pass}/${id}: ${errorMessage(error)}; cover navigation: ${JSON.stringify(navigation)}`,
           { cause: error },
         );
-      });
-    await executeBrowserScript(browser, (card) => card.scrollIntoView({ block: "center" }), card);
-    const cardImage = await image(`${selector} .collection-art`);
-    const cardMs = performance.now() - started;
+      },
+    );
+    const frameSelector = `${selector} .collection-art`;
+    const cardMapping = covers.get(cardPortId) ?? null;
+    const cardImage = cardMapping ? await image(frameSelector) : null;
+    if (cardImage) assert.equal(cardImage.portId, cardPortId);
+    else {
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (selector, portId) => {
+              const frame = document.querySelector<HTMLElement>(selector);
+              return (
+                frame?.dataset.artworkPortId === portId &&
+                ((frame.dataset.artworkSource === "generated_fallback" &&
+                  !frame.querySelector("img")) ||
+                  frame.dataset.artworkSource === "igdb_cover_collection")
+              );
+            },
+            frameSelector,
+            cardPortId,
+          ),
+        10_000,
+        `Invalid cover fallback for ${cardPortId}`,
+      );
+    }
+    const cardMs = cardImage ? performance.now() - started : null;
     await captureSettled(`default-cover-${id}-${pass}-catalog`, selector);
     let detailImage = null;
-    if (detailIds.has(id)) {
+    if (detailIds.has(id) || cardPortId !== id) {
       await selectCatalogPort(browser, id);
-      await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 10_000);
+      await revealDetailSection(browser, "Overview");
+      const hero = await browser.findElement(By.css(".game-hero-detail"));
+      await executeBrowserScript(
+        browser,
+        (element) => element.scrollIntoView({ block: "start" }),
+        hero,
+      );
       detailImage = await image(
         '.game-hero-detail[data-hero-identity="cover"] .game-hero-foreground',
       );
@@ -561,12 +804,14 @@ async function inspectCoverPass({
     }
     observations.push({
       id,
+      cardPortId,
       pass,
       theme,
       outer,
       viewport,
       cardMs,
       cardImage,
+      cardMapping,
       detailImage,
       mapping: port.presentation.artwork,
     });

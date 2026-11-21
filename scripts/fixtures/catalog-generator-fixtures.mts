@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   readFileSync,
+  readdirSync,
   mkdtempSync,
   writeFileSync,
   mkdirSync,
@@ -13,7 +14,7 @@ import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import type { ArtworkCatalog } from "../inspect-igdb-artwork.mts";
 import { isRecord } from "../runtime-values.mts";
-import { authoringRecordFromPort } from "../catalog-authoring.mts";
+import { authoringRecordFromPort, checkedAuthoredPort } from "../catalog-authoring.mts";
 import { readFixtureModuleClosure } from "./module-closure.mts";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -152,13 +153,25 @@ function syncFixtureSource(catalogs: string) {
   rmSync(directory, { recursive: true, force: true });
   mkdirSync(directory);
   const seen = new Set();
+  const authoredDirectory = join(catalogRoot, "ports");
+  const authoredNames = new Set(readdirSync(authoredDirectory));
   for (const [index, port] of input.ports.entries()) {
     const name = seen.has(port.id) ? `duplicate-${index}` : port.id;
     seen.add(port.id);
-    writeFileSync(
-      join(directory, `${name}.json`),
-      JSON.stringify(authoringRecordFromPort(port, index)),
-    );
+    const authored = authoringRecordFromPort(port, index);
+    // Aggregate projections omit repository-only decisions. Preserve the actual
+    // authored review for this exact existing port and source in the fixture.
+    if (authoredNames.has(`${port.id}.json`)) {
+      const original = checkedAuthoredPort(
+        fixtureJson(readFileSync(join(authoredDirectory, `${port.id}.json`))),
+        port.id,
+      );
+      if (original.original_game_review) {
+        assert.equal(authored.integration?.source_profile, original.integration?.source_profile);
+        authored.original_game_review = structuredClone(original.original_game_review);
+      }
+    }
+    writeFileSync(join(directory, `${name}.json`), JSON.stringify(authored));
   }
 }
 

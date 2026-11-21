@@ -86,7 +86,7 @@ portcove --library <isolated-review-library> --json doctor
 
 Production users verify the public key/fingerprint through a trusted independent channel before granting trust. Key rotation requires explicitly adding the replacement key and later revoking the old one. Sequences continue increasing across keys; rotation does not reset replay protection. No production custody or infrastructure decision is implied by these examples.
 
-The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations.
+The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations. Desktop keeps the selected source when the trust prompt is cancelled or accepted. Review that source again after a trust change. Each verification replaces the previous review, and applying a verified catalog requires a separate action.
 
 ## Publication and recovery
 
@@ -128,16 +128,22 @@ leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
 limit. The complete retained graph remains available for existing installs and rollback. A per-port
 retention redesign requires separate work.
 
-The catalog publisher bounds the entire retained public repository at 256 MiB.
-The bound covers prior reads, signing-context rechecks, assembly and public
-verification. The keyless prepare job checks that retained files and new
-hash-addressed targets fit before it starts the signing jobs. The signer
-repeats the check before opening its key file. Assembly checks the exact signed
-output before writing it. The separate 8 MiB descriptive target limit still
-applies to each directory revision. Catalog publish run 44643025884 retained
-130,711,331 bytes and needed 139,099,484 bytes after adding the next descriptive
-target, before adding the new signed metadata. This exceeded the previous
-128 MiB repository limit.
+The catalog publisher bounds the retained signed repository at 768 MiB.
+The publication job checks the exact staged Pages tree against its separate
+900,000,000-byte limit, including browse and application files. The keyless
+prepare job checks that retained files and new hash-addressed targets fit
+before it starts the signing jobs. The signer rechecks capacity before opening
+its key file. Assembly verifies the exact signed output and preserves prior
+immutable URLs. The verifier loads one bounded history file at a time and
+rechecks its digest before use.
+[GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
+
+Each descriptive target remains limited to 8 MiB per directory revision.
+
+Run 44643025884 needed 139,099,484 bytes for retained files and new targets
+before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
+could still read signed timestamp 45, but its proposed directory exceeded the
+later 256 MiB limit.
 
 Library writer protocol 60 rebuilds `catalog_state` in one transaction, copying
 the singleton row, replay floor and both envelopes byte for byte. Failure leaves

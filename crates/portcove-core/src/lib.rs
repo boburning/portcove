@@ -69,6 +69,7 @@ mod library_authority;
 mod library_import;
 mod library_membership;
 mod library_move;
+mod library_recovery_bundle;
 mod library_transfer;
 mod managed_chocolate;
 mod managed_initialization;
@@ -166,6 +167,8 @@ mod transfer_copy;
 mod transfer_journal;
 mod types;
 mod windows_runtime;
+#[cfg(windows)]
+mod windows_user_access;
 mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
@@ -176,13 +179,14 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 #[doc(hidden)]
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
-    ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
-    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
-    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
-    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
-    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
-    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
+    ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
+    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
+    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
+    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
+    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
+    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
     SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
@@ -319,6 +323,10 @@ pub use library_membership::{
     LibraryMembershipSource, MAX_LIBRARY_MEMBERSHIP_BATCH,
 };
 pub use library_move::LibraryMoveResult;
+pub use library_recovery_bundle::{
+    LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
+    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+};
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
     AssetConflict, ModPackageHold, ModPackageInspection, asset_conflicts, inspect_asset_archive,
@@ -484,10 +492,10 @@ pub use support_bundle_export::{
     prepare_support_log_directory,
 };
 pub use target_inspection::{
-    CatalogPresence, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS, LegacyCoverage,
-    MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
-    TargetInspection, TargetQualification, TargetQualificationScope, TargetQualificationState,
-    TargetRoute, TargetRoutes, Unassessed, inspect_targets,
+    CatalogPresence, ContentCapabilityState, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS,
+    LegacyCoverage, MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
+    TargetContentCapabilities, TargetInspection, TargetQualification, TargetQualificationScope,
+    TargetQualificationState, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;

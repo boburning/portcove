@@ -332,6 +332,7 @@ export type IgdbArtworkMatch = "port" | "underlying-game";
  * The version change an automatic snapshot protects.
  */
 export type VersionChangeKind = "update" | "activation" | "rollback";
+export type BackupRecoveryReview = "legacy_install_and_data_v1";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -443,7 +444,7 @@ export type ModProviderBinding =
       community: string;
       provider: "thunderstore";
     };
-export type IgdbGameImageKind = "logo" | "artwork";
+export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
   | {
@@ -2224,6 +2225,10 @@ export interface BackupRecord {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -2366,6 +2371,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2737,7 +2746,7 @@ export interface CatalogMediaAsset {
   width: number;
 }
 /**
- * A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+ * A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
  * public descriptive IDs, never API credentials or installation authority.
  */
 export interface IgdbGameImage {
@@ -2835,6 +2844,7 @@ export interface ReleaseSpec {
   };
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
+  reviewed_package_choices_v2?: ReviewedPackageChoicesV2 | null;
   rolling_tag: string | null;
   /**
    * GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
@@ -2894,6 +2904,17 @@ export interface DirectReleaseSpec {
   url: string;
   version: string;
   [k: string]: unknown;
+}
+/**
+ * Reviewed same-target Windows ZIP families. The GitHub tag commit fills the
+ * seven-hex filename slot between the numeric release and the chosen suffix.
+ */
+export interface ReviewedPackageChoicesV2 {
+  choices: {
+    [k: string]: string;
+  };
+  prefix: string;
+  repository_id: number;
 }
 export interface UserPreparedRuntimeSpec {
   archive_name: string;
@@ -3051,6 +3072,11 @@ export interface PortSourceContract {
   id: string;
   immutable_review_url: string;
   live_review_url: string | null;
+  /**
+   * Required ROM identity for the selected upstream game and exact artifact.
+   * This digests the padded, normalized N64 bytes the runtime checks.
+   */
+  n64_recomp_inputs_v1?: N64RecompOriginalInput[];
   port_id: string;
   profile_id: string;
   /**
@@ -3063,9 +3089,20 @@ export interface PortSourceContract {
   supported_variant_ids: string[];
   tombstones: string[];
   validator_contract_id: string | null;
+  /**
+   * Upstream enumerates recognizable variants for an exact release. A
+   * missing variant cannot reject setup. Historical lists keep their policy.
+   */
+  variant_list_recognition_only?: boolean;
 }
 export interface SourceContractApplicability {
   artifact_sha256: string | null;
+  upstream_ref: string;
+}
+export interface N64RecompOriginalInput {
+  artifact_sha256: string;
+  game_id: string;
+  rom_xxh3_64: string;
   upstream_ref: string;
 }
 export interface CatalogEvidence {
@@ -4200,6 +4237,7 @@ export interface SourceDiscoveryIssue {
  * Exact registered-input review for the first managed installation.
  */
 export interface GameInstallPlan {
+  package_choice?: string | null;
   plan: InstallPlan;
   plan_sha256: string;
   /**
@@ -4365,6 +4403,10 @@ export interface OutputGameUpdatePlan {
    */
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
+  /**
+   * Archive-only review for the same candidate. Acquisition still revalidates it.
+   */
+  archive_only_plan_sha256?: string | null;
   assessment: PortActionAssessment3;
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
@@ -5056,6 +5098,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }
@@ -5690,6 +5736,10 @@ export interface BackupRecord1 {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**

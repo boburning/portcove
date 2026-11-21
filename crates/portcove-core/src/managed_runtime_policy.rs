@@ -3,11 +3,27 @@
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
 pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 35;
+pub(crate) const EXACT_EXCLUSION_PSX_CAPABILITY: u32 = 6;
 
 pub(crate) fn has_exact_exclusions(port: &PortDefinition) -> bool {
     port.managed_acquisition_hold
         .as_ref()
         .is_some_and(|hold| !hold.excluded_artifacts.is_empty())
+}
+
+pub(crate) fn exact_exclusion_capability(port: &PortDefinition) -> Option<(&'static str, u32)> {
+    if !has_exact_exclusions(port) {
+        return None;
+    }
+    match port.adapter {
+        crate::AdapterKind::StagedSourcePortable => {
+            Some(("staged-source-portable", EXACT_EXCLUSION_STAGED_CAPABILITY))
+        }
+        crate::AdapterKind::PsxRecompManaged => {
+            Some(("psx-recomp-managed", EXACT_EXCLUSION_PSX_CAPABILITY))
+        }
+        _ => None,
+    }
 }
 
 pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
@@ -18,11 +34,11 @@ pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
     else {
         return Ok(());
     };
-    if port.adapter != crate::AdapterKind::StagedSourcePortable
+    if exact_exclusion_capability(port).is_none()
         || port.release.provider != crate::ReleaseSource::Github
     {
         return Err(PortcoveError::verification(format!(
-            "{} requires a GitHub staged-source release for exact exclusions",
+            "{} requires a GitHub staged-source or managed PSX release for exact exclusions",
             port.id
         )));
     }

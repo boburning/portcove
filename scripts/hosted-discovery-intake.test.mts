@@ -10,6 +10,8 @@ import {
   HostedIntakeBridge,
   parseHostedRequest,
   assertHostedEvent,
+  selectHostedRequests,
+  verifyOwnerAuditRun,
   hostedRequestMarker,
   hostedBody,
   hostedPlanHash,
@@ -502,20 +504,20 @@ void test("an existing canonical implementation is retained while unrelated new 
   const f = await fixture([candidate, other]);
   const body = hostedBody({ ...candidate, port_key: "original-owner-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Original owner",
     body,
     state: "CLOSED",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   const execution = f.client.executionIssue.bind(f.client);
   f.client.executionIssue = async (number) => {
     const value = await execution(number);
-    if (number === 150) value.item.Status = "Done";
+    if (number === 1000150) value.item.Status = "Done";
     return value;
   };
   const result = await f.bridge.process(f.request, f.all());
@@ -526,7 +528,7 @@ void test("an existing canonical implementation is retained while unrelated new 
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(result.delivery[0]!.created_issue, undefined);
   assert.equal(result.delivery[0]!.existing, true);
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
   assert.equal((await f.bridge.status(f.request, f.all())).delivered, 1);
   const before = f.comments.size;
@@ -537,14 +539,14 @@ async function existingOwnerFixture(candidates = [candidate], schemaVersion = 1)
   const f = await fixture(candidates, schemaVersion);
   const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Existing owner",
     body,
     state: "OPEN",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   return f;
@@ -568,14 +570,14 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
           99,
         );
         f.issues.push({
-          id: "I150",
-          node_id: "I150",
-          number: 150,
+          id: "I1000150",
+          node_id: "I1000150",
+          number: 1000150,
           title: "[Port] Earlier implementation name",
           body,
           state: "OPEN",
-          url: "https://github.com/boburning/portcove/issues/150",
-          html_url: "https://github.com/boburning/portcove/issues/150",
+          url: "https://github.com/boburning/portcove/issues/1000150",
+          html_url: "https://github.com/boburning/portcove/issues/1000150",
           updatedAt: "2026-10-28T00:00:00Z",
         });
       }
@@ -583,7 +585,7 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
     return inventory(cache, full);
   };
   const result = await f.bridge.process(f.request, f.all());
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(f.creations, 0);
 });
@@ -658,7 +660,7 @@ void test("existing observations deduplicate across proposals and preserve non-n
   f.comments.set(101, request);
   const second = await f.bridge.process(request, f.all());
   assert.equal(second.delivery[0]!.status, "existing");
-  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/150")).length, 1);
+  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/1000150")).length, 1);
   assert.equal(f.fields.Status, "Deferred");
   assert.equal(f.fields.Priority, "High");
   assert.equal(f.normalizations, 0);
@@ -702,7 +704,7 @@ void test("uncertain observation POSTs recover only a confirmed marker and never
     let posts = 0,
       active = true;
     f.sdk.hook.wrap("request", async (request, options) => {
-      if (active && options.method === "POST" && options.url.endsWith("/150/comments")) {
+      if (active && options.method === "POST" && options.url.endsWith("/1000150/comments")) {
         posts++;
         if (confirmed) await request(options);
         throw new GitHubApiError("budget_exhausted", "Observation POST response unknown");
@@ -749,6 +751,57 @@ void test("reporting reads only hash-bound receipts and refuses completion witho
   await assert.rejects(
     async () => await f.bridge.status(f.request, [f.request, receipt]),
     /doctor|object/u,
+  );
+});
+void test("retained intake bodies keep their original hash after the issue template changes", async () => {
+  const f = await fixture();
+  const delivered = await f.bridge.process(f.request, f.all());
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const original = delivered.plan[0]!;
+  assert.match(
+    original.body,
+    /Each offered operation names its platform, owner and applicable checks/u,
+  );
+  const historicalBody = hostedBody(candidate, f.request.id, "hosted-before-finite-v1");
+  const historical = {
+    ...original,
+    body: historicalBody,
+    body_sha256: observationHash(historicalBody),
+  };
+  assert.equal(
+    historical.body_sha256,
+    "99bba8a4b2de389f8b727a3ba69c46068fd7471fcc49391f2638bcb93eaedfbd",
+  );
+  assert.equal(
+    observationHash(hostedBody(candidate, f.request.id, "finite-route-v1")),
+    "84cfa769bdeed3db499108d73b8db4855efe73b9a475265ac54603460168a636",
+  );
+  assert.notEqual(historical.body_sha256, original.body_sha256);
+  const { candidate: _candidate, body: _body, ...compact } = historical;
+  const retained = {
+    ...delivered,
+    plan_encoding: "proposal-bound-v2",
+    plan: [{ ...compact, candidate_index: 0, port_key: candidate.port_key }],
+    plan_sha256: hostedPlanHash(delivered.request_sha256, [historical]),
+  };
+  const writeCount = f.writes;
+  const { plan_encoding: _encoding, ...full } = retained;
+  for (const row of [retained, { ...full, plan: [historical] }]) {
+    const complete = {
+      ...receipt,
+      body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(row)}\n\`\`\``,
+    };
+    assert.equal((await f.bridge.status(f.request, [f.request, complete])).status, "complete");
+  }
+  assert.equal(f.writes, writeCount);
+  const forged = { ...retained, plan: [{ ...retained.plan[0]!, body_sha256: "0".repeat(64) }] };
+  const invalid = {
+    ...receipt,
+    body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(forged)}\n\`\`\``,
+  };
+  await assert.rejects(
+    f.bridge.status(f.request, [f.request, invalid]),
+    /does not match the exact proposal/u,
   );
 });
 void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", async () => {
@@ -2089,7 +2142,7 @@ void test("explicit observations match exactly one immutable owner and never cre
   const observation = {
     ...candidate,
     port_key: "existing-key",
-    intent: { kind: "observe-existing", issue: 150 },
+    intent: { kind: "observe-existing", issue: 1000150 },
   };
   const independent = {
     ...candidate,
@@ -2106,8 +2159,8 @@ void test("explicit observations match exactly one immutable owner and never cre
   const verified = await f.bridge.process(f.request, f.all());
   assert.equal(f.creations, 0);
   assert.equal(verified.delivery[0]?.status, "existing");
-  assert.equal(verified.delivery[0]?.canonical_issue, 150);
-  assert.equal(verified.delivery[0]?.item_id, "PVTI150");
+  assert.equal(verified.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(verified.delivery[0]?.item_id, "PVTI1000150");
 
   const held = await existingOwnerFixture([observation, independent], 2);
   held.issues[0]!.body = held.issues[0]!.body.replace(String(candidate.repository_id), "9001");
@@ -2126,20 +2179,59 @@ void test("explicit observations match exactly one immutable owner and never cre
   );
   assert.equal(mustCreate.creations, 0);
   assert.equal(
-    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/150")),
+    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/1000150")),
     false,
   );
 });
 
-void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", async () => {
-  const candidates = Array.from({ length: 18 }, (_, i) => ({
+void test("scheduled audits verify the exact original owner workflow attempt and request", () => {
+  const sha = "a".repeat(40);
+  const origin = `900/2@${sha}`;
+  const run = {
+    actor: { login: "boburning" },
+    repository: { id: 1354613114 },
+    event: "workflow_dispatch",
+    head_branch: "main",
+    status: "completed",
+    path: ".github/workflows/hosted-discovery-intake.yml",
+    display_title: "Hosted intake audit 341 / 1",
+    id: 900,
+    run_attempt: 2,
+    head_sha: sha,
+  };
+  verifyOwnerAuditRun(run, 341, origin);
+  const ordinary = { ...run, event: "issue_comment", display_title: "Hosted intake 341 / 1" };
+  verifyOwnerAuditRun(ordinary, 341, origin);
+  for (const mismatched of [
+    { ...ordinary, display_title: "Hosted intake 342 / 1" },
+    { ...ordinary, display_title: run.display_title },
+    { ...run, display_title: ordinary.display_title },
+  ])
+    assert.throws(() => verifyOwnerAuditRun(mismatched, 341, origin));
+  for (const changed of [
+    { actor: { login: "github-actions[bot]" } },
+    { repository: { id: 1 } },
+    { event: "schedule" },
+    { head_branch: "feature" },
+    { status: "queued" },
+    { path: "elsewhere.yml" },
+    { display_title: "Hosted intake audit 342 / 1" },
+    { id: 901 },
+    { run_attempt: 1 },
+    { head_sha: "b".repeat(40) },
+  ])
+    assert.throws(() => verifyOwnerAuditRun({ ...run, ...changed }, 341, origin));
+});
+
+async function verifyAuditRecovery(schema: 1 | 2) {
+  const candidates = Array.from({ length: 11 }, (_, i) => ({
     ...candidate,
     title: `Intake game ${i}`,
     game: `Intake game ${i}`,
     upstream: `${candidate.upstream}-${i}`,
     repository_id: candidate.repository_id + i,
     port_key: `intake-game-${i}`,
-    intent: { kind: "create" },
+    ...(schema === 2 ? { intent: { kind: "create" } } : {}),
   }));
   let retained: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
   const store: HostedIntakeCheckpointStore = {
@@ -2157,17 +2249,139 @@ void test("an audit interruption preserves delivered candidates across upstream 
       return revision + 1;
     },
   };
-  const f = await fixture(candidates, 2, store);
+  const f = await fixture(candidates, schema, schema === 2 ? store : undefined);
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { auditOnly: true }),
+    /full audit pending/u,
+  );
+  assert.equal(f.creations, 0);
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = async (cache, full) => {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
     return await inventory(cache, full);
   };
-  await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  const originalProposalRun = "800/1@" + "e".repeat(40);
+  if (schema === 2) {
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].audit_pending) throw new Error("Interrupted before first audit projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { origin: originalProposalRun }),
+      /Interrupted before first audit projection/u,
+    );
+    f.bridge.persist = publish;
+    const native = await f.bridge.status(f.request, f.all());
+    assert.equal(native.audit_pending, undefined);
+    assert.equal(native.audit_retry, undefined);
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    const scheduledBinding = collected.audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    const verifyOrigin = async (request: number, origin: string) => {
+      assert.equal(request, f.request.id);
+      assert.equal(origin, originalProposalRun);
+    };
+    const comment = f.comments.get(native.receipt_comment!)!;
+    const original = comment.body;
+    comment.body += "\n";
+    assert.equal((await f.bridge.status(f.request, f.all(), store)).audit_retry, undefined);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /ahead of or differs/u,
+    );
+    assert.notEqual(comment.body, original);
+    comment.body = original;
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin: async () => {
+          throw new Error("Original owner action could not be verified");
+        },
+      }),
+      /original owner action/iu,
+    );
+    assert.equal(comment.body, original);
+    const readQueue = f.bridge.comments.bind(f.bridge);
+    for (const changed of [
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.filter((entry) => entry.id !== f.request.id),
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.map((entry) =>
+          entry.id === f.request.id ? { ...entry, body: `Withdrawn\n${entry.body}` } : entry,
+        ),
+    ]) {
+      f.bridge.comments = async () => changed(await readQueue());
+      await assert.rejects(
+        f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+        /scheduled audit request is unavailable or has changed/u,
+      );
+      assert.equal(comment.body, original);
+    }
+    f.bridge.comments = readQueue;
+    const duplicate = { ...comment, id: comment.id + 1000 };
+    await assert.rejects(
+      f.bridge.process(f.request, [...f.all(), duplicate], {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin,
+      }),
+      /ambiguous hosted receipt/iu,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /Unrelated Roadmap edit/u,
+    );
+  } else {
+    await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  }
   assert.equal(f.creations, candidates.length);
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
+  if (schema === 2) {
+    assert.match(status.audit_retry?.binding ?? "", /^[0-9a-f]{64}$/u);
+    assert.ok(f.comments.get(status.receipt_comment!)!.body.includes(originalProposalRun));
+  } else {
+    assert.equal(
+      status.audit_retry,
+      undefined,
+      "an unbound historical run cannot authorize a retry",
+    );
+  }
+  const origin = "900/2@" + "f".repeat(40);
+  let scheduledBinding: string | undefined;
+  if (schema === 2) {
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, origin }),
+      /Unrelated Roadmap edit/u,
+    );
+    scheduledBinding = (await f.bridge.status(f.request, f.all())).audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    assert.match(scheduledBinding, /^[0-9a-f]{64}$/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding: "0".repeat(64) }),
+      /does not authorize/u,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding }),
+      /Missing native audit origin/u,
+    );
+  }
+  const verifyOrigin = async (request: number, original: string) => {
+    assert.equal(request, f.request.id);
+    assert.equal(original, origin);
+  };
+  const scheduled = scheduledBinding ? { scheduledBinding, verifyOrigin } : {};
   const writes = f.writes;
+  if (schema === 1) {
+    const comment = f.comments.get(status.receipt_comment!)!;
+    // Old schema-1 receipts predate the explicit audit checkpoint.
+    comment.body = comment.body.replace(/^  "audit_pending": true,\n/mu, "");
+    assert.equal((await f.bridge.status(f.request, f.all())).audit_pending, undefined);
+    f.fields.Status = "Ready";
+  }
 
   f.changePrimary();
   f.bridge.primary = async () => {
@@ -2194,24 +2408,40 @@ void test("an audit interruption preserves delivered candidates across upstream 
       items: full.items,
       diagnostics: [],
       warnings: [],
+      derivedStageDrift: [],
       inventory: full,
       repositoryIssueInventoryAttempts: undefined,
       projectInventorySource: "discovery-inventory",
     };
   };
-  // Lose the response after the exact final receipt was persisted in PostgreSQL.
-  const publish = f.bridge.persist.bind(f.bridge);
-  f.bridge.persist = async (...args) => {
-    if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
-    return await publish(...args);
-  };
-  await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
-  f.bridge.persist = publish;
-  f.bridge.inventory = async () => {
-    throw new Error("Already verified audit must not repeat");
-  };
-  const completed = await f.bridge.process(f.request, f.all());
+  if (schema === 2) {
+    // Lose the response after the exact final receipt was persisted in PostgreSQL.
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, ...scheduled }),
+      /Worker interrupted/u,
+    );
+    f.bridge.persist = publish;
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    assert.equal(collected.audit_retry?.binding, scheduledBinding);
+    f.bridge.inventory = async () => {
+      throw new Error("Already verified audit must not repeat");
+    };
+  }
+  const completed = await f.bridge.process(f.request, f.all(), {
+    auditOnly: schema === 2,
+    ...scheduled,
+  });
   assert.equal(completed.status, "complete");
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,
+    "complete",
+  );
   assert.equal(audits, 1);
   assert.equal(f.creations, candidates.length);
   assert.equal(f.writes, writes);
@@ -2220,6 +2450,21 @@ void test("an audit interruption preserves delivered candidates across upstream 
     completed.delivery.map((d) => d.created_issue),
     f.issues.map((issue) => issue.number),
   );
+}
+void test("legacy audit recovery preserves delivered candidates without reopening owner planning", () =>
+  verifyAuditRecovery(1));
+void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", () =>
+  verifyAuditRecovery(2));
+
+void test("scheduled selections retain an unavailable request and independent bound audits", async () => {
+  const f = await fixture();
+  const absent = f.request.id + 1;
+  const selected = [absent, f.request.id];
+  assert.deepEqual(selectHostedRequests([f.request], selected, true), [
+    { id: absent, request: undefined },
+    { id: f.request.id, request: f.request },
+  ]);
+  assert.throws(() => selectHostedRequests([f.request], selected, false), /no longer available/u);
 });
 
 function amendmentFor(
@@ -2263,6 +2508,84 @@ function amendmentFor(
   f.comments.set(comment.id, comment);
   return { comment, value, receipt };
 }
+
+void test("an exact amendment corrects only the game label of a held explicit observation", async () => {
+  const observation = {
+    ...candidate,
+    game: `${candidate.game} (USA original edition)`,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 1000150 },
+  };
+  const f = await existingOwnerFixture([observation], 2);
+  const ownerBefore = structuredClone(f.issues[0]);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  amendmentFor(f, 0, { game: candidate.game });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.game, candidate.game);
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a game label correction cannot rebind candidate creation", async () => {
+  const f = await fixture();
+  await f.prepare();
+  amendmentFor(f, 0, { game: "Different game" });
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Game label correction requires an explicit existing-owner observation/u,
+  );
+  assert.equal(f.creations, 0);
+});
+
+void test("a legacy unattempted slot observes an established owner with a different key", async () => {
+  const f = await existingOwnerFixture();
+  const owner = f.issues.pop()!;
+  await f.prepare();
+  f.issues.push(owner);
+  const ownerBefore = structuredClone(f.issues[0]);
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "existing-key" },
+  });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.port_key, "existing-key");
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a legacy owner amendment refuses an original creation marker", async () => {
+  const f = await fixture();
+  await f.prepare();
+  const body = hostedBody(candidate, f.request.id);
+  const issueUrl = "https://github.com/boburning/portcove/issues/1000150";
+  f.issues.push({
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
+    title: "[Port] Prior creation",
+    body,
+    state: "OPEN",
+    url: issueUrl,
+    html_url: issueUrl,
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "different-key" },
+  });
+  await assert.rejects(f.bridge.process(f.request, f.all()), /retained creation marker/u);
+  assert.equal(f.creations, 0);
+  assert(!f.all().some((comment) => comment.issue_url.endsWith("/1000150")));
+});
 
 void test("candidate amendments finish a legacy partial batch while preserving four delivered owners", async () => {
   const f = await partialFixture(8, 4);

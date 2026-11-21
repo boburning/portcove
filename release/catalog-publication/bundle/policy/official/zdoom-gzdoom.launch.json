@@ -1,0 +1,8 @@
+{
+  "assessment_schema": 1,
+  "namespace": "official",
+  "stable_id": "zdoom-gzdoom",
+  "policy_sha256": "5b6e15444c8de55b793322b0532fc2d5d9d6b0ce67f9380db5b7902b1c16f02d",
+  "revision": 3,
+  "assessments": []
+}

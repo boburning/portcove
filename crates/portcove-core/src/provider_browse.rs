@@ -256,7 +256,7 @@ impl PortcoveService {
         port_id: &str,
         project_id: &str,
     ) -> Result<ProviderProjectView> {
-        let game_name = self.catalog().port(port_id)?.name.clone();
+        let port = self.catalog().port(port_id)?;
         let observed = client.project(project_id).await?;
         if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
             return Err(PortcoveError::verification(
@@ -271,7 +271,7 @@ impl PortcoveService {
                 .files
                 .iter()
                 .filter(|file| {
-                    crate::provider_install::accepts_provider_file(port_id, file)
+                    crate::provider_install::accepts_provider_file(port, file)
                         && crate::provider_install::validate_offer(client, &observed.value, file)
                             .is_ok()
                 })
@@ -280,7 +280,7 @@ impl PortcoveService {
         };
         Ok(ProviderProjectView {
             port_id: port_id.into(),
-            game_name,
+            game_name: port.name.clone(),
             project: observed.value,
             eligible_file_ids: Some(eligible_file_ids),
             observed_at: observed.observed_at,

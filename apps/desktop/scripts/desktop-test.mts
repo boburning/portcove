@@ -116,7 +116,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
-  openCatalogFilters,
+  openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
@@ -3189,6 +3189,47 @@ try {
       packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
+    const {
+      readGameFirstCatalogObservation,
+      readGameFirstRelationships,
+      inspectGameFirstRelationships,
+    } = await import("./desktop-game-first-test.mts");
+    const readbacks: unknown[] = [];
+    const report: Record<string, unknown> = {
+      outcome: "failed",
+      source_revision: revision,
+      package: required(packageEvidence),
+      application: required(inputs[0]),
+      readbacks,
+      interpretation:
+        "Actual normal-package loaded catalog relationship readback; not installed game runtime or gameplay acceptance.",
+    };
+    try {
+      const relationships = await readGameFirstRelationships();
+      report.expected_baseline_sha256 = relationships.sha256;
+      report.audited_revision = relationships.expected.audited_revision;
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
+      report.catalog_digest = observation.workspace.catalog_digest ?? null;
+      report.catalog_status = observation.catalog_status;
+      report.listing_delivery_status = observation.listing_delivery_status;
+      report.generation = observation.bootstrap.generation;
+      const production = inspectGameFirstRelationships(
+        observation.workspace,
+        relationships.expected,
+        observation.catalog_status.provenance,
+      );
+      report.families = production.reviewed_families;
+      report.audited_records = production.provenance.length;
+      report.provenance = production.provenance;
+      report.outcome = "passed";
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "normal-package-game-first-catalog.json");
+      await writeFile(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    }
   });
   await scenario("native-linux-packaged-webview-boundary", async () => {
     const browser = requiredInspector();
@@ -3607,7 +3648,7 @@ try {
       ]),
     ].sort();
     const channelChoice = async (channel: string) => {
-      const panel = await openCatalogFilters(browser);
+      const panel = await openMoreCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
       if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -4194,10 +4235,65 @@ try {
       "Application update settings did not receive focus",
     );
 
+    const activityTab = (name: "Tasks" | "History" | "Game updates") =>
+      By.xpath(
+        `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${name}"]]`,
+      );
+    const selectActivityTab = async (name: "Tasks" | "History") => {
+      const tab = await browser.wait(until.elementLocated(activityTab(name)), 5_000);
+      await clickVisible(browser, tab);
+      await browser.wait(async () => (await tab.getAttribute("aria-selected")) === "true", 5_000);
+    };
+    for (const origin of ["Tasks", "History"] as const) {
+      // Leave Activity with the origin tab still selected. The explicit
+      // Settings link must override that selection and land on Game updates.
+      await selectPrimaryNavigation(browser, "Activity");
+      await selectActivityTab(origin);
+      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("updates", "keyboard");
+      const returnLink = await browser.findElement(
+        By.xpath(
+          '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open game updates in Activity"]',
+        ),
+      );
+      await clickVisible(browser, returnLink);
+      const updates = await browser.wait(until.elementLocated(activityTab("Game updates")), 5_000);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, () => document.activeElement?.matches("main h1"))),
+        5_000,
+        `The Settings link must open Game updates and focus Activity after leaving ${origin}`,
+      );
+
+      await selectActivityTab(origin);
+      await updates.sendKeys(Key.ENTER);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, (tab) => document.activeElement === tab, updates)),
+        5_000,
+        `Game updates did not retain keyboard focus when opened from ${origin}`,
+      );
+      const settingsLink = await browser.findElement(
+        By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
+      );
+      await clickVisible(browser, settingsLink);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => document.activeElement?.id === "settings-updates-heading",
+          ),
+        5_000,
+        `The named Settings heading did not receive focus after leaving ${origin} for Game updates`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openCatalogFilters(browser);
+    const filters = await openMoreCatalogFilters(browser);
     const channelChoices = await filters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );

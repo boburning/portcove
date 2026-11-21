@@ -10,7 +10,10 @@ import {
   slice4CapacityResourceDigest,
   capacityDigest,
 } from "./release-capacity.mts";
-import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
+import {
+  controllerWorkflowAtCurrentNode,
+  retainedCatalogReviewWorkflow,
+} from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 
 void test("Windows-only protected source proposal preserves shared controls and stays held outside effective resource policy", async () => {
@@ -78,8 +81,15 @@ void test("resource observations reconcile current purposes and keep provider, b
   assert.equal(result.accounting.catalog_alternative, 48);
   assert.equal(result.accounting.policy_envelope, 145);
   assert.equal(result.policy_matches_workflow, false);
-  assert.equal(result.retained_catalog_review_recovery_matches_workflow, true);
-  assert.equal(result.accounting.retained_catalog_review_recovery, 25);
+  assert.equal(result.retained_catalog_review_recovery_matches_workflow, false);
+  assert.equal(result.accounting.retained_catalog_review_recovery, null);
+  const retained = observeReleaseResources(
+    retainedCatalogReviewWorkflow(production),
+    wake,
+    candidate,
+  );
+  assert.equal(retained.retained_catalog_review_recovery_matches_workflow, true);
+  assert.equal(retained.accounting.retained_catalog_review_recovery, 25);
   assert.equal(result.ratification_required_for_policy_change, true);
   const appointedWake = await readFile(
     new URL("../docs/qualification/application-update-wake.held.yml", import.meta.url),

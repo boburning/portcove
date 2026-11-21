@@ -248,6 +248,39 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        if port.release.reviewed_package_choices_v2.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver reviewed package choices",
+            ));
+        }
+        if original.release.reviewed_package_choices_v2.is_some() {
+            port.release
+                .reviewed_package_choices_v2
+                .clone_from(&original.release.reviewed_package_choices_v2);
+            // The old envelope has no choice-specific publisher authority.
+            // Preserve the compiled repository and selection rules with the choice.
+            if serde_json::to_value(&port.release)? != serde_json::to_value(&original.release)? {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot change the release contract for compiled package choices",
+                ));
+            }
+        }
+        let package_only = crate::GameSettingsContract::package_only;
+        if port.game_settings.as_ref().is_some_and(package_only) {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver package-only settings authority",
+            ));
+        }
+        if original.game_settings.as_ref().is_some_and(package_only) {
+            if port.game_settings.is_some()
+                || serde_json::to_value(&port.release)? != serde_json::to_value(&original.release)?
+            {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot replace compiled package-only settings authority",
+                ));
+            }
+            port.game_settings.clone_from(&original.game_settings);
+        }
         if port.mod_provider_bindings.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver mod provider bindings",

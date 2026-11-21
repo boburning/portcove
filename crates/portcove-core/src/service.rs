@@ -323,6 +323,8 @@ pub struct PortcoveService {
     pub(crate) cancellation_requested: std::sync::atomic::AtomicBool,
     catalog: Catalog,
     catalog_provenance: crate::CatalogProvenance,
+    artwork_snapshot_reads: bool,
+    pub(crate) remote_artwork: crate::artwork::RemoteArtworkRead,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     faults: Arc<dyn LifecycleFaultInjector>,
@@ -354,6 +356,7 @@ struct ReleaseIntent {
     activate: bool,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     acquired: Option<game_update_acquisition::AcquiredInputs>,
+    explicit_package_proof_sha256: Option<String>,
 }
 
 fn enum_value(value: impl Serialize) -> Result<String> {
@@ -420,6 +423,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -439,20 +444,70 @@ impl PortcoveService {
         releases: Arc<dyn ReleaseProvider>,
     ) -> Result<Self> {
         let (catalog, catalog_provenance) = library.load_catalog()?;
+        Ok(Self::from_catalog(
+            library,
+            releases,
+            catalog,
+            catalog_provenance,
+        ))
+    }
+
+    /// Desktop artwork uses a reusable read-only catalog observation. Choices
+    /// and retained installation/listing relations are still looked up per call.
+    pub fn with_provider_for_artwork(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+    ) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_artwork_catalog()?;
+        let mut service = Self::from_catalog(library, releases, catalog, catalog_provenance);
+        service.artwork_snapshot_reads = true;
+        Ok(service)
+    }
+
+    /// Probe already available artwork before waiting on any network budget.
+    #[must_use]
+    pub fn with_artwork_cache_epoch(
+        mut self,
+        epoch: crate::ArtworkCacheEpoch,
+        allow_download: bool,
+    ) -> Self {
+        self.remote_artwork = crate::artwork::RemoteArtworkRead {
+            allow_download,
+            epoch: Some(epoch),
+        };
+        self
+    }
+
+    pub(crate) fn current_artwork_service(&self) -> Result<Option<Self>> {
+        if self.artwork_snapshot_reads {
+            return Self::with_provider_for_artwork(self.library.clone(), self.releases.clone())
+                .map(Some);
+        }
+        Ok(None)
+    }
+
+    fn from_catalog(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+        catalog: Catalog,
+        catalog_provenance: crate::CatalogProvenance,
+    ) -> Self {
         #[cfg(feature = "qualification-fixtures")]
         let faults = crate::qualification_checkpoint::faults(library.root());
         #[cfg(not(feature = "qualification-fixtures"))]
         let faults = Arc::new(NoLifecycleFaults);
-        Ok(Self {
+        Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
             store_installs: crate::store_install::default_host(),
-        })
+        }
     }
 
     /// Use other host facts for store install detection (tests and adapters
@@ -487,6 +542,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -506,6 +563,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -1494,6 +1553,18 @@ impl PortcoveService {
         channel: Option<ReleaseChannel>,
         output_directory: Option<&Path>,
     ) -> Result<InstallPlan> {
+        self.plan_install_resolution(port_id, channel, output_directory, None)
+            .await
+            .map(|(plan, _)| plan)
+    }
+
+    async fn plan_install_resolution(
+        &self,
+        port_id: &str,
+        channel: Option<ReleaseChannel>,
+        output_directory: Option<&Path>,
+        package_id: Option<&str>,
+    ) -> Result<(InstallPlan, crate::ScopedResolvedRelease)> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
         self.require_definition_operation(
@@ -1529,12 +1600,58 @@ impl PortcoveService {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
-        let resolution = self
-            .resolve_install_selection(port, selected_channel, platform, &status)
-            .await?;
-        let release = resolution.release;
+        let resolution = if let Some(id) = package_id {
+            if !first_managed_install(&status) {
+                return Err(PortcoveError::conflict(
+                    "an explicit package choice requires a first managed installation",
+                ));
+            }
+            let choice =
+                crate::ManagedPackageVariant::explicit(port, platform, selected_channel, id)?;
+            crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+            if crate::definition_repository::publisher_policy::acquisition_scope(
+                &self.library,
+                &self.catalog,
+                &port.id,
+            )?
+            .is_some()
+            {
+                return Err(PortcoveError::unsupported(
+                    "the active publisher scope does not authorize explicit package selection",
+                ));
+            }
+            let resolution = self
+                .releases
+                .resolve_explicit_first_variant(port, selected_channel, platform, &choice)
+                .await?;
+            resolution.require_selection(port, platform, selected_channel)?;
+            if resolution.saved_variant.as_ref() != Some(&choice)
+                || resolution.explicit_tag_commit.is_none()
+                || resolution.github_identity.is_none()
+            {
+                return Err(PortcoveError::verification(
+                    "the provider did not prove the explicit package choice",
+                ));
+            }
+            Installer::new(self.library.clone())?
+                .require_github_resolution_identity(&port.id, &resolution)?;
+            if let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, &resolution.release)?
+            {
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &resolution.release,
+                    &verdict,
+                ));
+            }
+            resolution
+        } else {
+            self.resolve_install_selection(port, selected_channel, platform, &status)
+                .await?
+        };
+        let release = resolution.release.clone();
         let mut preservation_notices = port.preservation_notices();
-        preservation_notices.extend(resolution.fallback_reason);
+        preservation_notices.extend(resolution.fallback_reason.clone());
         let action = self.install_plan_action_with_variant(
             &status,
             &release,
@@ -1553,6 +1670,14 @@ impl PortcoveService {
                 total.saturating_add(asset.size)
             });
         let temporary_space = if action == InstallPlanAction::Download {
+            crate::runtime_path_policy::check_artifact_destination(
+                port_id,
+                &release.asset.sha256,
+                Some(platform),
+                &output_location
+                    .effective_output_directory
+                    .join(&release.asset.sha256),
+            )?;
             let required_bytes = primary_and_runtime_bytes;
             let capacity = crate::output_root::assess_destination(
                 &self.library,
@@ -1583,22 +1708,25 @@ impl PortcoveService {
         } else {
             None
         };
-        Ok(InstallPlan {
-            port_id: port_id.into(),
-            channel: selected_channel,
-            platform,
-            release,
-            action,
-            source_requirements,
-            bundled_runtime,
-            download_bytes,
-            auxiliary_downloads,
-            temporary_space,
-            storage: self.library.storage_summary()?,
-            output_location,
-            preservation_notices,
-            shared_preferences,
-        })
+        Ok((
+            InstallPlan {
+                port_id: port_id.into(),
+                channel: selected_channel,
+                platform,
+                release,
+                action,
+                source_requirements,
+                bundled_runtime,
+                download_bytes,
+                auxiliary_downloads,
+                temporary_space,
+                storage: self.library.storage_summary()?,
+                output_location,
+                preservation_notices,
+                shared_preferences,
+            },
+            resolution,
+        ))
     }
 
     fn shared_preferences_install_root(
@@ -2902,16 +3030,13 @@ impl PortcoveService {
         platform: Platform,
         status: &PortStatus,
     ) -> Result<Option<crate::ManagedPackageVariant>> {
-        if !matches!(
+        let permits_saved = matches!(
             port.adapter,
             crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
-        ) || port.release.provider != ReleaseSource::Github
-            || port.release.curated.contains_key(&platform)
-            || port.release.rolling_tag.is_some()
-        {
-            return Ok(None);
-        }
-        status
+        ) && port.release.provider == ReleaseSource::Github
+            && !port.release.curated.contains_key(&platform)
+            && port.release.rolling_tag.is_none();
+        let retained = status
             .active
             .as_ref()
             .filter(|install| install.channel == channel)
@@ -2922,8 +3047,15 @@ impl PortcoveService {
                     .filter(|install| install.channel == channel)
             })
             .map(crate::install::recorded_package_variant)
-            .transpose()
-            .map(Option::flatten)
+            .transpose()?
+            .flatten();
+        if let Some(variant) = retained
+            .as_ref()
+            .filter(|variant| variant.requires_explicit_proof())
+        {
+            variant.require_contract(port, channel, platform)?;
+        }
+        Ok(if permits_saved { retained } else { None })
     }
 
     async fn resolve_release_for_status(
@@ -2964,11 +3096,8 @@ impl PortcoveService {
                     .await?
             }
         };
-        Installer::new(self.library.clone())?.require_github_artifact_identity(
-            &port.id,
-            &resolved.release,
-            resolved.github_identity.as_ref(),
-        )?;
+        Installer::new(self.library.clone())?
+            .require_github_resolution_identity(&port.id, &resolved)?;
         Ok(resolved)
     }
 
@@ -3270,14 +3399,16 @@ impl PortcoveService {
             .is_some();
             // The individual check reports an invalid retained manifest. That
             // failure should not prevent estimating other games in the batch.
-            let cost = if Self::saved_package_variant(port, status.channel, platform, &status)
-                .is_ok_and(|variant| variant.is_some())
-            {
-                self.releases.forecast_saved_variant_request_cost(scoped)
-            } else {
-                self.releases
-                    .forecast_request_cost(port, platform, scoped)
-                    .await?
+            let cost = match Self::saved_package_variant(port, status.channel, platform, &status) {
+                Ok(Some(variant)) if variant.explicit_id().is_some() && !scoped => {
+                    self.releases.forecast_explicit_variant_request_cost()
+                }
+                Ok(Some(_)) => self.releases.forecast_saved_variant_request_cost(scoped),
+                _ => {
+                    self.releases
+                        .forecast_request_cost(port, platform, scoped)
+                        .await?
+                }
             };
             forecast.games = forecast.games.saturating_add(1);
             forecast.counted_requests = forecast
@@ -3702,6 +3833,7 @@ impl PortcoveService {
                 activate,
                 shared_preferences: None,
                 acquired: None,
+                explicit_package_proof_sha256: None,
             },
             reporter,
         )
@@ -3721,10 +3853,18 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+        if let Some(expected) = intent.explicit_package_proof_sha256.as_deref()
+            && resolution.explicit_package_proof_sha256()?.as_deref() != Some(expected)
+        {
+            return Err(PortcoveError::conflict(
+                "reviewed package proof changed; obtain a new review before acquisition",
+            ));
+        }
         let ReleaseIntent {
             activate,
             shared_preferences,
             acquired,
+            explicit_package_proof_sha256: _,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         let platform = Platform::current()?;
@@ -3867,6 +4007,7 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, staged)?;
             }
             let qualification = self.installed_mutability_qualification(staged)?;
+            crate::install::check_retained_launch_destination(staged, &staged.path)?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
@@ -3899,8 +4040,14 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
+            crate::install::check_retained_launch_destination(&existing, &existing.path)?;
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&existing, &qualification)?;
+            if activate {
+                self.require_retained_n64_release_input(&existing, &|| {
+                    reporter.operation.checkpoint()
+                })?;
+            }
             if settings_activation {
                 reporter.operation.begin_publication()?;
                 self.library.register_install(&existing, false)?;
@@ -3948,9 +4095,22 @@ impl PortcoveService {
         if !settings_activation {
             self.collect_active_user_data_if_launched(&port.id)?;
         }
-        let source =
-            self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
+        let source = self.validate_and_remember_source(
+            port,
+            overrides.source,
+            (&release.version, &release.asset.sha256),
+            reporter.operation,
+        )?;
         reporter.operation.checkpoint()?;
+        if source.is_none() {
+            crate::source_inspection::verify_n64_release_input(
+                &self.catalog,
+                &port.id,
+                None,
+                (&release.version, &release.asset.sha256),
+                &|| reporter.operation.checkpoint(),
+            )?;
+        }
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
@@ -4151,6 +4311,7 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         source_override: Option<&Path>,
+        release: (&str, &str),
         operation: &OperationCoordinator,
     ) -> Result<Option<SourceRecord>> {
         let Some(profile_id) = &port.source_profile else {
@@ -4162,6 +4323,13 @@ impl PortcoveService {
             let classification = inspection.assessment.classification.clone();
             let source = inspection.require_admitted_record()?;
             self.require_original_setup_compatibility(port, &classification)?;
+            crate::source_inspection::require_n64_release_input(
+                &self.catalog,
+                &port.id,
+                &source,
+                release,
+                &|| operation.checkpoint(),
+            )?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
@@ -4176,9 +4344,16 @@ impl PortcoveService {
             return Ok(None);
         }
         match self.verified_original_for_setup(port) {
-            Ok(source) => Ok(Some(source)),
+            Ok(source) => {
+                crate::source_inspection::require_n64_release_input(
+                    &self.catalog, &port.id, &source, release, &|| operation.checkpoint(),
+                )?;
+                Ok(Some(source))
+            }
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), Some(port), operation)
+                .resolve_and_register_inbox_source(
+                    profile_id, Some(&port.id), Some(port), Some(release), operation,
+                )
                 .map(Some)
                 .or_else(|error| {
                     if port.optional_game_source && error.code == crate::ErrorCode::NotFound {
@@ -4233,7 +4408,7 @@ impl PortcoveService {
         match self.verified_source_record(profile_id) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, operation)
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, None, operation)
                 .map(Some)
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
@@ -4256,6 +4431,7 @@ impl PortcoveService {
         profile_id: &str,
         already_locked: Option<&str>,
         setup_port: Option<&PortDefinition>,
+        setup_release: Option<(&str, &str)>,
         operation: &OperationCoordinator,
     ) -> Result<SourceRecord> {
         if setup_port.is_some_and(|port| port.source_profile.as_deref() != Some(profile_id)) {
@@ -4266,7 +4442,17 @@ impl PortcoveService {
         let _guards = self.lock_source_dependents(profile_id, already_locked)?;
         if let Some(registered) = self.library.source(profile_id)? {
             if let Some(port) = setup_port {
-                return self.verified_original_for_setup(port);
+                let source = self.verified_original_for_setup(port)?;
+                if let Some(release) = setup_release {
+                    crate::source_inspection::require_n64_release_input(
+                        &self.catalog,
+                        &port.id,
+                        &source,
+                        release,
+                        &|| operation.checkpoint(),
+                    )?;
+                }
+                return Ok(source);
             }
             self.verify_source_record(&registered)?;
             return Ok(registered);
@@ -4298,6 +4484,15 @@ impl PortcoveService {
                 let source = inspection.require_admitted_record()?;
                 if let Some(port) = setup_port {
                     self.require_original_setup_compatibility(port, &classification)?;
+                    if let Some(release) = setup_release {
+                        crate::source_inspection::require_n64_release_input(
+                            &self.catalog,
+                            &port.id,
+                            &source,
+                            release,
+                            &|| operation.checkpoint(),
+                        )?;
+                    }
                 }
                 self.library.register_source(&source)?;
                 Ok(source)
@@ -4452,6 +4647,7 @@ impl PortcoveService {
             let (port, qualification) = self
                 .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
+            self.require_retained_n64_release_input(&previous, &|| Ok(()))?;
             self.collect_active_user_data_if_launched(port_id)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
@@ -4515,7 +4711,8 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
-        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        crate::install::check_retained_launch_destination(previous, &previous.path)
+            .map_err(invalid)?;
         self.require_activation_uploader_continuity(previous, None)
             .map_err(|error| RollbackTargetFailure {
                 reason: if error
@@ -4655,6 +4852,7 @@ impl PortcoveService {
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
+        crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
         crate::profile::require_default_recovery_capacity(
             &self.library.connection()?,
@@ -5001,7 +5199,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
-            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
+            crate::install::check_retained_launch_destination(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",
@@ -6899,7 +7097,8 @@ impl PortcoveService {
             &self.catalog,
             install,
         )?;
-        self.require_activation_uploader_continuity(install, fresh)
+        self.require_activation_uploader_continuity(install, fresh)?;
+        self.require_retained_n64_release_input(install, &|| Ok(()))
     }
 
     /// Uploader continuity for a build about to become active from stored facts
@@ -7406,6 +7605,7 @@ impl PortcoveService {
                 install_root,
                 &persistent_root,
                 &user_root,
+                excluded,
             )?
         {
             return Ok(copied);

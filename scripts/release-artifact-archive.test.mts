@@ -11,6 +11,7 @@ import { assembleReleaseArtifacts } from "./release-artifact-assembly.mts";
 import {
   downloadGitHubArtifactArchive,
   downloadGitHubArtifactArchiveFile,
+  downloadGitHubWorkflowStepLog,
 } from "./github-artifact-download.mts";
 import type { SigningArchiveDownload } from "./release-signing-handoff.mts";
 
@@ -608,6 +609,102 @@ void test("file delivery streams above the memory cap and refuses an existing de
   const contents = await readFile(filename);
   assert.equal(contents.length, options.maxBytes);
   assert.equal(contents.at(-1), 42);
+});
+
+void test("workflow step log delivery holds its route, omits blob credentials and bounds read bytes", async () => {
+  const endpoint = "repos/owner/source/actions/jobs/123/steps/2/logs";
+  let location =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/log?sig=fixture";
+  let bytes = 0;
+  let downloads = 0;
+  let rejectedLookup = false;
+  const options = {
+    maxBytes: 32,
+    deadline: performance.now() + 15000,
+    credential: { kind: "explicit" as const, token: "fixture" },
+    async fetch(input: Parameters<typeof fetch>[0], init?: RequestInit) {
+      const url = new URL(input instanceof Request ? input.url : input);
+      if (url.hostname === "api.github.com") {
+        assert.equal(url.pathname, "/" + endpoint);
+        assert.ok(new Headers(init?.headers).has("authorization"));
+        if (rejectedLookup) return new Response("fixture API failure", { status: 404 });
+        return new Response(null, { status: 302, headers: { location } });
+      }
+      downloads++;
+      assert.equal(init?.credentials, "omit");
+      assert.equal(init?.redirect, "manual");
+      assert.ok(!new Headers(init?.headers).has("authorization"));
+      return new Response("fixture log");
+    },
+  };
+  const count = (amount: number) => {
+    bytes += amount;
+  };
+  assert.equal(
+    String(await downloadGitHubWorkflowStepLog(endpoint, options, count)),
+    "fixture log",
+  );
+  assert.equal(bytes, 11);
+  location =
+    "https://productionresultssa1.blob.core.windows.net/actions-results/log?unexpected=fixture";
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(endpoint, options, count),
+    /delivery address refused/,
+  );
+  assert.equal(downloads, 1);
+  location += "&sig=fixture";
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(endpoint, { ...options, maxBytes: 10 }, count),
+    /byte limit/,
+  );
+  assert.equal(bytes, 22);
+  const budget = new Error("fixture source byte budget");
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(endpoint, options, () => {
+      throw budget;
+    }),
+    (error) => error === budget,
+  );
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(
+      endpoint,
+      {
+        ...options,
+        lookup: {
+          reserve() {
+            throw budget;
+          },
+        },
+      },
+      count,
+    ),
+    (error) => error === budget,
+  );
+  rejectedLookup = true;
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(
+      endpoint,
+      {
+        ...options,
+        lookup: {
+          reserve() {
+            return {
+              consumeBytes() {
+                throw budget;
+              },
+              settle() {},
+            };
+          },
+        },
+      },
+      count,
+    ),
+    (error) => error === budget,
+  );
+  await assert.rejects(
+    downloadGitHubWorkflowStepLog(endpoint.replace("/steps/2", ""), options, count),
+    /Bounded GitHub/,
+  );
 });
 
 void test("file delivery cancellation joins partial-file cleanup after one SDK lookup", async (t) => {

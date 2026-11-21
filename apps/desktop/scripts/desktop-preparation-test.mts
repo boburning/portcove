@@ -1036,7 +1036,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} ${installed.length === 1 ? "port" : "ports"} in your library`,
+  );
 }
 
 export interface LibraryFooterKeyboardPoint {
@@ -1857,11 +1860,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -2709,6 +2707,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2811,11 +2810,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );

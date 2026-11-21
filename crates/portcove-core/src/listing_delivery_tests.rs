@@ -199,6 +199,81 @@ async fn authenticated_listings_add_correct_withdraw_without_managed_authority()
 }
 
 #[tokio::test]
+async fn artwork_snapshot_rechecks_a_withdrawn_cover_on_an_unchanged_receiver() {
+    use crate::{
+        ArtworkResolvedSource, ArtworkSlot, CompositeReleaseProvider, DestinationArtworkRole,
+    };
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let mut first = feed(1);
+    first["directory"]["format_version"] = json!(3);
+    let listings = first["directory"]["listings"].as_array_mut().unwrap();
+    listings[0]["original_game"] = json!({
+        "format_version": 1,
+        "id": "shared-cover-game",
+        "evidence_urls": ["https://example.invalid/game"],
+        "source_editions": [{
+            "id": "console",
+            "title": "Console edition",
+            "system": "xbox",
+            "evidence_urls": ["https://example.invalid/edition"]
+        }]
+    });
+    let mut donor = listings[0].clone();
+    donor["id"] = json!("cover-donor");
+    donor["artwork"] = json!({
+        "game_id": 1, "cover_id": 2, "image_id": "co1abc",
+        "image_sha256": "5".repeat(64), "game_slug": "shared-cover-game",
+        "match_kind": "underlying-game"
+    });
+    listings.push(donor);
+    let root = publish(&fixture, &key, 1, &first).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    let receiver = "new-unmanaged-port";
+    let releases = std::sync::Arc::new(CompositeReleaseProvider::for_library(&library).unwrap());
+    let held =
+        PortcoveService::with_provider_for_artwork(library.clone(), releases.clone()).unwrap();
+    let before = held.catalog().listing(receiver).unwrap().clone();
+    assert!(matches!(
+        held.artwork(receiver, ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+
+    first["revision"] = json!(2);
+    first["directory"]["listings"][1]
+        .as_object_mut()
+        .unwrap()
+        .remove("artwork");
+    let root = publish(&fixture, &key, 2, &first).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let current = PortcoveService::with_provider_for_artwork(library, releases).unwrap();
+    assert_eq!(current.catalog().listing(receiver).unwrap(), &before);
+    assert_eq!(
+        held.artwork(receiver, ArtworkSlot::Cover).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        held.destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        current
+            .artwork(receiver, ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+}
+
+#[tokio::test]
 async fn listing_replay_equivocation_and_failed_refresh_preserve_last_selection() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
@@ -449,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the accepted implementation format 12.
-    candidate["directory"]["format_version"] = json!(13);
+    // The next unknown format follows the accepted IGDB scene format 13.
+    candidate["directory"]["format_version"] = json!(14);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -864,4 +939,137 @@ async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_wi
             .is_none(),
         "expiry cannot be advanced by signed delivery or cache reads"
     );
+}
+
+#[tokio::test]
+async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invalid_preferred_target()
+{
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::{Digest, Sha256};
+    use std::io::Write as _;
+
+    fn gzip(bytes: &[u8]) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(bytes).unwrap();
+        encoder.finish().unwrap()
+    }
+    fn carrier(bytes: &[u8]) -> Value {
+        json!({
+            "carrier": listing_delivery::COMPACT_CARRIER,
+            "decoded_bytes": bytes.len(),
+            "decoded_sha256": hex::encode(Sha256::digest(bytes)),
+            "gzip_base64": STANDARD.encode(gzip(bytes)),
+        })
+    }
+
+    fn legacy_row(library: &Library) -> (String, String, i64) {
+        let connection = library.connection().unwrap();
+        connection
+            .query_row(
+                "SELECT document_json,provenance_json,(SELECT max(version) FROM schema_migrations)
+             FROM listing_delivery WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap()
+    }
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let old = serde_json::to_vec(&feed(1)).unwrap();
+    let root = publish(&fixture, &key, 1, &feed(1)).await;
+    provision(&library, &root);
+    let prior = refresh(&library, &fixture, &root).await.unwrap();
+    assert_eq!(prior.transport_target_sha256, None);
+    let first_legacy = legacy_row(&library);
+    assert_eq!(first_legacy.0.as_bytes(), old.as_slice());
+    let earlier_reader: policy::PolicyProvenance = serde_json::from_str(&first_legacy.1).unwrap();
+    assert_eq!(Some(earlier_reader.target_sha256), prior.target_sha256);
+    // A compact reader may already have created the original 8 MiB table.
+    library
+        .connection()
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE compact_listing_delivery(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            document_json TEXT NOT NULL CHECK(length(CAST(document_json AS BLOB))<=8388608),
+            provenance_json TEXT NOT NULL CHECK(length(CAST(provenance_json AS BLOB))<=16384));",
+        )
+        .unwrap();
+    let mut next = serde_json::to_vec(&feed(2)).unwrap();
+    next.resize(listing_delivery::MAX_BYTES + 1, b' ');
+    assert!(listing_delivery::ListingDeliveryDocument::parse(&next).is_err());
+    let next_digest = hex::encode(Sha256::digest(&next));
+
+    let mut signed_carriers = vec![(carrier(&old), true, 1)];
+    let current = carrier(&next);
+    let mut expired_bound = current.clone();
+    expired_bound["decoded_bytes"] = json!(listing_delivery::MAX_COMPACT_DECODED_BYTES + 1);
+    let mut equivocation = current.clone();
+    equivocation["decoded_sha256"] = json!("0".repeat(64));
+    let mut unsupported = current.clone();
+    unsupported["carrier"] = json!("unsupported");
+    let mut trailing = current.clone();
+    let mut concatenated = gzip(&next);
+    concatenated.extend(gzip(b""));
+    trailing["gzip_base64"] = json!(STANDARD.encode(concatenated));
+    let mut too_short = current.clone();
+    too_short["decoded_bytes"] = json!(next.len() - 1);
+    for refusal in [
+        expired_bound,
+        equivocation,
+        unsupported,
+        trailing,
+        too_short,
+    ] {
+        signed_carriers.push((refusal, false, 1));
+    }
+    signed_carriers.push((current, true, 2));
+    let mut same_revision_replacement = next.clone();
+    same_revision_replacement.push(b' ');
+    signed_carriers.push((carrier(&same_revision_replacement), false, 2));
+
+    let mut transport_digest = None;
+    for (index, (compact, accepted, revision)) in signed_carriers.into_iter().enumerate() {
+        let raw = serde_json::to_vec(&compact).unwrap();
+        if accepted {
+            transport_digest = Some(hex::encode(Sha256::digest(&raw)));
+        }
+        let root = fixture
+            .publish_with_policy(
+                &[
+                    (listing_delivery::TARGET.into(), old.clone()),
+                    (listing_delivery::COMPACT_TARGET.into(), raw),
+                ],
+                true,
+                &DEFINITION_ROLE_PATHS,
+                later(),
+                Some((&key, index as u64 + 2)),
+            )
+            .await;
+        let result = refresh(&library, &fixture, &root).await;
+        assert_eq!(result.is_ok(), accepted, "carrier {index}");
+        let stored = library.listing_delivery_status().unwrap();
+        assert_eq!(stored.revision, Some(revision));
+        assert_eq!(stored.transport_target_sha256, transport_digest);
+        if revision == 1 {
+            // Reload still uses exactly the original decoded content and digest.
+            assert_eq!(stored.target_sha256, prior.target_sha256);
+        } else {
+            assert_eq!(stored.target_sha256.as_deref(), Some(next_digest.as_str()));
+        }
+    }
+
+    assert_eq!(legacy_row(&library), first_legacy);
+    let old_only = publish(&fixture, &key, 10, &feed(1)).await;
+    assert!(refresh(&library, &fixture, &old_only).await.is_err());
+    let current = library.listing_delivery_status().unwrap();
+    assert_eq!(current.revision, Some(2));
+    assert_eq!(current.transport_target_sha256, transport_digest);
+    assert_eq!(legacy_row(&library), first_legacy);
+    let catalog = library.load_catalog().unwrap().0;
+    assert!(catalog.listing("new-unmanaged-port").is_ok());
+    assert!(catalog.port("new-unmanaged-port").is_err());
 }

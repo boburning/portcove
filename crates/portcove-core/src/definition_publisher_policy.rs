@@ -732,6 +732,15 @@ impl PolicyProvenance {
         }
         Ok(())
     }
+
+    fn matches_authority_floor(&self, floor: &Self) -> bool {
+        // The shared floor covers repository metadata. Each admission still
+        // checks its own target digest against its exact retained provenance.
+        self.anchor_sha256 == floor.anchor_sha256
+            && self.root_sha256 == floor.root_sha256
+            && self.roles == floor.roles
+            && self.expires_at == floor.expires_at
+    }
 }
 
 fn stored_admission(
@@ -1208,9 +1217,12 @@ impl Library {
                 "publisher policy cannot replace retained authority at its revision",
             ));
         }
+        let floor_current = floor
+            .as_ref()
+            .is_some_and(|floor| policy.provenance.matches_authority_floor(floor));
         let unchanged = previous.as_ref().is_some_and(|(document, provenance, _)| {
             document == &policy.document && provenance == &policy.provenance
-        }) && floor.as_ref() == Some(&policy.provenance);
+        }) && floor_current;
         let retained_launch_revision_floor = previous.as_ref().map_or(
             policy.document.policy_revision,
             |(document, provenance, floor)| {
@@ -1332,10 +1344,12 @@ impl Library {
                 status
             ],
         )?;
-        transaction.execute(
-            "UPDATE definition_publisher_authority SET replay_floor_json=?1 WHERE anchor_sha256=?2",
-            params![provenance, policy.provenance.anchor_sha256],
-        )?;
+        if !floor_current {
+            transaction.execute(
+                "UPDATE definition_publisher_authority SET replay_floor_json=?1 WHERE anchor_sha256=?2",
+                params![provenance, policy.provenance.anchor_sha256],
+            )?;
+        }
         policy.provenance.require_fresh()?;
         transaction.commit()?;
         Ok(!unchanged)
