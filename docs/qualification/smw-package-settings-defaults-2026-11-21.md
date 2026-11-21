@@ -47,3 +47,22 @@ as an unsupported settings contract version.
 These are observations of upstream package and source bytes. Native Windows
 activation with the reviewed pair, installed Desktop and CLI acceptance,
 and delivery to a released client remain separate verification.
+
+## Released retained-reader check
+
+Frozen Preview.12 installed [OpenTyrian v2.1.20260913](https://github.com/opentyrian/opentyrian/releases/tag/v2.1.20260913)
+in a private library using its ordinary Linux managed route. The installed
+archive had SHA-256
+`77dc7ba68540e1333aa243af122e2745ce54196fdba19a9141ed37ea17eab9e3`.
+Its unindexed manifest retained a format-1 catalog. Full `verify` passed for
+manifest SHA-256
+`cf62302daf80fb015d91468551f9f5d0ddd3e94214c59c1627a7c9e03ed790b6`.
+
+For the control, the same older reader verified the same OpenTyrian files
+against a private copy of the manifest and its matching updated database
+digest. Adding only the incidental Super Mario World format-2 settings row
+caused exit 2 with `unsupported settings contract version`. Restoring the
+original manifest and database digest made `verify` pass again. This exercises
+the released verification boundary with an actual unrelated install. The Core
+fixture covers the creating client's projection and the selected settings
+reader floor separately.

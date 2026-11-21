@@ -95,6 +95,12 @@ game version. The library upgrade waits for older Desktop and CLI processes to
 close. After upgrading, versions with writer protocol 70 or earlier refuse the
 library. Keep the pre-upgrade copy if you need to use an older client.
 
+A newly installed package with package-only defaults uses retained settings
+interpretation format 12. Earlier clients can continue to verify unrelated
+managed installations. They need a compatible reader to open or manage the
+specific package-only installation. Existing historical installations keep
+their original retained interpretation.
+
 For a supported Windows settings file with an independent persistent path,
 Portcove applies a new shipped default when the verified old default still
 matches the player's file. If Portcove cannot verify the file, or both sides

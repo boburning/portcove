@@ -674,6 +674,7 @@ impl GameSettingsContract {
                     || port.release.provider != crate::ReleaseSource::Github
                     || port.runtime_data_policy.is_some()
                     || port.user_data_environment.is_some()
+                    || port.linux_packaged_library.is_some()
                     || port.archive_data_compatibility_v1.is_some()))
         {
             return Err(declaration_error(
