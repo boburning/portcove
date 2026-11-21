@@ -159,15 +159,7 @@ impl PortcoveService {
         let repository = format!("{API}/repositories/{}", binding.repository_id);
         let identity = http
             .observe(endpoint(&repository)?, |row| {
-                if row["id"].as_u64() != Some(binding.repository_id)
-                    || row["full_name"].as_str() != Some(binding.repository)
-                    || row["private"].as_bool() != Some(false)
-                {
-                    return Err(PortcoveError::verification(
-                        "GitHub mod repository identity changed",
-                    ));
-                }
-                Ok(())
+                require_repository_identity(binding, row)
             })
             .await?;
         let listing = http
@@ -247,28 +239,13 @@ impl PortcoveService {
                     "this source has no reviewed companion layout for the platform",
                 )
             })?;
-        let listing = self.github_mod_catalog_for_port(port, platform).await?;
-        if listing.freshness == ProviderFreshness::Stale || !listing.complete {
-            return Err(PortcoveError::verification(
-                "refresh the GitHub source before reviewing the ZIP",
-            ));
-        }
-        let selected = listing
-            .releases
-            .iter()
-            .find(|release| release.release_id == release_id && release.asset.asset_id == asset_id)
-            .ok_or_else(|| {
-                PortcoveError::verification(
-                    "the exact release and asset pair is outside the current reviewed inventory",
-                )
-            })?;
-        if expected_tag.is_some_and(|tag| tag != selected.tag) {
-            return Err(PortcoveError::verification(
-                "the requested GitHub mod release version changed",
-            ));
-        }
+        let library = self.library();
+        let http = ProviderHttp::new(Some(library.clone()), "GitHub Releases", "github.com")?
+            .with_backoff(library.github_mod_backoff.clone());
+        let selected =
+            observe_exact_release(&http, source, release_id, asset_id, expected_tag).await?;
         let digest = selected.asset.published_sha256.as_deref().ok_or_else(|| {
-            PortcoveError::verification("GitHub did not publish a SHA-256 for this local ZIP")
+            PortcoveError::verification("GitHub did not publish a SHA-256 for the selected ZIP")
         })?;
         let tag = selected.tag.clone();
         let bytes = selected.asset.bytes;
@@ -278,9 +255,6 @@ impl PortcoveService {
         } else {
             let temporary = tempfile::tempdir()?;
             let path = temporary.path().join("download.zip");
-            let library = self.library();
-            let http = ProviderHttp::new(Some(library.clone()), "GitHub Releases", "github.com")?
-                .with_backoff(library.github_mod_backoff.clone());
             let (calculated, length) = http
                 .download_github_asset(
                     source.repository_id,
@@ -312,6 +286,101 @@ impl PortcoveService {
         .map_err(|_| PortcoveError::state("Recomp wrapper review worker stopped"))??;
         Ok((source, layout, tag, review))
     }
+}
+
+fn require_repository_identity(binding: ReviewedSource, row: &Value) -> Result<()> {
+    if row["id"].as_u64() != Some(binding.repository_id)
+        || row["full_name"].as_str() != Some(binding.repository)
+        || row["private"].as_bool() != Some(false)
+    {
+        return Err(PortcoveError::verification(
+            "GitHub mod repository identity changed",
+        ));
+    }
+    Ok(())
+}
+
+fn exact_release(
+    binding: ReviewedSource,
+    row: &Value,
+    release_id: u64,
+    asset_id: u64,
+    expected_tag: Option<&str>,
+) -> Result<GithubModRelease> {
+    let release = parse_release(binding, row).filter(|release| {
+        row["draft"].as_bool() == Some(false)
+            && row["prerelease"].as_bool() == Some(false)
+            && release.release_id == release_id
+            && release.asset.asset_id == asset_id
+            && expected_tag.is_none_or(|tag| tag == release.tag)
+            && release.asset.published_sha256.is_some()
+    });
+    release.ok_or_else(|| {
+        PortcoveError::verification(
+            "the exact GitHub release, tag or reviewed ZIP identity changed or is unavailable",
+        )
+    })
+}
+
+async fn observe_exact_release(
+    http: &ProviderHttp,
+    binding: ReviewedSource,
+    release_id: u64,
+    asset_id: u64,
+    expected_tag: Option<&str>,
+) -> Result<GithubModRelease> {
+    if release_id == 0 || asset_id == 0 {
+        return Err(PortcoveError::usage(
+            "positive GitHub release and asset IDs are required",
+        ));
+    }
+    let repository = format!("{API}/repositories/{}", binding.repository_id);
+    let identity = http
+        .observe(endpoint(&repository)?, |row| {
+            require_repository_identity(binding, row)
+        })
+        .await?;
+    let exact = http
+        .observe(
+            endpoint(&format!("{repository}/releases/{release_id}"))?,
+            |row| exact_release(binding, row, release_id, asset_id, expected_tag),
+        )
+        .await?;
+    let mut tag_url = endpoint(&format!("{repository}/releases/tags"))?;
+    tag_url
+        .path_segments_mut()
+        .map_err(|_| PortcoveError::verification("invalid GitHub release route"))?
+        .push(&exact.value.tag);
+    let by_tag = http
+        .observe(tag_url, |row| {
+            exact_release(binding, row, release_id, asset_id, Some(&exact.value.tag))
+        })
+        .await?;
+    let by_asset = http
+        .observe(
+            endpoint(&format!("{repository}/releases/assets/{asset_id}"))?,
+            |row| {
+                parse_asset(row, binding).ok_or_else(|| {
+                    PortcoveError::verification("the exact GitHub ZIP is unavailable")
+                })
+            },
+        )
+        .await?;
+    if [
+        identity.freshness,
+        exact.freshness,
+        by_tag.freshness,
+        by_asset.freshness,
+    ]
+    .contains(&ProviderFreshness::Stale)
+        || by_tag.value.asset != exact.value.asset
+        || by_asset.value != exact.value.asset
+    {
+        return Err(PortcoveError::verification(
+            "fresh GitHub release and asset records must agree before reviewing this ZIP",
+        ));
+    }
+    Ok(exact.value)
 }
 
 fn endpoint(raw: &str) -> Result<Url> {
@@ -355,6 +424,29 @@ fn parse_asset(row: &Value, binding: ReviewedSource) -> Option<GithubModAsset> {
     })
 }
 
+fn release_tag(value: &Value) -> Option<&str> {
+    value["tag_name"].as_str().filter(|text| {
+        !text.is_empty()
+            && text.len() <= 128
+            && sanitize_text(text) == *text
+            && *text != "."
+            && *text != ".."
+    })
+}
+
+fn missing_named_asset(binding: ReviewedSource, value: &Value) -> bool {
+    public_id(&value["id"]).is_some()
+        && release_tag(value).is_some()
+        && value["assets"].as_array().is_some_and(|assets| {
+            assets.len() <= MAX_ASSETS
+                && assets.iter().all(|asset| {
+                    asset["name"]
+                        .as_str()
+                        .is_some_and(|name| !name.is_empty() && name != binding.asset_name)
+                })
+        })
+}
+
 fn parse_release(binding: ReviewedSource, value: &Value) -> Option<GithubModRelease> {
     let rows = value["assets"]
         .as_array()
@@ -366,13 +458,7 @@ fn parse_release(binding: ReviewedSource, value: &Value) -> Option<GithubModRele
     if assets.next().is_some() {
         return None;
     }
-    let tag = value["tag_name"].as_str().filter(|text| {
-        !text.is_empty()
-            && text.len() <= 128
-            && sanitize_text(text) == *text
-            && *text != "."
-            && *text != ".."
-    })?;
+    let tag = release_tag(value)?;
     let mut release_url = endpoint(&format!(
         "https://github.com/{}/releases/tag",
         binding.repository
@@ -416,11 +502,18 @@ fn project_releases(
                 continue;
             }
         }
+        if let Some(id) = public_id(&row["id"])
+            && !ids.insert(id)
+        {
+            return Err(PortcoveError::verification(
+                "duplicate GitHub mod release identity",
+            ));
+        }
         let Some(release) = parse_release(binding, row) else {
-            complete = false;
+            complete &= missing_named_asset(binding, row);
             continue;
         };
-        if !ids.insert(release.release_id) || !asset_ids.insert(release.asset.asset_id) {
+        if !asset_ids.insert(release.asset.asset_id) {
             return Err(PortcoveError::verification(
                 "duplicate GitHub mod release or asset identity",
             ));
@@ -439,6 +532,41 @@ fn project_releases(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn old_releases_without_the_named_zip_do_not_hold_exact_review() {
+        let binding = SOURCES[0];
+        let release = json!({
+            "id": 90, "tag_name": "v2", "draft": false, "prerelease": false,
+            "assets": [{"id": 20, "name": binding.asset_name, "size": 24,
+                        "state": "uploaded", "digest": format!("sha256:{}", "a".repeat(64))}]
+        });
+        let previous = json!({
+            "id": 89, "tag_name": "v1", "draft": false, "prerelease": false,
+            "assets":[{"name":"notes.txt"}]
+        });
+        let (offerings, complete) =
+            project_releases(binding, &json!([release.clone(), previous.clone()])).unwrap();
+        assert!(complete);
+        assert_eq!(offerings.len(), 1);
+        let mut broken_history = previous;
+        broken_history["assets"] = Value::Null;
+        assert!(
+            !project_releases(binding, &json!([release.clone(), broken_history]))
+                .unwrap()
+                .1
+        );
+        assert!(exact_release(binding, &release, 90, 20, Some("v2")).is_ok());
+        assert!(exact_release(binding, &release, 89, 20, Some("v2")).is_err());
+        assert!(exact_release(binding, &release, 90, 19, Some("v2")).is_err());
+        assert!(exact_release(binding, &release, 90, 20, Some("v1")).is_err());
+        let mut malformed = release.clone();
+        malformed["assets"][0]["digest"] = json!("sha256:too-short");
+        assert!(exact_release(binding, &malformed, 90, 20, None).is_err());
+        let mut denied = release;
+        denied["draft"] = json!(true);
+        assert!(exact_release(binding, &denied, 90, 20, None).is_err());
+    }
 
     #[test]
     fn reviewed_repository_scope_uses_loader_identity() {

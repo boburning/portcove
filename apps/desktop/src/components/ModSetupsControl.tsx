@@ -63,6 +63,23 @@ type Props = {
 };
 
 /** Thin view of Core-owned mod setups; Core decides support, locks and recovery. */
+export function GithubModHandoff({
+  view,
+}: {
+  view: Pick<ModSetupsView, "github_release_url" | "github_native_import_offered">;
+}) {
+  const { t } = useAppTranslation("gameSettings");
+  if (!view.github_release_url) return null;
+  return (
+    <aside className="grid gap-1">
+      <ExternalLink href={view.github_release_url}>{t("mods.github.browse")}</ExternalLink>
+      <p className="text-sm text-pc-muted-foreground">
+        {view.github_native_import_offered ? t("mods.github.setup") : t("mods.github.platform")}
+      </p>
+    </aside>
+  );
+}
+
 export function ModSetupsControl(props: Props) {
   return (
     <BoundModSetupsControl key={JSON.stringify([props.portId, props.generation])} {...props} />
@@ -316,14 +333,7 @@ function BoundModSetupsControl({
         </Button>
       </section>
     );
-  const upstreamMods = view?.github_release_url && (
-    <aside className="grid gap-1">
-      <ExternalLink href={view.github_release_url}>{t("mods.github.browse")}</ExternalLink>
-      <p className="text-sm text-pc-muted-foreground">
-        {view.github_native_import_offered ? t("mods.github.setup") : t("mods.github.platform")}
-      </p>
-    </aside>
-  );
+  const upstreamMods = view?.github_release_url && <GithubModHandoff view={view} />;
   if (!view?.supported) return upstreamMods || null;
   // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.

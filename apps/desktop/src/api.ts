@@ -335,8 +335,12 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
-  modSetups: (portId: string, generation: number) =>
-    invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  modSetups: (portId: string, generation: number, browseOnly?: true) =>
+    invoke<import("./types").ModSetupsView>("get_mod_setups", {
+      portId,
+      generation,
+      ...(browseOnly ? { browseOnly } : {}),
+    }),
   reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
     invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
   selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>

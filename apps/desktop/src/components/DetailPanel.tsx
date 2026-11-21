@@ -108,7 +108,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
-import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
@@ -557,6 +557,10 @@ function DetailBody(model: {
   const [modSupport, setModSupport] = useState<{
     key: string;
     supported: boolean | "unavailable";
+    github?: Pick<
+      import("../types").ModSetupsView,
+      "github_release_url" | "github_native_import_offered"
+    >;
   }>();
   const [modSupportRetry, retryModSupport] = useState(0);
   const [observedModPlay, setModPlay] = useState<ModPlayState>();
@@ -567,22 +571,34 @@ function DetailBody(model: {
       : undefined;
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
-    if (external || !activeInstall) return;
     let current = true;
-    void readModSetupInventory(model.port.id, model.libraryGeneration)
+    const managed = !external && Boolean(activeInstall);
+    const read = managed
+      ? readModSetupInventory(model.port.id, model.libraryGeneration)
+      : desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+    void read
       .then((view) => {
-        if (current) setModSupport({ key: modsKey, supported: view.supported });
+        if (current)
+          setModSupport({ key: modsKey, supported: managed && view.supported, github: view });
       })
-      .catch(() => {
-        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      .catch(async () => {
+        if (!managed || !current) return;
+        setModSupport({ key: modsKey, supported: "unavailable" });
+        try {
+          const view = await desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+          if (current) setModSupport({ key: modsKey, supported: "unavailable", github: view });
+        } catch {
+          // Keep the managed inventory error and its retry action.
+        }
       });
     return () => {
       current = false;
     };
   }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
-  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modState = modSupport?.key === modsKey ? modSupport : undefined;
+  const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
-
+  const githubSource = modState?.github;
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -760,7 +776,9 @@ function DetailBody(model: {
                 />
               ),
             }
-          : {}),
+          : githubSource?.github_release_url
+            ? { mods: <GithubModHandoff view={githubSource} /> }
+            : {}),
         saves: <DetailSavesSection {...{ model, external }} />,
         ...(model.status?.active && !external
           ? { configuration: <DetailConfigurationSection model={model} /> }

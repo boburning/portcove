@@ -47,11 +47,16 @@ pub(crate) async fn get_mod_setups(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
+    browse_only: Option<bool>,
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.preview_mod_setups(&port_id)
+            if browse_only == Some(true) {
+                service.preview_mod_handoff(&port_id)
+            } else {
+                service.preview_mod_setups(&port_id)
+            }
         })
     })
     .await

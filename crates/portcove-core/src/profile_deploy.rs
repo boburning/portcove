@@ -2567,6 +2567,32 @@ pub struct ModSetupsView {
     pub progress_copy_supported: bool,
 }
 
+impl ModSetupsView {
+    fn browse_only(
+        port_id: &str,
+        github_release_url: Option<String>,
+        github_native_import_offered: bool,
+    ) -> Self {
+        Self {
+            port_id: port_id.into(),
+            supported: false,
+            package_types: Vec::new(),
+            later_mods_take_priority: false,
+            inventory: None,
+            live: None,
+            held_updates: Vec::new(),
+            last_automatic_checks: Vec::new(),
+            provider: None,
+            github_release_url,
+            github_native_import_offered,
+            providers: Vec::new(),
+            applied_package_count: None,
+            current_install_id: None,
+            progress_copy_supported: false,
+        }
+    }
+}
+
 impl PortcoveService {
     pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
         self.mod_setups_with_inventory(port_id, |id| self.profile_inventory(id))
@@ -2578,6 +2604,14 @@ impl PortcoveService {
         self.mod_setups_with_inventory(port_id, |id| self.preview_profile_inventory(id))
     }
 
+    /// Public source handoff without reading or changing managed profile state.
+    pub fn preview_mod_handoff(&self, port_id: &str) -> Result<ModSetupsView> {
+        let port = self.catalog().port(port_id)?;
+        let (url, native) =
+            crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
+        Ok(ModSetupsView::browse_only(port_id, url, native))
+    }
+
     fn mod_setups_with_inventory(
         &self,
         port_id: &str,
@@ -2587,23 +2621,11 @@ impl PortcoveService {
         let (github_release_url, github_native_import_offered) =
             crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
-            return Ok(ModSetupsView {
-                port_id: port_id.into(),
-                supported: false,
-                package_types: Vec::new(),
-                later_mods_take_priority: false,
-                inventory: None,
-                live: None,
-                held_updates: Vec::new(),
-                last_automatic_checks: Vec::new(),
-                provider: None,
+            return Ok(ModSetupsView::browse_only(
+                port_id,
                 github_release_url,
                 github_native_import_offered,
-                providers: Vec::new(),
-                applied_package_count: None,
-                current_install_id: None,
-                progress_copy_supported: false,
-            });
+            ));
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
         // leave staging; reading the setups is a regular point to prune it.
