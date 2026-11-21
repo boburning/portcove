@@ -47,6 +47,7 @@ import {
 export { listingDeliveryTarget };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
+const maximumProjectableListingFormat = 13;
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -57,12 +58,12 @@ interface Delivery {
   withdrawn_ids: string[];
   directory: Directory;
 }
-function directory(value: unknown): Directory {
+function directory(value: unknown, maximumFormat = maximumProjectableListingFormat): Directory {
   if (
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 13 ||
+    Number(value.format_version) > maximumFormat ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )
@@ -688,7 +689,19 @@ export async function prepareObservationBundle(options: {
   const diagnostics: string[] = [];
   const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
-  const canonical = directory(parseCatalogSource(canonicalBytes.toString("utf8")));
+  const canonicalInput = parseCatalogSource(canonicalBytes.toString("utf8"));
+  const futureCanonical =
+    isRecord(canonicalInput) &&
+    Number.isSafeInteger(canonicalInput.format_version) &&
+    Number(canonicalInput.format_version) > maximumProjectableListingFormat;
+  if (futureCanonical && (options.compact || options.coverCheckpoint))
+    throw new Error("Explicit listing activation requires a supported canonical format");
+  // Only the bounded identity inventory is read for a future canonical format.
+  // Its contents cannot enter any projection or capability check.
+  const canonical = directory(
+    canonicalInput,
+    futureCanonical ? Number.MAX_SAFE_INTEGER : maximumProjectableListingFormat,
+  );
   const current = parseCatalogSource(catalogBytes.toString("utf8"));
   const cli = (args: string[]) =>
     execFileSync(options.cli, args, {
@@ -800,6 +813,26 @@ export async function prepareObservationBundle(options: {
   const automatic =
     !options.compact && (options.compactIfCapable || options.officialReleasedReader);
   const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
+  const implicitElevation =
+    priorCompact &&
+    !automatic &&
+    !options.compact &&
+    previousDocument !== null &&
+    candidateFormat > previousDocument.directory.format_version;
+  if (futureCanonical || implicitElevation) {
+    if (!renewal) {
+      if (!previousWire || (priorCompact && !retainedLegacy))
+        throw new Error("Cannot defer listing format change without authenticated prior targets");
+      renewal = retainedListingRenewal(
+        previousWire,
+        canonical.listings.length,
+        priorCompact ? compactListingDeliveryTarget : listingDeliveryTarget,
+      );
+    }
+    diagnostics.push(
+      `Canonical listing format ${canonical.format_version} deferred; retaining exact prior listing targets`,
+    );
+  }
   const firstCover = options.coverCheckpoint === true && previousCover === null;
   if (firstCover && (!priorCompact || options.officialReleasedReader !== true))
     throw new Error(
@@ -1112,6 +1145,7 @@ export async function prepareObservationBundle(options: {
         }
       : null,
     canonical_sha256: hash(canonicalBytes),
+    canonical_listing_format: canonical.format_version,
     catalog_sha256: hash(catalogBytes),
     canonical_records: projected.canonical_records,
     delivered_records: projected.delivered_records,

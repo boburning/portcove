@@ -2007,6 +2007,122 @@ void test(
         compact,
       );
     }
+    const active13 = await prepareObservationBundle({
+      ...options,
+      ...compactPrior,
+      output: path.join(dir, "active-13"),
+      compactIfCapable: true,
+      releasedReader: capable,
+    });
+    const exact13 = readFileSync(path.join(active13.bundle, compactListingDeliveryTarget), "utf8");
+    const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+    const { decodeRetainedCompactListing } = await import("./listing-directory-carrier.mts");
+    const cover = JSON.stringify({
+      checkpoint_schema: 1,
+      listing_sha256: overlaySha256(
+        decodeRetainedCompactListing(Buffer.from(exact13)).toString("utf8"),
+      ),
+      prior_checkpoint_sha256: null,
+      entries: [
+        {
+          id: fixtureListing.id,
+          scope: "a".repeat(64),
+          image_id: "cofixture",
+          prior_sha256: "b".repeat(64),
+          observed_at: "2026-11-20T04:12:00.000Z",
+          receipt: "sha256:" + "c".repeat(64),
+          state: "gone",
+        },
+      ],
+    });
+    const activePrior = prior("active-prior", {
+      [listingDeliveryTarget]: legacy,
+      [compactListingDeliveryTarget]: exact13,
+      [artworkCheckpointTarget]: cover,
+      "policy/official/catalog.history-checkpoint.json": "{}",
+    });
+    const ordinary = await prepareObservationBundle({
+      ...options,
+      ...compactPrior,
+      output: path.join(dir, "implicit-elevation"),
+    });
+    assert.equal(ordinary.listing_format, 11);
+    assert.equal(
+      readFileSync(path.join(ordinary.bundle, compactListingDeliveryTarget), "utf8"),
+      compact,
+    );
+
+    put(dir, "canonical", {
+      format_version: 14,
+      listings: [{ ...fixtureListing, name: "Future title", future_setup: { opaque: true } }],
+    });
+    const futureCapable = reader(
+      "future-capable",
+      reporting([11, 12, 13, 14], ["gzip-base64-json-v1"]),
+    );
+    let reads = 0;
+    const future = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "future-renewal"),
+      compactIfCapable: true,
+      releasedReader: futureCapable,
+      observe: true,
+      async readObservation() {
+        reads++;
+        throw new Error("Observer must not start for an unknown format");
+      },
+    });
+    assert.equal(future.canonical_listing_format, 14);
+    assert.equal(future.listing_format, 13);
+    assert.equal(future.revision, active13.revision);
+    assert.equal(future.changed, false);
+    assert.equal(future.released_reader, undefined);
+    assert.equal(reads, 0);
+    assert.match(future.diagnostics.join(" "), /format 14 deferred/);
+    assert.equal(readFileSync(path.join(future.bundle, listingDeliveryTarget), "utf8"), legacy);
+    assert.equal(
+      readFileSync(path.join(future.bundle, compactListingDeliveryTarget), "utf8"),
+      exact13,
+    );
+    assert.equal(readFileSync(path.join(future.bundle, artworkCheckpointTarget), "utf8"), cover);
+    await assert.rejects(
+      prepareObservationBundle({
+        ...options,
+        ...activePrior,
+        output: path.join(dir, "future-explicit"),
+        compact: true,
+        releasedReader: futureCapable,
+      }),
+      /Explicit listing activation requires a supported canonical format/,
+    );
+    await assert.rejects(
+      prepareObservationBundle({
+        ...options,
+        prior: null,
+        tools: activePrior.tools,
+        output: path.join(dir, "future-no-prior"),
+      }),
+      /without authenticated prior targets/,
+    );
+
+    put(dir, "canonical", {
+      format_version: 13,
+      listings: [{ ...fixtureListing, name: "Supported format refresh" }],
+    });
+    const resumed = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "resumed"),
+    });
+    assert.equal(resumed.listing_format, 13);
+    assert.equal(resumed.revision, active13.revision + 1);
+    assert.equal(resumed.changed, true);
+    assert.equal(readFileSync(path.join(resumed.bundle, listingDeliveryTarget), "utf8"), legacy);
+    assert.notEqual(
+      readFileSync(path.join(resumed.bundle, compactListingDeliveryTarget), "utf8"),
+      exact13,
+    );
   },
 );
 

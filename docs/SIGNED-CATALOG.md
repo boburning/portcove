@@ -156,6 +156,17 @@ separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
 carrier body. Compact publication still requires explicit activation.
 
+Ordinary publication does not raise an active compact format. If the authored
+directory moves beyond the writer's known format, Prepare defers its rows and
+observations. It retains the exact prior supported carrier, legacy target and
+any bound cover checkpoint for authenticated renewal at the existing revision.
+Malformed source input or an unavailable prior still fails. A compatible
+format-13 canonical input resumes ordinary format-13 refresh with the same
+revision floor. A future format needs a separately reviewed, versioned
+admission and recovery that proves the previously supported clients can still
+read through the transition. An advertised reader capability alone does not
+activate that format.
+
 The protected catalog Prepare job can opt into released-reader selection with
 `--official-released-reader` on `scripts/listing-observation-delivery.mts`.
 This reads the existing Preview update pointer and withdrawal list from a single
