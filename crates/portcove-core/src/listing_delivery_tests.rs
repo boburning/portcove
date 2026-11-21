@@ -1045,14 +1045,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
             // Reload still uses exactly the original decoded content and digest.
             assert_eq!(stored.target_sha256, prior.target_sha256);
         } else {
-            assert_eq!(
-                stored.target_sha256.as_deref(),
-                Some(
-                    carrier(&next[..next.len() - 1])["decoded_sha256"]
-                        .as_str()
-                        .unwrap()
-                )
-            );
+            assert_eq!(stored.target_sha256.as_deref(), Some(next_digest.as_str()));
         }
     }
 
