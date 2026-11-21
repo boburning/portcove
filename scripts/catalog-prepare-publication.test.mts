@@ -24,10 +24,18 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const target = (bytes: Buffer) => `sha256/${hash(bytes)}.json`;
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
-function heldProjection() {
-  const catalog = readFileSync(
+function heldProjection(named = false) {
+  const authored = readFileSync(
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
+  const catalog = named
+    ? json({
+        ports: [{
+          id: heldId,
+          reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+        }],
+      })
+    : authored;
   const template = json({
     contract_schema: 3,
     representation: "catalog_projection",
@@ -40,16 +48,17 @@ function heldProjection() {
   };
 }
 
-async function fixture() {
+async function fixture(named = false) {
   const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
   const retained = [...prior.keys()].filter((name) => name.startsWith("sha256/"));
   assert.equal(retained.length, 2);
-  const { catalog, template, projection } = heldProjection();
+  const { catalog, template, projection } = heldProjection(named);
   const projectionTarget = target(projection);
   // This held fixture exercises assembly only. It supplies no reviewed Shipwright
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
-    definition_schema: 3,
+    definition_schema: named ? 4 : 3,
+    ...(named ? { required_features: ["runtime.reviewed-package-and-launch-v1"] } : {}),
     namespace: "official",
     stable_id: heldId,
     revision: 1,
@@ -232,5 +241,18 @@ void test("index additions refuse stale policy or launch inputs and revoked Cham
         }),
       ),
     /grant changes retained scope/u,
+  );
+});
+
+
+void test("named package authoring binds schema 4 entry to the exact schema 3 leaf", async () => {
+  const f = await fixture(true);
+  const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
+  assert.ok(prepared);
+  const oldTemplate = JSON.parse(f.template.toString()) as { contract_schema: number };
+  oldTemplate.contract_schema = 2;
+  assert.throws(
+    () => generatedPublicationProjection(f.catalog, heldId, json(oldTemplate)),
+    /named package and launch declarations require catalog projection schema 3/u,
   );
 });

@@ -71,6 +71,11 @@ export function generatedPublicationProjection(
     template.contract_schema !== 3
   )
     throw new Error("native mod loaders require catalog projection schema 3");
+  if (
+    matches.some((port) => isRecord(port) && "reviewed_launch_contract_v1" in port) &&
+    template.contract_schema !== 3
+  )
+    throw new Error("named package and launch declarations require catalog projection schema 3");
   template.catalog.ports = matches;
   const bytes = Buffer.from(`${JSON.stringify(template, null, 2)}\n`);
   if (bytes.length > catalogDefinitionContentBytes)
@@ -148,8 +153,22 @@ export function assembleReviewedPublication(
   if (!selected || [...after.keys()].some((id) => id !== portId && !before.has(id)))
     throw new Error("reviewed index does not describe one selected definition");
   const entry = document(reviewed.get(selected.target));
-  if (entry.definition_schema !== document(projection).contract_schema)
+  const projected = document(projection);
+  const hasNamedPackage =
+    isRecord(projected.catalog) &&
+    Array.isArray(projected.catalog.ports) &&
+    projected.catalog.ports.some((port) => isRecord(port) && "reviewed_launch_contract_v1" in port);
+  if (hasNamedPackage) {
+    if (
+      entry.definition_schema !== 4 ||
+      projected.contract_schema !== 3 ||
+      !Array.isArray(entry.required_features) ||
+      !entry.required_features.includes("runtime.reviewed-package-and-launch-v1")
+    )
+      throw new Error("named package and launch declarations require schema 4 and the named reader");
+  } else if (entry.definition_schema !== projected.contract_schema) {
     throw new Error("reviewed definition and generated projection schemas differ");
+  }
   const target = entry.execution_contract;
   if (
     typeof target !== "string" ||

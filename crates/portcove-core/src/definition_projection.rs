@@ -422,8 +422,9 @@ impl DefinitionContentIndex {
                 "unsupported definition catalog projection contract",
             ));
         }
-        let mut catalog =
-            document.validated_catalog(entry.has_named_features().then_some(stable_id))?;
+        let mut catalog = document.validated_catalog(
+            (entry.has_named_features() && document.contract_schema == 3).then_some(stable_id),
+        )?;
         let port = catalog.port(stable_id)?;
         if let Some(sibling) = catalog
             .ports()
