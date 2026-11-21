@@ -2689,6 +2689,27 @@ Download counts belong to one release asset. A missing count stays unknown.
 Cached results show their last confirmed time. An unavailable feed without
 cached data returns an error.
 
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text
