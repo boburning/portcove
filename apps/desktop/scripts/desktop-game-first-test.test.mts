@@ -1080,7 +1080,7 @@ test("every staged official definition retains reviewed game identity through st
   const observed = inspectGameFirstRelationships(actual, expected, {
     origin: "definition_selected",
   });
-  assert.equal(observed.provenance.length, 1649);
+  assert.equal(observed.provenance.length, 1650);
   assert.equal(observed.reviewed_families, 256);
   assert.deepEqual(
     observed.groups
