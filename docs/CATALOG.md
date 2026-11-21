@@ -4731,3 +4731,25 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Package-only settings defaults
+
+Use `game_settings.format_version: 2` for one independent whole-file setting
+that a verified Windows package ships. Declare its exact persistent path,
+format, byte bound and release archive identities. Leave the file's `settings`
+array empty. This authorizes the existing Core settings update and recovery
+protocol for a supported managed package and keeps scalar editing unavailable.
+
+For a ready staged-source GitHub package, the declaration applies when the
+file is a standalone persistent path, the runtime uses the existing mirrored
+data contract, and no partitioned or runtime-data policy owns the file. Check
+the exact package member and the upstream code that reads it. Core captures
+the bytes from verified acquisition, before persistence restoration can
+replace the packaged file. Previously installed packages without a captured
+baseline remain held if activation needs that baseline. Retain the ordinary
+settings recovery and guarded backup receipts.
+
+The change from Super Mario World Recompiled v0.15.9 to v0.15.10 has an exact
+Windows archive and independent `config.ini` comparison. v0.15.11 retains the
+v0.15.10 settings bytes. The scopes and evidence are in
+[the package settings observation](qualification/smw-package-settings-defaults-2026-11-21.md).

@@ -248,6 +248,26 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        let package_only = crate::GameSettingsContract::package_only;
+        if port.game_settings.as_ref().is_some_and(package_only) {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver package-only settings authority",
+            ));
+        }
+        if original.game_settings.as_ref().is_some_and(package_only) {
+            if port.game_settings.is_some()
+                || port.release.provider != original.release.provider
+                || !port
+                    .release
+                    .repository
+                    .eq_ignore_ascii_case(&original.release.repository)
+            {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot replace compiled package-only settings authority",
+                ));
+            }
+            port.game_settings.clone_from(&original.game_settings);
+        }
         if port.release.reviewed_package_choices_v2.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver reviewed package choices",

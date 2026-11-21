@@ -80,6 +80,22 @@ fn settings_fixture_packages(
     seed_settings: bool,
     defaults: [Option<&[u8]>; 2],
 ) -> Fixture {
+    settings_fixture_packages_for_contract(
+        partitioned,
+        register_staged,
+        seed_settings,
+        defaults,
+        false,
+    )
+}
+
+fn settings_fixture_packages_for_contract(
+    partitioned: bool,
+    register_staged: bool,
+    seed_settings: bool,
+    defaults: [Option<&[u8]>; 2],
+    package_only: bool,
+) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let inputs = [
@@ -102,8 +118,11 @@ fn settings_fixture_packages(
             build_specific_progress_paths: Vec::new(),
         });
     }
+    if package_only {
+        port.adapter = AdapterKind::StagedSourcePortable;
+    }
     port.game_settings = Some(serde_json::from_value(serde_json::json!({
-        "format_version": 1,
+        "format_version": if package_only { 2 } else { 1 },
         "releases": inputs.iter().zip(&hashes).map(|((version, _), digest)| serde_json::json!({
             "version":version,"platform":"windows-x86-64","archive_sha256":digest,
             "source_commit":"a".repeat(40),"evidence_urls":["https://example.invalid/inert-fixture"]
@@ -112,6 +131,11 @@ fn settings_fixture_packages(
             "settings":[{"id":"volume","label":"Volume","key":["volume"],
                 "value":{"kind":"integer","minimum":0,"maximum":100,"step":1,"default":40}}]}]
     })).unwrap());
+    if package_only {
+        port.game_settings.as_mut().unwrap().files[0]
+            .settings
+            .clear();
+    }
     let catalog = Catalog::from_json(
         &serde_json::json!({"schema_version":1,"ports":[port.clone()]}).to_string(),
     )
@@ -218,6 +242,44 @@ fn settings_fixture_packages(
         old,
         staged,
     }
+}
+
+#[test]
+fn a_package_only_staged_source_update_reconciles_an_independent_file() {
+    let _integrity = crate::game_settings::windows::MediumIntegrityTest::enter();
+    let old = b"[Graphics]\r\nWindowSize=Auto\r\nUnknown=keep\r\n";
+    let new = b"[Graphics]\r\nWindowSize=1280x720\r\nUnknown=keep\r\n";
+    let fixture =
+        settings_fixture_packages_for_contract(false, true, false, [Some(old), Some(new)], true);
+    assert!(!fixture.service.get_game_settings(PORT).unwrap().available);
+    let error = fixture.service.activate_staged(PORT).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("interrupted staged settings fixture"),
+        "{error:?}"
+    );
+
+    let mut reopened =
+        PortcoveService::with_faults(fixture.library.clone(), Arc::new(NoLifecycleFaults)).unwrap();
+    reopened.replace_catalog_for_test(fixture.catalog.clone());
+    reopened.recover_pending_operations().unwrap();
+    let selected = fixture
+        .library
+        .status(PORT, ReleaseChannel::Stable)
+        .unwrap()
+        .active
+        .unwrap();
+    assert_eq!(selected.id, fixture.staged.id);
+    assert_eq!(
+        fs::read(fixture.library.user_dir(PORT).join(FILE)).unwrap(),
+        new
+    );
+    assert_eq!(fs::read(selected.path.join(FILE)).unwrap(), new);
+    assert_eq!(
+        fs::read(fixture.library.user_dir(PORT).join("progress.sav")).unwrap(),
+        b"owned saved progress"
+    );
 }
 
 #[test]

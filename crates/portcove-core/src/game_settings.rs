@@ -295,7 +295,7 @@ pub(crate) fn capture_shipped_settings(
     let Some(contract) = port.game_settings.as_ref() else {
         return ShippedDefaultCapture::default();
     };
-    if contract.validate(&port.persistent_paths).is_err() {
+    if contract.validate_port(port).is_err() {
         return ShippedDefaultCapture::default();
     }
     if !contract.covers_archive(platform, version, archive_sha256) {
@@ -357,7 +357,7 @@ pub(crate) fn verify_shipped_defaults(
                 "shipped settings defaults have no retained archive authority",
             )
         })?;
-    contract.validate(&port.persistent_paths)?;
+    contract.validate_port(port)?;
     if defaults.len() + gaps.len() > contract.files.len()
         || gaps.keys().any(|path| {
             defaults.contains_key(path) || !contract.files.iter().any(|file| &file.path == path)
@@ -622,7 +622,42 @@ impl GameSettingType {
     }
 }
 
+/// Existing native mirrors and declared package-only staged-source mirrors
+/// share the whole-file activation and restore custody protocol.
+pub(crate) fn admits_mirrored_package_defaults(port: &crate::PortDefinition) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable
+        || (crate::persistence::ready_staged_archive(port)
+            && port.archive_data_compatibility_v1.is_none()
+            && port.user_data_environment.is_none()
+            && port.release.provider == crate::ReleaseSource::Github
+            && port
+                .game_settings
+                .as_ref()
+                .is_some_and(GameSettingsContract::package_only))
+}
+
 impl GameSettingsContract {
+    pub(crate) fn package_only(&self) -> bool {
+        self.format_version == 2
+    }
+
+    pub(crate) fn validate_port(&self, port: &crate::PortDefinition) -> Result<()> {
+        self.validate(&port.persistent_paths)?;
+        if !port.platforms.contains(&Platform::WindowsX86_64)
+            || (self.package_only()
+                && (!admits_mirrored_package_defaults(port)
+                    || port.runtime_data_policy.is_some()
+                    || port.user_data_environment.is_some()
+                    || port.archive_data_compatibility_v1.is_some()))
+        {
+            return Err(declaration_error(
+                "game_settings",
+                "settings contract requires a declared supporting Windows x86-64 integration",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn covers_archive(
         &self,
         platform: Platform,
@@ -639,7 +674,7 @@ impl GameSettingsContract {
     /// Validate declaration shape only. The service must separately establish
     /// accepted retained authority, exact installation and safe current storage.
     pub fn validate(&self, persistent_paths: &[String]) -> Result<()> {
-        if self.format_version != 1 {
+        if !matches!(self.format_version, 1 | 2) {
             return Err(declaration_error(
                 "game_settings.format_version",
                 "unsupported settings contract version",
@@ -676,10 +711,10 @@ impl GameSettingsContract {
                 ));
             }
         }
-        if self.files.is_empty() || self.files.len() > 8 {
+        if self.files.is_empty() || self.files.len() > if self.package_only() { 1 } else { 8 } {
             return Err(declaration_error(
                 "game_settings.files",
-                "settings require one to eight configuration files",
+                "editable settings require one to eight files and package-only settings require one file",
             ));
         }
         let mut files = BTreeSet::new();
@@ -688,6 +723,7 @@ impl GameSettingsContract {
         let mut count = 0;
         for file in &self.files {
             crate::archive::validate_relative_path(&file.path, false)?;
+            let folded_path = file.path.to_ascii_lowercase();
             let suffix = match file.format {
                 GameSettingsFormat::Json => ".json",
                 GameSettingsFormat::Ini => ".ini",
@@ -701,22 +737,33 @@ impl GameSettingsContract {
                         || component.to_ascii_lowercase().starts_with(".portcove")
                 })
                 || !file.path.to_ascii_lowercase().ends_with(suffix)
-                || !files.insert(file.path.to_ascii_lowercase())
+                || !files.insert(folded_path.clone())
                 || file.maximum_bytes == 0
                 || file.maximum_bytes > MAX_SETTINGS_BYTES
-                || !persistent_paths
-                    .iter()
-                    .any(|path| file.path == *path || file.path.starts_with(&format!("{path}/")))
+                || !persistent_paths.iter().any(|path| {
+                    file.path == *path
+                        || (!self.package_only() && file.path.starts_with(&format!("{path}/")))
+                })
+                || (self.package_only()
+                    && persistent_paths.iter().any(|path| {
+                        if path == &file.path {
+                            return false;
+                        }
+                        let other = path.to_ascii_lowercase();
+                        other == folded_path
+                            || folded_path.starts_with(&format!("{other}/"))
+                            || other.starts_with(&format!("{folded_path}/"))
+                    }))
             {
                 return Err(declaration_error(
                     "game_settings.files",
                     "settings target must be an explicit bounded persistent configuration file",
                 ));
             }
-            if file.settings.is_empty() {
+            if file.settings.is_empty() != self.package_only() {
                 return Err(declaration_error(
                     "game_settings.files.settings",
-                    "a configuration file requires editable settings",
+                    "package-only files omit scalar settings; editable files require them",
                 ));
             }
             let mut keys = BTreeSet::new();
