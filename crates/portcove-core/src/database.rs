@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 72;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 73;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -457,7 +457,19 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::definition_candidate::selection::migrate_subject_selection,
         verify: verify_migration_72,
     },
+    Migration {
+        version: 73,
+        name: "explicit native package choice writer protocol",
+        apply: migration_73,
+        verify: verify_migration_72,
+    },
 ];
+
+fn migration_73(transaction: &Transaction<'_>) -> Result<()> {
+    // Keep readers which cannot enforce an explicit package receipt outside
+    // the library before a writer can publish one.
+    verify_migration_72(transaction)
+}
 
 fn verify_migration_72(connection: &Connection) -> Result<()> {
     require_columns(
@@ -1502,7 +1514,7 @@ fn initialize_fresh_schema<'a>(
     Ok(())
 }
 
-fn database_path(root: &Path) -> PathBuf {
+pub(crate) fn database_path(root: &Path) -> PathBuf {
     root.join("portcove.sqlite3")
 }
 
@@ -4352,6 +4364,7 @@ mod tests {
         schema_69: 69,
         schema_70: 70,
         schema_71: 71,
+        schema_72: 72,
     }
 
     #[test]

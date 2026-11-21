@@ -431,8 +431,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -441,8 +440,11 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
@@ -558,6 +560,13 @@ since can differ.
   `listing_download_refusal: "managed-route"`: a fresh library offers Install
   there instead of the upstream listing download. A library's own
   registration, pending setup or definition hold can keep the download.
+- Each listing and operational definition also has a `content_capabilities`
+  row for each requested platform. The row reports reviewed provider coordinates,
+  loader-dependent mod operations, declared original-file profiles and any
+  upstream setup guidance. `requires_reviewed_runtime` means the catalog
+  matches a loader contract for that platform. Package review, installed
+  state and exact-runtime checks still apply. A declared source profile names
+  the recognition route and supplies no compatibility result for local files.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
@@ -3186,6 +3195,14 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+When a Windows x64 Stable definition offers a reviewed package choice, pass
+the same `--package ID` to `installation plan` and `installation run`. The
+preview records the choice and exact asset. A changed choice or package proof
+requires a new preview. A successful installation keeps the choice for later
+updates. A newer package with a missing or ambiguous saved choice leaves the
+installed copy available for Play. Omitting `--package` uses the ordinary
+selection rules.
 
 ### Shared-directory external runtimes (API 73)
 

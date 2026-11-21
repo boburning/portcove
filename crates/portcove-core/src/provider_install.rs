@@ -18,9 +18,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
-    ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, ProviderProject,
-    ProviderRequirement, RecompExecution, Result, asset_conflicts, inspect_asset_archive,
+    AssetConflict, PortDefinition, PortcoveError, PortcoveService, ProfileRevision,
+    ProfileUpdatePolicy, ProviderFileCandidate, ProviderFreshness, ProviderPackageRef,
+    ProviderProject, ProviderRequirement, RecompExecution, Result, asset_conflicts,
+    inspect_asset_archive,
     mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
     profile,
     profile_deploy::{
@@ -210,17 +211,24 @@ pub(crate) fn validate_offer(
     Ok(())
 }
 
-pub(crate) fn accepts_provider_file(port_id: &str, file: &ProviderFileCandidate) -> bool {
+pub(crate) fn accepts_provider_file(port: &PortDefinition, file: &ProviderFileCandidate) -> bool {
     let extension = file
         .file_name
         .rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
         .unwrap_or_default();
-    adapter_extensions(port_id).is_some_and(|extensions| {
-        (extension == "zip" || extensions.contains(&extension.as_str()))
-            && file.size > 0
-            && file.size <= MAX_DOWNLOAD_BYTES
-    })
+    crate::Platform::current()
+        .ok()
+        .and_then(|platform| crate::profile_loader::definition_loader(port, platform))
+        .is_some_and(|loader| {
+            (extension == "zip"
+                || loader
+                    .engine
+                    .package_extensions()
+                    .contains(&extension.as_str()))
+                && file.size > 0
+                && file.size <= MAX_DOWNLOAD_BYTES
+        })
 }
 
 fn matches_dependency_coordinates(

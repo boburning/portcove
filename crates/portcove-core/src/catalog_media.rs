@@ -12,6 +12,8 @@ use crate::{
     ArtworkThumbnail, Library, OriginalGameIdentity, PortcoveError, PortcoveService, Result,
 };
 
+pub(crate) const IGDB_SCENE_LISTING_FORMAT: u32 = 13;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogMediaRole {
@@ -38,9 +40,10 @@ pub enum CatalogMediaSubject {
 pub enum IgdbGameImageKind {
     Logo,
     Artwork,
+    Screenshot,
 }
 
-/// A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+/// A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
 /// public descriptive IDs, never API credentials or installation authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -79,6 +82,18 @@ pub struct CatalogMediaAsset {
     pub edition_neutral: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub igdb: Option<IgdbGameImage>,
+}
+
+impl CatalogMediaAsset {
+    /// New scene records live in the descriptive directory, with a versioned
+    /// reader requirement independent of the operational catalog schema.
+    pub(crate) fn is_typed_igdb_scene(&self) -> bool {
+        self.igdb.is_some()
+            && matches!(
+                self.role,
+                CatalogMediaRole::Header | CatalogMediaRole::Screenshot
+            )
+    }
 }
 
 pub fn validate_catalog_media(
@@ -159,10 +174,6 @@ pub fn validate_catalog_media(
                     | "GPL-3.0-or-later"
                     | "LicenseRef-Permission"
             ) || (asset.license == "LicenseRef-IGDB-Terms"
-                && matches!(
-                    asset.role,
-                    CatalogMediaRole::Logo | CatalogMediaRole::KeyArt
-                )
                 && asset.igdb.is_some()
                 && asset.rights_url == "https://www.twitch.tv/p/en/legal/developer-agreement/"))
         {
@@ -196,18 +207,15 @@ pub fn validate_catalog_media(
     Ok(())
 }
 
-fn is_key_art_type_name(name: &str) -> bool {
+fn normalized_artwork_type(name: &str) -> Option<String> {
     if !valid_text(name, 128) {
-        return false;
+        return None;
     }
-    let normalized: String = name
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .flat_map(char::to_lowercase)
-        .collect();
-    matches!(
-        normalized.as_str(),
-        "keyart" | "keyartwithlogo" | "keyartwithoutlogo"
+    Some(
+        name.chars()
+            .filter(char::is_ascii_alphanumeric)
+            .map(|character| character.to_ascii_lowercase())
+            .collect(),
     )
 }
 
@@ -224,14 +232,28 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
             ))
         };
     };
+    let artwork_type = image
+        .image_type
+        .and_then(|_| image.image_type_name.as_deref())
+        .and_then(normalized_artwork_type);
     let variant = match (asset.role, image.kind) {
         (CatalogMediaRole::Logo, IgdbGameImageKind::Logo) => "logo_med_2x",
         (CatalogMediaRole::KeyArt, IgdbGameImageKind::Artwork)
-            if image.image_type.is_some()
-                && image
-                    .image_type_name
-                    .as_deref()
-                    .is_some_and(is_key_art_type_name) =>
+            if matches!(
+                artwork_type.as_deref(),
+                Some("keyart" | "keyartwithlogo" | "keyartwithoutlogo")
+            ) =>
+        {
+            "720p"
+        }
+        (CatalogMediaRole::Header, IgdbGameImageKind::Artwork)
+            if artwork_type.as_deref() == Some("keyartwithoutlogo")
+                && u64::from(asset.width) * 2 >= u64::from(asset.height) * 3 =>
+        {
+            "720p"
+        }
+        (CatalogMediaRole::Screenshot, IgdbGameImageKind::Screenshot)
+            if image.image_type.is_none() && image.image_type_name.is_none() =>
         {
             "720p"
         }
@@ -266,7 +288,7 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
         || asset.source_url != format!("https://www.igdb.com/games/{}", image.game_slug)
     {
         return Err(PortcoveError::usage(
-            "foreground game images require an exact reviewed IGDB mapping and bounded fit image",
+            "IGDB game images require an exact reviewed mapping and bounded fit image",
         ));
     }
     Ok(())
@@ -353,14 +375,18 @@ impl PortcoveService {
                 "catalog image changed; refresh its details",
             ));
         }
-        thumbnail_with_fetch(
+        let thumbnail = thumbnail_with_fetch(
             self.library(),
             asset,
+            self.remote_artwork,
             || fetch_original(asset),
             |path, original| {
+                self.require_current_artwork_listing(&listing)?;
                 self.publish_remote_original(path, "pending-catalog-media-original", original)
             },
-        )
+        )?;
+        self.require_current_artwork_listing(&listing)?;
+        Ok(thumbnail)
     }
 }
 
@@ -377,47 +403,117 @@ fn cache_path(library: &Library, asset: &CatalogMediaAsset) -> Result<PathBuf> {
 fn thumbnail_with_fetch(
     library: &Library,
     asset: &CatalogMediaAsset,
+    read: crate::artwork::RemoteArtworkRead,
     fetch: impl FnOnce() -> Result<Vec<u8>>,
     publish: impl FnOnce(&Path, &[u8]) -> Result<()>,
 ) -> Result<ArtworkThumbnail> {
-    let _permit = crate::artwork::admit_image_work()?;
-    let path = cache_path(library, asset)?;
-    let cached = crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES)
-        .ok()
-        .filter(|bytes| crate::signed_catalog::digest(bytes) == asset.sha256);
-    let from_cache = cached.is_some();
-    let original = match cached {
-        Some(bytes) => bytes,
-        None => fetch()?,
+    use crate::artwork::{
+        RemoteArtworkRequest, RemoteDerivative, admit_cached_image_work, admit_image_work,
     };
-    if original.len() as u64 > crate::artwork_image::MAX_ORIGINAL_BYTES
-        || crate::signed_catalog::digest(&original) != asset.sha256
+
+    let path = cache_path(library, asset)?;
+    let (role, width, height) = match asset.role {
+        CatalogMediaRole::Logo => ("logo", 568, 320),
+        CatalogMediaRole::KeyArt => ("key-art", 960, 640),
+        CatalogMediaRole::Header => ("header", 1280, 720),
+        CatalogMediaRole::Screenshot => ("screenshot", 960, 540),
+    };
+    // Including the asserted source axes prevents a cached conversion from
+    // accepting another listing's incorrect dimensions for these same bytes.
+    let recipe = format!("{role}:{width}x{height}:{}x{}", asset.width, asset.height);
+    let derivative = RemoteDerivative::new(library, &asset.sha256, &recipe)?;
+    let request = RemoteArtworkRequest::begin(library, &asset.sha256, derivative.key(), read)?;
+    let mut failures = request.lock(read.allow_download)?;
+    request.require_current(library)?;
+    let result = |png| ArtworkThumbnail {
+        asset_sha256: asset.sha256.clone(),
+        choice_revision: 0,
+        png,
+    };
+    let convert = |bytes: &[u8]| {
+        let decoded = crate::artwork_image::decode_with_thumbnail_bounds(bytes, width, height)?;
+        if decoded.width != asset.width || decoded.height != asset.height {
+            return Err(PortcoveError::verification(
+                "catalog image dimensions differ from its admitted metadata",
+            ));
+        }
+        Ok(decoded.thumbnail)
+    };
     {
+        let _permit = admit_cached_image_work()?;
+        let started = std::time::Instant::now();
+        let cached =
+            crate::path::read_bounded_regular(&path, crate::artwork_image::MAX_ORIGINAL_BYTES);
+        tracing::debug!(
+            elapsed_us = started.elapsed().as_micros() as u64,
+            input_bytes = cached.as_ref().map_or(0, |bytes| bytes.len() as u64),
+            success = cached.is_ok(),
+            message = "Catalog image original disk lookup"
+        );
+        if let Ok(original) = cached
+            && verify_original(asset, &original).is_ok()
+        {
+            let png = if let Some(png) = derivative.read() {
+                png
+            } else {
+                let png = convert(&original)?;
+                if let Ok(_guard) = library.try_lock_artwork() {
+                    request.require_current(library)?;
+                    derivative.retain(library, &path, &png);
+                }
+                png
+            };
+            request.require_current(library)?;
+            failures.clear();
+            return Ok(result(png));
+        }
+    }
+    if !read.allow_download {
+        return Err(crate::artwork::artwork_cache_miss());
+    }
+    if let Some(failure) = failures.current(&asset.url, std::time::Instant::now()) {
+        return Err(failure);
+    }
+    let _permit = admit_image_work()?;
+    let started = std::time::Instant::now();
+    let fetched = fetch();
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes = fetched.as_ref().map_or(0, |bytes| bytes.len() as u64),
+        success = fetched.is_ok(),
+        message = "Catalog image download"
+    );
+    let original = fetched.map_err(|error| {
+        if error.details.contains_key(crate::artwork::ARTWORK_RETRY) {
+            failures.remember(&asset.url, &error, std::time::Instant::now());
+        }
+        error
+    })?;
+    verify_original(asset, &original)?;
+    let png = convert(&original)?;
+    let _guard = library.try_lock_artwork()?;
+    request.require_current(library)?;
+    publish(&path, &original)?;
+    derivative.retain(library, &path, &png);
+    Ok(result(png))
+}
+
+fn verify_original(asset: &CatalogMediaAsset, bytes: &[u8]) -> Result<()> {
+    let started = std::time::Instant::now();
+    let valid = bytes.len() as u64 <= crate::artwork_image::MAX_ORIGINAL_BYTES
+        && crate::signed_catalog::digest(bytes) == asset.sha256;
+    tracing::debug!(
+        elapsed_us = started.elapsed().as_micros() as u64,
+        input_bytes = bytes.len() as u64,
+        success = valid,
+        message = "Catalog image original verification"
+    );
+    if !valid {
         return Err(PortcoveError::verification(
             "catalog image differs from its admitted content identity",
         ));
     }
-    let (width, height) = match asset.role {
-        CatalogMediaRole::Logo => (568, 320),
-        CatalogMediaRole::KeyArt => (960, 640),
-        CatalogMediaRole::Header => (1280, 720),
-        CatalogMediaRole::Screenshot => (960, 540),
-    };
-    let decoded = crate::artwork_image::decode_with_thumbnail_bounds(&original, width, height)?;
-    if decoded.width != asset.width || decoded.height != asset.height {
-        return Err(PortcoveError::verification(
-            "catalog image dimensions differ from its admitted metadata",
-        ));
-    }
-    if !from_cache {
-        let _guard = library.try_lock_artwork()?;
-        publish(&path, &original)?;
-    }
-    Ok(ArtworkThumbnail {
-        asset_sha256: asset.sha256.clone(),
-        choice_revision: 0,
-        png: decoded.thumbnail,
-    })
+    Ok(())
 }
 
 fn fetch_original(asset: &CatalogMediaAsset) -> Result<Vec<u8>> {
@@ -428,13 +524,21 @@ fn fetch_original(asset: &CatalogMediaAsset) -> Result<Vec<u8>> {
         .get(url)
         .send()
         .map_err(|error| {
-            PortcoveError::network(format!("catalog image request failed: {error}"))
+            let failure = PortcoveError::network(format!("catalog image request failed: {error}"));
+            if error.is_timeout() || error.is_connect() {
+                failure.detail(crate::artwork::ARTWORK_RETRY, "30")
+            } else {
+                failure
+            }
         })?;
     if !response.status().is_success() {
-        return Err(PortcoveError::network(format!(
-            "catalog image unavailable (HTTP {})",
-            response.status()
-        )));
+        let status = response.status();
+        let failure = PortcoveError::network(format!("catalog image unavailable (HTTP {status})"));
+        return Err(if crate::artwork::igdb_status_retryable(status) {
+            failure.detail(crate::artwork::ARTWORK_RETRY, "30")
+        } else {
+            failure
+        });
     }
     let content_type = response
         .headers()
@@ -526,6 +630,42 @@ mod tests {
         }
         image.igdb.as_mut().unwrap().image_type_name = None;
         assert!(validate_catalog_media("example", None, &[image]).is_err());
+    }
+
+    #[test]
+    fn typed_igdb_scenes_require_the_right_record_and_fit() {
+        let mut screenshot = logo();
+        screenshot.role = CatalogMediaRole::Screenshot;
+        screenshot.url = screenshot.url.replace("logo_med_2x", "720p");
+        screenshot.license = "LicenseRef-IGDB-Terms".into();
+        screenshot.rights_url = "https://www.twitch.tv/p/en/legal/developer-agreement/".into();
+        screenshot.igdb.as_mut().unwrap().kind = IgdbGameImageKind::Screenshot;
+        let validate = |asset: &CatalogMediaAsset| {
+            validate_catalog_media("example", None, std::slice::from_ref(asset))
+        };
+        assert!(validate(&screenshot).is_ok());
+
+        let mut background = screenshot.clone();
+        background.role = CatalogMediaRole::Header;
+        assert!(validate(&background).is_err());
+        let image = background.igdb.as_mut().unwrap();
+        image.kind = IgdbGameImageKind::Artwork;
+        image.image_type = Some(48);
+        image.image_type_name = Some("Key Art Without Logo".into());
+        assert!(validate(&background).is_ok());
+        for incorrect_type in ["Concept Art", "Key Art", "Key Art With Logo"] {
+            let mut invalid = background.clone();
+            invalid.igdb.as_mut().unwrap().image_type_name = Some(incorrect_type.into());
+            assert!(validate(&invalid).is_err(), "{incorrect_type}");
+        }
+        let mut portrait = background.clone();
+        portrait.height = 4;
+        assert!(validate(&portrait).is_err());
+        let mut wrong_url = background;
+        wrong_url.url = wrong_url.url.replace("t_720p", "t_original");
+        assert!(validate(&wrong_url).is_err());
+        screenshot.igdb.as_mut().unwrap().image_type = Some(48);
+        assert!(validate(&screenshot).is_err());
     }
 
     #[test]
@@ -654,16 +794,40 @@ mod tests {
         asset: &CatalogMediaAsset,
         fetch: impl FnOnce() -> Result<Vec<u8>>,
     ) -> Result<ArtworkThumbnail> {
-        super::thumbnail_with_fetch(library, asset, fetch, |path, original| {
-            crate::artwork::publish_cache_file(
-                library,
-                path,
-                "pending-catalog-media-original",
-                crate::artwork_image::MAX_ORIGINAL_BYTES,
-                original,
-                None,
-            )
+        super::thumbnail_with_fetch(
+            library,
+            asset,
+            Default::default(),
+            fetch,
+            |path, original| {
+                crate::artwork::publish_cache_file(
+                    library,
+                    path,
+                    "pending-catalog-media-original",
+                    crate::artwork_image::MAX_ORIGINAL_BYTES,
+                    original,
+                    None,
+                    None,
+                )
+            },
+        )
+    }
+
+    #[test]
+    fn media_requests_share_a_transient_failure_until_retry_is_due() {
+        let directory = tempfile::tempdir().unwrap();
+        let library = Library::open(directory.path().join("library")).unwrap();
+        let image = asset();
+        let error = thumbnail_with_fetch(&library, &image, || {
+            Err(PortcoveError::network("temporary outage")
+                .detail(crate::artwork::ARTWORK_RETRY, "30"))
         })
+        .unwrap_err();
+        let repeated = thumbnail_with_fetch(&library, &image, || {
+            panic!("the same media rendition is in backoff")
+        })
+        .unwrap_err();
+        assert_eq!(error.message, repeated.message);
     }
 
     #[test]
@@ -677,7 +841,9 @@ mod tests {
         let bytes = encoded.into_inner();
         let mut image = asset();
         image.sha256 = crate::signed_catalog::digest(&bytes);
+        let before = crate::artwork_image::decode_count();
         let first = thumbnail_with_fetch(&library, &image, || Ok(bytes.clone())).unwrap();
+        assert_eq!(crate::artwork_image::decode_count(), before + 1);
         assert_eq!(first.asset_sha256, image.sha256);
         assert_eq!(first.choice_revision, 0);
         assert!(!first.png.is_empty());
@@ -686,11 +852,17 @@ mod tests {
         })
         .unwrap();
         assert_eq!(first.png, second.png);
-        std::fs::write(cache_path(&library, &image).unwrap(), b"changed").unwrap();
-        assert!(thumbnail_with_fetch(&library, &image, || Ok(b"foreign".to_vec())).is_err());
+        assert_eq!(crate::artwork_image::decode_count(), before + 1);
         let mut wrong_dimensions = image.clone();
         wrong_dimensions.width += 1;
-        assert!(thumbnail_with_fetch(&library, &wrong_dimensions, || Ok(bytes.clone())).is_err());
+        assert!(
+            thumbnail_with_fetch(&library, &wrong_dimensions, || {
+                panic!("the verified original is already available")
+            })
+            .is_err()
+        );
+        std::fs::write(cache_path(&library, &image).unwrap(), b"changed").unwrap();
+        assert!(thumbnail_with_fetch(&library, &image, || Ok(b"foreign".to_vec())).is_err());
         assert!(
             crate::artwork_store::snapshot(&library.connection().unwrap())
                 .unwrap()

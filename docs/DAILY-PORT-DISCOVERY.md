@@ -82,9 +82,11 @@ plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
 New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
 records the candidate index/key, body hash and primary evidence bindings rather
 than repeating the proposal text and rendered body. Reconstruct the body with
-the maintained `hostedBody` renderer from the exact hash-matching proposal;
-the recorded body hash must match before recovery or completion readback.
-Legacy full-plan receipts remain readable and completed receipts are not rewritten.
+the maintained `hostedBody` renderer from the exact hash-matching proposal.
+A retained slot must match its exact recorded body hash against a supported
+rendering version. Keep the existing rendering versions when changing the
+default issue template. New slots use the current template, and completed
+receipts keep their original bytes.
 Before delivery, Actions sizes the encoded receipt against the bounded delivery
 and hold fields and reserves room for its final doctor and diagnostics. The
 logical batch stays together when it fits the existing comment limit.
@@ -177,10 +179,17 @@ An owner can amend one unattempted candidate on #177 with
 original proposal, current bot receipt and candidate slot. Compute both comment
 hashes with `observationHash(comment.body)` from `scripts/upstream-observer.mts`.
 Copy the previous body/evidence hashes from the exact bot receipt. `replacement` contains
-only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+`upstream`, `evidence` and `resume`. An explicit existing-owner observation may
+also correct its `game` label to match the canonical owner. The executor still
+verifies the exact issue, key, repository, game scope and Project item. An
+unattempted legacy candidate without an intent may provide `canonical_owner:
+{ issue, port_key }` and `game` in its replacement to record an observation
+against the already established canonical owner. A retained creation marker
+blocks that conversion. Optional top-level `hold: true` retains
 the amended candidate for research. A later exact-receipt amendment without that
-flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
-retain their original identities. Competing amendments or completed/uncertain
+flag resumes it after its research condition is satisfied. The repository ID
+and title stay bound to the original proposal. Explicit intents and their
+implementation keys stay fixed. Competing amendments or completed/uncertain
 writes refuse revision. The retained receipt references the exact owner amendment.
 An amendment event drains the existing queue and reports its original proposal.
 For a historical schema 1 batch, an exact-receipt amendment authorizes importing
@@ -210,7 +219,9 @@ refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify for new intake before the
 receipt says `complete`. After all candidates in a batch over ten have passing
 scoped proofs, Actions records delivery with the full audit pending. A subsequent
-pass runs only the full doctor for that checkpoint. An upstream release published
+pass runs only the full doctor for that checkpoint. The same audit-only recovery
+applies to a legacy batch over ten with all scoped delivery proofs already
+recorded on its original receipt. An upstream release published
 in the meantime can be recorded as a separate dated observation. The full audit
 still verifies complete live coverage. Missing catalog links produce an
 `audit-repairs` diagnostic naming matching canonical owners when identifiable.
@@ -282,6 +293,30 @@ both reads to the same byte/request/time envelope before any write. Malformed or
 denied responses and transport failures are not retried. A still-stale observation
 can enter the same bounded fresh-worker continuation only when no mutation is
 uncertain. Active provider backoff and ambiguous writes remain holds.
+
+To finish a retained large batch whose candidate receipts are complete and whose
+full audit is pending, the owner can dispatch `hosted-discovery-intake.yml` on
+`main` with `mode=audit` and `audit_request=<original proposal comment ID>`.
+Check the active proposal, its bound receipt, owner changes and any refusal first.
+Every admitted pass stays on that request. The executor uses the current full
+Roadmap audit and the original scoped receipts, preserving later Project edits.
+The result is an assisted audit recovery. It adds no natural scheduled sample.
+
+The original owner proposal or an explicit final-audit dispatch on main records
+its Actions run, attempt and head in the bot receipt before the audit starts. The
+existing daily maintenance collection passes unfinished authorized audits to
+the same intake worker after a complete native read. It resumes only an
+interrupted audit or a recorded inventory-change or budget continuation. The
+worker verifies the protected scheduled caller, original owner action,
+request-specific Actions run title, current request/plan/receipt binding and
+available durable checkpoints. If the worker stopped after committing the
+audit authorization to PostgreSQL and before updating GitHub, the collector
+can pass a retry from that checkpoint. Before projecting it, the worker checks
+the original owner action, the exact live predecessor and the retained delivery
+proofs. Each selected request has its own outcome, including a request withdrawn
+or removed after collection. Candidate work, withdrawn or superseded requests
+and permanent refusals stay outside this path. The original run and the later
+worker each retain their own receipts and budgets.
 
 Hosted reporting reads the bot receipt and exact request/plan binding. Use the
 maintained read-only status route when CLI access is available:

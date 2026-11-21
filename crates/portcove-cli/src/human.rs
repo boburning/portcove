@@ -2487,6 +2487,9 @@ pub(crate) fn game_install_plan(
     catalog: &portcove_core::Catalog,
 ) -> String {
     let mut text = plan(&review.plan, catalog);
+    if let Some(choice) = &review.package_choice {
+        text.push_str(&format!("\nReviewed package choice: {}\n", clean(choice)));
+    }
     if let Some(selected) = &review.selected_install {
         text.push_str(&format!(
             "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",

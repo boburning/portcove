@@ -15,30 +15,61 @@ use crate::{
 
 pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
 
-struct ReviewedLoader {
-    id: &'static str,
+/// Package and native-state behavior implemented by Core. A family is usable
+/// only when an admitted definition and its exact runtime select the contract.
+#[derive(Clone, Copy)]
+pub(crate) enum ModEngine {
+    Libultraship,
+    N64Recomp,
+}
+
+impl ModEngine {
+    pub(crate) fn package_extensions(self) -> &'static [&'static str] {
+        match self {
+            Self::Libultraship => &["o2r", "otr"],
+            Self::N64Recomp => &["nrm"],
+        }
+    }
+
+    pub(crate) fn reference(self) -> LoaderContractRef {
+        LoaderContractRef {
+            id: match self {
+                Self::Libultraship => "libultraship",
+                Self::N64Recomp => "n64-recomp",
+            }
+            .into(),
+            version: "1".into(),
+        }
+    }
+}
+
+pub(crate) struct ReviewedLoader {
+    pub engine: ModEngine,
     adapter: AdapterKind,
     repository: &'static str,
     minimum: [u16; 3],
-    settings_file: &'static str,
+    pub settings_file: &'static str,
+    pub native_game: Option<&'static str>,
     platforms: &'static [Platform],
 }
 
 const SHIP: ReviewedLoader = ReviewedLoader {
-    id: "libultraship",
+    engine: ModEngine::Libultraship,
     adapter: AdapterKind::LibultrashipPortable,
     repository: "HarbourMasters/Shipwright",
     minimum: [9, 2, 3],
     settings_file: "shipofharkinian.json",
+    native_game: None,
     platforms: &[Platform::WindowsX86_64, Platform::LinuxX86_64],
 };
 
 const RECOMP: ReviewedLoader = ReviewedLoader {
-    id: "n64-recomp",
+    engine: ModEngine::N64Recomp,
     adapter: AdapterKind::N64RecompPortable,
     repository: "Zelda64Recomp/Zelda64Recomp",
     minimum: [1, 2, 2],
     settings_file: "mods.json",
+    native_game: Some("mm"),
     platforms: &[
         Platform::WindowsX86_64,
         Platform::LinuxX86_64,
@@ -47,12 +78,52 @@ const RECOMP: ReviewedLoader = ReviewedLoader {
     ],
 };
 
-fn reviewed(port_id: &str) -> Option<&'static ReviewedLoader> {
+#[cfg(test)]
+const STARSHIP_FIXTURE: ReviewedLoader = ReviewedLoader {
+    settings_file: "starship.cfg.json",
+    ..SHIP
+};
+
+/// Historical bindings used by setup readers and journals that carry only a
+/// port ID. All native behavior comes from the same engine as runtime admission.
+pub(crate) fn legacy_loader(port_id: &str) -> Option<&'static ReviewedLoader> {
     match port_id {
         "shipwright" => Some(&SHIP),
         "zelda64-recomp" => Some(&RECOMP),
+        #[cfg(test)]
+        "starship" => Some(&STARSHIP_FIXTURE),
         _ => None,
     }
+}
+
+fn definition_matches(loader: &ReviewedLoader, port: &PortDefinition) -> bool {
+    port.adapter == loader.adapter
+        && port.release.provider == ReleaseSource::Github
+        && port
+            .release
+            .repository
+            .eq_ignore_ascii_case(loader.repository)
+        && ["mods", loader.settings_file].iter().all(|expected| {
+            port.persistent_paths
+                .iter()
+                .any(|path| path.as_str() == *expected)
+        })
+}
+
+/// Returns the engine the current definition can offer on the given platform.
+pub(crate) fn definition_loader(
+    port: &PortDefinition,
+    platform: Platform,
+) -> Option<&'static ReviewedLoader> {
+    let loader = legacy_loader(&port.id)?;
+    #[cfg(test)]
+    if port.id == "starship" {
+        return Some(loader);
+    }
+    (definition_matches(loader, port)
+        && port.platforms.contains(&platform)
+        && loader.platforms.contains(&platform))
+    .then_some(loader)
 }
 
 fn stable_version(tag: &str) -> Option<[u16; 3]> {
@@ -79,21 +150,8 @@ fn contract_matches(
     let Some(version) = stable_version(release) else {
         return false;
     };
-    port.adapter == loader.adapter
-        && port.release.provider == ReleaseSource::Github
-        && port
-            .release
-            .repository
-            .eq_ignore_ascii_case(loader.repository)
-        && port.platforms.contains(&platform)
-        && loader.platforms.contains(&platform)
-        && version[0] == loader.minimum[0]
+    version[0] == loader.minimum[0]
         && version >= loader.minimum
-        && ["mods", loader.settings_file].iter().all(|expected| {
-            port.persistent_paths
-                .iter()
-                .any(|path| path.as_str() == *expected)
-        })
         && port.executable_hints.get(&platform).is_some_and(|hints| {
             executable.file_name().is_some_and(|name| {
                 hints.iter().any(|hint| {
@@ -105,24 +163,24 @@ fn contract_matches(
         })
 }
 
-fn contract(
+fn installed_loader(
     install: &InstallRecord,
     build: &RetainedBuildIdentity,
-) -> Result<Option<LoaderContractRef>> {
+) -> Result<Option<&'static ReviewedLoader>> {
     #[cfg(test)]
     if install.port_id == "starship" {
-        return Ok(Some(LoaderContractRef {
-            id: "libultraship".into(),
-            version: "1".into(),
-        }));
+        return Ok(Some(&STARSHIP_FIXTURE));
     }
-    let Some(loader) = reviewed(&install.port_id) else {
+    if legacy_loader(&install.port_id).is_none() {
         return Ok(None);
-    };
+    }
     let Some(catalog) = crate::install::retained_catalog_for_install(install)? else {
         return Ok(None);
     };
     let port = catalog.port(&install.port_id)?;
+    let Some(loader) = definition_loader(port, build.platform) else {
+        return Ok(None);
+    };
     Ok((install.runtime.is_none()
         && contract_matches(
             loader,
@@ -131,10 +189,7 @@ fn contract(
             &build.selected_executable,
             &install.version,
         ))
-    .then(|| LoaderContractRef {
-        id: loader.id.into(),
-        version: "1".into(),
-    }))
+    .then_some(loader))
 }
 
 fn require_contract(
@@ -142,10 +197,12 @@ fn require_contract(
     build: &RetainedBuildIdentity,
     declared: Option<&LoaderContractRef>,
     needs_loader: bool,
-) -> Result<Option<LoaderContractRef>> {
-    let derived = contract(install, build)?;
+) -> Result<Option<&'static ReviewedLoader>> {
+    let derived = installed_loader(install, build)?;
     if (needs_loader && derived.is_none())
-        || declared.is_some_and(|declared| Some(declared) != derived.as_ref())
+        || declared.is_some_and(|declared| {
+            !derived.is_some_and(|loader| *declared == loader.engine.reference())
+        })
     {
         return Err(PortcoveError::unsupported(
             "this setup's mods need a reviewed loader. Choose a compatible game build before using them",
@@ -314,6 +371,14 @@ fn validate_recomp_versions_allowing_missing(
 }
 
 impl PortcoveService {
+    fn install_for_loader(&self, build: &RetainedBuildIdentity) -> Result<InstallRecord> {
+        Library::install_by_id(&self.library.connection()?, Some(&build.install_id))?
+            .filter(|install| build.matches_install(install))
+            .ok_or_else(|| {
+                PortcoveError::conflict("the installed runtime changed; review the setup again")
+            })
+    }
+
     /// Resolves a writer's loader choice from the already verified install.
     pub(crate) fn profile_loader_binding(
         &self,
@@ -321,12 +386,9 @@ impl PortcoveService {
         declared: Option<&LoaderContractRef>,
         needs_loader: bool,
     ) -> Result<Option<LoaderContractRef>> {
-        let install = Library::install_by_id(&self.library.connection()?, Some(&build.install_id))?
-            .filter(|install| build.matches_install(install))
-            .ok_or_else(|| {
-                PortcoveError::conflict("the installed runtime changed; review the setup again")
-            })?;
-        require_contract(&install, build, declared, needs_loader)
+        let install = self.install_for_loader(build)?;
+        Ok(require_contract(&install, build, declared, needs_loader)?
+            .map(|loader| loader.engine.reference()))
     }
 
     /// Reviews the enabled set that an exact package replacement would publish.
@@ -339,43 +401,47 @@ impl PortcoveService {
     ) -> Result<()> {
         use crate::native_mod_list::{native_name, recomp_game};
 
-        let Some(game) = recomp_game(&current.build.port_id) else {
+        if recomp_game(&current.build.port_id).is_none() {
             return Ok(());
-        };
+        }
         let staged = staged.into_iter().collect::<Vec<_>>();
         let replaces = |inspection: &RecompModInspection, package: &ResolvedPackage| {
             inspection
                 .native_id
                 .eq_ignore_ascii_case(native_name(&package.native_id))
         };
-        let mut enabled = BTreeMap::new();
-        for package in current
+        let mut retained = current
             .packages
             .iter()
             .filter(|package| package.enabled && !staged.iter().any(|item| replaces(item, package)))
-        {
+            .peekable();
+        let mut replacements = staged
+            .iter()
+            .copied()
+            .filter(|inspection| {
+                current
+                    .packages
+                    .iter()
+                    .all(|package| package.enabled || !replaces(inspection, package))
+            })
+            .peekable();
+        if retained.peek().is_none() && replacements.peek().is_none() {
+            return Ok(());
+        }
+        let install = self.install_for_loader(&current.build)?;
+        let Some(game) = require_contract(&install, &current.build, current.loader.as_ref(), true)?
+            .and_then(|loader| loader.native_game)
+        else {
+            return Ok(());
+        };
+        let mut enabled = BTreeMap::new();
+        for package in retained {
             let inspection = inspect_retained_recomp(layout, package, game)?;
             enabled.insert(inspection.native_id.clone(), inspection);
         }
-        for inspection in staged {
-            if current
-                .packages
-                .iter()
-                .all(|package| package.enabled || !replaces(inspection, package))
-            {
-                enabled.insert(inspection.native_id.clone(), inspection.clone());
-            }
+        for inspection in replacements {
+            enabled.insert(inspection.native_id.clone(), inspection.clone());
         }
-        if enabled.is_empty() {
-            return Ok(());
-        }
-        let install =
-            Library::install_by_id(&self.library.connection()?, Some(&current.build.install_id))?
-                .filter(|install| current.build.matches_install(install))
-                .ok_or_else(|| {
-                    PortcoveError::conflict("the installed runtime changed; review the setup again")
-                })?;
-        require_contract(&install, &current.build, current.loader.as_ref(), true)?;
         let runtime = install
             .version
             .strip_prefix('v')
@@ -386,15 +452,11 @@ impl PortcoveService {
 
     pub(crate) fn require_revision_loader(&self, revision: &ProfileRevision) -> Result<()> {
         if revision.packages.iter().any(|package| package.enabled) {
-            self.profile_loader_binding(&revision.build, revision.loader.as_ref(), true)?;
-            if let Some(game) = crate::native_mod_list::recomp_game(&revision.build.port_id) {
-                let install = Library::install_by_id(
-                    &self.library.connection()?,
-                    Some(&revision.build.install_id),
-                )?
-                .ok_or_else(|| {
-                    PortcoveError::not_found("the exact runtime is no longer installed")
-                })?;
+            let install = self.install_for_loader(&revision.build)?;
+            if let Some(game) =
+                require_contract(&install, &revision.build, revision.loader.as_ref(), true)?
+                    .and_then(|loader| loader.native_game)
+            {
                 let layout = Layout::for_user(&self.library.user_dir(&revision.build.port_id));
                 require_recomp_versions(&layout, revision, &install.version, game)?;
             }
@@ -407,7 +469,7 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<()> {
-        if reviewed(&install.port_id).is_none() {
+        if legacy_loader(&install.port_id).is_none() {
             return Ok(());
         }
         let connection = self.library.connection()?;
@@ -417,8 +479,9 @@ impl PortcoveService {
         let revision = profile::revision_by_number(&connection, &profile_id, number)?;
         if revision.packages.iter().any(|package| package.enabled) {
             let build = crate::install::retained_build_identity_for_install(install)?;
-            require_contract(install, &build, revision.loader.as_ref(), true)?;
-            if let Some(game) = crate::native_mod_list::recomp_game(&install.port_id) {
+            if let Some(game) = require_contract(install, &build, revision.loader.as_ref(), true)?
+                .and_then(|loader| loader.native_game)
+            {
                 let layout = Layout::for_user(&self.library.user_dir(&install.port_id));
                 require_recomp_versions(&layout, &revision, &install.version, game)?;
             }
@@ -540,34 +603,17 @@ mod tests {
         let mut ship = catalog.port("shipwright").unwrap().clone();
         let executable = Path::new("soh.exe");
         let windows = Platform::WindowsX86_64;
-        assert!(contract_matches(
-            &SHIP, &ship, windows, executable, "v9.3.1"
-        ));
-        assert!(contract_matches(
-            &SHIP, &ship, windows, executable, "v9.4.0"
-        ));
-        assert!(!contract_matches(
-            &SHIP, &ship, windows, executable, "v9.2.2"
-        ));
-        assert!(!contract_matches(
-            &SHIP, &ship, windows, executable, "v10.0.0"
-        ));
-        assert!(!contract_matches(
-            &SHIP,
-            &ship,
-            windows,
-            executable,
-            "v9.4.0-rc.1"
-        ));
-        assert!(!contract_matches(
-            &SHIP,
-            &ship,
-            windows,
-            Path::new("other.exe"),
-            "v9.3.1"
-        ));
-        assert!(!contract_matches(
-            &SHIP,
+        let matches = |port: &PortDefinition, platform, executable: &Path, release: &str| {
+            definition_loader(port, platform)
+                .is_some_and(|loader| contract_matches(loader, port, platform, executable, release))
+        };
+        assert!(matches(&ship, windows, executable, "v9.3.1"));
+        assert!(matches(&ship, windows, executable, "v9.4.0"));
+        assert!(!matches(&ship, windows, executable, "v9.2.2"));
+        assert!(!matches(&ship, windows, executable, "v10.0.0"));
+        assert!(!matches(&ship, windows, executable, "v9.4.0-rc.1"));
+        assert!(!matches(&ship, windows, Path::new("other.exe"), "v9.3.1"));
+        assert!(!matches(
             &ship,
             Platform::MacosAarch64,
             executable,
@@ -575,8 +621,6 @@ mod tests {
         ));
 
         ship.release.repository = "someone/Shipwright".into();
-        assert!(!contract_matches(
-            &SHIP, &ship, windows, executable, "v9.3.1"
-        ));
+        assert!(!matches(&ship, windows, executable, "v9.3.1"));
     }
 }

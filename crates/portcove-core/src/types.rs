@@ -698,6 +698,16 @@ pub struct UserPreparedRuntimeSpec {
     pub shared_preferences: Option<PreparedSharedPreferencesContract>,
 }
 
+/// Reviewed same-target Windows ZIP families. The GitHub tag commit fills the
+/// seven-hex filename slot between the numeric release and the chosen suffix.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPackageChoicesV2 {
+    pub repository_id: u64,
+    pub prefix: String,
+    pub choices: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ReleaseSpec {
     /// Core-owned fixed original-driven recipes, distinct from downloaded executables.
@@ -717,6 +727,8 @@ pub struct ReleaseSpec {
     pub github_other_stream_tag_prefixes: BTreeMap<Platform, Vec<String>>,
     #[serde(default)]
     pub asset_hints: BTreeMap<Platform, Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reviewed_package_choices_v2: Option<ReviewedPackageChoicesV2>,
     /// Native8: select the checked TAR.XZ player archive on Linux x86-64.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub linux_tar_xz: bool,
@@ -2219,6 +2231,8 @@ pub struct InstallSpaceRequirement {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameInstallPlan {
     pub plan: InstallPlan,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub package_choice: Option<String>,
     /// The exact existing copy that execution will activate, if any.
     pub selected_install: Option<InstallRecord>,
     pub plan_sha256: String,
@@ -2248,6 +2262,9 @@ pub struct GameUpdateAcquisition {
 /// A reviewed game update, independent of the saved automatic-update policy.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GameUpdatePlan {
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) explicit_package_proof_sha256: Option<String>,
     /// Exact retained archive selected by this review; never authorization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acquisition: Option<GameUpdateAcquisition>,
@@ -2733,7 +2750,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,
