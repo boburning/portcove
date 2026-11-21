@@ -12,6 +12,8 @@ import path from "node:path";
 import {
   auditDispatchRequest,
   scheduledAuditRequests,
+  scheduledIntakeReceipts,
+  scheduledReceiptOutcome,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -51,6 +53,43 @@ void test("only the protected scheduled caller accepts exact nonduplicate audit 
     assert.throws(() =>
       scheduledAuditRequests({ ...env, HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify(rows) }),
     );
+});
+
+void test("a scheduled receipt-only result can finish without enqueueing an audit", async () => {
+  assert.deepEqual(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: "hosted-intake:bound",
+      receipts: { status: "passed" },
+    }),
+    { output: "audit_continuations=[]\nreceipt_revision=hosted-intake:bound\n", succeeded: true },
+  );
+  assert.deepEqual(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: "bound\nforged=true",
+      receipts: { status: "passed" },
+    }),
+    { output: "audit_continuations=[]\nreceipt_revision=\n", succeeded: false },
+  );
+  await assert.rejects(
+    scheduledIntakeReceipts("before-audits", { GITHUB_EVENT_NAME: "workflow_dispatch" }),
+    /protected maintenance schedule/u,
+  );
+});
+
+void test("an unrelated incomplete receipt leaves bound tickets available and withholds the collection fence", () => {
+  const ticket = { request: 33, binding: "a".repeat(64) };
+  const outcome = scheduledReceiptOutcome({
+    tickets: [ticket],
+    revision: "hosted-intake:bound",
+    receipts: { status: "failed", pending: 1, reason: "proof-pending" },
+  });
+  assert.equal(outcome.succeeded, false);
+  assert.equal(
+    outcome.output,
+    `audit_continuations=${JSON.stringify([ticket])}\nreceipt_revision=\n`,
+  );
 });
 
 void test("a progressing logical batch finishes beyond three inventory windows without operator reruns", () => {

@@ -54,7 +54,8 @@ export interface HostedIntakeObservation {
     inspected?: number;
     completed?: unknown[];
     phase?: ReceiptReconciliationPhase;
-    reason?: ReceiptReconciliationFailure["reason"];
+    reason?: ReceiptReconciliationFailure["reason"] | "proof-pending";
+    pending?: number;
   };
 }
 
@@ -169,9 +170,20 @@ export function hostedIntakeFacts(read: HostedStatusAll) {
  * read or budget failure are a failed run with one gap: nothing is observed,
  * so every prior fact stays current.
  */
+export function retainHostedIntakeHandoffs(observation: HostedIntakeObservation) {
+  observation.gaps.push({
+    subject_key: failedSubject,
+    code: "intake-receipt-fence",
+    message:
+      "Original intake receipts were not reconciled against this queue revision. The next collection retries.",
+  });
+}
+
 export async function hostedIntakeObservation(
   read: () => Promise<HostedStatusAll>,
-  reconcile?: (snapshot: HostedStatusAll) => Promise<{ inspected: number; completed: unknown[] }>,
+  reconcile?: (
+    snapshot: HostedStatusAll,
+  ) => Promise<{ inspected: number; completed: unknown[]; pending?: number }>,
 ): Promise<HostedIntakeObservation> {
   try {
     const queue = await read();
@@ -187,7 +199,12 @@ export async function hostedIntakeObservation(
     if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
     try {
       const receipts = await reconcile(queue);
-      return { ...observation, receipts: { status: "passed", ...receipts } };
+      if (!receipts.pending) return { ...observation, receipts: { status: "passed", ...receipts } };
+      retainHostedIntakeHandoffs(observation);
+      return {
+        ...observation,
+        receipts: { status: "failed", reason: "proof-pending", ...receipts },
+      };
     } catch (error) {
       // Keep the original operation current so the next complete read can retry.
       // Unrelated sources and all positively observed native facts still commit.

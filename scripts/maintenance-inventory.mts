@@ -69,6 +69,7 @@ import {
   hostedIntakeObservation,
   hostedIntakeSummary,
   readHostedIntake,
+  retainHostedIntakeHandoffs,
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
@@ -1927,7 +1928,7 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
-  reconcileIntake?: Parameters<typeof hostedIntakeObservation>[1];
+  intakeReceiptRevision?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
   bindCatalogDefinitions?: boolean;
@@ -2091,8 +2092,17 @@ export async function collect(options: {
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
-    ? await hostedIntakeObservation(options.hostedIntake, options.reconcileIntake)
+    ? await hostedIntakeObservation(options.hostedIntake)
     : undefined;
+  const receiptFence =
+    hostedIntake && options.intakeReceiptRevision !== undefined
+      ? !hostedIntake.failed &&
+        !hostedIntake.gaps.length &&
+        hostedIntake.revision === options.intakeReceiptRevision
+        ? "verified"
+        : "deferred"
+      : undefined;
+  if (hostedIntake && receiptFence === "deferred") retainHostedIntakeHandoffs(hostedIntake);
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
@@ -2348,10 +2358,7 @@ export async function collect(options: {
             : hostedIntake.gaps.length
               ? "partial"
               : "complete",
-          ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
-          ...(hostedIntake.auditContinuations
-            ? { audit_continuations: hostedIntake.auditContinuations }
-            : {}),
+          ...(receiptFence ? { receipt_fence: receiptFence } : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -4320,6 +4327,7 @@ export async function main(argv = process.argv.slice(2)) {
   const json = flag("--json");
   const record = flag("--record");
   const reconcileIntake = flag("--reconcile-intake");
+  const intakeReceiptRevision = option(args, "--intake-receipt-revision");
   const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
@@ -4345,16 +4353,12 @@ export async function main(argv = process.argv.slice(2)) {
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
-  if (
-    reconcileIntake &&
-    !(
-      (command === "handoffs" && !record && !json) ||
-      (command === "collect" && all && hostedSource)
-    )
-  )
+  if (intakeReceiptRevision !== undefined && !(command === "collect" && all && hostedSource))
     throw new MaintenanceStoreError(
-      "--reconcile-intake requires handoffs or collect --all --hosted-intake",
+      "--intake-receipt-revision requires collect --all --hosted-intake",
     );
+  if (reconcileIntake && !(command === "handoffs" && !record && !json))
+    throw new MaintenanceStoreError("--reconcile-intake requires handoffs");
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
@@ -4436,16 +4440,8 @@ export async function main(argv = process.argv.slice(2)) {
               ),
             )
           : undefined,
-        hostedIntake: hostedSource
-          ? () => readHostedIntake(reconcileIntake ? environment : undefined)
-          : undefined,
-        reconcileIntake: reconcileIntake
-          ? async (queue) => {
-              const { reconcileIntakeHandoffReceipts } =
-                await import("./maintenance-intake-receipts.mts");
-              return reconcileIntakeHandoffReceipts(environment, async () => queue);
-            }
-          : undefined,
+        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        intakeReceiptRevision,
         publication: publication || undefined,
         delivery: delivery || undefined,
         targets: targets || undefined,

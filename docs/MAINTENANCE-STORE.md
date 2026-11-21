@@ -1276,7 +1276,13 @@ The daily run keeps existing source and repository access. The production steps
 use the direct database secret `PORTCOVE_DATABASE_URL`. Collection uses
 `PORTCOVE_ROADMAP_TOKEN` to read the Project. A verified scheduled final audit
 uses the existing intake worker's Project credential, separate database role and
-metered admission in the same run. The metered steps also require
+metered admission in the same run. Before collection can advance the handoff
+fences, the worker reads the intake queue and checkpoints and reconciles the
+original receipts under its executor role. Collection and backup continue even
+when this receipt pass fails. With no bound audit tickets the scheduler performs
+no audit. The scoped audit worker checks receipts again after its audit passes
+return. The collection report records the delegation and the executor jobs
+record their own outcomes. The metered steps also require
 `PORTCOVE_NEON_METER_TOKEN` with effective Viewer access to the existing Portcove
 project. A personal token from a dedicated Neon Collaborator with only this
 project's Viewer grant can supply that access. Project-scoped organization keys

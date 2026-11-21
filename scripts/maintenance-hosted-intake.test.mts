@@ -200,6 +200,20 @@ void test("scheduled receipt recovery shares the native read and retains source 
   assert.deepEqual(failure.auditContinuations, [ticket]);
   assert.deepEqual(failure.receipts, { status: "failed", reason: "unexpected" });
   assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
+  const held = await hostedIntakeObservation(collect, async () => ({
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  }));
+  assert.deepEqual(held.auditContinuations, [ticket]);
+  assert.deepEqual(held.receipts, {
+    status: "failed",
+    reason: "proof-pending",
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  });
+  assert.equal(held.gaps[0]?.code, "intake-receipt-fence");
   let calls = 0;
   const partial = await hostedIntakeObservation(
     async () =>

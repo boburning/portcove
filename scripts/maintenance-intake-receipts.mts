@@ -120,7 +120,7 @@ export async function reconcileIntakeHandoffReceipts(
       { executor: true },
     ),
   ) as IntakePlan[];
-  if (!plans.length) return { inspected: 0, completed: [] };
+  if (!plans.length) return { inspected: 0, completed: [], pending: 0 };
   const queue = await read();
   const receipts = plans.flatMap((plan) => {
     const row = queue.requests.find(
@@ -129,7 +129,7 @@ export async function reconcileIntakeHandoffReceipts(
     const proof = row && intakeOperationReceipt(plan, row);
     return proof ? [proof] : [];
   });
-  if (!receipts.length) return { inspected: plans.length, completed: [] };
+  if (!receipts.length) return { inspected: plans.length, completed: [], pending: 0 };
   // The operation trigger locks the current subject and checks its fence. A
   // concurrent refresh of the same result must also retain the source generation.
   const proofRows = receipts.map((proof) => [
@@ -209,5 +209,5 @@ export async function reconcileIntakeHandoffReceipts(
     );
     if (committed !== output) throw new ReceiptReconciliationFailure("verify-recorded", null);
   }
-  return { inspected: plans.length, completed };
+  return { inspected: plans.length, completed, pending: receipts.length - completed.length };
 }
