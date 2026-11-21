@@ -2533,6 +2533,57 @@ async fn signed_named_advice_preserves_operational_and_installed_contracts() {
 }
 
 #[tokio::test]
+async fn authenticated_named_loader_requires_schema_three_projection_when_fresh_and_retained() {
+    let catalog = Catalog::embedded().unwrap();
+    let port_id = "banjo-recomp";
+    for schema in [1, 2, 3] {
+        let fixture = RepositoryFixture::new();
+        let bundle = crate::test_fixture::IndexedCatalogFixture::with_projection_schema(
+            &catalog, port_id, schema,
+        )
+        .with_entry(7, |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = serde_json::json!([
+                "mods.native-loader-binding-v1",
+                "release.archive-file-links-v1"
+            ]);
+        });
+        let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+        targets.extend(bundle.contents);
+        let root = fixture
+            .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+            .await;
+        let candidate = acquire(&fixture, &root).await.unwrap();
+        let index = candidate.index();
+        let entry = candidate
+            .content_bytes(index.definitions()[0].target())
+            .unwrap();
+        let inspected = index.inspect_entry("official", port_id, entry).unwrap();
+        let leaf = candidate
+            .content_bytes(inspected.execution_contract())
+            .unwrap();
+        for result in [
+            candidate.inspect_catalog_projection("official", port_id),
+            index.inspect_retained_catalog_projection("official", port_id, entry, leaf),
+        ] {
+            if schema == 3 {
+                assert_eq!(
+                    result.unwrap().entry().port().mod_loader,
+                    catalog.port(port_id).unwrap().mod_loader
+                );
+            } else {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("require catalog projection schema 3")
+                );
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn unsupported_sibling_does_not_block_a_supported_definition() {
     unsupported_sibling(|entry| {
         entry["required_capabilities"]

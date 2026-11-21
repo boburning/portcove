@@ -41,6 +41,16 @@ impl ProjectionDocument {
         }
         Ok(catalog)
     }
+
+    fn validate_loader_schema(&self, catalog: &Catalog) -> Result<()> {
+        if self.contract_schema != 3 && catalog.ports().iter().any(|port| port.mod_loader.is_some())
+        {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings require catalog projection schema 3",
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// Materializes one proposed port's exact typed contract without opening a library.
@@ -62,11 +72,7 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
             "definition projection preparation requires exactly one port",
         ));
     }
-    if catalog.ports()[0].mod_loader.is_some() && document.contract_schema != 3 {
-        return Err(PortcoveError::verification(
-            "native mod loader bindings require catalog projection schema 3",
-        ));
-    }
+    document.validate_loader_schema(&catalog)?;
     let typed = serde_json::to_value(catalog.authoritative_document())?;
     if !retains_authored_fields(&document.catalog, &typed) {
         return Err(PortcoveError::verification(
@@ -415,6 +421,7 @@ impl DefinitionContentIndex {
             )
             .detail("port_id", &sibling.id));
         }
+        document.validate_loader_schema(&catalog)?;
         if let Some(sources) = catalog.source_catalog() {
             for contract in sources
                 .contracts

@@ -417,11 +417,23 @@ pub(crate) struct IndexedCatalogFixture<'a> {
 
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
+        let schema = if catalog.port(port_id).unwrap().mod_loader.is_some() {
+            3
+        } else {
+            1
+        };
+        Self::with_projection_schema(catalog, port_id, schema)
+    }
+
+    pub(crate) fn with_projection_schema(
+        catalog: &'a crate::Catalog,
+        port_id: &str,
+        schema: u32,
+    ) -> Self {
         use sha2::{Digest, Sha256};
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
         let port = catalog.port(port_id).unwrap();
-        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
             "contract_schema":schema,"representation":"catalog_projection",
             "catalog":indexed_fixture_document_for_port(catalog, port_id)
