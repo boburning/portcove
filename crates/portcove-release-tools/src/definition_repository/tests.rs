@@ -904,7 +904,7 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
             .changed
     );
     let thin = fixture.root().join("history-thin");
-    let root = fixture.root();
+    let root = fixture.root().to_path_buf();
     let mut active = BTreeSet::from([
         "metadata/timestamp.json".to_owned(),
         "metadata/1.root.json".to_owned(),

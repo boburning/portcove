@@ -1140,12 +1140,12 @@ mod capacity_tests {
         let live = targets
             .historical_body(name, inventory.get("current").unwrap())
             .unwrap();
-        assert_eq!(live.as_ref(), b"new");
+        assert_eq!(&*live, b"new");
         assert!(matches!(live, Cow::Borrowed(_)));
         let archived = targets
             .historical_body(name, inventory.get("old").unwrap())
             .unwrap();
-        assert_eq!(archived.as_ref(), b"old");
+        assert_eq!(&*archived, b"old");
         assert!(matches!(archived, Cow::Owned(_)));
     }
 
