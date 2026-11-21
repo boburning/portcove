@@ -154,6 +154,17 @@ are fixed historical schema values.
 See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
 for the release prerequisite and the supported player path.
 
+### Indexed PS1 toolchain delivery
+
+An operational `tool_artifacts` list belongs to a single managed PS1 subject
+in catalog projection schema 4. The indexed entry must be definition schema 4
+and require `tools.psx-toolchain-v1`. The authenticated content hash binds the
+complete artifact inventory, including the exact allowed publisher URL, size,
+SHA-256 and platform layout. An unsigned proposal can be inspected, while
+runtime acquisition uses only a retained admitted selection. Legacy catalog
+updates cannot appoint tool artifacts. The primary publisher continues to
+produce its existing formats until a capable released reader qualifies.
+
 ## Capacity diagnostics and retained representations
 
 Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the

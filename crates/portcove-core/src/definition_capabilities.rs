@@ -88,6 +88,7 @@ definition_features! {
     PreparedRuntimeSubdirectory => "staged.runtime-subdirectory-v1", "port.runtime_subdirectory";
     OriginalRecognition => "source.optional-original-recognition-v1", "catalog.source_catalog.contracts.*.variant_list_recognition_only";
     N64ReleaseInputs => "n64.release-inputs-v1", "catalog.source_catalog.contracts.*.n64_recomp_inputs_v1";
+    PsxToolchain => "tools.psx-toolchain-v1", "catalog projection.tool_artifacts";
     PsxMultiTrack => "psx.multi-track-disc-set-v1", "catalog.source_catalog PSX multi-track profiles";
     SnesCopierHeader => "source.snes-copier-header-v1", "catalog.source_catalog SNES copier-header profiles";
     UpstreamActiveReviewed => "catalog.upstream-active-review-v1", "port.upstream_active_reviewed";

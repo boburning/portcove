@@ -1649,3 +1649,101 @@ fn multi_track_psx_disc_sets_require_their_reader_capability() {
     assert_eq!(error.code, crate::ErrorCode::Verification);
     assert!(error.message.contains("capability version 4"), "{error:?}");
 }
+
+// The shipped tool selector has never seen this release or its archive bytes.
+// Only an admitted schema-4 subject may select it.
+#[test]
+fn named_psx_toolchain_survives_retention_and_refuses_unadmitted_data() {
+    use crate::psx_tool_artifacts::{embedded, selected};
+    let baseline = Catalog::embedded().unwrap();
+    let id = "alexbeav-alone-in-the-dark-the-new-nightmare-recomp";
+    let port = baseline.port(id).unwrap();
+    let platform = port.platforms[0];
+    let mut artifacts: Vec<_> = port
+        .platforms
+        .iter()
+        .map(|&platform| embedded(platform).unwrap().clone())
+        .collect();
+    let artifact = &mut artifacts[0];
+    artifact.version = "7.4.1".into();
+    artifact.url = artifact.url.replace("/v1.0.14/", "/v7.4.1/");
+    artifact.sha256 = "7".repeat(64);
+    artifact.size -= 1;
+    let expected = artifact.clone();
+    let mut document = json!({
+        "contract_schema":4,
+        "representation":"catalog_projection",
+        "catalog":crate::test_fixture::indexed_fixture_document_for_port(&baseline, id),
+        "tool_artifacts":artifacts
+    });
+    let bytes = serde_json::to_vec(&document).unwrap();
+    let mut definition = entry(&document, &bytes, 0);
+    definition["required_features"] = json!([
+        "tools.psx-toolchain-v1",
+        "psx.package-preserving-activation-v1",
+        "psx.multi-track-disc-set-v1",
+        "psx.texture-persistence-v1"
+    ]);
+    let projection = inspect(&definition, &bytes).unwrap();
+    let mut catalog = projection.catalog().clone();
+    assert_eq!(
+        selected(&catalog, id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+
+    let historic = crate::test_fixture::admitted_indexed_catalog(&baseline, id);
+    assert_eq!(
+        selected(&historic, id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+    let mut admission = historic.definition_selection(id).unwrap().clone();
+    admission.definition_revision = projection.entry().revision();
+    admission.provenance.index_sha256 = projection.snapshot().index_sha256();
+    catalog
+        .retain_definition_selection(std::sync::Arc::new(admission))
+        .unwrap();
+    let chosen = selected(&catalog, id, platform).unwrap();
+    assert_eq!(chosen, expected);
+    assert_ne!(
+        chosen.cache_coordinate(),
+        embedded(platform).unwrap().cache_coordinate()
+    );
+    let retained = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
+    assert_eq!(
+        selected(&retained.catalog(id).unwrap(), id, platform).unwrap(),
+        expected
+    );
+
+    let mut missing = definition.clone();
+    missing["required_features"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    assert!(
+        inspect(&missing, &bytes)
+            .unwrap_err()
+            .message
+            .contains("tools.psx-toolchain-v1")
+    );
+
+    for (field, value) in [
+        ("url", json!("https://example.org/foreign.zip")),
+        ("name", json!("../tool.zip")),
+        ("sha256", json!("unknown-digest")),
+        ("size", json!(0)),
+        ("python_paths", json!(["bin/unauthorized-python"])),
+    ] {
+        let mut invalid = document.clone();
+        invalid["tool_artifacts"][0][field] = value;
+        let changed = serde_json::to_vec(&invalid).unwrap();
+        let mut indexed = entry(&invalid, &changed, 0);
+        indexed["required_features"] = definition["required_features"].clone();
+        assert!(inspect(&indexed, &changed).is_err(), "{field}");
+    }
+    document["contract_schema"] = json!(3);
+    let legacy = serde_json::to_vec(&document).unwrap();
+    let mut named = entry(&document, &legacy, 0);
+    named["definition_schema"] = json!(4);
+    named["required_features"] = definition["required_features"].clone();
+    assert!(inspect(&named, &legacy).is_err());
+}

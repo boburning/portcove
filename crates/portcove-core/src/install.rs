@@ -135,6 +135,17 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    pub(crate) fn psx_toolchain(
+        &self,
+        port_id: &str,
+    ) -> Result<crate::psx_tool_artifacts::ToolchainArtifact> {
+        if let Some(contract) = &self.retained_contract {
+            let catalog = contract.catalog(port_id)?;
+            return crate::psx_tool_artifacts::selected(&catalog, port_id, self.platform);
+        }
+        Ok(crate::psx_tool_artifacts::embedded(self.platform)?.clone())
+    }
+
     pub(crate) fn with_shared_preferences(
         mut self,
         accepted: Option<crate::managed_shared_preferences::Acceptance>,
@@ -1820,6 +1831,7 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
+            let toolchain = request.qualification.psx_toolchain(&request.port_id)?;
             if let Some((dependency, destination)) =
                 crate::psx::missing_offline_webp(&payload_root)?
             {
@@ -1854,7 +1866,7 @@ impl Installer {
             emit(operation.message("info", "Preparing and compiling PlayStation game data"));
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
-                crate::psx::prepare_install(&managed_root, &preparation, &checkpoint)
+                crate::psx::prepare_install(&managed_root, &preparation, &toolchain, &checkpoint)
             })
             .await?;
             operation.checkpoint()?;

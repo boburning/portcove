@@ -80,7 +80,7 @@ impl DefinitionEntryInspection {
 
     pub(crate) fn accepts_projection_schema(&self, schema: u32) -> bool {
         if self.schema_version == 4 {
-            matches!(schema, 1..=3)
+            matches!(schema, 1..=4)
         } else {
             self.schema_version == schema
         }

@@ -11,6 +11,18 @@ struct ProjectionDocument {
     contract_schema: u32,
     representation: String,
     catalog: Value,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_tool_artifacts"
+    )]
+    tool_artifacts: Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>,
+}
+
+fn present_tool_artifacts<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>, D::Error> {
+    Vec::deserialize(deserializer).map(Some)
 }
 
 impl ProjectionDocument {
@@ -22,6 +34,25 @@ impl ProjectionDocument {
             ));
         }
         let catalog = Catalog::from_json(&catalog_json)?;
+        if let Some(artifacts) = &self.tool_artifacts {
+            if self.contract_schema != 4
+                || catalog.ports().len() != 1
+                || catalog.ports()[0].adapter != crate::AdapterKind::PsxRecompManaged
+                || artifacts.len() != catalog.ports()[0].platforms.len()
+                || artifacts
+                    .iter()
+                    .any(|artifact| !catalog.ports()[0].platforms.contains(&artifact.platform))
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require a schema-4 managed PS1 subject and its exact platform scope",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        } else if self.contract_schema == 4 {
+            return Err(PortcoveError::verification(
+                "schema-4 catalog projections require PS1 tool artifacts",
+            ));
+        }
         if catalog
             .ports()
             .iter()
@@ -43,7 +74,8 @@ impl ProjectionDocument {
     }
 
     fn validate_loader_schema(&self, catalog: &Catalog) -> Result<()> {
-        if self.contract_schema != 3 && catalog.ports().iter().any(|port| port.mod_loader.is_some())
+        if !matches!(self.contract_schema, 3 | 4)
+            && catalog.ports().iter().any(|port| port.mod_loader.is_some())
         {
             return Err(PortcoveError::verification(
                 "native mod loader bindings require catalog projection schema 3",
@@ -59,7 +91,7 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2 | 3)
+    if !matches!(document.contract_schema, 1 | 2 | 3 | 4)
         || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
@@ -148,6 +180,14 @@ impl DefinitionSnapshot {
 
     pub(crate) fn catalog(&self) -> Result<Catalog> {
         Ok(self.projection()?.catalog)
+    }
+
+    pub(crate) fn selected_psx_tools(
+        &self,
+    ) -> Result<Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>> {
+        self.validate_bounds()?;
+        let document: ProjectionDocument = serde_json::from_str(&self.contract_json)?;
+        Ok(document.tool_artifacts)
     }
 
     pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
@@ -422,6 +462,18 @@ impl DefinitionContentIndex {
             .detail("port_id", &sibling.id));
         }
         document.validate_loader_schema(&catalog)?;
+        if let Some(artifacts) = &document.tool_artifacts {
+            if !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxToolchain,
+                "psx-recomp-managed",
+                1,
+            )? {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require the named managed toolchain capability",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        }
         if let Some(sources) = catalog.source_catalog() {
             for contract in sources
                 .contracts
