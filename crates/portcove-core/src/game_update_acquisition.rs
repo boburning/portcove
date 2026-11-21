@@ -97,9 +97,15 @@ impl PortcoveService {
             ));
         }
         let status = self.status(&reviewed.plan.port_id)?;
-        if status.channel != reviewed.plan.channel
-            || status.exact_release != reviewed.plan.exact_release
-        {
+        self.require_acquisition_state(&status, &reviewed.plan)
+    }
+
+    pub(super) fn require_acquisition_state(
+        &self,
+        status: &crate::PortStatus,
+        plan: &crate::InstallPlan,
+    ) -> Result<()> {
+        if status.channel != plan.channel || status.exact_release != plan.exact_release {
             return Err(PortcoveError::conflict(
                 "the release preference changed; review acquisition again",
             ));

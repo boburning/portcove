@@ -198,7 +198,10 @@ export function CatalogUpdatesDialog({
     }
   };
   const changed = async (next: CatalogStatus | null, message: CatalogNotice) => {
-    if (!next) return;
+    if (!next) {
+      setNotice("cancelled");
+      return;
+    }
     setStatus(next);
     setNotice(message);
     await onChanged?.();
@@ -451,13 +454,10 @@ function CatalogReview({
         variant="outline"
         disabled={Boolean(busy) || !location.trim()}
         onClick={() => {
+          const source = { kind, value: location.trim() };
+          setPlan(undefined);
           void run("verifyingCatalog", async () => {
-            setPlan(
-              await desktopApi.planCatalogUpdate({
-                kind,
-                value: location.trim(),
-              }),
-            );
+            setPlan(await desktopApi.planCatalogUpdate(source));
           });
         }}
       >
