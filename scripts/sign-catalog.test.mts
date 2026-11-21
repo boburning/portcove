@@ -463,7 +463,14 @@ void test("legacy signer refuses reviewed package and launch declarations before
   rmSync(item.key);
   writeFileSync(
     item.catalog,
-    JSON.stringify({ ports: [{ id: "banjo-recomp", reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } } }] }),
+    JSON.stringify({
+      ports: [
+        {
+          id: "banjo-recomp",
+          reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+        },
+      ],
+    }),
   );
   const result = item.run();
   assert.notEqual(result.status, 0);
@@ -471,6 +478,22 @@ void test("legacy signer refuses reviewed package and launch declarations before
     result.stderr,
     /Format-1 signed catalogs cannot deliver reviewed package and launch declarations/u,
   );
+  assert.equal(existsSync(item.output), false);
+});
+
+void test("legacy signer refuses package-only settings before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({
+      ports: [{ id: "super-mario-world-recomp", game_settings: { format_version: 2 } }],
+    }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver package-only settings/u);
   assert.equal(existsSync(item.output), false);
 });
 
@@ -536,25 +559,15 @@ void test("legacy signer refuses an alternate forge selector before key access",
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   rmSync(item.key);
-  writeFileSync(item.catalog, JSON.stringify({ ports: [{ release: { provider: "reviewed-forge" } }] }));
-  const result = item.run();
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver reviewed alternate forge selectors/u);
-  assert.equal(existsSync(item.output), false);
-});
-
-void test("legacy signer refuses package-only settings before key access", (t) => {
-  const item = fixture();
-  t.after(() => rmSync(item.root, { recursive: true, force: true }));
-  rmSync(item.key);
   writeFileSync(
     item.catalog,
-    JSON.stringify({
-      ports: [{ id: "super-mario-world-recomp", game_settings: { format_version: 2 } }],
-    }),
+    JSON.stringify({ ports: [{ release: { provider: "reviewed-forge" } }] }),
   );
   const result = item.run();
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver package-only settings/u);
+  assert.match(
+    result.stderr,
+    /Format-1 signed catalogs cannot deliver reviewed alternate forge selectors/u,
+  );
   assert.equal(existsSync(item.output), false);
 });

@@ -104,7 +104,7 @@ export function evaluateScopedRoadmap(
     ...catalog,
     ports: (catalog.ports ?? []).filter((port) => ids.has(port.id)),
   };
-  const stage = validatePortStageSemantics(selectedCatalog, items);
+  const stage = validatePortStageSemantics(selectedCatalog, items, config.repository);
   const errors = [
     ...validatePortIssueCoverage(
       selectedCatalog,
@@ -173,8 +173,16 @@ export function evaluateScopedRoadmap(
         );
     }
   }
-  if (errors.length) throw Object.assign(new Error(errors.join("\n")), { doctorErrors: errors });
-  return { warnings: stage.warnings, diagnostics: stage.diagnostics };
+  if (errors.length)
+    throw Object.assign(new Error(errors.join("\n")), {
+      doctorErrors: errors,
+      derivedStageDrift: stage.derivedStageDrift,
+    });
+  return {
+    warnings: stage.warnings,
+    diagnostics: stage.diagnostics,
+    derivedStageDrift: stage.derivedStageDrift,
+  };
 }
 
 export async function runScopedDoctor(

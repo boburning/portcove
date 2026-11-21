@@ -13,6 +13,7 @@ const MAX_REQUIREMENTS: usize = 64;
 const LIBULTRASHIP_ORIGINAL_RECOGNITION: u32 = 7;
 const N64_RECOMP_ORIGINAL_RECOGNITION: u32 = 9;
 pub(crate) const N64_RECOMP_RELEASE_INPUT_CAPABILITY: u32 = 10;
+pub(crate) const N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY: u32 = 11;
 
 // The existing Core predicates at entry and projection inspection apply these
 // feature identities. Keep field paths beside the stable names for review.
@@ -518,6 +519,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::N64RecompPortable,
             contract_version: N64_RECOMP_RELEASE_INPUT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY,
         });
         supported
     }
@@ -1362,7 +1367,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(
             n64.checks[0].installed_version,
-            Some(N64_RECOMP_RELEASE_INPUT_CAPABILITY)
+            Some(N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY)
         );
         let future =
             check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();

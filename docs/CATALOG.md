@@ -1880,7 +1880,18 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
-Ordinary executable updates do not refresh artwork.
+Due refresh of a retained cover revalidates its approved IGDB game ID, slug
+and cover role. An accepted mapping can be revalidated by exact ID and slug
+even when the listing lacks an original title. This does not establish a new
+artwork relationship or runtime eligibility. If the exact identity cannot be
+confirmed, retain its allowed mapping. A different game or role needs separate reviewed preparation. Exact
+confirmed Gone still removes the affected image references.
+For a bounded retained-cover pass, add `--artwork-retained-limit COUNT` to
+`@due`. This selects up to 400 due rows with an accepted cover or cover collection
+and reports how many due rows were outside the current pass. An attempted row
+goes behind rows with older attempts so unresolved identity holds do not starve
+the rest of that workset. New and ambiguous cover identities keep their separate
+review path. Ordinary executable updates do not refresh artwork.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same

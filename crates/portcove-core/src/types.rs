@@ -245,6 +245,46 @@ pub struct SourceEdition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
     pub evidence_urls: Vec<String>,
+    /// Reviewed correspondence to an exact Core source identity. An empty list
+    /// leaves the edition available for manual browsing only.
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "present_verified_sources"
+    )]
+    pub verified_sources: Vec<OriginalEditionSourceBinding>,
+}
+
+/// Exact correspondence to an identity in the reviewed source graph.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OriginalEditionSourceBinding {
+    pub game_id: String,
+    pub variant_id: String,
+    pub representation_id: String,
+}
+
+fn present_verified_sources<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<OriginalEditionSourceBinding>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let identities = Vec::deserialize(deserializer)?;
+    if identities.is_empty() {
+        return Err(serde::de::Error::custom(
+            "an explicit source binding list needs at least one identity",
+        ));
+    }
+    Ok(identities)
+}
+
+impl OriginalEditionSourceBinding {
+    pub(crate) fn matches(&self, identity: &crate::SourceIdentity) -> bool {
+        self.game_id == identity.game_id
+            && self.variant_id == identity.variant_id
+            && self.representation_id == identity.representation_id
+    }
 }
 
 /// Authored instructions only; these steps grant no operation or file authority.
@@ -1453,6 +1493,14 @@ pub struct SourceRecord {
     pub observed_identity: Option<crate::ObservedSourceIdentity>,
 }
 
+/// A reviewed original edition for one port using the verified source profile.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VerifiedOriginalEdition {
+    pub port_id: String,
+    pub original_game_id: String,
+    pub source_edition_id: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SourceVerification {
     pub profile_id: String,
@@ -2136,7 +2184,16 @@ pub struct AutomaticSnapshotLabel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum BackupRecoveryReview {
+    #[serde(rename = "legacy_install_and_data_v1")]
+    LegacyInstallAndDataV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupRecord {
+    /// Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_review: Option<BackupRecoveryReview>,
     /// Present only for snapshots Portcove took automatically.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub automatic: Option<AutomaticSnapshotLabel>,
@@ -2814,7 +2871,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

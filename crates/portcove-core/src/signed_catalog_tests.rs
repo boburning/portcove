@@ -1172,6 +1172,37 @@ fn legacy_signed_catalog_keeps_compiled_provider_scopes() {
 }
 
 #[test]
+fn legacy_signed_catalog_keeps_compiled_package_only_settings() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    let compiled = verified
+        .catalog
+        .port("super-mario-world-recomp")
+        .unwrap()
+        .game_settings
+        .clone();
+    assert!(compiled.as_ref().unwrap().package_only());
+
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "super-mario-world-recomp")
+        .unwrap()
+        .game_settings = compiled;
+    let rejected = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(
+        matches!(rejected, Err(error) if error.message.contains("cannot deliver package-only settings"))
+    );
+}
+
+#[test]
 fn legacy_signed_catalog_cannot_supply_shipwright_persistence() {
     let now = 1_800_000_000;
     let mut payload = fixture(1, now);
@@ -1264,35 +1295,4 @@ fn legacy_signed_catalog_keeps_compiled_empty_middle_patterns() {
     port.persistent_file_patterns[0].allow_empty_middle = false;
     port.persistent_file_patterns[0].suffix.push('0');
     assert!(signed_catalog::verify(&sign(&payload), trust, now).is_err());
-}
-
-#[test]
-fn legacy_signed_catalog_keeps_compiled_package_only_settings() {
-    let now = 1_800_000_000;
-    let mut payload = fixture(1, now);
-    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
-        signing_key().verifying_key().as_bytes(),
-    ))
-    .unwrap();
-    let verified =
-        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
-    let compiled = verified
-        .catalog
-        .port("super-mario-world-recomp")
-        .unwrap()
-        .game_settings
-        .clone();
-    assert!(compiled.as_ref().unwrap().package_only());
-
-    payload
-        .catalog
-        .ports
-        .iter_mut()
-        .find(|port| port.id == "super-mario-world-recomp")
-        .unwrap()
-        .game_settings = compiled;
-    let rejected = signed_catalog::verify(&sign(&payload), &[trust], now);
-    assert!(
-        matches!(rejected, Err(error) if error.message.contains("cannot deliver package-only settings"))
-    );
 }

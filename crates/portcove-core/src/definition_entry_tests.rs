@@ -2261,7 +2261,8 @@ fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     port.remove("mod_loader");
     port.remove("mod_provider_bindings");
     // Keep the fixture's authored settings targets in the persistence contract.
-    value["port"]["persistent_paths"]
+    port.get_mut("persistent_paths")
+        .unwrap()
         .as_array_mut()
         .unwrap()
         .push(json!("../outside"));

@@ -566,11 +566,16 @@ impl DefinitionContentIndex {
                 .iter()
                 .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
             {
+                let minimum = if contract.migrates_n64_legacy_admission() {
+                    crate::definition_capabilities::N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY
+                } else {
+                    crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
+                };
                 if contract.port_id != stable_id
                     || !entry.supports_feature(
                         crate::definition_capabilities::Feature::N64ReleaseInputs,
                         "n64-recomp-portable",
-                        crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY,
+                        minimum,
                     )?
                 {
                     return Err(PortcoveError::verification(

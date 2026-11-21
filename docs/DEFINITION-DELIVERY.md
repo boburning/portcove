@@ -2104,6 +2104,17 @@ When that older overlay cannot express a bundled typed scene, a newer reader
 keeps the scene only if the project and original-game scope still match and
 the combined media passes admission. A format-13 replacement can withdraw it.
 
+Listing format 14 can bind an original edition to a reviewed Core source
+identity. A binding names the exact source game, variant and representation.
+It is descriptive and applies only to current data verified with exact identity.
+Exports through format 13 retain the original editions and omit these bindings.
+The strict operational catalog does not carry the bindings.
+Both signed carriers use the same directory field rules. An older overlay
+keeps bundled bindings only for the same project and original description.
+A format-14 replacement can remove those bindings. Carrier support and format
+support are advertised separately, so compact transport alone does not
+establish format-14 compatibility.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:
@@ -2179,6 +2190,14 @@ The native game ID must name the definition's normalized runtime file. The
 contract cites upstream support evidence. Indexed projections carrying these
 bindings require N64 recomp portable version 10 for the selected definition.
 
+A definition that adds release inputs to an enforced legacy contract requires
+N64 recomp portable version 11. Keep the existing accepted variants in the
+profile and contract. A file matching one of the profile's published runtime
+inputs can be registered as an original. Portcove checks the selected release
+and artifact before using that file. A release without an exact binding still
+requires an edition in its legacy list. Every port using the migrated profile
+must be an N64 Recomp port with an enforced legacy game contract.
+
 The matching release and artifact select the requirement during managed
 installation, activation, rollback and launch. Core checks the selected
 registration's storage and content identities and compares the upstream digest
@@ -2187,6 +2206,10 @@ that the runtime file matches the normalized original's SHA-256 and size. A
 bound release needs a checked original. A binding for a different release or
 artifact supplies no compatibility verdict. A literal value in upstream source
 needs evidence of the applicable runtime check before it can become a binding.
+Existing registrations remain available as exact local instances. When the
+default no longer fits a retained build, Portcove can recheck a unique matching
+saved instance within its bounded lookup. A selected setup with an exact
+original binding keeps that original.
 
 ### Native mod loader bindings
 
