@@ -170,6 +170,46 @@ it("rejects a review from another installation without enabling save", async () 
   expect(apply).not.toHaveBeenCalled();
 });
 
+it("explains a refused read-only review and retains the exact draft for retry", async () => {
+  const reason = "settings editing requires an effective medium-integrity token";
+  const review = vi
+    .fn<GameSettingsActions["review"]>()
+    .mockRejectedValueOnce({
+      code: "unsupported",
+      presentation: {
+        summary: "This operation is not supported for the current selection.",
+        tone: "error",
+        mutation_state: "unknown",
+        technical_message: reason,
+        technical_context: { game_settings_access: "medium_integrity_required" },
+        recovery_actions: [],
+      },
+    })
+    .mockResolvedValue(reviewed({ action: "reset" }));
+  const apply = vi.fn(async () => settings());
+  await mount({ review, apply });
+  await click("Use default");
+  await click("Review changes");
+  const alert = document.querySelector("[role=alert]");
+  expect(alert?.textContent).toContain(
+    "Open Portcove from the desktop without administrator privileges",
+  );
+  expect(alert?.textContent).not.toContain("confirm whether anything changed");
+  expect(alert?.querySelector("details")?.textContent).toContain(reason);
+  expect(button("Save changes").disabled).toBe(true);
+  expect(apply).not.toHaveBeenCalled();
+
+  await click("Review again");
+  const edits = [{ setting_id: "master-volume", change: { action: "reset" } }];
+  expect(review.mock.calls).toEqual([
+    ["preferences", edits],
+    ["preferences", edits],
+  ]);
+  expect(document.querySelector("[role=alert]")).toBeNull();
+  expect(button("Save changes").disabled).toBe(false);
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("retains failed-write consequences and requires a new read before another apply", async () => {
   const review = vi.fn(async () => reviewed({ action: "reset" }));
   const apply = vi.fn(async (): Promise<GameSettingsView> => {

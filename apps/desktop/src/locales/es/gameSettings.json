@@ -472,6 +472,7 @@
     "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
     "new": "Nuevo valor",
     "reading": "Comprobando los ajustes actuales…",
+    "requiresStandardWindowsSession": "No se pueden revisar los ajustes del juego en esta sesión de Windows. Abre Portcove desde el escritorio sin privilegios de administrador para editar los ajustes del juego.",
     "save": "Guardar cambios",
     "saved": "Cambios guardados.",
     "savedReadback": "Cambios guardados. Vuelve a leer los ajustes para ver los valores actuales.",

@@ -1638,6 +1638,7 @@ export default interface Resources {
       "installationChanged": "The installation changed. Refresh settings and review again.",
       "new": "New value",
       "reading": "Checking the current settings…",
+      "requiresStandardWindowsSession": "Game settings can’t be reviewed in this Windows session. Open Portcove from the desktop without administrator privileges to edit game settings.",
       "save": "Save changes",
       "saved": "Changes saved.",
       "savedReadback": "Changes saved. Read the settings again to see the current values.",
