@@ -1170,8 +1170,9 @@ impl PortcoveService {
         let status_catalog = match self.catalog_for_installed_fallback(port_id) {
             Ok(catalog) => catalog,
             Err(error) if error.code == crate::ErrorCode::NotFound => {
-                let status = self.library.status(port_id, ReleaseChannel::Stable)?;
+                let mut status = self.library.status(port_id, ReleaseChannel::Stable)?;
                 if status.acquisition.is_some() {
+                    self.omit_withdrawn_cached_offer(&mut status);
                     return Ok(Self::acquisition_metadata_status(status));
                 }
                 return Err(error);
@@ -1188,9 +1189,10 @@ impl PortcoveService {
             )],
             false,
         )?;
-        let status = statuses
+        let mut status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
+        self.omit_withdrawn_cached_offer(&mut status);
         if port.is_none()
             || status
                 .external_runtime
@@ -1338,10 +1340,7 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))
     }
 
-    /// An archive is display metadata, never a replacement operational definition.
-    fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
-        status.readiness = None;
-        status.definition_operations.clear();
+    fn omit_withdrawn_cached_offer(&self, status: &mut PortStatus) {
         if let Some(snapshot) = &status.last_update_check
             && snapshot.check.update_available
             && snapshot.check.port_id == status.port_id
@@ -1376,6 +1375,12 @@ impl PortcoveService {
                 status.last_update_check = None;
             }
         }
+    }
+
+    /// An archive is display metadata, never a replacement operational definition.
+    fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
+        status.readiness = None;
+        status.definition_operations.clear();
         status.port_actions = [
             PortAction::Install,
             PortAction::Launch,
@@ -1409,7 +1414,8 @@ impl PortcoveService {
             .collect::<HashMap<_, _>>();
         statuses
             .into_iter()
-            .map(|status| {
+            .map(|mut status| {
+                self.omit_withdrawn_cached_offer(&mut status);
                 let port = match catalog.port(&status.port_id) {
                     Ok(port) => port,
                     Err(_) if status.acquisition.is_some() => {
