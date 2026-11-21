@@ -135,6 +135,19 @@
     "createFirst": "Crear el primer perfil",
     "defaultRefreshRequired": "El perfil predeterminado aún registra una versión anterior del juego. Actualízalo antes de copiarlo o exportarlo.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
+    "external": {
+      "coopDx": "Explorar mods de CoopDX",
+      "coopSetup": "Descarga el archivo ZIP o Lua compatible. Abre SM64 Co-op DX y arrastra el archivo a la ventana del juego para importarlo.",
+      "daggerfallSetup": "Elige la versión de Daggerfall Unity y el sistema operativo correctos. Sigue las instrucciones del archivo en una copia separada de Daggerfall Unity. Coloca los archivos .dfmod en StreamingAssets/Mods.",
+      "heading": "Sitios de mods de la comunidad",
+      "modDb": "Ver en Mod DB",
+      "modIo": "Ver en mod.io",
+      "nexus": "Obtener en Nexus",
+      "openXcomSetup": "Revisa los requisitos del juego base y del motor. Usa solo archivos que indiquen tu motor y juego de OpenXcom.",
+      "owner": "Elige, instala y actualiza los archivos fuera de Portcove.",
+      "quaddicted": "Ver en Quaddicted",
+      "quakeSetup": "Comprueba que el paquete sea compatible con vkQuake. Sigue las instrucciones del autor en una copia separada de Quake."
+    },
     "filePreservation": {
       "adopt": "Para un mod compatible, usa Añadir archivo de mod y elige este archivo guardado.",
       "details": "Detalles del archivo",

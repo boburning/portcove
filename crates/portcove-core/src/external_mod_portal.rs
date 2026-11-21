@@ -1,0 +1,182 @@
+use crate::{Catalog, Platform};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+/// Upstream-owned browser routes. These grant no download or import capability.
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExternalModPortalSource {
+    NexusDaggerfallUnity,
+    CoopDx,
+    ModIoOpenXcom,
+    Quaddicted,
+    ModDbOpenXcom,
+}
+
+impl ExternalModPortalSource {
+    pub fn url(self) -> &'static str {
+        match self {
+            Self::NexusDaggerfallUnity => "https://www.nexusmods.com/games/daggerfallunity/mods",
+            Self::CoopDx => "https://mods.sm64coopdx.com/mods/",
+            Self::ModIoOpenXcom => "https://mod.io/g/openxcom/",
+            Self::Quaddicted => "https://www.quaddicted.com/db/v2/",
+            Self::ModDbOpenXcom => "https://www.moddb.com/games/openxcom/mods",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct ExternalModPortal {
+    pub source: ExternalModPortalSource,
+    pub url: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Binding {
+    port: String,
+    game: String,
+    project: String,
+    platforms: Vec<Platform>,
+    portals: Vec<ExternalModPortalSource>,
+}
+
+fn bindings() -> &'static [Binding] {
+    static BINDINGS: std::sync::OnceLock<Vec<Binding>> = std::sync::OnceLock::new();
+    BINDINGS.get_or_init(|| {
+        serde_json::from_str(include_str!("../catalog/external-mod-portals.json"))
+            .expect("bundled mod portal bindings must be valid")
+    })
+}
+
+pub(crate) fn is_reviewed_url(catalog: &Catalog, platform: Option<Platform>, url: &str) -> bool {
+    bindings().iter().any(|binding| {
+        binding.portals.iter().any(|source| source.url() == url)
+            && portals(catalog, &binding.port, platform)
+                .iter()
+                .any(|portal| portal.url == url)
+    })
+}
+
+pub(crate) fn portals(
+    catalog: &Catalog,
+    id: &str,
+    platform: Option<Platform>,
+) -> Vec<ExternalModPortal> {
+    let Some(platform) = platform else {
+        return Vec::new();
+    };
+    let listing = catalog.listings().iter().find(|listing| listing.id == id);
+    let port = catalog.port(id).ok();
+    let (project, game) = if let Some(port) = port {
+        (
+            port.project_url.as_str(),
+            port.presentation
+                .as_ref()
+                .and_then(|value| value.original_game.as_ref()),
+        )
+    } else if let Some(listing) = listing {
+        (listing.project_url.as_str(), listing.original_game.as_ref())
+    } else {
+        return Vec::new();
+    };
+    let Some(game) = game else { return Vec::new() };
+    let defined_platform = port.is_some_and(|port| port.platforms.contains(&platform));
+    let listed_platform = listing.is_some_and(|listing| {
+        listing.project_url == project
+            && listing
+                .original_game
+                .as_ref()
+                .is_some_and(|value| value.id == game.id)
+            && listing.platforms.contains(&platform)
+    });
+    if !defined_platform && !listed_platform {
+        return Vec::new();
+    }
+    bindings()
+        .iter()
+        .find(|binding| {
+            binding.port == id
+                && binding.game == game.id
+                && binding.project == project
+                && binding.platforms.contains(&platform)
+        })
+        .into_iter()
+        .flat_map(|binding| &binding.portals)
+        .map(|source| ExternalModPortal {
+            source: *source,
+            url: source.url().into(),
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_reviewed_route_matches_the_current_catalog_and_opens_only_its_exact_url() {
+        let catalog = Catalog::embedded().unwrap();
+        assert_eq!(bindings().len(), 5);
+        for binding in bindings() {
+            for &platform in &binding.platforms {
+                let offered = portals(&catalog, &binding.port, Some(platform));
+                assert_eq!(
+                    offered
+                        .iter()
+                        .map(|portal| portal.source)
+                        .collect::<Vec<_>>(),
+                    binding.portals,
+                    "{} {platform:?}",
+                    binding.port
+                );
+                for portal in offered {
+                    assert!(is_reviewed_url(&catalog, Some(platform), &portal.url));
+                    assert!(!is_reviewed_url(
+                        &catalog,
+                        Some(platform),
+                        &format!("{}?download=true", portal.url)
+                    ));
+                    assert!(!is_reviewed_url(&catalog, None, &portal.url));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn public_profile_reads_surface_portals_before_installation() {
+        let root = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(root.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new_read_only(library).unwrap();
+        let platform = Platform::current().unwrap();
+        for binding in bindings()
+            .iter()
+            .filter(|binding| binding.platforms.contains(&platform))
+        {
+            let desktop = service.preview_mod_handoff(&binding.port).unwrap();
+            let cli = service.mod_setups(&binding.port).unwrap();
+            assert!(!desktop.supported);
+            assert!(!cli.supported);
+            assert!(!desktop.external_mod_portals.is_empty());
+            assert_eq!(desktop.external_mod_portals, cli.external_mod_portals);
+            for portal in cli.external_mod_portals {
+                assert!(service.is_reviewed_resource_url(&portal.url).unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn unrelated_ports_unknown_hosts_and_unlisted_platforms_do_not_inherit_portals() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(portals(&catalog, "starship", Some(Platform::WindowsX86_64)).is_empty());
+        assert!(portals(&catalog, "interkarma-daggerfall-unity", None).is_empty());
+        assert!(
+            portals(
+                &catalog,
+                "interkarma-daggerfall-unity",
+                Some(Platform::MacosAarch64)
+            )
+            .is_empty()
+        );
+    }
+}

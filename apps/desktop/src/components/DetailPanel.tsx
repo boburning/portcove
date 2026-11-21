@@ -113,6 +113,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { ExternalModPortals } from "./ExternalModPortals";
 import { JakModsBrowser } from "./JakModsBrowser";
 import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
@@ -565,7 +566,7 @@ function DetailBody(model: {
     supported: boolean | "unavailable";
     github?: Pick<
       import("../types").ModSetupsView,
-      "github_release_url" | "github_native_import_offered"
+      "github_release_url" | "github_native_import_offered" | "external_mod_portals"
     >;
   }>();
   const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
@@ -623,6 +624,7 @@ function DetailBody(model: {
   const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
   const githubSource = modState?.github;
+  const externalModPortals = githubSource?.external_mod_portals ?? [];
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -783,10 +785,14 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable || hasCommunitySource || githubSource?.github_release_url
+        ...(modsAvailable ||
+        hasCommunitySource ||
+        githubSource?.github_release_url ||
+        externalModPortals.length > 0
           ? {
               mods: (
                 <>
+                  <ExternalModPortals portals={externalModPortals} />
                   {hasCommunitySource && (
                     <JakModsBrowser
                       setupUrl={communitySource.url}

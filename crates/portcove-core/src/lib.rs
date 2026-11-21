@@ -101,6 +101,8 @@ mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
+mod external_mod_portal;
+pub use external_mod_portal::{ExternalModPortal, ExternalModPortalSource};
 mod gamebanana;
 mod github_mods;
 mod jakmods;

@@ -1,0 +1,37 @@
+[
+  {
+    "port": "interkarma-daggerfall-unity",
+    "game": "the-elder-scrolls-ii-daggerfall",
+    "project": "https://github.com/Interkarma/daggerfall-unity",
+    "platforms": ["linux-x86-64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["nexus-daggerfall-unity"]
+  },
+  {
+    "port": "super-mario-64-sm64-co-op-dx",
+    "game": "super-mario-64",
+    "project": "https://github.com/coop-deluxe/sm64coopdx",
+    "platforms": ["linux-x86-64", "macos-aarch64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["coop-dx"]
+  },
+  {
+    "port": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+    "game": "ufo-enemy-unknown-x-com-ufo-defense",
+    "project": "https://github.com/OpenXcom/OpenXcom",
+    "platforms": ["linux-x86-64", "macos-aarch64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["mod-io-open-xcom", "mod-db-open-xcom"]
+  },
+  {
+    "port": "x-com-terror-from-the-deep-openxcom",
+    "game": "x-com-terror-from-the-deep",
+    "project": "https://github.com/OpenXcom/OpenXcom",
+    "platforms": ["linux-x86-64", "macos-aarch64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["mod-io-open-xcom", "mod-db-open-xcom"]
+  },
+  {
+    "port": "quake-vkquake",
+    "game": "quake",
+    "project": "https://github.com/Novum/vkQuake",
+    "platforms": ["linux-x86-64", "macos-aarch64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["quaddicted"]
+  }
+]

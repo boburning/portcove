@@ -1531,25 +1531,36 @@ pub(crate) async fn execute(
         ),
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
-                if !view.supported {
-                    return "This game has no reviewed mod support.".into();
-                }
-                let Some(inventory) = &view.inventory else {
-                    return "No setups yet; the installed game gets its default setup first."
-                        .into();
-                };
-                let mut lines = inventory
-                    .profiles
+                let mut lines = view
+                    .external_mod_portals
                     .iter()
-                    .map(|entry| {
+                    .map(|portal| {
                         format!(
-                            "{} ({}) revision {}",
-                            clean(&entry.profile.display_name),
-                            clean(&entry.profile.id),
-                            entry.profile.current_revision
+                            "Browse upstream mods: {} (you manage installation and updates)",
+                            portal.url
                         )
                     })
                     .collect::<Vec<_>>();
+                if !view.supported {
+                    if lines.is_empty() {
+                        lines.push("This game has no reviewed mod support.".into());
+                    }
+                    return lines.join("\n");
+                }
+                let Some(inventory) = &view.inventory else {
+                    lines.push(
+                        "No setups yet; the installed game gets its default setup first.".into(),
+                    );
+                    return lines.join("\n");
+                };
+                lines.extend(inventory.profiles.iter().map(|entry| {
+                    format!(
+                        "{} ({}) revision {}",
+                        clean(&entry.profile.display_name),
+                        clean(&entry.profile.id),
+                        entry.profile.current_revision
+                    )
+                }));
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
                 }

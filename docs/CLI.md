@@ -2700,6 +2700,32 @@ GitHub asset privately. The review compares the ZIP with the published SHA-256 a
 mods and companion libraries for the selected platform. Use the intact ZIP in
 the upstream installer. The report cannot activate a Portcove setup.
 
+### Browsing upstream-owned mod portals
+
+Open **Mods** on the game page or run `portcove profile setups <port-id>`
+to see the reviewed browser links for the current host. A game can offer these
+links before it has an installed runtime or a managed mod setup. You choose,
+install and update files outside Portcove.
+
+- Daggerfall Unity links to Nexus. Choose the matching game version and operating
+  system. Follow the mod's instructions in a separate Daggerfall Unity copy.
+  Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)
+- SM64 Co-op DX links to its community catalog. The game imports a compatible
+  ZIP or Lua file when you drag it onto the game window. [CoopDX FAQ](https://mods.sm64coopdx.com/help/faq/)
+- The UFO Defense and Terror from the Deep OpenXcom ports link to the OpenXcom
+  communities on mod.io and Mod DB. Check the mod's original game and engine
+  requirements before choosing a file. Some listings target a different engine
+  variant. [OpenXcom community](https://github.com/OpenXcom/OpenXcom#mods) ·
+  [OpenXcom on Mod DB](https://www.moddb.com/games/openxcom/mods)
+- vkQuake links to Quaddicted. Check the project's compatibility notes and
+  follow the author's setup in a separate Quake copy. [vkQuake compatibility](https://github.com/Novum/vkQuake)
+
+The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
+specifies the exact port ID, original game ID, project URL and host platforms.
+Core also checks the current catalog when it returns a link or authorizes the
+desktop to open it. Browser routes supply no account, download, package trust
+or managed-import capability.
+
 ### Browsing JakMods in OpenGOAL
 
 Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.

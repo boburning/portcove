@@ -2554,6 +2554,9 @@ pub struct ModSetupsView {
     /// This host has a reviewed native companion layout for the upstream ZIP.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub github_native_import_offered: bool,
+    /// Reviewed upstream browser routes for this port and host.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_mod_portals: Vec<crate::ExternalModPortal>,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2572,6 +2575,7 @@ impl ModSetupsView {
         port_id: &str,
         github_release_url: Option<String>,
         github_native_import_offered: bool,
+        external_mod_portals: Vec<crate::ExternalModPortal>,
     ) -> Self {
         Self {
             port_id: port_id.into(),
@@ -2585,6 +2589,7 @@ impl ModSetupsView {
             provider: None,
             github_release_url,
             github_native_import_offered,
+            external_mod_portals,
             providers: Vec::new(),
             applied_package_count: None,
             current_install_id: None,
@@ -2606,10 +2611,20 @@ impl PortcoveService {
 
     /// Public source handoff without reading or changing managed profile state.
     pub fn preview_mod_handoff(&self, port_id: &str) -> Result<ModSetupsView> {
-        let port = self.catalog().port(port_id)?;
-        let (url, native) =
-            crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
-        Ok(ModSetupsView::browse_only(port_id, url, native))
+        let catalog = self.catalog();
+        let platform = crate::Platform::current().ok();
+        let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
+        let (url, native) = match catalog.port(port_id) {
+            Ok(port) => crate::github_mods::github_mod_handoff(port, platform),
+            Err(_) if !external_mod_portals.is_empty() => (None, false),
+            Err(error) => return Err(error),
+        };
+        Ok(ModSetupsView::browse_only(
+            port_id,
+            url,
+            native,
+            external_mod_portals,
+        ))
     }
 
     fn mod_setups_with_inventory(
@@ -2617,14 +2632,22 @@ impl PortcoveService {
         port_id: &str,
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
-        let port = self.catalog().port(port_id)?;
+        let Ok(port) = self.catalog().port(port_id) else {
+            return self.preview_mod_handoff(port_id);
+        };
         let (github_release_url, github_native_import_offered) =
             crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
+        let external_mod_portals = crate::external_mod_portal::portals(
+            self.catalog(),
+            port_id,
+            crate::Platform::current().ok(),
+        );
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView::browse_only(
                 port_id,
                 github_release_url,
                 github_native_import_offered,
+                external_mod_portals,
             ));
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
@@ -2648,6 +2671,7 @@ impl PortcoveService {
         Ok(ModSetupsView {
             github_release_url,
             github_native_import_offered,
+            external_mod_portals,
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)

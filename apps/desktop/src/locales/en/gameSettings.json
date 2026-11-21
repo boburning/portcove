@@ -130,6 +130,19 @@
     "createFirst": "Create first setup",
     "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
     "empty": "No mods. The game plays without changes in this setup.",
+    "external": {
+      "coopDx": "Browse CoopDX Mods",
+      "coopSetup": "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+      "daggerfallSetup": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+      "heading": "Community mod websites",
+      "modDb": "View on Mod DB",
+      "modIo": "View on mod.io",
+      "nexus": "Get on Nexus",
+      "openXcomSetup": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+      "owner": "You choose, install and update files outside Portcove.",
+      "quaddicted": "View on Quaddicted",
+      "quakeSetup": "Check that the package supports vkQuake. Follow the author’s setup in a separate Quake copy."
+    },
     "filePreservation": {
       "adopt": "For a supported mod, use Add mod file and choose this saved file.",
       "details": "File details",

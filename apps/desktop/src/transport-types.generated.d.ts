@@ -857,6 +857,11 @@ export type OutputListingStatuses = PortListingStatus[];
  */
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 /**
+ * Upstream-owned browser routes. These grant no download or import capability.
+ */
+export type ExternalModPortalSource =
+  "nexus-daggerfall-unity" | "coop-dx" | "mod-io-open-xcom" | "quaddicted" | "mod-db-open-xcom";
+/**
  * `Present` is limited to ordinary setup metadata previews; it does not
  * establish current immutable payload integrity. Strict inspection uses `Verified`.
  */
@@ -5363,6 +5368,10 @@ export interface OutputModSetupsView {
    */
   current_install_id?: string | null;
   /**
+   * Reviewed upstream browser routes for this port and host.
+   */
+  external_mod_portals?: ExternalModPortal[];
+  /**
    * This host has a reviewed native companion layout for the upstream ZIP.
    */
   github_native_import_offered?: boolean;
@@ -5413,6 +5422,11 @@ export interface OutputModSetupsView {
    * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
+  [k: string]: unknown;
+}
+export interface ExternalModPortal {
+  source: ExternalModPortalSource;
+  url: string;
   [k: string]: unknown;
 }
 /**

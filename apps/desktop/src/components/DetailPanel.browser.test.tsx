@@ -1091,6 +1091,45 @@ it.each(["uninstalled", "unsupported", "external"] as const)(
   },
 );
 
+it("offers CoopDX's own file import on the Mods tab before installation", async () => {
+  await page.viewport(1280, 800);
+  const port = portDefinition();
+  const url = "https://mods.sm64coopdx.com/mods/";
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+    held_updates: [],
+    inventory: null,
+    later_mods_take_priority: false,
+    live: null,
+    provider: null,
+    package_types: [],
+    port_id: port.id,
+    supported: false,
+    external_mod_portals: [{ source: "coop-dx", url }],
+  });
+  const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+  try {
+    await render(
+      <DetailPanel
+        port={port}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+      />,
+    );
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    const browse = page.getByRole("link", { name: "Browse CoopDX Mods" });
+    await browse.click();
+    expect(open).toHaveBeenCalledWith(url);
+    await expect.element(page.getByText(/drag the file onto the game window/)).toBeVisible();
+    expect(page.getByRole("button", { name: /create.*setup/i }).query()).toBeNull();
+    expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), true);
+  } finally {
+    read.mockRestore();
+    open.mockRestore();
+  }
+});
+
 it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
   "keeps simultaneous hero notices and staged activation safety in the %s renderer fixture",
   async (state) => {

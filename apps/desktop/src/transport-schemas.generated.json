@@ -33308,6 +33308,32 @@
         ],
         "type": "object"
       },
+      "ExternalModPortal": {
+        "properties": {
+          "source": {
+            "$ref": "#/$defs/ExternalModPortalSource"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ExternalModPortalSource": {
+        "description": "Upstream-owned browser routes. These grant no download or import capability.",
+        "enum": [
+          "nexus-daggerfall-unity",
+          "coop-dx",
+          "mod-io-open-xcom",
+          "quaddicted",
+          "mod-db-open-xcom"
+        ],
+        "type": "string"
+      },
       "HeldModUpdate": {
         "description": "An unattended update the player has to review, remembered for a setup's\ncurrent revision.",
         "properties": {
@@ -34346,6 +34372,14 @@
           "string",
           "null"
         ]
+      },
+      "external_mod_portals": {
+        "default": [],
+        "description": "Reviewed upstream browser routes for this port and host.",
+        "items": {
+          "$ref": "#/$defs/ExternalModPortal"
+        },
+        "type": "array"
       },
       "github_native_import_offered": {
         "description": "This host has a reviewed native companion layout for the upstream ZIP.",
