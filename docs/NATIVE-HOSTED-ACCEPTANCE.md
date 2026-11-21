@@ -224,6 +224,11 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The manual `reviewed-snapshot-policy` operation runs the existing `update-acquisition` matrix
+entry on Windows. The normal plan retains its install readback prerequisite,
+owned download and update fixture, rollback checks and evidence retention. The
+full `product-workflows` matrix still runs all of its original entries.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,

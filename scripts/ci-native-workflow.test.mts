@@ -248,6 +248,9 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   );
 });
 
+const fixedProductMatrix =
+  /^\$\{\{ fromJSON\(inputs\.operation == 'reviewed-snapshot-policy' && '([^']+)' \|\|\s*'([^']+)'\) \}\}$/u;
+
 void test("fixed native product groups preserve owned lifecycle coverage and isolation constraints", () => {
   const source = nativeDesignCompatibilityWorkflow;
   const job = workflowJob("product_workflows", source);
@@ -257,13 +260,27 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   assert.equal(job["timeout-minutes"], 90);
   assert.equal(
     job.if,
-    "${{ inputs.operation == 'product-workflows' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+    "${{ (inputs.operation == 'product-workflows' || inputs.operation == 'reviewed-snapshot-policy') && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
   );
   assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
   assert.equal(job.strategy["fail-fast"], false);
   assert.equal(job.strategy["max-parallel"], 4);
-  const groups = job.strategy.matrix.include;
+  const include = job.strategy.matrix.include;
+  assert.ok(typeof include === "string");
+  const options = fixedProductMatrix.exec(include);
+  assert.ok(options?.[1] && options[2]);
+  const policyOnly: unknown = JSON.parse(options[1]);
+  const groups: unknown = JSON.parse(options[2]);
   assert.ok(Array.isArray(groups));
+  assert.deepEqual(policyOnly, [
+    groups.find((group: unknown) => isRecord(group) && group.selection === "update-acquisition"),
+  ]);
+  assert.deepEqual(policyOnly, [
+    {
+      selection: "update-acquisition",
+      scenarios: ["native-update-acquisition-lifecycle"],
+    },
+  ]);
   assert.deepEqual(
     groups.map((group: unknown) => {
       assert.ok(isRecord(group));
@@ -363,8 +380,12 @@ function assertNonPublishingNativeWorkflow(configuration: unknown): void {
   assert.ok(isRecord(inspected) && isRecord(inspected.jobs));
   const product = inspected.jobs.product_workflows;
   if (isRecord(product) && isRecord(product.strategy) && isRecord(product.strategy.matrix)) {
-    const rows = product.strategy.matrix.include;
-    if (Array.isArray(rows)) {
+    const include = product.strategy.matrix.include;
+    const options = typeof include === "string" ? fixedProductMatrix.exec(include) : null;
+    const full = options?.[2];
+    if (full && typeof include === "string") {
+      const rows: unknown = JSON.parse(full);
+      assert.ok(Array.isArray(rows));
       for (const row of rows) {
         if (isRecord(row) && row.selection === "owned-ready" && Array.isArray(row.scenarios)) {
           row.scenarios = row.scenarios.map((scenario: unknown) =>
@@ -374,6 +395,9 @@ function assertNonPublishingNativeWorkflow(configuration: unknown): void {
           );
         }
       }
+      // Re-encode only the full matrix data. Leave the scoped matrix and the
+      // expression itself subject to the original non-publishing check.
+      product.strategy.matrix.include = include.replace(full, () => JSON.stringify(rows));
     }
   }
   assert.doesNotMatch(JSON.stringify(inspected), /release|publish|deploy|"schedule"\s*:/i);
@@ -381,6 +405,13 @@ function assertNonPublishingNativeWorkflow(configuration: unknown): void {
 
 void test("non-publishing policy permits only the fixed game channel matrix value", () => {
   const configuration: unknown = parseDocument(nativeDesignCompatibilityWorkflow).toJS();
+  const publishInMatrix = nativeDesignCompatibilityWorkflow.replace(
+    "native-update-acquisition-lifecycle",
+    "publish",
+  );
+  assert.notEqual(publishInMatrix, nativeDesignCompatibilityWorkflow);
+  assert.throws(() => assertNonPublishingNativeWorkflow(parseDocument(publishInMatrix).toJS()));
+
   assert.doesNotThrow(() => assertNonPublishingNativeWorkflow(configuration));
   for (const mutation of [
     { on: { schedule: [{ cron: "0 0 * * *" }] } },
