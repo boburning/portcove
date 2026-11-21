@@ -21,6 +21,11 @@ interface JobMatch {
   upload_step: number;
   checkout_log_sha256: string;
   upload_log_sha256: string;
+  compile?: {
+    step: number;
+    log_sha256: string;
+    executable: string;
+  };
 }
 
 export interface N64BuildJobObservation {
@@ -39,6 +44,12 @@ const secretSafeRoute = /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*
 const checkoutName = /^(?:checkout|check out|run actions\/checkout@)(?:\b|$)/iu;
 const uploadName =
   /^(?:(?:archive|upload|publish|package|save|store)\b|run actions\/upload-artifact@)/iu;
+const executableName = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/u;
+const runtimeObject =
+  /^lib\/N64ModernRuntime\/librecomp\/CMakeFiles\/librecomp\.dir\/src\/recomp\.cpp\.(?:o|obj)$/u;
+const runtimeArchive = /^lib\/N64ModernRuntime\/librecomp\/(?:liblibrecomp\.a|librecomp\.lib)$/u;
+const macBundleLink =
+  /^([A-Za-z0-9][A-Za-z0-9_.-]{0,127})\.app\/Contents\/MacOS\/\1; Performing post-build steps for macOS bundle$/u;
 const checkoutGroup = /^##\[group\]Run actions\/checkout@(?:v[4-9]\d*|[a-f0-9]{40})$/u;
 const uploadGroup = /^##\[group\]Run actions\/upload-artifact@(?:v[4-9]\d*|[a-f0-9]{40})$/u;
 const timestampLine = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z (.*)$/u;
@@ -117,6 +128,34 @@ export function matchesN64BuildUpload(bytes: Uint8Array, output: OutputMatch) {
   );
 }
 
+/** Recognize a CMake/Ninja runtime object, static library, and final executable link. */
+export function reportedN64ExecutableLink(bytes: Uint8Array): string | undefined {
+  let runtimeBuilt = false;
+  let runtimeArchived = false;
+  let executable: string | undefined;
+  for (const line of recordedLines(bytes)) {
+    const action =
+      /^\[[1-9]\d{0,6}\/[1-9]\d{0,6}\] (Building CXX object|Linking CXX static library|Linking CXX executable) (.+)$/u.exec(
+        line,
+      );
+    const target = action?.[2]?.replaceAll("\\", "/");
+    if (!target) continue;
+    if (action?.[1] === "Building CXX object" && runtimeObject.test(target)) {
+      if (runtimeBuilt) return;
+      runtimeBuilt = true;
+    } else if (action?.[1] === "Linking CXX static library" && runtimeArchive.test(target)) {
+      if (!runtimeBuilt || runtimeArchived) return;
+      runtimeArchived = true;
+    } else if (action?.[1] === "Linking CXX executable" && runtimeArchived) {
+      const name = executableName.test(target) ? target : macBundleLink.exec(target)?.[1];
+      if (!name) continue;
+      if (executable !== undefined) return;
+      executable = name;
+    }
+  }
+  return executable;
+}
+
 export function readN64BuildJobObservation(
   value: unknown,
   target: N64BuildJobTarget,
@@ -151,6 +190,17 @@ export function readN64BuildJobObservation(
       !digest(match.upload_log_sha256)
     )
       return;
+    const compile = match.compile;
+    const checkedCompile =
+      isRecord(compile) &&
+      positive(compile.step) &&
+      compile.step > match.checkout_step &&
+      compile.step < match.upload_step &&
+      digest(compile.log_sha256) &&
+      typeof compile.executable === "string" &&
+      executableName.test(compile.executable)
+        ? { step: compile.step, log_sha256: compile.log_sha256, executable: compile.executable }
+        : undefined;
     matches.push({
       artifact_id: match.artifact_id,
       artifact_sha256: output.sha256,
@@ -160,6 +210,7 @@ export function readN64BuildJobObservation(
       upload_step: match.upload_step,
       checkout_log_sha256: match.checkout_log_sha256,
       upload_log_sha256: match.upload_log_sha256,
+      ...(checkedCompile ? { compile: checkedCompile } : {}),
     });
     outputs.delete(match.artifact_id);
   }
@@ -194,6 +245,7 @@ function matchingBuildSteps(
   target: N64BuildJobTarget,
   runId: number,
   created: number,
+  retained?: JobMatch,
 ) {
   if (
     !isRecord(value) ||
@@ -202,13 +254,14 @@ function matchingBuildSteps(
     value.jobs.length > 100
   )
     return [];
-  const candidates: { job: number; checkout: number; upload: number }[] = [];
+  const candidates: { job: number; checkout: number; upload: number; compile: number[] }[] = [];
   const ids = new Set<number>();
   for (const job of value.jobs as unknown[]) {
     if (!isRecord(job) || !positive(job.id) || ids.has(job.id)) return [];
     ids.add(job.id);
     if (
       job.run_id !== runId ||
+      (retained && job.id !== retained.job_id) ||
       job.run_attempt !== 1 ||
       job.head_sha !== target.source_commit ||
       job.status !== "completed" ||
@@ -234,13 +287,28 @@ function matchingBuildSteps(
         typeof step.completed_at !== "string"
       )
         continue;
-      if (!(Date.parse(step.started_at) <= created && created <= Date.parse(step.completed_at)))
+      if (
+        retained
+          ? step.number !== retained.upload_step
+          : !(Date.parse(step.started_at) <= created && created <= Date.parse(step.completed_at))
+      )
         continue;
       const checkouts = steps.filter(
         (item) => item.number < step.number && checkoutName.test(item.name),
       );
-      if (checkouts.length === 1)
-        candidates.push({ job: job.id, checkout: checkouts[0]!.number, upload: step.number });
+      if (checkouts.length !== 1) continue;
+      const checkout = checkouts[0]!.number;
+      const compile = steps
+        .filter(
+          (item) =>
+            item.number > checkout &&
+            item.number < step.number &&
+            /^build(?:\b|$)/iu.test(item.name),
+        )
+        .map((item) => item.number)
+        .sort((a, b) => b - a)
+        .slice(0, 3);
+      candidates.push({ job: job.id, checkout, upload: step.number, compile });
     }
   }
   // A crowded timestamp or unfamiliar workflow remains unknown within the source budget.
@@ -272,7 +340,9 @@ export async function advanceN64BuildJobObservation(
       matches: [],
       last_artifact: null,
     } as const);
-  const known = new Set(state.matches.map((entry) => entry.artifact_id));
+  const known = new Set(
+    state.matches.filter((entry) => entry.compile).map((entry) => entry.artifact_id),
+  );
   const pending = target.outputs
     .filter((output) => !known.has(output.artifact_id))
     .sort((a, b) => a.artifact_id - b.artifact_id);
@@ -293,9 +363,10 @@ export async function advanceN64BuildJobObservation(
     }
   };
   const next = { ...state, last_artifact: output.artifact_id };
+  const retained = state.matches.find((match) => match.artifact_id === output.artifact_id);
   const repository = "/repos/" + target.repository;
   let created = Date.parse(output.artifact_created_at ?? "");
-  if (!Number.isFinite(created)) {
+  if (!retained && !Number.isFinite(created)) {
     const metadata = await lookup(() =>
       read(repository + "/actions/artifacts/" + output.artifact_id),
     );
@@ -320,7 +391,36 @@ export async function advanceN64BuildJobObservation(
   const jobs = await lookup(() => read(run + "/attempts/1/jobs?per_page=100"));
   if (jobs === null) return next;
   const matches = [...state.matches];
-  for (const candidate of matchingBuildSteps(jobs, target, output.run_id, created)) {
+  for (const candidate of matchingBuildSteps(jobs, target, output.run_id, created, retained)) {
+    if (retained) {
+      if (
+        candidate.job !== retained.job_id ||
+        candidate.checkout !== retained.checkout_step ||
+        candidate.upload !== retained.upload_step
+      )
+        continue;
+      for (const step of candidate.compile) {
+        const compile = await lookup(() => readLog(candidate.job, step));
+        const executable = compile && reportedN64ExecutableLink(compile);
+        if (!executable || !compile) continue;
+        return {
+          ...next,
+          matches: matches.map((match) =>
+            match === retained
+              ? {
+                  ...match,
+                  compile: {
+                    step,
+                    log_sha256: createHash("sha256").update(compile).digest("hex"),
+                    executable,
+                  },
+                }
+              : match,
+          ),
+        };
+      }
+      break;
+    }
     const upload = await lookup(() => readLog(candidate.job, candidate.upload));
     if (!upload || !matchesN64BuildUpload(upload, output)) continue;
     const checkout = await lookup(() => readLog(candidate.job, candidate.checkout));

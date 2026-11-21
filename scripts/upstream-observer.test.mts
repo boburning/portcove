@@ -4,6 +4,7 @@ import {
   matchesN64BuildCheckout,
   matchesN64BuildUpload,
   readN64BuildJobObservation,
+  reportedN64ExecutableLink,
 } from "./upstream-n64-build-job.mts";
 import {
   advanceUpstreamArtifactBuildObservation,
@@ -2734,6 +2735,38 @@ void test("upstream build observation holds fork outputs, stale runs and short i
       new URL("https://api.github.com/repos/fixture/release/actions/runs/301/logs"),
     ),
     false,
+  );
+});
+
+void test("N64 compile evidence requires ordered runtime object, library and unambiguous executable link", () => {
+  const object =
+    "[110/501] Building CXX object lib\\N64ModernRuntime\\librecomp\\CMakeFiles\\librecomp.dir\\src\\recomp.cpp.obj";
+  const library =
+    "[200/501] Linking CXX static library lib\\N64ModernRuntime\\librecomp\\librecomp.lib";
+  const link = "[501/501] Linking CXX executable Fixture.exe";
+  const log = (...lines: string[]) =>
+    Buffer.from(lines.map((line) => "2026-11-20T12:02:00Z " + line).join("\r\n"));
+  assert.equal(reportedN64ExecutableLink(log(object, library, link)), "Fixture.exe");
+  assert.equal(
+    reportedN64ExecutableLink(
+      log(
+        object.replaceAll("\\", "/").replace(".obj", ".o"),
+        library.replaceAll("\\", "/").replace("librecomp.lib", "liblibrecomp.a"),
+        "[501/501] Linking CXX executable Fixture.app/Contents/MacOS/Fixture; Performing post-build steps for macOS bundle",
+      ),
+    ),
+    "Fixture",
+  );
+  assert.equal(reportedN64ExecutableLink(log(library, object, link)), undefined);
+  assert.equal(
+    reportedN64ExecutableLink(log(object.replace("N64ModernRuntime", "other"), library, link)),
+    undefined,
+  );
+  assert.equal(
+    reportedN64ExecutableLink(
+      log(object, library, link, "[502/502] Linking CXX executable Other.exe"),
+    ),
+    undefined,
   );
 });
 
