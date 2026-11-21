@@ -260,9 +260,11 @@ fn validate_record(record: &PendingSetupRecord) -> Result<()> {
     } else {
         2
     };
-    if record.format_version != expected_format {
+    if record.format_version != expected_format
+        || crate::catalog::listings::has_verified_source_editions(&record.listing)
+    {
         return Err(PortcoveError::unsupported(
-            "pending setup record format does not match its provider",
+            "pending setup record format does not match its provider or listing fields",
         ));
     }
     if let CatalogDownloadAssetId::Foreign(CatalogForeignAssetId::Gitlab {
@@ -1114,6 +1116,7 @@ impl PortcoveService {
             self.require_download_destination(stage.path())?;
             let mut listing = self.catalog.listing(&request.port_id)?.clone();
             listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+            crate::catalog::listings::strip_verified_sources(&mut listing);
             let mut record = PendingSetupRecord {
                 format_version: if preview.artifact.release_id.github_id().is_some() {
                     1

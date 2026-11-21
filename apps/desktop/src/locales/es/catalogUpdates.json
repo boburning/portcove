@@ -77,6 +77,7 @@
     "noticeUpdateApplied": "Se aplicó la actualización del catálogo.",
     "noTrusted": "No hay editores de confianza.",
     "originBuiltIn": "Catálogo integrado",
+    "originDefinitionSelected": "Se usan las definiciones de catálogo seleccionadas",
     "originSigned": "Catálogo firmado · versión {{version}}",
     "originSignedPrevious": "Catálogo firmado · versión {{version}} · se usa la actualización válida anterior",
     "planDetailsLabel": "Detalles técnicos de la secuencia de actualización del catálogo {{sequence}}",
