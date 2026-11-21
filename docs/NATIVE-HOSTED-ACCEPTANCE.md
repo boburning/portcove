@@ -384,6 +384,13 @@ bytes and never claims to launch that game. Controlled read failures and injecte
 input observations retain their fixture labels. No private originals, real user
 profile, release signing or physical controller are required by this selection.
 
+On a host without a saved SteamGridDB key, the local artwork scenario enters
+contextual setup from Background and cancels. It verifies that the native
+WebView returns focus to the setup action under the same role and that key
+status and artwork choice stay unchanged. The report records when a configured
+host or unavailable credential status prevents this observation. Provider
+authentication and saving a real key remain separate acceptance.
+
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed

@@ -319,6 +319,83 @@ export async function artworkScenario({
         );
       };
       await open();
+      const credentialRead = object(await invoke("get_steamgriddb_key_status"));
+      const keyStatus =
+        credentialRead.ok === true
+          ? transportValue("steamgriddb_key_status", success(credentialRead))
+          : undefined;
+      let contextualKeySetup = keyStatus?.configured ? "configured-host" : "status-unavailable";
+      if (keyStatus && !keyStatus.configured) {
+        await activateSlot("detail");
+        const beforeSetup = await state("detail");
+        const find = control("detail", "Find on SteamGridDB");
+        await browser.wait(
+          until.elementIsEnabled(await browser.wait(until.elementLocated(find), 10_000)),
+          10_000,
+        );
+        await click(find);
+        await click(control("detail", "Set up SteamGridDB key"));
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () =>
+                document.activeElement?.matches(
+                  '.artwork-sheet[open] section[aria-label="Background"] h3',
+                ) === true &&
+                document.activeElement.textContent?.trim() === "Set up your SteamGridDB key",
+            ),
+          10_000,
+          "Contextual key setup must focus its heading within the chosen artwork role",
+        );
+        await click(control("detail", "Cancel key setup"));
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () => {
+              const editor = document.querySelector(".artwork-sheet[open]");
+              const active = document.activeElement;
+              return (
+                editor?.querySelector('[role="tab"][aria-selected="true"]')?.textContent?.trim() ===
+                  "Background" &&
+                active?.matches('section[aria-label="Background"] button') === true &&
+                editor.contains(active) &&
+                active.textContent?.trim() === "Set up SteamGridDB key" &&
+                !editor.querySelector('input[type="password"]')
+              );
+            }),
+          10_000,
+          "Cancelling key setup must restore focus to its opener within Background",
+        );
+        assert.deepEqual(
+          transportValue(
+            "steamgriddb_key_status",
+            success(await invoke("get_steamgriddb_key_status")),
+          ),
+          keyStatus,
+        );
+        assert.deepEqual(await state("detail"), beforeSetup);
+        const screenshot = path.join(output, "artwork-contextual-key-return.png");
+        await writeFile(screenshot, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(screenshot);
+        contextualKeySetup = "cancelled-and-returned";
+        await click(find);
+        await activateSlot("cover");
+      }
+      const keySetupEvidence = path.join(output, "artwork-contextual-key-return.json");
+      await writeFile(
+        keySetupEvidence,
+        JSON.stringify({
+          generation: bootstrap.generation,
+          port_id: portId,
+          role: "detail",
+          outcome: contextualKeySetup,
+        }),
+        { flag: "wx" },
+      );
+      artifacts.push(keySetupEvidence);
       const before = await state("cover");
       assert.equal(before.resolved_source.kind, "generated_fallback");
       assert.match(before.generated_fallback.identity, /^[0-9a-f]{64}$/u);
@@ -595,6 +672,7 @@ export async function artworkScenario({
             unavailable,
             reset,
             geometry,
+            contextual_key_setup: contextualKeySetup,
             cancelled_without_mutation: true,
             stale_generation_rejected: true,
             stale_revision_rejected: true,
