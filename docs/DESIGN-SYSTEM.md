@@ -190,7 +190,13 @@ history and relaunches that installation; it does not load a save automatically.
 Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
 851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
 filmstrip with an exposed current selection; per-slot attribution,
-errors and lightbox focus remain with the media owner. Forced colors suppress
+errors and lightbox focus remain with the media owner. **Screenshot source**
+offers original releases with reviewed images. The gallery loads these images
+when the player chooses a release. That choice applies only to this gallery.
+Original screenshots show the release title in the thumbnail and viewer.
+When a refresh changes the active screenshot's bytes or admitted subject, the viewer
+closes and focus returns to a surviving control.
+Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
