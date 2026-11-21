@@ -3254,6 +3254,20 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                     .release,
                 unrelated.release
             );
+            let status = service.status(ID).unwrap();
+            let before = library.update_snapshot(ID).unwrap().unwrap();
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert_eq!(refused.code, crate::ErrorCode::Conflict);
+            assert_eq!(
+                refused.message,
+                "curated artifact distribution is withdrawn"
+            );
+            let after = library.update_snapshot(ID).unwrap().unwrap();
+            assert_eq!(after.checked_at, before.checked_at);
+            assert_eq!(after.check.release, unrelated.release);
+
             library.store_update_snapshot(stale).unwrap();
         }
         let projected = service.status(ID).unwrap();
