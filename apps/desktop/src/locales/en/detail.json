@@ -142,5 +142,16 @@
     "overview": "Overview",
     "saves": "Saves & backups",
     "versions": "Versions & updates"
+  },
+  "withdrawal": {
+    "label": "Withdrawn release",
+    "installedBadge": "Installed release withdrawn",
+    "recommendedBadge": "Recommended release withdrawn",
+    "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+    "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+    "installedNext": "You can keep your installed copy and its saves.",
+    "recommendedNext": "Wait for a compatible release or review the available versions.",
+    "rollback": "Review rollback",
+    "versions": "View versions"
   }
 }

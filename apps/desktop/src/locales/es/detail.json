@@ -142,5 +142,16 @@
     "overview": "Resumen",
     "saves": "Partidas y copias de seguridad",
     "versions": "Versiones y actualizaciones"
+  },
+  "withdrawal": {
+    "label": "Versión retirada",
+    "installedBadge": "Versión instalada retirada",
+    "recommendedBadge": "Versión recomendada retirada",
+    "installedReason": "El responsable del catálogo retiró la versión {{version}}.",
+    "recommendedReason": "El responsable del catálogo retiró la versión recomendada.",
+    "installedNext": "Puedes conservar la copia instalada y las partidas guardadas.",
+    "recommendedNext": "Espera a que haya una versión compatible o revisa las versiones disponibles.",
+    "rollback": "Revisar la reversión",
+    "versions": "Ver versiones"
   }
 }

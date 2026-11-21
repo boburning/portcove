@@ -1,3 +1,4 @@
+import { useAppTranslation } from "../localization";
 import type { PortStatus } from "../types";
 import { Button } from "./ui/button";
 
@@ -14,11 +15,12 @@ function withdrawal(status: PortStatus | undefined) {
 }
 
 export function ReleaseWithdrawalBadge({ status }: { status: PortStatus | undefined }) {
+  const { t } = useAppTranslation("detail");
   const target = withdrawal(status);
   if (!target) return null;
   return (
     <span className="inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold">
-      {target === "installed" ? "Installed release withdrawn" : "Recommended release withdrawn"}
+      {target === "installed" ? t("withdrawal.installedBadge") : t("withdrawal.recommendedBadge")}
     </span>
   );
 }
@@ -30,6 +32,7 @@ export function ReleaseWithdrawalNotice({
   status: PortStatus | undefined;
   reviewVersions: () => void;
 }) {
+  const { t } = useAppTranslation("detail");
   const target = withdrawal(status);
   if (!target) return null;
   const installed = target === "installed";
@@ -41,27 +44,27 @@ export function ReleaseWithdrawalNotice({
     );
   return (
     <section
-      aria-label="Withdrawn release"
+      aria-label={t("withdrawal.label")}
       className="grid justify-items-start gap-2 rounded-pc-md border border-pc-border bg-pc-surface p-4"
     >
       <p className="m-0 font-semibold">
         {installed
-          ? `Installed release ${status?.active?.version ?? ""} withdrawn by the catalog maintainer.`
-          : "The recommended release was withdrawn by the catalog maintainer."}
+          ? t("withdrawal.installedReason", { version: status?.active?.version })
+          : t("withdrawal.recommendedReason")}
       </p>
       <p className="m-0 text-sm text-pc-muted-foreground">
         {installed
-          ? "You can keep your installed copy and its saves. Play remains available if your installation meets the existing launch checks."
-          : "Wait for a compatible release or review the available versions."}
+          ? t("withdrawal.installedNext")
+          : t("withdrawal.recommendedNext")}
       </p>
       {canRollBack && (
         <Button variant="outline" onClick={reviewVersions}>
-          Review rollback
+          {t("withdrawal.rollback")}
         </Button>
       )}
       {!installed && (
         <Button variant="outline" onClick={reviewVersions}>
-          View versions
+          {t("withdrawal.versions")}
         </Button>
       )}
     </section>
