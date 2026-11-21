@@ -156,7 +156,9 @@ separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
 carrier body. Compact publication still requires explicit activation.
 
-Ordinary publication does not raise an active compact format. If the authored
+Ordinary publication, automatic reader selection and cover-only admission
+preserve the active compact format. Raising it requires explicit compact
+transition review, separate from first-carrier opt-in. If the authored
 directory moves beyond the writer's known format, Prepare defers its rows and
 observations. It retains the exact prior supported carrier, legacy target and
 any bound cover checkpoint for authenticated renewal at the existing revision.

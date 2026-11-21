@@ -1933,6 +1933,7 @@ void test(
     const compactPrior = prior("compact-prior", {
       [listingDeliveryTarget]: legacy,
       [compactListingDeliveryTarget]: compact,
+      "policy/official/catalog.history-checkpoint.json": "{}",
     });
     for (const [boundary, source] of Object.entries({
       first: legacyPrior,
@@ -1993,7 +1994,7 @@ void test(
         ...options,
         ...source,
         output: path.join(dir, boundary + "-recovered"),
-        compactIfCapable: true,
+        ...(boundary === "first" ? { compactIfCapable: true } : { compact: true }),
         releasedReader: capable,
       });
       assert.equal(recovered.listing_format, 13);
@@ -2011,7 +2012,7 @@ void test(
       ...options,
       ...compactPrior,
       output: path.join(dir, "active-13"),
-      compactIfCapable: true,
+      compact: true,
       releasedReader: capable,
     });
     const exact13 = readFileSync(path.join(active13.bundle, compactListingDeliveryTarget), "utf8");
@@ -2041,16 +2042,27 @@ void test(
       [artworkCheckpointTarget]: cover,
       "policy/official/catalog.history-checkpoint.json": "{}",
     });
-    const ordinary = await prepareObservationBundle({
-      ...options,
-      ...compactPrior,
-      output: path.join(dir, "implicit-elevation"),
-    });
-    assert.equal(ordinary.listing_format, 11);
-    assert.equal(
-      readFileSync(path.join(ordinary.bundle, compactListingDeliveryTarget), "utf8"),
-      compact,
-    );
+    for (const [name, flags] of Object.entries({
+      ordinary: {},
+      capable: { compactIfCapable: true, releasedReader: capable },
+      official: { officialReleasedReader: true },
+      cover: { officialReleasedReader: true, coverCheckpoint: true },
+    })) {
+      const result = await prepareObservationBundle({
+        ...options,
+        ...compactPrior,
+        ...flags,
+        output: path.join(dir, "implicit-elevation-" + name),
+      });
+      assert.equal(result.listing_format, 11);
+      assert.equal(result.released_reader, undefined);
+      assert.equal(result.released_reader_source, undefined);
+      assert.equal(
+        readFileSync(path.join(result.bundle, compactListingDeliveryTarget), "utf8"),
+        compact,
+      );
+      assert.equal(existsSync(path.join(result.bundle, artworkCheckpointTarget)), false);
+    }
 
     put(dir, "canonical", {
       format_version: 14,
@@ -2106,6 +2118,36 @@ void test(
       /without authenticated prior targets/,
     );
 
+    for (const [name, bytes, refusal] of [
+      [
+        "malformed-utf8",
+        Buffer.concat([
+          Buffer.from('{"format_version":14,"listings":[{"id":"valid","title":"'),
+          Buffer.from([0xc3, 0x28]),
+          Buffer.from('"}]}'),
+        ]),
+        /valid for encoding utf-8/i,
+      ],
+      ["duplicate-keys", '{"format_version":14,"format_version":14,"listings":[]}', /duplicate/i],
+      [
+        "invalid-id",
+        '{"format_version":14,"listings":[{"id":"Invalid"}]}',
+        /unique canonical identities/,
+      ],
+      [
+        "duplicate-ids",
+        '{"format_version":14,"listings":[{"id":"valid"},{"id":"valid"}]}',
+        /unique canonical identities/,
+      ],
+    ] as const) {
+      writeFileSync(options.canonical, bytes);
+      const output = path.join(dir, name);
+      await assert.rejects(
+        prepareObservationBundle({ ...options, ...activePrior, output }),
+        refusal,
+      );
+      assert.equal(existsSync(path.join(output, "bundle")), false);
+    }
     put(dir, "canonical", {
       format_version: 13,
       listings: [{ ...fixtureListing, name: "Supported format refresh" }],
