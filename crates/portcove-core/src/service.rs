@@ -15513,6 +15513,8 @@ fn main() {
         let mut document = service.catalog().authoritative_document();
         let mut port = service.catalog().port("zelda64-recomp").unwrap().clone();
         port.id = "external-source-probe".into();
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
         port.manually_validated_platforms.clear();
@@ -16077,6 +16079,8 @@ fn main() {
             .unwrap()
             .clone();
         port.id = "external-probe".into();
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.name = "External probe".into();
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
@@ -20464,7 +20468,11 @@ fn main() {
         assert_eq!(profile.port_id, ID);
         let error = service.activate_profile(ID, &profile.id).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Unsupported);
-        assert!(error.message.contains("no reviewed mod package contract"));
+        assert!(
+            error
+                .message
+                .contains("neither setup has a reviewed mod loader")
+        );
         assert!(!crate::profile_deploy::restore_pending(
             &library.user_dir(ID)
         ));

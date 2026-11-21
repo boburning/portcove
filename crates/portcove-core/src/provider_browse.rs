@@ -263,20 +263,20 @@ impl PortcoveService {
                 "this project does not belong to the game this port is bound to",
             ));
         }
-        let eligible_file_ids = if observed.freshness == ProviderFreshness::Stale {
-            Vec::new()
-        } else {
-            observed
+        let layout = self.optional_deploy_layout(port_id)?;
+        let eligible_file_ids = match layout {
+            Some(layout) if observed.freshness != ProviderFreshness::Stale => observed
                 .value
                 .files
                 .iter()
                 .filter(|file| {
-                    crate::provider_install::accepts_provider_file(port, file)
+                    crate::provider_install::accepts_provider_file(&layout, file)
                         && crate::provider_install::validate_offer(client, &observed.value, file)
                             .is_ok()
                 })
                 .map(|file| file.file_id.clone())
-                .collect()
+                .collect(),
+            _ => Vec::new(),
         };
         Ok(ProviderProjectView {
             port_id: port_id.into(),

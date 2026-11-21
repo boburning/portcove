@@ -247,7 +247,7 @@ fn inspect(
     })?;
     let restore = expected(selected, file_name);
     let runtime_marker =
-        crate::profile_deploy::is_runtime_mod_marker(&layout.port_id(), file_name, observed.size);
+        crate::profile_deploy::is_runtime_mod_marker(layout, file_name, observed.size);
     if restore.as_ref() == Some(&observed) || runtime_marker {
         return Err(PortcoveError::conflict(
             "the file still matches the setup or runtime that placed it",
@@ -342,11 +342,7 @@ fn finish(
         || plan.revision_sha256 != selected.digest
         || plan.restore != expected(selected, &plan.file_name)
         || plan.restore.as_ref() == Some(&plan.observed)
-        || crate::profile_deploy::is_runtime_mod_marker(
-            &plan.port_id,
-            &plan.file_name,
-            plan.observed.size,
-        )
+        || crate::profile_deploy::is_runtime_mod_marker(layout, &plan.file_name, plan.observed.size)
     {
         return Err(PortcoveError::conflict(
             "the pending mod file preservation belongs to a different setup state",
