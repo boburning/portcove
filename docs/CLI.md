@@ -286,11 +286,15 @@ Unrelated keys and supported INI comments remain intact. Close the game before
 editing; conflicting writers or uncertain interrupted custody refuse edits and
 retain recovery evidence.
 
-Desktop exposes the same Core operation under a managed game's **Saves** section:
-choose **Read game settings**, change a value or review its default, then choose
-**Save setting** in the review. Read and review alone do not modify game files.
-Persisted bytes and fixtures do not establish actual game consumption; the owning
-qualification records that separately for each declared release.
+In Desktop, open the managed game's **Game settings** tab and choose
+**Read game settings**. Edit the values or choose **Use default**. Choose
+**Review changes** for that file, then **Save changes** to confirm the full
+review. Each review covers one file and up to 16 declared settings. A
+materialized setup binds the review to its installed version and revision.
+If the setup or file changes, read the settings again and check your draft
+before proceeding. Reading and reviewing leave the game files untouched.
+Persisted bytes and fixtures do not establish actual game consumption. The
+owning qualification records that separately for each declared release.
 
 ## Path rules
 

@@ -4,7 +4,8 @@
 use super::*;
 use crate::{
     GameSettingChange, GameSettingReview, GameSettingView, GameSettingsChangeSetReview,
-    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsView,
+    GameSettingsChangeSetView, GameSettingsEdit, GameSettingsFile, GameSettingsFileView,
+    GameSettingsView,
 };
 #[cfg(windows)]
 use crate::{GameSettingsSetupIdentity, operation::game_settings::SettingsJournalReview};
@@ -158,6 +159,61 @@ impl PortcoveService {
             }
         };
         self.settings_view_already_locked(&context)
+    }
+
+    /// Read the same scope that change-set review and apply use. This does not
+    /// create a setup or switch the live selection.
+    pub fn get_game_settings_change_set_view(
+        &self,
+        port_id: &str,
+    ) -> Result<GameSettingsChangeSetView> {
+        let _ownership = self
+            .library
+            .try_read_lock_port(port_id, "read-game-settings-change-set")?;
+        #[cfg(windows)]
+        let observation: Result<GameSettingsChangeSetView> = (|| {
+            let setup = self.settings_setup_identity(port_id)?;
+            let context = self.settings_context_for_install_already_locked(
+                port_id,
+                SettingsInstallScope::Materialized,
+            )?;
+            let setup_name = setup
+                .as_ref()
+                .map(|identity| {
+                    crate::profile::profile_by_id(
+                        &self.library.connection()?,
+                        port_id,
+                        &identity.id,
+                    )
+                    .map(|profile| profile.display_name)
+                })
+                .transpose()?;
+            Ok(GameSettingsChangeSetView {
+                settings: self.settings_view_already_locked(&context)?,
+                setup,
+                setup_name,
+                installed_version: Some(context.install.version),
+            })
+        })();
+        #[cfg(not(windows))]
+        let observation: Result<GameSettingsChangeSetView> = Err(PortcoveError::unsupported(
+            "game settings require Windows x86-64",
+        ));
+        match observation {
+            Ok(view) => Ok(view),
+            Err(error) => Ok(GameSettingsChangeSetView {
+                settings: GameSettingsView {
+                    port_id: port_id.into(),
+                    install_id: None,
+                    available: false,
+                    reason: Some(error.message),
+                    files: Vec::new(),
+                },
+                setup: None,
+                setup_name: None,
+                installed_version: None,
+            }),
+        }
     }
 
     fn settings_view_already_locked(&self, context: &SettingsContext) -> Result<GameSettingsView> {

@@ -15,13 +15,16 @@
     "error": {
       "choose": "Elige una de las opciones de la lista.",
       "number": "Escribe un número.",
+      "range": "Introduce un número dentro del intervalo indicado.",
       "tooLarge": "Este número es demasiado grande para guardarlo con precisión.",
       "whole": "Escribe un número entero."
     },
+    "pendingDefault": "Se usará el valor predeterminado al guardar.",
     "rangeNumber": "Números de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
     "rangeWhole": "Números enteros de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
-    "reset": "Restablecer el valor predeterminado…",
-    "review": "Revisar el cambio"
+    "reset": "Usar valor predeterminado",
+    "review": "Revisar cambios",
+    "undo": "Deshacer"
   },
   "mods": {
     "add": "Añadir un archivo de mod…",
@@ -448,10 +451,15 @@
     }
   },
   "panel": {
+    "discard": "Descartar borrador",
     "fileUnavailable": "Este archivo de ajustes no está disponible.",
     "heading": "Ajustes del juego",
-    "intro": "Revisa cada cambio antes de guardarlo. Las demás preferencias no cambian.",
+    "held": "Esta configuración o este archivo cambió. Se conserva tu borrador. Vuelve a leer los ajustes o descarta el borrador para empezar de nuevo.",
+    "installTarget": "Versión del juego {{version}}",
+    "intro": "Edita los ajustes y revisa los cambios de cada archivo antes de guardarlos.",
     "label": "Ajustes del juego",
+    "limit": "Puedes revisar hasta 16 cambios a la vez. Deshaz algunos para continuar.",
+    "setupTarget": "Configuración {{setup}} · Versión del juego {{version}}",
     "unavailable": "Los ajustes no están disponibles para esta instalación."
   },
   "review": {
@@ -459,15 +467,16 @@
     "cancel": "Cancelar",
     "current": "Valor guardado actual",
     "default": "Predeterminado",
-    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
-    "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
+    "description": "Comprueba los cambios antes de guardarlos. Puede que necesites reiniciar el juego.",
+    "failure": "Portcove no pudo confirmar que se guardaran los cambios. Vuelve a leer los ajustes antes de guardar de nuevo.",
     "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
     "new": "Nuevo valor",
-    "reading": "Leyendo el ajuste actual…",
-    "save": "Guardar el ajuste",
-    "setting": "Ajuste",
+    "reading": "Comprobando los ajustes actuales…",
+    "save": "Guardar cambios",
+    "saved": "Cambios guardados.",
+    "savedReadback": "Cambios guardados. Vuelve a leer los ajustes para ver los valores actuales.",
     "technical": "Detalles técnicos",
-    "title": "Revisar el ajuste del juego"
+    "title": "Revisar ajustes del juego"
   },
   "value": {
     "notSaved": "Sin guardar",

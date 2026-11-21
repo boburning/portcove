@@ -137,7 +137,12 @@ it("keeps the selected mod setup and settings draft through version and save tas
       },
     ],
   };
-  const readSettings = vi.spyOn(desktopApi, "gameSettings").mockResolvedValue(settings);
+  const readSettings = vi.spyOn(desktopApi, "gameSettingsChangeSetView").mockResolvedValue({
+    settings,
+    setup: null,
+    setup_name: null,
+    installed_version: active.version,
+  });
   const readSetups = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
     port_id: portId,
     supported: true,
@@ -168,20 +173,25 @@ it("keeps the selected mod setup and settings draft through version and save tas
     },
     protection: protection(active, staged),
   });
-  const review = vi.spyOn(desktopApi, "reviewGameSetting").mockResolvedValue({
+  const review = vi.spyOn(desktopApi, "reviewGameSettingsChangeSet").mockResolvedValue({
+    library_id: "library",
     port_id: portId,
     install_id: active.id,
     file_id: "preferences",
-    setting_id: "master-volume",
-    label: "Master volume",
     path: "settings.json",
-    change: { action: "set", value: 84 },
-    previous_value: 70,
-    proposed_value: 84,
+    setup: null,
+    edits: [
+      {
+        edit: { setting_id: "master-volume", change: { action: "set", value: 84 } },
+        label: "Master volume",
+        previous_value: 70,
+        proposed_value: 84,
+      },
+    ],
     configuration_sha256: "e".repeat(64),
     review_sha256: "f".repeat(64),
   });
-  const apply = vi.spyOn(desktopApi, "applyGameSetting");
+  const apply = vi.spyOn(desktopApi, "applyGameSettingsChangeSet");
   const useSetup = vi.spyOn(desktopApi, "useModSetup");
 
   transport = installInteractiveTransport("details", (message) => {
@@ -249,24 +259,23 @@ it("keeps the selected mod setup and settings draft through version and save tas
   await configuration.click();
   await expect.element(configuration).toHaveFocus();
   await expect.element(volume).toHaveValue(84);
-  await configPanel.getByRole("button", { name: "Review change", exact: true }).click();
+  await configPanel.getByRole("button", { name: "Review changes", exact: true }).click();
   await expect
-    .element(page.getByRole("heading", { name: "Review game setting", exact: true }))
+    .element(page.getByRole("heading", { name: "Review game settings", exact: true }))
     .toHaveFocus();
   expect(review).toHaveBeenCalledExactlyOnceWith(
     portId,
     "preferences",
-    "master-volume",
-    { action: "set", value: 84 },
+    [{ setting_id: "master-volume", change: { action: "set", value: 84 } }],
     generation,
   );
-  const settingReview = page.getByRole("dialog", { name: "Review game setting", exact: true });
+  const settingReview = page.getByRole("dialog", { name: "Review game settings", exact: true });
   await expect
-    .element(settingReview.getByRole("button", { name: "Save setting", exact: true }))
+    .element(settingReview.getByRole("button", { name: "Save changes", exact: true }))
     .toBeEnabled();
   await userEvent.keyboard("{Escape}");
   await expect
-    .element(configPanel.getByRole("heading", { level: 3, name: "Game settings", exact: true }))
+    .element(configPanel.getByRole("button", { name: "Review changes", exact: true }))
     .toHaveFocus();
   await expect.element(volume).toHaveValue(84);
   expect(apply).not.toHaveBeenCalled();
