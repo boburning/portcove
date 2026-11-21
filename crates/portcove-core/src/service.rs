@@ -2704,8 +2704,8 @@ impl PortcoveService {
         };
         let installed_port = installed_catalog.port(&active.port_id)?;
         if !installed_port.release.curated.is_empty() {
-            // This checks distribution of the exact retained artifact, separately
-            // from permission to use the already installed copy.
+            // The retained Install decision describes reacquiring this exact
+            // artifact. Current Install and retained Launch keep their own decisions.
             let distribution = Installer::new(self.library.clone()).and_then(|installer| {
                 installer.assess_curated_operation(
                     active,
