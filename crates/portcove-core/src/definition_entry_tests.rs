@@ -113,6 +113,7 @@ fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
     // Isolate the loader schema fence from the separate provider capability.
     port.mod_provider_bindings = None;
     let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
     for schema in [1, 2, 3] {
         entry["definition_schema"] = json!(schema);
         let bytes = serde_json::to_vec(&entry).unwrap();
