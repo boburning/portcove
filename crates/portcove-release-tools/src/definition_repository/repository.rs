@@ -1,11 +1,11 @@
-use super::*;
+use super::{public_history::PublicHistory, *};
 use futures_util::TryStreamExt;
 use tough::{
     RepositoryLoader, TargetName, Transport, TransportError, TransportErrorKind, TransportStream,
     schema::{Role, Snapshot, Timestamp as TufTimestamp},
 };
 #[derive(Debug, Clone)]
-struct PublicTransport(Arc<Files>);
+struct PublicTransport(Arc<PublicHistory>);
 #[async_trait::async_trait]
 impl Transport for PublicTransport {
     async fn fetch(&self, url: url::Url) -> std::result::Result<TransportStream, TransportError> {
@@ -19,11 +19,13 @@ impl Transport for PublicTransport {
                 url.as_str(),
             ));
         }
-        let bytes = self
+        let file = self
             .0
             .get(url.path().trim_start_matches('/'))
-            .cloned()
             .ok_or_else(|| TransportError::new(TransportErrorKind::FileNotFound, url.as_str()))?;
+        let bytes = file.read().map_err(|error| {
+            TransportError::new_with_cause(TransportErrorKind::Other, url.as_str(), error)
+        })?;
         Ok(Box::pin(futures_util::stream::iter([Ok(bytes.into())])))
     }
 }
@@ -32,17 +34,17 @@ fn at<'a>(files: &'a Files, name: &str) -> Result<&'a Vec<u8>> {
         TufRepositoryError::Invalid(format!("catalog public repository file missing: {name}"))
     })
 }
-fn current_roles(files: &Files) -> Result<Files> {
-    let timestamp: Signed<TufTimestamp> =
-        serde_json::from_slice(at(files, "metadata/timestamp.json")?)?;
+fn current_roles(files: &PublicHistory) -> Result<Files> {
+    let timestamp_bytes = files.file("metadata/timestamp.json")?;
+    let timestamp: Signed<TufTimestamp> = serde_json::from_slice(&timestamp_bytes)?;
     let snapshot_version = timestamp
         .signed
         .meta
         .get("snapshot.json")
         .ok_or_else(|| TufRepositoryError::Invalid("catalog prior snapshot absent".into()))?
         .version;
-    let snapshot_bytes = at(files, &format!("metadata/{snapshot_version}.snapshot.json"))?;
-    let snapshot: Signed<Snapshot> = serde_json::from_slice(snapshot_bytes)?;
+    let snapshot_bytes = files.file(&format!("metadata/{snapshot_version}.snapshot.json"))?;
+    let snapshot: Signed<Snapshot> = serde_json::from_slice(&snapshot_bytes)?;
     if timestamp.signed.meta.len() != 1
         || timestamp.signed.spec_version != "1.0.0"
         || !timestamp.signed._extra.is_empty()
@@ -63,17 +65,14 @@ fn current_roles(files: &Files) -> Result<Files> {
         return invalid("catalog prior metadata inventory/content differs");
     }
     let mut roles = Files::from([
-        (
-            "timestamp.json".into(),
-            at(files, "metadata/timestamp.json")?.clone(),
-        ),
-        ("snapshot.json".into(), snapshot_bytes.clone()),
+        ("timestamp.json".into(), timestamp_bytes),
+        ("snapshot.json".into(), snapshot_bytes),
     ]);
     for role in ["targets", "official-definitions", "official-policy"] {
         let version = snapshot.signed.meta[&format!("{role}.json")].version;
         roles.insert(
             format!("{role}.json"),
-            at(files, &format!("metadata/{version}.{role}.json"))?.clone(),
+            files.file(&format!("metadata/{version}.{role}.json"))?,
         );
     }
     Ok(roles)
@@ -84,7 +83,7 @@ fn current_roles(files: &Files) -> Result<Files> {
 /// recover after the published timestamp lapses. New output is always `Safe`.
 async fn authenticate(
     root: &[u8],
-    files: &Files,
+    files: &PublicHistory,
     expiration: tough::ExpirationEnforcement,
 ) -> Result<Files> {
     let repository = RepositoryLoader::new(
@@ -166,8 +165,8 @@ async fn authenticate(
     }
     Ok(logical)
 }
-fn validate_public_paths(files: &Files) -> Result<()> {
-    for (name, bytes) in files {
+fn validate_public_paths(files: &PublicHistory) -> Result<()> {
+    for (name, file) in files.iter() {
         let valid = if let Some(n) = name.strip_prefix("metadata/") {
             n == "timestamp.json"
                 || n.split_once('.').is_some_and(|(v, role)| {
@@ -196,7 +195,7 @@ fn validate_public_paths(files: &Files) -> Result<()> {
         if name.starts_with("targets/")
             && name[8..]
                 .split_once('.')
-                .is_none_or(|(digest, _)| sha(bytes) != digest)
+                .is_none_or(|(digest, _)| file.digest() != digest)
         {
             return invalid("catalog retained target hash prefix differs from actual bytes");
         }
@@ -206,8 +205,8 @@ fn validate_public_paths(files: &Files) -> Result<()> {
     }
     Ok(())
 }
-pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Files> {
-    let files = public_tree(path)?;
+pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<PublicHistory> {
+    let files = PublicHistory::read(path)?;
     validate_public_paths(&files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -267,8 +266,8 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
     Ok(files)
 }
 
-fn public_tree(path: &Path) -> Result<Files> {
-    io::tree(
+fn public_identities(path: &Path) -> Result<Vec<DefinitionFile>> {
+    io::inventory(
         path,
         PUBLIC_REPOSITORY_MAX_FILES,
         PUBLIC_REPOSITORY_MAX_BYTES,
@@ -287,18 +286,18 @@ fn check_public_capacity(count: usize, bytes: u64) -> Result<()> {
     Ok(())
 }
 
-fn proposed_target_floor(prior: &Files, proposed: &Files) -> Result<(usize, u64)> {
+fn proposed_target_floor(prior: &PublicHistory, proposed: &Files) -> Result<(usize, u64)> {
     let (mut count, mut bytes) = (0, 0);
     // Timestamp is the only mutable repository path. The signed replacement
     // and any new versioned roles are accounted for during exact assembly.
-    for (name, content) in prior {
+    for (name, content) in prior.iter() {
         if name != "metadata/timestamp.json" {
             count += 1;
-            bytes += content.len() as u64;
+            bytes += content.bytes();
         }
     }
     for (name, content) in proposed {
-        if !prior.contains_key(&public_target_path(name, content)?) {
+        if prior.get(&public_target_path(name, content)?).is_none() {
             count += 1;
             bytes += content.len() as u64;
         }
@@ -306,7 +305,10 @@ fn proposed_target_floor(prior: &Files, proposed: &Files) -> Result<(usize, u64)
     Ok((count, bytes))
 }
 
-pub(super) fn check_proposed_target_capacity(prior: &Files, proposed: &Files) -> Result<()> {
+pub(super) fn check_proposed_target_capacity(
+    prior: &PublicHistory,
+    proposed: &Files,
+) -> Result<()> {
     let (count, bytes) = proposed_target_floor(prior, proposed)?;
     check_public_capacity(count, bytes)
 }
@@ -336,15 +338,15 @@ fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json
     }
     Ok(map)
 }
-fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
+fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> {
     let mut definitions: BTreeMap<(String, String), serde_json::Value> = BTreeMap::new();
-    let mut policies: BTreeMap<String, (u64, Vec<u8>)> = BTreeMap::new();
+    let mut policies: BTreeMap<String, (u64, String)> = BTreeMap::new();
     let mut seen = BTreeSet::new();
-    for (name, bytes) in files.iter().filter(|(n, _)| {
+    for (name, file) in files.iter().filter(|(n, _)| {
         n.starts_with("metadata/")
             && (n.ends_with(".official-definitions.json") || n.ends_with(".official-policy.json"))
     }) {
-        let role: Signed<Targets> = serde_json::from_slice(bytes)?;
+        let role: Signed<Targets> = serde_json::from_slice(&file.read()?)?;
         let definition_role = name.ends_with(".official-definitions.json");
         for (target, identity) in &role.signed.targets {
             if definition_role && target.raw() != "definitions/index.json" {
@@ -361,7 +363,11 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
             if !seen.insert(path.clone()) {
                 continue;
             }
-            let raw = at(files, &path)?;
+            let raw = files.get(&path).ok_or_else(|| {
+                TufRepositoryError::Invalid(format!(
+                    "catalog public repository file missing: {path}"
+                ))
+            })?;
             let maximum = if target.raw() == "policy/official/catalog.listings.json" {
                 8 * 1024 * 1024
             } else if target.raw() == "definitions/index.json" {
@@ -371,14 +377,14 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
             } else {
                 65536
             };
-            if raw.len() as u64 != identity.length
-                || raw.len() > maximum
-                || sha(raw) != hex::encode(&identity.hashes.sha256)
+            if raw.bytes() != identity.length
+                || raw.bytes() > maximum as u64
+                || raw.digest() != hex::encode(&identity.hashes.sha256)
             {
                 return invalid("catalog historical target identity/bound differs");
             }
             if definition_role {
-                for (id, entry) in indexed_entries(raw)? {
+                for (id, entry) in indexed_entries(&raw.read()?)? {
                     if let Some(old) = definitions.get(&id) {
                         let old_revision = old["revision"].as_u64().unwrap();
                         let new_revision = entry["revision"].as_u64().unwrap();
@@ -392,7 +398,7 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
                     definitions.insert(id, entry);
                 }
             } else {
-                let policy: serde_json::Value = serde_json::from_slice(raw)?;
+                let policy: serde_json::Value = serde_json::from_slice(&raw.read()?)?;
                 let field = if target.raw().ends_with(".launch.json")
                     || target.raw() == "policy/official/catalog.listings.json"
                 {
@@ -406,14 +412,14 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
                     )
                 })?;
                 if let Some((old_revision, old_bytes)) = policies.get(target.raw()) {
-                    if revision == *old_revision && old_bytes != raw {
+                    if revision == *old_revision && old_bytes != raw.digest() {
                         return invalid("catalog retained policy/launch history equivocates");
                     }
                     if revision < *old_revision {
                         continue;
                     }
                 }
-                policies.insert(target.raw().into(), (revision, raw.clone()));
+                policies.insert(target.raw().into(), (revision, raw.digest().to_owned()));
             }
         }
     }
@@ -440,7 +446,7 @@ fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
             let next_revision = value[field].as_u64().ok_or_else(|| {
                 TufRepositoryError::Invalid("catalog current policy/launch revision absent".into())
             })?;
-            if next_revision < revision || (next_revision == revision && next != &bytes) {
+            if next_revision < revision || (next_revision == revision && sha(next) != bytes) {
                 return invalid(
                     "catalog historical policy/launch rollback or equal-revision replacement",
                 );
@@ -492,7 +498,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     let mut files = context.prior.clone();
     files.insert(
         format!("metadata/{}.root.json", context.root.signed.version),
-        context.root_bytes.clone(),
+        &context.root_bytes,
     );
     let selected_top = signing::selected_top(&context, &roles)?;
     let top_version = context
@@ -503,11 +509,11 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     let top_name = format!("metadata/{top_version}.targets.json");
     if files
         .get(&top_name)
-        .is_some_and(|old| old.as_slice() != selected_top)
+        .is_some_and(|old| !old.matches(selected_top))
     {
         return invalid("catalog immutable Targets history replacement");
     }
-    files.insert(top_name, selected_top.to_vec());
+    files.insert(top_name, selected_top);
     for role in [
         DefinitionOnlineRole::Definitions,
         DefinitionOnlineRole::Policy,
@@ -527,20 +533,23 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         };
         if let Some(old) = files.get(&name)
             && role != DefinitionOnlineRole::Timestamp
-            && old != bytes
+            && !old.matches(bytes)
         {
             return invalid("catalog immutable metadata history replacement");
         }
-        files.insert(name, bytes.clone());
+        files.insert(name, bytes);
     }
     for (name, bytes) in &context.targets {
         let file = public_target_path(name, bytes)?;
-        if files.get(&file).is_some_and(|v| v != bytes) {
+        if files.get(&file).is_some_and(|v| !v.matches(bytes)) {
             return invalid("catalog immutable target replacement");
         }
-        files.insert(file, bytes.clone());
+        files.insert(file, bytes);
     }
-    check_public_capacity(files.len(), files.values().map(|v| v.len() as u64).sum())?;
+    check_public_capacity(
+        files.len(),
+        files.iter().map(|(_, file)| file.bytes()).sum(),
+    )?;
     verify_history(&context, &files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -556,7 +565,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         return invalid("catalog signed inputs changed during assembly");
     }
     let changed = if output.try_exists()? {
-        if public_tree(&output)? != files {
+        if public_identities(&output)? != files.identities() {
             return invalid("catalog assembly output exists with different bytes; retain original");
         }
         false
@@ -576,12 +585,12 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
             builder.mode(0o700);
         }
         builder.create(&output)?;
-        for (name, bytes) in &files {
+        for (name, file) in files.iter() {
             let destination = output.join(name);
             fs::create_dir_all(destination.parent().unwrap())?;
-            io::write_new(&destination, bytes)?;
+            io::write_new(&destination, &file.read()?)?;
         }
-        if public_tree(&output)? != files {
+        if public_identities(&output)? != files.identities() {
             return invalid("catalog complete assembly retained readback differs");
         }
         true
@@ -597,13 +606,13 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
 }
 
 fn repository_report(
-    files: &Files,
+    files: &PublicHistory,
     root: &[u8],
     top: &[u8],
     index_sha256: &str,
     changed: bool,
 ) -> Result<DefinitionRepositoryReport> {
-    let identities = bundle::identities(files);
+    let identities = files.identities();
     let repository_sha256 = sha(&serde_json::to_vec(&identities)?);
     let actual_roles = current_roles(files)?;
     let mut versions = BTreeMap::new();
@@ -686,13 +695,9 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     let now = Timestamp::now();
     policy::root(&root, now, config.initial_root_profile)?;
     policy::top(&root.signed, &top, now)?;
-    let files = public_tree(&repository_path)?;
+    let files = PublicHistory::read(&repository_path)?;
     validate_public_paths(&files)?;
-    if at(
-        &files,
-        &format!("metadata/{}.root.json", root.signed.version),
-    )? != &root_bytes
-    {
+    if files.file(&format!("metadata/{}.root.json", root.signed.version))? != root_bytes {
         return invalid("catalog public Root differs from pinned trust anchor");
     }
     let logical = authenticate(&root_bytes, &files, tough::ExpirationEnforcement::Safe).await?;
@@ -704,15 +709,15 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if io::read(path, CONFIG_MAX)? != config_raw
         || io::read(&root_path, ROOT_MAX)? != root_bytes
         || io::read(&top_path, ROLE_MAX)? != top_bytes
-        || public_tree(&repository_path)? != files
+        || public_identities(&repository_path)? != files.identities()
     {
         return invalid("catalog public verification inputs changed during readback");
     }
     repository_report(&files, &root_bytes, &top_bytes, &index_sha256, false)
 }
 
-fn verify_history(context: &Context, files: &Files) -> Result<()> {
-    for (name, bytes) in files
+fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
+    for (name, file) in files
         .iter()
         .filter(|(n, _)| n.starts_with("metadata/") && n.as_str() != "metadata/timestamp.json")
     {
@@ -722,6 +727,7 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
         let expected_version = version.parse::<u64>().map_err(|_| {
             TufRepositoryError::Invalid("catalog metadata filename version malformed".into())
         })?;
+        let bytes = &file.read()?;
         let value: serde_json::Value = serde_json::from_slice(bytes)?;
         if value["signed"]["version"].as_u64() != Some(expected_version) {
             return invalid("catalog historical metadata version/path differs");
@@ -775,8 +781,9 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
                         return invalid("catalog historical Snapshot inventory differs");
                     }
                     for (role, identity) in signed.signed.meta {
-                        let bytes = at(files, &format!("metadata/{}.{}", identity.version, role))?;
-                        signing::same(&identity, &signing::meta(bytes, identity.version)?)?;
+                        let bytes =
+                            files.file(&format!("metadata/{}.{}", identity.version, role))?;
+                        signing::same(&identity, &signing::meta(&bytes, identity.version)?)?;
                     }
                 }
             }
@@ -798,7 +805,7 @@ fn verify_history(context: &Context, files: &Files) -> Result<()> {
 
 #[cfg(test)]
 mod capacity_tests {
-    use super::*;
+    use super::{public_history::PublicHistory, *};
 
     #[test]
     fn retained_bound_allows_the_observed_release_and_remains_finite() {
