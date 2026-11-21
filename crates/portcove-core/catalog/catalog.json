@@ -29177,6 +29177,19 @@
         "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "2ship2harkinian/2ship2harkinian",
+        "minimum_version": "5.0.1",
+        "settings_file": "2ship2harkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
       "windows_runtime_path_policy": "relative-file-max-path",
       "automated_tested_platforms": [
         "windows-x86-64"

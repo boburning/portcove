@@ -2033,6 +2033,14 @@ native settings and platform contracts. Historical definitions keep their
 loader interpretation. Indexed successors preserve the established loader
 and native settings so interrupted writes can resume with the same facts.
 
+2 Ship 2 Harkinian 5.0.1 uses `2ship2harkinian.json` and stores the names
+without extensions in the `gSettings.EnabledMods` list. Its build enables OTR
+and O2R support, and the pinned archive manager gives the last archive
+priority. The binding covers the declared managed Windows and Linux targets.
+[2Ship mod menu](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/mm/2s2h/Enhancements/ModMenu/ModMenu.cpp)
+[2Ship build flags](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/CMakeLists.txt)
+[Pinned archive manager](https://github.com/kenix3/libultraship/blob/7cb10226e7875ec48ceec2f841d00afd84eef964/src/ship/resource/archive/ArchiveManager.cpp)
+
 Banjo: Recompiled v1.0.2 identifies its native game as `bk` and registers its
 application configuration root. Its pinned N64ModernRuntime scans that root's
 `mods` directory for NRM packages and reads `enabled_mods` and `mod_order`
