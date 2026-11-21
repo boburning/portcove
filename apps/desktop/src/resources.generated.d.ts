@@ -1341,7 +1341,7 @@ export default interface Resources {
         "owner": "You choose, install and update files outside Portcove.",
         "previous": "Previous results",
         "quaddicted": "View on Quaddicted",
-        "quakeSetup": "Check that the package supports vkQuake. Follow the author’s setup in a separate Quake copy.",
+        "quakeSetup": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
         "search": "Search Quaddicted",
         "searchFilename": "Filename",
         "unavailable": "Couldn’t read this source. Try again or open its website.",

@@ -7,47 +7,54 @@ import { ExternalModPortals } from "./ExternalModPortals";
 const port = "quake-vkquake";
 afterEach(cleanup);
 
-it("searches the reviewed Quaddicted scope and distinguishes cached from confirmed empty", async () => {
-  const url = "https://www.quaddicted.com/db/v2/";
-  const base = {
-    value: {
-      attribution: "Quaddicted",
-      source_url: url,
-      engine: "vk_quake" as const,
-      page: 0,
-      entries: [],
-      unreadable_rows: 0,
-      may_have_more: false,
-    },
-    observed_at: 1_798_000_000,
-  };
-  const browse = vi
-    .spyOn(desktopApi, "quaddictedCatalog")
-    .mockResolvedValueOnce({ ...base, freshness: "stale" })
-    .mockResolvedValueOnce({ ...base, freshness: "fresh" });
+it.each([
+  { port, engine: "vk_quake" },
+  { port: "quake-ironwail", engine: "ironwail" },
+] as const)(
+  "guides $engine and distinguishes cached from confirmed empty",
+  async ({ port, engine }) => {
+    const url = "https://www.quaddicted.com/db/v2/";
+    const base = {
+      value: {
+        attribution: "Quaddicted",
+        source_url: url,
+        engine,
+        page: 0,
+        entries: [],
+        unreadable_rows: 0,
+        may_have_more: false,
+      },
+      observed_at: 1_798_000_000,
+    };
+    const browse = vi
+      .spyOn(desktopApi, "quaddictedCatalog")
+      .mockResolvedValueOnce({ ...base, freshness: "stale" })
+      .mockResolvedValueOnce({ ...base, freshness: "fresh" });
 
-  try {
-    await render(
-      <ExternalModPortals
-        port={port}
-        generation={2}
-        portals={[{ source: "quaddicted", url, browse_available: true }]}
-      />,
-    );
-    expect(browse).not.toHaveBeenCalled();
-    await page.getByRole("button", { name: "Show newest on Quaddicted" }).click();
-    await expect.element(page.getByText(/Showing earlier results/)).toBeVisible();
-    expect(page.getByText("The source returned no results.").query()).toBeNull();
+    try {
+      await render(
+        <ExternalModPortals
+          port={port}
+          generation={2}
+          portals={[{ source: "quaddicted", url, browse_available: true }]}
+        />,
+      );
+      await expect.element(page.getByText(/supports your Quake engine/)).toBeVisible();
+      expect(browse).not.toHaveBeenCalled();
+      await page.getByRole("button", { name: "Show newest on Quaddicted" }).click();
+      await expect.element(page.getByText(/Showing earlier results/)).toBeVisible();
+      expect(page.getByText("The source returned no results.").query()).toBeNull();
 
-    await page.getByRole("textbox", { name: "Filename" }).fill("ad_v1");
-    await page.getByRole("button", { name: "Search Quaddicted" }).click();
-    await expect.element(page.getByText("The source returned no results.")).toBeVisible();
-    expect(browse).toHaveBeenNthCalledWith(1, port, 2, 0, undefined);
-    expect(browse).toHaveBeenNthCalledWith(2, port, 2, 0, "ad_v1");
-  } finally {
-    browse.mockRestore();
-  }
-});
+      await page.getByRole("textbox", { name: "Filename" }).fill("ad_v1");
+      await page.getByRole("button", { name: "Search Quaddicted" }).click();
+      await expect.element(page.getByText("The source returned no results.")).toBeVisible();
+      expect(browse).toHaveBeenNthCalledWith(1, port, 2, 0, undefined);
+      expect(browse).toHaveBeenNthCalledWith(2, port, 2, 0, "ad_v1");
+    } finally {
+      browse.mockRestore();
+    }
+  },
+);
 
 it("opens a Mod DB file notice through the scoped verifier and labels a refusal", async () => {
   const url = "https://www.moddb.com/mods/arcane-dimensions/downloads";
