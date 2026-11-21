@@ -75,7 +75,10 @@ pub struct DefinitionEligibility {
 /// One operation decision exposed by the shared core status model.
 ///
 /// `retained` distinguishes an installed version's immutable admission from the
-/// currently selected definition used for new work.
+/// currently selected definition used for new work. A retained Install hold
+/// with a distribution-withdrawn reason identifies the exact active artifact.
+/// It describes reacquisition and never substitutes for the current Install
+/// decision or the retained Launch decision.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct DefinitionOperationAssessment {
     pub operation: DefinitionOperation,

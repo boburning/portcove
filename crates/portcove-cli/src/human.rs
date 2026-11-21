@@ -1895,6 +1895,26 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        for assessment in &status.definition_operations {
+            if assessment.operation != portcove_core::DefinitionOperation::Install
+                || assessment.eligibility.reason
+                    != portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                continue;
+            }
+            let target = if assessment.retained {
+                let Some(active) = &status.active else {
+                    continue;
+                };
+                format!("Installed release {}", clean(&active.version))
+            } else {
+                "Recommended release".into()
+            };
+            output.push_str(&format!(
+                "\n{}: {target} withdrawn by the catalog maintainer.",
+                port_name(catalog, &status.port_id)
+            ));
+        }
         if let Some(carried) = &status.carried_files {
             output.push_str(&format!(
                 "\nFiles kept during the version switch for {}:\n{}",

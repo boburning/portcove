@@ -74,6 +74,16 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+### Exact release withdrawal in status
+
+Status reports curated distribution withdrawal only for the exact recommended
+artifact or exact active installation. In machine output, the Install
+assessment identifies the installed copy with `retained: true`. The reason
+is `curated_distribution_withdrawn`. The badge and details use the catalog
+maintainer as the reason when no further explanation is recorded. A
+withdrawal controls acquisition. Installed launch and rollback stay subject
+to their existing checks, and no local files or saves are changed.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
