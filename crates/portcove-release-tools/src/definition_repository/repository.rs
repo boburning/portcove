@@ -823,20 +823,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     let mut reserved = Vec::new();
     let reserve_result = (|| -> Result<()> {
         let mut reserve = |directory: &Path| -> Result<()> {
-            io::ancestry(directory.parent().ok_or_else(|| {
-                TufRepositoryError::Invalid("catalog output parent absent".into())
-            })?)?;
-            #[cfg(not(unix))]
-            let builder = fs::DirBuilder::new();
-            #[cfg(unix)]
-            let mut builder = fs::DirBuilder::new();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::DirBuilderExt;
-                builder.mode(0o700);
-            }
-            builder.create(directory)?;
-            reserved.push(directory.to_path_buf());
+            reserved.push(io::OutputReservation::create(directory)?);
             Ok(())
         };
         if !output_exists {
@@ -854,15 +841,20 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
             if !store_exists {
                 reserve(store)?;
             }
+            io::no_overlap(store, &inputs)?;
+            io::no_output_overlap(store, &output)?;
+            for name in ["metadata", "targets"] {
+                let subtree = output.join(name);
+                if io::directory_exists(&subtree)? {
+                    io::no_output_overlap(store, &subtree)?;
+                }
+            }
         }
         Ok(())
     })();
     if let Err(error) = reserve_result {
-        // Only directories created exclusively above are eligible for removal.
         for directory in reserved.iter().rev() {
-            if io::directory_exists(directory).unwrap_or(false) {
-                let _ = fs::remove_dir(directory);
-            }
+            directory.remove_if_owned();
         }
         return Err(error);
     }

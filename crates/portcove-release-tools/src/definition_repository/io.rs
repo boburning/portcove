@@ -203,6 +203,109 @@ pub(super) fn directory_exists(path: &Path) -> Result<bool> {
     }
 }
 
+/// An empty directory created exclusively during assembly preflight.
+/// Keep the original handle alive so a reused path cannot impersonate it.
+pub(super) struct OutputReservation {
+    path: PathBuf,
+    handle: Option<fs::File>,
+}
+
+impl OutputReservation {
+    pub(super) fn create(path: &Path) -> Result<Self> {
+        ancestry(
+            path.parent().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog output parent absent".into())
+            })?,
+        )?;
+        #[cfg(not(unix))]
+        let builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder.create(path)?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            handle: open_reserved_directory(path).ok(),
+        })
+    }
+
+    pub(super) fn remove_if_owned(&self) {
+        let held = self.handle.as_ref().and_then(directory_identity);
+        if held.is_some()
+            && open_reserved_directory(&self.path)
+                .ok()
+                .as_ref()
+                .and_then(directory_identity)
+                == held
+        {
+            let _ = fs::remove_dir(&self.path);
+        }
+    }
+}
+
+fn open_reserved_directory(path: &Path) -> Result<fs::File> {
+    if !directory_exists(path)? {
+        return invalid("catalog output reservation is missing");
+    }
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
+        };
+        options
+            .access_mode(FILE_READ_ATTRIBUTES)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    Ok(options.open(path)?)
+}
+
+#[cfg(unix)]
+fn directory_identity(file: &fs::File) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt as _;
+    let metadata = file.metadata().ok()?;
+    metadata.is_dir().then(|| (metadata.dev(), metadata.ino()))
+}
+
+#[cfg(windows)]
+fn directory_identity(file: &fs::File) -> Option<(u64, [u8; 16])> {
+    use std::os::windows::{fs::MetadataExt as _, io::AsRawHandle as _};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_ATTRIBUTE_REPARSE_POINT, FILE_ID_INFO, FileIdInfo, GetFileInformationByHandleEx,
+    };
+
+    let metadata = file.metadata().ok()?;
+    if !metadata.is_dir() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        return None;
+    }
+    // SAFETY: the borrowed handle and initialized output storage are valid
+    // throughout this synchronous Win32 query.
+    let mut information: FILE_ID_INFO = unsafe { std::mem::zeroed() };
+    let success = unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle() as _,
+            FileIdInfo,
+            std::ptr::from_mut(&mut information).cast(),
+            std::mem::size_of::<FILE_ID_INFO>() as u32,
+        )
+    };
+    (success != 0 && information.FileId.Identifier != [0; 16]).then_some((
+        information.VolumeSerialNumber,
+        information.FileId.Identifier,
+    ))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn directory_identity(_: &fs::File) -> Option<(u64, u64)> {
+    None
+}
+
 /// Check immutable reuse without writing so a different output cannot be partially created.
 pub(super) fn output_file_exists(path: &Path, bytes: &[u8]) -> Result<bool> {
     match path.symlink_metadata() {
@@ -342,5 +445,30 @@ impl<T, F: Fn(&str, Vec<u8>) -> T> TreeWalk<T, F> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, unix))]
+mod reservation_tests {
+    use super::*;
+
+    #[test]
+    fn reservation_cleanup_keeps_a_replacement_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let original = root.join("original");
+        let moved = root.join("moved");
+        let reservation = OutputReservation::create(&original).unwrap();
+        fs::rename(&original, &moved).unwrap();
+        fs::create_dir(&original).unwrap();
+
+        reservation.remove_if_owned();
+        assert!(original.is_dir());
+        assert!(moved.is_dir());
+
+        let fresh = root.join("fresh");
+        let fresh_reservation = OutputReservation::create(&fresh).unwrap();
+        fresh_reservation.remove_if_owned();
+        assert!(!fresh.exists());
     }
 }
