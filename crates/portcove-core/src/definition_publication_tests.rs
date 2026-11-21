@@ -292,8 +292,17 @@ fn publication_inspects_named_advice_without_changing_report_or_authority() {
             entry["advisory"] = json!({"future-advice": "inert"});
         })
     };
-    let files = build(json!(["mods.native-loader-binding-v1"]));
-    assert!(inspect_definition_publication_bytes(&build(json!([]))).is_err());
+    let files = build(json!([
+        "mods.native-loader-binding-v1",
+        "mods.provider-bindings-v1"
+    ]));
+    let missing_loader = build(json!(["mods.provider-bindings-v1"]));
+    assert!(
+        inspect_definition_publication_bytes(&missing_loader)
+            .unwrap_err()
+            .message
+            .contains("mods.native-loader-binding-v1"),
+    );
     let report = inspect_definition_publication_bytes(&files).unwrap();
     assert_eq!(report.publication_schema, 1);
     assert_eq!(report.authority, "none");
