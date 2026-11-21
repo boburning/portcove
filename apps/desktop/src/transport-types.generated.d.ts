@@ -332,6 +332,7 @@ export type IgdbArtworkMatch = "port" | "underlying-game";
  * The version change an automatic snapshot protects.
  */
 export type VersionChangeKind = "update" | "activation" | "rollback";
+export type BackupRecoveryReview = "legacy_install_and_data_v1";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -2221,6 +2222,10 @@ export interface BackupRecord {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -2363,6 +2368,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -5044,6 +5053,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }
@@ -5678,6 +5691,10 @@ export interface BackupRecord1 {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
