@@ -34,7 +34,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -2671,6 +2671,7 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2702,6 +2703,41 @@ try {
           output,
           fixture: installFixture,
         });
+    }
+    if (installFixture.managedCopyJourney) {
+      // This CLI registration seeds owned pre-state. The native case observes
+      // the reviewed transition from that registration and never runs it.
+      const directory = path.join(output, "managed-copy-external");
+      await mkdir(directory);
+      const executable = path.join(directory, "external-fixture.exe");
+      const save = path.join(directory, "external-save.txt");
+      await copyFile(required(values["preparation-tool"]), executable);
+      await writeFile(save, "owned external save to preserve", { flag: "wx" });
+      inputs.push(await fileIdentity(executable), await fileIdentity(save));
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      const args = [installFixture.port.id, executable, "--working-directory", directory];
+      const preview = transportValue(
+        "external_runtime_preview",
+        command(["external", "select-preview", ...args]),
+      );
+      const registered = transportValue(
+        "external_runtime_record",
+        command([
+          "external",
+          "select",
+          ...args,
+          "--expected-preview",
+          preview.preview_sha256,
+          "--yes",
+        ]),
+      );
+      assert.equal(registered.port_id, installFixture.port.id);
+      assert.equal(registered.executable, preview.executable);
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     if (

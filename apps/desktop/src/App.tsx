@@ -48,6 +48,7 @@ import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import {
   canOpenExternalRegistration,
+  canOpenInstalledResult,
   targetInvocationContext,
 } from "./features/operations/invocation-state";
 import {
@@ -1281,6 +1282,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
       unreadExternalPorts={model.operations.unreadExternalPorts}
+      unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
       perform={model.operations.perform}
     >
       <ArtworkProvider
@@ -1405,14 +1407,16 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
         openInstalledGame={(record) => {
-          const { target, libraryGeneration } = record.context;
-          const current = model.model.statusMap.get(target.id)?.active;
+          const { target } = record.context;
           if (
-            libraryGeneration !== model.bootstrap.generation ||
-            model.ui.selectedId === target.id ||
-            model.operations.unreadInstallPorts.has(target.id) ||
-            current?.id !== record.installed?.id ||
-            current?.port_id !== target.id
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenInstalledResult(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadInstallPorts,
+            )
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
@@ -2627,6 +2631,7 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
     workspaceReadRevision: data.workspaceReadRevision,
+    workspaceStatuses: data.statuses,
     startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
