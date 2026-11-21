@@ -1060,12 +1060,12 @@ export async function installScenarios({
     assert.equal(transfer.bytes_sent, release.size);
     assert.equal(transfer.completed, true);
     assert.deepEqual(await Promise.all(existingFiles.map((file) => fileIdentity(file))), preserved);
-    await browser.findElement(By.xpath('//nav//button[normalize-space(.)="Activity"]')).click();
+    await selectPrimaryNavigation(browser, "Activity");
     await browser.wait(
       until.elementLocated(By.xpath('//main//h1[normalize-space(.)="Activity"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    await selectPrimaryNavigation(browser, "Library");
     const retained = await browser.wait(until.elementLocated(receipt), 15_000);
     assert.ok((await retained.getText()).includes(port.name));
     const openGame = await browser.wait(
