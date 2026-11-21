@@ -288,9 +288,12 @@ mod tests {
             );
         }
         assert!(
-            cartridge_definition("advance-wars", CartridgeBuildRecipe::AdvanceWarsGbaSourceV1)
-                .unwrap()
-                .is_none()
+            cartridge_definition(
+                "advance-wars-recompiled",
+                CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
+            )
+            .unwrap()
+            .is_none()
         );
     }
 }

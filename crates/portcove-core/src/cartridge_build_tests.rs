@@ -187,7 +187,7 @@ fn historical_runtime_reader_rejects_changed_execution_source_and_ownership() {
     let retired: CartridgeBuildRecipe =
         serde_json::from_str("\"advance-wars-gba-source-cb3facb53b6b-usa-rev1\"").unwrap();
     assert!(
-        crate::historical_artifacts::cartridge_definition("advance-wars", retired)
+        crate::historical_artifacts::cartridge_definition("advance-wars-recompiled", retired)
             .unwrap()
             .is_none()
     );
