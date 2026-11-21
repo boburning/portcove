@@ -1125,7 +1125,23 @@ export async function selectedSetupCompletionScenario({
       report.observations.installed = { activity: installedActivity, status: installed };
       await enlargedStage("installed-next-step");
 
-      await click(setupReviewButton());
+      // Core had committed the exact install in run 44950945177 while
+      // the native detail still had the Finish setup control disabled.
+      const finishSetup = setupReviewButton();
+      await browser.wait(
+        async () => {
+          const [trigger] = await browser.findElements(finishSetup);
+          return Boolean(
+            trigger &&
+            (await trigger.isEnabled()) &&
+            (await trigger.getAttribute("aria-disabled")) !== "true" &&
+            (await trigger.getAttribute("aria-busy")) !== "true",
+          );
+        },
+        60_000,
+        "The installed game did not regain an actionable Finish setup control",
+      );
+      await click(finishSetup);
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
       await browser.wait(until.elementLocated(preparationDialog), 15_000);
       await browser.wait(
