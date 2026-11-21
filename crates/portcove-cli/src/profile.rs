@@ -809,9 +809,10 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     if !page.complete {
         if page.page < result.last_page {
             lines.push(format!(
-                "More mods: `portcove profile provider-browse {} --page {}`.",
+                "More mods: `portcove profile provider-browse {} --page {} --provider {}`.",
                 clean(&result.port_id),
-                page.page + 1
+                page.page + 1,
+                clean(&result.provider)
             ));
         } else {
             lines.push(format!("More mods are listed on {provider} itself."));
@@ -819,8 +820,9 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     }
     if !page.projects.is_empty() {
         lines.push(format!(
-            "See a mod's files: `portcove profile provider-project {} MOD_ID`.",
-            clean(&result.port_id)
+            "See a mod's files: `portcove profile provider-project {} MOD_ID --provider {}`.",
+            clean(&result.port_id),
+            clean(&result.provider)
         ));
     }
     lines.join("\n")
@@ -890,14 +892,15 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
         ));
     } else if installable {
         lines.push(format!(
-            "Review a {noun} for a setup: `portcove profile provider-plan {} PROFILE_ID {} {}`.",
+            "Review a {noun} for a setup: `portcove profile provider-plan {} PROFILE_ID {} {} --provider {}`.",
             clean(&view.port_id),
             clean(&project.project_id),
             if noun == "version" {
                 "VERSION"
             } else {
                 "FILE_ID"
-            }
+            },
+            clean(&project.provider)
         ));
     }
     lines.join("\n")
@@ -2065,7 +2068,9 @@ mod provider_text_tests {
         let fresh =
             provider_project_text(&view(project(false, 0, false), ProviderFreshness::Fresh));
         assert!(fresh.contains("Ship of Harkinian"));
-        assert!(fresh.contains("provider-plan shipwright PROFILE_ID 42 FILE_ID"));
+        assert!(
+            fresh.contains("provider-plan shipwright PROFILE_ID 42 FILE_ID --provider gamebanana")
+        );
         assert!(!fresh.contains("bytes)"), "sizes are readable: {fresh}");
 
         let stale =
@@ -2100,10 +2105,10 @@ mod provider_text_tests {
         };
         let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
         assert!(empty.contains("No mods on this page."));
-        assert!(empty.contains("provider-browse shipwright --page 5"));
+        assert!(empty.contains("provider-browse shipwright --page 5 --provider gamebanana"));
         let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
         assert!(unknown.contains("total unknown"));
-        assert!(unknown.contains("provider-browse shipwright --page 2"));
+        assert!(unknown.contains("provider-browse shipwright --page 2 --provider gamebanana"));
         let last = provider_browse_text(&page(vec![project(false, 0, false)], 1000, 50, false));
         assert!(!last.contains("--page 51"));
         assert!(last.contains("GameBanana itself"));

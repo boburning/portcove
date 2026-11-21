@@ -108,6 +108,15 @@ pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
         }
         return invalid("catalog output already exists with different bytes; retain original");
     }
+    create_synced(path, bytes)?;
+    if read(path, ROLE_MAX)? != bytes {
+        return invalid("catalog output readback differs");
+    }
+    Ok(true)
+}
+
+/// Create a file for an assembly whose complete inventory will be read back.
+pub(super) fn create_synced(path: &Path, bytes: &[u8]) -> Result<()> {
     ancestry(
         path.parent()
             .ok_or_else(|| TufRepositoryError::Invalid("output parent absent".into()))?,
@@ -122,11 +131,7 @@ pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
     let mut file = options.open(path)?;
     file.write_all(bytes)?;
     file.sync_all()?;
-    drop(file);
-    if read(path, ROLE_MAX)? != bytes {
-        return invalid("catalog output readback differs");
-    }
-    Ok(true)
+    Ok(())
 }
 pub(super) fn canonical(bytes: &[u8]) -> Result<Vec<u8>> {
     let mut value: serde_json::Value = serde_json::from_slice(bytes)?;

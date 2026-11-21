@@ -4342,6 +4342,12 @@
         ],
         "type": "object"
       },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
+      },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
         "enum": [
@@ -4382,6 +4388,17 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "recovery_review": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BackupRecoveryReview"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
       },
       "sha256": {
         "type": "string"
@@ -4474,6 +4491,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4499,6 +4527,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -4654,6 +4688,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4679,6 +4724,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DefinitionEligibility": {
         "properties": {
@@ -6586,6 +6637,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -8094,6 +8166,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -10364,6 +10443,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -10653,6 +10753,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -19940,6 +20047,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -19965,6 +20083,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -20490,6 +20614,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -20515,6 +20650,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
@@ -28128,6 +28269,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -28153,6 +28305,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -36655,6 +36813,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -37005,6 +37184,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -38072,6 +38258,27 @@
           }
         ]
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -38740,6 +38947,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -39586,6 +39800,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -39611,6 +39836,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -42480,6 +42711,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -42505,6 +42747,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -44394,6 +44642,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -45081,6 +45336,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52930,6 +53205,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -52955,6 +53241,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -57197,6 +57489,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -58705,6 +59018,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -61950,6 +62270,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -62687,6 +63014,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -68423,6 +68770,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -68481,6 +68848,13 @@
       },
       "next_action": {
         "type": "string"
+      },
+      "original_editions": {
+        "description": "Descriptive matches for this current registered observation only.",
+        "items": {
+          "$ref": "#/$defs/VerifiedOriginalEdition"
+        },
+        "type": "array"
       },
       "problem": {
         "anyOf": [
@@ -69878,6 +70252,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -70565,6 +70946,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -72492,6 +72893,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -73246,6 +73654,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -74622,6 +75050,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -75309,6 +75744,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

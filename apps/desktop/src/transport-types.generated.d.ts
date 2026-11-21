@@ -332,6 +332,7 @@ export type IgdbArtworkMatch = "port" | "underlying-game";
  * The version change an automatic snapshot protects.
  */
 export type VersionChangeKind = "update" | "activation" | "rollback";
+export type BackupRecoveryReview = "legacy_install_and_data_v1";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -2238,6 +2239,10 @@ export interface BackupRecord {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -2807,6 +2812,19 @@ export interface SourceEdition {
    */
   system?: string | null;
   title: string;
+  /**
+   * Reviewed correspondence to an exact Core source identity. An empty list
+   * leaves the edition available for manual browsing only.
+   */
+  verified_sources?: OriginalEditionSourceBinding[];
+}
+/**
+ * Exact correspondence to an identity in the reviewed source graph.
+ */
+export interface OriginalEditionSourceBinding {
+  game_id: string;
+  representation_id: string;
+  variant_id: string;
 }
 export interface ReleaseSpec {
   /**
@@ -5809,6 +5827,10 @@ export interface BackupRecord1 {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -5902,6 +5924,10 @@ export interface SourceInspectionReport {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;
@@ -6027,6 +6053,15 @@ export interface SourceLegacyCoverage {
    * Historical evidence without an exact variant remains visible but is never exact coverage.
    */
   variant_unspecified_records: SourceEvidence[];
+  [k: string]: unknown;
+}
+/**
+ * A reviewed original edition for one port using the verified source profile.
+ */
+export interface VerifiedOriginalEdition {
+  original_game_id: string;
+  port_id: string;
+  source_edition_id: string;
   [k: string]: unknown;
 }
 export interface SourceInspectionProblem {
@@ -6763,6 +6798,10 @@ export interface SourceInspectionReport1 {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;

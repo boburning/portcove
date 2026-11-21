@@ -375,6 +375,11 @@ holding the current saves. The fixture save does not change between the update a
 the rollback, so the snapshot's bytes alone do not distinguish it from the update
 snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
+The first update acquisition starts from the existing activation review. The
+harness compares the real archive-only review digest, checks the displayed
+archive and source, and expects the held transfer after a single action from
+that review. Later acquisitions retain the standalone download-review route.
+
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated

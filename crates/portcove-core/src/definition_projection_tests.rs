@@ -808,6 +808,56 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
     );
 }
 
+#[test]
+fn enforced_n64_release_inputs_require_migration_reader() {
+    let mut catalog = Catalog::embedded().unwrap().authoritative_document();
+    catalog
+        .ports
+        .retain(|port| port.id == "harvest-moon-64-recomp");
+    let sources = catalog.source_catalog.as_mut().unwrap();
+    sources
+        .contracts
+        .retain(|contract| contract.port_id == "harvest-moon-64-recomp");
+    sources
+        .qualification
+        .retain(|fact| fact.scope.port_id == "harvest-moon-64-recomp");
+    let evidence = sources
+        .evidence
+        .iter()
+        .find(|item| item.role == crate::CatalogEvidenceRole::UpstreamSupport)
+        .unwrap()
+        .id
+        .clone();
+    let contract = &mut sources.contracts[0];
+    contract.evidence_ids.push(evidence);
+    contract
+        .n64_recomp_inputs_v1
+        .push(crate::N64RecompOriginalInput {
+            upstream_ref: "new-release".into(),
+            artifact_sha256: "a".repeat(64),
+            game_id: "harvest_moon_64".into(),
+            rom_xxh3_64: "0123456789abcdef".into(),
+        });
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection", "catalog": catalog,
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 11, "maximum_version": 11
+    }]);
+    inspect(&selected, &contract).unwrap();
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }
