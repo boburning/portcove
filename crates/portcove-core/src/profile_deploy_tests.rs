@@ -4221,10 +4221,44 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
         fs::read(cleanup.join("progress")).unwrap(),
         b"keep newer progress"
     );
-    fs::remove_file(cleanup.join("progress")).unwrap();
     drop(cleanup_interrupted);
     let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+    let cleanup_progress = cleanup.join("progress");
+    fs::write(&cleanup_progress, b"native progress after cleanup custody").unwrap();
+    let changed = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+    assert_eq!(changed.details["preserved"], cleanup.display().to_string());
+    assert_eq!(
+        fs::read(&cleanup_progress).unwrap(),
+        b"native progress after cleanup custody"
+    );
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert!(!runtime_progress.exists());
+
+    let changed_copy = temporary.path().join("changed-cleanup-progress");
+    fs::rename(&cleanup_progress, &changed_copy).unwrap();
+    fs::write(&cleanup_progress, b"keep newer progress").unwrap();
+    let extra = cleanup.join("extra-progress");
+    fs::write(&extra, b"native additional progress").unwrap();
+    let unexpected = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+    assert_eq!(
+        unexpected.details["preserved"],
+        cleanup.display().to_string()
+    );
+    assert_eq!(fs::read(&extra).unwrap(), b"native additional progress");
+    assert_eq!(fs::read(&cleanup_progress).unwrap(), b"keep newer progress");
+    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+    assert!(!runtime_progress.exists());
+
+    let extra_copy = temporary.path().join("additional-cleanup-progress");
+    fs::rename(&extra, &extra_copy).unwrap();
+    // Leave an unchanged subset as if cleanup had previously deleted a member.
+    fs::remove_file(&cleanup_progress).unwrap();
     recovered.activate_profile(PORT, &clean.id).unwrap();
+    assert_eq!(
+        fs::read(changed_copy).unwrap(),
+        b"native progress after cleanup custody"
+    );
+    assert_eq!(fs::read(extra_copy).unwrap(), b"native additional progress");
     assert!(!cleanup.exists());
     assert!(!runtime_progress.exists());
     assert!(!projection.journal().exists());

@@ -369,18 +369,103 @@ fn save_group_digest(group: &crate::AdoptionCopyPlan) -> Result<String> {
     Ok(crate::signed_catalog::digest(&serde_json::to_vec(group)?))
 }
 
-fn clean_parked_duplicate(root: &Path, path: &Path) -> Result<()> {
-    crate::path::refuse_symlink_ancestors(path)?;
-    if !fs::symlink_metadata(path)?.is_dir() {
-        return Err(save_group_drift().detail("preserved", path.display().to_string()));
-    }
-    // Only a UUID-bound cleanup coordinate is eligible. Bound the remaining
-    // tree before recursive deletion, including retries after partial cleanup.
-    observed_save_group(path)?;
-    fs::remove_dir_all(path).map_err(|error| {
-        PortcoveError::from(error).detail("preserved", path.display().to_string())
-    })?;
-    crate::durability::sync_publication(root)
+fn clean_parked_duplicate(
+    root: &Path,
+    path: &Path,
+    preimage: &crate::AdoptionCopyPlan,
+) -> Result<()> {
+    use crate::external_runtime::{hash_stable_regular, open_identity_handle, same_file};
+    let hold = || save_group_drift().detail("preserved", path.display().to_string());
+    let clean = || -> Result<()> {
+        crate::path::refuse_symlink_ancestors(path)?;
+        let root_handle = open_identity_handle(path)?;
+        if !root_handle.metadata()?.is_dir() {
+            return Err(hold());
+        }
+        let require_root = || -> Result<()> {
+            crate::path::refuse_symlink_ancestors(path)?;
+            if !same_file(&root_handle, &open_identity_handle(path)?)? {
+                return Err(hold());
+            }
+            Ok(())
+        };
+        let require_file = |file: &crate::AdoptionCopyFile| -> Result<fs::File> {
+            require_root()?;
+            let member = path.join(&file.relative_path);
+            crate::path::refuse_symlink_ancestors(&member)?;
+            let handle = open_identity_handle(&member)?;
+            let (hash, size) = hash_stable_regular(&member, file.size, &|| Ok(()))?;
+            if hash != file.sha256
+                || size != file.size
+                || !same_file(&handle, &open_identity_handle(&member)?)?
+            {
+                return Err(hold());
+            }
+            Ok(handle)
+        };
+        // Enumerate only the reviewed directory paths. An unknown child is
+        // refused immediately, without reading or recursively deleting it.
+        let mut directories = vec![(path.to_path_buf(), None)];
+        let mut files = Vec::new();
+        let mut index = 0;
+        while index < directories.len() {
+            require_root()?;
+            let directory = &directories[index].0;
+            crate::path::refuse_symlink_ancestors(directory)?;
+            let mut children = Vec::new();
+            for entry in fs::read_dir(directory)? {
+                let entry = entry?;
+                let member = entry.path();
+                let relative = member.strip_prefix(path).map_err(|_| hold())?;
+                let kind = entry.file_type()?;
+                if kind.is_dir()
+                    && preimage
+                        .directories
+                        .binary_search(&relative.to_path_buf())
+                        .is_ok()
+                {
+                    crate::path::refuse_symlink_ancestors(&member)?;
+                    children.push((member.clone(), Some(open_identity_handle(&member)?)));
+                } else if kind.is_file() {
+                    let position = preimage
+                        .files
+                        .binary_search_by(|file| file.relative_path.as_path().cmp(relative))
+                        .map_err(|_| hold())?;
+                    require_file(&preimage.files[position])?;
+                    files.push(position);
+                } else {
+                    return Err(hold());
+                }
+            }
+            directories.extend(children);
+            index += 1;
+        }
+        for position in files {
+            let file = &preimage.files[position];
+            let handle = require_file(file)?;
+            require_root()?;
+            let member = path.join(&file.relative_path);
+            if !same_file(&handle, &open_identity_handle(&member)?)? {
+                return Err(hold());
+            }
+            fs::remove_file(member)?;
+        }
+        for (directory, handle) in directories.into_iter().rev() {
+            require_root()?;
+            crate::path::refuse_symlink_ancestors(&directory)?;
+            if let Some(handle) = &handle
+                && !same_file(handle, &open_identity_handle(&directory)?)?
+            {
+                return Err(hold());
+            }
+            // remove_dir refuses a nonempty directory, including a child
+            // inserted after the verified inventory.
+            fs::remove_dir(directory)?;
+        }
+        drop(root_handle);
+        crate::durability::sync_publication(root)
+    };
+    clean().map_err(|error| error.detail("preserved", path.display().to_string()))
 }
 
 fn save_group_drift() -> PortcoveError {
@@ -488,7 +573,11 @@ impl PortcoveService {
                 if path.try_exists()? || live != next {
                     return Err(hold(&cleanup));
                 }
-                return clean_parked_duplicate(&root, &cleanup);
+                return clean_parked_duplicate(
+                    &root,
+                    &cleanup,
+                    old.as_ref().ok_or_else(|| hold(&cleanup))?,
+                );
             }
             let observed = observed_save_group(&path)
                 .map_err(|error| error.detail("preserved", path.display().to_string()))?;
@@ -590,7 +679,7 @@ impl PortcoveService {
             self.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::DfuSaveDuplicateCleanup,
             )?;
-            clean_parked_duplicate(&root, &cleanup)?;
+            clean_parked_duplicate(&root, &cleanup, old.as_ref().ok_or_else(|| hold(&cleanup))?)?;
         }
         Ok(())
     }
