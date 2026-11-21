@@ -1392,3 +1392,181 @@ void test("signed directory retains equivalent completed evidence until its reco
     assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
   }
 });
+
+void test("ScummVM game data reaches only an admitted guide and retains reviewed preparation", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { scummvmSetupGuide } = await import("./catalog-scummvm-game-setup.mts");
+  const { readScummvmGameData } = await import("./scummvm-game-data-observation.mts");
+  const sfinx = {
+    id: "scummvm-cge2-sfinx",
+    original_game_title: "Sfinx",
+    project_url: "https://github.com/scummvm/scummvm",
+    setup_url: "https://www.scummvm.org/games/#games-cge2:sfinx",
+  };
+  const guide = scummvmSetupGuide({
+    listing: sfinx,
+    upstream_lineage: {
+      origin: { project_url: sfinx.project_url, repository: { host: "github.com", id: "1358940" } },
+      decisions: [],
+    },
+    scummvm_game_setup_v1: { archive: "sfinx-en-v1.1.zip", folder: "sfinx-en-v1.1" },
+  });
+  assert.ok(guide);
+  assert.match(guide.steps[1]!.instruction, /select the sfinx-en-v1\.1 folder/u);
+  const canonical = {
+    format_version: 11,
+    listings: [
+      { ...sfinx, manual_setup: guide },
+      { ...sfinx, id: "unseen-scummvm-guide", manual_setup: guide },
+    ],
+  };
+  const source = (rows: string[], revision: string) =>
+    readScummvmGameData(Buffer.from(rows.join("\n")), revision.repeat(40));
+  const row = (edition: string, archive: string) =>
+    `- { category: games, game_id: 'cge2:sfinx', name: '${edition}', url: 'Sfinx/${archive}' }`;
+  const english = row("English v1.1", "sfinx-en-v1.1.zip");
+  const german = row("German v1.1", "sfinx-de-v1.1.zip");
+  const admitted = new Set([sfinx.id]);
+  const noGuidance = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+  );
+  const bounded = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    noGuidance.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english], "a"),
+  );
+  assert.deepEqual(bounded.bytes, noGuidance.bytes);
+  assert.equal(bounded.scummvm_guides, 0);
+  const first = projectListingDelivery(
+    canonical,
+    [],
+    null,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english], "a"),
+  );
+  const next = projectListingDelivery(
+    canonical,
+    [],
+    first.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    source([english, german], "b"),
+  );
+  const parsed = JSON.parse(next.bytes.toString()) as {
+    directory: { listings: typeof canonical.listings };
+  };
+  assert.equal(parsed.directory.listings.length, 1);
+  assert.equal(parsed.directory.listings[0]?.id, sfinx.id);
+  assert.deepEqual(parsed.directory.listings[0]?.manual_setup.steps, guide.steps);
+  assert.match(
+    parsed.directory.listings[0]?.manual_setup.references.at(-1)?.instruction ?? "",
+    /German v1\.1 \(sfinx-de-v1\.1\.zip\)/u,
+  );
+  assert.equal(next.revision, first.revision + 1);
+  assert.deepEqual(projectListingDelivery(canonical, [], next.bytes).bytes, next.bytes);
+  const unrelated = source(
+    ["- { category: games, game_id: 'test:other', name: 'Other', url: 'Other/data.zip' }"],
+    "c",
+  );
+  const retired = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    unrelated,
+  );
+  const retiredParsed = JSON.parse(retired.bytes.toString()) as typeof parsed;
+  assert.deepEqual(retiredParsed.directory.listings[0]?.manual_setup, guide);
+  assert.throws(() => source([row("English v1.1", "../escape.zip")], "d"), /archive paths/u);
+});
+
+void test("ScummVM game data observer binds official repository and byte-exact current file", async () => {
+  const { observeScummvmGameData, readScummvmGameData } =
+    await import("./scummvm-game-data-observation.mts");
+  const revision = "a".repeat(40);
+  const bytes = Buffer.from(
+    "- { category: games, game_id: 'test:other', name: 'Other', url: 'Other/data.zip' }",
+  );
+  const expected = readScummvmGameData(bytes, revision);
+  const responses = (wrong: "repo" | "blob" | "revision" | null) => {
+    const urls: URL[] = [];
+    return {
+      urls,
+      fetch: async (input: Parameters<typeof fetch>[0]) => {
+        const url = new URL(input instanceof Request ? input.url : String(input));
+        urls.push(url);
+        if (url.pathname.endsWith("/commits")) {
+          assert.equal(url.searchParams.get("sha"), "master");
+          assert.equal(url.searchParams.get("path"), "data/en/game_downloads.yaml");
+          return Response.json([
+            { sha: wrong === "revision" && urls.length > 2 ? "b".repeat(40) : revision },
+          ]);
+        }
+        if (url.pathname.includes("/contents/")) {
+          assert.equal(url.searchParams.get("ref"), revision);
+          return Response.json({
+            path: "data/en/game_downloads.yaml",
+            type: "file",
+            encoding: "base64",
+            content: bytes.toString("base64"),
+            size: bytes.length,
+            sha: wrong === "blob" ? "b".repeat(40) : expected.blob,
+          });
+        }
+        return Response.json({
+          id: wrong === "repo" ? 10 : 5929844,
+          full_name: "scummvm/scummvm-web",
+          default_branch: "master",
+          archived: false,
+        });
+      },
+    };
+  };
+  const clean = responses(null);
+  assert.deepEqual(await observeScummvmGameData(undefined, clean.fetch), expected);
+  assert.equal(clean.urls.length, 5);
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("repo").fetch),
+    /authority changed/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("blob").fetch),
+    /blob does not match/u,
+  );
+  await assert.rejects(
+    observeScummvmGameData(undefined, responses("revision").fetch),
+    /changed during/u,
+  );
+});
