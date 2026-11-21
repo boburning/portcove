@@ -87,6 +87,254 @@ fn installing_into_the_selected_profile_deploys_exact_bytes_and_records_a_revisi
 }
 
 #[test]
+fn an_unseen_port_deploys_exact_bytes_and_updates_only_its_authored_native_list() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    let id = "unseen-libultraship-fixture";
+    let catalog = crate::Catalog::from_json(&serde_json::json!({
+        "schema_version": 1,
+        "ports": [{
+            "id": id,
+            "name": "Unseen libultraship fixture",
+            "summary": "Native mod contract deployment test.",
+            "project_url": "https://github.com/fixture/unseen-libultraship",
+            "support_tier": "beta",
+            "channels": ["stable"],
+            "platforms": [platform],
+            "adapter": "libultraship-portable",
+            "release": {"repository": "fixture/unseen-libultraship"},
+            "executable_hints": { (serde_json::to_value(platform).unwrap().as_str().unwrap()): ["fixture.exe"] },
+            "persistent_paths": ["mods", "unseen.json"],
+            "mod_loader": {
+                "contract": {"id": "libultraship", "version": "1"},
+                "repository": "fixture/unseen-libultraship",
+                "minimum_version": "1.3.0",
+                "platforms": [platform],
+                "settings_file": "unseen.json"
+            }
+        }]
+    }).to_string()).unwrap();
+    crate::retained_build::tests::install_fixture_port(
+        &library,
+        &catalog,
+        id,
+        "unseen-runtime",
+        "v1.4.0",
+        b"inert runtime",
+        true,
+    );
+    let mut service = PortcoveService::new_read_only(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let profile = service.ensure_default_profile(id).unwrap();
+    let user = service.library().user_dir(id);
+    fs::create_dir_all(&user).unwrap();
+    let settings = user.join("unseen.json");
+    fs::write(&settings, br#"{"other_setting":true}"#).unwrap();
+    let package = archive(
+        temporary.path(),
+        "unseen-addon.o2r",
+        &[("assets/model", b"new bytes")],
+    );
+
+    let revision = service
+        .install_mod_package(id, &profile.id, &package, 1)
+        .unwrap();
+    assert_eq!(revision.loader.unwrap().id, "libultraship");
+    assert_eq!(
+        fs::read(user.join("mods/unseen-addon.o2r")).unwrap(),
+        fs::read(&package).unwrap()
+    );
+    let native: serde_json::Value = serde_json::from_slice(&fs::read(settings).unwrap()).unwrap();
+    assert_eq!(native["CVars"]["gSettings"]["EnabledMods"], "unseen-addon");
+    assert_eq!(native["other_setting"], true);
+    assert!(!user.join("shipofharkinian.json").exists());
+}
+
+#[test]
+fn earlier_banjo_and_two_ship_builds_keep_unmanaged_mods_and_require_valid_receipts() {
+    let current = crate::Catalog::embedded().unwrap();
+    let mut prior = current.authoritative_document();
+    for port in &mut prior.ports {
+        if matches!(port.id.as_str(), "banjo-recomp" | "2ship2harkinian") {
+            port.mod_loader = None;
+        }
+    }
+    let prior = crate::Catalog::from_document(prior).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    for (id, version, settings_file) in [
+        ("banjo-recomp", "v1.0.2", "mods.json"),
+        ("2ship2harkinian", "5.0.1", "2ship2harkinian.json"),
+    ] {
+        if !prior.port(id).unwrap().platforms.contains(&platform) {
+            continue;
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = crate::retained_build::tests::install_fixture_port(
+            &library,
+            &prior,
+            id,
+            "retained",
+            version,
+            b"inert runtime",
+            true,
+        );
+        let service = PortcoveService::new_read_only(library).unwrap();
+        assert!(service.optional_deploy_layout(id).unwrap().is_none());
+        service.ensure_default_profile(id).unwrap();
+        assert!(service.optional_deploy_layout(id).unwrap().is_none());
+
+        let user = service.library().user_dir(id);
+        fs::create_dir_all(user.join("mods")).unwrap();
+        let unmanaged = user.join("mods/manual-mod.bin");
+        fs::write(&unmanaged, b"unmanaged data").unwrap();
+        fs::write(user.join(settings_file), b"native state").unwrap();
+        service
+            .require_selected_loader_for_install(&install)
+            .unwrap();
+        service.prepare_native_mod_list_locked(id).unwrap();
+        service
+            .require_restore_profile_projection(id, &user)
+            .unwrap();
+        assert!(!service.mod_setups(id).unwrap().supported);
+        assert_eq!(fs::read(&unmanaged).unwrap(), b"unmanaged data");
+        assert_eq!(fs::read(user.join(settings_file)).unwrap(), b"native state");
+
+        let layout = Layout::for_user(&user);
+        fs::create_dir_all(layout.store()).unwrap();
+        fs::write(layout.journal(), b"pending state").unwrap();
+        assert!(service.prepare_native_mod_list_locked(id).is_err());
+        assert!(
+            service
+                .require_restore_profile_projection(id, &user)
+                .is_err()
+        );
+        fs::remove_file(layout.journal()).unwrap();
+
+        fs::remove_file(install.path.join(".portcove-manifest.json")).unwrap();
+        assert!(service.optional_deploy_layout(id).is_err());
+        assert!(service.mod_setups(id).is_err());
+        assert!(service.prepare_native_mod_list_locked(id).is_err());
+        assert!(
+            service
+                .require_restore_profile_projection(id, &user)
+                .is_err()
+        );
+        assert_eq!(fs::read(&unmanaged).unwrap(), b"unmanaged data");
+        assert_eq!(fs::read(user.join(settings_file)).unwrap(), b"native state");
+    }
+}
+
+#[test]
+fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
+    let id = "banjo-recomp";
+    let current = crate::Catalog::embedded().unwrap();
+    let mut prior = current.authoritative_document();
+    prior
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap()
+        .mod_loader = None;
+    let prior = crate::Catalog::from_document(prior).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let old = crate::retained_build::tests::install_fixture_port(
+        &library,
+        &prior,
+        id,
+        "older",
+        "v1.0.2",
+        b"older runtime",
+        true,
+    );
+    let service = PortcoveService::new_read_only(library).unwrap();
+    let default = service.ensure_default_profile(id).unwrap();
+    let new = crate::retained_build::tests::install_fixture_port(
+        service.library(),
+        &current,
+        id,
+        "newer",
+        "v1.0.2",
+        b"newer runtime",
+        true,
+    );
+    let target = service
+        .copy_profile(id, &default.id, "Reviewed setup")
+        .unwrap();
+    let rolled_back = service.library().rollback(id).unwrap();
+    assert_eq!(rolled_back.id, old.id);
+    let revisions = service.profile_revisions(id, &default.id).unwrap();
+    assert!(revisions[1].loader.is_some());
+    assert!(revisions[2].loader.is_none());
+    assert_eq!(revisions[2].save_group, revisions[1].save_group);
+    service.require_selected_loader_for_install(&old).unwrap();
+    service.prepare_native_mod_list_locked(id).unwrap();
+
+    let another_plain = service
+        .copy_profile(id, &default.id, "Plain setup")
+        .unwrap();
+    let error = service.activate_profile(id, &another_plain.id).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+
+    // Recover a switch whose journal predates the current loader admission.
+    let path_layout = Layout::for_user(&service.library().user_dir(id));
+    fs::create_dir_all(path_layout.store()).unwrap();
+    write_journal(
+        &path_layout,
+        &default.id,
+        &target.id,
+        target.current_revision,
+        Phase::Start,
+        &declared_state_paths(&service, id).unwrap(),
+    )
+    .unwrap();
+    let selected = service.activate_profile(id, &target.id).unwrap();
+    assert_eq!(selected.build.install_id, new.id);
+    assert_eq!(selected.loader.as_ref().unwrap().id, "n64-recomp");
+    assert!(!path_layout.journal().exists());
+
+    let selected = service.activate_profile(id, &default.id).unwrap();
+    assert_eq!(selected.build.install_id, old.id);
+    assert!(selected.loader.is_none());
+    let selected = service.activate_profile(id, &target.id).unwrap();
+    assert_eq!(selected.build.install_id, new.id);
+}
+#[test]
+fn a_committed_switch_removes_its_journal_without_readmitting_the_departing_setup() {
+    let w = world();
+    let layout = Layout::for_user(&user(&w));
+    fs::create_dir_all(layout.store()).unwrap();
+    fs::create_dir_all(&layout.user).unwrap();
+    let preserved = layout.user.join("player-progress.fixture");
+    fs::write(&preserved, b"newer progress").unwrap();
+    write_journal(
+        &layout,
+        "retired-departing-profile",
+        &w.default,
+        1,
+        Phase::Deployed,
+        &[],
+    )
+    .unwrap();
+
+    // With the selection already committed, neither old runtime nor a new
+    // projection is needed to retire the receipt.
+    let latest = w.service.library().all_installs().unwrap().pop().unwrap();
+    fs::remove_file(latest.path.join(".portcove-manifest.json")).unwrap();
+    w.service
+        .finish_interrupted_switch_locked("starship", &layout)
+        .unwrap();
+    assert!(!layout.journal().exists());
+    assert_eq!(fs::read(preserved).unwrap(), b"newer progress");
+    assert_eq!(
+        profile::selection(&w.service.library().connection().unwrap(), "starship").unwrap(),
+        Some((w.default, 1))
+    );
+}
+
+#[test]
 fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     let w = world();
     let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

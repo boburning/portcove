@@ -906,6 +906,19 @@ pub struct ArchiveDataTransitionV1 {
     pub creating_contract_sha256: String,
 }
 
+/// Native mod admission bound to a reviewed upstream runtime and platform.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModLoaderBinding {
+    pub contract: crate::LoaderContractRef,
+    pub repository: String,
+    pub minimum_version: String,
+    pub settings_file: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_game: Option<String>,
+    pub platforms: Vec<Platform>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -1063,6 +1076,9 @@ pub struct PortDefinition {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) legacy_mod_provider_held: bool,
+    /// Versioned native loader facts admitted with this exact definition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_loader: Option<ModLoaderBinding>,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]

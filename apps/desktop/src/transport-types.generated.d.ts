@@ -2457,6 +2457,10 @@ export interface PortDefinition {
    */
   managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
+  /**
+   * Versioned native loader facts admitted with this exact definition.
+   */
+  mod_loader?: ModLoaderBinding | null;
   mod_package_policy?: ModPackagePolicy | null;
   /**
    * Provider coordinates reviewed alongside the existing mod loader contract.
@@ -2673,6 +2677,21 @@ export interface ManagedAcquisitionHold {
 }
 export interface ReviewedHoldArtifact {
   sha256: string;
+  version: string;
+}
+/**
+ * Native mod admission bound to a reviewed upstream runtime and platform.
+ */
+export interface ModLoaderBinding {
+  contract: LoaderContractRef;
+  minimum_version: string;
+  native_game?: string | null;
+  platforms: Platform[];
+  repository: string;
+  settings_file: string;
+}
+export interface LoaderContractRef {
+  id: string;
   version: string;
 }
 /**
@@ -4916,10 +4935,6 @@ export interface RetainedBuildIdentity {
   port_id: string;
   runtime: RuntimeIdentity | null;
   selected_executable: string;
-}
-export interface LoaderContractRef {
-  id: string;
-  version: string;
 }
 /**
  * One precedence domain. A loader may need several; no universal number exists.
