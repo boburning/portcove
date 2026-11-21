@@ -1775,6 +1775,11 @@ function requiresReadOnlyRestart(name: string, acquisitionRestart: boolean) {
     ) &&
     !(
       reviewedWorkflowSession &&
+      selection.selected_scenarios.includes("native-library-layout") &&
+      name === "native-library-layout-fixture"
+    ) &&
+    !(
+      reviewedWorkflowSession &&
       selection.selected_scenarios.includes("native-staged-update-composition") &&
       name === "native-staged-update-composition"
     ) &&

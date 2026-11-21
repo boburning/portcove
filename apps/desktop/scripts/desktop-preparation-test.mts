@@ -2133,32 +2133,42 @@ export async function preparationScenarios({
     confirmNative,
   });
   await scenario("native-library-layout", async () => {
-    const first = await seed("opengoal-jak1", "success");
-    const second = await seed("opengoal-jak2", "success");
-    const before = [await status(first.port.id), await status(second.port.id)];
-    // Geometry diagnostics use local reviewed test images, so late catalog
-    // downloads or failure notices cannot change the focused row mid-resize.
-    for (const [index, port] of [first.port, second.port].entries()) {
-      const image = path.join(output, `library-layout-${port.id}.jpg`);
-      await copyFile(
-        new URL(`./testdata/catalog-artwork-${index === 0 ? "red" : "blue"}.jpg`, import.meta.url),
-        image,
-      );
-      const imported = transportValue(
-        "artwork_state",
-        command(["artwork", "import", port.id, image, "--slot", "cover"]),
-      );
-      assert.equal(imported.availability, "available");
-      assert.equal(imported.resolved_source.kind, "local_import");
-      artifacts.push(image);
+    async function prepareLayoutFixture() {
+      const first = await seed("opengoal-jak1", "success");
+      const second = await seed("opengoal-jak2", "success");
+      // Geometry diagnostics use local reviewed test images, so late catalog
+      // downloads or failure notices cannot change the focused row mid-resize.
+      for (const [index, port] of [first.port, second.port].entries()) {
+        const image = path.join(output, `library-layout-${port.id}.jpg`);
+        await copyFile(
+          new URL(
+            `./testdata/catalog-artwork-${index === 0 ? "red" : "blue"}.jpg`,
+            import.meta.url,
+          ),
+          image,
+        );
+        const imported = transportValue(
+          "artwork_state",
+          command(["artwork", "import", port.id, image, "--slot", "cover"]),
+        );
+        assert.equal(imported.availability, "available");
+        assert.equal(imported.resolved_source.kind, "local_import");
+        artifacts.push(image);
+      }
+      return { first, second };
     }
-    // Establish the post-seeding render before measuring. An in-flight
-    // workspace read may legitimately have observed the two fixture commits.
-    await browser.navigate().refresh();
+    // The hosted CLI import returned a database lock error while the WebView was running.
+    // Create the owned fixtures only after the prior process tree has exited.
+    let fixture: Awaited<ReturnType<typeof prepareLayoutFixture>> | undefined;
+    browser = await restartApplication("native-library-layout-fixture", async () => {
+      fixture = await prepareLayoutFixture();
+    });
+    const { first, second } = required(fixture);
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       reloadBootstrapBudgetMs,
     );
+    const before = [await status(first.port.id), await status(second.port.id)];
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
