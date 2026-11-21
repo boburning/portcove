@@ -33,7 +33,9 @@ mod observation;
 mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub use exact::{ExactReleaseIdentity, ExactReleaseSelection};
-pub(crate) use exact::{ExactReleaseQuery, is_published as is_exact_release_published};
+pub(crate) use exact::{
+    ExactReleaseQuery, is_published as is_exact_release_published, require_exact_release_route,
+};
 pub use managed_variant::ManagedPackageVariant;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{

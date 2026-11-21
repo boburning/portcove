@@ -1783,6 +1783,20 @@ async fn set_channel(
 }
 
 #[tauri::command]
+async fn can_review_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .can_review_exact_release(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn review_exact_release(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -3295,6 +3309,7 @@ pub fn run() -> std::process::ExitCode {
             source_removal::preview_source_removal,
             source_removal::remove_source,
             set_channel,
+            can_review_exact_release,
             review_exact_release,
             pin_exact_release,
             clear_exact_release,

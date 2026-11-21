@@ -53,12 +53,18 @@ impl PortcoveService {
         self.status(port_id)
     }
 
-    async fn review_exact_release_for_status(
+    /// Availability of the managed release chooser in this library and platform.
+    /// The exact observation and confirmation repeat all acquisition guards.
+    pub fn can_review_exact_release(&self, port_id: &str) -> Result<bool> {
+        let status = self.status(port_id)?;
+        Ok(self.exact_release_context(port_id, &status).is_ok())
+    }
+
+    fn exact_release_context(
         &self,
         port_id: &str,
-        version: &str,
         status: &PortStatus,
-    ) -> Result<ExactReleaseReview> {
+    ) -> Result<(&PortDefinition, Platform)> {
         let port = self.catalog.port(port_id)?;
         let platform = Platform::current()?;
         self.require_managed_runtime_ownership(status)?;
@@ -73,11 +79,28 @@ impl PortcoveService {
             &self.catalog,
             port_id,
         )?;
+        crate::release::require_exact_release_route(
+            port,
+            status.channel,
+            platform,
+            port.release.provider,
+            scope.as_ref(),
+        )?;
+        Ok((port, platform))
+    }
+
+    async fn review_exact_release_for_status(
+        &self,
+        port_id: &str,
+        version: &str,
+        status: &PortStatus,
+    ) -> Result<ExactReleaseReview> {
+        let (port, platform) = self.exact_release_context(port_id, status)?;
         let selection = self
             .releases
-            .review_exact(port, status.channel, platform, scope.as_ref(), version)
+            .review_exact(port, status.channel, platform, None, version)
             .await?;
-        selection.require_context(port, status.channel, platform, scope.as_ref())?;
+        selection.require_context(port, status.channel, platform, None)?;
         if selection.version != version {
             return Err(PortcoveError::verification(
                 "the observed release differs from the requested version",

@@ -66,25 +66,7 @@ impl<'a> ExactReleaseQuery<'a> {
         expected_provider: crate::ReleaseSource,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<()> {
-        if port.release.provider != expected_provider
-            || !port.channels.contains(&channel)
-            || !port.platforms.contains(&platform)
-        {
-            return Err(PortcoveError::verification(
-                "the exact release selection does not match this provider, channel and platform",
-            ));
-        }
-        if port.release.managed_build.contains_key(&platform) {
-            return Err(crate::cartridge_build::retired_creation());
-        }
-        if scope.is_some() || !port.release.curated.is_empty() {
-            return Err(PortcoveError::unsupported(
-                "this route requires its authorized curated release selection",
-            ));
-        }
-        if let Some(hold) = &port.managed_acquisition_hold {
-            return Err(PortcoveError::unsupported(hold.reason.clone()));
-        }
+        require_exact_release_route(port, channel, platform, expected_provider, scope)?;
         require_version(
             self.version(),
             expected_provider != crate::ReleaseSource::DirectManifest,
@@ -120,6 +102,40 @@ impl<'a> ExactReleaseQuery<'a> {
         }
         Ok(candidate)
     }
+}
+
+pub(crate) fn require_exact_release_route(
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    platform: Platform,
+    expected_provider: crate::ReleaseSource,
+    scope: Option<&crate::DefinitionAcquisitionScope>,
+) -> Result<()> {
+    if port.release.provider != expected_provider
+        || !port.channels.contains(&channel)
+        || !port.platforms.contains(&platform)
+    {
+        return Err(PortcoveError::verification(
+            "the exact release selection does not match this provider, channel and platform",
+        ));
+    }
+    if port.release.managed_build.contains_key(&platform) {
+        return Err(crate::cartridge_build::retired_creation());
+    }
+    if scope.is_some() || !port.release.curated.is_empty() {
+        return Err(PortcoveError::unsupported(
+            "this route requires its authorized curated release selection",
+        ));
+    }
+    if let Some(hold) = &port.managed_acquisition_hold {
+        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    }
+    if expected_provider == crate::ReleaseSource::UserPrepared {
+        return Err(PortcoveError::unsupported(
+            "a user-prepared runtime has no managed release selection",
+        ));
+    }
+    Ok(())
 }
 
 fn require_version(version: &str, hosted: bool) -> Result<()> {
