@@ -172,12 +172,14 @@ impl ReviewedForgeSelection {
         scope.require_port(port)?;
         scope.require_current()?;
         let route = self.instance.route(&self.artifact)?;
-        let client = metadata_client()?;
+        let client = metadata_client(metadata_transport(scope)?)?;
         route
             .resolve(|url| {
                 let client = &client;
                 async move {
                     scope.require_current()?;
+                    #[cfg(test)]
+                    let url = fixture_destination(scope, &url)?.unwrap_or(url);
                     let reply = request(client, url).await?;
                     if reply.status() != reqwest::StatusCode::OK {
                         return Err(PortcoveError::network(
@@ -214,9 +216,33 @@ pub(crate) fn public_transport(builder: reqwest::ClientBuilder) -> reqwest::Clie
         .dns_resolver(Arc::new(PublicDns))
 }
 
-fn metadata_client() -> Result<Client> {
+fn metadata_transport(_scope: &DefinitionAcquisitionScope) -> Result<reqwest::ClientBuilder> {
+    #[cfg(test)]
+    if let Some(origin) = &_scope.fixture_origin {
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        return Ok(Client::builder().no_proxy());
+    }
+    Ok(public_transport(Client::builder()))
+}
+
+#[cfg(test)]
+pub(crate) fn fixture_destination(
+    scope: &DefinitionAcquisitionScope,
+    canonical: &Url,
+) -> Result<Option<Url>> {
+    let Some(origin) = &scope.fixture_origin else {
+        return Ok(None);
+    };
+    crate::definition_acquisition::validate_fixture_origin(origin)?;
+    let mut mapped = Url::parse(origin).map_err(|_| invalid_destination())?;
+    mapped.set_path(canonical.path());
+    mapped.set_query(canonical.query());
+    Ok(Some(mapped))
+}
+
+fn metadata_client(builder: reqwest::ClientBuilder) -> Result<Client> {
     let bounds = PROVIDER_NETWORK_BOUNDS;
-    public_transport(Client::builder())
+    builder
         .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(bounds.connect)
         .read_timeout(bounds.read_idle)

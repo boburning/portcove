@@ -11,6 +11,8 @@ use crate::{
 pub struct CompositeReleaseProvider {
     github: Arc<GithubReleaseProvider>,
     gitlab: GitlabReleaseProvider,
+    #[cfg(test)]
+    forge_fixture: Option<(Library, String)>,
 }
 
 impl CompositeReleaseProvider {
@@ -18,7 +20,17 @@ impl CompositeReleaseProvider {
         Ok(Self {
             github: Arc::new(GithubReleaseProvider::for_library(library)?),
             gitlab: GitlabReleaseProvider::for_library(library)?,
+            #[cfg(test)]
+            forge_fixture: None,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_forge_fixture(library: &Library, origin: &str) -> Result<Self> {
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        let mut provider = Self::for_library(library)?;
+        provider.forge_fixture = Some((library.clone(), origin.to_owned()));
+        Ok(provider)
     }
 
     pub fn github(&self) -> Arc<GithubReleaseProvider> {
@@ -44,6 +56,22 @@ impl ReleaseProvider for CompositeReleaseProvider {
         }
         if port.release.provider == ReleaseSource::ReviewedForge {
             let scope = scope.ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            #[cfg(test)]
+            let bound;
+            #[cfg(test)]
+            let scope = if let Some((library, origin)) = &self.forge_fixture {
+                if library.root() != scope.library.root() {
+                    return Err(PortcoveError::verification(
+                        "forge fixture library does not match",
+                    ));
+                }
+                let mut selected = scope.clone();
+                selected.fixture_origin = Some(origin.clone());
+                bound = selected;
+                &bound
+            } else {
+                scope
+            };
             let forge = scope
                 .forge
                 .as_ref()

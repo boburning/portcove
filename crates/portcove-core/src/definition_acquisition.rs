@@ -214,7 +214,9 @@ impl DefinitionAcquisitionScope {
 
     pub(crate) fn require_url(&self, url: &reqwest::Url) -> Result<()> {
         #[cfg(any(test, feature = "qualification-fixtures"))]
-        if let Some(origin) = &self.fixture_origin {
+        if let Some(origin) = &self.fixture_origin
+            && self.forge.is_none()
+        {
             validate_fixture_origin(origin)?;
             if url.as_str().len() <= 4096
                 && url.origin().ascii_serialization() == *origin

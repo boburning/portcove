@@ -7346,15 +7346,32 @@ async fn managed_policy_expiry_keeps_verified_public_launch_and_holds_fresh_acqu
 #[path = "listing_delivery_tests.rs"]
 mod descriptive_listing_delivery;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[tokio::test]
-async fn authenticated_forge_grant_admits_only_its_exact_non_curated_definition() {
+async fn authenticated_forge_grant_resolves_downloads_and_verifies_through_service() {
+    use std::io::{Cursor, Write};
+    use std::sync::Arc;
+
+    let payload = b"#!/bin/sh\nexit 0\n";
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file(
+            "fixture",
+            zip::write::SimpleFileOptions::default().unix_permissions(0o755),
+        )
+        .unwrap();
+    archive.write_all(payload).unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let archive_digest = hex::encode(Sha256::digest(&bytes));
+    let asset_url = "https://assets.forge.example/fixture.zip";
+
     let selector = serde_json::json!({
         "platform": "linux-x86-64", "channel": "stable",
         "instance": {"dialect": "forgejo-v1", "api_root": "https://forge.example/api/v1",
             "web_host": "forge.example", "asset_hosts": ["assets.forge.example"]},
         "artifact": {"repository": "group/fixture", "repository_id": 10, "tag": "v1",
             "release_id": 20, "asset_id": 30, "name": "fixture.zip",
-            "url": "https://assets.forge.example/fixture.zip", "size": 10, "sha256": "a".repeat(64)}
+            "url": asset_url, "size": bytes.len(), "sha256": archive_digest}
     });
     let mut port = serde_json::to_value(&metadata_catalog().ports()[0]).unwrap();
     port["adapter"] = serde_json::json!("native-portable");
@@ -7452,4 +7469,58 @@ async fn authenticated_forge_grant_admits_only_its_exact_non_curated_definition(
             .require_asset_url("https://example.org/fixture.zip")
             .is_err()
     );
+    let server = AcquisitionHttp::new();
+    let releases =
+        crate::CompositeReleaseProvider::with_forge_fixture(&library, &server.origin).unwrap();
+    let service =
+        crate::PortcoveService::with_provider(library.clone(), Arc::new(releases)).unwrap();
+    let fixture_metadata = || {
+        server.json(serde_json::json!({"id":10,"full_name":"group/fixture","html_url":"https://forge.example/group/fixture"}));
+        server.json(serde_json::json!({
+            "id":20,"tag_name":"v1","draft":false,"prerelease":false,
+            "assets":[{"id":30,"name":"fixture.zip","size":bytes.len(),"browser_download_url":asset_url}]
+        }));
+    };
+
+    fixture_metadata();
+    server.bytes(&vec![b'x'; bytes.len()]);
+    assert!(
+        service
+            .install(ID, None, None, None, false, |_| {})
+            .await
+            .is_err()
+    );
+    assert!(library.all_installs().unwrap().is_empty());
+    assert_eq!(server.requests.lock().unwrap().len(), 3);
+
+    fixture_metadata();
+    server.bytes(&bytes);
+    let installed = service
+        .install(ID, None, None, None, false, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(installed.artifact.sha256, archive_digest);
+    assert_eq!(installed.artifact.size, bytes.len() as u64);
+    assert_eq!(
+        std::fs::read(installed.path.join("fixture")).unwrap(),
+        payload
+    );
+    assert!(
+        crate::Installer::new(library.clone())
+            .unwrap()
+            .verify(&installed)
+            .unwrap()
+            .valid
+    );
+    let requests = server.requests.lock().unwrap();
+    let expected = [
+        "GET /api/v1/repos/group/fixture ",
+        "GET /api/v1/repos/group/fixture/releases/tags/v1 ",
+        "GET /fixture.zip ",
+    ];
+    assert_eq!(requests.len(), expected.len() * 2);
+    for (request, prefix) in requests.iter().zip(expected.into_iter().cycle()) {
+        assert!(request.starts_with(prefix), "{request:?}");
+        assert!(!request.to_ascii_lowercase().contains("\nauthorization:"));
+    }
 }

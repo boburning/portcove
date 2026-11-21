@@ -2413,13 +2413,32 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        #[cfg(test)]
+        let forge_fixture_asset = if let Some(scope) =
+            scope.filter(|scope| scope.forge.is_some() && scope.fixture_origin.is_some())
+        {
+            scope.require_asset_url(&asset.url)?;
+            let canonical = reqwest::Url::parse(&asset.url)
+                .map_err(|_| PortcoveError::verification("invalid forge fixture artifact URL"))?;
+            crate::reviewed_forge::fixture_destination(scope, &canonical)?.map(|url| ReleaseAsset {
+                url: url.into(),
+                ..asset.clone()
+            })
+        } else {
+            None
+        };
         let client = match scope {
             Some(scope) => {
                 scope.require_current()?;
                 scope.require_asset_url(&asset.url)?;
-                let builder = reqwest::Client::builder();
                 let builder = if scope.forge.is_some() {
-                    crate::reviewed_forge::public_transport(builder)
+                    crate::reviewed_forge::public_transport(reqwest::Client::builder())
+                } else {
+                    reqwest::Client::builder()
+                };
+                #[cfg(test)]
+                let builder = if forge_fixture_asset.is_some() {
+                    reqwest::Client::builder().no_proxy()
                 } else {
                     builder
                 };
@@ -2467,6 +2486,8 @@ impl Installer {
             self.is_library_staged(download.path)
                 .then_some(transfer::RetainedDownload::private(&partials))
         };
+        #[cfg(test)]
+        let asset = forge_fixture_asset.as_ref().unwrap_or(asset);
         transfer::download_resuming(
             &client,
             asset,
