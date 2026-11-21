@@ -1084,6 +1084,45 @@ void test("automatic due maintenance uses actual retained observation clocks and
   }
 });
 
+void test("an explicit refresh reuses a recent result and samples an older one again", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-explicit-refresh-"));
+  const fixture = scalableArtworkFixture(1);
+  let time = Date.parse("2026-10-01T00:00:00Z");
+  let imageId = "firstimage";
+  const options = {
+    root: scratch,
+    inspector: {
+      ...fixture.inspector,
+      inspectGame(identity: Parameters<typeof fixture.inspector.inspectGame>[0]) {
+        return fixture.inspector.inspectGame(identity).map((match) => ({
+          ...match,
+          cover: { ...match.cover, image_id: imageId },
+        }));
+      },
+    },
+    validatorIdentity: null,
+    selectedPortIds: ["scale-0"],
+    refreshPortIds: ["scale-0"],
+    now: () => time,
+  };
+  try {
+    const first = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(first.records[0]?.mapping?.image_id, "firstimage");
+    imageId = "replacementimage";
+    const resumed = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(resumed.records[0]?.mapping?.image_id, "firstimage");
+    assert.equal(fixture.requests.length, 1);
+
+    time += 28 * 24 * 60 * 60 * 1000;
+    const refresh = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(refresh.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(fixture.requests.length, 2);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("provider backoff survives continuation and applies to newly added identities", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const { ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");

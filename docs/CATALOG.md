@@ -1844,9 +1844,10 @@ after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
 invalidate the affected result. Ordinary preparation and explicit or due refresh
 retain separate per-ID results so an ordinary run preserves the last live
-refresh observation. Earlier attempt receipts remain available.
-The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
-progress. It can retire when those checkpoints no longer need to resume.
+refresh observation. Explicit and due refreshes reuse completed live observations
+for up to 28 days. An older or unknown observation requires a new bounded read.
+Earlier attempt receipts remain available. The exact old whole-batch reader
+serves ordinary preparation in pre-#3766 checkpoints with no per-ID progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
