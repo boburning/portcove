@@ -332,6 +332,7 @@ export type IgdbArtworkMatch = "port" | "underlying-game";
  * The version change an automatic snapshot protects.
  */
 export type VersionChangeKind = "update" | "activation" | "rollback";
+export type BackupRecoveryReview = "legacy_install_and_data_v1";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -791,6 +792,13 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+export type JakModsBuildStatus = "available" | "unavailable" | "unknown" | "external";
+export type JakModsProjectKind = "open_goal_build" | "external";
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
@@ -986,11 +994,6 @@ export type ProfileRecoveryProgress = "keep_current";
  * Why a provider's eligibility flag could not be determined.
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
-/**
- * How current an observation is. A confirmed empty result is `Fresh`; an outage
- * that falls back to earlier data is `Stale`, never an empty list.
- */
-export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
@@ -1320,6 +1323,7 @@ export interface TransportOutputs {
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
+  jakmods_catalog: OutputJakmodsCatalog;
   launch_request: OutputLaunchRequest;
   launcher_library_inventory: OutputLauncherLibraryInventory;
   library_identity: LibraryIdentity;
@@ -2221,6 +2225,10 @@ export interface BackupRecord {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -4493,6 +4501,46 @@ export interface OutputHostToolProbeResult {
   tool_id: string;
   [k: string]: unknown;
 }
+export interface OutputJakmodsCatalog {
+  complete: boolean;
+  feed_url: string;
+  freshness: ProviderFreshness;
+  game: string;
+  observed_at: number;
+  platform: Platform;
+  port_id: string;
+  projects: JakModsProject[];
+  setup_url: string;
+  source_url: string;
+  [k: string]: unknown;
+}
+export interface JakModsProject {
+  artwork_url: string | null;
+  build_status: JakModsBuildStatus;
+  external_url: string | null;
+  id: string;
+  kind: JakModsProjectKind;
+  name: string;
+  releases: JakModsRelease[];
+  summary: string | null;
+  supported_games: string[];
+  website_url: string | null;
+  [k: string]: unknown;
+}
+export interface JakModsRelease {
+  builds: JakModsBuild[];
+  published_at: number | null;
+  version: string;
+  [k: string]: unknown;
+}
+export interface JakModsBuild {
+  /**
+   * The upstream download count for this release asset alone.
+   */
+  downloads: number | null;
+  platform: Platform;
+  [k: string]: unknown;
+}
 /**
  * A launch-session record plus the explanation for an unsuccessful exit.
  * The record stays the only durable authority; the explanation is derived.
@@ -5686,6 +5734,10 @@ export interface BackupRecord1 {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -6025,7 +6077,8 @@ export interface RetainedBuildGap {
 }
 export interface OutputProviderBrowsePage {
   /**
-   * `stale` means the provider could not be reached and this is earlier data.
+   * How current an observation is. A confirmed empty result is `Fresh`; an outage
+   * that falls back to earlier data is `Stale`, never an empty list.
    */
   freshness: "fresh" | "revalidated" | "stale";
   /**

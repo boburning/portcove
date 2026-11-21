@@ -1227,6 +1227,10 @@ Detail starts with compact identity, state and its current action, followed by
 the installation and requirements. Current update decisions and saves/storage
 precede project background and diagnostics. Catalog identity wraps in full and
 installation version labels explicitly say Installed or External installation.
+In Manage, an external installation links to its matching Game files control.
+Focus moves to the folder or launch-details control when available and to the
+Game actions region when it is unavailable. Opening the section leaves the
+existing registration and any draft in place.
 
 Preparation groups Files used, What changes and During setup. Running preparation,
 managed installation and game-update observation can be left with Continue browsing;
@@ -1247,7 +1251,8 @@ connected contextual region is the fallback. A downloaded update remains separat
 from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
-error banner.
+error banner. Archive status describes the stored download through preparation
+and activation. Installed and prepared version records describe the runtime.
 
 Activity groups authoritative attention IDs, running records and recent outcomes.
 Target identity leads each row. Unfinished setup opens a read-only file account;

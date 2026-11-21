@@ -2078,7 +2078,16 @@ pub struct AutomaticSnapshotLabel {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum BackupRecoveryReview {
+    #[serde(rename = "legacy_install_and_data_v1")]
+    LegacyInstallAndDataV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct BackupRecord {
+    /// Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_review: Option<BackupRecoveryReview>,
     /// Present only for snapshots Portcove took automatically.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub automatic: Option<AutomaticSnapshotLabel>,
