@@ -291,3 +291,36 @@ void test("an inert alternate forge proposal refuses production assembly at the 
     /reviewed alternate forge publication requires an independent executable acquisition grant/u,
   );
 });
+
+void test("schema-4 PS1 tool generation accepts only the compiled exact pack for each lane", async () => {
+  const id = "fixture-psx";
+  const artifacts = JSON.parse(readFileSync(
+    new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url),
+    "utf8",
+  )) as { platform: string; sha256: string }[];
+  const tool = artifacts[0]!;
+  const catalog = json({ ports: [{ id, adapter: "psx-recomp-managed", platforms: [tool.platform] }] });
+  const template = {
+    contract_schema: 4,
+    representation: "catalog_projection",
+    catalog: { schema_version: 3, source_catalog: {}, ports: [] },
+    tool_artifacts: [tool],
+  };
+  const projection = generatedPublicationProjection(catalog, id, json(template));
+  assert.deepEqual(JSON.parse(projection.toString()).tool_artifacts, [tool]);
+  assert.throws(
+    () => generatedPublicationProjection(catalog, id, json({
+      ...template, tool_artifacts: [{ ...tool, sha256: "c".repeat(64) }],
+    })),
+    /differs from the independently accepted executable pack/u,
+  );
+  assert.throws(
+    () => generatedPublicationProjection(catalog, id, json({ ...template, tool_artifacts: [] })),
+    /requires a complete schema-4 managed platform scope/u,
+  );
+  const f = await fixture();
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
+    /requires the named schema-4 reader/u,
+  );
+});
