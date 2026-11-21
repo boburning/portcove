@@ -285,6 +285,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     with?: Record<string, unknown>;
   };
   type Job = {
+    uses?: string;
     if?: string;
     permissions?: unknown;
     secrets?: Record<string, string>;
@@ -332,12 +333,17 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       new URL("../.github/workflows/hosted-discovery-intake.yml", import.meta.url),
       "utf8",
     ),
-  ) as { jobs: { intake: Job; "receipt-check": Job } };
-  const receiptCaller = workflow.jobs["reconcile-intake-receipts"]!;
-  const receiptWorker = worker.jobs["receipt-check"];
-  assert.deepEqual(receiptCaller.permissions, { contents: "read", issues: "read" });
-  assert.deepEqual(receiptWorker.permissions, receiptCaller.permissions);
-  assert.equal(receiptCaller.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
+  ) as { jobs: { intake: Job } };
+  const receiptWorker = workflow.jobs["reconcile-intake-receipts"]!;
+  assert.equal(
+    receiptWorker.uses,
+    undefined,
+    "read-only receipt job has no reusable permission floor",
+  );
+  assert.deepEqual(receiptWorker.permissions, { contents: "read", issues: "read" });
+  assert.equal(receiptWorker.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
+  assert.equal(resume.uses, "./.github/workflows/hosted-discovery-intake.yml");
+  assert.deepEqual(resume.permissions, worker.jobs.intake.permissions);
   assert.doesNotMatch(JSON.stringify(receiptWorker.steps), /secrets.PORTCOVE_ROADMAP_TOKEN/u);
   assert.match(
     JSON.stringify(receiptWorker.steps),

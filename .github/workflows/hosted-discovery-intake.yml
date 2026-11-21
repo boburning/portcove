@@ -13,14 +13,9 @@ on:
       probe_issue:
         type: string
         default: "3849"
-    outputs:
-      audit_continuations:
-        value: ${{ jobs.receipt-check.outputs.audit_continuations }}
-      receipt_revision:
-        value: ${{ jobs.receipt-check.outputs.receipt_revision }}
     secrets:
       PORTCOVE_ROADMAP_TOKEN:
-        required: false
+        required: true
       PORTCOVE_DISCOVERY_DATABASE_URL:
         required: false
       PORTCOVE_NEON_METER_TOKEN:
@@ -73,52 +68,6 @@ jobs:
       - name: Install trusted locked GitHub dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - run: node --test scripts/hosted-discovery-intake*.test.mts
-  receipt-check:
-    if: >-
-      inputs.mode == 'scheduled-receipts' && github.event_name == 'schedule' &&
-      github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
-      github.workflow_ref == 'boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    permissions:
-      contents: read
-      issues: read
-    concurrency:
-      group: portcove-hosted-discovery-intake-receipts
-      cancel-in-progress: false
-    outputs:
-      audit_continuations: ${{ steps.execute.outputs.audit_continuations }}
-      receipt_revision: ${{ steps.execute.outputs.receipt_revision }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-      - name: Install trusted locked GitHub dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
-      - name: Ensure the maintenance PostgreSQL client is available
-        run: command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
-      - name: Verify original receipts and select bound audit tickets
-        id: execute
-        run: node scripts/hosted-discovery-intake-runner.mts
-        env:
-          REPOSITORY_TOKEN: ${{ github.token }}
-          PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
-          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
-          PORTCOVE_MAINTENANCE_PURPOSE: schedule
-          HOSTED_INTAKE_MODE: scheduled-receipts
-      - name: Retain bounded receipt diagnostics
-        if: always()
-        run: |
-          file=work/hosted-discovery-intake/scheduled-receipts.json
-          if [[ -f "$file" && "$(wc -c < "$file")" -le 262144 ]]; then cat "$file"; fi
-
   intake:
     if: >-
       github.event_name != 'pull_request' &&
