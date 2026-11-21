@@ -1,3 +1,4 @@
+import { page } from "vite-plus/test/browser";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
@@ -131,6 +132,17 @@ it("orders backup review actions before the row's technical disclosure", async (
       "SUMMARY",
     ]);
   }
+});
+
+it("reveals the exact checksum only when backup technical details are opened", async () => {
+  await root.rerender(<History initial={[backups[0]!]} />);
+  const row = container.querySelector('[data-backup-id="backup-1"]')!;
+  expect(row.querySelector("details")?.open).toBe(false);
+  const checksum = page.elementLocator(row.querySelector(".backup-checksum")!);
+  await expect.element(checksum).not.toBeVisible();
+  await page.elementLocator(row.querySelector("summary")!).click();
+  await expect.element(checksum).toBeVisible();
+  await expect.element(checksum).toHaveTextContent(backups[0]!.sha256);
 });
 
 async function openDeletion(id: string) {
