@@ -620,6 +620,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         })),
       } satisfies GameComparison;
     },
+    can_review_exact_release: (args) => {
+      requirePort("can_review_exact_release", args);
+      return false;
+    },
     get_workspace_snapshot: (args) => {
       requireArgs("get_workspace_snapshot", args, { generation, knownCatalogDigest: null });
       const snapshot = workspace(journey);

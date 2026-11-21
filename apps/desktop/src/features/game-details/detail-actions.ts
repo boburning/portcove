@@ -26,6 +26,8 @@ const actionLabels: Readonly<Record<string, string>> = {
   "recover legacy installation and data": "Recover legacy installation and data",
   "refresh backup history": "Refresh backup history",
   channel: "Change release channel",
+  "pin release": "Pin exact release",
+  "follow channel": "Follow release channel",
   policy: "Save update preferences",
   verify: "Check installed files",
 };
@@ -196,6 +198,21 @@ export function detailActions({
     },
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
+    exactRelease: {
+      available: () => desktopApi.canReviewExactRelease(port.id, libraryGeneration),
+      review: (version) => desktopApi.reviewExactRelease(port.id, version, libraryGeneration),
+      pin: (review) =>
+        perform("pin release", () =>
+          desktopApi.pinExactRelease(
+            port.id,
+            review.selection.version,
+            review.review_sha256,
+            libraryGeneration,
+          ),
+        ),
+      follow: () =>
+        perform("follow channel", () => desktopApi.clearExactRelease(port.id, libraryGeneration)),
+    },
     setPolicy: (policy) =>
       perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id, libraryGeneration)),

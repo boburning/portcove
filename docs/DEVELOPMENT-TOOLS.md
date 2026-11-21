@@ -1164,6 +1164,13 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes remain in force; the retry policy is owned by
 [timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
+On schema drift, the Windows transport and full Linux Rust-quality jobs may
+retain a `transport-schema-drift` diagnostic for seven days. It contains the
+differing canonical JSON from the same Rust exporters and a manifest with
+run, attempt, job, checkout commit, tree, byte counts and SHA-256 digests. The
+diagnostic keeps the original parity failure and does not change generated
+files or supply release evidence.
+
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
 partitions, default profile and archive/remap inputs. It verifies pinned Node and

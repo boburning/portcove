@@ -21,5 +21,23 @@
     "unconfirmed": "No se confirmó el cambio de canal. Comprueba la selección actual antes de volver a intentarlo.",
     "unlisted": "Este canal de actualización ya no aparece en la lista. Tu elección guardada no ha cambiado.",
     "unrecognized": "Este canal guardado no se reconoce en esta versión. Tu elección guardada no ha cambiado."
+  },
+  "releasePreference": {
+    "cancel": "Cancelar revisión de versión",
+    "channelCandidate": "El canal ofrece {{version}}.",
+    "choose": "Elegir versión exacta",
+    "follow": "Seguir el canal",
+    "followFailed": "Portcove no pudo confirmar el cambio. Actualiza la vista para comprobar la selección guardada.",
+    "following": "Se sigue el canal seleccionado.",
+    "package": "{{version}} · {{filename}} · {{size}}",
+    "pin": "Fijar esta versión",
+    "pinFailed": "Portcove no pudo confirmar la selección. Revisa la versión de nuevo.",
+    "pinned": "Versión fijada en {{version}}.",
+    "review": "Revisar versión",
+    "reviewFailed": "Portcove no pudo revisar esta versión. Comprueba la etiqueta e inténtalo de nuevo.",
+    "reviewing": "Revisando la versión…",
+    "saveCompatibility": "Comprueba la compatibilidad de las partidas guardadas antes de instalar otra versión.",
+    "tag": "Etiqueta o versión",
+    "title": "Selección de versión"
   }
 }

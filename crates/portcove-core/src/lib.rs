@@ -408,9 +408,9 @@ pub use recomp_mod::{
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
-    GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
-    ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
-    inspect_upstream_observation,
+    ExactReleaseIdentity, ExactReleaseSelection, GithubReleaseProvider, ManagedPackageVariant,
+    ObservationEvidence, ObservedReleaseIdentity, ObservedResolution, ReleaseProvider,
+    UpstreamChannelObservation, UpstreamObservationReport, inspect_upstream_observation,
 };
 pub use retained_build::{
     MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
@@ -426,7 +426,7 @@ pub use service::{
     CatalogDownloadAssetId, CatalogDownloadCandidate, CatalogDownloadCandidates,
     CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRefusal,
     CatalogDownloadRelease, CatalogDownloadReleaseId, CatalogDownloadRequest,
-    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment,
+    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment, ExactReleaseReview,
     GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest,
     InstallBatchCapacity, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,

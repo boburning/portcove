@@ -1383,6 +1383,18 @@ export const desktopApi = {
   openManualSetupFolder: (portId: string, installId: string, generation: number) =>
     invoke<string>("open_manual_setup_folder", { portId, installId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
+  canReviewExactRelease: (portId: string, generation: number) =>
+    invoke<boolean>("can_review_exact_release", { portId, generation }),
+  reviewExactRelease: (portId: string, version: string, generation: number) =>
+    invoke<import("./types").ExactReleaseReview>("review_exact_release", {
+      portId,
+      version,
+      generation,
+    }),
+  pinExactRelease: (portId: string, version: string, reviewSha256: string, generation: number) =>
+    invoke<PortStatus>("pin_exact_release", { portId, version, reviewSha256, generation }),
+  clearExactRelease: (portId: string, generation: number) =>
+    invoke<PortStatus>("clear_exact_release", { portId, generation }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
   setPolicy: (portId: string, policy: UpdatePolicy, generation: number) =>
