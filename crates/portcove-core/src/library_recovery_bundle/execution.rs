@@ -311,7 +311,7 @@ fn start_creation(
         plan,
         created_at: metadata.exported_at,
     };
-    let stage = staging_path(&intent)?;
+    let stage = staging_path(&intent.plan.destination_root, intent.bundle_id)?;
     create_private_directory(&stage)?;
     if let Err(error) = require_private_directory(&stage).and_then(|()| {
         write_authenticated(
@@ -407,6 +407,11 @@ fn publish_creation(
     crate::durability::rename_noreplace(&payload, &intent.plan.destination_root)?;
     crate::durability::sync_publication(stage)?;
     crate::durability::sync_publication(stage.parent().expect("staging has parent"))?;
+    #[cfg(feature = "qualification-fixtures")]
+    crate::qualification_checkpoint::observe(
+        &intent.plan.source_root,
+        crate::qualification_checkpoint::Checkpoint::RecoveryBundlePublished,
+    )?;
     let published = inspect_created(intent)?;
     if published.receipt_sha256 != proof {
         return Err(PortcoveError::verification(
@@ -501,13 +506,56 @@ fn require_exact_entries(root: &Path, expected: &[&str]) -> Result<()> {
     Ok(())
 }
 
-fn staging_path(intent: &CreationIntent) -> Result<PathBuf> {
-    let parent = intent
-        .plan
-        .destination_root
+fn staging_path(destination: &Path, bundle_id: Uuid) -> Result<PathBuf> {
+    let parent = destination
         .parent()
         .ok_or_else(|| PortcoveError::state("recovery bundle destination has no parent"))?;
-    Ok(parent.join(format!("{STAGING_PREFIX}{}", intent.bundle_id)))
+    Ok(parent.join(format!("{STAGING_PREFIX}{bundle_id}")))
+}
+
+/// Offer readback only when the chosen destination and its retained creation
+/// intent agree with the current library. Complete payload verification stays
+/// in the existing explicit inspection command.
+pub(super) fn published_creation_readback(
+    service: &PortcoveService,
+    destination: &Path,
+) -> Option<PortcoveError> {
+    let destination = checked_directory(destination).ok()?;
+    let source = checked_directory(service.library().root()).ok()?;
+    if destination.starts_with(&source) || source.starts_with(&destination) {
+        return None;
+    }
+    refuse_staging_path(&destination).ok()?;
+    let manifest: Manifest = read_authenticated(
+        &destination.join(MANIFEST_FILE),
+        RECEIPT_DOMAIN,
+        MAX_MANIFEST_BYTES,
+    )
+    .ok()?;
+    require_format(manifest.format_version).ok()?;
+    let stage = staging_path(&destination, manifest.bundle_id).ok()?;
+    let intent = read_creation_intent(&stage).ok()?;
+    let plan = intent.plan;
+    if !payload_left_staging(&stage).ok()?
+        || intent.bundle_id != manifest.bundle_id
+        || plan.destination_root != destination
+        || plan.source_root != source
+        || plan.source_library_id != service.library().identity().ok()?
+        || manifest.source_library_id != plan.source_library_id
+        || manifest.reviewed_plan_sha256 != plan.plan_sha256
+    {
+        return None;
+    }
+    Some(
+        PortcoveError::conflict(
+            "A previous copy was published to this folder. Check the bundle to verify its contents.",
+        )
+        .detail("recovery_action", "read_published_recovery_bundle")
+        .detail("recovery_destination", destination.display().to_string())
+        .detail("recovery_bundle_id", manifest.bundle_id.to_string())
+        .detail("recovery_source_library_id", plan.source_library_id)
+        .detail("recovery_plan_sha256", plan.plan_sha256),
+    )
 }
 
 fn read_creation_intent(stage: &Path) -> Result<CreationIntent> {
@@ -515,7 +563,7 @@ fn read_creation_intent(stage: &Path) -> Result<CreationIntent> {
     let intent: CreationIntent =
         read_authenticated(&stage.join(JOURNAL_FILE), JOURNAL_DOMAIN, MAX_JOURNAL_BYTES)?;
     require_format(intent.format_version)?;
-    if stage != staging_path(&intent)? {
+    if stage != staging_path(&intent.plan.destination_root, intent.bundle_id)? {
         return Err(PortcoveError::verification(
             "recovery bundle journal was moved from its owned staging directory",
         ));
@@ -946,9 +994,44 @@ mod tests {
             .map(|entry| entry.unwrap().path())
             .find(|path| path.join(JOURNAL_FILE).is_file())
             .unwrap();
+        {
+            let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+            let offer = service
+                .plan_library_recovery_bundle(&destination)
+                .unwrap_err();
+            assert_eq!(
+                offer.details["recovery_action"],
+                "read_published_recovery_bundle"
+            );
+            assert_eq!(offer.details["recovery_bundle_id"], bundle.bundle_id);
+            assert_eq!(offer.details["recovery_plan_sha256"], plan.plan_sha256);
+            assert_eq!(
+                offer.details["recovery_source_library_id"],
+                bundle.source_library_id
+            );
+            assert_eq!(
+                Path::new(&offer.details["recovery_destination"]),
+                bundle.path
+            );
+            assert!(!offer.details.contains_key("recovery_staging"));
+        }
+        assert_eq!(
+            PortcoveService::inspect_library_recovery_bundle_for_plan(
+                &destination,
+                &plan.plan_sha256
+            )
+            .unwrap()
+            .receipt_sha256,
+            bundle.receipt_sha256
+        );
         let moved = workspace.path().join("stored-bundle");
         fs::rename(&bundle.path, &moved).unwrap();
 
+        {
+            let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+            let unrelated = service.plan_library_recovery_bundle(&moved).unwrap_err();
+            assert!(!unrelated.details.contains_key("recovery_action"));
+        }
         let error = PortcoveService::resume_library_recovery_bundle(&stage).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(!destination.exists());

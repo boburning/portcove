@@ -34,6 +34,11 @@ type RecoveryStep = {
   transferId?: string;
 };
 
+type CreationReadback = Pick<
+  LibraryRecoveryBundlePlan,
+  "destination_root" | "source_library_id" | "plan_sha256"
+> & { bundle_id?: string };
+
 const titles = {
   create: "Create recovery bundle",
   inspect: "Inspect or restore a bundle",
@@ -208,7 +213,7 @@ function RecoveryBundleDialog({
   const [destination, setDestination] = useState("");
   const [path, setPath] = useState("");
   const [creation, setCreation] = useState<LibraryRecoveryBundlePlan>();
-  const [createReceipt, setCreateReceipt] = useState<LibraryRecoveryBundlePlan>();
+  const [createReceipt, setCreateReceipt] = useState<CreationReadback>();
   const [verified, setVerified] = useState<LibraryRecoveryBundle>();
   const [restore, setRestore] = useState<LibraryRecoveryRestorePlan>();
   const [restoreReceipt, setRestoreReceipt] = useState<LibraryRecoveryRestorePlan>();
@@ -258,6 +263,7 @@ function RecoveryBundleDialog({
   const editDestination = (value: string) => {
     setDestination(value);
     setCreation(undefined);
+    setCreateReceipt(undefined);
     setRecovery(undefined);
     setRestore(undefined);
     setError(undefined);
@@ -515,30 +521,35 @@ function RecoveryBundleDialog({
           </div>
         )}
         <ActionReviewFailure error={error} />
-        {error !== undefined && createReceipt && !recovery && !verified && (
-          <Button
-            data-focusable
-            variant="outline"
-            className="justify-self-start"
-            disabled={Boolean(pending)}
-            onClick={() =>
-              void run("Checking the reviewed bundle folder…", async () => {
-                const bundle = await desktopApi.inspectLibraryRecoveryBundle(
-                  createReceipt.destination_root,
-                  createReceipt.plan_sha256,
-                );
-                if (
-                  bundle.path !== createReceipt.destination_root ||
-                  bundle.source_library_id !== createReceipt.source_library_id
-                )
-                  throw new Error("The verified bundle does not match the reviewed copy.");
-                setVerified(bundle);
-              })
-            }
-          >
-            Check reviewed bundle again
-          </Button>
-        )}
+        {createReceipt &&
+          (createReceipt.bundle_id || error !== undefined) &&
+          !recovery &&
+          !verified && (
+            <Button
+              data-focusable
+              variant="outline"
+              className="justify-self-start"
+              aria-disabled={Boolean(pending)}
+              onClick={() =>
+                void run("Checking the reviewed bundle folder…", async () => {
+                  const bundle = await desktopApi.inspectLibraryRecoveryBundle(
+                    createReceipt.destination_root,
+                    createReceipt.plan_sha256,
+                  );
+                  if (
+                    bundle.path !== createReceipt.destination_root ||
+                    bundle.source_library_id !== createReceipt.source_library_id ||
+                    (createReceipt.bundle_id && bundle.bundle_id !== createReceipt.bundle_id)
+                  )
+                    throw new Error("The verified bundle does not match the reviewed copy.");
+                  setTransferred(true);
+                  setVerified(bundle);
+                })
+              }
+            >
+              {createReceipt.bundle_id ? "Verify published bundle" : "Check reviewed bundle again"}
+            </Button>
+          )}
         {error !== undefined && restoreReceipt && !restored && (
           <Button
             data-focusable
@@ -624,7 +635,7 @@ function RecoveryBundleDialog({
               {titles[recovery.operation]}
             </Button>
           )}
-          {!transferred && !recovery && operation === "create" && (
+          {!transferred && !recovery && !createReceipt?.bundle_id && operation === "create" && (
             <Button
               data-focusable
               variant="primary"
@@ -659,6 +670,7 @@ function RecoveryBundleDialog({
                       );
                     } catch (failure) {
                       setRecovery(recoveryStep(failure, "resumeCreation"));
+                      setCreateReceipt(publishedCreationReadback(failure));
                       throw failure;
                     }
                   });
@@ -809,6 +821,21 @@ function BundleCoverage({
       </ul>
     </div>
   );
+}
+
+function publishedCreationReadback(error: unknown): CreationReadback | undefined {
+  if (errorDetail(error, "recovery_action") !== "read_published_recovery_bundle") return;
+  const destination = errorDetail(error, "recovery_destination");
+  const source = errorDetail(error, "recovery_source_library_id");
+  const digest = errorDetail(error, "recovery_plan_sha256");
+  const bundleId = errorDetail(error, "recovery_bundle_id");
+  if (destination && source && digest && bundleId)
+    return {
+      destination_root: destination,
+      source_library_id: source,
+      plan_sha256: digest,
+      bundle_id: bundleId,
+    };
 }
 
 function recoveryStep(

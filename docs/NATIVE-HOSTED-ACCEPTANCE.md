@@ -76,7 +76,10 @@ scenario or command.
 Each isolated job checks the interactive session before provisioning, installs
 the source-pinned native prerequisites, uses a fresh application target and runs
 the maintained harness with clean source. The host-publication source also runs
-its four qualification checkpoint unit tests before native execution.
+its four qualification checkpoint unit tests before native execution. Within the existing
+checkpoint discovery window, the harness waits for its wall clock to reach the recorded Core
+entry time. It checks the marker identity and requires more than 30 seconds of the pause to
+remain before proceeding with the owned process interruption.
 
 These are feasibility observations until actual native receipts and positive
 process closure are independently reviewed. The 90-minute job allocation changes
