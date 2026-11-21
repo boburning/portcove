@@ -153,6 +153,11 @@ export function screenshotEditions(port: HeroMediaPort) {
   );
 }
 
+function heroScope(asset: CatalogMediaAsset) {
+  if (asset.subject.kind === "port") return 0;
+  return asset.edition_neutral === true ? 2 : 1;
+}
+
 /** Presentation ordering of already admitted media, never title matching or eligibility. */
 export function heroMediaCandidates(port: HeroMediaPort, context: HeroMediaContext = {}) {
   const media = (port.presentation?.media ?? []).filter(
@@ -160,17 +165,18 @@ export function heroMediaCandidates(port: HeroMediaPort, context: HeroMediaConte
   );
   const bySubject = (a: CatalogMediaAsset, b: CatalogMediaAsset) =>
     Number(a.subject.kind !== "port") - Number(b.subject.kind !== "port");
+  const byHeroScope = (a: CatalogMediaAsset, b: CatalogMediaAsset) => heroScope(a) - heroScope(b);
   // Identity stays logo-first; photographic key art is not a replacement for a wordmark.
   // GameHero owns the existing cover, then text fallback when these logos fail.
   const foreground = media
     .filter((asset) => asset.role === "logo")
-    .sort(bySubject)
+    .sort(byHeroScope)
     .slice(0, 2);
   return {
     foreground,
     backgrounds: media
       .filter((asset) => asset.role === "header")
-      .sort(bySubject)
+      .sort(byHeroScope)
       .slice(0, 2),
     screenshots: media
       .filter((asset) => asset.role === "screenshot")

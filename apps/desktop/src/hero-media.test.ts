@@ -204,6 +204,26 @@ describe("shared hero media roles", () => {
     expect(heroMediaCandidates(p, { originalEditionId: "another-edition" }).foreground).toEqual([]);
     expect(heroMediaCandidates(p, { originalEditionId: "edition" }).foreground).toEqual([image]);
   });
+  it.each(["logo", "header"] as const)(
+    "orders automatic %s by exact port, applicable edition, then neutral fallback",
+    (role) => {
+      const neutral = asset("neutral", role, true);
+      const applicable = { ...asset("applicable", role, true), edition_neutral: false };
+      const direct = asset("direct", role);
+      const candidates = role === "logo" ? "foreground" : "backgrounds";
+      const context = { originalEditionId: "edition" };
+
+      expect(heroMediaCandidates(port([neutral, applicable, direct]), context)[candidates]).toEqual(
+        [direct, applicable],
+      );
+      expect(heroMediaCandidates(port([neutral, applicable]), context)[candidates]).toEqual([
+        applicable,
+        neutral,
+      ]);
+      expect(heroMediaCandidates(port([neutral, applicable]))[candidates]).toEqual([neutral]);
+    },
+  );
+
   it("keeps background and gallery available without any foreground candidate", () => {
     const header = asset("background", "header");
     const screenshot = asset("screen", "screenshot");
