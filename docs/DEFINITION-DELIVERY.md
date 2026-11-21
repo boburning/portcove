@@ -627,6 +627,12 @@ must declare a staged-source minimum version of 35. Earlier readers reject
 the capability. Holds that omit this field keep their existing behavior and
 capability requirements. The new field grants no additional acquisition authority.
 
+Managed PSX version 6 admits the same exact-artifact exclusion and reviewed
+fallback for GitHub release packages. Fresh and retained definitions containing
+these exclusions must declare a minimum of `psx-recomp-managed` version 6.
+Existing installations keep their executable, original disc and BIOS, settings
+and save data until the player chooses a compatible replacement.
+
 Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
 copier header (the `snes-copier-header-optional` source representation and its
 `snes-headerless-content` digest scope) and the `snes-headerless` source
@@ -1873,18 +1879,29 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The complete target is bounded to 8 MiB, each listing
+The legacy target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
 
+The compact target uses the same delegation and an 8 MiB authenticated carrier.
+A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
+of decoded directory data. Compact parsing checks each record separately and
+accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+local readback keep the same decoded bounds and retain the transport identity.
+
 Ordinary preparation and publication carry complete authored listings, including
 acquisition restrictions; package observations and metadata enrichment cannot
 resolve a condition. A reviewed Git-authored resolution may remove it in a newer
 authenticated snapshot. The reader retains snapshot replacement semantics rather
 than making an older restriction an additional policy authority.
+
+Compact preparation projects every canonical listing except explicit withdrawals
+and includes the applicable observations. Capacity exhaustion fails preparation
+and leaves the last-good publication in place. Existing legacy readers keep their
+separately authenticated 8 MiB target.
 
 Core atomically retains the exact target bytes and authenticated metadata
 provenance with the shared installed-authority replay floor. Lower metadata or
@@ -1923,6 +1940,15 @@ Listing format 12 adds optional implementation methods and shared dependencies.
 Earlier-format exports omit that inert envelope while preserving setup facts and
 acquisition restrictions. A format-12 publication needs compatible reader coverage;
 this implementation does not authorize a protected publication or change its keys.
+
+Listing format 13 carries typed IGDB backgrounds and screenshots. It has the
+same reader coverage requirement. Exports up to format 12 retain other artwork,
+setup facts and acquisition restrictions. The operational catalog schema and
+retained runtime contracts continue to carry their existing media.
+The observer's managed format-11 delivery keeps its existing reader window.
+When that older overlay cannot express a bundled typed scene, a newer reader
+keeps the scene only if the project and original-game scope still match and
+the combined media passes admission. A format-13 replacement can withdraw it.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
@@ -1989,6 +2015,24 @@ flag. Existing engine versions retain their original behavior. A definition
 that carries the flag declares the applicable capability floor. Older readers
 can then decline the definition before using the projection, while supported
 readers keep ordinary original-file admission and execution checks.
+
+### Exact N64 Recomp original input
+
+A game source contract can carry `n64_recomp_inputs_v1` for an upstream
+N64 Recomp runtime that uses the supported normalized ROM check. Each binding
+names the release ref, artifact SHA-256, native game ID and expected XXH3-64.
+The native game ID must name the definition's normalized runtime file. The
+contract cites upstream support evidence. Indexed projections carrying these
+bindings require N64 recomp portable version 10 for the selected definition.
+
+The matching release and artifact select the requirement during managed
+installation, activation, rollback and launch. Core checks the selected
+registration's storage and content identities and compares the upstream digest
+after N64 padding and byte-order normalization. Before launch, Core also checks
+that the runtime file matches the normalized original's SHA-256 and size. A
+bound release needs a checked original. A binding for a different release or
+artifact supplies no compatibility verdict. A literal value in upstream source
+needs evidence of the applicable runtime check before it can become a binding.
 
 ### Reviewed mod provider bindings
 

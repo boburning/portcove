@@ -443,7 +443,7 @@ export type ModProviderBinding =
       community: string;
       provider: "thunderstore";
     };
-export type IgdbGameImageKind = "logo" | "artwork";
+export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
   | {
@@ -2734,7 +2734,7 @@ export interface CatalogMediaAsset {
   width: number;
 }
 /**
- * A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+ * A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
  * public descriptive IDs, never API credentials or installation authority.
  */
 export interface IgdbGameImage {
@@ -3060,6 +3060,11 @@ export interface PortSourceContract {
   id: string;
   immutable_review_url: string;
   live_review_url: string | null;
+  /**
+   * Required ROM identity for the selected upstream game and exact artifact.
+   * This digests the padded, normalized N64 bytes the runtime checks.
+   */
+  n64_recomp_inputs_v1?: N64RecompOriginalInput[];
   port_id: string;
   profile_id: string;
   /**
@@ -3080,6 +3085,12 @@ export interface PortSourceContract {
 }
 export interface SourceContractApplicability {
   artifact_sha256: string | null;
+  upstream_ref: string;
+}
+export interface N64RecompOriginalInput {
+  artifact_sha256: string;
+  game_id: string;
+  rom_xxh3_64: string;
   upstream_ref: string;
 }
 export interface CatalogEvidence {
@@ -5029,6 +5040,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }

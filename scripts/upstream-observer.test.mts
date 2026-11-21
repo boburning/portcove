@@ -1,4 +1,15 @@
 import { GitHubApiError } from "./github-operation.mts";
+import {
+  advanceN64BuildJobObservation,
+  matchesN64BuildCheckout,
+  matchesN64BuildUpload,
+  readN64BuildJobObservation,
+} from "./upstream-n64-build-job.mts";
+import {
+  advanceUpstreamArtifactBuildObservation,
+  isUpstreamBuildMetadataUrl,
+  readUpstreamBuildObservation,
+} from "./upstream-github-build-output.mts";
 import { createHash } from "node:crypto";
 import {
   observeOriginalSource,
@@ -2573,4 +2584,331 @@ void test("N64 runtime hash-source observer verifies canonical headers before re
   returnedLink = link;
   assert.deepEqual(await observeN64RuntimeHashSource("e".repeat(40), read, cache), source);
   assert.equal(requests.length, 10);
+});
+
+function upstreamBuildFixture() {
+  const source = "c".repeat(40);
+  const windows = "a".repeat(64);
+  const mac = "b".repeat(64);
+  const target = {
+    repository: "fixture/release",
+    repository_id: 42,
+    source_commit: source,
+    artifacts: [{ sha256: windows }, { sha256: mac }, { sha256: mac }],
+  };
+  const run = {
+    id: 301,
+    repository: { id: target.repository_id },
+    head_repository: { id: target.repository_id },
+    head_sha: source,
+    event: "push",
+    status: "completed",
+    conclusion: "success",
+    run_attempt: 1,
+    workflow_id: 204,
+    path: ".github/workflows/release.yml",
+    run_started_at: "2026-11-20T12:00:00Z",
+    updated_at: "2026-11-20T12:03:00Z",
+  };
+  const output = (id: number, digest: string) => ({
+    id,
+    digest: "sha256:" + digest,
+    expired: false,
+    size_in_bytes: 1000,
+    created_at: "2026-11-20T12:01:00Z",
+    workflow_run: {
+      id: run.id,
+      repository_id: target.repository_id,
+      head_repository_id: target.repository_id,
+      head_sha: source,
+    },
+  });
+  return {
+    target,
+    run,
+    output,
+    windows,
+    mac,
+    now: "2026-11-20T15:00:00Z",
+    runEndpoint: "/repos/fixture/release/actions/runs/301",
+  };
+}
+
+void test("upstream build observation resumes artifact pages and retains positives across failed reads", async () => {
+  const { target, run, output, windows, mac, now, runEndpoint } = upstreamBuildFixture();
+  const calls: string[] = [];
+  let unavailable = false;
+  const read = async (endpoint: string) => {
+    calls.push(endpoint);
+    assert.ok(isUpstreamBuildMetadataUrl(new URL("https://api.github.com" + endpoint)));
+    if (endpoint === runEndpoint) return run;
+    if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+    if (endpoint.endsWith("&page=1"))
+      return {
+        total_count: 101,
+        artifacts: [output(1, windows), ...Array.from({ length: 99 }, (_, n) => ({ id: n + 2 }))],
+      };
+    assert.ok(endpoint.endsWith("&page=2"));
+    if (unavailable) throw new Error("fixture provider deferred");
+    return { total_count: 101, artifacts: [output(101, mac)] };
+  };
+  const first = await advanceUpstreamArtifactBuildObservation(target, undefined, read, now);
+  assert.deepEqual(
+    first.matches.map((match) => match.sha256),
+    [windows],
+  );
+  assert.deepEqual(first.search, { run_page: 1, run_id: run.id, artifact_page: 2 });
+  assert.deepEqual(readUpstreamBuildObservation(first, target), first);
+  unavailable = true;
+  await assert.rejects(
+    advanceUpstreamArtifactBuildObservation(target, first, read, now),
+    /fixture provider deferred/,
+  );
+  assert.equal(first.matches.length, 1);
+  unavailable = false;
+  const second = await advanceUpstreamArtifactBuildObservation(target, first, read, now);
+  assert.deepEqual(
+    second.matches.map((match) => [match.sha256, match.artifact_id]),
+    [
+      [windows, 1],
+      [mac, 101],
+    ],
+  );
+  assert.equal(second.search, null, "two exact digests cover all three selected entries");
+  assert.deepEqual(readUpstreamBuildObservation(second, target), second);
+  assert.equal(
+    readUpstreamBuildObservation(second, { ...target, source_commit: "f".repeat(40) }),
+    undefined,
+  );
+  assert.equal(
+    readUpstreamBuildObservation({ ...second, matches: first.matches }, target),
+    undefined,
+  );
+  assert.equal(calls.length, 8);
+  assert.deepEqual(
+    await advanceUpstreamArtifactBuildObservation(target, second, read, now),
+    second,
+  );
+  assert.equal(calls.length, 8);
+});
+
+void test("upstream build observation holds fork outputs, stale runs and short inventory pages", async () => {
+  const { target, run, output, windows, now, runEndpoint } = upstreamBuildFixture();
+  let mode: "fork" | "wrong-output" | "rerun" | "short-page" = "fork";
+  const read = async (endpoint: string) => {
+    if (endpoint === runEndpoint) return { ...run, run_attempt: 2 };
+    if (endpoint.includes("head_sha=")) {
+      const rows = [
+        { ...run, head_repository: { id: mode === "fork" ? 55 : target.repository_id } },
+      ];
+      return { total_count: mode === "short-page" ? 2 : 1, workflow_runs: rows };
+    }
+    const artifact = output(1, windows);
+    return {
+      total_count: 1,
+      artifacts: [
+        mode === "wrong-output"
+          ? { ...artifact, workflow_run: { ...artifact.workflow_run, id: 300 } }
+          : artifact,
+      ],
+    };
+  };
+  const fork = await advanceUpstreamArtifactBuildObservation(target, undefined, read, now);
+  assert.deepEqual(fork.matches, []);
+  assert.notEqual(fork.search, null);
+  mode = "wrong-output";
+  const wrong = await advanceUpstreamArtifactBuildObservation(target, fork, read, now);
+  assert.deepEqual(wrong.matches, []);
+  mode = "rerun";
+  await assert.rejects(
+    advanceUpstreamArtifactBuildObservation(target, wrong, read, now),
+    /workflow identity changed/,
+  );
+  mode = "short-page";
+  await assert.rejects(
+    advanceUpstreamArtifactBuildObservation(target, wrong, read, now),
+    /inventory page is incomplete/,
+  );
+  assert.equal(
+    isUpstreamBuildMetadataUrl(
+      new URL("https://api.github.com/repos/fixture/release/actions/runs/301/logs"),
+    ),
+    false,
+  );
+});
+
+void test("N64 job evidence joins successful checkout and upload steps without persisting their logs", async () => {
+  const { target, run, windows, mac } = upstreamBuildFixture();
+  const created = "2026-11-20T12:02:00Z";
+  const output = {
+    sha256: mac,
+    artifact_id: 9,
+    artifact_created_at: created,
+    size: 125,
+    run_id: run.id,
+    run_attempt: 1 as const,
+    workflow_id: run.workflow_id,
+    workflow_path: run.path,
+    observed_at: "2026-11-20T15:00:00Z",
+  };
+  const { artifact_created_at: _createdAt, ...legacyOutput } = output;
+  const observed = {
+    ...target,
+    outputs: [{ ...legacyOutput, sha256: windows, artifact_id: 8 }, output],
+    runtime_revision: "a".repeat(40),
+    hash_revision: "b".repeat(40),
+  };
+  const encodeLog = (...lines: string[]) =>
+    Buffer.from("\uFEFF" + lines.map((line) => created + " " + line).join("\r\n"));
+  const checkout = encodeLog(
+    "##[group]Run actions/checkout@v4",
+    "Syncing repository: " + target.repository,
+    "Submodule path 'lib/N64ModernRuntime': checked out '" + observed.runtime_revision + "'",
+    "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+      observed.hash_revision +
+      "'",
+    target.source_commit,
+  );
+  const finalized = "Artifact Build.zip successfully finalized. Artifact ID 9";
+  const uploaded =
+    "Artifact Build has been successfully uploaded! Final size is 125 bytes. Artifact ID is 9";
+  const upload = encodeLog(
+    "##[group]Run actions/upload-artifact@v4",
+    "SHA256 digest of uploaded artifact zip is " + mac,
+    finalized,
+    uploaded,
+  );
+  assert.ok(matchesN64BuildUpload(upload, output));
+  assert.equal(matchesN64BuildUpload(upload, { ...output, size: 124 }), false);
+  assert.equal(
+    matchesN64BuildUpload(
+      encodeLog(
+        "##[group]Run echo",
+        "SHA256 digest of uploaded artifact zip is " + mac,
+        finalized,
+        uploaded,
+      ),
+      output,
+    ),
+    false,
+  );
+  assert.ok(matchesN64BuildCheckout(checkout, observed));
+  assert.equal(
+    matchesN64BuildCheckout(checkout, { ...observed, hash_revision: "d".repeat(40) }),
+    false,
+  );
+
+  let expire = true;
+  const calls: [number, number][] = [];
+  const job = {
+    id: 45,
+    run_id: run.id,
+    run_attempt: 1,
+    head_sha: run.head_sha,
+    status: "completed",
+    conclusion: "success",
+    steps: [
+      { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+      {
+        number: 12,
+        name: "Archive game",
+        status: "completed",
+        conclusion: "success",
+        started_at: "2026-11-20T12:01:50Z",
+        completed_at: created,
+      },
+    ],
+  };
+  const read = async (endpoint: string) => {
+    assert.ok(isUpstreamBuildMetadataUrl(new URL("https://api.github.com" + endpoint)));
+    if (endpoint.endsWith("/artifacts/8"))
+      throw new GitHubApiError("request_failed", "expired fixture", { status: 410 });
+    return { total_count: 2, jobs: [{ ...job, id: 44, run_attempt: 2 }, job] };
+  };
+  const readLog = async (id: number, number: number) => {
+    calls.push([id, number]);
+    if (expire) throw new GitHubApiError("request_failed", "expired fixture", { status: 404 });
+    return number === 2 ? checkout : upload;
+  };
+  const noArtifact = await advanceN64BuildJobObservation(observed, undefined, read, readLog);
+  assert.equal(noArtifact.last_artifact, 8);
+  assert.deepEqual(calls, []);
+  const expiredLog = await advanceN64BuildJobObservation(observed, noArtifact, read, readLog);
+  assert.equal(expiredLog.last_artifact, 9);
+  assert.deepEqual(expiredLog.matches, []);
+  expire = false;
+  const visited = await advanceN64BuildJobObservation(observed, expiredLog, read, readLog);
+  const kept = await advanceN64BuildJobObservation(observed, visited, read, readLog);
+  assert.deepEqual(calls, [
+    [45, 12],
+    [45, 12],
+    [45, 2],
+  ]);
+  assert.equal(kept.matches[0]?.artifact_id, 9);
+  assert.equal(
+    kept.matches[0]?.checkout_log_sha256,
+    createHash("sha256").update(checkout).digest("hex"),
+  );
+  assert.deepEqual(readN64BuildJobObservation(kept, observed), kept);
+  assert.equal(
+    readN64BuildJobObservation(kept, { ...observed, runtime_revision: "f".repeat(40) }),
+    undefined,
+  );
+  assert.ok(!JSON.stringify(kept).includes("successfully finalized"));
+  assert.equal(matchesN64BuildUpload(new Uint8Array([0xff]), output), false);
+
+  const twoOutputsAtTheSameClock = {
+    ...observed,
+    outputs: [{ ...output, sha256: windows, artifact_id: 8 }, output],
+  };
+  const rateLimited = new GitHubApiError("rate_limited", "fixture deferral", { status: 403 });
+  await assert.rejects(
+    advanceN64BuildJobObservation(twoOutputsAtTheSameClock, undefined, read, async () => {
+      throw rateLimited;
+    }),
+    (error) => error === rateLimited,
+  );
+  const oversized = await advanceN64BuildJobObservation(
+    twoOutputsAtTheSameClock,
+    undefined,
+    read,
+    async () => {
+      throw new GitHubApiError("response_limit", "fixture oversize");
+    },
+  );
+  assert.deepEqual(oversized.matches, []);
+  assert.equal(oversized.last_artifact, 8);
+  const subsequent = await advanceN64BuildJobObservation(
+    twoOutputsAtTheSameClock,
+    oversized,
+    read,
+    readLog,
+  );
+  assert.equal(subsequent.matches[0]?.artifact_id, 9);
+  for (const unavailable of [
+    new GitHubApiError("invalid_response", "fixture invalid metadata"),
+    new GitHubApiError("request_failed", "fixture unexpected delivery status", { status: 302 }),
+  ]) {
+    const rotated = await advanceN64BuildJobObservation(
+      twoOutputsAtTheSameClock,
+      undefined,
+      unavailable.code === "invalid_response"
+        ? async () => {
+            throw unavailable;
+          }
+        : read,
+      async () => {
+        throw unavailable;
+      },
+    );
+    assert.equal(rotated.last_artifact, 8);
+    assert.deepEqual(rotated.matches, []);
+    const found = await advanceN64BuildJobObservation(
+      twoOutputsAtTheSameClock,
+      rotated,
+      read,
+      readLog,
+    );
+    assert.equal(found.matches[0]?.artifact_id, 9);
+  }
 });

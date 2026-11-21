@@ -1744,43 +1744,54 @@ export function collectionSql(input: {
          WHERE run_id = ${literal(run)};`,
     );
   }
-  // Handoffs follow only a complete run of their source over the complete universe:
-  // a partial or failed run neither records nor clears attention. Core has no handoff.
+  // Release health explicitly partitions fresh-complete ports from coverage gaps.
+  // Other handoff sources require complete fleet coverage.
   if (input.mode === "all") {
-    const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
-    if (input.releaseHealth && !input.releaseHealth.gaps.length)
-      complete.set("release-health", {
+    const assessed = new Map<
+      HandoffSource,
+      {
+        run: string;
+        conditions: HandoffCondition[];
+        assessedSources?: string[];
+      }
+    >();
+    if (input.releaseHealth && !input.releaseHealth.failed && input.releaseHealth.facts.size)
+      assessed.set("release-health", {
         run: healthRun,
         conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+        ...(input.releaseHealth.gaps.length
+          ? { assessedSources: [...input.releaseHealth.facts.keys()] }
+          : {}),
       });
     if (input.releaseContent && !input.releaseContent.gaps.length)
-      complete.set("release-content", {
+      assessed.set("release-content", {
         run: contentRun,
         conditions: releaseContentHandoffs(input.releaseContent.facts),
       });
     if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
-      complete.set("upstream-observations", {
+      assessed.set("upstream-observations", {
         run: upstreamRun,
         conditions: upstreamHandoffs(input.upstream.facts),
       });
     if (input.hostedIntake && !input.hostedIntake.failed && !input.hostedIntake.gaps.length)
-      complete.set("hosted-intake", {
+      assessed.set("hosted-intake", {
         run: hostedRun,
         conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
       });
     for (const entry of handoffRegistry) {
-      const source = complete.get(entry.source);
+      const source = assessed.get(entry.source);
       if (source)
         lines.push(
           ...handoffCollectionSql({
             kind: entry.kind,
             run: source.run,
+            ...(source.assessedSources ? { assessedSources: source.assessedSources } : {}),
             conditions: source.conditions.filter(({ kind }) => kind === entry.kind),
           }),
         );
     }
     // A kind no longer in the registry clears on any complete handoff source run.
-    const first = [...complete.values()][0];
+    const first = [...assessed.values()].find((source) => source.assessedSources === undefined);
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
     // Holds and deferrals follow only a complete read of their owning source.
     // Without the roadmap Project's identity no Status is attributable, so nothing changes.

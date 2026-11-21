@@ -48,6 +48,68 @@ pub(super) struct PolicyFloor {
     pub(super) target_sha256: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct ListingFloor {
+    pub(super) revision: u64,
+    pub(super) decoded_sha256: String,
+    pub(super) withdrawn_ids: BTreeSet<String>,
+}
+
+pub(super) fn check_listings(
+    proposal: &Files,
+    prior_legacy: Option<(&ListingFloor, &[u8])>,
+    prior_compact: Option<&ListingFloor>,
+) -> Result<()> {
+    use portcove_listing_carrier::LEGACY_TARGET;
+
+    let next = super::bundle::listing_targets(proposal)?;
+    if let Some(prior) = prior_compact {
+        let Some(compact) = &next.compact else {
+            return invalid("catalog compact listing cannot be withdrawn to the legacy carrier");
+        };
+        if !prior.withdrawn_ids.is_subset(&compact.withdrawn_ids) {
+            return invalid(
+                "catalog compact listing removed an authenticated historical withdrawal",
+            );
+        }
+    }
+    let floor = prior_compact.or(prior_legacy.map(|(legacy, _)| legacy));
+    if let Some(next_legacy) = next.legacy.as_ref().filter(|_| next.compact.is_some()) {
+        let Some((legacy, prior)) = prior_legacy else {
+            return invalid("catalog compact publication needs authenticated legacy history");
+        };
+        if legacy.decoded_sha256 != next_legacy.decoded_sha256 {
+            if prior_compact.is_none()
+                || floor.is_some_and(|floor| next_legacy.revision <= floor.revision)
+            {
+                return invalid(
+                    "catalog compact publication must preserve its last legacy listing bytes",
+                );
+            }
+            super::bundle::check_legacy_withdrawal(prior, &proposal[LEGACY_TARGET])?;
+        }
+    }
+    if let Some(floor) = floor
+        && next
+            .compact
+            .as_ref()
+            .or(next.legacy.as_ref())
+            .is_some_and(|next| {
+                next.revision < floor.revision
+                    || (next.revision == floor.revision
+                        && next.decoded_sha256 != floor.decoded_sha256)
+            })
+    {
+        return invalid(if prior_compact.is_none() && next.compact.is_none() {
+            "catalog historical policy/launch rollback or equal-revision replacement"
+        } else {
+            "catalog historical listing revision rollback/equivocation"
+        });
+    }
+    Ok(())
+}
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ActiveCheckpoint {
@@ -65,6 +127,10 @@ struct ActiveCheckpoint {
     /// The greatest observed revision and exact body for every tracked subject.
     definitions: Vec<DefinitionFloor>,
     policies: Vec<PolicyFloor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    legacy_listing: Option<ListingFloor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    compact_listing: Option<ListingFloor>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -136,6 +202,23 @@ fn validate_floors(checkpoint: &ActiveCheckpoint) -> Result<()> {
             return invalid("catalog history definition floor identity differs");
         }
         previous_definition = Some(subject_key);
+    }
+    for floor in [&checkpoint.legacy_listing, &checkpoint.compact_listing]
+        .into_iter()
+        .flatten()
+    {
+        if floor.revision == 0 || !digest_valid(&floor.decoded_sha256) {
+            return invalid("catalog history listing floor identity differs");
+        }
+    }
+    if let Some(compact) = &checkpoint.compact_listing
+        && checkpoint.legacy_listing.as_ref().is_none_or(|legacy| {
+            compact.revision < legacy.revision
+                || (compact.revision == legacy.revision && compact != legacy)
+                || !legacy.withdrawn_ids.is_subset(&compact.withdrawn_ids)
+        })
+    {
+        return invalid("catalog checkpoint listing carrier continuity differs");
     }
     let mut previous_policy = None;
     for floor in &checkpoint.policies {
@@ -224,6 +307,8 @@ pub(super) struct BootstrapInput {
     pub(super) delegation_sha256: String,
     pub(super) definitions: Vec<DefinitionFloor>,
     pub(super) policies: Vec<PolicyFloor>,
+    pub(super) legacy_listing: Option<ListingFloor>,
+    pub(super) compact_listing: Option<ListingFloor>,
     pub(super) files: Vec<DefinitionFile>,
     pub(super) active_files: Vec<DefinitionFile>,
 }
@@ -278,6 +363,8 @@ fn prepare(
         },
         definitions: input.definitions,
         policies: input.policies,
+        legacy_listing: input.legacy_listing,
+        compact_listing: input.compact_listing,
     };
     validate_floors(&active)?;
     validate_active_files(&active)?;
@@ -483,8 +570,30 @@ impl VerifiedHistory {
                 }
             }
         }
+        if let Some(floor) = &self.active.legacy_listing
+            && let Some(bytes) = new.get(portcove_listing_carrier::LEGACY_TARGET)
+        {
+            let listing =
+                super::bundle::listing_revision(portcove_listing_carrier::LEGACY_TARGET, bytes)?;
+            if listing.revision < floor.revision
+                || (listing.revision == floor.revision
+                    && listing.decoded_sha256 != floor.decoded_sha256)
+            {
+                return invalid("catalog checkpointed legacy listing rollback or equivocation");
+            }
+        }
         for floor in &self.active.policies {
             if let Some(bytes) = new.get(&floor.target) {
+                if portcove_listing_carrier::is_listing_target(&floor.target) {
+                    let listing = super::bundle::listing_revision(&floor.target, bytes)?;
+                    if listing.revision < floor.revision
+                        || (listing.revision == floor.revision
+                            && listing.decoded_sha256 != floor.target_sha256)
+                    {
+                        return invalid("catalog checkpointed listing rollback or equivocation");
+                    }
+                    continue;
+                }
                 let value: serde_json::Value = serde_json::from_slice(bytes)?;
                 let revision =
                     super::repository::historical_policy_revision(&floor.target, &value)?;
@@ -560,7 +669,51 @@ impl VerifiedHistory {
             }
             policies.insert(floor.target.clone(), floor);
         }
+        for carrier in [
+            portcove_listing_carrier::LEGACY_TARGET,
+            portcove_listing_carrier::COMPACT_TARGET,
+        ] {
+            if let Some(old) = policies.remove(carrier) {
+                let known = if carrier == portcove_listing_carrier::LEGACY_TARGET {
+                    &current.legacy_listing
+                } else {
+                    &current.compact_listing
+                };
+                if known.as_ref().is_none_or(|next| {
+                    next.revision < old.revision
+                        || (next.revision == old.revision
+                            && next.decoded_sha256 != old.target_sha256)
+                }) {
+                    return invalid(
+                        "catalog checkpoint listing migration requires its authenticated retained carrier",
+                    );
+                }
+            }
+        }
         current.policies = policies.into_values().collect();
+        for (previous, next) in [
+            (&self.active.legacy_listing, &mut current.legacy_listing),
+            (&self.active.compact_listing, &mut current.compact_listing),
+        ] {
+            if let Some(previous) = previous {
+                if next.as_ref().is_some_and(|next| {
+                    next.revision < previous.revision
+                        || (next.revision == previous.revision && next != previous)
+                        || (self.active.compact_listing.is_some()
+                            && !previous.withdrawn_ids.is_subset(&next.withdrawn_ids))
+                }) {
+                    return invalid("catalog history checkpoint listing rollback or equivocation");
+                }
+                if next.is_none() {
+                    if self.active.compact_listing.is_some() {
+                        return invalid(
+                            "catalog history checkpoint listing requires its authenticated retained carriers",
+                        );
+                    }
+                    *next = Some(previous.clone());
+                }
+            }
+        }
         prepare(
             current,
             next_timestamp,
@@ -592,6 +745,8 @@ mod tests {
                 entry_sha256: "d".repeat(64),
             }],
             policies: vec![],
+            legacy_listing: None,
+            compact_listing: None,
             active_files: vec![],
             files: vec![DefinitionFile {
                 target: "metadata/45.snapshot.json".into(),

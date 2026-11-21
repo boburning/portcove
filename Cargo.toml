@@ -5,6 +5,7 @@ members = [
   "crates/portcove-core",
   "crates/portcove-cli",
   "crates/portcove-diagnostics",
+  "crates/portcove-listing-carrier",
   "crates/portcove-release-tools",
   "tools/rust-portability",
   "apps/desktop/src-tauri",
@@ -24,7 +25,7 @@ bytes = "1.12.1"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 directories = "6"
 ed25519-dalek = { version = "3.0.0", default-features = false, features = ["fast"] }
-crc32fast = "1.5.4"
+crc32fast = "1.5.5"
 flate2 = "1.1.10"
 filetime = "0.2.29"
 futures-util = "0.3.34"
@@ -75,6 +76,7 @@ tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
 unicode-normalization = "0.1.26"
 uuid = { version = "1.29.0", features = ["v4", "serde"] }
 url = "2.5.8"
+xxhash-rust = { version = "0.8.19", default-features = false, features = ["xxh3"] }
 # Keep Cargo resolution on the reviewed ZIP release instead of a younger compatible version.
 zip = { version = "=9.4.0", default-features = false, features = ["deflate"] }
 windows-sys = { version = "0.61.2", features = [

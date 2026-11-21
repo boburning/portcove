@@ -154,8 +154,8 @@ async fn authenticate(
             {
                 return invalid("catalog prior target outside role scope");
             }
-            let maximum = if name.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
+                portcove_listing_carrier::MAX_BYTES as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -188,6 +188,7 @@ async fn authenticate(
             }
         }
     }
+    bundle::listing_targets(&logical)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -308,6 +309,14 @@ pub(super) async fn inspect_prior(
         }
     }
     floors.check(&context.targets)?;
+    super::history_checkpoint::check_listings(
+        &context.targets,
+        floors
+            .legacy_listing
+            .as_ref()
+            .map(|(floor, body)| (floor, body.as_slice())),
+        floors.compact_listing.as_ref(),
+    )?;
     let history = if pointer.is_some() || context.bootstrap_history {
         let timestamp_bytes = at(&roles, "timestamp.json")?;
         let timestamp: Signed<TufTimestamp> = serde_json::from_slice(timestamp_bytes)?;
@@ -345,6 +354,8 @@ pub(super) async fn inspect_prior(
                     },
                 )
                 .collect(),
+            legacy_listing: floors.legacy_listing.map(|(floor, _)| floor),
+            compact_listing: floors.compact_listing,
             files: file_inventory
                 .iter()
                 .filter(|file| file.target != "metadata/timestamp.json")
@@ -504,12 +515,11 @@ pub(super) fn indexed_entries(
     Ok(map)
 }
 pub(super) fn historical_policy_revision(target: &str, value: &serde_json::Value) -> Result<u64> {
-    let field =
-        if target.ends_with(".launch.json") || target == "policy/official/catalog.listings.json" {
-            "revision"
-        } else {
-            "policy_revision"
-        };
+    let field = if target.ends_with(".launch.json") {
+        "revision"
+    } else {
+        "policy_revision"
+    };
     value[field]
         .as_u64()
         .filter(|revision| *revision > 0)
@@ -523,6 +533,9 @@ struct HistoricalRevisionFloors {
     definitions: BTreeMap<(String, String), serde_json::Value>,
     policies: BTreeMap<String, (u64, String)>,
     seen: BTreeSet<String>,
+    listing_revisions: BTreeMap<u64, String>,
+    legacy_listing: Option<(super::history_checkpoint::ListingFloor, Vec<u8>)>,
+    compact_listing: Option<super::history_checkpoint::ListingFloor>,
 }
 
 impl HistoricalRevisionFloors {
@@ -554,8 +567,8 @@ impl HistoricalRevisionFloors {
                     "catalog public repository file missing: {path}"
                 ))
             })?;
-            let maximum = if target.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
+                portcove_listing_carrier::MAX_BYTES
             } else if target.raw() == "definitions/index.json" {
                 DEFINITION_INDEX_MAX as usize
             } else if definition_role {
@@ -575,7 +588,36 @@ impl HistoricalRevisionFloors {
                 continue;
             }
             let body = current.historical_body(target.raw(), raw)?;
-            if definition_role {
+            if portcove_listing_carrier::is_listing_target(target.raw()) {
+                let listing = bundle::listing_revision(target.raw(), &body)?;
+                let floor = super::history_checkpoint::ListingFloor {
+                    revision: listing.revision,
+                    decoded_sha256: listing.decoded_sha256,
+                    withdrawn_ids: listing.withdrawn_ids,
+                };
+                if let Some(prior) = self
+                    .listing_revisions
+                    .insert(floor.revision, floor.decoded_sha256.clone())
+                    && prior != floor.decoded_sha256
+                {
+                    return invalid("catalog retained listing carrier history equivocates");
+                }
+                if target.raw() == portcove_listing_carrier::COMPACT_TARGET {
+                    if self
+                        .compact_listing
+                        .as_ref()
+                        .is_none_or(|prior| prior.revision < floor.revision)
+                    {
+                        self.compact_listing = Some(floor);
+                    }
+                } else if self
+                    .legacy_listing
+                    .as_ref()
+                    .is_none_or(|(prior, _)| prior.revision < floor.revision)
+                {
+                    self.legacy_listing = Some((floor, body.to_vec()));
+                }
+            } else if definition_role {
                 for (id, entry) in indexed_entries(&body)? {
                     if let Some(old) = self.definitions.get(&id) {
                         let old_revision = old["revision"].as_u64().unwrap();

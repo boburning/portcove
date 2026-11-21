@@ -25,6 +25,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { decodeTufRoleKey } from "./tuf-role-key.mts";
+import {
+  compactListingDeliveryTarget,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
 
 export const onlineRoles = [
   "official-definitions",
@@ -395,8 +399,8 @@ export function sameStaticPublicationTargets(
 ) {
   const previous = { ...published };
   delete previous[historyTarget];
-  if (!Object.hasOwn(bundle, "policy/official/catalog.listings.json"))
-    delete previous["policy/official/catalog.listings.json"];
+  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+    if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
 

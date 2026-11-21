@@ -3971,6 +3971,13 @@ IGDB image metadata, explicit `edition_neutral` evidence or a second header requ
 format 5; current readers retain formats 1–4. New optional fields preserve old
 records, not old strict readers' ability to consume new fields or enum values.
 Normal audience/reader compatibility review remains required before publication.
+Typed IGDB backgrounds use the existing `header` role with an `artwork` record
+positively classified as Key Art Without Logo and a fit of at least 3:2.
+Typed screenshots use `screenshot` and its distinct IGDB endpoint identity.
+Both use the bounded `720p` PNG derivative. These records require directory
+format 13. Author them in the port listing. Strict operational packages,
+retained user-selected runtime contracts, pending downloads and exports through
+format 12 omit these new records while preserving legacy media.
 Legacy strict presentation with
 no `media` field may use reviewed directory media for the same exact identity;
 an explicit empty array clears it. An existing local artwork override takes

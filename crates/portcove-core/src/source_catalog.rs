@@ -276,6 +276,10 @@ pub struct PortSourceContract {
     /// missing variant cannot reject setup. Historical lists keep their policy.
     #[serde(default, skip_serializing_if = "is_false")]
     pub variant_list_recognition_only: bool,
+    /// Required ROM identity for the selected upstream game and exact artifact.
+    /// This digests the padded, normalized N64 bytes the runtime checks.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub n64_recomp_inputs_v1: Vec<N64RecompOriginalInput>,
     pub validator_contract_id: Option<String>,
     #[serde(default)]
     pub evidence_ids: Vec<String>,
@@ -294,6 +298,15 @@ pub struct PortSourceContract {
     pub aliases: Vec<String>,
     #[serde(default)]
     pub tombstones: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct N64RecompOriginalInput {
+    pub upstream_ref: String,
+    pub artifact_sha256: String,
+    pub game_id: String,
+    pub rom_xxh3_64: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -568,6 +581,49 @@ impl SourceCatalog {
                 return Err(PortcoveError::usage(
                     "reusable source applicability requires a reviewed enforced identity contract",
                 ));
+            }
+            if !contract.n64_recomp_inputs_v1.is_empty() {
+                if contract.n64_recomp_inputs_v1.len() > 64
+                    || contract.role != PortSourceRole::Game
+                    || profile.kind != SourceIdentityKind::File
+                    || contract.admission_mode != CatalogAdmissionMode::Informational
+                    || (!contract.supported_variant_ids.is_empty()
+                        && !contract.variant_list_recognition_only)
+                    || contract.validator_contract_id.is_some()
+                    || !self.evidence.iter().any(|item| {
+                        item.role == CatalogEvidenceRole::UpstreamSupport
+                            && contract.evidence_ids.contains(&item.id)
+                    })
+                {
+                    return Err(PortcoveError::usage(
+                        "N64 release input requires an informational single-file game contract with upstream support evidence",
+                    ));
+                }
+                let mut bindings = HashSet::new();
+                for input in &contract.n64_recomp_inputs_v1 {
+                    require_text(&input.upstream_ref, "N64 input release ref")?;
+                    require_digest(&input.artifact_sha256, 64, "N64 input artifact SHA-256")?;
+                    require_digest(&input.rom_xxh3_64, 16, "N64 normalized input XXH3-64")?;
+                    if !input
+                        .game_id
+                        .as_bytes()
+                        .first()
+                        .is_some_and(u8::is_ascii_alphanumeric)
+                        || input.game_id.len() > 128
+                        || !input
+                            .game_id
+                            .bytes()
+                            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.'))
+                        || !bindings.insert((
+                            input.upstream_ref.as_str(),
+                            input.artifact_sha256.to_ascii_lowercase(),
+                        ))
+                    {
+                        return Err(PortcoveError::usage(
+                            "N64 input has an invalid game ID or duplicate exact artifact binding",
+                        ));
+                    }
+                }
             }
             let mut applicability_keys = HashSet::new();
             for applicability in &contract.applicability {

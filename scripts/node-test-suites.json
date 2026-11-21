@@ -1547,6 +1547,7 @@
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
+            "release-health handoffs follow freshly assessed ports across fleet coverage gaps",
             "release content shows findings from partial runs and opens handoffs only after complete runs",
             "a reviewed accounting dismisses a finding: shown as accounted, no attention, its handoff cleared",
             "packages the scan could not inspect are shown and open the release-content handoff",

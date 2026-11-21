@@ -151,7 +151,10 @@ each referenced historical target body once. If Tough has already authenticated
 that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
 own inventory and keeps the existing write-time and post-write readbacks.
 
-Each descriptive target remains limited to 8 MiB per directory revision.
+Each descriptive target has an 8 MiB wire limit. The compact carrier has a
+separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
+Checkpoint segments preserve the exact legacy artifact and every immutable
+carrier body. Compact publication still requires explicit activation.
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111

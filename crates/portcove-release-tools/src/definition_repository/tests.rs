@@ -848,6 +848,7 @@ async fn authenticated_catalog_prior_advances_without_erasing_immutable_history(
 #[tokio::test]
 async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
     let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
     fixture.sign_all().await;
     let original = assemble_definition_repository(&fixture.assembly("history-base"))
         .await
@@ -859,6 +860,9 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
         context["versions"][role] = json!(2);
     }
     fixture.set_context(context);
+    select_compact(&fixture, 1, true, false);
+    assert!(load_context(&fixture.context).await.is_err());
+    select_compact(&fixture, 1, false, false);
     fixture.roles = fixture.root().join("history-roles");
     fs::create_dir(&fixture.roles).unwrap();
     fixture.sign_all().await;
@@ -937,6 +941,24 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
         context["versions"][role] = json!(3);
     }
     fixture.set_context(context.clone());
+    select_compact(&fixture, 1, true, false);
+    assert!(load_context_mode(&fixture.context, true).await.is_err());
+    let compact_path = root
+        .join("bundle")
+        .join(portcove_listing_carrier::COMPACT_TARGET);
+    select_compact(&fixture, 1, false, false);
+    let first_wire = fs::read(&compact_path).unwrap();
+    select_compact_with_compression(&fixture, 1, false, false, flate2::Compression::fast());
+    assert_ne!(fs::read(&compact_path).unwrap(), first_wire);
+    assert!(load_context_mode(&fixture.context, true).await.is_ok());
+    fs::remove_file(thin.join("metadata/2.official-policy.json")).unwrap();
+    assert!(load_context_mode(&fixture.context, true).await.is_err());
+    fs::copy(
+        root.join("history-next/metadata/2.official-policy.json"),
+        thin.join("metadata/2.official-policy.json"),
+    )
+    .unwrap();
+    select_compact(&fixture, 2, false, true);
     fixture.roles = fixture.root().join("history-roles-three");
     fs::create_dir(&fixture.roles).unwrap();
     fixture.sign_all().await;
@@ -954,6 +976,20 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
             .iter()
             .filter(|file| file.target != "metadata/timestamp.json")
             .all(|file| third.files.contains(file))
+    );
+    let legacy = fs::read(
+        root.join("bundle")
+            .join(portcove_listing_carrier::LEGACY_TARGET),
+    )
+    .unwrap();
+    let legacy_path = format!(
+        "targets/{}.{}",
+        sha(&legacy),
+        portcove_listing_carrier::LEGACY_TARGET
+    );
+    assert_eq!(
+        fs::read(root.join("history-third").join(legacy_path)).unwrap(),
+        legacy
     );
     let path = fs::read_dir(fixture.root().join("checkpoint-objects/sha256"))
         .unwrap()
@@ -1253,6 +1289,217 @@ async fn descriptive_inspection_rejects_extra_or_false_summaries() {
                 &serde_json::to_vec(&changed).unwrap()
             )
             .is_err()
+        );
+    }
+}
+
+#[test]
+fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal() {
+    let older = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":["older-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"newly-removed"},{"id":"retained","a":1}]}
+    });
+    let newer = json!({
+        "listing_delivery_schema":1,"revision":7,"withdrawn_ids":["older-removed","newly-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"retained","a":1}]}
+    });
+    let bytes = serde_json::to_vec(&older).unwrap();
+    bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
+
+    let mut replaced = newer.clone();
+    replaced["directory"]["listings"][0]["a"] = json!(2);
+    let refusal = bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&replaced).unwrap());
+    assert!(
+        refusal
+            .unwrap_err()
+            .to_string()
+            .contains("changes other facts")
+    );
+    let mut resurrected = newer;
+    resurrected["withdrawn_ids"] = json!(["newly-removed"]);
+    assert!(
+        bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&resurrected).unwrap())
+            .is_err()
+    );
+}
+
+fn select_compact(fixture: &Fixture, revision: u64, altered: bool, retain_tombstone: bool) {
+    select_compact_with_compression(
+        fixture,
+        revision,
+        altered,
+        retain_tombstone,
+        flate2::Compression::default(),
+    );
+}
+
+fn select_compact_with_compression(
+    fixture: &Fixture,
+    revision: u64,
+    altered: bool,
+    retain_tombstone: bool,
+    compression: flate2::Compression,
+) {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::write::GzEncoder;
+    use std::io::Write as _;
+    let name = portcove_listing_carrier::COMPACT_TARGET;
+    let root = fixture.root().join("bundle");
+    let mut payload: serde_json::Value = serde_json::from_slice(
+        &fs::read(root.join(portcove_listing_carrier::LEGACY_TARGET)).unwrap(),
+    )
+    .unwrap();
+    payload["revision"] = json!(revision);
+    if altered {
+        payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
+    }
+    if retain_tombstone {
+        payload["withdrawn_ids"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!("compact-only-withdrawal"));
+    }
+    let decoded = serde_json::to_vec(&payload).unwrap();
+    let mut gzip = GzEncoder::new(Vec::new(), compression);
+    gzip.write_all(&decoded).unwrap();
+    let body = serde_json::to_vec(&json!({
+        "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+        "decoded_bytes": decoded.len(),
+        "decoded_sha256": sha(&decoded),
+        "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+    }))
+    .unwrap();
+    fs::write(root.join(name), &body).unwrap();
+    let files = io::tree(&root, BUNDLE_FILES, BUNDLE_MAX).unwrap();
+    let manifest_path = fixture.root().join("inspection.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    let listings = payload["directory"]["listings"].as_array().unwrap();
+    let withdrawals = payload["withdrawn_ids"].as_array().unwrap();
+    manifest["listings"] = json!({
+        "target": name,
+        "revision": revision,
+        "sha256": sha(&body),
+        "listing_count": listings.len(),
+        "withdrawn_count": withdrawals.len(),
+    });
+    manifest["files"] = json!(bundle::identities(&files));
+    let bytes = serde_json::to_vec(&manifest).unwrap();
+    fs::write(manifest_path, &bytes).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&bytes));
+    fixture.set_context(context);
+}
+
+#[tokio::test]
+async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_floor() {
+    fn advance(fixture: &Fixture, previous: &str, version: u64) {
+        let mut context = fixture.context_value();
+        context["previous_repository"] = json!(previous);
+        for role in ["definitions", "policy", "snapshot", "timestamp"] {
+            context["versions"][role] = json!(version);
+        }
+        fixture.set_context(context);
+    }
+
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+    advance(&fixture, "legacy", 2);
+    select_compact(&fixture, 2, false, true);
+    fixture.roles = fixture.root().join("compact-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("compact"))
+        .await
+        .unwrap();
+    let old_target_suffix = format!(".{}", portcove_listing_carrier::LEGACY_TARGET);
+    assert_eq!(
+        published
+            .files
+            .iter()
+            .filter(|file| file.target.ends_with(old_target_suffix.as_str()))
+            .count(),
+        1
+    );
+
+    advance(&fixture, "compact", 3);
+    select_compact(&fixture, 2, true, true);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical listing revision rollback/equivocation"),
+        "{failure}"
+    );
+    select_compact(&fixture, 1, false, true);
+    assert!(load_context(&fixture.context).await.is_err());
+
+    select_compact(&fixture, 3, false, false);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("removed an authenticated historical withdrawal"),
+        "{failure}"
+    );
+
+    fs::remove_file(
+        fixture
+            .root()
+            .join("bundle")
+            .join(portcove_listing_carrier::COMPACT_TARGET),
+    )
+    .unwrap();
+    replace_listing_directory(&fixture, 1);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("compact listing cannot be withdrawn"),
+        "{failure}"
+    );
+
+    let path = fixture
+        .root()
+        .join("bundle")
+        .join(portcove_listing_carrier::LEGACY_TARGET);
+    let old_legacy = fs::read(&path).unwrap();
+    let mut legacy: serde_json::Value = serde_json::from_slice(&old_legacy).unwrap();
+    legacy["revision"] = json!(3);
+    legacy["withdrawn_ids"] = json!(["listing-0"]);
+    legacy["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    let new_legacy = serde_json::to_vec(&legacy).unwrap();
+    fs::write(&path, &new_legacy).unwrap();
+    select_compact(&fixture, 4, false, true);
+    fixture.roles = fixture.root().join("withdrawal-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("withdrawal"))
+        .await
+        .unwrap();
+    for bytes in [old_legacy, new_legacy] {
+        let target = format!(
+            "targets/{}.{}",
+            sha(&bytes),
+            portcove_listing_carrier::LEGACY_TARGET
+        );
+        assert!(published.files.iter().any(|file| file.target == target));
+        assert_eq!(
+            fs::read(fixture.root().join("withdrawal").join(target)).unwrap(),
+            bytes
         );
     }
 }
