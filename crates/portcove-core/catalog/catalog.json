@@ -73427,6 +73427,129 @@
       }
     },
     {
+      "id": "pokemon-crystal-gen1recomp",
+      "name": "Pokémon Crystal (Gen1Recomp / G1R Deluxe)",
+      "summary": "Import your own matching US English Pokémon Crystal original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "bryanthaboi/gen1recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own canonical US English 2 MiB Pokémon Crystal Game Boy Color ROM, revision 1.0 SHA-1 f4cd194bdee0d04ca4eac29e09b8e4e9d818c133 or revision 1.1 SHA-1 f2f52230b536214ef7c9924f483392993e226cfb. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream.",
+        "original_game_title": "Pokémon Crystal",
+        "original_game": {
+          "format_version": 1,
+          "id": "pokemon-crystal",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp#readme",
+            "https://github.com/bryanthaboi/gen1recomp"
+          ],
+          "source_editions": [
+            {
+              "id": "pokemon-crystal-game-boy-color",
+              "title": "Pokémon Crystal (Game Boy Color)",
+              "system": "game-boy-color",
+              "evidence_urls": [
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+              ]
+            }
+          ]
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Import your original",
+              "instruction": "Use your own canonical US English 2 MiB Pokémon Crystal Game Boy Color ROM, revision 1.0 SHA-1 f4cd194bdee0d04ca4eac29e09b8e4e9d818c133 or revision 1.1 SHA-1 f2f52230b536214ef7c9924f483392993e226cfb. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+            },
+            {
+              "title": "Select the upstream player",
+              "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
+            },
+            {
+              "title": "Add the game and play",
+              "instruction": "Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            },
+            {
+              "title": "Keep your game data",
+              "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
+            }
+          ],
+          "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+          "warnings": [
+            "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+          ]
+        },
+        "artwork": {
+          "game_id": 1514,
+          "cover_id": 266349,
+          "image_id": "co5pil",
+          "image_sha256": "f5bb92cc496efd7ad1c64b57a96480255c568ae2bf2fde17a19765f0591923d4",
+          "game_slug": "pokemon-crystal-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
       "id": "pokemon-emerald-emeraldrecomp",
       "name": "Pokémon Emerald / EmeraldRecomp",
       "summary": "Use the upstream EmeraldRecomp preview with matching owned GBA originals; runtime, compiler cache and player data stay upstream-owned.",
@@ -73897,6 +74020,129 @@
           "image_id": "co1ziq",
           "image_sha256": "118a2c3a72c7fd65b0d71dd804c31f6cfb3d674004593f455c00bd1e6a78b808",
           "game_slug": "pokemon-firered-version",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "pokemon-gold-gen1recomp",
+      "name": "Pokémon Gold (Gen1Recomp / G1R Deluxe)",
+      "summary": "Import your own matching US English Pokémon Gold original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "bryanthaboi/gen1recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream.",
+        "original_game_title": "Pokémon Gold",
+        "original_game": {
+          "format_version": 1,
+          "id": "pokemon-gold",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp#readme",
+            "https://github.com/bryanthaboi/gen1recomp"
+          ],
+          "source_editions": [
+            {
+              "id": "pokemon-gold-game-boy-color",
+              "title": "Pokémon Gold (Game Boy Color)",
+              "system": "game-boy-color",
+              "evidence_urls": [
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+              ]
+            }
+          ]
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Import your original",
+              "instruction": "Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+            },
+            {
+              "title": "Select the upstream player",
+              "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
+            },
+            {
+              "title": "Add the game and play",
+              "instruction": "Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            },
+            {
+              "title": "Keep your game data",
+              "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
+            }
+          ],
+          "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+          "warnings": [
+            "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+          ]
+        },
+        "artwork": {
+          "game_id": 1558,
+          "cover_id": 266338,
+          "image_id": "co5pia",
+          "image_sha256": "c4eaf36f94396d584a5f372c6668f4330a8b076645964650279f7acd10a4381f",
+          "game_slug": "pokemon-gold-version",
           "match_kind": "underlying-game"
         }
       }
@@ -74640,6 +74886,129 @@
         "replay-divergence.state"
       ],
       "mod_package_policy": "versioned-packages-v1"
+    },
+    {
+      "id": "pokemon-silver-gen1recomp",
+      "name": "Pokémon Silver (Gen1Recomp / G1R Deluxe)",
+      "summary": "Import your own matching US English Pokémon Silver original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
+      "project_url": "https://github.com/bryanthaboi/gen1recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "bryanthaboi/gen1recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream.",
+        "original_game_title": "Pokémon Silver",
+        "original_game": {
+          "format_version": 1,
+          "id": "pokemon-silver",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp#readme",
+            "https://github.com/bryanthaboi/gen1recomp"
+          ],
+          "source_editions": [
+            {
+              "id": "pokemon-silver-game-boy-color",
+              "title": "Pokémon Silver (Game Boy Color)",
+              "system": "game-boy-color",
+              "evidence_urls": [
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+                "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+              ]
+            }
+          ]
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Import your original",
+              "instruction": "Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+            },
+            {
+              "title": "Select the upstream player",
+              "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
+            },
+            {
+              "title": "Add the game and play",
+              "instruction": "Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            },
+            {
+              "title": "Keep your game data",
+              "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
+            }
+          ],
+          "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+          "warnings": [
+            "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+          ]
+        },
+        "artwork": {
+          "game_id": 1513,
+          "cover_id": 266341,
+          "image_id": "co5pid",
+          "image_sha256": "3912aeb009ea0e9fce19375978837d69982ee4ed3f1ad96deefc2314351dc0bb",
+          "game_slug": "pokemon-silver-version",
+          "match_kind": "underlying-game"
+        }
+      }
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
