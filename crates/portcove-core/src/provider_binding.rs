@@ -275,7 +275,9 @@ mod tests {
         withdrawn.mod_provider_bindings = Some(Vec::new());
         assert!(!reference_matches(&withdrawn, &reference));
         validate_successor(&port, &withdrawn).unwrap();
-        assert!(validate_successor(&withdrawn, catalog.port("shipwright").unwrap()).is_err());
+        let mut implicit = catalog.port("shipwright").unwrap().clone();
+        implicit.mod_provider_bindings = None;
+        assert!(validate_successor(&withdrawn, &implicit).is_err());
     }
 
     #[test]
@@ -314,6 +316,7 @@ mod tests {
             Some(vec![ModProviderBinding::Gamebanana { game_id: u64::MAX }]);
         assert!(validate(&port).is_err());
         port.id = "unreviewed-port".into();
+        port.mod_loader = None;
         port.mod_provider_bindings = Some(vec![binding]);
         assert!(validate(&port).is_err());
     }

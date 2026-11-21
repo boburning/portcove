@@ -4902,6 +4902,10 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Frozen schema-1 rows predate both explicit loader declarations.
+            assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
+            port.mod_loader = None;
+            port.mod_provider_bindings = None;
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
@@ -5636,6 +5640,8 @@ mod tests {
             .iter_mut()
             .find(|port| port["id"] == "zelda64-recomp")
             .unwrap();
+        // Keep this missing-hint case focused on the generic executable contract.
+        port.as_object_mut().unwrap().remove("mod_loader");
         port["executable_hints"]
             .as_object_mut()
             .unwrap()

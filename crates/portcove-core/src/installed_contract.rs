@@ -1456,6 +1456,9 @@ mod tests {
             .qualification
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
         for port in &mut legacy.ports {
+            if port.id != "zelda64-recomp" {
+                port.mod_loader = None;
+            }
             if package_only_settings(port) {
                 port.game_settings = None;
             }
