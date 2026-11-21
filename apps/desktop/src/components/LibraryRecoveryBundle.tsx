@@ -229,10 +229,20 @@ function RecoveryBundleDialog({
   const [cancelRequested, setCancelRequested] = useState(false);
   const [cancelFailure, setCancelFailure] = useState<unknown>();
   const cancelling = useRef(false);
-  const [error, setError] = useState<unknown>();
+  const [failure, setFailure] = useState<{
+    error: unknown;
+    action: "planCreate" | "operation";
+  }>();
   const [recovery, setRecovery] = useState<RecoveryStep>();
+  const error = failure?.error;
+  const interruptedCreationReview =
+    failure?.action === "planCreate" && recovery?.operation === "resumeCreation";
 
-  const run = async (status: string, work: () => Promise<void>) => {
+  const run = async (
+    status: string,
+    work: () => Promise<void>,
+    action: "planCreate" | "operation" = "operation",
+  ) => {
     if (inFlight.current) return;
     inFlight.current = true;
     cancelling.current = false;
@@ -240,11 +250,11 @@ function RecoveryBundleDialog({
     setCancelFailure(undefined);
     setCopyEvent(undefined);
     setPending(status);
-    setError(undefined);
+    setFailure(undefined);
     try {
       await work();
     } catch (failure) {
-      setError(failure);
+      setFailure({ error: failure, action });
     } finally {
       inFlight.current = false;
       setPending("");
@@ -264,7 +274,7 @@ function RecoveryBundleDialog({
     setRecovery(undefined);
     setVerified(undefined);
     setRestore(undefined);
-    setError(undefined);
+    setFailure(undefined);
   };
   const editDestination = (value: string) => {
     setDestination(value);
@@ -273,7 +283,7 @@ function RecoveryBundleDialog({
     setRestoreReceipt(undefined);
     setRecovery(undefined);
     setRestore(undefined);
-    setError(undefined);
+    setFailure(undefined);
   };
 
   async function transfer<T>(
@@ -532,7 +542,15 @@ function RecoveryBundleDialog({
             <ActionReviewFailure error={cancelFailure} />
           </div>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            interruptedCreationReview
+              ? "An interrupted copy is waiting for this bundle folder."
+              : undefined
+          }
+          showMutationSummary={failure?.action !== "planCreate"}
+        />
         {createReceipt &&
           (createReceipt.bundle_id || error !== undefined) &&
           !recovery &&
@@ -684,17 +702,21 @@ function RecoveryBundleDialog({
                     setVerified(bundle);
                   });
                 } else {
-                  void run("Checking library coverage…", async () => {
-                    try {
-                      setCreation(
-                        await desktopApi.planLibraryRecoveryBundle(destination, generation),
-                      );
-                    } catch (failure) {
-                      setRecovery(recoveryStep(failure, "resumeCreation"));
-                      setCreateReceipt(publishedCreationReadback(failure));
-                      throw failure;
-                    }
-                  });
+                  void run(
+                    "Checking library coverage…",
+                    async () => {
+                      try {
+                        setCreation(
+                          await desktopApi.planLibraryRecoveryBundle(destination, generation),
+                        );
+                      } catch (failure) {
+                        setRecovery(recoveryStep(failure, "resumeCreation"));
+                        setCreateReceipt(publishedCreationReadback(failure));
+                        throw failure;
+                      }
+                    },
+                    "planCreate",
+                  );
                 }
               }}
             >
