@@ -10,14 +10,14 @@
     {
       "namespace": "official",
       "stable_id": "doom-3-classic-dude-doom-3-unified-development-engine",
-      "revision": 1,
-      "target": "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json"
+      "revision": 2,
+      "target": "sha256/360aec1910b83ee03183585db39fe8ede9f4ff4888b3cad70b72ed4d7813df7c.json"
     },
     {
       "namespace": "official",
       "stable_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
-      "revision": 1,
-      "target": "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json"
+      "revision": 2,
+      "target": "sha256/d2ebb7d460e4d9568651bbe1029e45d46f0ab374b96b8d9bc8860f95071db28d.json"
     },
     {
       "namespace": "official",
@@ -49,6 +49,16 @@
       "length": 3565
     },
     {
+      "target": "sha256/360aec1910b83ee03183585db39fe8ede9f4ff4888b3cad70b72ed4d7813df7c.json",
+      "sha256": "360aec1910b83ee03183585db39fe8ede9f4ff4888b3cad70b72ed4d7813df7c",
+      "length": 11359
+    },
+    {
+      "target": "sha256/42ee39af9a35f78e38fb0b65c0e04f9c1e2a661d1f92dde6dbd374b9bf1b1541.json",
+      "sha256": "42ee39af9a35f78e38fb0b65c0e04f9c1e2a661d1f92dde6dbd374b9bf1b1541",
+      "length": 12434
+    },
+    {
       "target": "sha256/6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e.json",
       "sha256": "6291a388e5414bc617f027f3f178502dddc2ed221b334975176f8d72054d5e3e",
       "length": 6123
@@ -59,29 +69,19 @@
       "length": 3615
     },
     {
-      "target": "sha256/7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4.json",
-      "sha256": "7755b5c834553231e9b9d9cbbc17f0441454b1e6a426ed6938b274eec65e8cc4",
-      "length": 11857
-    },
-    {
       "target": "sha256/8693dcf5aec4bd374362e40b863a70f1162863070d8ef44b101e2ca7a40565a7.json",
       "sha256": "8693dcf5aec4bd374362e40b863a70f1162863070d8ef44b101e2ca7a40565a7",
       "length": 8262
     },
     {
-      "target": "sha256/94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453.json",
-      "sha256": "94a2f8cdd583ac7b998ef27651188e661351b435f139df947cd7aaf1fb89a453",
-      "length": 12149
+      "target": "sha256/d034cd2fd94f9927b307a1fdce4eea0dc59b0b129be5ab266f1ea7646f211d8f.json",
+      "sha256": "d034cd2fd94f9927b307a1fdce4eea0dc59b0b129be5ab266f1ea7646f211d8f",
+      "length": 11648
     },
     {
-      "target": "sha256/e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28.json",
-      "sha256": "e81559f432ab1e1a8089514ed742b62ac5da72929d324d8b1b2064c4fce91a28",
-      "length": 11074
-    },
-    {
-      "target": "sha256/f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0.json",
-      "sha256": "f0c4730cd5e10aa969d32c8923faaea87a28a4d73d2e1c1002c5bc2ef17636c0",
-      "length": 11363
+      "target": "sha256/d2ebb7d460e4d9568651bbe1029e45d46f0ab374b96b8d9bc8860f95071db28d.json",
+      "sha256": "d2ebb7d460e4d9568651bbe1029e45d46f0ab374b96b8d9bc8860f95071db28d",
+      "length": 12142
     }
   ]
 }

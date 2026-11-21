@@ -261,9 +261,30 @@ the selected repository, source commit, runtime and xxHash revisions. The
 checkpoint retains checked job and step identities and log digests. Missing
 or unusable job evidence leaves the affected package unknown and advances the
 search to other packages. Shared budget and rate-limit deferrals still apply.
-Raw logs and signed download addresses stay out of the checkpoint. This records
-checkout and upload observations from the same job. Later build steps and
-native behavior still require their own evidence.
+Raw logs and signed download addresses stay out of the checkpoint. On a later
+turn, a matched job can retain the ordered CMake/Ninja runtime compile, static
+library, and executable link evidence from a successful step between checkout
+and upload. An unavailable compile log keeps the previously checked steps.
+
+Maintenance projects a provisional original-file binding for the exact port
+definition, source contracts, and package selection evaluated by the observer.
+It uses the native game ID from the configured runtime filename, the reviewed
+hash-header bytes, and the linked executable's name against the port's sole executable hint
+for that platform. A package review also binds the selected runtime layout. The proposal remains held until the packaged executable and its effective
+hash behavior are verified. A checked package receipt joins the selected platform and artifact digest
+to the observed source, runtime, hash dependency and exact build job. For a
+universal package, each selected architecture needs its own review. The
+maintenance projection then prepares a source-contract amendment and immutable
+upstream support evidence. It preserves existing bindings and the enforced
+legacy contract. The first enforced migration requires N64 reader capability
+11; informational exact bindings require capability 10.
+
+Run `node scripts/prepare-n64-original-inputs.mts CHECKPOINT PORT_ID` to
+replay a current observer checkpoint against the authored catalog and emit the
+replacement contract and evidence record. Apply them to the indicated shared
+catalog source through normal catalog review and generation. The output carries
+the previous contract digest and exact executable receipts for review. Native
+acceptance and signed definition delivery continue through their existing owners.
 
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
