@@ -604,6 +604,88 @@ pub(crate) async fn open_provider_mod_project(
     .await
 }
 
+/// Checks the selected port's reviewed community source without contacting it.
+#[tauri::command]
+pub(crate) async fn jakmods_setup_url(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<Option<String>> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        Ok(
+            portcove_core::jakmods_game(service.catalog().port(&port_id)?)
+                .map(|_| portcove_core::JAKMODS_SETUP_URL.to_owned()),
+        )
+    })
+    .await
+}
+
+/// Reads the community catalog only after the player chooses to browse.
+#[tauri::command]
+pub(crate) async fn get_jakmods_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::JakModsCatalog> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .jakmods_catalog(&port_id, portcove_core::Platform::current()?)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// The renderer can select a displayed source link, but cannot supply a new destination.
+#[tauri::command]
+pub(crate) async fn open_jakmods_resource(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    project_id: Option<String>,
+    expected_url: String,
+) -> DesktopResult<()> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let port = service.catalog().port(&port_id)?;
+            if portcove_core::jakmods_game(port).is_none() {
+                return Err(portcove_core::PortcoveError::unsupported(
+                    "JakMods is unavailable for this game",
+                )
+                .into());
+            }
+            let matches = if let Some(id) = project_id {
+                service
+                    .jakmods_catalog(&port_id, portcove_core::Platform::current()?)
+                    .await?
+                    .projects
+                    .iter()
+                    .any(|project| {
+                        project.id == id
+                            && (project.external_url.as_deref() == Some(expected_url.as_str())
+                                || project.website_url.as_deref() == Some(expected_url.as_str()))
+                    })
+            } else {
+                expected_url == portcove_core::JAKMODS_SETUP_URL
+            };
+            if !matches {
+                return Err(portcove_core::PortcoveError::conflict(
+                    "The JakMods link changed. Refresh the catalog before opening it.",
+                )
+                .into());
+            }
+            crate::open_host_target(std::ffi::OsStr::new(&expected_url))
+        },
+    )
+    .await
+}
+
 /// Bounded read-only catalog for one of the port's reviewed sources.
 #[tauri::command]
 pub(crate) async fn get_mod_provider_catalog(
