@@ -2770,6 +2770,7 @@ fn edition_cover_catalog(listings: &[EditionCoverListing<'_>]) -> crate::Catalog
                     title: (*id).into(),
                     system: Some("nintendo-64".into()),
                     evidence_urls: vec!["https://example.invalid/edition".into()],
+                    verified_sources: Vec::new(),
                 })
                 .collect(),
         });
