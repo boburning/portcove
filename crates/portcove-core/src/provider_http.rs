@@ -275,6 +275,22 @@ impl ProviderHttp {
         url: reqwest::Url,
         parse: impl Fn(&Value) -> Result<T>,
     ) -> Result<Observed<T>> {
+        self.observe_bytes(url, PROVIDER_JSON_MAX_BYTES, |body| {
+            let value = serde_json::from_slice(body)
+                .map_err(|error| PortcoveError::network(error.to_string()))?;
+            parse(&value)
+        })
+        .await
+    }
+
+    /// Reuses the same read-only transport, cache, and backoff for a pinned
+    /// non-JSON provider endpoint with its own tighter response bound.
+    pub(crate) async fn observe_bytes<T>(
+        &self,
+        url: reqwest::Url,
+        max_bytes: usize,
+        parse: impl Fn(&[u8]) -> Result<T>,
+    ) -> Result<Observed<T>> {
         let key = url.as_str().to_owned();
         let cached = self
             .library
@@ -282,10 +298,8 @@ impl ProviderHttp {
             .and_then(|library| library.http_cache(&key).ok().flatten());
         let stale = |reason: PortcoveError| -> Result<Observed<T>> {
             let entry = cached.as_ref().ok_or(reason)?;
-            let value: Value = serde_json::from_str(&entry.body)
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
             Ok(Observed {
-                value: parse(&value)?,
+                value: parse(entry.body.as_bytes())?,
                 observed_at: entry.updated_at,
                 freshness: ProviderFreshness::Stale,
             })
@@ -314,9 +328,7 @@ impl ProviderHttp {
             let entry = cached.as_ref().ok_or_else(|| {
                 PortcoveError::state(format!("{} returned 304 without cache", self.label))
             })?;
-            let value: Value = serde_json::from_str(&entry.body)
-                .map_err(|error| PortcoveError::network(error.to_string()))?;
-            let parsed = parse(&value)?;
+            let parsed = parse(entry.body.as_bytes())?;
             if let Some(library) = &self.library {
                 let _ = library.store_http_cache(
                     &key,
@@ -361,11 +373,9 @@ impl ProviderHttp {
             .get(header::LAST_MODIFIED)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
-        let body = bounded_response_bytes(response, PROVIDER_JSON_MAX_BYTES, self.label).await?;
-        let value: Value = serde_json::from_slice(&body)
-            .map_err(|error| PortcoveError::network(error.to_string()))?;
+        let body = bounded_response_bytes(response, max_bytes, self.label).await?;
         // Parse before caching: a malformed success never replaces a good entry.
-        let parsed = parse(&value)?;
+        let parsed = parse(&body)?;
         if let (Some(library), Ok(text)) = (&self.library, std::str::from_utf8(&body)) {
             let _ = library.store_http_cache(&key, etag.as_deref(), modified.as_deref(), text);
         }

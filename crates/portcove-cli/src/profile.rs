@@ -326,6 +326,28 @@ pub(crate) enum ProfileCommand {
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
         platform: Option<String>,
     },
+    /// Browse Quaddicted's single-player Quake content, newest first. Reads only.
+    Quaddicted {
+        /// Catalog port ID with a reviewed Quake engine.
+        port_id: String,
+        /// Search the provider's filenames, case-insensitively.
+        #[arg(long)]
+        search: Option<String>,
+        /// Page number, from 1.
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Read the reviewed Mod DB files channel for Arcane Dimensions.
+    ModDbNotices {
+        /// Catalog port ID with a reviewed Arcane Dimensions source.
+        port_id: String,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse the opt-in JakMods community catalog for an OpenGOAL game.
     Jakmods {
         /// Catalog port ID with reviewed OpenGOAL setup.
@@ -463,6 +485,8 @@ impl ProfileCommand {
             Self::RecipeApply { .. } => "profile.recipe-apply",
             Self::GithubMods { .. } => "profile.github-mods",
             Self::GithubModReview { .. } => "profile.github-mod-review",
+            Self::Quaddicted { .. } => "profile.quaddicted",
+            Self::ModDbNotices { .. } => "profile.mod-db-notices",
             Self::Jakmods { .. } => "profile.jakmods",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
@@ -487,6 +511,8 @@ impl ProfileCommand {
                 | Self::RecipePlan { .. }
                 | Self::GithubMods { .. }
                 | Self::GithubModReview { .. }
+                | Self::Quaddicted { .. }
+                | Self::ModDbNotices { .. }
                 | Self::Jakmods { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
@@ -1011,6 +1037,68 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::Quaddicted {
+            port_id,
+            search,
+            page,
+            platform,
+        } => {
+            let page = page
+                .checked_sub(1)
+                .ok_or_else(|| PortcoveError::usage("Quaddicted page numbers start at 1"))?;
+            let result = service
+                .quaddicted_catalog(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    search.as_deref(),
+                    page,
+                )
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Quaddicted results.".into());
+                }
+                for entry in &report.entries {
+                    rows.push(format!("{} · {}", clean(&entry.title), entry.page_url));
+                }
+                if report.unreadable_rows > 0 {
+                    rows.push(format!(
+                        "{} unreadable rows on this page.",
+                        report.unreadable_rows
+                    ));
+                }
+                if report.may_have_more {
+                    rows.push("Quaddicted may have more results.".into());
+                }
+                rows.push("Check the upstream page for requirements. Use a separate upstream-prepared copy for mods.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
+        ProfileCommand::ModDbNotices { port_id, platform } => {
+            let result = service
+                .moddb_file_notices(&port_id, github_mod_platform(platform)?)
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Mod DB notices.".into());
+                }
+                for notice in &report.notices {
+                    rows.push(format!("{} · {}", clean(&notice.title), notice.page_url));
+                }
+                rows.push("These file notices may include tutorials and patches.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
         ProfileCommand::GithubMods { port_id, platform } => {
             let platform = github_mod_platform(platform)?;
             let catalog = service.github_mod_catalog(&port_id, platform).await?;

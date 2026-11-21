@@ -820,6 +820,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "quaddicted_catalog",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::Observed<portcove_core::QuaddictedPage>,
+                >(contract)),
+            ),
+            (
+                "moddb_file_notices",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::Observed<portcove_core::ModDbFileNotices>,
+                >(contract)),
+            ),
+            (
                 "jakmods_catalog",
                 serde_json::json!(schema_for_contract::<portcove_core::JakModsCatalog>(
                     contract
