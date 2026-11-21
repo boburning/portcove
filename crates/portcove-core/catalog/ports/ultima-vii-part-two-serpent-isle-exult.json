@@ -30,7 +30,7 @@
         },
         {
           "title": "Set up the upstream Linux package",
-          "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle. With the native Ubuntu 26.04 x86-64 Exult distribution, complete upstream setup with the packaged launcher first. Select /usr/lib/games/exult/exult and use a private working folder."
+          "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle. With the native Ubuntu 26.04 x86-64 Exult distribution, complete upstream setup with the packaged launcher first. Select /usr/lib/games/exult/exult and use a private working folder. Enter -c, the absolute path to your prepared configuration, and --si on separate argument lines."
         },
         {
           "title": "Prepare the official Mac app",
