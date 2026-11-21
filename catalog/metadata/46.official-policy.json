@@ -1,0 +1,82 @@
+{
+  "signatures": [
+    {
+      "keyid": "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5",
+      "sig": "6c1515fb726e961b3be5257577ef647aaaca4dbd138de017d69d2a515361464fbc292e38f35b44c4424c005e1bc887e043aca4cdd42dc0eef9481824d8cdf804"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "expires": "2026-11-28T11:10:10.580Z",
+    "spec_version": "1.0.0",
+    "targets": {
+      "policy/official/catalog.listings.json": {
+        "hashes": {
+          "sha256": "d771376104e0bd678b5a0e1c00e2d02428578fc5be99bb772aaa37a88157c75e"
+        },
+        "length": 8388463
+      },
+      "policy/official/chameleon-twist-jp-recompiled.json": {
+        "hashes": {
+          "sha256": "0ce4bbe3bb9d1a82eaeb68771dacb899025d0439a4d080d7af2db9f05bd5dcae"
+        },
+        "length": 787
+      },
+      "policy/official/chameleon-twist-jp-recompiled.launch.json": {
+        "hashes": {
+          "sha256": "90d824054791e791889bfd299592ec6a482a022a58cc34fca1a02dcf417a09c3"
+        },
+        "length": 230
+      },
+      "policy/official/doom-3-classic-dude-doom-3-unified-development-engine.json": {
+        "hashes": {
+          "sha256": "f6757a45545a46e8d62c190ba59622a1624e3ceeafa52fbc876db1319f2086e7"
+        },
+        "length": 811
+      },
+      "policy/official/doom-3-classic-dude-doom-3-unified-development-engine.launch.json": {
+        "hashes": {
+          "sha256": "22ec751f8b257056611e0b204041c5a6b286f80917f23b658e2b3bc893faa364"
+        },
+        "length": 253
+      },
+      "policy/official/doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine.json": {
+        "hashes": {
+          "sha256": "ea1838ae421e86823a0b3a9bdcb1b0b2bd7349b2a3165c3db1ad1f8755f704bd"
+        },
+        "length": 853
+      },
+      "policy/official/doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine.launch.json": {
+        "hashes": {
+          "sha256": "86a587efcee8985518d2483d6ae1d8ea65a80526097661459df97027338564b8"
+        },
+        "length": 274
+      },
+      "policy/official/dungeon-crawl-stone-soup.json": {
+        "hashes": {
+          "sha256": "cc7057172054972860eaa85e631a7b4677f949c0833fa6f56bd5b1ead99f26b0"
+        },
+        "length": 752
+      },
+      "policy/official/dungeon-crawl-stone-soup.launch.json": {
+        "hashes": {
+          "sha256": "1eee22343996b9e77086c86db0b18c8ea8faaeedcc1abcdfdcbb52d13d157938"
+        },
+        "length": 225
+      },
+      "policy/official/zdoom-gzdoom.json": {
+        "hashes": {
+          "sha256": "5b6e15444c8de55b793322b0532fc2d5d9d6b0ce67f9380db5b7902b1c16f02d"
+        },
+        "length": 764
+      },
+      "policy/official/zdoom-gzdoom.launch.json": {
+        "hashes": {
+          "sha256": "f2069fa17b90195b15d46fa7979ae3e84baf5d36b60ee61e6a383b5177eff0ba"
+        },
+        "length": 212
+      }
+    },
+    "version": 46
+  }
+}
