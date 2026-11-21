@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import {
+  RoadmapClient,
   executeSetMany,
   validateConfig,
   executionSnapshot as cliSnapshot,
@@ -19,8 +20,12 @@ import {
 } from "./roadmap.mts";
 import { executionSnapshot } from "./roadmap-execution.mts";
 import { analyzeReleaseReadiness, dependencyCycles } from "./roadmap-readiness.mts";
-import { fieldValue, repositoryStatusConflict } from "./roadmap-issue.mts";
-import { validatePortIssueCoverage, validatePortStageSemantics } from "./roadmap-qualification.mts";
+import { fieldValue, renderPortIssueBody, repositoryStatusConflict } from "./roadmap-issue.mts";
+import {
+  planPortStageMigration,
+  validatePortIssueCoverage,
+  validatePortStageSemantics,
+} from "./roadmap-qualification.mts";
 import { runScopedDoctor, roadmapCheckScope, doctorFailureDiagnostics } from "./roadmap-scoped.mts";
 import { InventoryError, retryableInventoryRead } from "./repository-issue-inventory.mts";
 import {
@@ -132,6 +137,116 @@ void test("scoped doctor uses real direct issue reads and never needs the failin
   assert.equal(result.global_health, "not_evaluated");
   assert.deepEqual(result.scope.checked_issues, [1]);
   assert.equal(f.queries.length, 2);
+  assert.equal(f.mutations(), 0);
+});
+
+void test("legacy doctor rejects overstated stages and reports only catalog-backed migration targets", async () => {
+  const catalogId = "fixture-port";
+  const platform = "windows";
+  const scenarios = [
+    {
+      stored: "Automated qualification",
+      link: true,
+      automated: [],
+      projected: "Cataloged",
+      diagnostic: /no automated evidence for a declared platform/u,
+    },
+    {
+      stored: "Supported",
+      link: true,
+      automated: [platform],
+      projected: "Automated qualification",
+      diagnostic: /no platform with matching automated and hands-on evidence/u,
+    },
+    {
+      stored: "Supported",
+      link: true,
+      automated: [],
+      projected: "Cataloged",
+      diagnostic: /no platform with matching automated and hands-on evidence/u,
+    },
+    {
+      stored: "Supported",
+      link: false,
+      automated: [],
+      projected: null,
+      diagnostic: /must have exactly one valid catalog ID/u,
+    },
+  ] as const;
+  for (const scenario of scenarios) {
+    const f = await fixture();
+    f.values.set("Work type", "Port");
+    f.values.set("Port stage", scenario.stored);
+    f.issue.title = "[Port] Fixture";
+    f.issue.body = renderPortIssueBody({
+      title: "Fixture",
+      upstream: "https://example.test/fixture-port",
+      ...(scenario.link ? { catalogId } : { portKey: catalogId }),
+    });
+    const catalog = {
+      ports: [
+        { id: catalogId, platforms: [platform], automated_tested_platforms: scenario.automated },
+      ],
+    };
+    const projectItem = f.item();
+    const migration = planPortStageMigration(
+      catalog,
+      [{ ...projectItem, fieldValues: projectItem.fieldValues.nodes }],
+      config.repository,
+      [f.issue],
+      new Set(),
+    );
+    const row = migration.rows[0];
+    assert.ok(row);
+    assert.equal(row.current_stage, scenario.stored);
+    assert.equal(row.classification, scenario.link ? "derived_drift" : "unresolved");
+    assert.equal(row.drift_direction, scenario.link ? "overstates_catalog" : undefined);
+    assert.equal(row.unresolved_reason, scenario.link ? null : "no_catalog_marker");
+    assert.deepEqual(
+      row.catalog_evidence,
+      scenario.link
+        ? {
+            catalog_id: catalogId,
+            stage: scenario.projected,
+            automated_platforms: scenario.automated,
+            supported_platforms: [],
+          }
+        : null,
+    );
+    assert.deepEqual(row.proposed_action, {
+      kind: scenario.link ? "review_project_assignment" : "verify_catalog_binding",
+      target_stage: scenario.projected,
+    });
+    await assert.rejects(
+      runScopedDoctor(config, f.client, { issues: [1], catalog }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error && isRecord(error));
+        assert.match(error.message, scenario.diagnostic);
+        assert.ok(Array.isArray(error.doctorErrors));
+        assert.deepEqual(error.derivedStageDrift, scenario.link ? [row] : []);
+        return true;
+      },
+    );
+    assert.equal(f.mutations(), 0);
+  }
+});
+
+void test("migration-specific Project read requires an observed issue closure reason", async () => {
+  const f = await fixture();
+  f.client.itemList = RoadmapClient.prototype.itemList;
+  const options = {
+    details: { id: "PVT" },
+    itemIds: [f.item().id],
+    includeIssueStateReason: true,
+  };
+  await assert.rejects(
+    f.client.itemList(config.project.number, options),
+    /Project issue closure reason is unavailable/u,
+  );
+  Object.assign(f.issue, { state: "CLOSED", stateReason: "COMPLETED" });
+  const [item] = await f.client.itemList(config.project.number, options);
+  assert.equal(item?.content?.stateReason, "COMPLETED");
+  assert.match(f.queries.join("\n"), /url state stateReason/u);
   assert.equal(f.mutations(), 0);
 });
 

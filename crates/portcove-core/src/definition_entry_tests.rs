@@ -2226,11 +2226,19 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
-    value["port"]["persistent_paths"] = json!(["../outside"]);
+    // Keep the fixture's authored settings targets in the persistence contract.
+    value["port"]["persistent_paths"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("../outside"));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
-    assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+    let error = crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).unwrap_err();
+    assert!(
+        error.message.contains("unsafe persistent path: ../outside"),
+        "{error}"
+    );
 }
 
 #[test]

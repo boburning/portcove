@@ -2408,6 +2408,7 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       items: full.items,
       diagnostics: [],
       warnings: [],
+      derivedStageDrift: [],
       inventory: full,
       repositoryIssueInventoryAttempts: undefined,
       projectInventorySource: "discovery-inventory",
