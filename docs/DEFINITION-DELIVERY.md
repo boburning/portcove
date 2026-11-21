@@ -23,6 +23,20 @@ interpret. [Check a client's capabilities](#check-a-clients-capabilities)
 before choosing a definition. The source inventory is
 [`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
+### Qualification for separately reviewed forges
+
+The Core qualification fixture uses the shared release provider interface and
+bounded installer transfer to verify an exact release from a Forgejo or GitLab
+instance. Its test-only scope binds the subject, channel, platform, approved
+instance and independently supplied archive identity. Metadata and asset
+requests have separate destination policies. Archive identities are checked
+before staging can be consumed.
+
+This fixture grants no managed acquisition. A production route still needs a
+named definition selector and independent executable admission for the
+specific provider, repository, release and archive. Existing GitHub and
+GitLab behavior remains in service, and Naev stays upstream-owned.
+
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 

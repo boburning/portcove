@@ -27,17 +27,14 @@ fn fixture(dialect: &str) -> (ReviewedForge, ReviewedForgeArtifact) {
     )
 }
 
-async fn resolve_fixture(
-    route: &ForgeRoute<'_>,
-    mutate: impl FnOnce(&mut Value),
-) -> (Result<()>, Vec<String>) {
-    let gitlab = matches!(route.instance.dialect, ForgeDialect::GitlabV4);
+fn fixtures(dialect: ForgeDialect) -> [Value; 2] {
+    let gitlab = matches!(dialect, ForgeDialect::GitlabV4);
     let repo = if gitlab {
         json!({"id":10, "path_with_namespace":"group/nested/fixture", "web_url":"https://web.forge.test/group/nested/fixture"})
     } else {
         json!({"id":10, "full_name":"group/fixture", "html_url":"https://web.forge.test/group/fixture"})
     };
-    let mut release = if gitlab {
+    let release = if gitlab {
         json!({"tag_name":"stable/reviewed", "assets":{"links":[{
             "id":30, "name":"fixture.zip", "direct_asset_url":"https://web.forge.test/fixture.zip"
         }]}})
@@ -46,6 +43,14 @@ async fn resolve_fixture(
             "id":30, "name":"fixture.zip", "size":PAYLOAD.len(), "browser_download_url":"https://web.forge.test/fixture.zip"
         }]})
     };
+    [repo, release]
+}
+
+async fn resolve_fixture(
+    route: &ForgeRoute<'_>,
+    mutate: impl FnOnce(&mut Value),
+) -> (Result<()>, Vec<String>) {
+    let [repo, mut release] = fixtures(route.instance.dialect);
     mutate(&mut release);
     let mut responses = [repo, release].into_iter();
     let mut urls = Vec::new();
@@ -180,14 +185,166 @@ fn restricted_dns_addresses_fail_closed() {
     }
 }
 
-#[tokio::test]
-async fn qualification_fetch_refuses_an_unreviewed_host_before_http_or_staging() {
+#[test]
+fn qualification_scope_refuses_an_unreviewed_host_before_http() {
     let (instance, mut artifact) = fixture("forgejo-v1");
     artifact.url = "https://unreviewed.test/fixture.zip".into();
-    let scratch = tempfile::tempdir().unwrap();
-    match instance.fetch(&artifact, scratch.path()).await {
-        Ok(file) => panic!("unexpected staged artifact at {}", file.path().display()),
-        Err(error) => assert!(error.message.contains("outside its exact policy")),
+    let port = embedded_fixture_port();
+    let error = ReviewedForgeReleaseProvider::issue_fixture_scope(
+        instance,
+        artifact,
+        &port,
+        port.platforms[0],
+        port.channels[0],
+        None,
+    )
+    .err()
+    .unwrap();
+    assert!(error.message.contains("outside its exact policy"));
+}
+
+fn embedded_fixture_port() -> PortDefinition {
+    crate::Catalog::embedded()
+        .unwrap()
+        .port("naev")
+        .unwrap()
+        .clone()
+}
+
+#[derive(Clone, Copy)]
+enum ArchiveCase {
+    Verified,
+    Changed,
+    ForeignRedirect,
+}
+
+async fn serve_qualification(
+    listener: tokio::net::TcpListener,
+    dialect: ForgeDialect,
+    case: ArchiveCase,
+) -> Vec<String> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let [repo, release] = fixtures(dialect).map(|value| serde_json::to_vec(&value).unwrap());
+    let mut paths = Vec::new();
+    let mut responses = vec![(200, repo, ""), (200, release, "")];
+    let redirect = match case {
+        ArchiveCase::ForeignRedirect => "Location: http://127.0.0.1:1/elsewhere\r\n",
+        _ => "Location: /observed/archive.zip\r\n",
+    };
+    responses.push((302, Vec::new(), redirect));
+    match case {
+        ArchiveCase::Verified => responses.push((200, PAYLOAD.to_vec(), "")),
+        ArchiveCase::Changed => responses.push((200, vec![b'x'; PAYLOAD.len()], "")),
+        ArchiveCase::ForeignRedirect => {}
     }
-    assert_eq!(std::fs::read_dir(scratch.path()).unwrap().count(), 0);
+    for (status, bytes, fields) in responses {
+        let (mut connection, _) = listener.accept().await.unwrap();
+        let mut headers = Vec::new();
+        while !headers.ends_with(b"\r\n\r\n") {
+            assert!(headers.len() < 4096, "fixture request is too large");
+            headers.push(connection.read_u8().await.unwrap());
+        }
+        let request = String::from_utf8(headers).unwrap();
+        let parts: Vec<_> = request.lines().next().unwrap().split_whitespace().collect();
+        assert_eq!(parts[0], "GET");
+        assert!(!request.to_ascii_lowercase().contains("\nauthorization:"));
+        paths.push(parts[1].to_owned());
+        let reason = if status == 200 { "OK" } else { "Found" };
+        let reply = format!(
+            "HTTP/1.1 {status} {reason}\r\nContent-Length: {}\r\nConnection: close\r\n{fields}\r\n",
+            bytes.len()
+        );
+        connection.write_all(reply.as_bytes()).await.unwrap();
+        connection.write_all(&bytes).await.unwrap();
+        connection.shutdown().await.unwrap();
+    }
+    paths
+}
+
+#[tokio::test]
+async fn exact_forge_scope_resolves_downloads_and_verifies_through_shared_paths() {
+    for dialect in ["forgejo-v1", "gitlab-v4"] {
+        for case in [
+            ArchiveCase::Verified,
+            ArchiveCase::Changed,
+            ArchiveCase::ForeignRedirect,
+        ] {
+            let (instance, artifact) = fixture(dialect);
+            let mut port = embedded_fixture_port();
+            port.id = "reviewed-forge-fixture".into();
+            let platform = port.platforms[0];
+            let channel = port.channels[0];
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let origin = format!("http://{}", listener.local_addr().unwrap());
+            let worker = tokio::spawn(tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                serve_qualification(listener, instance.dialect, case),
+            ));
+            let scoped = ReviewedForgeReleaseProvider::issue_fixture_scope(
+                instance,
+                artifact,
+                &port,
+                platform,
+                channel,
+                Some(&origin),
+            )
+            .unwrap();
+            let provider: &dyn ReleaseProvider = &scoped;
+            let mut different = port.clone();
+            different.id = "unreviewed-subject".into();
+            assert!(
+                provider
+                    .resolve_scoped(&different, channel, platform, None)
+                    .await
+                    .is_err()
+            );
+            let resolution = provider
+                .resolve_scoped(&port, channel, platform, None)
+                .await
+                .unwrap();
+            assert_eq!(resolution.release.asset, scoped.accepted_asset());
+            let staging = tempfile::tempdir().unwrap();
+            let result = scoped.acquire(&resolution, &port, staging.path()).await;
+            match case {
+                ArchiveCase::Verified => {
+                    let file = result.unwrap_or_else(|error| panic!("{error:?}"));
+                    assert_eq!(std::fs::read(file.path()).unwrap(), PAYLOAD);
+                    drop(file);
+                }
+                ArchiveCase::Changed => {
+                    assert!(result.err().unwrap().message.contains("digest differs"))
+                }
+                ArchiveCase::ForeignRedirect => assert!(result.is_err()),
+            }
+            assert_eq!(std::fs::read_dir(staging.path()).unwrap().count(), 0);
+            let paths = worker.await.unwrap().unwrap();
+            assert_eq!(paths[2], "/fixture.zip");
+            assert_eq!(
+                paths.get(3).map(String::as_str),
+                if matches!(case, ArchiveCase::ForeignRedirect) {
+                    None
+                } else {
+                    Some("/observed/archive.zip")
+                }
+            );
+            assert!(paths[1].ends_with("/stable%2Freviewed"), "{paths:?}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn normal_provider_keeps_naev_externally_managed() {
+    let port = embedded_fixture_port();
+    let scratch = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(scratch.path()).unwrap();
+    let provider = crate::CompositeReleaseProvider::for_library(&library).unwrap();
+    let result = provider
+        .resolve_scoped(&port, port.channels[0], port.platforms[0], None)
+        .await;
+    assert!(
+        result
+            .unwrap_err()
+            .message
+            .contains("user-prepared runtime")
+    );
 }

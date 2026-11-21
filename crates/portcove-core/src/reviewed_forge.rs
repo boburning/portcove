@@ -9,7 +9,8 @@ use reqwest::{Client, Response, Url, dns, redirect};
 use serde::Deserialize;
 
 use crate::{
-    Installer, OperationCoordinator, PortcoveError, ReleaseAsset, Result,
+    Installer, OperationCoordinator, Platform, PortDefinition, PortcoveError, ReleaseAsset,
+    ReleaseChannel, ReleaseProvider, ResolvedRelease, Result, ScopedResolvedRelease,
     archive::{validate_download_progress, validate_download_size},
     release::{PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, bounded_response_bytes},
 };
@@ -149,21 +150,152 @@ impl ReviewedForge {
             download,
         })
     }
+}
 
-    /// Fetches one reviewed artifact into the caller's private staging directory.
-    /// A temporary file becomes available only after the reviewed hash and size match.
-    async fn fetch(
+enum QualificationTransport {
+    Reviewed,
+    Loopback(Url),
+}
+
+impl QualificationTransport {
+    fn client(&self, asset_hosts: Option<Vec<String>>) -> Result<Client> {
+        match self {
+            Self::Reviewed => request_client(asset_hosts),
+            Self::Loopback(origin) => {
+                let origin = origin.origin();
+                let redirects = asset_hosts.is_some();
+                Client::builder()
+                    .no_proxy()
+                    .timeout(PROVIDER_NETWORK_BOUNDS.request)
+                    .redirect(redirect::Policy::custom(move |attempt| {
+                        if redirects
+                            && attempt.previous().len() <= 4
+                            && attempt.url().origin() == origin
+                        {
+                            attempt.follow()
+                        } else {
+                            attempt.error("qualification request left its loopback origin")
+                        }
+                    }))
+                    .build()
+                    .map_err(|_| {
+                        PortcoveError::network("qualification forge transport unavailable")
+                    })
+            }
+        }
+    }
+
+    fn destination(&self, url: Url) -> Url {
+        match self {
+            Self::Reviewed => url,
+            Self::Loopback(origin) => {
+                let mut mapped = origin.clone();
+                mapped.set_path(url.path());
+                mapped.set_query(url.query());
+                mapped
+            }
+        }
+    }
+}
+
+/// No production scope issuer exists. The fixture is explicitly authorized for
+/// only one exact subject and artifact, independently of returned provider data.
+struct ReviewedForgeReleaseProvider {
+    instance: ReviewedForge,
+    accepted: ReviewedForgeArtifact,
+    subject: serde_json::Value,
+    platform: Platform,
+    channel: ReleaseChannel,
+    transport: QualificationTransport,
+}
+
+impl ReviewedForgeReleaseProvider {
+    fn issue_fixture_scope(
+        instance: ReviewedForge,
+        accepted: ReviewedForgeArtifact,
+        port: &PortDefinition,
+        platform: Platform,
+        channel: ReleaseChannel,
+        fixture_origin: Option<&str>,
+    ) -> Result<Self> {
+        instance.route(&accepted)?;
+        if !port.platforms.contains(&platform) || !port.channels.contains(&channel) {
+            return Err(PortcoveError::verification(
+                "fixture scope is outside the exact subject",
+            ));
+        }
+        let transport = if let Some(origin) = fixture_origin {
+            crate::definition_acquisition::validate_fixture_origin(origin)?;
+            QualificationTransport::Loopback(Url::parse(origin).map_err(|_| invalid_destination())?)
+        } else {
+            QualificationTransport::Reviewed
+        };
+        Ok(Self {
+            instance,
+            accepted,
+            subject: serde_json::to_value(port)?,
+            platform,
+            channel,
+            transport,
+        })
+    }
+
+    fn accepted_asset(&self) -> ReleaseAsset {
+        ReleaseAsset {
+            name: self.accepted.name.clone(),
+            url: self.accepted.url.clone(),
+            size: self.accepted.size,
+            sha256: self.accepted.sha256.clone(),
+        }
+    }
+
+    async fn acquire(
         &self,
-        artifact: &ReviewedForgeArtifact,
+        resolution: &ScopedResolvedRelease,
+        port: &PortDefinition,
         private_staging: &Path,
     ) -> Result<VerifiedForgeDownload> {
-        let route = self.route(artifact)?;
-        let metadata = request_client(None)?;
+        resolution.require_selection(port, self.platform, self.channel)?;
+        if serde_json::to_value(port)? != self.subject
+            || resolution.release.version != self.accepted.tag
+            || resolution.release.asset != self.accepted_asset()
+        {
+            return Err(asset_mismatch());
+        }
+        let route = self.instance.route(&self.accepted)?;
+        let client = self
+            .transport
+            .client(Some(self.instance.asset_hosts.clone()))?;
+        let mut asset = resolution.release.asset.clone();
+        asset.url = self.transport.destination(route.download.clone()).into();
+        route.download(&client, &asset, private_staging).await
+    }
+}
+
+#[async_trait::async_trait]
+impl ReleaseProvider for ReviewedForgeReleaseProvider {
+    async fn resolve(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+    ) -> Result<ResolvedRelease> {
+        if platform != self.platform
+            || channel != self.channel
+            || serde_json::to_value(port)? != self.subject
+        {
+            return Err(PortcoveError::verification(
+                "reviewed forge scope does not match the requested subject",
+            ));
+        }
+        let route = self.instance.route(&self.accepted)?;
+        let metadata = self.transport.client(None)?;
         route
             .resolve(|url| {
                 let metadata = &metadata;
+                let destination = self.transport.destination(url);
                 async move {
-                    let response = request(metadata, url).await?;
+                    let response = request(metadata, destination).await?;
                     if response.status() != reqwest::StatusCode::OK {
                         return Err(PortcoveError::network(
                             "reviewed forge metadata request failed",
@@ -178,8 +310,13 @@ impl ReviewedForge {
                 }
             })
             .await?;
-
-        route.download(private_staging).await
+        Ok(ResolvedRelease {
+            version: self.accepted.tag.clone(),
+            channel,
+            published_at: None,
+            asset: self.accepted_asset(),
+            uploader_continuity: None,
+        })
     }
 }
 
@@ -292,18 +429,16 @@ impl ForgeRoute<'_> {
         Ok(())
     }
 
-    async fn download(&self, private_staging: &Path) -> Result<VerifiedForgeDownload> {
-        let client = request_client(Some(self.instance.asset_hosts.clone()))?;
+    async fn download(
+        &self,
+        client: &Client,
+        asset: &ReleaseAsset,
+        private_staging: &Path,
+    ) -> Result<VerifiedForgeDownload> {
         let directory = tempfile::tempdir_in(private_staging)?;
         let path = directory.path().join("archive");
         let operation = OperationCoordinator::new("reviewed forge qualification", None);
-        let asset = ReleaseAsset {
-            name: self.artifact.name.clone(),
-            url: self.download.as_str().into(),
-            size: self.artifact.size,
-            sha256: self.artifact.sha256.clone(),
-        };
-        Installer::download_with_client(&client, &asset, &path, &operation, &mut |_| {}).await?;
+        Installer::download_with_client(client, asset, &path, &operation, &mut |_| {}).await?;
         let expected_size = self.artifact.size;
         let staged = tokio::task::spawn_blocking(move || {
             let (digest, actual_size) =
