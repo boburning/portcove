@@ -75,15 +75,15 @@ export function GhostshipRecoveryReview({
     load: async () => {
       const result = await desktopApi.planGhostshipLegacyRecovery(backup.id, generation);
       if (
-        backup.port_id !== "ghostship" ||
-        result.backup.port_id !== "ghostship" ||
+        backup.recovery_review !== "legacy_install_and_data_v1" ||
+        result.backup.port_id !== backup.port_id ||
         result.backup.id !== backup.id
       )
         // Thrown text is read by the shared failure presentation, so it is already translated.
         throw new Error(t("ghostship.planMismatch"));
       return result;
     },
-    apply: (reviewed) => apply(reviewed.backup, reviewed.plan_sha256),
+    apply: (reviewed) => apply(backup, reviewed.plan_sha256),
     close,
     failureMessage: t("ghostship.failure"),
   });
