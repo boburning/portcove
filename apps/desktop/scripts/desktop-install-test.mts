@@ -448,12 +448,13 @@ export async function installScenarios({
     const audio = object(scope.files[0]);
     assert.equal(audio.file_id, "audio");
     assert.equal(audio.path, "fixture-settings.json");
+    const libraryPath = path.toNamespacedPath(path.resolve(library));
     const configPaths = [audio.canonical_path, audio.runtime_path].map((candidate) => {
-      assert.equal(typeof candidate, "string");
-      assert.ok(typeof candidate === "string");
-      const relative = path.relative(library, candidate);
+      assert.ok(typeof candidate === "string" && path.isAbsolute(candidate));
+      const configurationPath = path.toNamespacedPath(candidate);
+      const relative = path.relative(libraryPath, configurationPath);
       assert.ok(relative && !path.isAbsolute(relative) && relative.split(path.sep)[0] !== "..");
-      return candidate;
+      return configurationPath;
     });
     assert.notEqual(configPaths[0], configPaths[1]);
     const initial = { master: 40, music: 60, keep: ["unrelated", true] };
