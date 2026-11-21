@@ -25,6 +25,8 @@ const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 #[path = "admitted_zip_source.rs"]
 mod admitted_zip_source;
 
+use crate::launch_paths::{LaunchPath, LaunchPaths};
+
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchSpecRequest<'a> {
     pub library: &'a Library,
@@ -276,7 +278,8 @@ impl Adapter for StandardAdapter {
         let user_data = library.user_dir(&port.id);
         crate::runtime_path_policy::check_user_data_root(port, platform, &user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
-        let user_data_path = crate::path::unicode(&user_data, "user data")?;
+        let launch_paths = LaunchPaths::new(install_root, &user_data, source);
+        let user_data_path = launch_paths.expand(LaunchPath::UserData)?;
         let mut environment = BTreeMap::from([
             ("PORTCOVE_LIBRARY".into(), library_path),
             ("PORTCOVE_PORT_ID".into(), port.id.clone()),
@@ -299,18 +302,17 @@ impl Adapter for StandardAdapter {
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
         }
-        if let Some(source) = source {
-            let source_path = crate::path::unicode(source, "source")?;
+        if source.is_some() {
+            let source_path = launch_paths.expand(LaunchPath::Source)?;
             environment.insert("PORTCOVE_SOURCE".into(), source_path.clone());
             if let Some(variable) = &port.source_environment {
                 environment.insert(variable.clone(), source_path);
             }
         }
         if self.0 == AdapterKind::GeneratedCache {
-            let cache = user_data.join("cache");
             environment.insert(
                 "PORTCOVE_CACHE".into(),
-                crate::path::unicode(&cache, "cache")?,
+                launch_paths.expand(LaunchPath::Cache)?,
             );
         }
         let working_directory =
@@ -336,6 +338,12 @@ impl Adapter for StandardAdapter {
                     variable.clone(),
                     crate::path::unicode(&path, "materialized source")?,
                 );
+            }
+        }
+        let reviewed_launch = port.reviewed_launch_values(platform);
+        if let Some(values) = reviewed_launch {
+            for (name, value) in &values.environment {
+                environment.insert(name.clone(), value.resolve(&launch_paths)?);
             }
         }
         let managed_psx_runtime_config = if self.0 == AdapterKind::PsxRecompManaged {
@@ -395,6 +403,11 @@ impl Adapter for StandardAdapter {
         };
         let mut arguments = if crate::managed_chocolate::applies(port) {
             crate::managed_chocolate::arguments(port, &working_directory, checkpoint)?
+        } else if let Some(values) = reviewed_launch.and_then(|values| values.arguments.as_ref()) {
+            values
+                .iter()
+                .map(|value| value.resolve(&launch_paths))
+                .collect::<Result<Vec<_>>>()?
         } else {
             port.launch_arguments.clone()
         };
@@ -422,7 +435,7 @@ impl Adapter for StandardAdapter {
             recipe.require_runtime_environment()?;
         }
         Ok(LaunchSpec {
-            fixed_arguments_only: port.managed_initialization.is_some()
+            fixed_arguments_only: reviewed_launch.is_some() || port.managed_initialization.is_some()
                 // A portable player's alternate game-folder mode can change where it writes.
                 || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()

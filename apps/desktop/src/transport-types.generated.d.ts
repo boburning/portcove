@@ -473,6 +473,10 @@ export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
  * never curated package authenticity or ownership of the selected files.
  */
 export type ExternalRuntimeTrust = "accepted-package" | "user-selected";
+export type PrereleaseRule = "flag" | "markers" | "never";
+export type LaunchValue = string | LaunchPathValue;
+export type LaunchPath = "install_root" | "user_data" | "source" | "cache";
+export type PackageFormat = "zip" | "tar.gz" | "tar.xz" | "7z";
 /**
  * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
  */
@@ -2447,6 +2451,10 @@ export interface PortDefinition {
    */
   managed_acquisition_hold?: ManagedAcquisitionHold | null;
   managed_initialization?: ManagedInitialization | null;
+  /**
+   * Exact reviewed packages using this existing managed runtime behavior.
+   */
+  managed_runtime_applies_to?: RuntimePolicyArtifact[] | null;
   managed_shared_preferences?: PreparedSharedPreferencesContract | null;
   /**
    * Reviewed engine save identifier used only to bound managed GB save paths.
@@ -2492,6 +2500,7 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  reviewed_launch_contract_v1?: ReviewedLaunchContractV1 | null;
   /**
    * Bounded fingerprint of the reviewed package layout for each platform. A
    * release that still matches the asset selector but extracts to a different
@@ -2675,6 +2684,11 @@ export interface ReviewedHoldArtifact {
   sha256: string;
   version: string;
 }
+export interface RuntimePolicyArtifact {
+  sha256: string;
+  size: number;
+  version: string;
+}
 /**
  * Native mod admission bound to a reviewed upstream runtime and platform.
  */
@@ -2849,7 +2863,7 @@ export interface ReleaseSpec {
     "macos-x86-64"?: CartridgeBuildRecipe;
     "windows-x86-64"?: CartridgeBuildRecipe;
   };
-  provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
+  provider: "github" | "gitlab" | "reviewed-forge" | "direct-manifest" | "user-prepared";
   repository: string;
   reviewed_package_choices_v2?: ReviewedPackageChoicesV2 | null;
   rolling_tag: string | null;
@@ -2959,6 +2973,47 @@ export interface UserPreparedRuntimeSpec {
   trust?: ExternalRuntimeTrust;
   version: string;
   [k: string]: unknown;
+}
+export interface ReviewedLaunchContractV1 {
+  asset_rules?: {
+    "linux-x86-64"?: AssetRules;
+    "macos-aarch64"?: AssetRules;
+    "macos-x86-64"?: AssetRules;
+    "windows-x86-64"?: AssetRules;
+  };
+  launch?: {
+    "linux-x86-64"?: LaunchValues;
+    "macos-aarch64"?: LaunchValues;
+    "macos-x86-64"?: LaunchValues;
+    "windows-x86-64"?: LaunchValues;
+  };
+  package_format?: {
+    "linux-x86-64"?: PackageFormat;
+    "macos-aarch64"?: PackageFormat;
+    "macos-x86-64"?: PackageFormat;
+    "windows-x86-64"?: PackageFormat;
+  };
+}
+export interface AssetRules {
+  exclude?: string[];
+  include?: string[];
+  prerelease?: PrereleaseRule | null;
+  /**
+   * An exact tag or a literal tag prefix ending in a single asterisk.
+   */
+  tag_pattern?: string | null;
+}
+export interface LaunchValues {
+  /**
+   * Replaces the declaration's static argument list before adapter arguments.
+   */
+  arguments?: LaunchValue[] | null;
+  environment?: {
+    [k: string]: LaunchValue;
+  };
+}
+export interface LaunchPathValue {
+  path: LaunchPath;
 }
 /**
  * The parts of an extracted package whose change signals changed runtime
@@ -4368,6 +4423,10 @@ export interface OutputGameUpdatePlan {
    */
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
+  /**
+   * Archive-only review for the same candidate. Acquisition still revalidates it.
+   */
+  archive_only_plan_sha256?: string | null;
   assessment: PortActionAssessment3;
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;

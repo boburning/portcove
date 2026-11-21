@@ -248,6 +248,11 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        if port.release.provider == crate::ReleaseSource::ReviewedForge {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver reviewed alternate forge selectors",
+            ));
+        }
         if port.release.reviewed_package_choices_v2.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver reviewed package choices",

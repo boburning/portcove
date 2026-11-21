@@ -11,17 +11,72 @@ struct ProjectionDocument {
     contract_schema: u32,
     representation: String,
     catalog: Value,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_field"
+    )]
+    reviewed_forge: Option<crate::reviewed_forge::ReviewedForgeSelection>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_field"
+    )]
+    tool_artifacts: Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>,
+}
+
+fn present_field<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
 }
 
 impl ProjectionDocument {
-    fn validated_catalog(&self) -> Result<Catalog> {
+    fn validated_catalog(&self, selected: Option<&str>) -> Result<Catalog> {
         let catalog_json = serde_json::to_string(&self.catalog)?;
         if catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
             return Err(PortcoveError::verification(
                 "projected catalog exceeds its existing byte bound",
             ));
         }
-        let catalog = Catalog::from_json(&catalog_json)?;
+        let catalog =
+            Catalog::from_indexed_document(serde_json::from_str(&catalog_json)?, selected, None)?;
+        if let Some(selection) = &self.reviewed_forge {
+            let [subject] = catalog.ports() else {
+                return Err(PortcoveError::verification(
+                    "reviewed forge selection requires one exact projected subject",
+                ));
+            };
+            selection.validate_subject(subject)?;
+        } else if catalog
+            .ports()
+            .iter()
+            .any(|port| port.release.provider == crate::ReleaseSource::ReviewedForge)
+        {
+            return Err(PortcoveError::verification(
+                "reviewed forge source requires its typed projected selector",
+            ));
+        }
+        if let Some(artifacts) = &self.tool_artifacts {
+            if self.contract_schema != 4
+                || self.reviewed_forge.is_some()
+                || catalog.ports().len() != 1
+                || catalog.ports()[0].adapter != crate::AdapterKind::PsxRecompManaged
+                || artifacts.len() != catalog.ports()[0].platforms.len()
+                || artifacts
+                    .iter()
+                    .any(|artifact| !catalog.ports()[0].platforms.contains(&artifact.platform))
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require a schema-4 managed PS1 subject and its exact platform scope",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        } else if self.contract_schema == 4 {
+            return Err(PortcoveError::verification(
+                "schema-4 catalog projections require PS1 tool artifacts",
+            ));
+        }
         if catalog
             .ports()
             .iter()
@@ -59,14 +114,25 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2 | 3)
+    if !matches!(document.contract_schema, 1 | 2 | 3 | 4)
         || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
             "unsupported definition catalog projection contract",
         ));
     }
-    let catalog = document.validated_catalog()?;
+    let proposed_subject = if document.contract_schema == 3 {
+        document
+            .catalog
+            .get("ports")
+            .and_then(Value::as_array)
+            .filter(|ports| ports.len() == 1)
+            .and_then(|ports| ports[0].get("id"))
+            .and_then(Value::as_str)
+    } else {
+        None
+    };
+    let catalog = document.validated_catalog(proposed_subject)?;
     if catalog.ports().len() != 1 {
         return Err(PortcoveError::usage(
             "definition projection preparation requires exactly one port",
@@ -150,6 +216,14 @@ impl DefinitionSnapshot {
         Ok(self.projection()?.catalog)
     }
 
+    pub(crate) fn selected_psx_tools(
+        &self,
+    ) -> Result<Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>> {
+        self.validate_bounds()?;
+        let document: ProjectionDocument = serde_json::from_str(&self.contract_json)?;
+        Ok(document.tool_artifacts)
+    }
+
     pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
         self.validate_bounds()?;
         let index = DefinitionContentIndex::parse(self.index_json.as_bytes())?;
@@ -175,6 +249,13 @@ pub struct DefinitionCatalogProjection {
 impl DefinitionCatalogProjection {
     pub fn entry(&self) -> &DefinitionEntryInspection {
         &self.entry
+    }
+
+    pub(crate) fn reviewed_forge(
+        &self,
+    ) -> Result<Option<crate::reviewed_forge::ReviewedForgeSelection>> {
+        let document: ProjectionDocument = serde_json::from_slice(self.contract_bytes())?;
+        Ok(document.reviewed_forge)
     }
 
     pub fn contract_target(&self) -> &str {
@@ -257,7 +338,8 @@ impl DefinitionCatalogProjection {
             }
             sources.contracts.extend(contracts);
             sources.qualification.extend(qualification);
-            let mut catalog = Catalog::from_document(document)?;
+            let mut catalog =
+                Catalog::from_indexed_document(document, Some(selected), Some(baseline))?;
             catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
             catalog
         } else {
@@ -409,7 +491,9 @@ impl DefinitionContentIndex {
                 "unsupported definition catalog projection contract",
             ));
         }
-        let mut catalog = document.validated_catalog()?;
+        let mut catalog = document.validated_catalog(
+            (entry.has_named_features() && document.contract_schema == 3).then_some(stable_id),
+        )?;
         let port = catalog.port(stable_id)?;
         if let Some(sibling) = catalog
             .ports()
@@ -422,6 +506,18 @@ impl DefinitionContentIndex {
             .detail("port_id", &sibling.id));
         }
         document.validate_loader_schema(&catalog)?;
+        if let Some(artifacts) = &document.tool_artifacts {
+            if !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxToolchain,
+                "psx-recomp-managed",
+                1,
+            )? {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require the named managed toolchain capability",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        }
         if let Some(sources) = catalog.source_catalog() {
             for contract in sources
                 .contracts

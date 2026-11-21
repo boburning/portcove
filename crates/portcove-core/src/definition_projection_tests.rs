@@ -1649,3 +1649,224 @@ fn multi_track_psx_disc_sets_require_their_reader_capability() {
     assert_eq!(error.code, crate::ErrorCode::Verification);
     assert!(error.message.contains("capability version 4"), "{error:?}");
 }
+
+#[test]
+fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_authority() {
+    let mut document = generic_projection();
+    document["contract_schema"] = json!(3);
+    document["catalog"]["schema_version"] = json!(3);
+    document["catalog"]["ports"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    document["catalog"]["source_catalog"]["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
+    let port = &mut document["catalog"]["ports"][0];
+    port["adapter"] = json!("native-portable");
+    port.as_object_mut().unwrap().remove("source_profile");
+    document["catalog"]["source_catalog"] = json!({
+        "evidence": [], "identities": [], "contracts": [], "validators": []
+    });
+    let port = &mut document["catalog"]["ports"][0];
+    port["project_url"] = json!("https://forge.example/group/fixture");
+    port["release"]["provider"] = json!("reviewed-forge");
+    port["release"]["repository"] = json!("group/fixture");
+    let selector = json!({
+        "platform":"linux-x86-64", "channel":"stable",
+        "instance":{"dialect":"forgejo-v1", "api_root":"https://api.forge.example/api/v1",
+          "web_host":"forge.example","asset_hosts":["forge.example"]},
+        "artifact":{"repository":"group/fixture","repository_id":10,"tag":"v1",
+          "release_id":20,"asset_id":30,"name":"fixture.zip",
+          "url":"https://forge.example/fixture.zip","size":10,"sha256":"a".repeat(64)}
+    });
+    document["reviewed_forge"] = selector.clone();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    assert!(inspect(&selected, &contract).is_err());
+    selected["definition_schema"] = json!(4);
+    selected["required_features"] = json!([]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release.reviewed-forge-v1")
+    );
+    selected["required_features"] = json!(["release.reviewed-forge-v1"]);
+    let proposal = inspect(&selected, &contract).unwrap();
+    assert_eq!(proposal.contract_bytes(), contract.as_slice());
+    assert_eq!(
+        proposal.snapshot().projection().unwrap().contract_bytes(),
+        contract.as_slice(),
+    );
+    let index_hash = "c".repeat(64);
+    let mut policy = json!({
+        "policy_schema": 5,
+        "namespace": proposal.entry().namespace(),
+        "stable_id": proposal.entry().port().id,
+        "policy_revision": 1,
+        "grant_id": "reviewed-forge-v1-fixture",
+        "decision": {
+            "status": "managed_forge_v1",
+            "definition_revision": proposal.entry().revision(),
+            "index_sha256": index_hash,
+            "definition_sha256": crate::signed_catalog::digest(proposal.entry().bytes()),
+            "template": proposal.entry().port().adapter,
+            "selection": selector.clone()
+        }
+    });
+    let inspect_policy = |value: &Value| {
+        crate::definition_repository::publisher_policy::inspect_publication_policy(
+            &serde_json::to_vec(value).unwrap(),
+            &proposal,
+            &index_hash,
+        )
+    };
+    assert!(inspect_policy(&policy).is_ok());
+    for schema in [1, 2, 3, 4, 6] {
+        policy["policy_schema"] = json!(schema);
+        assert!(inspect_policy(&policy).is_err());
+    }
+    policy["policy_schema"] = json!(5);
+    let mut wrong_pin = policy.clone();
+    wrong_pin["decision"]["selection"]["artifact"]["sha256"] = json!("b".repeat(64));
+    assert!(inspect_policy(&wrong_pin).is_err());
+    let mut extra_authority = policy;
+    extra_authority["decision"]["max_redirects"] = json!(1);
+    assert!(inspect_policy(&extra_authority).is_err());
+    for invalid in [json!(null), json!({}), {
+        let mut changed = selector;
+        changed["platform"] = json!("macos-x86-64");
+        changed
+    }] {
+        document["reviewed_forge"] = invalid;
+        let contract = serde_json::to_vec(&document).unwrap();
+        let mut selected = entry(&document, &contract, 0);
+        selected["definition_schema"] = json!(4);
+        selected["required_features"] = json!(["release.reviewed-forge-v1"]);
+        assert!(inspect(&selected, &contract).is_err());
+    }
+}
+
+#[test]
+fn signed_psx_toolchain_proposals_require_independent_acceptance_after_reopening() {
+    use crate::psx_tool_artifacts::{embedded, selected};
+    let baseline = Catalog::embedded().unwrap();
+    let id = "alexbeav-alone-in-the-dark-the-new-nightmare-recomp";
+    let port = baseline.port(id).unwrap();
+    let platform = port.platforms[0];
+    let artifacts: Vec<_> = port
+        .platforms
+        .iter()
+        .map(|&platform| embedded(platform).unwrap().clone())
+        .collect();
+    let mut document = json!({
+        "contract_schema":4,
+        "representation":"catalog_projection",
+        "catalog":crate::test_fixture::indexed_fixture_document_for_port(&baseline, id),
+        "tool_artifacts":artifacts
+    });
+    let bytes = serde_json::to_vec(&document).unwrap();
+    let mut definition = entry(&document, &bytes, 0);
+    definition["required_features"] = json!([
+        "tools.psx-toolchain-v1",
+        "psx.package-preserving-activation-v1",
+        "psx.multi-track-disc-set-v1",
+        "psx.texture-persistence-v1"
+    ]);
+    let projection = inspect(&definition, &bytes).unwrap();
+    let mut catalog = projection.catalog().clone();
+    assert_eq!(
+        selected(&catalog, id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+
+    let historic = crate::test_fixture::admitted_indexed_catalog(&baseline, id);
+    assert_eq!(
+        selected(&historic, id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+    let admit = |projection: &DefinitionCatalogProjection, catalog: &mut Catalog| {
+        let mut admission = historic.definition_selection(id).unwrap().clone();
+        admission.definition_revision = projection.entry().revision();
+        admission.provenance.index_sha256 = projection.snapshot().index_sha256();
+        catalog
+            .retain_definition_selection(std::sync::Arc::new(admission))
+            .unwrap();
+    };
+    admit(&projection, &mut catalog);
+    assert_eq!(
+        selected(&catalog, id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+    let retained = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
+    assert_eq!(
+        selected(&retained.catalog(id).unwrap(), id, platform).unwrap(),
+        *embedded(platform).unwrap()
+    );
+
+    for changed_release in [false, true] {
+        let mut proposal = document.clone();
+        let artifact = &mut proposal["tool_artifacts"][0];
+        artifact["sha256"] = json!("7".repeat(64));
+        if changed_release {
+            artifact["version"] = json!("7.4.1");
+            artifact["url"] = json!(
+                artifact["url"]
+                    .as_str()
+                    .unwrap()
+                    .replace("/v1.0.14/", "/v7.4.1/")
+            );
+            artifact["size"] = json!(artifact["size"].as_u64().unwrap() - 1);
+        }
+        let proposed_bytes = serde_json::to_vec(&proposal).unwrap();
+        let mut proposed_entry = entry(&proposal, &proposed_bytes, 0);
+        proposed_entry["required_features"] = definition["required_features"].clone();
+        let projection = inspect(&proposed_entry, &proposed_bytes).unwrap();
+        let mut catalog = projection.catalog().clone();
+        admit(&projection, &mut catalog);
+        let retained = crate::installed_contract::InstalledContract::capture(&catalog, id).unwrap();
+        for catalog in [catalog, retained.catalog(id).unwrap()] {
+            let refusal = selected(&catalog, id, platform).unwrap_err();
+            assert!(
+                refusal
+                    .message
+                    .contains("independent executable acceptance")
+            );
+        }
+    }
+
+    let mut missing = definition.clone();
+    missing["required_features"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    assert!(
+        inspect(&missing, &bytes)
+            .unwrap_err()
+            .message
+            .contains("tools.psx-toolchain-v1")
+    );
+
+    for (field, value) in [
+        ("url", json!("https://example.org/foreign.zip")),
+        ("name", json!("../tool.zip")),
+        ("sha256", json!("unknown-digest")),
+        ("size", json!(0)),
+        ("python_paths", json!(["bin/unauthorized-python"])),
+    ] {
+        let mut invalid = document.clone();
+        invalid["tool_artifacts"][0][field] = value;
+        let changed = serde_json::to_vec(&invalid).unwrap();
+        let mut indexed = entry(&invalid, &changed, 0);
+        indexed["required_features"] = definition["required_features"].clone();
+        assert!(inspect(&indexed, &changed).is_err(), "{field}");
+    }
+    document["contract_schema"] = json!(3);
+    let legacy = serde_json::to_vec(&document).unwrap();
+    let mut named = entry(&document, &legacy, 0);
+    named["definition_schema"] = json!(4);
+    named["required_features"] = definition["required_features"].clone();
+    assert!(inspect(&named, &legacy).is_err());
+}

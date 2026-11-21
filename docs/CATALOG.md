@@ -74,10 +74,43 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
-Indexed definition entries can carry a separate, bounded advisory object
-in entry schema 4. This metadata is outside the operational port and catalog
-projection. Use [named definition requirements](DEFINITION-DELIVERY.md#named-requirements-for-indexed-entries)
-when preparing an indexed publication for clients with schema-4 support.
+## Package and launch declaration compatibility
+
+Existing asset hints narrow supported package names. Reviewed release-stream
+exclusions separately filter tags for their declared platforms. Exact managed
+pins and package choices retain their own identity and authority checks.
+
+The archive dispatch accepts TAR.XZ and 7z on the player-owned setup route
+through the existing bounded extractors. Managed installation requires separate authority for the format. Existing managed TAR.XZ still requires
+its retained platform declaration. Launch resolution derives the installed
+source, per-game user data and cache paths from the trusted launch request.
+
+The indexed-only `reviewed_launch_contract_v1` declares platform asset
+rules, archive formats and typed launch values. The entry declares
+`runtime.reviewed-package-and-launch-v1` in definition schema 4. A scoped
+catalog projection holds the selected subject, and installation retains the
+exact entry, projection and separately admitted acquisition grant. Legacy
+catalog import and export refuse the declaration.
+
+Asset `include` and `exclude` use literal case-insensitive filename terms.
+`tag_pattern` matches one exact tag or a literal prefix ending in `*`.
+The default and `markers` preserve GitHub's prerelease flag and recognized
+tag markers. `flag` uses the flag alone. `never` excludes both detected kinds
+of prerelease. Package declarations use `zip`, `tar.gz`, `tar.xz` or `7z`.
+The exact suffix and container magic must agree before bounded extraction.
+
+Launch values are literal strings or objects with a `path` of `user_data`,
+`source`, `install_root` or `cache`. Each path occupies one argument or one
+environment value. Source expansion needs the verified launch source.
+Existing path, executable and environment policies still apply.
+
+Reviewed forge qualification models the API dialect, API root, web host and
+exact asset hosts separately from the reviewed repository, release and artifact
+identity. The alternate-forge route is currently exercised by qualification
+fixtures. Naev's Codeberg listing and upstream-owned registration keep their
+existing scope. An indexed `reviewed-forge` selector requires a named definition reader.
+Managed acquisition also requires an exact, independently authenticated
+[schema-5 publisher grant](DEFINITION-DELIVERY.md#qualification-for-separately-reviewed-forges).
 
 ## Descriptive compatibility advisories
 
@@ -1571,6 +1604,23 @@ Metroid stay exact: their reviewed predecessor-archive transitions bind the crea
 materialization step and stays exact. An existing installation keeps the retained
 contract it was installed under, so it accepts a headered dump only after it is next
 installed or updated.
+
+### Managed PS1 toolchain artifacts
+
+The bundled defaults live in `crates/portcove-core/catalog/tool-artifacts.json`.
+An admitted managed PS1 definition may propose one exact pack per
+declared platform through projection schema 4 and the
+`tools.psx-toolchain-v1` required feature. Each row fixes the publisher release,
+ZIP size and SHA-256, Python, CMake and Ninja layout, and the Mac executable
+member identities. Core refuses another repository, unexpected layout,
+duplicate platform, missing platform, or a mismatched archive digest.
+
+Acquisition, download resume, reopening and build require the exact bundled
+tool pack. A proposal that differs from the independently pinned artifact
+fails before acquisition or cache use, including after reopening. Legacy
+definitions and existing preparations keep their cache coordinates and receipt
+format. Player-selected chdman and DolphinTool paths use their existing trust
+checks.
 
 ## Default covers
 
@@ -3689,8 +3739,9 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
-and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
+(as a string) for portable routes with matching GitHub lineage,
+reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,
 reviewed package layout, external SDL profile and qualification explicit.
@@ -4019,21 +4070,26 @@ establish a selected source edition.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
-image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
-bounded authenticated transport. Key art requires a positive `image_type.id/name`
-classification; conceptual art and unknown classifications do not qualify. Source
-image-type IDs are observed rather than hard-coded.
+image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
+the same paced, bounded authenticated transport. Key art and backgrounds share the
+artwork query for the exact game. Key art requires a positive `image_type.id/name`
+classification. A background specifically requires Key Art Without Logo and a
+decoded image at least 3:2. An original-game screenshot identifies its subject in
+the caption. Source image-type IDs are observed rather than hard-coded.
 
 The optional image-type inventory uses IGDB's maximum 500-record page and a
 separate one-record overflow query when the page is full. Overflow, malformed
 responses and provider failures remain unknown; they never establish missing key
 art. Role preparation classifies each image using its expanded `image_type.id/name`
 relationship and does not require a separate inventory request.
-Original identity facts bind `source_edition_id` explicitly; optional
-`hero_media_edition_neutral` records reviewed
-applicability. Image records are bound to the verified game ID before download.
+Original identity facts bind `source_edition_id` explicitly. Optional
+`hero_media_edition_neutral` records reviewed applicability for logo and key art.
+Proposed backgrounds and screenshots retain their exact edition binding.
+Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
-candidate chains and independent role failures. Exact HTTP410 observations sweep
+candidate chains and independent role failures. Preparation may fill a missing
+background and propose one screenshot when a subject has none. It preserves
+reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
 requests do not establish absence or withdrawal. Preparation proposes remote URLs,
 provenance, hashes and provider terms; it grants no admission, signing, publication
@@ -4755,3 +4811,33 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Frozen artifact readers
+
+Core compiles `historical-artifacts.json` into its offline reader. The table binds
+old DKR-R manifests to their frozen catalog, preserves the four historical
+Direct Windows reader exceptions and selects frozen package and cartridge
+interpretations. Each lookup keeps its creating reader's recorded coordinates.
+For example, an early DKR-R manifest may omit its platform, but must match the
+exact release, asset name, size, digest and executable basename. The Direct
+exception uses the version and digest from the retained Windows definition.
+
+Stored retained definitions and their registered manifests take precedence
+where the reader historically used them. Keep the frozen projections at their
+recorded revisions. The compiled table confers no publisher grant, replacement
+ownership, source approval or upstream package eligibility.
+
+Existing reusable managed profiles can select a new package through their
+ordinary reviewed GitHub rules and independent publisher grant. For single-lane
+Windows profiles that need an exact compatibility list, use
+`managed_runtime_applies_to` rows containing `version`, `size` and `sha256`.
+The list applies to the reusable TFE, Chocolate, RaceWave and GB Recompiled
+behaviors. The ordinary resolver checks the selected official package against
+the list before acquisition. Direct and curated lanes keep their existing
+separate bindings.
+
+Publication requires a schema 4 indexed entry declaring
+`runtime.reviewed-compatibility-artifacts-v1`, a schema 3 catalog projection
+and the independent exact publisher admission. Core reopens a prior install
+using its own captured list. Older definitions without the list retain their
+existing rules. Format-1 output cannot carry the list.

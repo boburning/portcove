@@ -80,7 +80,7 @@ impl DefinitionEntryInspection {
 
     pub(crate) fn accepts_projection_schema(&self, schema: u32) -> bool {
         if self.schema_version == 4 {
-            matches!(schema, 1..=3)
+            matches!(schema, 1..=4)
         } else {
             self.schema_version == schema
         }
@@ -88,6 +88,10 @@ impl DefinitionEntryInspection {
 
     pub fn revision(&self) -> u64 {
         self.revision
+    }
+
+    pub(crate) fn has_named_features(&self) -> bool {
+        self.required_features.is_some()
     }
 
     /// Shape-checked data; existing catalog/contract validators still govern its use.
@@ -233,6 +237,15 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        if port.reviewed_launch_contract_v1.is_some() {
+            if required_features.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "reviewed package and launch declarations require definition schema 4",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ReviewedLaunchContract)?;
+            crate::reviewed_launch_contract::validate(&port)?;
+        }
         if port.upstream_active_reviewed && document.definition_schema == 1 {
             return Err(PortcoveError::unsupported(
                 "a reviewed active project requires indexed definition schema 2",
@@ -241,7 +254,27 @@ impl DefinitionContentIndex {
         if port.upstream_active_reviewed {
             require_feature(required_features.as_ref(), Feature::UpstreamActiveReviewed)?;
         }
+        if port.release.provider == crate::ReleaseSource::ReviewedForge {
+            if document.definition_schema != 4 {
+                return Err(PortcoveError::unsupported(
+                    "reviewed forge requires indexed definition schema 4",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ReviewedForge)?;
+        }
         crate::profile_loader::validate(&port)?;
+        if port.managed_runtime_applies_to.is_some() {
+            if required_features.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "reviewed runtime compatibility artifacts require definition schema 4",
+                ));
+            }
+            require_feature(
+                required_features.as_ref(),
+                Feature::ReviewedRuntimeArtifacts,
+            )?;
+            crate::managed_runtime_policy::validate_applies_to(&port)?;
+        }
         if port.mod_loader.is_some() {
             if document.definition_schema < 3 {
                 return Err(PortcoveError::verification(

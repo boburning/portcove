@@ -1164,6 +1164,13 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes remain in force; the retry policy is owned by
 [timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
+On schema drift, the Windows transport and full Linux Rust-quality jobs may
+retain a `transport-schema-drift` diagnostic for seven days. It contains the
+differing canonical JSON from the same Rust exporters and a manifest with
+run, attempt, job, checkout commit, tree, byte counts and SHA-256 digests. The
+diagnostic keeps the original parity failure and does not change generated
+files or supply release evidence.
+
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
 partitions, default profile and archive/remap inputs. It verifies pinned Node and
@@ -3954,6 +3961,15 @@ separate from execution, and times out admission with exit 75. Cancellation is
 130/143. Neither means a completed test. Execution budgets begin after admission;
 outer callers must allow the bounded queue as well as setup and execution.
 
+Each local source-bound checkout scan has a 30-second default budget. Under
+measured filesystem pressure, a local caller can set
+`PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
+120 for one command. The override applies separately to the before-admission
+and after-admission scans. Allow both scans and the existing queue wait in
+the outer command budget. A timeout stops the scan and the payload does not
+start. The existing source identity comparison and reservation limits still
+apply.
+
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
 represent independent supervised descendants or remote-engine work. Coordinate a
@@ -4061,6 +4077,9 @@ default. An unconfigured contributor keeps the existing two-slot defaults and
 ordinary Node contract route; this extension adds no setup requirement to it.
 Linux retains a local proxy lease for native identity, nested ownership and output
 checks; Windows retains external custody until Linux cleanup is proven.
+The Linux adapter checks the privacy of its temporary custody directory before
+requesting Windows capacity. If the temporary filesystem cannot enforce
+owner-only access, use a Linux-backed temporary directory and try again.
 
 The Linux hostBridge configuration identifies the Windows Node executable and
 entry script, Linux Node/probe paths, distribution/user and closureSha256. Stage

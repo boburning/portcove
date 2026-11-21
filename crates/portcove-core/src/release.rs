@@ -1785,6 +1785,16 @@ impl GithubReleaseProvider {
                 "the active acquisition policy does not authorize explicit package selection",
             ));
         }
+        if port.reviewed_launch_contract_v1.is_some() && scope.is_none() {
+            return Err(PortcoveError::unsupported(
+                "named package and launch declarations require independent acquisition authority",
+            ));
+        }
+        if port.managed_runtime_applies_to.is_some() && scope.is_none() {
+            return Err(PortcoveError::unsupported(
+                "reviewed runtime compatibility artifacts require independent acquisition authority",
+            ));
+        }
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -2234,6 +2244,13 @@ impl GithubReleaseProvider {
                 .await?
         };
         let version = release_version(&release.tag_name);
+        crate::managed_runtime_policy::require_applies_to(
+            port,
+            &version,
+            asset.size,
+            &sha256,
+            Some(platform),
+        )?;
         if let Some(hold) = &port.managed_acquisition_hold
             && hold.excludes(&version, &sha256)
         {
@@ -2359,6 +2376,9 @@ fn tag_in_stream(tag: &str, other_stream_prefixes: &[String]) -> bool {
 
 fn github_tag_in_stream(port: &PortDefinition, platform: Platform, tag: &str) -> bool {
     tag_in_stream(tag, port.release.github_stream_exclusions(platform))
+        && port
+            .reviewed_asset_rules(platform)
+            .is_none_or(|rules| rules.tag_matches(tag))
 }
 
 fn native_release_applies_to_platform(
@@ -2449,8 +2469,12 @@ fn select_github_release_index(
         port.release.rolling_tag.as_deref(),
         // Release headers are enough to exclude a reviewed foreign stream.
         // Only in-stream candidates can request or consume asset inventories.
-        |release| github_tag_in_stream(port, platform, &release.tag_name) && selectable(release),
-        is_beta_release,
+        |release| {
+            github_tag_in_stream(port, platform, &release.tag_name)
+                && reviewed_release_eligible(port, platform, release)
+                && selectable(release)
+        },
+        |release| reviewed_is_beta_release(port, platform, release),
         |release| release.tag_name.as_str(),
     )?;
     releases
@@ -2813,6 +2837,32 @@ pub(crate) fn native_appimage(
         .then_some(NativeAppImage::Exact(asset))
 }
 
+// Apply reviewed tokens before the normal suitability scoring. Legacy hints
+// supply inclusion terms only and still use the historical platform checks.
+fn asset_matches_terms(name: &str, include: &[String], exclude: &[String]) -> bool {
+    include
+        .iter()
+        .all(|term| name.contains(&term.to_ascii_lowercase()))
+        && !exclude
+            .iter()
+            .any(|term| name.contains(&term.to_ascii_lowercase()))
+}
+
+#[cfg(test)]
+#[test]
+fn reviewed_asset_terms_narrow_an_unseen_archive_family() {
+    let include = ["windows".to_owned(), "portable".to_owned()];
+    let exclude = ["Debug".to_owned()];
+    for (name, selected) in [
+        ("new-player-windows-portable.zip", true),
+        ("new-player-windows-portable-debug.zip", false),
+        ("new-player-linux-portable.zip", false),
+        ("new-player-windows-installer.exe", false),
+    ] {
+        assert_eq!(asset_matches_terms(name, &include, &exclude), selected);
+    }
+}
+
 fn choose_asset<'a>(
     port: &PortDefinition,
     platform: Platform,
@@ -2851,6 +2901,8 @@ fn choose_asset_for_variant<'a>(
         }
     }
     let requires_tar_xz = port.release.requires_tar_xz(platform);
+    let format = port.reviewed_package_format(platform);
+    let rules = port.reviewed_asset_rules(platform);
     let standalone = native_appimage(port, platform);
     let hints = if let Some((variant, _)) = explicit {
         // The named, checked family replaces the default package preference;
@@ -2870,6 +2922,11 @@ fn choose_asset_for_variant<'a>(
                 return None;
             }
             let name = asset.name.to_ascii_lowercase();
+            if rules
+                .is_some_and(|rules| !asset_matches_terms(&name, &rules.include, &rules.exclude))
+            {
+                return None;
+            }
             if !crate::native_external_profile::openmohaa::matches_asset(port, platform, &name)
                 || !crate::native_external_profile::openjk::matches_asset(
                     port,
@@ -2893,7 +2950,9 @@ fn choose_asset_for_variant<'a>(
             {
                 return None;
             }
-            let supported_package = if let Some(expected) = &standalone {
+            let supported_package = if let Some(format) = format {
+                format.matches(&name)
+            } else if let Some(expected) = &standalone {
                 expected.matches(&name)
             } else if requires_tar_xz {
                 name.ends_with(".tar.xz")
@@ -2903,7 +2962,8 @@ fn choose_asset_for_variant<'a>(
             if is_checksum_name(&name) || is_auxiliary_package(&name) || !supported_package {
                 return None;
             }
-            let can_extract = requires_tar_xz
+            let can_extract = format.is_some()
+                || requires_tar_xz
                 || [".zip", ".tar.gz", ".tgz"]
                     .iter()
                     .any(|extension| name.ends_with(extension));
@@ -2922,10 +2982,7 @@ fn choose_asset_for_variant<'a>(
                 // Reusable portable rules and the download recommendation share
                 // native suitability. A selected variant cannot become optional
                 // when a successor publishes only another package class.
-                if !hints
-                    .iter()
-                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
-                {
+                if !asset_matches_terms(&name, &hints, &[]) {
                     return None;
                 }
                 let (_, _, score) = crate::service::package_selection::assess_package_name(
@@ -2941,9 +2998,7 @@ fn choose_asset_for_variant<'a>(
             }
             if (port.adapter == AdapterKind::PsxRecompManaged
                 || port.release.tar_xz_platforms.contains(&platform))
-                && !hints
-                    .iter()
-                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+                && !asset_matches_terms(&name, &hints, &[])
             {
                 // Preparation-kit and declared TAR.XZ package choices stay mandatory.
                 // PSX kits retain their own supported archive contract; source
@@ -3114,6 +3169,33 @@ fn is_auxiliary_package(name: &str) -> bool {
         || name.ends_with("-pdb.zip")
         || crate::service::package_selection::is_server_package(&name)
         || crate::service::package_selection::is_license_compliance_archive(&name)
+}
+
+fn reviewed_release_eligible(
+    port: &PortDefinition,
+    platform: Platform,
+    release: &GithubRelease,
+) -> bool {
+    !matches!(
+        port.reviewed_asset_rules(platform)
+            .and_then(|rules| rules.prerelease),
+        Some(crate::PrereleaseRule::Never)
+    ) || !is_beta_release(release)
+}
+
+fn reviewed_is_beta_release(
+    port: &PortDefinition,
+    platform: Platform,
+    release: &GithubRelease,
+) -> bool {
+    match port
+        .reviewed_asset_rules(platform)
+        .and_then(|rules| rules.prerelease)
+    {
+        Some(crate::PrereleaseRule::Flag) => release.prerelease,
+        Some(crate::PrereleaseRule::Never) => false,
+        _ => is_beta_release(release),
+    }
 }
 
 fn is_beta_release(release: &GithubRelease) -> bool {

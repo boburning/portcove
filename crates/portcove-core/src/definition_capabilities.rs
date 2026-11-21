@@ -39,6 +39,8 @@ macro_rules! definition_features {
 }
 
 definition_features! {
+    ReviewedLaunchContract => "runtime.reviewed-package-and-launch-v1", "port.reviewed_launch_contract_v1";
+    ReviewedForge => "release.reviewed-forge-v1", "projection.reviewed_forge";
     ModLoader => "mods.native-loader-binding-v1", "port.mod_loader";
     ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
     ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";
@@ -71,6 +73,7 @@ definition_features! {
     PsxRetainedScope => "psx.texture-persistence-v1", "port persistence requires texture-pack retained scope";
     UserSelectedRuntime => "staged.user-selected-runtime-v1", "port.release.user_prepared.*.trust";
     ProviderResolution => "staged.provider-resolution-v1", "port runtime policy requires provider resolution";
+    ReviewedRuntimeArtifacts => "runtime.reviewed-compatibility-artifacts-v1", "port.managed_runtime_applies_to";
     ReusableRuntimePolicy => "staged.reusable-runtime-policy-v1", "port.managed_initialization / port.runtime_data_policy / port.managed_shared_preferences";
     SharedPreferences => "staged.shared-preferences-v1", "port.managed_shared_preferences";
     RuntimeData => "staged.runtime-data-policy-v1", "port.runtime_data_policy";
@@ -88,6 +91,7 @@ definition_features! {
     PreparedRuntimeSubdirectory => "staged.runtime-subdirectory-v1", "port.runtime_subdirectory";
     OriginalRecognition => "source.optional-original-recognition-v1", "catalog.source_catalog.contracts.*.variant_list_recognition_only";
     N64ReleaseInputs => "n64.release-inputs-v1", "catalog.source_catalog.contracts.*.n64_recomp_inputs_v1";
+    PsxToolchain => "tools.psx-toolchain-v1", "catalog projection.tool_artifacts";
     PsxMultiTrack => "psx.multi-track-disc-set-v1", "catalog.source_catalog PSX multi-track profiles";
     SnesCopierHeader => "source.snes-copier-header-v1", "catalog.source_catalog SNES copier-header profiles";
     UpstreamActiveReviewed => "catalog.upstream-active-review-v1", "port.upstream_active_reviewed";

@@ -55,6 +55,32 @@ schema 4 only after the intended clients have received the reader and the
 #246 publication route has qualified it. The normal inspection path can
 check a proposed bundle before that rollout.
 
+### Qualification for separately reviewed forges
+
+The `reviewed-forge` release source requires an indexed entry with schema 4
+and `release.reviewed-forge-v1`. Its projection carries one typed
+`reviewed_forge` selector for the exact subject, stable channel and platform.
+It binds the API dialect and root, public web host, asset host allowlist, and
+the immutable repository, release and archive identity. Historical readers
+refuse the new source. Forge selectors are outside the advisory envelope.
+
+A separate schema-5 publisher policy decision, `managed_forge_v1`, must use
+a `reviewed-forge-v1-*` grant ID and repeat the complete reviewed selector in
+`selection`. The installed publisher role must authenticate it against the
+exact definition and index hashes. Version 1 accepts one stable native portable
+archive on one platform. The API and archive requests use reviewed public HTTPS
+origins, with no proxy, credentials or redirects. The installer verifies the
+signed archive size and SHA-256 using the normal transfer and staging path.
+A different release, host or archive needs a new independently reviewed
+decision. A schema-5 revocation uses the same grant family.
+
+Deploy compatible readers before publishing any schema-5 policy. Existing
+GitHub and GitLab selection keeps its authority and transport. The forge grant
+cannot replace an existing publisher scope or authorize curated acquisitions.
+No production grants are included, and Naev remains upstream-owned. The
+qualification fixture covers both dialects and separately verifies provider
+identity, bounded transfer and refusal of changed bytes or a foreign redirect.
+
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 
@@ -1792,6 +1818,51 @@ bundle and candidate before it returns a new local `request.json` and `bundle/`
 directory. Its receipt records the exact inputs and output digests with authority
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
+
+### Prepare a literal launch declaration transition
+
+Use the exact current authenticated bundle as `PRIOR`. The candidate changes
+only the representation of an existing nonempty launch argument list. Asset
+hints, archive layout, runtime executable, data roots and provider scope
+remain the same. Run the following from the repository with a validated
+capable Core CLI and an existing private output directory.
+
+```sh
+node scripts/catalog-literal-launch-publication.mts draft --prior "$PRIOR" --port "$PORT" > "$OUT/draft.json"
+"$CORE_CLI" --json catalog canonical-definition-projection "$OUT/draft.json" |
+  jq -jr 'if .ok then .data else error(.error.message) end' > "$OUT/typed.json"
+node scripts/catalog-literal-launch-publication.mts bind --prior "$PRIOR" --port "$PORT"   --projection "$OUT/typed.json" --feature native.package-layouts-v1 --output-parent "$OUT"
+```
+
+For the Resurrection of Evil DUDE entry, also repeat `--feature` for
+`native.external-profile-policy-v1` and `runtime.windows-path-policy-v1`.
+Dungeon Crawl Stone Soup requires only the package layout feature alongside
+the new named feature, which the authoring command adds. Recheck the published
+index and its selected definition before using these feature lists.
+
+The generated request and bundle are keyless review inputs. For normal
+`catalog-prepare-publication.mts prepare`, extract the proposed `catalog` from
+the typed projection for `--catalog`, and use the same projection with an
+empty `catalog.ports` array for `--projection-template`. Supply the generated
+directory as `--reviewed` only after independent review of all bindings. The
+existing Core inspector and protected workflow own qualification and signing.
+Release and verify the capable reader before this publication step.
+
+Reopen both affected platforms and the retained old installation on the
+same released capable binary. Check the previous released reader with the old
+bundle, the staged successor and the forward rollback. A refused successor is
+expected on the older reader. A rollback must publish a newer index/entry and
+rebound policy with the original projection bytes, rather than replaying a
+lower revision. Once a transition has been published, take a new authenticated
+bundle as `CURRENT`, then prepare its rollback with:
+
+```sh
+node scripts/catalog-literal-launch-publication.mts rollback --prior "$CURRENT"   --baseline "$PRIOR" --port "$PORT" --output-parent "$OUT"
+```
+
+Run the same independent review and protected publication procedure for the
+rollback candidate. Keep the baseline and rollback receipts available to the
+unchanged-client evidence for [#246](https://github.com/boburning/portcove/issues/246).
 
 ### Stage an observed N64 original-input amendment
 

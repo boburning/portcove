@@ -24,10 +24,18 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const target = (bytes: Buffer) => `sha256/${hash(bytes)}.json`;
 const json = (value: unknown) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
-function heldProjection() {
-  const catalog = readFileSync(
+function heldProjection(named = false) {
+  const authored = readFileSync(
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
+  const catalog = named
+    ? json({
+        ports: [{
+          id: heldId,
+          reviewed_launch_contract_v1: { package_format: { "windows-x86-64": "tar.xz" } },
+        }],
+      })
+    : authored;
   const template = json({
     contract_schema: 3,
     representation: "catalog_projection",
@@ -40,16 +48,17 @@ function heldProjection() {
   };
 }
 
-async function fixture() {
+async function fixture(named = false) {
   const prior = await readCatalogPublicationBundle(bundle, performance.now() + 5000);
   const retained = [...prior.keys()].filter((name) => name.startsWith("sha256/"));
   assert.equal(retained.length, 2);
-  const { catalog, template, projection } = heldProjection();
+  const { catalog, template, projection } = heldProjection(named);
   const projectionTarget = target(projection);
   // This held fixture exercises assembly only. It supplies no reviewed Shipwright
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
-    definition_schema: 3,
+    definition_schema: named ? 4 : 3,
+    ...(named ? { required_features: ["runtime.reviewed-package-and-launch-v1"] } : {}),
     namespace: "official",
     stable_id: heldId,
     revision: 1,
@@ -232,5 +241,86 @@ void test("index additions refuse stale policy or launch inputs and revoked Cham
         }),
       ),
     /grant changes retained scope/u,
+  );
+});
+
+
+void test("named package authoring binds schema 4 entry to the exact schema 3 leaf", async () => {
+  const f = await fixture(true);
+  const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
+  assert.ok(prepared);
+  const oldTemplate = JSON.parse(f.template.toString()) as { contract_schema: number };
+  oldTemplate.contract_schema = 2;
+  assert.throws(
+    () => generatedPublicationProjection(f.catalog, heldId, json(oldTemplate)),
+    /named package and launch declarations require catalog projection schema 3/u,
+  );
+});
+
+void test("an exact compatibility artifact list requires the named indexed writer", async () => {
+  const f = await fixture();
+  const catalog = JSON.parse(f.catalog.toString()) as {
+    ports: { id: string; managed_runtime_applies_to?: unknown }[];
+  };
+  const port = catalog.ports.find(({ id }) => id === heldId);
+  assert.ok(port);
+  port.managed_runtime_applies_to = [{ version: "v2", size: 31, sha256: "ee".repeat(32) }];
+  const oldProjection = json({
+    ...JSON.parse(f.template.toString()),
+    contract_schema: 2,
+  });
+  assert.throws(
+    () => generatedPublicationProjection(json(catalog), heldId, oldProjection),
+    /require catalog projection schema 3/u,
+  );
+  const namedProjection = generatedPublicationProjection(json(catalog), heldId, f.template);
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, namedProjection),
+    /require schema 4 and the named reader/u,
+  );
+});
+
+void test("an inert alternate forge proposal refuses production assembly at the grant boundary", async () => {
+  const f = await fixture();
+  const projection = json({
+    ...JSON.parse(f.projection.toString()),
+    reviewed_forge: { instance: { dialect: "forgejo-v1" } },
+  });
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
+    /reviewed alternate forge publication requires an independent executable acquisition grant/u,
+  );
+});
+
+void test("schema-4 PS1 tool generation accepts only the compiled exact pack for each lane", async () => {
+  const id = "fixture-psx";
+  const artifacts = JSON.parse(readFileSync(
+    new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url),
+    "utf8",
+  )) as { platform: string; sha256: string }[];
+  const tool = artifacts[0]!;
+  const catalog = json({ ports: [{ id, adapter: "psx-recomp-managed", platforms: [tool.platform] }] });
+  const template = {
+    contract_schema: 4,
+    representation: "catalog_projection",
+    catalog: { schema_version: 3, source_catalog: {}, ports: [] },
+    tool_artifacts: [tool],
+  };
+  const projection = generatedPublicationProjection(catalog, id, json(template));
+  assert.deepEqual(JSON.parse(projection.toString()).tool_artifacts, [tool]);
+  assert.throws(
+    () => generatedPublicationProjection(catalog, id, json({
+      ...template, tool_artifacts: [{ ...tool, sha256: "c".repeat(64) }],
+    })),
+    /differs from the independently accepted executable pack/u,
+  );
+  assert.throws(
+    () => generatedPublicationProjection(catalog, id, json({ ...template, tool_artifacts: [] })),
+    /requires a complete schema-4 managed platform scope/u,
+  );
+  const f = await fixture();
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
+    /requires the named schema-4 reader/u,
   );
 });

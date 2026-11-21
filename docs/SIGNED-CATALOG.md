@@ -86,7 +86,7 @@ portcove --library <isolated-review-library> --json doctor
 
 Production users verify the public key/fingerprint through a trusted independent channel before granting trust. Key rotation requires explicitly adding the replacement key and later revoking the old one. Sequences continue increasing across keys; rotation does not reset replay protection. No production custody or infrastructure decision is implied by these examples.
 
-The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations.
+The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations. Desktop keeps the selected source when the trust prompt is cancelled or accepted. Review that source again after a trust change. Each verification replaces the previous review, and applying a verified catalog requires a separate action.
 
 ## Publication and recovery
 
@@ -153,6 +153,20 @@ are fixed historical schema values.
 
 See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
 for the release prerequisite and the supported player path.
+
+### Indexed PS1 toolchain delivery
+
+An operational `tool_artifacts` list belongs to a single managed PS1 subject
+in catalog projection schema 4. The indexed entry must be definition schema 4
+and require `tools.psx-toolchain-v1`. The authenticated content hash binds the
+complete artifact inventory, including the exact allowed publisher URL, size,
+SHA-256 and platform layout. Inspection can retain a proposal. Runtime
+acquisition requires the independently pinned bundled identity, including
+when a signed definition contains the proposal. The current independent
+managed acquisition policy accepts the game subject's release asset and has
+no tool-pack admission. Legacy catalog updates cannot appoint tool artifacts.
+The primary publisher continues to produce its existing formats until a
+capable released reader qualifies.
 
 ## Capacity diagnostics and retained representations
 
