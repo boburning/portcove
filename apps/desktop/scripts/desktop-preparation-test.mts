@@ -31,6 +31,7 @@ export interface PreparationContext {
   artifacts: string[];
   cli: string;
   tool: string;
+  libraryRecoveryBundleFixture?: LibraryRecoveryBundleFixture;
   /** Owned install-fixture catalog when the update review serves its own release. */
   catalogPath?: string;
   confirmNative: ReturnType<typeof nativeConfirmation>;
@@ -102,6 +103,7 @@ function launchContinuityPoint(element: Element) {
 function rethrowFailure(error: unknown): never {
   throw error;
 }
+import type { LibraryRecoveryBundleFixture } from "./desktop-library-handoff-test.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
@@ -1273,6 +1275,7 @@ export async function preparationScenarios({
   closeApplication,
   captureLivePreparation,
   chooseOwnedLibrary,
+  libraryRecoveryBundleFixture,
 }: PreparationContext) {
   const invoke = async (name: string, args?: Record<string, unknown>) =>
     object(await invokeRaw(name, args));
@@ -4756,7 +4759,7 @@ export async function preparationScenarios({
     output,
     artifacts,
     command,
-    tool,
+    fixture: libraryRecoveryBundleFixture,
     chooseOwnedLibrary,
     restartApplication: async (name, prepareWhileStopped) => {
       browser = await restartApplication(name, prepareWhileStopped);
