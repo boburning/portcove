@@ -9,7 +9,7 @@ fn target(bytes: &[u8]) -> String {
 fn projection() -> Value {
     let catalog = crate::test_fixture::indexed_fixture_document(&Catalog::embedded().unwrap());
     json!({
-        "contract_schema": 1, "representation": "catalog_projection",
+        "contract_schema": 3, "representation": "catalog_projection",
         "catalog": catalog
     })
 }
@@ -858,7 +858,7 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
         1
     };
     json!({
-        "definition_schema": 1, "namespace": "official", "stable_id": port["id"],
+        "definition_schema": document["contract_schema"], "namespace": "official", "stable_id": port["id"],
         "revision": 1, "port": port,
         "required_capabilities": crate::test_fixture::definition_requirements(&typed, version),
         "source_contracts": [reference], "execution_contract": reference,

@@ -179,7 +179,7 @@ impl DefinitionContentIndex {
             ));
         }
         crate::profile_loader::validate(&port)?;
-        if port.mod_loader.is_some() != (document.definition_schema == 3) {
+        if port.mod_loader.is_some() && document.definition_schema != 3 {
             return Err(PortcoveError::verification(
                 "native mod loader bindings require indexed definition schema 3",
             ));

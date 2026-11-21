@@ -62,7 +62,7 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
             "definition projection preparation requires exactly one port",
         ));
     }
-    if catalog.ports()[0].mod_loader.is_some() != (document.contract_schema == 3) {
+    if catalog.ports()[0].mod_loader.is_some() && document.contract_schema != 3 {
         return Err(PortcoveError::verification(
             "native mod loader bindings require catalog projection schema 3",
         ));
