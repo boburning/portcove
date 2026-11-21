@@ -205,41 +205,40 @@ export function projectArtworkHealth(
   const selected = artworkHealthWindow(inventory, at);
   if (report.images.length !== selected.ids.length)
     throw new Error("Cover health report did not account for the selected window");
+  const images = (report.images as unknown[]).map((row, index) => {
+    if (!isRecord(row) || typeof row.image_id !== "string" || row.image_id !== selected.ids[index])
+      throw new Error("Cover health report differs from the committed image window");
+    const { image_id: imageId, status } = row;
+    if (status !== "read" && status !== "gone" && status !== "unavailable" && status !== "deferred")
+      throw new Error("Cover health report has an invalid image status");
+    const content = status === "read" ? payloadOf(row.content) : null;
+    if ((status === "read" && !content) || (status !== "read" && Object.hasOwn(row, "content")))
+      throw new Error("Cover health result has invalid Core content evidence");
+    return { imageId, status, content };
+  });
+  const validatedBytes = images.reduce((sum, { content }) => sum + (content?.bytes ?? 0), 0);
+  if (validatedBytes > maxImageBytes)
+    throw new Error("Cover health report exceeds the validated image byte budget");
+
   const facts = new Map<string, unknown>();
   const gaps: { subject_key: string; code: string; message: string }[] = [];
   const counts = { unchanged: 0, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 };
-  const ids = new Set<string>();
-  for (const [index, row] of (report.images as unknown[]).entries()) {
-    if (
-      !isRecord(row) ||
-      row.image_id !== selected.ids[index] ||
-      typeof row.image_id !== "string" ||
-      ids.has(row.image_id) ||
-      !["read", "gone", "unavailable", "deferred"].includes(String(row.status))
-    )
-      throw new Error("Cover health report differs from the committed image window");
-    ids.add(row.image_id);
-    const content = row.status === "read" ? payloadOf(row.content) : null;
-    if (
-      (row.status === "read" && !content) ||
-      (row.status !== "read" && Object.hasOwn(row, "content"))
-    )
-      throw new Error("Cover health result has invalid Core content evidence");
-    for (const { id, artwork } of inventory.images.get(row.image_id) ?? []) {
+  for (const { imageId, status, content } of images) {
+    for (const { id, artwork } of inventory.images.get(imageId) ?? []) {
       const key = "port:" + id + "@" + artwork.image_id;
-      if (row.status === "unavailable" || row.status === "deferred") {
-        counts[row.status]++;
-        gaps.push({ subject_key: key, code: row.status, message: "No admitted image observation" });
+      if (status === "unavailable" || status === "deferred") {
+        counts[status]++;
+        gaps.push({ subject_key: key, code: status, message: "No admitted image observation" });
         continue;
       }
-      const status =
-        row.status === "gone"
+      const outcome =
+        status === "gone"
           ? "gone"
           : content?.sha256 === artwork.image_sha256
             ? "unchanged"
             : "mismatch";
-      counts[status]++;
-      facts.set(key, { id, artwork, status, content, observed_at: report.observed_at });
+      counts[outcome]++;
+      facts.set(key, { id, artwork, status: outcome, content, observed_at: report.observed_at });
     }
   }
   const expected = [...inventory.images.values()].reduce((sum, entries) => sum + entries.length, 0);

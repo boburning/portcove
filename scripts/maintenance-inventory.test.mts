@@ -4796,6 +4796,42 @@ void test("scheduled artwork health binds exact current references and keeps una
     projectArtworkHealth({ ...receipt, images: receipt.images.slice(0, 2) }, context),
   );
 
+  for (const status of [["gone"], { status: "deferred" }, 0, null, "unknown"]) {
+    const images = [{ ...receipt.images[0], status }, ...receipt.images.slice(1)];
+    assert.throws(
+      () => projectArtworkHealth({ ...receipt, images }, context),
+      /invalid image status/u,
+    );
+  }
+
+  const budgetIds = ["covera", "coverb", "coverc", "coverd", "covere"];
+  const budgetInventory = artworkHealthInventory({
+    listings: [
+      ...budgetIds.map((id) => ({ id, artwork: artwork(id, approved) })),
+      { id: "shared-cover", artwork: artwork("covera", approved) },
+    ],
+  });
+  const budgetContext = { ...context, inventory: budgetInventory };
+  const decodedImage = { sha256: approved, bytes: 16 * 1024 * 1024, width: 264, height: 352 };
+  const boundaryImages = [
+    ...budgetIds
+      .slice(0, 4)
+      .map((image_id) => ({ image_id, status: "read", content: decodedImage })),
+    { image_id: "covere", status: "deferred" },
+  ];
+  assert.equal(
+    projectArtworkHealth({ ...receipt, images: boundaryImages }, budgetContext).counts.unchanged,
+    5,
+  );
+  const overBudgetImages = [
+    ...boundaryImages.slice(0, 4),
+    { image_id: "covere", status: "read", content: { ...decodedImage, bytes: 1 } },
+  ];
+  assert.throws(
+    () => projectArtworkHealth({ ...receipt, images: overBudgetImages }, budgetContext),
+    /exceeds the validated image byte budget/u,
+  );
+
   const sql = collectionSql({
     mode: "all",
     revision,
@@ -4931,6 +4967,23 @@ void test(
         ["port:first@first", createHash("sha256").update(canonicalJson(earlier)).digest("hex")],
       ]),
     );
+    const restored = {
+      ...later,
+      status: "unchanged",
+      content: { sha256: later.artwork.image_sha256, bytes: 10, width: 264, height: 352 },
+    };
+    insert(
+      {
+        revision: "scheduled-artwork-health:3-1",
+        complete: false,
+        expected: 2,
+        gaps: [],
+        facts: new Map([["port:second@second", restored]]),
+      },
+      new Map([
+        ["port:second@second", createHash("sha256").update(canonicalJson(later)).digest("hex")],
+      ]),
+    );
     const rows = runSql(
       store.owner,
       `
@@ -4938,11 +4991,27 @@ void test(
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r USING (run_id)
       WHERE r.source = 'cover-artwork-health'
-      ORDER BY subject_key;
+      ORDER BY subject_key, observation_id;
     `,
     )
       .trim()
       .split("\n");
-    assert.deepEqual(rows, ["port:first@first:unchanged", "port:second@second:gone"]);
+    assert.deepEqual(rows, [
+      "port:first@first:unchanged",
+      "port:second@second:gone",
+      "port:second@second:unchanged",
+    ]);
+    const latest = runSql(
+      store.owner,
+      `SELECT m.subject_key || ':' || m.content_sha256
+        FROM portcove_maintenance.run_members(
+          portcove_maintenance.latest_run('cover-artwork-health')
+        ) m
+        ORDER BY m.subject_key;`,
+    ).trim();
+    assert.deepEqual(latest.split("\n"), [
+      "port:first@first:" + createHash("sha256").update(canonicalJson(earlier)).digest("hex"),
+      "port:second@second:" + createHash("sha256").update(canonicalJson(restored)).digest("hex"),
+    ]);
   },
 );
