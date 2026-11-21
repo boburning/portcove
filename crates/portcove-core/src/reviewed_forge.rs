@@ -14,11 +14,11 @@ use crate::{
     release::{PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, bounded_response_bytes},
 };
 
-/// An explicitly reviewed instance. Qualification builds accept fixture input.
-/// Production callers will need a signed definition and a separate acquisition grant.
+/// Test-only model for reviewed instance data. Production callers would need
+/// a signed definition and a separate acquisition grant.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ReviewedForge {
+struct ReviewedForge {
     dialect: ForgeDialect,
     api_root: String,
     web_host: String,
@@ -36,7 +36,7 @@ enum ForgeDialect {
 /// Exact acquisition evidence supplied independently of the forge's response.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ReviewedForgeArtifact {
+struct ReviewedForgeArtifact {
     repository: String,
     repository_id: u64,
     tag: String,
@@ -152,7 +152,7 @@ impl ReviewedForge {
 
     /// Fetches one reviewed artifact into the caller's private staging directory.
     /// A temporary file becomes available only after the reviewed hash and size match.
-    pub async fn fetch(
+    async fn fetch(
         &self,
         artifact: &ReviewedForgeArtifact,
         private_staging: &Path,
@@ -322,13 +322,13 @@ impl ForgeRoute<'_> {
 }
 
 /// A qualification download whose lifetime is limited to private scratch.
-pub struct VerifiedForgeDownload {
+struct VerifiedForgeDownload {
     _directory: tempfile::TempDir,
     path: PathBuf,
 }
 
 impl VerifiedForgeDownload {
-    pub fn path(&self) -> &Path {
+    fn path(&self) -> &Path {
         &self.path
     }
 }

@@ -179,3 +179,15 @@ fn restricted_dns_addresses_fail_closed() {
         assert!(public_address(allowed.parse().unwrap()));
     }
 }
+
+#[tokio::test]
+async fn qualification_fetch_refuses_an_unreviewed_host_before_http_or_staging() {
+    let (instance, mut artifact) = fixture("forgejo-v1");
+    artifact.url = "https://unreviewed.test/fixture.zip".into();
+    let scratch = tempfile::tempdir().unwrap();
+    match instance.fetch(&artifact, scratch.path()).await {
+        Ok(file) => panic!("unexpected staged artifact at {}", file.path().display()),
+        Err(error) => assert!(error.message.contains("outside its exact policy")),
+    }
+    assert_eq!(std::fs::read_dir(scratch.path()).unwrap().count(), 0);
+}
