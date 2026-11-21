@@ -905,7 +905,8 @@ function observerRuns() {
     setConfig(bytes: Buffer) {
       configBytes = bytes;
     },
-    read: () => readUpstreamObservations(committed, { transport }),
+    read: (reader = committed) => readUpstreamObservations(reader, { transport }),
+    committed,
   };
 }
 
@@ -932,6 +933,29 @@ void test("the newest qualifying schedule or push run is selected and bound", as
   assert.deepEqual(input.checkpoint, newCatalogObserverCheckpoint());
   assert.deepEqual(input.catalog, { ...observerCatalog, listings: observerListings.listings });
   assert.deepEqual(fixture.downloads, [`repos/boburning/portcove/actions/artifacts/${id}/zip`]);
+});
+
+void test("committed source read failures are distinct from malformed producer JSON", async () => {
+  const fixture = observerRuns();
+  const run = fixture.run(101, "schedule", 90);
+  fixture.retain(run);
+  const path = "crates/portcove-core/catalog/listings.json";
+  const read = (listings: () => Buffer) =>
+    fixture.read((revision, file) =>
+      file === path ? listings() : fixture.committed(revision, file),
+    );
+  await assert.rejects(
+    read(() => {
+      throw Object.assign(new Error("private transport details"), { code: "ETIMEDOUT" });
+    }),
+    { message: `Could not read ${path} at ${run.head_sha} (ETIMEDOUT)` },
+  );
+  await assert.rejects(
+    read(() => Buffer.from("{")),
+    {
+      message: `${path} at ${run.head_sha} is not valid JSON`,
+    },
+  );
 });
 
 void test("a full window of admission-only pushes cannot hide a scheduled snapshot", async () => {
