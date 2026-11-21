@@ -1956,6 +1956,11 @@ export interface PortActionAssessment {
   [k: string]: unknown;
 }
 export interface LaunchReadiness {
+  /**
+   * The effective active installation requires this registered game source
+   * at launch. Prepared/self-contained installs and optional inputs omit it.
+   */
+  active_game_source_profile?: string | null;
   bios?: SourceHealth | null;
   bios_assessment?: SourceAssessment | null;
   blockers: LaunchBlocker[];

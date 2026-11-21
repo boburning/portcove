@@ -2498,6 +2498,10 @@ pub struct LaunchReadiness {
     /// definition when an external runtime is registered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_source_extension: Option<String>,
+    /// The effective active installation requires this registered game source
+    /// at launch. Prepared/self-contained installs and optional inputs omit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_game_source_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
     /// The saved game-file folder holding this game's missing or unreadable
