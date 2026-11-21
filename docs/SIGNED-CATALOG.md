@@ -158,13 +158,20 @@ carrier body. Compact publication still requires explicit activation.
 
 Ordinary publication, automatic reader selection and cover-only admission
 preserve the active compact format. Raising it requires explicit compact
-transition review, separate from first-carrier opt-in. If the authored
-directory moves beyond the writer's known format, Prepare defers its rows and
-observations. It retains the exact prior supported carrier, legacy target and
-any bound cover checkpoint for authenticated renewal at the existing revision.
-Malformed source input or an unavailable prior still fails. A compatible
-format-13 canonical input resumes ordinary format-13 refresh with the same
-revision floor. A future format needs a separately reviewed, versioned
+transition review, separate from first-carrier opt-in. With a current,
+authenticated compact format-13 baseline, Prepare can refresh from canonical
+format 14 by withholding the reviewed edition-to-source bindings. Core
+validates the format-13 projection, and every other authored field must
+survive it. Edition names and evidence links remain available. The legacy
+target stays byte-for-byte and the cover checkpoint retains its original
+format-13 declaration scope. New observations must still match the full
+current source declaration before projection.
+
+If that compatibility path is unavailable or the canonical format is newer,
+Prepare can retain the exact prior supported carrier, legacy target and cover
+checkpoint for authenticated renewal at the existing revision. Malformed or
+unrepresentable format-14 declarations fail validation. An unavailable prior
+still fails. A future format needs a separately reviewed, versioned
 admission and recovery that proves the previously supported clients can still
 read through the transition. An advertised reader capability alone does not
 activate that format.

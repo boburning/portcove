@@ -411,6 +411,10 @@ for (const [file, tests] of [
   ],
   ["scripts/prepare-port.mts", catalogPreparationContractTests],
   ["scripts/catalog-cover-mapping.mts", catalogPreparationContractTests],
+  [
+    "scripts/catalog-cover-replacement-review.mts",
+    ["scripts/catalog-cover-replacement-review.test.mts"],
+  ],
   ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
   [
     "scripts/artwork-preparation-progress.mts",

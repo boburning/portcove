@@ -1865,6 +1865,33 @@ Provider Retry-After dates remain durable, and incomplete work never claims
 successful full maintenance. Retained mappings after unavailable refresh remain
 pending. Proposed records still require the existing review and delivery route.
 
+For same-game cover replacements, run
+`node scripts/catalog-cover-replacement-review.mts --source-commit SHA
+--artwork-ids ID,OTHER_ID --validator-cli CLI --output-dir CHECKPOINT`
+from the exact clean source checkout. Put the checkpoint in the ignored `work/`
+directory or outside the checkout. One operation prepares up to 32 already
+accepted general original-game covers. It pins the accepted game ID and slug
+for each selected subject and keeps the normal provider, decoder, catalog
+generation and inspection checks. The content-addressed review packet binds
+both mappings, their complete authored records, the Core-inspected products
+and the source checkout. An unavailable or conflicting observation leaves
+its ordinary preparation evidence and produces no review packet. Resume with the
+same checkout, subject list and validator to reuse completed observations. A
+checkpoint that already produced a review packet cannot be resumed. After forced
+termination on Linux, rerun in the same boot and process namespace. Preparation
+reclaims only its own recorded lock after the owner PID disappears. Live,
+anonymous and other ambiguous locks require reconciliation. A change in
+bytes under an unchanged IGDB cover or image ID requires separate source evidence.
+
+Review the decoded candidate against the accepted cover before grouping the
+resulting artwork-only changes through ordinary catalog acceptance. The packet
+has no authority and includes no image payload. The signed cover-health
+checkpoint can withdraw or restore the same accepted bytes. Accepting different
+bytes through a protected batch input would require an independently
+authenticated approval under the existing catalog authority and a reviewed
+consumer bound to the current preimage. Player artwork choices retain
+precedence.
+
 The full input retains its bounded 10,000-record authoring contract. Each provider
 operation retains 800 metadata queries, 400 image queries, 32 MiB metadata,
 512 MiB images, 16 MiB per image, 15 minutes and 15 seconds per request.

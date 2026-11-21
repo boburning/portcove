@@ -438,6 +438,25 @@
       "ordinary_families": ["catalog-generator-feature-tests", "catalog-generator-contract-tests"]
     },
     {
+      "file": "scripts/catalog-cover-replacement-review.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8955],
+        ["repository-tools-2", 3955]
+      ],
+      "platform_skips": [
+        {
+          "platform": "linux",
+          "owner": "catalog-full-2",
+          "category": "platform",
+          "prerequisite": "Linux process namespaces, boot identity, and SIGKILL",
+          "reason": "Checkpoint reclamation requires Linux process identity evidence.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2",
+          "cases": ["resume reclaims both checkpoint locks after forced process death"]
+        }
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-proposal-comparison.test.mts",
       "memberships": [
         ["catalog-full-2", 8920],
