@@ -7,7 +7,9 @@ use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
     AdapterKind, Platform, PortDefinition, PortcoveError, PortcoveService, ProviderFreshness,
-    Result, mod_provider::sanitize_text, provider_http::ProviderHttp,
+    Result,
+    mod_provider::sanitize_text,
+    provider_http::{ProviderBackoff, ProviderHttp},
 };
 
 pub const JAKMODS_SETUP_URL: &str = "https://jakmods.dev/#installation";
@@ -15,6 +17,24 @@ const SOURCE: &str = "https://jakmods.dev/";
 const FEED: &str = "https://jakmods.dev/mods.json";
 const MAX_PROJECTS: usize = 512;
 const MAX_RELEASES: usize = 256;
+
+/// Library clones share provider backoff when the host opens a new read service.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct JakModsProviderState {
+    backoff: ProviderBackoff,
+    #[cfg(test)]
+    pub(super) fixture_feed: std::sync::Arc<std::sync::OnceLock<Url>>,
+}
+
+impl JakModsProviderState {
+    fn endpoint(&self) -> Url {
+        #[cfg(test)]
+        if let Some(endpoint) = self.fixture_feed.get() {
+            return endpoint.clone();
+        }
+        Url::parse(FEED).expect("fixed JakMods feed")
+    }
+}
 
 /// The game scope comes from the reviewed OpenGOAL setup, including its source.
 pub fn jakmods_game(port: &PortDefinition) -> Option<&'static str> {
@@ -115,9 +135,11 @@ impl PortcoveService {
                 "this port does not list that platform",
             ));
         }
-        let http = ProviderHttp::new(Some(self.library().clone()), "JakMods", "jakmods.dev")?;
+        let library = self.library();
+        let http = ProviderHttp::new(Some(library.clone()), "JakMods", "jakmods.dev")?
+            .with_backoff(library.jakmods.backoff.clone());
         let observed = http
-            .observe(Url::parse(FEED).expect("fixed JakMods feed"), |value| {
+            .observe(library.jakmods.endpoint(), |value| {
                 project_feed(value, game, platform)
             })
             .await?;
@@ -202,21 +224,65 @@ fn build_platform(key: &str, asset: &Url) -> Option<Platform> {
     let [_, _, "releases", "download", _, file] = segments.as_slice() else {
         return None;
     };
-    match key {
-        "windows" if file.starts_with("windows-") && file.ends_with(".zip") => {
-            Some(Platform::WindowsX86_64)
+    let (platform, prefix, extension) = match key {
+        "windows" => (Platform::WindowsX86_64, "windows-", ".zip"),
+        "linux" => (Platform::LinuxX86_64, "linux-", ".tar.gz"),
+        "macos" if file.starts_with("macos-intel-") => {
+            (Platform::MacosX86_64, "macos-intel-", ".tar.gz")
         }
-        "linux" if file.starts_with("linux-") && file.ends_with(".tar.gz") => {
-            Some(Platform::LinuxX86_64)
+        "macos" if file.starts_with("macos-arm-") => {
+            (Platform::MacosAarch64, "macos-arm-", ".tar.gz")
         }
-        "macos" if file.starts_with("macos-intel-") && file.ends_with(".tar.gz") => {
-            Some(Platform::MacosX86_64)
-        }
-        "macos" if file.starts_with("macos-arm-") && file.ends_with(".tar.gz") => {
-            Some(Platform::MacosAarch64)
-        }
-        _ => None,
-    }
+        _ => return None,
+    };
+    let version = file.strip_prefix(prefix)?.strip_suffix(extension)?;
+    has_build_version(version).then_some(platform)
+}
+
+// The retained JakMods feeds use the OpenGOAL mod-build filename convention:
+// a v-prefixed numeric version, with optional variant or prerelease labels.
+// An explicit conflicting architecture never inherits the platform of the key.
+fn has_build_version(stem: &str) -> bool {
+    let Some(stem) = stem.strip_prefix('v') else {
+        return false;
+    };
+    let (numeric, variant) = stem
+        .split_once('-')
+        .map_or((stem, None), |(v, tail)| (v, Some(tail)));
+    let mut parts = numeric.split('.');
+    (0..3).all(|_| {
+        parts
+            .next()
+            .is_some_and(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+    }) && parts.next().is_none()
+        && variant.is_none_or(|variant| {
+            variant.split(['.', '-']).all(|part| {
+                !part.is_empty()
+                    && part.bytes().all(|byte| byte.is_ascii_alphanumeric())
+                    && !is_architecture_label(&part.to_ascii_lowercase())
+            })
+        })
+}
+
+fn is_architecture_label(part: &str) -> bool {
+    matches!(
+        part,
+        "x86" | "x32" | "win32" | "32bit" | "universal" | "universal2"
+    ) || [
+        "arm",
+        "aarch",
+        "riscv",
+        "ppc",
+        "mips",
+        "s390",
+        "loongarch",
+        "i386",
+        "i486",
+        "i586",
+        "i686",
+    ]
+    .iter()
+    .any(|prefix| part.starts_with(prefix))
 }
 
 fn parse_releases(value: &Value, game: &str) -> (Vec<JakModsRelease>, bool) {

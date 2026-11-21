@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Catalog, retained_build::tests::fixture, test_http::serve_http_bytes};
+use crate::{Catalog, retained_build::tests::fixture, test_http::serve_routed_http_bytes};
 use serde_json::json;
 
 fn feed(include_new: bool) -> Value {
@@ -11,7 +11,7 @@ fn feed(include_new: bool) -> Value {
             "other-game": {"displayName":"Other game","supportedGames":["jak2"],"versions":[]},
             "unknown-build": {"displayName":"Build unknown","supportedGames":["jak1"],
                 "versions":[{"version":"1","supportedGames":["jak1"],"assets":{
-                    "windows":"https://outside.example/windows-v1.zip"}}]},
+                    "windows":"https://outside.example/windows-v1.0.0.zip"}}]},
         }
     });
     if include_new {
@@ -24,13 +24,13 @@ fn feed(include_new: bool) -> Value {
             "perGameConfig":{"jak1":{"displayName":"New Project for Jak 1"}},
             "versions":[{
                 "version":"2","publishedDate":"2026-11-17T00:00:00Z","supportedGames":["jak3"],
-                "assets":{"windows":"https://github.com/example/project/releases/download/v2/windows-v2.zip"}
+                "assets":{"windows":"https://github.com/example/project/releases/download/v2/windows-v2.0.0.zip"}
             },{
                 "version":"1","publishedDate":"2026-11-10T00:00:00Z","supportedGames":["jak1","jak3"],
                 "assets":{
-                    "windows":"https://github.com/example/project/releases/download/v1/windows-v1.zip",
-                    "linux":"https://github.com/example/project/releases/download/v1/linux-v1.tar.gz",
-                    "macos":"https://github.com/example/project/releases/download/v1/macos-intel-v1.tar.gz"
+                    "windows":"https://github.com/example/project/releases/download/v1/windows-v1.0.0.zip",
+                    "linux":"https://github.com/example/project/releases/download/v1/linux-v1.0.0.tar.gz",
+                    "macos":"https://github.com/example/project/releases/download/v1/macos-intel-v1.0.0.tar.gz"
                 },
                 "assetDownloadCounts":{"windows":0,"macos":7}
             }]
@@ -88,39 +88,104 @@ fn release_game_platform_count_and_source_coverage_stay_separate() {
     assert_eq!(jak3[0].releases[0].version, "2");
 }
 
+#[test]
+fn wrong_architecture_assets_leave_the_affected_builds_unknown() {
+    let mut snapshot = feed(true);
+    let builds = &mut snapshot["mods"]["new-project"]["versions"][1]["assets"];
+    builds["windows"] =
+        json!("https://github.com/example/project/releases/download/v1/windows-v1.0.0-ARM64.zip");
+    builds["linux"] = json!(
+        "https://github.com/example/project/releases/download/v1/linux-aarch64-v1.0.0.tar.gz"
+    );
+    for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+        let (projects, complete) = project_feed(&snapshot, "jak1", platform).unwrap();
+        let project = projects.iter().find(|row| row.id == "new-project").unwrap();
+        assert!(!complete);
+        assert_eq!(project.build_status, JakModsBuildStatus::Unknown);
+        assert_eq!(project.releases[0].builds.len(), 1);
+        assert_eq!(
+            project.releases[0].builds[0].platform,
+            Platform::MacosX86_64
+        );
+    }
+    for filename in [
+        "windows-v1.2.3-win32.zip",
+        "windows-v1.2.3-i686.zip",
+        "windows-1.2.3.zip",
+    ] {
+        let url = Url::parse(&format!(
+            "https://github.com/example/project/releases/download/v1/{filename}"
+        ))
+        .unwrap();
+        assert_eq!(build_platform("windows", &url), None, "{filename}");
+    }
+    let variant = Url::parse(
+        "https://github.com/example/project/releases/download/v1/linux-v1.2.3-jak3.1.tar.gz",
+    )
+    .unwrap();
+    assert_eq!(
+        build_platform("linux", &variant),
+        Some(Platform::LinuxX86_64)
+    );
+}
+
 #[tokio::test]
-async fn shared_http_revalidates_and_returns_explicitly_stale_previous_observation() {
+async fn catalog_revalidates_then_shares_backoff_across_services_and_games() {
     let (_temp, service, _) = fixture();
     let body = feed(true).to_string();
-    let responses = vec![
-        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: \"fixture\"\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes(),
+    let ok = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: \"fixture\"\r\nConnection: close\r\n\r\n{body}", body.len()).into_bytes();
+    let mut responses = [
+        ok.clone(),
         b"HTTP/1.1 304 Not Modified\r\nConnection: close\r\n\r\n".to_vec(),
-        b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
-    ];
-    let (root, requests, server) = serve_http_bytes(responses);
-    let url = Url::parse(&root).unwrap();
-    let provider =
-        ProviderHttp::new(Some(service.library().clone()), "JakMods", "jakmods.dev").unwrap();
-    let parse = |value: &Value| project_feed(value, "jak1", Platform::WindowsX86_64);
-    let fresh = provider.observe(url.clone(), parse).await.unwrap();
-    let current = provider.observe(url.clone(), parse).await.unwrap();
-    let stale = provider.observe(url, parse).await.unwrap();
+        b"HTTP/1.1 429 Too Many Requests\r\nRetry-After: 60\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+    ].into_iter();
+    let (root, requests, server) =
+        serve_routed_http_bytes(5, move |_| responses.next().unwrap_or_else(|| ok.clone()));
+    let library = service.library().clone();
+    library
+        .jakmods
+        .fixture_feed
+        .set(Url::parse(&root).unwrap())
+        .unwrap();
+    let platform = Platform::WindowsX86_64;
+    let fresh = service
+        .jakmods_catalog("opengoal-jak1", platform)
+        .await
+        .unwrap();
+    let revalidated = service
+        .jakmods_catalog("opengoal-jak1", platform)
+        .await
+        .unwrap();
+    let throttled = service
+        .jakmods_catalog("opengoal-jak1", platform)
+        .await
+        .unwrap();
+    let another = PortcoveService::new_read_only(library).unwrap();
+    let other_game = another
+        .jakmods_catalog("opengoal-jak2", platform)
+        .await
+        .unwrap();
+    let repeated = another
+        .jakmods_catalog("opengoal-jak1", platform)
+        .await
+        .unwrap();
     assert_eq!(fresh.freshness, ProviderFreshness::Fresh);
-    assert_eq!(current.freshness, ProviderFreshness::Revalidated);
-    assert_eq!(stale.freshness, ProviderFreshness::Stale);
-    assert_eq!(stale.value, fresh.value);
+    assert_eq!(revalidated.freshness, ProviderFreshness::Revalidated);
+    assert_eq!(throttled.freshness, ProviderFreshness::Stale);
+    assert_eq!(other_game.freshness, ProviderFreshness::Stale);
+    assert_eq!(other_game.projects[0].id, "other-game");
+    assert_eq!(repeated.projects, fresh.projects);
+    assert_eq!(repeated.freshness, ProviderFreshness::Stale);
     server.join().unwrap();
-    assert!(
-        !requests
-            .recv()
-            .unwrap()
-            .to_ascii_lowercase()
-            .contains("if-none-match")
+    let requests = requests.try_iter().collect::<Vec<_>>();
+    assert_eq!(
+        requests.len(),
+        3,
+        "backoff must prevent new network requests"
     );
+    assert!(!requests[0].to_ascii_lowercase().contains("if-none-match"));
     assert!(
-        requests
-            .recv()
-            .unwrap()
+        requests[1]
             .to_ascii_lowercase()
             .contains("if-none-match: \"fixture\"")
     );
