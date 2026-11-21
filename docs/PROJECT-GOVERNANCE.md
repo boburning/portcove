@@ -959,16 +959,22 @@ admission and platform qualification. The three historical values,
 qualification**, require individual review before any migration. Retain their
 source, artifact, and hands-on work evidence in the owning issue. The report
 shows each historical value beside its catalog projection when a unique link
-exists. Normal doctor reports differences between a stored derived stage and
-catalog evidence. The Project continues to own the recorded planning values.
+exists. Doctor already computes and reports drift in either direction from
+observed catalog evidence. It reports a lower stored stage as advisory and
+continues to fail when a stored qualification claim exceeds its evidence.
+A dry-run finding proposes a review of the Project assignment at the stage
+the catalog already establishes. When the catalog link is absent or ambiguous,
+the finding asks for binding verification and proposes no target. Reporting
+does not grant catalog support or change the recorded planning values.
 
 An issue-free prepared listing can record inspection, runtime observations or
 failures independently. The report includes a catalog projection for matching
 operational ports covered by the issue-free listing rule. A listing or dated
 runtime observation alone supplies no substitute for an automated or hands-on
-qualification pass. The report creates no memberships and applies no field
-changes. The Project owner must confirm the proposed value set before any live
-schema migration.
+qualification pass. The read-only doctor report runs under existing authority.
+Changing the Project value set requires the owner's confirmation. Migrating
+existing assignments requires approval of the reviewed assignment plan,
+including preservation of the supporting evidence in their owning issues.
 
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under

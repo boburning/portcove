@@ -232,15 +232,17 @@ export function inspectRoadmapPortStages(
     const ambiguous = claims.some((id) => (markerClaims.get(id)?.size ?? 0) > 1);
     const derived = canonical && port && !ambiguous ? port : null;
     const stage = typeof current === "string" && current !== "" ? current : null;
+    const storedRank = derivedStages.findIndex((value) => stage === value);
     const classification = manualStages.some((value) => stage === value)
       ? "preserve_manual"
       : historicalStages.some((value) => stage === value)
         ? "review_historical"
-        : derivedStages.some((value) => stage === value) && derived
+        : storedRank >= 0 && derived
           ? stage === derived.stage
             ? "aligned"
             : "derived_drift"
           : "unresolved";
+    const drift = classification === "derived_drift" ? derived : null;
     return [
       {
         item_id: item.id ?? null,
@@ -255,6 +257,16 @@ export function inspectRoadmapPortStages(
         classification,
         catalog_claims: claims,
         catalog_evidence: derived,
+        drift_direction: drift
+          ? storedRank > derivedStages.indexOf(drift.stage)
+            ? "overstates_catalog"
+            : "understates_catalog"
+          : undefined,
+        proposed_action: drift
+          ? { kind: "review_project_assignment", target_stage: drift.stage }
+          : storedRank >= 0 && !derived
+            ? { kind: "verify_catalog_binding", target_stage: null }
+            : undefined,
         unresolved_reason: !canonical
           ? "canonical_issue_required"
           : ambiguous

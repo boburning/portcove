@@ -594,9 +594,13 @@ void test("migration preserves each manual and historical stage across active an
     automated_platforms: ["linux"],
     supported_platforms: [],
   });
-  assert.deepEqual(fixtureElement(report.rows, 7).catalog_evidence?.supported_platforms, [
-    "windows",
-  ]);
+  const understated = fixtureElement(report.rows, 7);
+  assert.deepEqual(understated.catalog_evidence?.supported_platforms, ["windows"]);
+  assert.equal(understated.drift_direction, "understates_catalog");
+  assert.deepEqual(understated.proposed_action, {
+    kind: "review_project_assignment",
+    target_stage: "Supported",
+  });
   assert.equal(fixtureElement(report.rows, 8).unresolved_reason, "competing_catalog_claims");
   assert.equal(
     fixtureElement(report.rows, 9).unresolved_reason,
