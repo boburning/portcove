@@ -212,6 +212,7 @@ export function acquireMaintenanceReservation(
     revision?: string | undefined;
     reason: string;
     now?: number;
+    executor?: boolean;
   },
 ) {
   const { meter, operation, request, revision, reason } = input;
@@ -289,7 +290,7 @@ export function acquireMaintenanceReservation(
           WHEN EXISTS (SELECT FROM observed WHERE outcome = 'running') THEN 'admitted'
           ELSE 'allowance-or-sample-window' END)
     FROM decision;`,
-    { executor: operation === "intake" },
+    { executor: operation === "intake" || input.executor === true },
   ) as {
     attempt_id: string | null;
     started_at: string | null;
@@ -332,6 +333,7 @@ export async function withMaintenanceAdmission<T>(
     request?: string | undefined;
     completed?: (value: T) => boolean;
     bootstrap?: boolean;
+    executor?: boolean;
   } = {},
 ): Promise<T> {
   if (!isNeon(environment)) return await callback(costs[operation]);
@@ -380,7 +382,7 @@ export async function withMaintenanceAdmission<T>(
           pending: [],
           problems: [],
         }
-      : migrationStatus(environment);
+      : migrationStatus(environment, undefined, options.executor);
   // One known small deployment migration can create its own admission table.
   if (
     options.bootstrap === true &&
@@ -403,8 +405,10 @@ export async function withMaintenanceAdmission<T>(
     });
     throw new MaintenanceResourceDeferred("Maintenance admission schema is not ready");
   }
+  const executor = operation === "intake" || options.executor === true;
   const admission = acquireMaintenanceReservation(environment, {
     meter,
+    executor,
     operation,
     request,
     revision,
@@ -449,7 +453,7 @@ export async function withMaintenanceAdmission<T>(
       `UPDATE portcove_maintenance_meta.resource_admissions
       SET outcome = ${sqlLiteral(outcome)}, finished_at = clock_timestamp(), estimate_bytes = ${estimate ?? "NULL"}
       WHERE attempt_id = ${sqlLiteral(admission.attempt_id)}::uuid AND outcome = 'running';`,
-      { executor: operation === "intake" },
+      { executor },
     );
     recordEvidence(environment, {
       operation,

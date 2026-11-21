@@ -243,6 +243,49 @@ provenance linking the selected compiled asset to its source and dependencies.
 Unavailable runtime metadata can be retried without losing the checked game
 table.
 
+For a matched N64 runtime and pinned hash dependency, the observer can associate
+a selected published artifact digest with an Actions output at the same
+upstream repository and source commit. The observer requires a successful
+same-repository first attempt, the output's own run identity, and run readback
+before retaining a match. A bounded search resumes from the retained position.
+Packages without a match stay unknown. An exact match remains available after
+the Actions artifact expires, including when other selected packages change
+at the same repository and commit. This establishes a provider-reported build-to-release
+digest link. Effective checkout and dependency behavior, the job that produced
+the output, and native original-file acceptance need separate evidence.
+
+For outputs with an identifiable upload step, the observer reads that step
+and the earlier checkout step from the exact run attempt. The upload log must
+identify the same digest, artifact ID and size. The checkout log must report
+the selected repository, source commit, runtime and xxHash revisions. The
+checkpoint retains checked job and step identities and log digests. Missing
+or unusable job evidence leaves the affected package unknown and advances the
+search to other packages. Shared budget and rate-limit deferrals still apply.
+Raw logs and signed download addresses stay out of the checkpoint. On a later
+turn, a matched job can retain the ordered CMake/Ninja runtime compile, static
+library, and executable link evidence from a successful step between checkout
+and upload. An unavailable compile log keeps the previously checked steps.
+
+Maintenance projects a provisional original-file binding for the exact port
+definition, source contracts, and package selection evaluated by the observer.
+It uses the native game ID from the configured runtime filename, the reviewed
+hash-header bytes, and the linked executable's name against the port's sole executable hint
+for that platform. A package review also binds the selected runtime layout. The proposal remains held until the packaged executable and its effective
+hash behavior are verified. A checked package receipt joins the selected platform and artifact digest
+to the observed source, runtime, hash dependency and exact build job. For a
+universal package, each selected architecture needs its own review. The
+maintenance projection then prepares a source-contract amendment and immutable
+upstream support evidence. It preserves existing bindings and the enforced
+legacy contract. The first enforced migration requires N64 reader capability
+11; informational exact bindings require capability 10.
+
+Run `node scripts/prepare-n64-original-inputs.mts CHECKPOINT PORT_ID` to
+replay a current observer checkpoint against the authored catalog and emit the
+replacement contract and evidence record. Apply them to the indicated shared
+catalog source through normal catalog review and generation. The output carries
+the previous contract digest and exact executable receipts for review. Native
+acceptance and signed definition delivery continue through their existing owners.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag
@@ -1310,11 +1353,20 @@ retain exact bytes and revision. The unchanged signer still verifies the entire
 prior repository and historical revision bounds before renewal. Publication uses
 the existing official-policy namespace and keys.
 
-The target remains a partial directory under the existing eight-MiB limit. It
-admits whole canonical rows, prioritizes prior rows before new observations, and
-never drops requirements to make a row fit. Omissions and source exceptions appear
-in `observation-projection.json` beside the publication evidence; omission does not
-mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+The signed target reserves each previously admitted identity and each matching
+operational catalog guide within the existing eight-MiB limit. Initial admission
+uses the reviewed operational declaration even when an upstream observation is
+unavailable. A previously signed identity missing from the canonical directory
+requires an explicit withdrawal. The signer’s historical verification can renew
+the exact previous bytes when current verification is unavailable. This path
+makes no new admission or provider claim.
+
+The projection reserves complete current guides and still-valid applicable prior
+observations before filling remaining space with optional enrichment. Under
+pressure it can omit an expired observation at its recorded freshness boundary.
+Its receipt lists deferred enrichment and omitted discovery rows separately.
+An over-budget required set preserves the published target and reports failure.
+Omitted discovery rows use the client’s embedded fallback. Existing scheduled renewals refresh
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 

@@ -38,6 +38,21 @@ function mediaApplies(asset: CatalogMediaAsset, context: HeroMediaContext) {
   );
 }
 
+export function screenshotEditions(port: HeroMediaPort) {
+  const editionIds = new Set<string>();
+  for (const asset of port.presentation?.media ?? []) {
+    if (
+      asset.role === "screenshot" &&
+      asset.subject.kind === "original" &&
+      subjectMatches(port, asset)
+    )
+      editionIds.add(asset.subject.source_edition_id);
+  }
+  return (
+    port.presentation?.original_game?.source_editions.filter(({ id }) => editionIds.has(id)) ?? []
+  );
+}
+
 /** Presentation ordering of already admitted media, never title matching or eligibility. */
 export function heroMediaCandidates(port: HeroMediaPort, context: HeroMediaContext = {}) {
   const media = (port.presentation?.media ?? []).filter(

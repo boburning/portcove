@@ -22,6 +22,7 @@ pub(super) struct ManagedLaunchInputs {
     /// A registered optional game source was changed or unreadable, so this launch
     /// proceeds without it and unpacks nothing.
     optional_source_skipped: bool,
+    n64_input_proof: Option<crate::source_inspection::N64ReleaseInputProof>,
 }
 
 impl PortcoveService {
@@ -58,7 +59,10 @@ impl PortcoveService {
                 "launch installation belongs to another port",
             ));
         }
-        let catalog = self.installed_catalog(active)?;
+        self.managed_install_root(&active.port_id, &active.path)?;
+        let retained = Installer::new(self.library.clone())?.retained_catalog(active)?;
+        let has_retained = retained.is_some();
+        let catalog = self.installed_catalog_or_fallback(active, retained)?;
         let port = catalog.port(&active.port_id)?;
         crate::install::check_retained_launch_destination(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
@@ -86,6 +90,9 @@ impl PortcoveService {
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
+        let release = (active.version.as_str(), active.artifact.sha256.as_str());
+        let n64_input_required = has_retained
+            && crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
         let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -103,7 +110,7 @@ impl PortcoveService {
             }
             checkpoint()?;
             Some(source)
-        } else if self_contained {
+        } else if self_contained && !n64_input_required {
             // The installed data holds every game input; the original is
             // needed only to repair, rebuild or prepare again.
             None
@@ -146,6 +153,17 @@ impl PortcoveService {
                 }
                 Err(error) => return Err(error),
             }
+        } else {
+            None
+        };
+        let n64_input_proof = if n64_input_required {
+            crate::source_inspection::verify_n64_release_input(
+                &catalog,
+                &port.id,
+                source.as_ref(),
+                release,
+                &checkpoint,
+            )?
         } else {
             None
         };
@@ -200,6 +218,7 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         })
     }
 
@@ -275,6 +294,7 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         self.require_selected_loader_for_install(active)?;
@@ -336,6 +356,15 @@ impl PortcoveService {
             // The pinned Windows runtime uses CWD and ignores SHIP_HOME.
             spec.environment.remove("SHIP_HOME");
             self.require_ghostship_legacy_runtime_archive(active, &spec.working_directory)?;
+        }
+        if let Some(proof) = n64_input_proof {
+            let path = crate::adapter::runtime_source_path(
+                port,
+                &spec.working_directory,
+                &self.library.user_dir(&port.id),
+            )
+            .ok_or_else(|| PortcoveError::state("N64 release input omitted its runtime file"))?;
+            proof.require_materialized(&path, &checkpoint)?;
         }
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;

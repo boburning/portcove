@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   auditDispatchRequest,
+  scheduledAuditRequests,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -27,6 +28,31 @@ const report = (...outcomes: ReturnType<typeof outcome>[]) => ({
   requests: outcomes.length,
   outcomes,
 });
+void test("only the protected scheduled caller accepts exact nonduplicate audit continuations", () => {
+  const ticket = { request: 33, binding: "a".repeat(64) };
+  const env = {
+    HOSTED_INTAKE_MODE: "resume-audits",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify([ticket]),
+  };
+  assert.deepEqual(scheduledAuditRequests(env), [ticket]);
+  for (const key of ["GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_REPOSITORY", "GITHUB_WORKFLOW_REF"])
+    assert.throws(() => scheduledAuditRequests({ ...env, [key]: "unrelated" }));
+  for (const rows of [
+    [],
+    [ticket, ticket],
+    [{ ...ticket, binding: "bad" }],
+    [{ ...ticket, request: "33" }],
+  ])
+    assert.throws(() =>
+      scheduledAuditRequests({ ...env, HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify(rows) }),
+    );
+});
+
 void test("a progressing logical batch finishes beyond three inventory windows without operator reruns", () => {
   let passes = 0;
   const result = runHostedIntakePasses(() => {

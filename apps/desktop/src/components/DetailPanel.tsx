@@ -1,3 +1,7 @@
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
@@ -44,7 +48,7 @@ import { ArtworkControls } from "./Artwork";
 import { GameHeroFramingPreview } from "./GameHero";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -208,7 +212,7 @@ interface DetailPanelProps {
   browsingMatch?: CatalogQueryResult | undefined;
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   /** Rereads workspace state without changing it; offered when setup or readiness is unknown. */
   checkAgain?: (() => Promise<unknown>) | undefined;
   openSourceEvidence?: ((evidenceId: string) => void) | undefined;
@@ -544,7 +548,7 @@ function DetailBody(model: {
   libraryGeneration: number;
   libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
@@ -889,7 +893,7 @@ function useStatusActionsGroup({
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
@@ -2437,6 +2441,7 @@ function InstalledPlayActions({
   pendingSetup,
   stagedVersion,
   selectableDiscs = 0,
+  commandPlayKey,
   busy,
   actions,
 }: {
@@ -2448,9 +2453,13 @@ function InstalledPlayActions({
   pendingSetup: boolean;
   stagedVersion?: string | undefined;
   selectableDiscs?: number | undefined;
+  commandPlayKey?: string | undefined;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  const registerPlay = useContext(CurrentGamePlayControl);
+  const confirmedPlay = launchReady && !trial && !pendingSetup;
+  const paletteTarget = confirmedPlay && !busy ? commandPlayKey : undefined;
   // Per-view choice: Core records it as the game's own saved disc when this
   // launch starts. The default sends no disc, so the game starts its saved disc.
   const [disc, setDisc] = useState(SAVED_DISC);
@@ -2488,7 +2497,9 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
-        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
+        data-confirmed-play={confirmedPlay ? "" : undefined}
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
@@ -4508,7 +4519,7 @@ function ManualSetupActions({
             data-focusable
             variant="outline"
             disabled={Boolean(model.busy) || !model.onChanged}
-            onClick={() => model.onChanged?.()}
+            onClick={() => void model.onChanged?.()}
           >
             Check setup again
           </Button>
@@ -4541,6 +4552,7 @@ function DetailHeaderAction({
     <InstalledPlayActions
       hero
       compact
+      commandPlayKey={currentGamePlayKey(model.port.id, model.libraryGeneration, model.status)}
       trial={detailHeaderTrial(model)}
       preparationRequired={false}
       launchReady={model.launchReady}

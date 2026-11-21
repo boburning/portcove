@@ -9751,7 +9751,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -9805,7 +9805,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -13354,6 +13355,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -13552,6 +13577,13 @@
               "string",
               "null"
             ]
+          },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
           },
           "port_id": {
             "type": "string"
@@ -15591,6 +15623,30 @@
         ],
         "type": "string"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -15789,6 +15845,13 @@
               "string",
               "null"
             ]
+          },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
           },
           "port_id": {
             "type": "string"
@@ -22472,7 +22535,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -22526,7 +22589,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -23348,6 +23412,30 @@
           "unknown"
         ],
         "type": "string"
+      },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -24934,6 +25022,13 @@
               "string",
               "null"
             ]
+          },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
           },
           "port_id": {
             "type": "string"

@@ -630,6 +630,25 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(corrected.revision, first.revision + 1);
 });
 
+void test("observation delivery accepts format-13 canonical input and uses Core's format-11 projection", async () => {
+  const { fixtureListing, fixturePolicy, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const authored = {
+    ...fixtureListing,
+    media: [{ id: "scene", role: "screenshot", igdb: { kind: "screenshot" } }],
+  };
+  const result = projectListingDelivery(
+    { format_version: 13, listings: [authored] },
+    [{ ...fixturePolicy().listing_update, media: authored.media }],
+    null,
+    0,
+    8 * 1024 * 1024,
+    { format_version: 11, listings: [fixtureListing] },
+  );
+  assert.deepEqual(result.bytes, fixtureDelivery());
+});
+
 void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -742,7 +761,7 @@ void test("only the dynamic listing target is excluded from fixed input comparis
 
 void test("last-good data must be referenced in the verified role and exact physical inventory", async (t) => {
   const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { verifiedPriorListing, listingDeliveryTarget } =
+  const { verifiedPriorListing, priorListingForRenewal, listingDeliveryTarget } =
     await import("./listing-observation-delivery.mts");
   const { createHash } = await import("node:crypto");
   const prior = temp(t),
@@ -757,9 +776,14 @@ void test("last-good data must be referenced in the verified role and exact phys
     files: [{ target, sha256: sha, bytes: bytes.length }],
   };
   assert.deepEqual(await verifiedPriorListing(prior, report), bytes);
+  const renewal = await priorListingForRenewal(prior, 1);
+  assert.deepEqual(renewal.bytes, bytes);
+  assert.equal(renewal.changed, false);
+  assert.equal(renewal.updated, 0);
   await assert.rejects(verifiedPriorListing(prior, { ...report, files: [] }), /not referenced/u);
   put(prior, target, bytes.toString() + " ");
   await assert.rejects(verifiedPriorListing(prior, report), /bytes differ/u);
+  await assert.rejects(priorListingForRenewal(prior, 1), /target digest differs/u);
   site(prior, {});
   assert.equal(
     await verifiedPriorListing(prior, report),
@@ -811,4 +835,117 @@ void test("completed source observations stay bound to current canonical provide
     0,
     "an observation of a listing cannot acquire a new managed-route binding",
   );
+});
+
+void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const first = fixturePolicy().listing_update;
+  const initial = projectListingDelivery(
+    { format_version: 11, listings: [fixtureListing] },
+    [first],
+    null,
+  );
+  const registered = {
+    ...fixtureListing,
+    id: "new-reviewed",
+    download_block_reason: "External only",
+  };
+  const discovery = { ...fixtureListing, id: "other-candidate" };
+  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
+  const ids = new Set([String(fixtureListing.id), registered.id]);
+  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
+  assert.ok(typeof first.upstream_observation.fresh_until === "string");
+  const expiry = Date.parse(first.upstream_observation.fresh_until);
+  assert.ok(Number.isFinite(expiry));
+  const constrained = projectListingDelivery(
+    current,
+    [],
+    initial.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
+  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
+  assert.deepEqual(new Set(rows.map((row) => row.id)), ids);
+  assert.deepEqual(
+    rows.find((row) => row.id === registered.id),
+    registered,
+  );
+  assert.deepEqual(constrained.omittedObservations, [
+    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
+  ]);
+  assert.deepEqual(doc.withdrawn_ids, []);
+  assert.throws(
+    () =>
+      projectListingDelivery(
+        current,
+        [],
+        initial.bytes,
+        0,
+        base.bytes.length,
+        undefined,
+        ids,
+        expiry - 1,
+      ),
+    /unexpired prior observations/,
+  );
+  const replay = projectListingDelivery(
+    current,
+    [],
+    constrained.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  assert.deepEqual(replay.bytes, constrained.bytes);
+  assert.equal(replay.changed, false);
+  assert.throws(
+    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
+    /without an explicit withdrawal/,
+  );
+});
+
+void test("signed directory retains equivalent completed evidence until its recorded midpoint", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const canonical = { format_version: 11, listings: [fixtureListing] };
+  const old = fixturePolicy().listing_update;
+  const first = projectListingDelivery(canonical, [old], null);
+  const observation = {
+    ...old.upstream_observation,
+    attempted_at: "2026-11-10T03:00:01Z",
+    observed_at: "2026-11-10T03:00:00Z",
+    fresh_until: "2026-11-10T15:00:00Z",
+  };
+  const candidate = { ...old, upstream_observation: observation };
+  const advance = (hours: number, proposed = candidate) =>
+    projectListingDelivery(
+      canonical,
+      [proposed],
+      first.bytes,
+      0,
+      undefined,
+      undefined,
+      new Set(),
+      Date.parse(`2026-11-10T0${hours}:00:02Z`),
+    );
+  assert.deepEqual(advance(3).bytes, first.bytes);
+  const renewal = advance(6);
+  assert.equal(renewal.revision, first.revision + 1);
+  const directory = fixtureRecord(fixtureRecord(JSON.parse(renewal.bytes.toString())).directory);
+  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, observation);
+  for (const changed of [
+    { ...observation, facts_sha256: "b".repeat(64) },
+    { ...observation, fresh_until: "2026-11-10T14:00:00Z" },
+  ]) {
+    assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
+  }
 });

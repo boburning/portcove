@@ -1744,43 +1744,54 @@ export function collectionSql(input: {
          WHERE run_id = ${literal(run)};`,
     );
   }
-  // Handoffs follow only a complete run of their source over the complete universe:
-  // a partial or failed run neither records nor clears attention. Core has no handoff.
+  // Release health explicitly partitions fresh-complete ports from coverage gaps.
+  // Other handoff sources require complete fleet coverage.
   if (input.mode === "all") {
-    const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
-    if (input.releaseHealth && !input.releaseHealth.gaps.length)
-      complete.set("release-health", {
+    const assessed = new Map<
+      HandoffSource,
+      {
+        run: string;
+        conditions: HandoffCondition[];
+        assessedSources?: string[];
+      }
+    >();
+    if (input.releaseHealth && !input.releaseHealth.failed && input.releaseHealth.facts.size)
+      assessed.set("release-health", {
         run: healthRun,
         conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+        ...(input.releaseHealth.gaps.length
+          ? { assessedSources: [...input.releaseHealth.facts.keys()] }
+          : {}),
       });
     if (input.releaseContent && !input.releaseContent.gaps.length)
-      complete.set("release-content", {
+      assessed.set("release-content", {
         run: contentRun,
         conditions: releaseContentHandoffs(input.releaseContent.facts),
       });
     if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
-      complete.set("upstream-observations", {
+      assessed.set("upstream-observations", {
         run: upstreamRun,
         conditions: upstreamHandoffs(input.upstream.facts),
       });
     if (input.hostedIntake && !input.hostedIntake.failed && !input.hostedIntake.gaps.length)
-      complete.set("hosted-intake", {
+      assessed.set("hosted-intake", {
         run: hostedRun,
         conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
       });
     for (const entry of handoffRegistry) {
-      const source = complete.get(entry.source);
+      const source = assessed.get(entry.source);
       if (source)
         lines.push(
           ...handoffCollectionSql({
             kind: entry.kind,
             run: source.run,
+            ...(source.assessedSources ? { assessedSources: source.assessedSources } : {}),
             conditions: source.conditions.filter(({ kind }) => kind === entry.kind),
           }),
         );
     }
     // A kind no longer in the registry clears on any complete handoff source run.
-    const first = [...complete.values()][0];
+    const first = [...assessed.values()].find((source) => source.assessedSources === undefined);
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
     // Holds and deferrals follow only a complete read of their owning source.
     // Without the roadmap Project's identity no Status is attributable, so nothing changes.
@@ -1916,6 +1927,7 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
+  reconcileIntake?: Parameters<typeof hostedIntakeObservation>[1];
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
   bindCatalogDefinitions?: boolean;
@@ -2079,7 +2091,7 @@ export async function collect(options: {
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
-    ? await hostedIntakeObservation(options.hostedIntake)
+    ? await hostedIntakeObservation(options.hostedIntake, options.reconcileIntake)
     : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
@@ -2336,6 +2348,10 @@ export async function collect(options: {
             : hostedIntake.gaps.length
               ? "partial"
               : "complete",
+          ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
+          ...(hostedIntake.auditContinuations
+            ? { audit_continuations: hostedIntake.auditContinuations }
+            : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -4195,6 +4211,7 @@ commands:
                                        delivering executor's receipt (executor role)
   handoffs [--json]                    list open executor handoffs with their registry entry and
                                        open operation (read-only; dispatch is disabled)
+  handoffs --reconcile-intake          record original executor receipts for finished hosted-intake handoffs
   handoffs --record                    plan one operation per open handoff at its current fence and
                                        abandon planned operations whose handoff moved on (executor
                                        role, local store only; never dispatches)
@@ -4302,6 +4319,7 @@ export async function main(argv = process.argv.slice(2)) {
   };
   const json = flag("--json");
   const record = flag("--record");
+  const reconcileIntake = flag("--reconcile-intake");
   const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
@@ -4327,6 +4345,16 @@ export async function main(argv = process.argv.slice(2)) {
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
+  if (
+    reconcileIntake &&
+    !(
+      (command === "handoffs" && !record && !json) ||
+      (command === "collect" && all && hostedSource)
+    )
+  )
+    throw new MaintenanceStoreError(
+      "--reconcile-intake requires handoffs or collect --all --hosted-intake",
+    );
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
@@ -4365,6 +4393,7 @@ export async function main(argv = process.argv.slice(2)) {
     await import("./maintenance-resource-policy.mts");
   try {
     return await withMaintenanceAdmission(environment, operation, run, {
+      executor: command === "handoffs" && reconcileIntake,
       request,
       completed: () => complete,
     });
@@ -4407,7 +4436,16 @@ export async function main(argv = process.argv.slice(2)) {
               ),
             )
           : undefined,
-        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        hostedIntake: hostedSource
+          ? () => readHostedIntake(reconcileIntake ? environment : undefined)
+          : undefined,
+        reconcileIntake: reconcileIntake
+          ? async (queue) => {
+              const { reconcileIntakeHandoffReceipts } =
+                await import("./maintenance-intake-receipts.mts");
+              return reconcileIntakeHandoffReceipts(environment, async () => queue);
+            }
+          : undefined,
         publication: publication || undefined,
         delivery: delivery || undefined,
         targets: targets || undefined,
@@ -4455,7 +4493,11 @@ export async function main(argv = process.argv.slice(2)) {
       console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
     } else if (command === "handoffs") {
       if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
-      if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
+      if (reconcileIntake) {
+        const { reconcileIntakeHandoffReceipts } =
+          await import("./maintenance-intake-receipts.mts");
+        console.log(JSON.stringify(await reconcileIntakeHandoffReceipts(environment), null, 2));
+      } else if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
       else {
         const handoffs = readOpenHandoffs(environment);
         if (json)

@@ -431,8 +431,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -441,8 +440,11 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and

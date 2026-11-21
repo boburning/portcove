@@ -270,7 +270,7 @@ void test("health collection stays read-only beside owner-gated intake; publishe
     assert.ok(isRecord(job));
     assert.equal(job.concurrency, undefined);
     if (name === "hosted-intake") {
-      assert.deepEqual(job.permissions, { contents: "read", issues: "write" });
+      assert.deepEqual(job.permissions, { contents: "read", issues: "write", actions: "read" });
       assert.equal(job.uses, "./.github/workflows/hosted-discovery-intake.yml");
       assert.equal(
         job.if,

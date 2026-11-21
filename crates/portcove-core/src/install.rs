@@ -2106,12 +2106,20 @@ impl Installer {
             crate::adapter::hash_file_with_checkpoint(download_path, || operation.checkpoint())?
         };
         if !actual_hash.eq_ignore_ascii_case(&asset.sha256) {
-            return Err(PortcoveError::verification(
-                "downloaded asset failed SHA-256 verification",
-            )
-            .detail("asset", &asset.name)
-            .detail("expected", &asset.sha256)
-            .detail("actual", actual_hash));
+            let refusal =
+                PortcoveError::verification("downloaded asset failed SHA-256 verification")
+                    .detail("asset", &asset.name)
+                    .detail("expected", &asset.sha256)
+                    .detail("actual", &actual_hash);
+            if acquired.is_none()
+                && !restored
+                && let Some(worker) = &cache_worker
+            {
+                return Err(worker
+                    .quarantine_download(download_path, &actual_hash, refusal)
+                    .await);
+            }
+            return Err(refusal);
         }
         emit(operation.message("info", format!("Download checksum matches: {}", asset.name)));
         Ok((
