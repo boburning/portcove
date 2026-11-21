@@ -310,9 +310,13 @@ export async function hostPublicationScenario(context: Context) {
         false,
       );
       await storage();
-      await resumeMenu();
-      await click("Resume bundle creation");
-      await field("Staging folder", stage);
+      await click("Create recovery bundle");
+      await field("New bundle folder", bundle);
+      await click("Review bundle creation");
+      await waitText("An interrupted copy is waiting for this bundle folder.");
+      await waitText(path.basename(stage));
+      await staysIncomplete();
+      await capture("interrupted-bundle-creation-rediscovered");
       await reviewControls(browser).click(
         By.xpath('//*[@role="dialog"]//button[normalize-space(.)="Resume bundle creation"]'),
       );

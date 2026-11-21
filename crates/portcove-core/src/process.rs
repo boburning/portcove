@@ -234,20 +234,7 @@ impl NativeToolLaunchSpec {
 pub(crate) fn environment_names_equal(left: &OsStr, right: &OsStr) -> bool {
     #[cfg(windows)]
     {
-        use std::os::windows::ffi::OsStrExt;
-        use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
-        let left: Vec<_> = left.encode_wide().collect();
-        let right: Vec<_> = right.encode_wide().collect();
-        let (Ok(left_len), Ok(right_len)) = (i32::try_from(left.len()), i32::try_from(right.len()))
-        else {
-            return false;
-        };
-        // SAFETY: both buffers have exactly the supplied lengths. Ordinal Windows
-        // environment comparison is case-insensitive, including Unicode names.
-        unsafe {
-            CompareStringOrdinal(left.as_ptr(), left_len, right.as_ptr(), right_len, 1)
-                == CSTR_EQUAL
-        }
+        crate::path::windows_ordinal_names_equal(left, right)
     }
     #[cfg(not(windows))]
     {
