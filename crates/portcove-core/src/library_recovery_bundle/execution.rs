@@ -1554,7 +1554,7 @@ mod tests {
         .unwrap();
         let restore_root = workspace.path().join("restored");
         let manual_root = workspace.path().join("manual");
-        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root).unwrap();
+        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root, Restore::Apply).unwrap();
         let interrupt = |phase| {
             if phase == TransferPhase::Copying {
                 return Err(PortcoveError::state("fixture interruption before copy"));
@@ -1564,7 +1564,8 @@ mod tests {
         crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
         assert!(PortcoveService::resume_library_recovery_restore(&manual_root, None).is_err());
 
-        let (restore_review, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
+        let (restore_review, restore_plan) =
+            prepare_restore(&bundle.path, &restore_root, Restore::Apply).unwrap();
         crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
             .unwrap_err();
         assert!(PortcoveService::resume_library_import(&restore_root).is_err());
@@ -1590,7 +1591,7 @@ mod tests {
 
         let published_root = workspace.path().join("published-restore");
         let (publish_review, publish_plan) =
-            prepare_restore(&bundle.path, &published_root).unwrap();
+            prepare_restore(&bundle.path, &published_root, Restore::Apply).unwrap();
         crate::import_execution::start_reviewed_import(publish_plan, Some(&bundle), &|phase| {
             if phase == TransferPhase::Published {
                 return Err(PortcoveError::state(
