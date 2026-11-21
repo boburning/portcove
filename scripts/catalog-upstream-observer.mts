@@ -34,6 +34,7 @@ import {
 } from "./upstream-mod-provider-registry.mts";
 import {
   inputEvidenceKey,
+  n64BuildJobTarget,
   n64RuntimeSourceCache,
   observeN64RuntimeHashSource,
   observeN64RuntimeSource,
@@ -48,6 +49,10 @@ import {
   advanceUpstreamArtifactBuildObservation,
   rebindUpstreamBuildObservation,
 } from "./upstream-github-build-output.mts";
+import {
+  advanceN64BuildJobObservation,
+  rebindN64BuildJobObservation,
+} from "./upstream-n64-build-job.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
@@ -530,6 +535,14 @@ export interface CatalogObservationOptions extends Pick<
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
   observeN64Runtime?: boolean;
+  readN64BuildStepLog?: (
+    repository: string,
+    job: number,
+    step: number,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<Uint8Array>;
   readOriginalRecognition?: (
     repository: string,
     endpoint: string,
@@ -1558,6 +1571,11 @@ export async function advanceCatalogObservations(
                       ...(runtime ? { runtime_source: runtime } : {}),
                       ...(builds ? { build_outputs: builds } : {}),
                     };
+                    const jobTarget = n64BuildJobTarget(fact);
+                    const jobs = jobTarget
+                      ? rebindN64BuildJobObservation(retained.fact.build_jobs, jobTarget)
+                      : undefined;
+                    if (jobs) fact = { ...fact, build_jobs: jobs };
                   }
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
                   recognitionState = "observed";
@@ -1591,7 +1609,7 @@ export async function advanceCatalogObservations(
                 };
                 if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                   remaining = 0;
-                  state.provider_retry_at = error.retryAt;
+                  extendProviderDeferral(error.retryAt);
                 }
               }
             }
@@ -1617,7 +1635,7 @@ export async function advanceCatalogObservations(
                 } catch (error) {
                   if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                     remaining = 0;
-                    state.provider_retry_at = error.retryAt;
+                    extendProviderDeferral(error.retryAt);
                   }
                 }
                 complete = {
@@ -1654,12 +1672,32 @@ export async function advanceCatalogObservations(
                 // Keep the source evidence and the build search's last checked cursor.
                 if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                   remaining = 0;
-                  if (
-                    error.retryAt &&
-                    (!state.provider_retry_at ||
-                      Date.parse(error.retryAt) > Date.parse(state.provider_retry_at))
-                  )
-                    state.provider_retry_at = error.retryAt;
+                  extendProviderDeferral(error.retryAt);
+                }
+              }
+            }
+            const readBuildStep = options.readN64BuildStepLog;
+            if (
+              readBuildStep &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1"
+            ) {
+              const fact = complete.fact;
+              const target = n64BuildJobTarget(fact);
+              if (target && (fact.build_jobs?.matches.length ?? 0) < target.outputs.length) {
+                try {
+                  const jobs = await advanceN64BuildJobObservation(
+                    target,
+                    fact.build_jobs,
+                    read,
+                    (job, step) => readBuildStep(fact.repository, job, step, account),
+                  );
+                  complete = { ...complete, fact: { ...fact, build_jobs: jobs } };
+                } catch (error) {
+                  if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                    remaining = 0;
+                    extendProviderDeferral(error.retryAt);
+                  }
                 }
               }
             }

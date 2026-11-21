@@ -263,6 +263,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/roadmap-readiness.mts",
   "scripts/runtime-values.mts",
   "scripts/audit-evidence.mts",
+  "scripts/native-audit-checkpoint.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
   "scripts/github-artifact-download.mts",

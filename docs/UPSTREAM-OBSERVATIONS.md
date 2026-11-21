@@ -254,6 +254,17 @@ at the same repository and commit. This establishes a provider-reported build-to
 digest link. Effective checkout and dependency behavior, the job that produced
 the output, and native original-file acceptance need separate evidence.
 
+For outputs with an identifiable upload step, the observer reads that step
+and the earlier checkout step from the exact run attempt. The upload log must
+identify the same digest, artifact ID and size. The checkout log must report
+the selected repository, source commit, runtime and xxHash revisions. The
+checkpoint retains checked job and step identities and log digests. Missing
+or unusable job evidence leaves the affected package unknown and advances the
+search to other packages. Shared budget and rate-limit deferrals still apply.
+Raw logs and signed download addresses stay out of the checkpoint. This records
+checkout and upload observations from the same job. Later build steps and
+native behavior still require their own evidence.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag

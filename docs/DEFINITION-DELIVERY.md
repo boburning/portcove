@@ -1936,6 +1936,15 @@ Earlier-format exports omit that inert envelope while preserving setup facts and
 acquisition restrictions. A format-12 publication needs compatible reader coverage;
 this implementation does not authorize a protected publication or change its keys.
 
+Listing format 13 carries typed IGDB backgrounds and screenshots. It has the
+same reader coverage requirement. Exports up to format 12 retain other artwork,
+setup facts and acquisition restrictions. The operational catalog schema and
+retained runtime contracts continue to carry their existing media.
+The observer's managed format-11 delivery keeps its existing reader window.
+When that older overlay cannot express a bundled typed scene, a newer reader
+keeps the scene only if the project and original-game scope still match and
+the combined media passes admission. A format-13 replacement can withdraw it.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:

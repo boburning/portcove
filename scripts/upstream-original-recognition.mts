@@ -6,6 +6,11 @@ import {
   type UpstreamBuildObservation,
 } from "./upstream-github-build-output.mts";
 import {
+  readN64BuildJobObservation,
+  type N64BuildJobObservation,
+  type N64BuildJobTarget,
+} from "./upstream-n64-build-job.mts";
+import {
   checkN64GameEntries,
   n64GameTablePath,
   parseN64GameTable,
@@ -148,7 +153,32 @@ type N64Evidence = SourceIdentity &
     coverage: "source-declaration";
     runtime_source?: N64RuntimeSourceObservation;
     build_outputs?: UpstreamBuildObservation;
+    build_jobs?: N64BuildJobObservation;
   };
+
+export function n64BuildJobTarget(
+  fact: Pick<
+    N64Evidence,
+    "repository" | "repository_id" | "source_commit" | "runtime_source" | "build_outputs"
+  >,
+): N64BuildJobTarget | undefined {
+  const runtime =
+    fact.runtime_source?.state === "observed" ? fact.runtime_source.source : undefined;
+  if (
+    !runtime?.matched_input_blocks ||
+    runtime.hash_source?.state !== "observed" ||
+    !fact.build_outputs?.matches.length
+  )
+    return;
+  return {
+    repository: fact.repository,
+    repository_id: fact.repository_id,
+    source_commit: fact.source_commit,
+    runtime_revision: runtime.revision,
+    hash_revision: runtime.hash_source.revision,
+    outputs: fact.build_outputs.matches,
+  };
+}
 
 type ObservedOriginalSource = LibultrashipEvidence | N64Evidence;
 
@@ -510,6 +540,12 @@ export function readOriginalSourceProgress(
       return;
     const runtime = readN64RuntimeSourceObservation(fact.runtime_source);
     const builds = readUpstreamBuildObservation(fact.build_outputs, source);
+    const jobTarget = n64BuildJobTarget({
+      ...source,
+      ...(runtime ? { runtime_source: runtime } : {}),
+      ...(builds ? { build_outputs: builds } : {}),
+    });
+    const jobs = jobTarget ? readN64BuildJobObservation(fact.build_jobs, jobTarget) : undefined;
     evidence = {
       ...source,
       parser: fact.parser,
@@ -518,6 +554,7 @@ export function readOriginalSourceProgress(
       games,
       ...(runtime ? { runtime_source: runtime } : {}),
       ...(builds ? { build_outputs: builds } : {}),
+      ...(jobs ? { build_jobs: jobs } : {}),
     };
   } else {
     if (
