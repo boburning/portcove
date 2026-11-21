@@ -18,6 +18,11 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { preparePayloadSigningEnvironment } from "./release-payload-signing.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readCatalogSource } from "./catalog-authoring.mts";
+import {
+  managedN64OriginalProjection,
+  verifyManagedN64OriginalProposal,
+} from "./n64-original-publication.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const indexTarget = "definitions/index.json";
@@ -258,6 +263,7 @@ async function main(argv: string[]) {
         "reviewed",
         "validator",
         "output-parent",
+        "original-input-checkpoint",
       ].map((name) => [name, { type: "string" as const }]),
     ),
   });
@@ -269,15 +275,39 @@ async function main(argv: string[]) {
   if (command !== "project" && command !== "prepare")
     throw new Error("expected project or prepare");
   const id = requireString("port");
-  const catalog = await readControllerToolFile(
-    path.resolve(requireString("catalog")),
-    catalogDefinitionContentBytes,
-  );
-  const template = await readControllerToolFile(
-    path.resolve(requireString("projection-template")),
-    catalogDefinitionContentBytes,
-  );
   const deadline = performance.now() + 90_000;
+  const checkpointPath = values["original-input-checkpoint"];
+  const fromObserver = typeof checkpointPath === "string";
+  if (fromObserver && (values.catalog !== undefined || values["projection-template"] !== undefined))
+    throw new Error("Choose canonical catalog preparation or the original-input checkpoint");
+  const priorDirectory =
+    command === "prepare" || fromObserver ? path.resolve(requireString("prior")) : undefined;
+  const prior = priorDirectory
+    ? await readCatalogPublicationBundle(priorDirectory, deadline)
+    : undefined;
+  let authored: { draft: Buffer; reader: number; checkpointSha256: string } | undefined;
+  let catalog: Buffer | undefined;
+  let template: Buffer | undefined;
+  if (fromObserver) {
+    const source = readCatalogSource(
+      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+    );
+    const bytes = await readControllerToolFile(path.resolve(checkpointPath), 128 * 1024 ** 2);
+    const checkpoint: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    authored = {
+      ...managedN64OriginalProjection(prior!, id, source.catalog, checkpoint),
+      checkpointSha256: hash(bytes),
+    };
+  } else {
+    catalog = await readControllerToolFile(
+      path.resolve(requireString("catalog")),
+      catalogDefinitionContentBytes,
+    );
+    template = await readControllerToolFile(
+      path.resolve(requireString("projection-template")),
+      catalogDefinitionContentBytes,
+    );
+  }
   const validator = path.resolve(requireString("validator"));
   const producer =
     typeof values["projection-producer"] === "string"
@@ -289,7 +319,7 @@ async function main(argv: string[]) {
   const producerHash = producer === validator ? validatorHash : await toolFingerprint(producer);
   const projection = await canonicalProjection(
     producer,
-    generatedPublicationProjection(catalog, id, template),
+    authored?.draft ?? generatedPublicationProjection(catalog!, id, template!),
     deadline,
   );
   if ((await toolFingerprint(producer)) !== producerHash)
@@ -299,17 +329,16 @@ async function main(argv: string[]) {
     return;
   }
 
-  const priorDirectory = path.resolve(requireString("prior"));
   const reviewDirectory = path.resolve(requireString("reviewed"));
   const parent = path.resolve(requireString("output-parent"));
-  const prior = await readCatalogPublicationBundle(priorDirectory, deadline);
   const reviewed = await readCatalogPublicationBundle(
     path.join(reviewDirectory, "bundle"),
     deadline,
   );
   const request = await readControllerToolFile(path.join(reviewDirectory, "request.json"), 16_384);
   parseCatalogPublicationRequest(request);
-  const { files, contents } = assembleReviewedPublication(prior, reviewed, id, projection);
+  const { files, contents } = assembleReviewedPublication(prior!, reviewed, id, projection);
+  if (authored) verifyManagedN64OriginalProposal(prior!, files, id, authored.reader);
   const output = await mkdtemp(path.join(parent, "catalog-publication-"));
   const scratch = path.join(output, "inspection");
   let complete = false;
@@ -342,7 +371,7 @@ async function main(argv: string[]) {
       )
         throw new Error("reviewed publication bytes changed during inspection");
     };
-    await inspect(priorDirectory, prior);
+    await inspect(priorDirectory!, prior!);
     await inspect(bundle, files);
     if ((await toolFingerprint(validator)) !== validatorHash)
       throw new Error("Core validator changed during inspection");
@@ -354,12 +383,20 @@ async function main(argv: string[]) {
     console.log(
       JSON.stringify({
         directory: output,
-        generated_catalog_sha256: hash(catalog),
-        projection_template_sha256: hash(template),
+        ...(authored
+          ? {
+              original_input_checkpoint_sha256: authored.checkpointSha256,
+              original_input_draft_sha256: hash(authored.draft),
+              required_n64_reader: authored.reader,
+            }
+          : {
+              generated_catalog_sha256: hash(catalog!),
+              projection_template_sha256: hash(template!),
+            }),
         projection_sha256: hash(contents),
         request_sha256: hash(request),
         index_sha256: hash(files.get(indexTarget)!),
-        prior_bundle_sha256: releaseCanonicalDigest(catalogPublicationInventory(prior)),
+        prior_bundle_sha256: releaseCanonicalDigest(catalogPublicationInventory(prior!)),
         bundle_sha256: releaseCanonicalDigest(catalogPublicationInventory(files)),
         validator_sha256: validatorHash,
         projection_producer_sha256: producerHash,
