@@ -319,7 +319,9 @@ it.each([
         .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
-  expect(html).toContain("Portcove first takes an automatic snapshot of its saves and settings");
+  expect(detailSection(html, "versions")).toContain(
+    "Checking automatic snapshots for this library",
+  );
   expect(button?.includes('disabled=""')).toBe(disabled);
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
@@ -1542,11 +1544,11 @@ describe("desktop components", () => {
     expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
     expect(buttonLabels).toContain("Report a problem or send feedback");
-    // The restore explanation belongs to the hidden restore control here; the retained
-    // rollback cases assert it when a previous version exists.
-    expect(installed).not.toContain(
-      "Portcove first takes an automatic snapshot of its saves and settings",
+    expect(detailSection(installed, "versions")).toContain(
+      "Checking automatic snapshots for this library",
     );
+    // There is no rollback action for this installation.
+    expect(installed).not.toContain("Saved-data restore is a separate reviewed action");
     expect(buttonLabels).not.toContain("Check update");
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");

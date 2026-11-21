@@ -101,6 +101,63 @@ async function capture(name: string, atTop = true) {
   }
 }
 
+it("keeps the Settings snapshot policy current across navigation during a save", async () => {
+  await page.viewport(1366, 768);
+  await mount("dark");
+  const save = desktopApi.setAutomaticSnapshots;
+  let releaseSave = () => {};
+  const gate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  const savePolicy = vi
+    .spyOn(desktopApi, "setAutomaticSnapshots")
+    .mockImplementation(async (enabled, generation) => {
+      await gate;
+      return save(enabled, generation);
+    });
+  const navigation = page.getByRole("navigation", { name: "Primary navigation" });
+  const savesName = "Saves & backups";
+  const versionsName = "Versions & updates";
+  const panel = (name: string) => page.getByRole("tabpanel", { name, exact: true });
+  const on = "Automatic snapshots before version changes are on for this library.";
+  const off = "Automatic snapshots before version changes are off for this library.";
+
+  await open();
+  await page.getByRole("tab", { name: savesName, exact: true }).click();
+  await expect.element(panel(savesName).getByText(on, { exact: true })).toBeVisible();
+  await expect.element(panel(savesName).getByText("No backups yet", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: versionsName, exact: true }).click();
+  await expect.element(panel(versionsName).getByText(on, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to Library", exact: true }).click();
+
+  await navigation.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Library and storage", exact: true }).click();
+  const setting = page.getByRole("checkbox", {
+    name: "Snapshot saved data before each version change",
+  });
+  await expect.element(setting).toBeChecked();
+  try {
+    await setting.click();
+    await expect.element(setting).toBeDisabled();
+    expect(savePolicy).toHaveBeenCalledOnce();
+    await navigation.getByRole("button", { name: "Library", exact: true }).click();
+    await open();
+    await page.getByRole("tab", { name: versionsName, exact: true }).click();
+    await expect
+      .element(panel(versionsName).getByText("Checking automatic snapshots for this library…"))
+      .toBeVisible();
+  } finally {
+    releaseSave();
+  }
+  await expect.element(panel(versionsName).getByText(off, { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: savesName, exact: true }).click();
+  await expect.element(panel(savesName).getByText(off, { exact: true })).toBeVisible();
+  await expect.element(panel(savesName).getByText("No backups yet", { exact: true })).toBeVisible();
+  await expect
+    .element(panel(savesName).getByText(/^Latest completed backup:/))
+    .not.toBeInTheDocument();
+});
+
 for (const theme of ["dark", "light"]) {
   for (const [width, height] of [
     [1366, 768],

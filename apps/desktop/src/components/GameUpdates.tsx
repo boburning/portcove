@@ -1,3 +1,4 @@
+import { AutomaticSnapshotsSummary } from "./AutomaticSnapshotsSetting";
 import { ArrowRight } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { desktopApi } from "../api";
@@ -624,6 +625,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       {!archiveOnly && plan && reviewScope?.active !== false && (
         <GameUpdatePlanDialog
           control={control}
+          generation={props.generation}
           currentVersion={props.currentVersion}
           heading={heading}
           finalFocus={finalFocus}
@@ -836,11 +838,13 @@ function RetainedUpdateArchive({
 
 function GameUpdatePlanDialog({
   control,
+  generation,
   currentVersion,
   heading,
   finalFocus,
 }: {
   control: ReturnType<typeof useGameUpdateControl>;
+  generation: number;
   currentVersion: string | undefined;
   heading: RefObject<HTMLHeadingElement | null>;
   finalFocus: () => HTMLElement | false;
@@ -888,6 +892,7 @@ function GameUpdatePlanDialog({
         </DialogDescription>
         <GameUpdateReview
           plan={plan}
+          generation={generation}
           downloadOnly={downloadOnly}
           existingArchive={existingArchive && !applying}
           currentVersion={currentVersion}
@@ -1079,11 +1084,13 @@ function gameUpdateActionLabel(
 
 function GameUpdateReview({
   plan,
+  generation,
   currentVersion,
   downloadOnly,
   existingArchive,
 }: {
   plan: GameUpdatePlan;
+  generation: number;
   currentVersion?: string | undefined;
   downloadOnly: boolean;
   existingArchive: boolean;
@@ -1161,12 +1168,14 @@ function GameUpdateReview({
           <bdi dir="ltr" className="block">
             {plan.plan.output_location.user_data_root}
           </bdi>
-          <p className="mt-2 mb-0">
-            Unless you turned it off in Settings, or this game has no saves that Portcove manages,
-            Portcove first takes an automatic snapshot of its saves and settings. Keeping the
-            previous game version is separate from backing up saved data. Save compatibility between
-            versions is not checked here. Review backup options in Saves and storage.
-          </p>
+          <div className="mt-2">
+            <AutomaticSnapshotsSummary generation={generation} />
+            <p className="mt-2 mb-0">
+              Keeping the previous game version is separate from backing up saved data. Portcove
+              cannot confirm that saves work with the new version. Review backups in Saves &amp;
+              backups.
+            </p>
+          </div>
         </div>
       )}
       {!downloadOnly && plan.plan.shared_preferences && (

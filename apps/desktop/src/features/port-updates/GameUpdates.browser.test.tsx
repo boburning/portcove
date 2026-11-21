@@ -1070,6 +1070,7 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
         preservation_notices: [notice],
       },
     }));
+  const snapshotPolicy = vi.spyOn(desktopApi, "automaticSnapshots").mockResolvedValue(false);
   const apply = vi.spyOn(desktopApi, "applyGameUpdate");
   await root.rerender(
     <GameUpdateControl
@@ -1085,14 +1086,15 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   expect(dialog()?.textContent).toContain("Version you’re using: 1.0");
   expect(dialog()?.textContent).toContain(plan.plan.output_location.user_data_root);
   expect(dialog()?.textContent).toContain(
-    "Save compatibility between versions is not checked here",
+    "Portcove cannot confirm that saves work with the new version",
   );
   expect(dialog()?.textContent).toContain(
     "Keeping the previous game version is separate from backing up saved data",
   );
-  expect(dialog()?.textContent).toContain(
-    "Portcove first takes an automatic snapshot of its saves and settings",
-  );
+  await expect
+    .element(page.getByText("Automatic snapshots before version changes are off for this library."))
+    .toBeVisible();
+  expect(snapshotPolicy).toHaveBeenCalledExactlyOnceWith(9);
   expect(dialog()?.textContent).toContain(notice);
   expect(dialog()?.textContent).toContain("No download; use the verified local release");
   expect(dialog()?.textContent).not.toContain("Download for later");
@@ -1103,6 +1105,8 @@ it("shows the reviewed data location and compatibility unknown for a saved updat
   ]);
   expect(dialog()?.textContent).toContain("keep using your current version");
   expect(dialog()?.textContent).toContain("Keep saved update for later");
+  expect(dialog()?.querySelector("[data-automatic-snapshot-policy]")).toBeNull();
+  expect(snapshotPolicy).toHaveBeenCalledExactlyOnceWith(9);
   expect(dialog()?.textContent).toContain(notice);
   expect(apply).not.toHaveBeenCalled();
 });
