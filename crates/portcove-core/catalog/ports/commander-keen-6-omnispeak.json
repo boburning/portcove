@@ -54,10 +54,7 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": [
-        "omnispeak-win64-",
-        ".zip"
-      ]
+      "windows-x86-64": ["omnispeak-win64-", ".zip"]
     },
     "original_game": {
       "format_version": 1,
@@ -93,13 +90,8 @@
   "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
