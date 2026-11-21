@@ -161,12 +161,21 @@ void test("a generated route assembles deterministically and retains Chameleon c
 void test("an authored loader reaches preparation with one schema 3 entry and leaf", async () => {
   const f = await fixture();
   const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
-  const port = JSON.parse(prepared.contents.toString()).catalog.ports[0];
+  const projection = JSON.parse(prepared.contents.toString()) as {
+    catalog: {
+      ports: {
+        mod_loader: { contract: unknown; repository: string };
+        release: { repository: string };
+      }[];
+    };
+  };
+  const [port] = projection.catalog.ports;
+  assert.ok(port);
   assert.deepEqual(port.mod_loader.contract, { id: "libultraship", version: "1" });
   assert.equal(port.mod_loader.repository, port.release.repository);
   assert.equal(prepared.files.get(f.projectionTarget), prepared.contents);
 
-  const legacyTemplate = JSON.parse(f.template.toString());
+  const legacyTemplate = JSON.parse(f.template.toString()) as Record<string, unknown>;
   for (const previousSchema of [1, 2]) {
     legacyTemplate.contract_schema = previousSchema;
     assert.throws(
@@ -174,7 +183,7 @@ void test("an authored loader reaches preparation with one schema 3 entry and le
       /native mod loaders require catalog projection schema 3/u,
     );
   }
-  const entry = JSON.parse(f.next.get(f.heldTarget)!.toString());
+  const entry = JSON.parse(f.next.get(f.heldTarget)!.toString()) as Record<string, unknown>;
   entry.definition_schema = 2;
   assert.throws(
     () =>
