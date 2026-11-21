@@ -22,7 +22,7 @@ function reviewedRoute(record: AuthoredPort) {
   const origin = lineage?.origin;
   const repository = origin?.repository;
   const linuxHints = isRecord(hints) ? hints[linux] : undefined;
-  const player = Array.isArray(linuxHints) ? linuxHints[0] : undefined;
+  const player: unknown = Array.isArray(linuxHints) ? linuxHints[0] : undefined;
   if (
     typeof player !== "string" ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(player) ||
