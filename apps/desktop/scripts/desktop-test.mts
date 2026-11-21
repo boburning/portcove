@@ -858,6 +858,7 @@ async function verifySettingsRows() {
           "integrations",
           "controls",
           "advanced",
+          "about",
         ]) {
           await selectSettingsCategory(group);
           const rows = await executeBrowserScript(
@@ -877,7 +878,10 @@ async function verifySettingsRows() {
                 `[data-settings-group="${group}"] .settings-section-content`,
               );
               if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
-              const children = [...content.children];
+              const rowContainer =
+                group === "about" ? content.querySelector(":scope > .about-card") : content;
+              if (!(rowContainer instanceof HTMLElement)) throw new Error("Missing About card");
+              const children = [...rowContainer.children];
               if (!children.every((child) => child.classList.contains("settings-row")))
                 throw new Error(`${group} contains an unmigrated Settings card`);
               return {
@@ -933,6 +937,7 @@ async function verifySettingsRows() {
           );
           await captureScenarioScreenshot(
             `settings-${group}-${theme}-${size.width}x${size.height}`,
+            group === "about",
           );
           if (group === "advanced" && size.width === 960) {
             await executeBrowserScript(browser, () =>
@@ -994,6 +999,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     integrations: 3,
     controls: 2,
     advanced: 3,
+    about: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
     assert.equal(group.rows.length, expectedRows[name], `${name} row count changed`);
