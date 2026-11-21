@@ -101,6 +101,13 @@ jobs:
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Require a compatible CI-green source
+        if: steps.decide.outputs.publish == 'true'
+        run: |
+          if [ ! -f scripts/catalog-pages-overlay.mts ]; then
+            echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
+            exit 1
+          fi
       - uses: ./.github/actions/setup-rust
         if: steps.decide.outputs.publish == 'true'
       - name: Build the catalog tools
@@ -227,7 +234,7 @@ jobs:
           work="$RUNNER_TEMP/catalog-work"
           chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
           node scripts/catalog-publish.mts assembly-config --work "$work"
-          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json"
+          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json" > "$work/assembly-report.json"
       - name: Generate public development catalog pages
         run: |
           set -euo pipefail
@@ -246,13 +253,10 @@ jobs:
           for attempt in 1 2 3 4; do
             git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
-            # Only this workflow writes catalog/, and its runs are serialized; a
-            # different catalog means the plan is stale, so refuse rather than overwrite.
-            if [ "$(node scripts/catalog-publish.mts tree-digest --dir site/catalog)" != "$PRIOR_DIGEST" ]; then
-              echo "::error::gh-pages catalog/ changed since this run read it"; exit 1
-            fi
-            rm -rf site/catalog && cp -R "$repository" site/catalog
-            git -C site add -A catalog
+            # The assembled report is local to this job. Compare the guarded
+            # prior inventory and stage only newly assembled repository files.
+            node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
+              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json"
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.
