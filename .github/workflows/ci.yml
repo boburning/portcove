@@ -472,7 +472,16 @@ jobs:
           save-if: false
           key: ${{ hashFiles('Cargo.toml') }}
       - name: Compare live CLI and headless and native Desktop serialization
-        run: node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts
+        id: transport-contract
+        run: node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts --retain-drift
+      - name: Retain transport schema drift
+        if: failure() && steps.transport-contract.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: transport-schema-drift-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portcove-transport-drift/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Summarize diagnostic timings
         if: always()
         continue-on-error: true
@@ -1406,11 +1415,20 @@ jobs:
       - name: Run all-target Clippy on Linux
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Check child-process policy and live transport contracts
+        id: transport-contract
         run: |
           node scripts/check-child-process-policy.mts
-          node scripts/check-transport-contract.mts
+          node scripts/check-transport-contract.mts --retain-drift
           # node-suite: rust-quality-full-2
           node --test --test-reporter=./scripts/required-node-test-reporter.mts scripts/check-transport-contract.integration.test.mts
+      - name: Retain transport schema drift
+        if: failure() && steps.transport-contract.outcome == 'failure'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: transport-schema-drift-${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portcove-transport-drift/
+          if-no-files-found: ignore
+          retention-days: 7
 
   rust-quality:
     timeout-minutes: 15
