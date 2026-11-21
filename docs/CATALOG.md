@@ -1825,7 +1825,18 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
-Ordinary executable updates do not refresh artwork.
+Due refresh of a retained cover revalidates its approved IGDB game ID, slug
+and cover role. An accepted mapping can be revalidated by exact ID and slug
+even when the listing lacks an original title. This does not establish a new
+artwork relationship or runtime eligibility. If the exact identity cannot be
+confirmed, retain its allowed mapping. A different game or role needs separate reviewed preparation. Exact
+confirmed Gone still removes the affected image references.
+For a bounded retained-cover pass, add `--artwork-retained-limit COUNT` to
+`@due`. This selects up to 400 due rows with an accepted cover or cover collection
+and reports how many due rows were outside the current pass. An attempted row
+goes behind rows with older attempts so unresolved identity holds do not starve
+the rest of that workset. New and ambiguous cover identities keep their separate
+review path. Ordinary executable updates do not refresh artwork.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
@@ -1844,9 +1855,10 @@ after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
 invalidate the affected result. Ordinary preparation and explicit or due refresh
 retain separate per-ID results so an ordinary run preserves the last live
-refresh observation. Earlier attempt receipts remain available.
-The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
-progress. It can retire when those checkpoints no longer need to resume.
+refresh observation. Explicit and due refreshes reuse completed live observations
+for up to 28 days. An older or unknown observation requires a new bounded read.
+Earlier attempt receipts remain available. The exact old whole-batch reader
+serves ordinary preparation in pre-#3766 checkpoints with no per-ID progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
@@ -3994,11 +4006,13 @@ original/edition. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-The Desktop currently has no validated binding from Core's source game/variant/
-representation identity to these descriptive original-edition IDs. Production
-original media therefore requires explicitly reviewed edition neutrality; exact
-port media and the existing Cover/text fallback remain available. Offered editions
-or similar ID strings must not manufacture a selection.
+Desktop has no validated binding from Core's source game, variant and
+representation IDs to these descriptive original-edition IDs. Automatic
+original media therefore requires reviewed edition neutrality. Players can use
+**Screenshot source** to view reviewed screenshots for an original release.
+This choice applies only to the gallery. Exact port media and the Cover and
+text fallbacks remain available. Offered editions and similar ID strings do not
+establish a selected source edition.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
