@@ -1245,6 +1245,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
