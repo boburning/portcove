@@ -189,6 +189,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn bundled_provider_scopes_preserve_historical_package_identity() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for (id, provider) in [
+            ("shipwright", crate::gamebanana::PROVIDER),
+            ("zelda64-recomp", crate::thunderstore::PROVIDER),
+        ] {
+            let port = catalog.port(id).unwrap();
+            let prior = legacy_binding(id, provider).unwrap();
+            assert_eq!(
+                configured_bindings(port),
+                Some(std::slice::from_ref(&prior))
+            );
+            assert_eq!(default_binding(port), Some(prior));
+            assert!(reference_matches(
+                port,
+                &crate::ProviderPackageRef {
+                    provider: provider.into(),
+                    binding: None,
+                    project: "legacy-project".into(),
+                    file: Some("legacy-file".into()),
+                    version: None,
+                },
+            ));
+        }
+    }
+
+    #[test]
     fn explicit_reviewed_scope_is_selected_and_replayed_exactly() {
         let catalog = crate::Catalog::embedded().unwrap();
         let mut port = catalog.port("shipwright").unwrap().clone();

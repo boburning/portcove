@@ -29022,6 +29022,12 @@
       "name": "Ship of Harkinian",
       "summary": "Native Ocarina of Time port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Shipwright",
+      "mod_provider_bindings": [
+        {
+          "provider": "gamebanana",
+          "game_id": 16121
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -29932,6 +29938,12 @@
       "name": "Zelda 64: Recompiled",
       "summary": "Native Majora's Mask recompilation.",
       "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+      "mod_provider_bindings": [
+        {
+          "provider": "thunderstore",
+          "community": "zelda-64-recompiled"
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"

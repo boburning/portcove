@@ -51,6 +51,7 @@
     }
   },
   "integration": {
+    "mod_provider_bindings": [{"provider": "gamebanana", "game_id": 16121}],
     "support_tier": "stable",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],

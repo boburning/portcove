@@ -173,6 +173,7 @@
   },
   "n64_recomp_persistence_v1": true,
   "integration": {
+    "mod_provider_bindings": [{"provider": "thunderstore", "community": "zelda-64-recompiled"}],
     "support_tier": "stable",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
