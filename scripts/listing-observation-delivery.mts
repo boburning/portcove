@@ -20,6 +20,7 @@ import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 import {
+  compactListingDecodedMaximum,
   compactListingDeliveryTarget,
   decodeRetainedCompactListing,
   encodeCompactListing,
@@ -185,6 +186,7 @@ export function projectListingDelivery(
   operationalIds: ReadonlySet<string> = new Set(),
   now = Date.now(),
   reviewedWithdrawals: readonly string[] = [],
+  requireComplete = false,
 ) {
   const raw = directory(canonical);
   const baseline = directory(compatible ?? raw);
@@ -218,6 +220,10 @@ export function projectListingDelivery(
   const withdrawn = [
     ...new Set([...(previousDocument?.withdrawn_ids ?? []), ...reviewedWithdrawals]),
   ];
+  if (withdrawn.length > 10000)
+    throw new Error(
+      "Listing withdrawals exceed their count bound; retaining last-good publication",
+    );
   const withdrawalSet = new Set(withdrawn);
   for (const id of previousListings.keys()) {
     if (!identities.has(id) && !withdrawalSet.has(String(id)))
@@ -231,7 +237,8 @@ export function projectListingDelivery(
     .filter(
       (listing) =>
         !withdrawalSet.has(String(listing.id)) &&
-        (previousListings.has(listing.id) ||
+        (requireComplete ||
+          previousListings.has(listing.id) ||
           operationalIds.has(String(listing.id)) ||
           updates.has(String(listing.id)) ||
           isRecord(listing.upstream_observation)),
@@ -285,16 +292,27 @@ export function projectListingDelivery(
     directory: { format_version: 11, listings },
   });
   const envelopeBytes = Buffer.byteLength(JSON.stringify(envelope([])));
-  if (envelopeBytes > byteLimit || byteLimit > maximum)
-    throw new Error("Descriptive envelope exceeds existing byte bound");
-  const { listings, retained, updated, omitted, omittedObservations } = fitListingAdmissions(
-    proposedRows,
-    envelopeBytes,
-    byteLimit,
-    now,
-  );
+  const maximumForMode = requireComplete ? compactListingDecodedMaximum : maximum;
+  if (envelopeBytes > byteLimit || byteLimit > maximumForMode)
+    throw new Error("Descriptive envelope exceeds its byte bound");
+  const { listings, retained, updated, omitted, omittedObservations } = requireComplete
+    ? {
+        listings: proposedRows.map((row) => row.listing),
+        retained: proposedRows.filter((row) => row.retained).length,
+        updated: proposedRows.filter((row) => row.updated).length,
+        omitted: [],
+        omittedObservations: [],
+      }
+    : fitListingAdmissions(proposedRows, envelopeBytes, byteLimit, now);
   listings.sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
   const candidate = envelope(listings);
+  const bytes = Buffer.from(JSON.stringify(candidate));
+  if (bytes.length > byteLimit)
+    throw new Error(
+      requireComplete
+        ? "Complete compact listing exceeds its decoded byte bound; retaining last-good publication"
+        : "Descriptive delivery exceeds its byte bound",
+    );
   if (
     previousDocument &&
     observationHash(previousDocument.directory) === observationHash(candidate.directory) &&
@@ -311,8 +329,6 @@ export function projectListingDelivery(
       canonical_records: raw.listings.length,
       delivered_records: listings.length,
     };
-  const bytes = Buffer.from(JSON.stringify(candidate));
-  if (bytes.length > byteLimit) throw new Error("Descriptive delivery exceeds its byte bound");
   return {
     bytes,
     revision,
@@ -613,42 +629,52 @@ export async function prepareObservationBundle(options: {
       candidates,
       previous,
       withdrawal?.revision ?? 0,
-      maximum,
+      useCompact ? compactListingDecodedMaximum : maximum,
       compatible,
       operationalIds,
       now,
       withdrawal?.withdrawn_ids,
+      useCompact,
     );
   const inspect = (bytes: Buffer) => {
     const candidate = path.join(workspace, "listings.json");
     writeFileSync(candidate, bytes);
     return cli(["--json", "catalog", "inspect-listings", "--path", candidate]);
   };
-  // Optional bad enrichment cannot stall independent catalog publication/renewal.
-  try {
-    inspect(
-      Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
-    );
-  } catch (error) {
-    if (renewal) throw error;
-    diagnostics.push(
-      "observer candidates failed Core validation; retaining prior applicable observations",
-    );
-    projected = projectListingDelivery(
-      canonical,
-      [],
-      previous,
-      withdrawal?.revision ?? 0,
-      maximum,
-      compatible,
-      operationalIds,
-      now,
-      withdrawal?.withdrawn_ids,
-    );
-    inspect(
-      Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
-    );
+  if (!useCompact) {
+    // Legacy publication keeps its existing optional-enrichment fallback.
+    try {
+      inspect(
+        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+      );
+    } catch (error) {
+      if (renewal) throw error;
+      diagnostics.push(
+        "observer candidates failed Core validation; retaining prior applicable observations",
+      );
+      projected = projectListingDelivery(
+        canonical,
+        [],
+        previous,
+        withdrawal?.revision ?? 0,
+        maximum,
+        compatible,
+        operationalIds,
+        now,
+        withdrawal?.withdrawn_ids,
+      );
+      inspect(
+        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+      );
+    }
   }
+  // Stage the complete authenticated representation before copying the output bundle.
+  // Compact validation below uses the normal publication inspector on these exact bytes.
+  const compactWire = useCompact
+    ? previousWire && priorCompact && !projected.changed
+      ? previousWire
+      : encodeCompactListing(projected.bytes)
+    : null;
   if (
     hash(await readControllerToolFile(options.canonical, maximum)) !== hash(canonicalBytes) ||
     hash(await readControllerToolFile(options.catalog, 32 * 1024 * 1024)) !== hash(catalogBytes)
@@ -665,13 +691,10 @@ export async function prepareObservationBundle(options: {
     unlinkSync(destination);
   }
   writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
-  const compactWire = useCompact
-    ? previousWire && priorCompact && !projected.changed
-      ? previousWire
-      : encodeCompactListing(projected.bytes)
-    : null;
-  if (compactWire)
+  if (compactWire) {
     writeFileSync(path.join(bundle, compactListingDeliveryTarget), compactWire, { flag: "wx" });
+    cli(["--json", "catalog", "inspect-definition-publication", bundle]);
+  }
   const report = {
     bundle,
     revision: projected.revision,
@@ -700,8 +723,11 @@ export async function prepareObservationBundle(options: {
             : {}),
         }
       : {}),
-    projection_scope:
-      "Reviewed operational and previously signed guides with bounded optional observations; omitted discovery rows retain bundled fallback. Coverage is not complete provider history.",
+    projection_scope: renewal
+      ? "Exact prior signed listing directory for signer-verified renewal."
+      : useCompact
+        ? "Complete canonical directory with applicable observations and explicit withdrawals."
+        : "Reviewed operational and previously signed guides with bounded optional observations; omitted discovery rows retain bundled fallback. Coverage is not complete provider history.",
     diagnostics,
     scope: withdrawal
       ? "reviewed descriptive withdrawal; no operation or publication grant"

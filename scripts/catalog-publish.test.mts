@@ -987,3 +987,43 @@ void test("a reviewed legacy withdrawal keeps other legacy facts and compact-onl
     ["compact-only"],
   );
 });
+
+test("compact listing includes the complete canonical snapshot or fails at its true bound", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { compactListingDecodedMaximum, decodeRetainedCompactListing, encodeCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const listings = [
+    { id: "unobserved-listing", name: "Descriptive listing" },
+    { id: "operational-listing", name: "Operational listing" },
+    { id: "withdrawn-listing", name: "Withdrawn listing" },
+  ];
+  const canonical = { format_version: 11, listings };
+  const operationalIds = new Set(["operational-listing"]);
+  const project = (bound: number) =>
+    projectListingDelivery(
+      canonical,
+      [],
+      null,
+      0,
+      bound,
+      undefined,
+      operationalIds,
+      0,
+      ["withdrawn-listing"],
+      true,
+    );
+  const complete = project(compactListingDecodedMaximum);
+  const legacy = projectListingDelivery(canonical, [], null, 0, 1000, undefined, operationalIds);
+  assert.equal(legacy.delivered_records, 1);
+  assert.equal(complete.delivered_records, 2);
+  assert.deepEqual(complete.omitted, []);
+  assert.deepEqual(complete.omittedObservations, []);
+  assert.deepEqual(JSON.parse(complete.bytes.toString()).directory.listings, [
+    listings[1],
+    listings[0],
+  ]);
+  const wire = encodeCompactListing(complete.bytes);
+  assert.deepEqual(decodeRetainedCompactListing(wire), complete.bytes);
+  assert.deepEqual(project(complete.bytes.length).bytes, complete.bytes);
+  assert.throws(() => project(complete.bytes.length - 1), /retaining last-good publication/u);
+});

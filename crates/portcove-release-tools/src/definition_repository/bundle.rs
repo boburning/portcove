@@ -79,16 +79,30 @@ pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevisi
     {
         return invalid("listing target outside its byte bound");
     }
-    let decoded;
-    let (payload, decoded_sha256) = if target == portcove_listing_carrier::COMPACT_TARGET {
-        let (value, digest) = portcove_listing_carrier::decode(raw)
+    if target == portcove_listing_carrier::COMPACT_TARGET {
+        let (decoded, decoded_sha256) = portcove_listing_carrier::decode(raw)
             .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
-        decoded = value;
-        (decoded.as_slice(), digest)
-    } else {
-        (raw, sha(raw))
-    };
-    let document: serde_json::Value = serde_json::from_slice(payload)?;
+        let summary: CompactListingSummary<'_> = serde_json::from_slice(&decoded)?;
+        if summary.listing_delivery_schema != 1
+            || !(1..=9_007_199_254_740_991).contains(&summary.revision)
+            || summary
+                .directory
+                .listings
+                .iter()
+                .any(|row| row.get().len() > portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES)
+        {
+            return invalid("compact listing summary differs");
+        }
+        return Ok(ListingRevision {
+            revision: summary.revision,
+            decoded_sha256,
+            listing_count: summary.directory.listings.len(),
+            withdrawn_ids: collect_listing_withdrawals(
+                summary.withdrawn_ids.iter().map(|id| Some(id.as_str())),
+            )?,
+        });
+    }
+    let document: serde_json::Value = serde_json::from_slice(raw)?;
     let revision = document["revision"]
         .as_u64()
         .filter(|n| (1..=9_007_199_254_740_991).contains(n));
@@ -104,12 +118,28 @@ pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevisi
     ) {
         (Some(1), Some(revision), Some(listing_count)) => Ok(ListingRevision {
             revision,
-            decoded_sha256,
+            decoded_sha256: sha(raw),
             listing_count,
             withdrawn_ids,
         }),
         _ => invalid("listing summary differs"),
     }
+}
+
+#[derive(Deserialize)]
+struct CompactListingSummary<'a> {
+    listing_delivery_schema: u32,
+    revision: u64,
+    #[serde(deserialize_with = "portcove_listing_carrier::bounded_entries")]
+    withdrawn_ids: Vec<String>,
+    #[serde(borrow)]
+    directory: CompactListingSummaryDirectory<'a>,
+}
+
+#[derive(Deserialize)]
+struct CompactListingSummaryDirectory<'a> {
+    #[serde(borrow, deserialize_with = "portcove_listing_carrier::bounded_entries")]
+    listings: Vec<&'a serde_json::value::RawValue>,
 }
 
 fn listing_withdrawals(document: &serde_json::Value) -> Result<BTreeSet<String>> {
@@ -119,12 +149,15 @@ fn listing_withdrawals(document: &serde_json::Value) -> Result<BTreeSet<String>>
     else {
         return invalid("listing withdrawal inventory differs");
     };
+    collect_listing_withdrawals(list.iter().map(serde_json::Value::as_str))
+}
+
+fn collect_listing_withdrawals<'a>(
+    entries: impl IntoIterator<Item = Option<&'a str>>,
+) -> Result<BTreeSet<String>> {
     let mut ids = BTreeSet::new();
-    for id in list {
-        let Some(id) = id
-            .as_str()
-            .filter(|value| !value.is_empty() && value.len() <= 128)
-        else {
+    for id in entries {
+        let Some(id) = id.filter(|value| !value.is_empty() && value.len() <= 128) else {
             return invalid("listing withdrawal identity differs");
         };
         if !ids.insert(id.to_owned()) {

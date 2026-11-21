@@ -83,7 +83,11 @@ fn inspect_listing_publication(
     } else {
         (bytes, raw_sha256.clone())
     };
-    let document = ListingDeliveryDocument::parse(payload)?;
+    let document = if target == portcove_listing_carrier::COMPACT_TARGET {
+        ListingDeliveryDocument::parse_compact(payload)?
+    } else {
+        ListingDeliveryDocument::parse(payload)?
+    };
     Ok((
         ListingPublicationIdentity {
             target: target.into(),

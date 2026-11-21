@@ -5,12 +5,15 @@ import { isRecord } from "./runtime-values.mts";
 export const listingDeliveryTarget = "policy/official/catalog.listings.json";
 export const compactListingDeliveryTarget = "policy/official/catalog.listings.compact.json";
 export const listingDeliveryMaximum = 8 * 1024 ** 2;
+export const compactListingDecodedMaximum = 32 * 1024 ** 2;
 const carrier = "gzip-base64-json-v1";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function encodeCompactListing(bytes: Buffer) {
-  if (!bytes.length || bytes.length > listingDeliveryMaximum)
-    throw new Error("Decoded listing exceeds its byte bound");
+  if (!bytes.length || bytes.length > compactListingDecodedMaximum)
+    throw new Error(
+      "Complete compact listing exceeds its decoded byte bound; retaining last-good publication",
+    );
   const result = Buffer.from(
     JSON.stringify({
       carrier,
@@ -20,7 +23,9 @@ export function encodeCompactListing(bytes: Buffer) {
     }),
   );
   if (result.length > listingDeliveryMaximum)
-    throw new Error("Compact listing exceeds its transport byte bound");
+    throw new Error(
+      "Complete compact listing exceeds its transport byte bound; retaining last-good publication",
+    );
   return result;
 }
 
@@ -36,7 +41,7 @@ export function decodeRetainedCompactListing(raw: Buffer) {
     typeof value.decoded_bytes !== "number" ||
     !Number.isSafeInteger(value.decoded_bytes) ||
     value.decoded_bytes < 1 ||
-    value.decoded_bytes > listingDeliveryMaximum ||
+    value.decoded_bytes > compactListingDecodedMaximum ||
     typeof value.gzip_base64 !== "string"
   )
     throw error();
