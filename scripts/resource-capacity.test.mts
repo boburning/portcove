@@ -1265,6 +1265,60 @@ void test("queue timeout is admission failure and external work is never reclaim
   assert.deepEqual(await readdir(path.join(root, "queue")), []);
 });
 
+void test("a local command can extend both checkout scans within a finite bound", async (t) => {
+  const root = await fixture(t);
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "checkout-scan-test-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  execFileSync("git", ["init", "-q", workspace]);
+  execFileSync("git", [
+    "-C",
+    workspace,
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--allow-empty",
+    "-qm",
+    "Fixture",
+  ]);
+  const logs: string[] = [];
+  const options = isolated(root, { report: (message) => logs.push(message) });
+  const key = "PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS";
+  for (const [override, budget] of [
+    [undefined, 30_000],
+    ["120", 120_000],
+  ] as const) {
+    logs.length = 0;
+    const lease = await acquireSourceBoundCapacity(
+      "analysis",
+      { workspace },
+      { ...options, environment: { ...options.environment, [key]: override } },
+    );
+    await lease.release();
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      [
+        `Resource checkout scan started (before admission); budget ${budget} ms`,
+        `Resource checkout scan started (after admission); budget ${budget} ms`,
+      ],
+    );
+  }
+  logs.length = 0;
+  for (const invalid of ["", "29", "121", "1e2", "120.0"]) {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, environment: { ...options.environment, [key]: invalid } },
+      ),
+      /must be an integer from 30 to 120/u,
+    );
+  }
+  assert.deepEqual(logs, []);
+  assert.equal((await observeCapacity({ root })).running.length, 0);
+});
+
 void test("output ownership rolls back partial capacity and source changes after queue refuse execution", async (t) => {
   const root = await fixture(t);
   const output = frontendOutputResource(root);
