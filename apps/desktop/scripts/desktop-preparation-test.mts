@@ -1860,11 +1860,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -2814,11 +2809,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );
