@@ -21,6 +21,27 @@ export interface HostedIntakeGap {
   message: string;
 }
 
+type ReceiptReconciliationPhase = "read-plans" | "record-receipts" | "verify-recorded";
+
+export class ReceiptReconciliationFailure extends Error {
+  readonly phase: ReceiptReconciliationPhase;
+  readonly reason: "executor-role-denied" | "store-error" | "readback-mismatch" | "unexpected";
+
+  constructor(phase: ReceiptReconciliationPhase, error: unknown) {
+    const reason =
+      error === null
+        ? "readback-mismatch"
+        : error instanceof MaintenanceStoreError
+          ? /permission denied to set role "portcove_maintenance_executor"/u.test(error.message)
+            ? "executor-role-denied"
+            : "store-error"
+          : "unexpected";
+    super(`Original intake receipt reconciliation failed during ${phase} (${reason})`);
+    this.phase = phase;
+    this.reason = reason;
+  }
+}
+
 export interface HostedIntakeObservation {
   revision: string;
   failed: boolean;
@@ -32,6 +53,9 @@ export interface HostedIntakeObservation {
     status: "unavailable" | "failed" | "passed";
     inspected?: number;
     completed?: unknown[];
+    phase?: ReceiptReconciliationPhase;
+    reason?: ReceiptReconciliationFailure["reason"] | "proof-pending";
+    pending?: number;
   };
 }
 
@@ -146,9 +170,20 @@ export function hostedIntakeFacts(read: HostedStatusAll) {
  * read or budget failure are a failed run with one gap: nothing is observed,
  * so every prior fact stays current.
  */
+export function retainHostedIntakeHandoffs(observation: HostedIntakeObservation) {
+  observation.gaps.push({
+    subject_key: failedSubject,
+    code: "intake-receipt-fence",
+    message:
+      "Original intake receipts were not reconciled against this queue revision. The next collection retries.",
+  });
+}
+
 export async function hostedIntakeObservation(
   read: () => Promise<HostedStatusAll>,
-  reconcile?: (snapshot: HostedStatusAll) => Promise<{ inspected: number; completed: unknown[] }>,
+  reconcile?: (
+    snapshot: HostedStatusAll,
+  ) => Promise<{ inspected: number; completed: unknown[]; pending?: number }>,
 ): Promise<HostedIntakeObservation> {
   try {
     const queue = await read();
@@ -164,8 +199,13 @@ export async function hostedIntakeObservation(
     if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
     try {
       const receipts = await reconcile(queue);
-      return { ...observation, receipts: { status: "passed", ...receipts } };
-    } catch {
+      if (!receipts.pending) return { ...observation, receipts: { status: "passed", ...receipts } };
+      retainHostedIntakeHandoffs(observation);
+      return {
+        ...observation,
+        receipts: { status: "failed", reason: "proof-pending", ...receipts },
+      };
+    } catch (error) {
       // Keep the original operation current so the next complete read can retry.
       // Unrelated sources and all positively observed native facts still commit.
       observation.gaps.push({
@@ -174,7 +214,15 @@ export async function hostedIntakeObservation(
         message:
           "Original maintenance handoff receipts could not be verified and recorded. The next collection retries.",
       });
-      return { ...observation, receipts: { status: "failed" } };
+      return {
+        ...observation,
+        receipts: {
+          status: "failed",
+          ...(error instanceof ReceiptReconciliationFailure
+            ? { phase: error.phase, reason: error.reason }
+            : { reason: "unexpected" as const }),
+        },
+      };
     }
   } catch (error) {
     const changed = (error as { code?: unknown } | null)?.code === "inventory_changed";
@@ -205,6 +253,7 @@ export async function hostedIntakeObservation(
 /** The complete read-only status read, GET-only within the executor's request budget. */
 export async function readHostedIntake(
   checkpointEnvironment?: NodeJS.ProcessEnv,
+  repositoryToken?: string,
 ): Promise<HostedStatusAll> {
   const { hostedStatusAll, readOnlyHostedBridge } = await import("./hosted-discovery-intake.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
@@ -214,7 +263,11 @@ export async function readHostedIntake(
   );
   const deadline = performance.now() + 120_000;
   const bridge = await readOnlyHostedBridge(config, {
-    credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
+    credential: localDeveloperCredential({
+      ...(repositoryToken ? { environment: { GH_TOKEN: repositoryToken } } : {}),
+      deadline,
+      command: process.env.PORTCOVE_ROADMAP_GH,
+    }),
     deadline,
   });
   const { postgresIntakeCheckpoints } = await import("./hosted-discovery-intake-checkpoint.mts");

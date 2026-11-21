@@ -116,7 +116,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
-  openCatalogFilters,
+  openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
@@ -154,7 +154,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
 import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
-import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
+import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -3647,7 +3647,7 @@ try {
       ]),
     ].sort();
     const channelChoice = async (channel: string) => {
-      const panel = await openCatalogFilters(browser);
+      const panel = await openMoreCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
       if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -3928,6 +3928,15 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
+  await reviewedScreenshotScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    library,
+    artifacts,
+    capture: captureScenarioScreenshot,
+  });
   for (const cacheConditions of [true, false]) {
     await defaultCoverScenario({
       browser,
@@ -4292,7 +4301,7 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openCatalogFilters(browser);
+    const filters = await openMoreCatalogFilters(browser);
     const channelChoices = await filters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );

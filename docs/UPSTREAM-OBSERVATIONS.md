@@ -403,14 +403,16 @@ binding change also permits offline reprojection of earlier facts. An incomplete
 refresh retains the prior observation and freshness clock. Manual dispatch has
 no scheduled appointments.
 
-Each hosted batch offers at most one early turn to the oldest eligible
-listing-only source with missing or expired provider freshness. Its turn follows
-the appointed scopes and healthy managed sources whose provider receipt is
-missing or will expire by the batch deadline. The remaining sources retain
-their usual order. The listing turn uses the ordinary source quantum and the
-same request, runtime, and byte limits. If the prior turns use the batch
-capacity, the listing waits in its existing durable position. The priority
-changes neither freshness evidence nor continuation rules.
+Each hosted batch starts with the appointed scopes and healthy managed sources
+whose provider receipt is missing or will expire by the batch deadline. The
+batch then offers one recovery turn before every three ordinary healthy managed
+turns while both groups have work. Recovery covers eligible listing-only
+sources and managed sources with a recorded failure whose provider freshness is
+missing or expired. Retry deadlines still apply. Within recovery, sources
+without a recorded attempt go first, followed by the least recently attempted
+sources. Every turn uses the existing source quantum and shared request,
+runtime, and byte limits. Sources that run out of capacity keep their durable
+place for a later batch.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports

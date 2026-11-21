@@ -314,6 +314,14 @@
       "requires_qualification_fixtures": true
     },
     {
+      "source": "crates/portcove-core/src/jakmods_tests.rs",
+      "test": "real_before_and_served_feed_addition_appears_only_for_jak1",
+      "reason": "requires the two retained upstream JakMods feed snapshots for the explicit replay in docs/CLI.md",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",
       "test": "owned_progression_fixture",
       "reason": "isolated first-party provider, codec and builder control; invoked by parent",

@@ -2517,6 +2517,20 @@ void test("live default-cover observation remains opt-in without fixtures or off
   }
 });
 
+void test("reviewed screenshot observation is an explicit Windows normal-app case", () => {
+  const id = "native-reviewed-screenshot-display";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+  assert.throws(() =>
+    resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+  );
+});
+
 void test("exact selections are deduplicated and returned in catalog order", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["accessibility", "keyboard-layout", "accessibility"],

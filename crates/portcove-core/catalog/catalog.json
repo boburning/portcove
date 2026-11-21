@@ -29022,6 +29022,25 @@
       "name": "Ship of Harkinian",
       "summary": "Native Ocarina of Time port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Shipwright",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "HarbourMasters/Shipwright",
+        "minimum_version": "9.2.3",
+        "settings_file": "shipofharkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
+      "mod_provider_bindings": [
+        {
+          "provider": "gamebanana",
+          "game_id": 16121
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -29158,6 +29177,19 @@
         "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "2ship2harkinian/2ship2harkinian",
+        "minimum_version": "5.0.1",
+        "settings_file": "2ship2harkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
       "windows_runtime_path_policy": "relative-file-max-path",
       "automated_tested_platforms": [
         "windows-x86-64"
@@ -29932,6 +29964,28 @@
       "name": "Zelda 64: Recompiled",
       "summary": "Native Majora's Mask recompilation.",
       "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "Zelda64Recomp/Zelda64Recomp",
+        "minimum_version": "1.2.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "mm"
+      },
+      "mod_provider_bindings": [
+        {
+          "provider": "thunderstore",
+          "community": "zelda-64-recompiled"
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -30098,6 +30152,22 @@
         "windows-x86-64"
       ],
       "adapter": "n64-recomp-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "BanjoRecomp/BanjoRecomp",
+        "minimum_version": "1.0.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "bk"
+      },
       "release": {
         "repository": "BanjoRecomp/BanjoRecomp",
         "asset_hints": {
@@ -40052,6 +40122,50 @@
       "executable_hints": {
         "windows-x86-64": [
           "SuperMarioWorldSNESRecomp.exe"
+        ]
+      },
+      "game_settings": {
+        "format_version": 2,
+        "releases": [
+          {
+            "version": "v0.15.9",
+            "platform": "windows-x86-64",
+            "archive_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+            "source_commit": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.9",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.10",
+            "platform": "windows-x86-64",
+            "archive_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+            "source_commit": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.10",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.11",
+            "platform": "windows-x86-64",
+            "archive_sha256": "c4c0933bcbbf575ce1d74389b7ce89c9e34960aed395c18764683c483ecdc5cd",
+            "source_commit": "cbbf35c57dd637102925798d0cc092803dd44c32",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.11",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/cbbf35c57dd637102925798d0cc092803dd44c32/src/config.c"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "graphics-config",
+            "path": "config.ini",
+            "format": "ini",
+            "maximum_bytes": 32767,
+            "settings": []
+          }
         ]
       },
       "presentation": {
