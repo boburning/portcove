@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -41,6 +42,35 @@ function document(bytes: Buffer | undefined) {
   return value;
 }
 
+const psxToolFeature = "tools.psx-toolchain-v1";
+
+function exactAcceptedPsxToolArtifacts(projection: Record<string, unknown>, selected: unknown) {
+  const supplied = projection.tool_artifacts;
+  if (
+    projection.contract_schema !== 4 ||
+    !isRecord(selected) ||
+    selected.adapter !== "psx-recomp-managed" ||
+    !Array.isArray(selected.platforms) ||
+    !Array.isArray(supplied) ||
+    supplied.length !== selected.platforms.length ||
+    supplied.length < 1 ||
+    supplied.length > 4 ||
+    new Set(selected.platforms).size !== selected.platforms.length
+  )
+    throw new Error("PS1 tool publication requires a complete schema-4 managed platform scope");
+  const accepted: unknown = JSON.parse(
+    readFileSync(new URL("../crates/portcove-core/catalog/tool-artifacts.json", import.meta.url), "utf8"),
+  );
+  if (!Array.isArray(accepted)) throw new Error("compiled PS1 tool acceptance table is malformed");
+  const seen = new Set<unknown>();
+  for (const artifact of supplied) {
+    if (!isRecord(artifact) || !selected.platforms.includes(artifact.platform) ||
+        seen.has(artifact.platform) || !accepted.some((row) => isDeepStrictEqual(row, artifact)))
+      throw new Error("PS1 tool proposal differs from the independently accepted executable pack");
+    seen.add(artifact.platform);
+  }
+}
+
 /** The caller supplies the reviewed source graph and schema. The only inserted
  * value is the exact selected operational row from the generated catalog. */
 export function generatedPublicationProjection(
@@ -53,10 +83,13 @@ export function generatedPublicationProjection(
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/u.test(portId) || !Array.isArray(catalog.ports))
     throw new Error("a generated operational catalog and exact stable ID are required");
   if (
-    Object.keys(template).sort().join(",") !== "catalog,contract_schema,representation" ||
+    Object.keys(template).sort().join(",") !== (template.contract_schema === 4
+      ? "catalog,contract_schema,representation,tool_artifacts"
+      : "catalog,contract_schema,representation") ||
     (template.contract_schema !== 1 &&
       template.contract_schema !== 2 &&
-      template.contract_schema !== 3) ||
+      template.contract_schema !== 3 &&
+      template.contract_schema !== 4) ||
     template.representation !== "catalog_projection" ||
     !isRecord(template.catalog) ||
     !Array.isArray(template.catalog.ports) ||
@@ -81,6 +114,7 @@ export function generatedPublicationProjection(
     template.contract_schema !== 3
   )
     throw new Error("reviewed runtime compatibility artifacts require catalog projection schema 3");
+  if (template.contract_schema === 4) exactAcceptedPsxToolArtifacts(template, matches[0]);
   template.catalog.ports = matches;
   const bytes = Buffer.from(`${JSON.stringify(template, null, 2)}\n`);
   if (bytes.length > catalogDefinitionContentBytes)
@@ -159,9 +193,17 @@ export function assembleReviewedPublication(
     throw new Error("reviewed index does not describe one selected definition");
   const entry = document(reviewed.get(selected.target));
   const projected = document(projection);
+  if ("reviewed_forge" in projected)
+    throw new Error("reviewed alternate forge publication requires an independent executable acquisition grant; inspect the proposal without publication");
   const ports = isRecord(projected.catalog) && Array.isArray(projected.catalog.ports)
     ? projected.catalog.ports
     : [];
+  if (projected.contract_schema === 4 || "tool_artifacts" in projected) {
+    if (ports.length !== 1 || entry.definition_schema !== 4 ||
+        !Array.isArray(entry.required_features) || !entry.required_features.includes(psxToolFeature))
+      throw new Error("PS1 tool publication requires the named schema-4 reader");
+    exactAcceptedPsxToolArtifacts(projected, ports[0]);
+  }
   const namedFields = [
     ["reviewed_launch_contract_v1", "runtime.reviewed-package-and-launch-v1", "named package and launch declarations"],
     ["managed_runtime_applies_to", "runtime.reviewed-compatibility-artifacts-v1", "reviewed runtime compatibility artifacts"],
