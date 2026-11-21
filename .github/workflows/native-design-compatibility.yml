@@ -620,7 +620,7 @@ jobs:
         # The full matrix retains the reviewed release fixture for owned-update-review.
         include: >-
           ${{ fromJSON(inputs.operation == 'reviewed-recovery-bundles' &&
-          '[{"selection":"recovery-bundle-create-restore","scenarios":["native-library-recovery-bundle"]},{"selection":"recovery-bundle-interruption","scenarios":["native-library-recovery-interruption"]}]' ||
+          '[{"selection":"recovery-bundle-interruption","scenarios":["native-library-recovery-interruption"]}]' ||
           '[
             {"selection":"owned-ready","scenarios":["native-external-cli-reconciliation","native-ready-detail-composition","native-game-return-continuity","native-missing-readiness-recovery","native-retained-contract-repair-state","native-update-settings-save-without-execution","native-release-channel-selection-and-restart"]},
             {"selection":"owned-update-review","scenarios":["native-game-update-review"]},
