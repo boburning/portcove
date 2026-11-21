@@ -148,6 +148,27 @@ it("renders nothing for a game without reviewed mod support", async () => {
   expect(host.textContent).toBe("");
 });
 
+it("offers the reviewed GitHub handoff without creating or changing a managed setup", async () => {
+  const url = "https://github.com/ReviewOwner/NativeMods/releases";
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      supported: false,
+      inventory: null,
+      live: null,
+      github_release_url: url,
+      github_native_import_offered: true,
+    }),
+  );
+  const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+  const host = await render();
+  const link = page.getByRole("link", { name: "Browse mods on GitHub" });
+  await expect.element(link).toHaveAttribute("href", url);
+  await expect.element(page.getByText(/open a separate copy of the game/i)).toBeVisible();
+  expect(host.querySelector("button")).toBeNull();
+  await userEvent.click(link);
+  expect(open).toHaveBeenCalledWith(url);
+});
+
 it("lists setups and mods in priority order and binds changes to the reviewed revision", async () => {
   const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   const toggle = vi

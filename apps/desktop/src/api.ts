@@ -335,8 +335,12 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
-  modSetups: (portId: string, generation: number) =>
-    invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  modSetups: (portId: string, generation: number, browseOnly?: true) =>
+    invoke<import("./types").ModSetupsView>("get_mod_setups", {
+      portId,
+      generation,
+      ...(browseOnly ? { browseOnly } : {}),
+    }),
   reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
     invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
   selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
@@ -554,6 +558,31 @@ export const desktopApi = {
     generation: number,
     provider?: string,
   ) => invoke<void>("open_provider_mod_project", { portId, projectId, generation, provider }),
+  jakModsSetupUrl: (portId: string, generation: number) =>
+    invoke<string | null>("jakmods_setup_url", { portId, generation }),
+  jakModsCatalog: (portId: string, generation: number) =>
+    invoke<import("./types").JakModsCatalog>("get_jakmods_catalog", { portId, generation }),
+  openJakModsResource: (
+    portId: string,
+    generation: number,
+    expectedUrl: string,
+    projectId?: string,
+  ) => invoke<void>("open_jakmods_resource", { portId, generation, projectId, expectedUrl }),
+  quaddictedCatalog: (portId: string, generation: number, page: number, filenameSearch?: string) =>
+    invoke<import("./types").QuaddictedCatalog>("get_quaddicted_catalog", {
+      portId,
+      generation,
+      page,
+      filenameSearch,
+    }),
+  modDbFileNotices: (portId: string, generation: number) =>
+    invoke<import("./types").ModDbFileNotices>("get_moddb_file_notices", { portId, generation }),
+  openUpstreamModNotice: (
+    portId: string,
+    generation: number,
+    source: NonNullable<import("./types").ModSetupsView["external_mod_portals"]>[number]["source"],
+    pageUrl: string,
+  ) => invoke<void>("open_upstream_mod_notice", { portId, generation, source, pageUrl }),
   modProviderCatalog: (portId: string, source: string, generation: number) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,

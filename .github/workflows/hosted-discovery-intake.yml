@@ -1,5 +1,5 @@
 name: Hosted discovery intake
-run-name: Hosted intake ${{ github.event.comment.id || inputs.mode || 'contracts' }} / ${{ github.run_attempt }}
+run-name: Hosted intake ${{ github.event.comment.id || (inputs.mode == 'audit' && format('audit {0}', inputs.audit_request)) || inputs.mode || 'contracts' }} / ${{ github.run_attempt }}
 
 on:
   workflow_call:
@@ -7,6 +7,9 @@ on:
       mode:
         type: string
         default: process
+      audit_continuations:
+        type: string
+        required: false
       probe_issue:
         type: string
         default: "3849"
@@ -68,25 +71,28 @@ jobs:
     if: >-
       github.event_name != 'pull_request' &&
       github.repository == 'boburning/portcove' &&
-      github.actor == 'boburning' &&
-      (github.event_name == 'workflow_dispatch' ||
+      ((github.event_name == 'schedule' && inputs.mode == 'resume-audits' &&
+      github.workflow_ref == 'boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main') ||
+      (github.actor == 'boburning' && (github.event_name == 'workflow_dispatch' ||
       (github.event.issue.number == 177 &&
       (startsWith(github.event.comment.body, '<!-- portcove-hosted-intake:v1 -->') ||
-      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake-amendment:v1 -->'))))
+      startsWith(github.event.comment.body, '<!-- portcove-hosted-intake-amendment:v1 -->'))))))
     runs-on: ubuntu-latest
     # Progress-aware worker passes share a 90-minute deadline inside this outer limit.
     timeout-minutes: 100
     permissions:
       contents: read
       issues: write
+      actions: read
     concurrency:
       group: portcove-hosted-discovery-intake
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Issue data never selects code. Explicit owner dispatch can qualify a reviewed branch.
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.repository.default_branch }}
+          # A scheduled recovery runs the same reviewed revision as its collector.
+          # Comment data never selects code.
+          ref: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
@@ -110,6 +116,7 @@ jobs:
           PORTCOVE_DISCOVERY_DATABASE_URL: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_DISCOVERY_DATABASE_URL || '' }}
           PORTCOVE_NEON_METER_TOKEN: ${{ github.ref_name == github.event.repository.default_branch && inputs.mode != 'probe' && secrets.PORTCOVE_NEON_METER_TOKEN || '' }}
           HOSTED_INTAKE_MODE: ${{ inputs.mode }}
+          HOSTED_INTAKE_AUDIT_CONTINUATIONS: ${{ inputs.audit_continuations }}
           HOSTED_INTAKE_AUDIT_REQUEST: ${{ inputs.audit_request }}
           HOSTED_INTAKE_PROBE: ${{ inputs.probe_issue }}
       - name: Link completed intake to its original maintenance handoff

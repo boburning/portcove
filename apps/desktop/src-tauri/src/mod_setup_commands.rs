@@ -47,11 +47,16 @@ pub(crate) async fn get_mod_setups(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
+    browse_only: Option<bool>,
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.preview_mod_setups(&port_id)
+            if browse_only == Some(true) {
+                service.preview_mod_handoff(&port_id)
+            } else {
+                service.preview_mod_setups(&port_id)
+            }
         })
     })
     .await
@@ -604,6 +609,88 @@ pub(crate) async fn open_provider_mod_project(
     .await
 }
 
+/// Checks the selected port's reviewed community source without contacting it.
+#[tauri::command]
+pub(crate) async fn jakmods_setup_url(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<Option<String>> {
+    crate::blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        Ok(
+            portcove_core::jakmods_game(service.catalog().port(&port_id)?)
+                .map(|_| portcove_core::JAKMODS_SETUP_URL.to_owned()),
+        )
+    })
+    .await
+}
+
+/// Reads the community catalog only after the player chooses to browse.
+#[tauri::command]
+pub(crate) async fn get_jakmods_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::JakModsCatalog> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .jakmods_catalog(&port_id, portcove_core::Platform::current()?)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+/// The renderer can select a displayed source link, but cannot supply a new destination.
+#[tauri::command]
+pub(crate) async fn open_jakmods_resource(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    project_id: Option<String>,
+    expected_url: String,
+) -> DesktopResult<()> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let port = service.catalog().port(&port_id)?;
+            if portcove_core::jakmods_game(port).is_none() {
+                return Err(portcove_core::PortcoveError::unsupported(
+                    "JakMods is unavailable for this game",
+                )
+                .into());
+            }
+            let matches = if let Some(id) = project_id {
+                service
+                    .jakmods_catalog(&port_id, portcove_core::Platform::current()?)
+                    .await?
+                    .projects
+                    .iter()
+                    .any(|project| {
+                        project.id == id
+                            && (project.external_url.as_deref() == Some(expected_url.as_str())
+                                || project.website_url.as_deref() == Some(expected_url.as_str()))
+                    })
+            } else {
+                expected_url == portcove_core::JAKMODS_SETUP_URL
+            };
+            if !matches {
+                return Err(portcove_core::PortcoveError::conflict(
+                    "The JakMods link changed. Refresh the catalog before opening it.",
+                )
+                .into());
+            }
+            crate::open_host_target(std::ffi::OsStr::new(&expected_url))
+        },
+    )
+    .await
+}
+
 /// Bounded read-only catalog for one of the port's reviewed sources.
 #[tauri::command]
 pub(crate) async fn get_mod_provider_catalog(
@@ -840,3 +927,69 @@ mod tests {
 #[cfg(test)]
 #[path = "mod_recipe_review_tests.rs"]
 mod mod_recipe_review_tests;
+
+#[tauri::command]
+pub(crate) async fn get_quaddicted_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    filename_search: Option<String>,
+    page: u32,
+) -> DesktopResult<portcove_core::Observed<portcove_core::QuaddictedPage>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .quaddicted_catalog(
+                    &port_id,
+                    portcove_core::Platform::current()?,
+                    filename_search.as_deref(),
+                    page,
+                )
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_moddb_file_notices(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::Observed<portcove_core::ModDbFileNotices>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .moddb_file_notices(&port_id, portcove_core::Platform::current()?)
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn open_upstream_mod_notice(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    source: portcove_core::ExternalModPortalSource,
+    page_url: String,
+) -> DesktopResult<()> {
+    let selection = state.inner().clone();
+    crate::blocking_async_service_at_generation(
+        selection.clone(),
+        generation,
+        move |service| async move {
+            let reviewed = service
+                .review_external_mod_source_page(&port_id, source, &page_url)
+                .await?;
+            crate::require_library_generation(crate::state_generation(&selection), generation)?;
+            crate::open_host_target(std::ffi::OsStr::new(&reviewed))
+        },
+    )
+    .await
+}

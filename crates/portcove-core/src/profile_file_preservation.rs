@@ -195,28 +195,30 @@ fn selected(service: &PortcoveService, port_id: &str, layout: &Layout) -> Result
 }
 
 fn require_exact_managed_name(revision: &ProfileRevision, file_name: &str) -> Result<()> {
-    if let Some(package) = revision.packages.iter().find(|package| {
-        package.enabled
-            && package.native_id != file_name
-            && package.native_id.eq_ignore_ascii_case(file_name)
-    }) {
+    if let Some(file) = crate::profile_package_files::profile_package_files(revision)?
+        .into_iter()
+        .find(|file| {
+            file.enabled && file.name != file_name && file.name.eq_ignore_ascii_case(file_name)
+        })
+    {
         return Err(PortcoveError::conflict(
             "this file uses different capitalization from the setup's recorded mod name. Close the game, rename the file to the recorded name in the mods folder, and review it again.",
         )
-        .detail("recorded_name", &package.native_id));
+        .detail("recorded_name", file.name));
     }
     Ok(())
 }
 
-fn expected(revision: &ProfileRevision, file_name: &str) -> Option<ModFileIdentity> {
-    revision
-        .packages
-        .iter()
-        .find(|package| package.enabled && package.native_id == file_name)
-        .map(|package| ModFileIdentity {
-            sha256: package.sha256.clone(),
-            size: package.size,
-        })
+fn expected(revision: &ProfileRevision, file_name: &str) -> Result<Option<ModFileIdentity>> {
+    Ok(
+        crate::profile_package_files::profile_package_files(revision)?
+            .into_iter()
+            .find(|file| file.enabled && file.name == file_name)
+            .map(|file| ModFileIdentity {
+                sha256: file.sha256.to_owned(),
+                size: file.size,
+            }),
+    )
 }
 
 fn inspect(
@@ -245,7 +247,7 @@ fn inspect(
     let observed = identity(&live)?.ok_or_else(|| {
         PortcoveError::not_found("the reviewed file is no longer in the mods folder")
     })?;
-    let restore = expected(selected, file_name);
+    let restore = expected(selected, file_name)?;
     let runtime_marker =
         crate::profile_deploy::is_runtime_mod_marker(layout, file_name, observed.size);
     if restore.as_ref() == Some(&observed) || runtime_marker {
@@ -340,7 +342,7 @@ fn finish(
         || plan.profile_id != selected.profile_id
         || plan.revision != selected.revision
         || plan.revision_sha256 != selected.digest
-        || plan.restore != expected(selected, &plan.file_name)
+        || plan.restore != expected(selected, &plan.file_name)?
         || plan.restore.as_ref() == Some(&plan.observed)
         || crate::profile_deploy::is_runtime_mod_marker(layout, &plan.file_name, plan.observed.size)
     {

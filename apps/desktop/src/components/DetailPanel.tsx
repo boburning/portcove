@@ -1,3 +1,8 @@
+import { desktopApi } from "../api";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
@@ -43,7 +48,7 @@ import {
 import { ArtworkControls } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -108,7 +113,9 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
-import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { ExternalModPortals } from "./ExternalModPortals";
+import { JakModsBrowser } from "./JakModsBrowser";
+import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
@@ -206,7 +213,7 @@ interface DetailPanelProps {
   browsingMatch?: CatalogQueryResult | undefined;
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   /** Rereads workspace state without changing it; offered when setup or readiness is unknown. */
   checkAgain?: (() => Promise<unknown>) | undefined;
   openSourceEvidence?: ((evidenceId: string) => void) | undefined;
@@ -542,7 +549,7 @@ function DetailBody(model: {
   libraryGeneration: number;
   libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
@@ -557,7 +564,29 @@ function DetailBody(model: {
   const [modSupport, setModSupport] = useState<{
     key: string;
     supported: boolean | "unavailable";
+    github?: Pick<
+      import("../types").ModSetupsView,
+      "github_release_url" | "github_native_import_offered" | "external_mod_portals"
+    >;
   }>();
+  const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
+  const mayHaveCommunitySource = model.port.adapter === "upstream-managed-setup";
+  useEffect(() => {
+    if (!mayHaveCommunitySource) return;
+    let current = true;
+    void desktopApi.jakModsSetupUrl(model.port.id, model.libraryGeneration).then(
+      (url) => {
+        if (current) setCommunitySource(url ? { key: modsKey, url } : undefined);
+      },
+      () => {
+        if (current) setCommunitySource(undefined);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [mayHaveCommunitySource, model.port.id, model.libraryGeneration, modsKey]);
+  const hasCommunitySource = mayHaveCommunitySource && communitySource?.key === modsKey;
   const [modSupportRetry, retryModSupport] = useState(0);
   const [observedModPlay, setModPlay] = useState<ModPlayState>();
   const modPlay =
@@ -567,22 +596,35 @@ function DetailBody(model: {
       : undefined;
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
-    if (external || !activeInstall) return;
     let current = true;
-    void readModSetupInventory(model.port.id, model.libraryGeneration)
+    const managed = !external && Boolean(activeInstall);
+    const read = managed
+      ? readModSetupInventory(model.port.id, model.libraryGeneration)
+      : desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+    void read
       .then((view) => {
-        if (current) setModSupport({ key: modsKey, supported: view.supported });
+        if (current)
+          setModSupport({ key: modsKey, supported: managed && view.supported, github: view });
       })
-      .catch(() => {
-        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      .catch(async () => {
+        if (!managed || !current) return;
+        setModSupport({ key: modsKey, supported: "unavailable" });
+        try {
+          const view = await desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+          if (current) setModSupport({ key: modsKey, supported: "unavailable", github: view });
+        } catch {
+          // Keep the managed inventory error and its retry action.
+        }
       });
     return () => {
       current = false;
     };
   }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
-  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modState = modSupport?.key === modsKey ? modSupport : undefined;
+  const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
-
+  const githubSource = modState?.github;
+  const externalModPortals = githubSource?.external_mod_portals ?? [];
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -743,21 +785,43 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable
+        ...(modsAvailable ||
+        hasCommunitySource ||
+        githubSource?.github_release_url ||
+        externalModPortals.length > 0
           ? {
               mods: (
-                <ModSetupsControl
-                  key={modsKey}
-                  portId={model.port.id}
-                  generation={model.libraryGeneration}
-                  libraryRoot={model.libraryRoot}
-                  busy={Boolean(busy)}
-                  openGameFiles={() => reveal("files")}
-                  active={currentSection === "mods"}
-                  onPlayState={setModPlay}
-                  reviewFromPlay={reviewFromPlay}
-                  onAppliedFromPlay={() => reveal("overview")}
-                />
+                <>
+                  <ExternalModPortals
+                    portals={externalModPortals}
+                    port={model.port.id}
+                    generation={model.libraryGeneration}
+                  />
+                  {hasCommunitySource && (
+                    <JakModsBrowser
+                      setupUrl={communitySource.url}
+                      key={`community-${modsKey}`}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                    />
+                  )}
+                  {modsAvailable ? (
+                    <ModSetupsControl
+                      key={modsKey}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                      libraryRoot={model.libraryRoot}
+                      busy={Boolean(busy)}
+                      openGameFiles={() => reveal("files")}
+                      active={currentSection === "mods"}
+                      onPlayState={setModPlay}
+                      reviewFromPlay={reviewFromPlay}
+                      onAppliedFromPlay={() => reveal("overview")}
+                    />
+                  ) : githubSource?.github_release_url ? (
+                    <GithubModHandoff view={githubSource} />
+                  ) : null}
+                </>
               ),
             }
           : {}),
@@ -867,7 +931,7 @@ function useStatusActionsGroup({
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
@@ -2415,6 +2479,7 @@ function InstalledPlayActions({
   pendingSetup,
   stagedVersion,
   selectableDiscs = 0,
+  commandPlayKey,
   busy,
   actions,
 }: {
@@ -2426,9 +2491,13 @@ function InstalledPlayActions({
   pendingSetup: boolean;
   stagedVersion?: string | undefined;
   selectableDiscs?: number | undefined;
+  commandPlayKey?: string | undefined;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  const registerPlay = useContext(CurrentGamePlayControl);
+  const confirmedPlay = launchReady && !trial && !pendingSetup;
+  const paletteTarget = confirmedPlay && !busy ? commandPlayKey : undefined;
   // Per-view choice: Core records it as the game's own saved disc when this
   // launch starts. The default sends no disc, so the game starts its saved disc.
   const [disc, setDisc] = useState(SAVED_DISC);
@@ -2466,7 +2535,9 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
-        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
+        data-confirmed-play={confirmedPlay ? "" : undefined}
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
@@ -4481,7 +4552,7 @@ function ManualSetupActions({
             data-focusable
             variant="outline"
             disabled={Boolean(model.busy) || !model.onChanged}
-            onClick={() => model.onChanged?.()}
+            onClick={() => void model.onChanged?.()}
           >
             Check setup again
           </Button>
@@ -4500,6 +4571,7 @@ function DetailHeaderAction({
     <InstalledPlayActions
       hero
       compact
+      commandPlayKey={currentGamePlayKey(model.port.id, model.libraryGeneration, model.status)}
       trial={
         hasUnconfirmedLaunchInput(model.status, model.port) ||
         Boolean(

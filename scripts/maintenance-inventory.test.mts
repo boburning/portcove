@@ -287,6 +287,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   type Job = {
     if?: string;
     permissions?: unknown;
+    secrets?: Record<string, string>;
     "timeout-minutes"?: number;
     steps: Step[];
   };
@@ -312,7 +313,32 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
-  assert.deepEqual(Object.keys(workflow.jobs), ["collect", "restore-proof"]);
+  assert.deepEqual(Object.keys(workflow.jobs), [
+    "collect",
+    "resume-intake-audits",
+    "restore-proof",
+  ]);
+  const resume = workflow.jobs["resume-intake-audits"]!;
+  assert.match(resume.if!, /github.event_name == 'schedule'/u);
+  assert.match(resume.if!, /audit_continuations != '\[\]'/u);
+  assert.deepEqual(resume.permissions, { contents: "read", issues: "write", actions: "read" });
+  assert.equal(
+    resume.secrets?.PORTCOVE_NEON_METER_TOKEN,
+    "${{ secrets.PORTCOVE_NEON_METER_TOKEN }}",
+  );
+  const worker = parse(
+    readFileSync(
+      new URL("../.github/workflows/hosted-discovery-intake.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as { jobs: { intake: Job } };
+  const checkout = worker.jobs.intake.steps.find((step) =>
+    step.uses?.startsWith("actions/checkout@"),
+  );
+  assert.equal(
+    checkout?.with?.ref,
+    "${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.sha || github.event.repository.default_branch }}",
+  );
   assert.equal(
     collect!.if,
     "github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'",

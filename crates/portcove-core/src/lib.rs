@@ -101,15 +101,21 @@ mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
+mod external_mod_portal;
+pub use external_mod_portal::{ExternalModPortal, ExternalModPortalSource};
 mod gamebanana;
+mod github_mods;
+mod jakmods;
 mod mod_package;
 mod mod_provider;
+mod moddb_feed;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
 mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
+mod profile_package_files;
 mod provider_auto_update;
 mod provider_binding;
 mod provider_browse;
@@ -119,9 +125,12 @@ mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
+mod quaddicted;
+mod quake_mod_browser;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
+mod recomp_companion_review;
 mod recomp_mod;
 mod recomp_mod_list;
 mod recomp_mod_settings;
@@ -297,6 +306,10 @@ pub use game_settings::{
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
+pub use github_mods::{
+    GithubCompoundConsent, GithubCompoundPlan, GithubModAsset, GithubModCatalog,
+    GithubModCompoundReview, GithubModRelease, has_github_mod_source,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,
@@ -310,6 +323,10 @@ pub use host_tools::{
 };
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
+pub use jakmods::{
+    JAKMODS_SETUP_URL, JakModsBuild, JakModsBuildStatus, JakModsCatalog, JakModsProject,
+    JakModsProjectKind, JakModsRelease, jakmods_game,
+};
 pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
@@ -388,6 +405,9 @@ pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
+pub use profile_package_files::{
+    RecompCompanionMemberV1, RecompCompanionRole, RecompCompanionSetV1,
+};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
 };
@@ -403,6 +423,7 @@ pub use recipe::{
     RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
     RecipeRuntime,
 };
+pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
@@ -545,3 +566,10 @@ pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 pub const LIBRARY_SCHEMA_VERSION: u32 = database::CURRENT_SCHEMA_VERSION as u32;
 /// Cross-process exclusion capability required by application update metadata.
 pub const APPLICATION_UPDATE_LOCK_PROTOCOL: &str = "library-lock-v1";
+
+pub use moddb_feed::FileNotice as ModDbFileNotice;
+pub use quaddicted::{
+    QuaddictedEngineCompatibility, QuaddictedEntry, QuaddictedInstallNotes, QuaddictedPage,
+    QuakeEngine,
+};
+pub use quake_mod_browser::ModDbFileNotices;

@@ -2291,6 +2291,9 @@ pub struct GameUpdatePlan {
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+    /// Archive-only review for the same candidate. Acquisition still revalidates it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_only_plan_sha256: Option<String>,
     /// Informational upstream notes for this review. Read from cached provider
     /// metadata only, excluded from `plan_sha256`, never authority. Absent when
     /// the provider has no hosted release page.
@@ -2766,7 +2769,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

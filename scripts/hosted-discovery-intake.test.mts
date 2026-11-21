@@ -10,6 +10,8 @@ import {
   HostedIntakeBridge,
   parseHostedRequest,
   assertHostedEvent,
+  selectHostedRequests,
+  verifyOwnerAuditRun,
   hostedRequestMarker,
   hostedBody,
   hostedPlanHash,
@@ -749,6 +751,57 @@ void test("reporting reads only hash-bound receipts and refuses completion witho
   await assert.rejects(
     async () => await f.bridge.status(f.request, [f.request, receipt]),
     /doctor|object/u,
+  );
+});
+void test("retained intake bodies keep their original hash after the issue template changes", async () => {
+  const f = await fixture();
+  const delivered = await f.bridge.process(f.request, f.all());
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const original = delivered.plan[0]!;
+  assert.match(
+    original.body,
+    /Each offered operation names its platform, owner and applicable checks/u,
+  );
+  const historicalBody = hostedBody(candidate, f.request.id, "hosted-before-finite-v1");
+  const historical = {
+    ...original,
+    body: historicalBody,
+    body_sha256: observationHash(historicalBody),
+  };
+  assert.equal(
+    historical.body_sha256,
+    "99bba8a4b2de389f8b727a3ba69c46068fd7471fcc49391f2638bcb93eaedfbd",
+  );
+  assert.equal(
+    observationHash(hostedBody(candidate, f.request.id, "finite-route-v1")),
+    "84cfa769bdeed3db499108d73b8db4855efe73b9a475265ac54603460168a636",
+  );
+  assert.notEqual(historical.body_sha256, original.body_sha256);
+  const { candidate: _candidate, body: _body, ...compact } = historical;
+  const retained = {
+    ...delivered,
+    plan_encoding: "proposal-bound-v2",
+    plan: [{ ...compact, candidate_index: 0, port_key: candidate.port_key }],
+    plan_sha256: hostedPlanHash(delivered.request_sha256, [historical]),
+  };
+  const writeCount = f.writes;
+  const { plan_encoding: _encoding, ...full } = retained;
+  for (const row of [retained, { ...full, plan: [historical] }]) {
+    const complete = {
+      ...receipt,
+      body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(row)}\n\`\`\``,
+    };
+    assert.equal((await f.bridge.status(f.request, [f.request, complete])).status, "complete");
+  }
+  assert.equal(f.writes, writeCount);
+  const forged = { ...retained, plan: [{ ...retained.plan[0]!, body_sha256: "0".repeat(64) }] };
+  const invalid = {
+    ...receipt,
+    body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(forged)}\n\`\`\``,
+  };
+  await assert.rejects(
+    f.bridge.status(f.request, [f.request, invalid]),
+    /does not match the exact proposal/u,
   );
 });
 void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", async () => {
@@ -2131,6 +2184,45 @@ void test("explicit observations match exactly one immutable owner and never cre
   );
 });
 
+void test("scheduled audits verify the exact original owner workflow attempt and request", () => {
+  const sha = "a".repeat(40);
+  const origin = `900/2@${sha}`;
+  const run = {
+    actor: { login: "boburning" },
+    repository: { id: 1354613114 },
+    event: "workflow_dispatch",
+    head_branch: "main",
+    status: "completed",
+    path: ".github/workflows/hosted-discovery-intake.yml",
+    display_title: "Hosted intake audit 341 / 1",
+    id: 900,
+    run_attempt: 2,
+    head_sha: sha,
+  };
+  verifyOwnerAuditRun(run, 341, origin);
+  const ordinary = { ...run, event: "issue_comment", display_title: "Hosted intake 341 / 1" };
+  verifyOwnerAuditRun(ordinary, 341, origin);
+  for (const mismatched of [
+    { ...ordinary, display_title: "Hosted intake 342 / 1" },
+    { ...ordinary, display_title: run.display_title },
+    { ...run, display_title: ordinary.display_title },
+  ])
+    assert.throws(() => verifyOwnerAuditRun(mismatched, 341, origin));
+  for (const changed of [
+    { actor: { login: "github-actions[bot]" } },
+    { repository: { id: 1 } },
+    { event: "schedule" },
+    { head_branch: "feature" },
+    { status: "queued" },
+    { path: "elsewhere.yml" },
+    { display_title: "Hosted intake audit 342 / 1" },
+    { id: 901 },
+    { run_attempt: 1 },
+    { head_sha: "b".repeat(40) },
+  ])
+    assert.throws(() => verifyOwnerAuditRun({ ...run, ...changed }, 341, origin));
+});
+
 async function verifyAuditRecovery(schema: 1 | 2) {
   const candidates = Array.from({ length: 11 }, (_, i) => ({
     ...candidate,
@@ -2168,10 +2260,120 @@ async function verifyAuditRecovery(schema: 1 | 2) {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
     return await inventory(cache, full);
   };
-  await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  const originalProposalRun = "800/1@" + "e".repeat(40);
+  if (schema === 2) {
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].audit_pending) throw new Error("Interrupted before first audit projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { origin: originalProposalRun }),
+      /Interrupted before first audit projection/u,
+    );
+    f.bridge.persist = publish;
+    const native = await f.bridge.status(f.request, f.all());
+    assert.equal(native.audit_pending, undefined);
+    assert.equal(native.audit_retry, undefined);
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    const scheduledBinding = collected.audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    const verifyOrigin = async (request: number, origin: string) => {
+      assert.equal(request, f.request.id);
+      assert.equal(origin, originalProposalRun);
+    };
+    const comment = f.comments.get(native.receipt_comment!)!;
+    const original = comment.body;
+    comment.body += "\n";
+    assert.equal((await f.bridge.status(f.request, f.all(), store)).audit_retry, undefined);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /ahead of or differs/u,
+    );
+    assert.notEqual(comment.body, original);
+    comment.body = original;
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin: async () => {
+          throw new Error("Original owner action could not be verified");
+        },
+      }),
+      /original owner action/iu,
+    );
+    assert.equal(comment.body, original);
+    const readQueue = f.bridge.comments.bind(f.bridge);
+    for (const changed of [
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.filter((entry) => entry.id !== f.request.id),
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.map((entry) =>
+          entry.id === f.request.id ? { ...entry, body: `Withdrawn\n${entry.body}` } : entry,
+        ),
+    ]) {
+      f.bridge.comments = async () => changed(await readQueue());
+      await assert.rejects(
+        f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+        /scheduled audit request is unavailable or has changed/u,
+      );
+      assert.equal(comment.body, original);
+    }
+    f.bridge.comments = readQueue;
+    const duplicate = { ...comment, id: comment.id + 1000 };
+    await assert.rejects(
+      f.bridge.process(f.request, [...f.all(), duplicate], {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin,
+      }),
+      /ambiguous hosted receipt/iu,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /Unrelated Roadmap edit/u,
+    );
+  } else {
+    await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  }
   assert.equal(f.creations, candidates.length);
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
+  if (schema === 2) {
+    assert.match(status.audit_retry?.binding ?? "", /^[0-9a-f]{64}$/u);
+    assert.ok(f.comments.get(status.receipt_comment!)!.body.includes(originalProposalRun));
+  } else {
+    assert.equal(
+      status.audit_retry,
+      undefined,
+      "an unbound historical run cannot authorize a retry",
+    );
+  }
+  const origin = "900/2@" + "f".repeat(40);
+  let scheduledBinding: string | undefined;
+  if (schema === 2) {
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, origin }),
+      /Unrelated Roadmap edit/u,
+    );
+    scheduledBinding = (await f.bridge.status(f.request, f.all())).audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    assert.match(scheduledBinding, /^[0-9a-f]{64}$/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding: "0".repeat(64) }),
+      /does not authorize/u,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding }),
+      /Missing native audit origin/u,
+    );
+  }
+  const verifyOrigin = async (request: number, original: string) => {
+    assert.equal(request, f.request.id);
+    assert.equal(original, origin);
+  };
+  const scheduled = scheduledBinding ? { scheduledBinding, verifyOrigin } : {};
   const writes = f.writes;
   if (schema === 1) {
     const comment = f.comments.get(status.receipt_comment!)!;
@@ -2219,15 +2421,21 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       return await publish(...args);
     };
     await assert.rejects(
-      f.bridge.process(f.request, f.all(), { auditOnly: true }),
+      f.bridge.process(f.request, f.all(), { auditOnly: true, ...scheduled }),
       /Worker interrupted/u,
     );
     f.bridge.persist = publish;
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    assert.equal(collected.audit_retry?.binding, scheduledBinding);
     f.bridge.inventory = async () => {
       throw new Error("Already verified audit must not repeat");
     };
   }
-  const completed = await f.bridge.process(f.request, f.all(), { auditOnly: schema === 2 });
+  const completed = await f.bridge.process(f.request, f.all(), {
+    auditOnly: schema === 2,
+    ...scheduled,
+  });
   assert.equal(completed.status, "complete");
   assert.equal(
     (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,
@@ -2246,6 +2454,17 @@ void test("legacy audit recovery preserves delivered candidates without reopenin
   verifyAuditRecovery(1));
 void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", () =>
   verifyAuditRecovery(2));
+
+void test("scheduled selections retain an unavailable request and independent bound audits", async () => {
+  const f = await fixture();
+  const absent = f.request.id + 1;
+  const selected = [absent, f.request.id];
+  assert.deepEqual(selectHostedRequests([f.request], selected, true), [
+    { id: absent, request: undefined },
+    { id: f.request.id, request: f.request },
+  ]);
+  assert.throws(() => selectHostedRequests([f.request], selected, false), /no longer available/u);
+});
 
 function amendmentFor(
   f: Awaited<ReturnType<typeof fixture>>,

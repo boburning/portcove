@@ -6276,7 +6276,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -6330,7 +6330,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -10029,7 +10030,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -10083,7 +10084,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -19736,6 +19738,13 @@
       "activate": {
         "type": "boolean"
       },
+      "archive_only_plan_sha256": {
+        "description": "Archive-only review for the same candidate. Acquisition still revalidates it.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
@@ -21448,6 +21457,219 @@
       "output_location"
     ],
     "title": "InstallPlan",
+    "type": "object"
+  },
+  "jakmods_catalog": {
+    "$defs": {
+      "JakModsBuild": {
+        "properties": {
+          "downloads": {
+            "description": "The upstream download count for this release asset alone.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          }
+        },
+        "required": [
+          "platform",
+          "downloads"
+        ],
+        "type": "object"
+      },
+      "JakModsBuildStatus": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsProject": {
+        "properties": {
+          "artwork_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "build_status": {
+            "$ref": "#/$defs/JakModsBuildStatus"
+          },
+          "external_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/JakModsProjectKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/JakModsRelease"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_games": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "website_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "artwork_url",
+          "website_url",
+          "external_url",
+          "supported_games",
+          "kind",
+          "build_status",
+          "releases"
+        ],
+        "type": "object"
+      },
+      "JakModsProjectKind": {
+        "enum": [
+          "open_goal_build",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsRelease": {
+        "properties": {
+          "builds": {
+            "items": {
+              "$ref": "#/$defs/JakModsBuild"
+            },
+            "type": "array"
+          },
+          "published_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "published_at",
+          "builds"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "complete": {
+        "type": "boolean"
+      },
+      "feed_url": {
+        "type": "string"
+      },
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "game": {
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "projects": {
+        "items": {
+          "$ref": "#/$defs/JakModsProject"
+        },
+        "type": "array"
+      },
+      "setup_url": {
+        "type": "string"
+      },
+      "source_url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "game",
+      "platform",
+      "projects",
+      "complete",
+      "observed_at",
+      "freshness",
+      "source_url",
+      "feed_url",
+      "setup_url"
+    ],
+    "title": "JakModsCatalog",
     "type": "object"
   },
   "launch_request": {
@@ -33093,6 +33315,37 @@
         ],
         "type": "object"
       },
+      "ExternalModPortal": {
+        "properties": {
+          "browse_available": {
+            "description": "The current port and platform qualify for the optional read-only provider browser.",
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/$defs/ExternalModPortalSource"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "url"
+        ],
+        "type": "object"
+      },
+      "ExternalModPortalSource": {
+        "description": "Upstream-owned browser routes. These grant no download or import capability.",
+        "enum": [
+          "nexus-daggerfall-unity",
+          "coop-dx",
+          "mod-io-open-xcom",
+          "quaddicted",
+          "mod-db-open-xcom",
+          "mod-db-arcane-dimensions"
+        ],
+        "type": "string"
+      },
       "HeldModUpdate": {
         "description": "An unattended update the player has to review, remembered for a setup's\ncurrent revision.",
         "properties": {
@@ -34132,6 +34385,24 @@
           "null"
         ]
       },
+      "external_mod_portals": {
+        "description": "Reviewed upstream browser routes for this port and host.",
+        "items": {
+          "$ref": "#/$defs/ExternalModPortal"
+        },
+        "type": "array"
+      },
+      "github_native_import_offered": {
+        "description": "This host has a reviewed native companion layout for the upstream ZIP.",
+        "type": "boolean"
+      },
+      "github_release_url": {
+        "description": "Reviewed upstream GitHub Releases page for browsing and native setup.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "held_updates": {
         "default": [],
         "description": "Unattended provider updates waiting for the player's review, for each\nsetup's current revision.",
@@ -34202,7 +34473,7 @@
         "type": "array"
       },
       "supported": {
-        "description": "False when the game has no reviewed mod package contract; nothing else is\noffered then.",
+        "description": "False when the game has no reviewed managed mod package contract.",
         "type": "boolean"
       }
     },
@@ -34217,6 +34488,119 @@
       "provider"
     ],
     "title": "ModSetupsView",
+    "type": "object"
+  },
+  "moddb_file_notices": {
+    "$defs": {
+      "FileNotice": {
+        "description": "Mod DB's Files channel also contains tutorials and patches. A notice\nidentifies a page to open, without classifying it as an installable release.",
+        "properties": {
+          "page_url": {
+            "type": "string"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "title",
+          "page_url",
+          "published_at"
+        ],
+        "type": "object"
+      },
+      "ModDbFileNotices": {
+        "description": "Provider-attributed Arcane Dimensions file notices, including nonrelease notices.",
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "notices": {
+            "items": {
+              "$ref": "#/$defs/FileNotice"
+            },
+            "type": "array"
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "attribution",
+          "source_url",
+          "notices"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "observed_at": {
+        "description": "Unix seconds when the provider data was last confirmed.",
+        "format": "int64",
+        "type": "integer"
+      },
+      "value": {
+        "$ref": "#/$defs/ModDbFileNotices"
+      }
+    },
+    "required": [
+      "value",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "Observed",
     "type": "object"
   },
   "official_catalog_automatic_refresh": {
@@ -35923,7 +36307,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -35977,7 +36361,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -37387,7 +37772,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -37441,7 +37826,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -49316,6 +49702,240 @@
     "title": "ProviderUpdateObservation",
     "type": "object"
   },
+  "quaddicted_catalog": {
+    "$defs": {
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      },
+      "QuaddictedEngineCompatibility": {
+        "enum": [
+          "unverified",
+          "declares_another_required_engine"
+        ],
+        "type": "string"
+      },
+      "QuaddictedEntry": {
+        "properties": {
+          "authors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "claimed_bytes": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "claimed_sha256": {
+            "description": "Publisher metadata claim. This adapter never verifies or downloads bytes.",
+            "type": "string"
+          },
+          "content_kind": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "engine_compatibility": {
+            "$ref": "#/$defs/QuaddictedEngineCompatibility"
+          },
+          "engine_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "filename": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "install_notes": {
+            "$ref": "#/$defs/QuaddictedInstallNotes",
+            "description": "Inert extraction/launch descriptions. Never interpreted by this adapter."
+          },
+          "page_url": {
+            "type": "string"
+          },
+          "provider_notes": {
+            "description": "Provider notes, for text rendering only. May contain markup as literal text.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "release_date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_urls": {
+            "description": "Exact provider-declared locations. These are display data.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "page_url",
+          "filename",
+          "authors",
+          "release_date",
+          "claimed_sha256",
+          "claimed_bytes",
+          "source_urls",
+          "content_kind",
+          "engine_requirements",
+          "provider_notes",
+          "engine_compatibility",
+          "install_notes"
+        ],
+        "type": "object"
+      },
+      "QuaddictedInstallNotes": {
+        "properties": {
+          "command_line": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "extract": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extract_mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "start_maps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "extract",
+          "extract_mapping",
+          "command_line",
+          "start_maps",
+          "dependencies"
+        ],
+        "type": "object"
+      },
+      "QuaddictedPage": {
+        "properties": {
+          "attribution": {
+            "type": "string"
+          },
+          "engine": {
+            "$ref": "#/$defs/QuakeEngine"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/$defs/QuaddictedEntry"
+            },
+            "type": "array"
+          },
+          "may_have_more": {
+            "description": "A full page below the client limit suggests another page may be available.",
+            "type": "boolean"
+          },
+          "page": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source_url": {
+            "type": "string"
+          },
+          "unreadable_rows": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attribution",
+          "source_url",
+          "engine",
+          "page",
+          "entries",
+          "unreadable_rows",
+          "may_have_more"
+        ],
+        "type": "object"
+      },
+      "QuakeEngine": {
+        "enum": [
+          "vk_quake",
+          "ironwail"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "observed_at": {
+        "description": "Unix seconds when the provider data was last confirmed.",
+        "format": "int64",
+        "type": "integer"
+      },
+      "value": {
+        "$ref": "#/$defs/QuaddictedPage"
+      }
+    },
+    "required": [
+      "value",
+      "observed_at",
+      "freshness"
+    ],
+    "title": "Observed",
+    "type": "object"
+  },
   "recipe_acquisition_plan": {
     "$defs": {
       "AssetConflict": {
@@ -56253,7 +56873,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -56307,7 +56927,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },

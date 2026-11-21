@@ -431,8 +431,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -441,8 +440,11 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
@@ -2673,6 +2675,99 @@ backup's enabled entries and recorded order. A matching backup can stay in use
 as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
+
+### Browsing reviewed GitHub mod releases
+
+In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
+The link opens the reviewed Releases page. The view shows the native ZIP setup
+when the current platform has a reviewed companion layout.
+
+Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
+randomizer releases recommended by Zelda64Recomp. With `--json`, the response
+includes the repository, release and asset IDs and the published SHA-256 when
+GitHub provides one.
+
+For Windows x86-64 or Linux x86-64, download the intact ZIP from GitHub and use
+**Install Mods** in a separate Zelda64Recompiled copy before starting the game.
+That installer handles the extra native libraries in the ZIP. This route owns
+its own mod updates and files. Portcove's managed setups still require separate
+review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
+
+To inspect a ZIP, run
+`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
+Provide the path to an intact local ZIP, or let Portcove fetch the selected
+GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
+mods and companion libraries for the selected platform. Use the intact ZIP in
+the upstream installer. The report cannot activate a Portcove setup.
+
+### Browsing upstream-owned mod portals
+
+Open **Mods** on the game page or run `portcove profile setups <port-id>`
+to see the reviewed browser links for the current host. A game can offer these
+links before it has an installed runtime or a managed mod setup. You choose,
+install and update files outside Portcove.
+
+- Daggerfall Unity links to Nexus. Choose the matching game version and operating
+  system. Follow the mod's instructions in a separate Daggerfall Unity copy.
+  Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)
+- SM64 Co-op DX links to its community catalog. The game imports a compatible
+  ZIP or Lua file when you drag it onto the game window. [CoopDX FAQ](https://mods.sm64coopdx.com/help/faq/)
+- The UFO Defense and Terror from the Deep OpenXcom ports link to the OpenXcom
+  communities on mod.io and Mod DB. Check the mod's original game and engine
+  requirements before choosing a file. Some listings target a different engine
+  variant. [OpenXcom community](https://github.com/OpenXcom/OpenXcom#mods) ·
+  [OpenXcom on Mod DB](https://www.moddb.com/games/openxcom/mods)
+- vkQuake and Ironwail link to Quaddicted. Check the project's compatibility notes and
+  follow the author's setup in a separate Quake copy. [vkQuake compatibility](https://github.com/Novum/vkQuake)
+
+On supported Windows and Linux routes for vkQuake and Ironwail, use
+`portcove profile quaddicted PORT_ID` to see newest entries, or pass
+`--search SEARCH` and `--page 2` to narrow or continue the results. The
+vkQuake route also offers Arcane Dimensions file notices via
+`portcove profile mod-db-notices quake-vkquake`. These notices can include
+patches and documentation. Use the source page to see its instructions.
+
+The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
+specifies the exact port ID, original game ID, project URL and host platforms.
+Core also checks the current catalog when it returns a link or authorizes the
+desktop to open it. Browser routes supply no account, download, package trust
+or managed-import capability.
+
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
 
 ### Installing from GameBanana and Thunderstore
 

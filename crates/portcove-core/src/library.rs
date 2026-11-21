@@ -80,6 +80,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -131,6 +132,11 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
+            || retained
+                .listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -292,6 +298,10 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) github_mod_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -764,6 +774,10 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         })
     }
@@ -777,6 +791,10 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
