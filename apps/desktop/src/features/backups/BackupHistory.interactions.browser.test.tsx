@@ -142,7 +142,7 @@ it("reveals the exact checksum only when backup technical details are opened", a
   await expect.element(checksum).not.toBeVisible();
   await page.elementLocator(row.querySelector("summary")!).click();
   await expect.element(checksum).toBeVisible();
-  await expect.element(checksum).toHaveTextContent(backups[0]!.sha256);
+  await expect.element(checksum).toHaveTextContent(`SHA-256 ${backups[0]!.sha256}`);
 });
 
 async function openDeletion(id: string) {
