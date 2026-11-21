@@ -539,7 +539,13 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-second",
           extra,
         );
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 2, 5_000);
+        // The GTK helper can report the chosen folder before the dialog reply
+        // reaches the webview and Core publishes the second folder.
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 2,
+          30_000,
+          "The second chosen folder did not appear in Core's folder inventory",
+        );
         const second = required(
           (await read("get_game_file_roots")).find((root) => root.id !== first.id),
         );
