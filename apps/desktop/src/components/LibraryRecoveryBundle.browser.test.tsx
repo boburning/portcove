@@ -480,8 +480,18 @@ it.each(["read_published_recovery_restore", "resume_library_recovery_restore"])(
 
 it("verifies a published receipt after a fresh review without copying or resuming", async () => {
   vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
-    message:
-      "A previous copy was published to this folder. Check the bundle to verify its contents.",
+    code: "conflict",
+    message: "An authenticated recovery bundle was already published.",
+    presentation: {
+      mutation_state: "unknown",
+      phase: null,
+      presentation_key: "conflict",
+      recovery_actions: [],
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      technical_context: {},
+      technical_message: "An authenticated recovery bundle was already published.",
+      tone: "error",
+    },
     details: {
       recovery_action: "read_published_recovery_bundle",
       recovery_destination: destination,
@@ -505,6 +515,14 @@ it("verifies a published receipt after a fresh review without copying or resumin
   await dialog.getByRole("button", { name: "Review bundle creation" }).click();
   const verify = dialog.getByRole("button", { name: "Verify published bundle" });
   await expect.element(verify).toBeVisible();
+  await expect
+    .element(dialog.getByRole("alert"))
+    .toHaveTextContent(
+      "A previous copy was published to this folder. Check the bundle to verify its contents.",
+    );
+  await expect
+    .element(dialog.getByText(/confirm whether anything changed/))
+    .not.toBeInTheDocument();
   expect(read).not.toHaveBeenCalled();
   await verify.click();
   await expect
@@ -525,8 +543,19 @@ it("verifies a published receipt after a fresh review without copying or resumin
 it("offers the exact interrupted creation after a fresh review and clears it when the folder changes", async () => {
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
+    code: "conflict",
     message: "An interrupted copy is waiting for this bundle folder.",
     details: { recovery_staging: staging },
+    presentation: {
+      mutation_state: "unknown",
+      phase: null,
+      presentation_key: "conflict",
+      recovery_actions: [],
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      technical_context: {},
+      technical_message: "An interrupted copy is waiting for this bundle folder.",
+      tone: "error",
+    },
   });
   const copy = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
   const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle").mockResolvedValue(bundle);
@@ -543,6 +572,16 @@ it("offers the exact interrupted creation after a fresh review and clears it whe
   await reviewAction.click();
   await expect.element(dialog.getByText(staging)).toBeVisible();
   await expect.element(resumeAction).toBeVisible();
+  const feedback = dialog.getByRole("alert");
+  await expect
+    .element(
+      feedback.getByText("An interrupted copy is waiting for this bundle folder.", { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(feedback.getByText(/confirm whether anything changed/))
+    .not.toBeInTheDocument();
+  await expect.element(feedback.getByText("View technical details")).toBeVisible();
   expect(resume).not.toHaveBeenCalled();
 
   await folder.fill("D:/backups/Another bundle");
