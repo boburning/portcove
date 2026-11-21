@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use crate::{
-    Adapter, Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
+    Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
     OperationCoordinator, Platform, PortDefinition, PortcoveError, Result, SourceRecord,
     definition_eligibility::DefinitionOperationContext, operation::LifecycleFaultPoint,
 };
@@ -367,7 +367,7 @@ impl PortcoveService {
                     events(disc_unpack_event(operation, phase, completed, total));
                 }
             };
-        let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
+        let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_n64_input(
             crate::LaunchSpecRequest {
                 library: &self.library,
                 port,
@@ -378,6 +378,7 @@ impl PortcoveService {
                 source_record: source.as_ref(),
                 disc_progress: Some(crate::adapter::DiscProgressSink(&report_disc)),
             },
+            n64_input_proof.as_ref(),
             &checkpoint,
         )?;
         if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()

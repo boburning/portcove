@@ -2368,7 +2368,7 @@ pub(crate) fn verify_n64_release_input(
     verify_n64_release_input_with_budget(catalog, port_id, source, release, &mut budget)
 }
 
-const MAXIMUM_N64_INPUT_BYTES: u64 = 512 * 1024 * 1024;
+pub(crate) const MAXIMUM_N64_INPUT_BYTES: u64 = 512 * 1024 * 1024;
 
 pub(crate) fn n64_input_hash_budget(checkpoint: &dyn Fn() -> Result<()>) -> HashBudget<'_> {
     HashBudget {
