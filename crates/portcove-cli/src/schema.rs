@@ -914,6 +914,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "exact_release_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ExactReleaseReview>(
+                    contract
+                )),
+            ),
+            (
                 "game_update_acquisition",
                 serde_json::json!(schema_for_contract::<portcove_core::GameUpdateAcquisition>(
                     contract

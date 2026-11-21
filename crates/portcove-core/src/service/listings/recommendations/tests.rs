@@ -456,6 +456,8 @@ async fn changed_update_observation_refreshes_only_its_affected_implementation()
     f.service
         .library()
         .store_update_snapshot(&crate::UpdateCheck {
+            exact_release: None,
+            channel_latest_version: None,
             port_id: "comparison-alpha".into(),
             channel: ReleaseChannel::Stable,
             installed_version: None,

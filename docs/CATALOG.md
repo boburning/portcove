@@ -2371,6 +2371,20 @@ bundle.
 
 ### Release selection and maintenance
 
+Core's exact release selector binds one port, platform and channel to a specific
+tag or declared direct-manifest version, filename, size and SHA-256. GitHub
+revalidates the numeric repository, release and asset IDs, published digest and
+tag commit. GitLab revalidates the numeric project, release-link and registry
+file IDs, registry digest and tag commit. The configured direct manifest can
+resolve only its declared stable package.
+
+Exact checks apply the catalog's package, platform and channel rules. They
+revalidate provider metadata independently of the latest-release cache. A
+missing or changed artifact returns a hold for that selection. Curated
+integrations continue to require their separately admitted acquisition route.
+A matching selector describes provider metadata. The installer still verifies
+the downloaded bytes and applicable package layout before activation.
+
 Release asset hints should identify a stable port, platform, architecture and
 package shape when automatic release selection is offered. A controlled N/N+1
 test supports an automatic-update claim; it is not a prerequisite for a useful

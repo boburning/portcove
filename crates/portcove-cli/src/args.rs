@@ -2012,6 +2012,18 @@ pub(crate) enum ChannelCommand {
         #[arg(value_enum)]
         channel: ChannelArg,
     },
+    /// Review an exact release tag or direct-manifest version for the saved channel.
+    ReviewExact { port_id: String, version: String },
+    /// Save the exact package identified by a current release review.
+    Pin {
+        port_id: String,
+        version: String,
+        /// Review SHA-256 from channel review-exact.
+        #[arg(long)]
+        review_sha256: String,
+    },
+    /// Clear the saved release pin and follow the current channel.
+    Follow { port_id: String },
 }
 
 #[derive(Debug, Subcommand)]

@@ -67,6 +67,9 @@ pub struct LibraryPortSettings {
     pub previous_install_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_directory: Option<PathBuf>,
+    /// Version 13 binds user release preferences without admitting artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release: Option<crate::ExactReleaseSelection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -314,7 +317,7 @@ pub(crate) fn restore_saved_originals(
 }
 
 fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSettings>> {
-    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id, output_directory FROM port_settings ORDER BY port_id")?;
+    let mut statement = connection.prepare("SELECT port_id, channel, update_policy, active_install_id, previous_install_id, output_directory, exact_release_json FROM port_settings ORDER BY port_id")?;
     let rows = statement.query_map([], |row| {
         Ok((
             row.get::<_, String>(0)?,
@@ -323,14 +326,26 @@ fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSet
             row.get::<_, Option<String>>(3)?,
             row.get::<_, Option<String>>(4)?,
             row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
         ))
     })?;
     rows.map(|row| {
-        let (port_id, channel, policy, active_install_id, previous_install_id, output_directory) =
-            row?;
+        let (
+            port_id,
+            channel,
+            policy,
+            active_install_id,
+            previous_install_id,
+            output_directory,
+            exact_release,
+        ) = row?;
+        let channel = channel.parse()?;
+        let exact_release =
+            crate::ExactReleaseSelection::decode(&port_id, channel, exact_release.as_deref())?;
         Ok(LibraryPortSettings {
             port_id,
-            channel: channel.parse()?,
+            channel,
+            exact_release,
             update_policy: policy.parse()?,
             active_install_id,
             previous_install_id,

@@ -2074,6 +2074,8 @@ mod tests {
         };
         let active = status.active.clone().unwrap();
         let check = |installed_version: &str, release: crate::ResolvedRelease| crate::UpdateCheck {
+            exact_release: None,
+            channel_latest_version: None,
             port_id: PORT.into(),
             channel: status.channel,
             installed_version: Some(installed_version.into()),
