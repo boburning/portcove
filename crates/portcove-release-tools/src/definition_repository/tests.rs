@@ -1133,7 +1133,7 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
     use flate2::{Compression, write::GzEncoder};
     use std::io::Write as _;
 
-    fn select_compact(fixture: &Fixture, revision: u64, altered: bool) {
+    fn select_compact(fixture: &Fixture, revision: u64, altered: bool, retain_tombstone: bool) {
         let name = portcove_listing_carrier::COMPACT_TARGET;
         let root = fixture.root().join("bundle");
         let mut payload: serde_json::Value = serde_json::from_slice(
@@ -1143,6 +1143,12 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         payload["revision"] = json!(revision);
         if altered {
             payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
+        }
+        if retain_tombstone {
+            payload["withdrawn_ids"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!("compact-only-withdrawal"));
         }
         let decoded = serde_json::to_vec(&payload).unwrap();
         let mut gzip = GzEncoder::new(Vec::new(), Compression::default());
@@ -1191,7 +1197,7 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         .await
         .unwrap();
     advance(&fixture, "legacy", 2);
-    select_compact(&fixture, 2, false);
+    select_compact(&fixture, 2, false, true);
     fixture.roles = fixture.root().join("compact-roles");
     fs::create_dir(&fixture.roles).unwrap();
     fixture.sign_all().await;
@@ -1209,7 +1215,7 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
     );
 
     advance(&fixture, "compact", 3);
-    select_compact(&fixture, 2, true);
+    select_compact(&fixture, 2, true, true);
     let failure = load_context(&fixture.context)
         .await
         .err()
@@ -1219,8 +1225,19 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         failure.contains("historical listing revision rollback/equivocation"),
         "{failure}"
     );
-    select_compact(&fixture, 1, false);
+    select_compact(&fixture, 1, false, true);
     assert!(load_context(&fixture.context).await.is_err());
+
+    select_compact(&fixture, 3, false, false);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("removed an authenticated historical withdrawal"),
+        "{failure}"
+    );
 
     fs::remove_file(
         fixture
@@ -1254,7 +1271,7 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         .remove(0);
     let new_legacy = serde_json::to_vec(&legacy).unwrap();
     fs::write(&path, &new_legacy).unwrap();
-    select_compact(&fixture, 4, false);
+    select_compact(&fixture, 4, false, true);
     fixture.roles = fixture.root().join("withdrawal-roles");
     fs::create_dir(&fixture.roles).unwrap();
     fixture.sign_all().await;

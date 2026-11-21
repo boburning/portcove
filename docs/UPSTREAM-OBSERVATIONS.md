@@ -1350,7 +1350,8 @@ publisher keeps the existing representation until its first compact publication
 is explicitly enabled. After activation, a reviewed exact legacy target in the
 existing publication bundle can add an explicit safety withdrawal. It must
 preserve the other signed legacy rows and advance above the current revision.
-The compact successor carries the same withdrawals and retains its other rows.
+The compact successor carries the same withdrawals and preserves its other
+rows and prior withdrawals.
 If prior metadata has expired, the publisher first renews the exact known
 targets through historical signature verification.
 
