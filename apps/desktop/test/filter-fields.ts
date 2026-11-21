@@ -55,7 +55,7 @@ export async function openAdvancedFilters() {
   if (!advanced.element().closest("details")?.open) await advanced.click();
 }
 
-async function closeOpenFilterField() {
+export async function closeOpenFilterField() {
   const trigger = globalThis.document.querySelector<HTMLButtonElement>(
     '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
   );
