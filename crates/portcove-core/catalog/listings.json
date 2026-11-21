@@ -3630,6 +3630,10 @@
           {
             "title": "Set up a separate Mac or Android copy",
             "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+          },
+          {
+            "title": "Add a prepared Windows or Linux copy to Portcove",
+            "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place."
           }
         ],
         "references": [
@@ -3858,7 +3862,7 @@
           },
           {
             "title": "Keep the creating installation and data",
-            "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+            "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only. After Pikmin setup completes on a supported desktop, choose Use an existing installation. Select the prepared copy's native nectar-launcher.exe on Windows or nectar-launcher on Linux or Mac and its containing folder. Use that launcher's Pikmin Play control. The launcher owns game preparation and updates. Use the Android launcher directly on Android. Removing the registration leaves the external files in place."
           }
         ],
         "warnings": [
@@ -4035,6 +4039,10 @@
           {
             "title": "Use a separate reviewed Windows v1.8.3 copy",
             "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+          },
+          {
+            "title": "Add the reviewed F-Zero copy to Portcove",
+            "instruction": "After the v1.8.3 game accepts your original, choose Use an existing installation. Select FZeroSNESRecomp.exe and its containing folder. Play is separate from registration. Keep the already reviewed external copy, original and data under your control. Removing the registration leaves the external files in place."
           }
         ],
         "references": [
@@ -32495,6 +32503,10 @@
           {
             "title": "Carry your progress to a new upstream version",
             "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
+          },
+          {
+            "title": "Add the prepared game to Portcove",
+            "instruction": "After upstream setup completes, choose Use an existing installation in Portcove. Select tetrisphere.exe on Windows or tetrisphere on Linux and its containing installation folder. Keep data and companion files together. Choose Play separately. Use the upstream launcher for future setup and replacement. Removing the registration leaves the external files in place."
           }
         ],
         "warnings": [],

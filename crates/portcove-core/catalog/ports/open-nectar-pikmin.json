@@ -46,7 +46,7 @@
         },
         {
           "title": "Keep the creating installation and data",
-          "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+          "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only. After Pikmin setup completes on a supported desktop, choose Use an existing installation. Select the prepared copy's native nectar-launcher.exe on Windows or nectar-launcher on Linux or Mac and its containing folder. Use that launcher's Pikmin Play control. The launcher owns game preparation and updates. Use the Android launcher directly on Android. Removing the registration leaves the external files in place."
         }
       ],
       "warnings": [
