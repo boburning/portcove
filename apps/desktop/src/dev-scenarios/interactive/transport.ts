@@ -621,7 +621,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       } satisfies GameComparison;
     },
     can_review_exact_release: (args) => {
-      requireArgs("can_review_exact_release", args, { generation });
+      requirePort("can_review_exact_release", args);
       return false;
     },
     get_workspace_snapshot: (args) => {
