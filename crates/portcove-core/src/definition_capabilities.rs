@@ -14,6 +14,124 @@ const LIBULTRASHIP_ORIGINAL_RECOGNITION: u32 = 7;
 const N64_RECOMP_ORIGINAL_RECOGNITION: u32 = 9;
 pub(crate) const N64_RECOMP_RELEASE_INPUT_CAPABILITY: u32 = 10;
 
+// The existing Core predicates at entry and projection inspection apply these
+// feature identities. Keep field paths beside the stable names for review.
+macro_rules! definition_features {
+    ($($variant:ident => $name:literal, $field:literal;)*) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+        pub(crate) enum Feature { $($variant,)* }
+
+        impl Feature {
+            fn identity(self) -> (&'static str, &'static str) {
+                match self {
+                    $(Self::$variant => ($name, $field),)*
+                }
+            }
+
+            fn from_name(name: &str) -> Option<Self> {
+                match name {
+                    $($name => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    };
+}
+
+definition_features! {
+    ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
+    ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";
+    ReviewedPackageLayouts => "native.package-layouts-v1", "port.reviewed_package_layouts";
+    NativeTemporaryDataSiblings => "native.temporary-data-siblings-v1", "port.windows_temp_directory";
+    ExternalProfilePolicy => "native.external-profile-policy-v1", "port.external_profile_policy";
+    LinuxTarXz => "native.linux-tar-xz", "port.release.linux_tar_xz";
+    PlatformTarXz => "release.platform-tar-xz-v1", "port.release.tar_xz_platforms";
+    PortableMarker => "native.portable-marker-v1", "port.portable_marker_file";
+    LinuxPortableData => "native.linux-portable-data-v1", "port.linux_portable_data_directory";
+    PlatformRuntimeSubdirectories => "n64.platform-runtime-subdirectories-v1", "port.runtime_subdirectory_by_platform";
+    TrackedHandoff => "native.tracked-handoff-v1", "port.windows_tracked_handoff";
+    LinuxPackagedLibrary => "native.linux-packaged-library-v1", "port.linux_packaged_library";
+    DeclaredExecutable => "release.declared-executable-v1", "port.release.grant_declared_executable";
+    ArchiveFileLinks => "release.archive-file-links-v1", "port.release.archive_file_links";
+    N64ExecutableParent => "n64.executable-parent-v1", "port.n64_runtime_at_executable_parent";
+    RuntimeDiscImage => "staged.disc-image-v1", "port.runtime_disc_image";
+    RuntimeStfs => "staged.stfs-package-v1", "port.runtime_stfs_package";
+    RuntimeRomPatch => "staged.rom-patch-v1", "port.runtime_rom_patch / port.runtime_source_materialization";
+    HeaderlessRuntime => "staged.snes-headerless-runtime-v1", "port.runtime_source_materialization";
+    OptionalGameSource => "staged.optional-game-source-v1", "port.optional_game_source";
+    ModPackages => "staged.mod-packages-v1", "port.mod_package_policy";
+    NativeOriginals => "native.original-files-v1", "port preparation requires native originals";
+    NativeTemporaryData => "native.temporary-data-v1", "port.windows_temp_directory";
+    DirectManifest => "native.direct-manifest-v1", "port.release.provider";
+    ManualSetup => "native.manual-setup-v1", "port preparation has a manual marker";
+    DirectDataGuard => "staged.direct-data-isolation-v1", "port persistence requires Direct data isolation";
+    StagedArchive => "staged.ready-archive-v1", "port persistence requires ready staged archive handling";
+    PsxPackageActivation => "psx.package-preserving-activation-v1", "port.adapter";
+    PsxRetainedScope => "psx.texture-persistence-v1", "port persistence requires texture-pack retained scope";
+    UserSelectedRuntime => "staged.user-selected-runtime-v1", "port.release.user_prepared.*.trust";
+    ProviderResolution => "staged.provider-resolution-v1", "port runtime policy requires provider resolution";
+    ReusableRuntimePolicy => "staged.reusable-runtime-policy-v1", "port.managed_initialization / port.runtime_data_policy / port.managed_shared_preferences";
+    SharedPreferences => "staged.shared-preferences-v1", "port.managed_shared_preferences";
+    RuntimeData => "staged.runtime-data-policy-v1", "port.runtime_data_policy";
+    ChocolatePreparation => "staged.chocolate-preparation-v1", "port uses Chocolate profile preparation";
+    ManagedInitialization => "staged.managed-initialization-v1", "port.managed_initialization";
+    ShipwrightPersistence => "libultraship.windows-persistence-v1", "port.windows_shipwright_persistence";
+    WindowsRuntimePaths => "runtime.windows-path-policy-v1", "port.windows_runtime_path_policy";
+    SharedWriteScope => "staged.shared-write-scope-v1", "port.release.user_prepared.*.shared_preferences";
+    CartridgeBuild => "runtime.cartridge-build-v1", "port.release.managed_build";
+    PreparedSettings => "staged.settings-contract-v1", "port.release.user_prepared.*.settings_contract";
+    RequiredMutableFiles => "staged.required-mutable-files-v1", "port.release.user_prepared.*.required_mutable_files";
+    SourceDirectoryBinding => "staged.source-directory-binding-v1", "port.release.user_prepared.*.source_directory_environment";
+    N64InitialD3d12 => "n64.initial-d3d12-v1", "port.n64_windows_initial_d3d12";
+    PrivateUserData => "staged.private-user-data-v1", "port.release.user_prepared.*.library_user_data";
+    PreparedRuntimeSubdirectory => "staged.runtime-subdirectory-v1", "port.runtime_subdirectory";
+    OriginalRecognition => "source.optional-original-recognition-v1", "catalog.source_catalog.contracts.*.variant_list_recognition_only";
+    N64ReleaseInputs => "n64.release-inputs-v1", "catalog.source_catalog.contracts.*.n64_recomp_inputs_v1";
+    PsxMultiTrack => "psx.multi-track-disc-set-v1", "catalog.source_catalog PSX multi-track profiles";
+    SnesCopierHeader => "source.snes-copier-header-v1", "catalog.source_catalog SNES copier-header profiles";
+    UpstreamActiveReviewed => "catalog.upstream-active-review-v1", "port.upstream_active_reviewed";
+}
+
+pub(crate) fn check_required_features(
+    names: &[String],
+) -> Result<std::collections::BTreeSet<Feature>> {
+    if names.len() > 64 {
+        return Err(PortcoveError::verification(
+            "too many required definition features",
+        ));
+    }
+    let mut checked = std::collections::BTreeSet::new();
+    for name in names {
+        if name.len() > 80 || name.is_empty() {
+            return Err(PortcoveError::verification(
+                "invalid required definition feature",
+            ));
+        }
+        let feature = Feature::from_name(name).ok_or_else(|| {
+            PortcoveError::unsupported(format!("unsupported required definition feature {name:?}"))
+        })?;
+        if !checked.insert(feature) {
+            return Err(PortcoveError::verification(
+                "duplicate required definition feature",
+            ));
+        }
+    }
+    Ok(checked)
+}
+
+pub(crate) fn require_feature(
+    required: Option<&std::collections::BTreeSet<Feature>>,
+    feature: Feature,
+) -> Result<()> {
+    if required.is_some_and(|required| !required.contains(&feature)) {
+        let (name, field) = feature.identity();
+        return Err(PortcoveError::verification(format!(
+            "definition omits required feature {name} for {field}",
+        )));
+    }
+    Ok(())
+}
+
 pub(crate) fn original_recognition_capability(adapter: AdapterKind) -> Option<(&'static str, u32)> {
     match adapter {
         AdapterKind::LibultrashipPortable => {

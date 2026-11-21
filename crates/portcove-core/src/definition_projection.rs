@@ -389,7 +389,7 @@ impl DefinitionContentIndex {
         let value: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_slice(contract_bytes)?;
         let document: ProjectionDocument = serde_json::from_value(value.0)?;
-        if document.contract_schema != entry.schema_version()
+        if !entry.accepts_projection_schema(document.contract_schema)
             || document.representation != "catalog_projection"
         {
             return Err(PortcoveError::unsupported(
@@ -416,10 +416,11 @@ impl DefinitionContentIndex {
                             "the selected adapter has no optional original recognition capability",
                         )
                     })?;
-                if !entry.capabilities().checks.iter().any(|check| {
-                    check.requirement.template == template
-                        && check.requirement.minimum_version >= minimum
-                }) {
+                if !entry.supports_feature(
+                    crate::definition_capabilities::Feature::OriginalRecognition,
+                    template,
+                    minimum,
+                )? {
                     return Err(PortcoveError::verification(format!(
                         "optional original recognition requires {template} capability version {minimum}",
                     )));
@@ -433,11 +434,11 @@ impl DefinitionContentIndex {
                 .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
             {
                 if contract.port_id != stable_id
-                    || !entry.capabilities().checks.iter().any(|check| {
-                        check.requirement.template == "n64-recomp-portable"
-                        && check.requirement.minimum_version
-                            >= crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
-                    })
+                    || !entry.supports_feature(
+                        crate::definition_capabilities::Feature::N64ReleaseInputs,
+                        "n64-recomp-portable",
+                        crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY,
+                    )?
                 {
                     return Err(PortcoveError::verification(
                         "N64 release input requires the selected definition and its release-input reader capability",
@@ -448,11 +449,11 @@ impl DefinitionContentIndex {
         // Track counts live in the source profile, so only the projection can
         // tell that the entry's disc set needs a reader that keeps every track.
         if catalog.requires_psx_multi_track_set(port)
-            && !entry.capabilities().checks.iter().any(|check| {
-                check.requirement.template == "psx-recomp-managed"
-                    && check.requirement.minimum_version
-                        >= crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
-            })
+            && !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxMultiTrack,
+                "psx-recomp-managed",
+                crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+            )?
         {
             return Err(PortcoveError::verification(format!(
                 "managed PS1 disc sets with more than one track per disc require capability version {}",
@@ -462,11 +463,11 @@ impl DefinitionContentIndex {
         // The representation kind lives in the source catalog, so only the
         // projection can tell that its admission needs the copier-header reader.
         if catalog.snes_copier_header_profile(port) != crate::catalog::SnesCopierHeaderUse::None
-            && !entry.capabilities().checks.iter().any(|check| {
-                check.requirement.template == "staged-source-portable"
-                    && check.requirement.minimum_version
-                        >= crate::adapter::SNES_COPIER_HEADER_CAPABILITY
-            })
+            && !entry.supports_feature(
+                crate::definition_capabilities::Feature::SnesCopierHeader,
+                "staged-source-portable",
+                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+            )?
         {
             return Err(PortcoveError::verification(
                 "copier-header-optional SNES sources require staged-source capability version 36",

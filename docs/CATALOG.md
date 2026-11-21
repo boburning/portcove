@@ -74,6 +74,11 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+Indexed definition entries can carry a separate, bounded advisory object
+in entry schema 3. This metadata is outside the operational port and catalog
+projection. Use [named definition requirements](DEFINITION-DELIVERY.md#named-requirements-for-indexed-entries)
+when preparing an indexed publication for clients with schema-3 support.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing

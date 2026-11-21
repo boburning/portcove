@@ -23,6 +23,37 @@ interpret. [Check a client's capabilities](#check-a-clients-capabilities)
 before choosing a definition. The source inventory is
 [`EngineTemplateCapability::current()`](../crates/portcove-core/src/definition_capabilities.rs).
 
+### Named requirements for indexed entries
+
+Definition entry schema 3 adds a required `required_features` array and an
+optional `advisory` object. It keeps the existing integer capability vector,
+including all adapter range and historical operational minimum checks. A
+schema-3 entry must also name every applicable feature checked by Core's
+[feature registry](../crates/portcove-core/src/definition_capabilities.rs).
+For example, `port.release.linux_tar_xz` requires `native.linux-tar-xz`.
+A reader refuses unfamiliar required names and known operational uses that
+omit their feature. All operational fields still pass the complete typed
+entry and catalog projection checks. New operational behavior needs a new
+feature name and its validator. It can keep the adapter range when the
+feature itself is the reader gate.
+
+An advisory object may contain up to 64 keys. Each key must have between 1
+and 128 UTF-8 bytes. The compact encoded object may occupy up to 16 KiB
+within the existing entry byte limit. Readers ignore every advisory value
+when deriving installation, launch, release, source, policy, and retained
+runtime behavior. New advisory keys need no engine or schema bump.
+Duplicate JSON keys and additional top-level entry fields still fail.
+The index and signing envelope keep their existing closed schemas.
+
+Schemas 1 and 2 keep their existing shapes and retain their prior behavior.
+Schema 3 may point to an unchanged catalog projection contract of schema 1
+or 2. Its exact indexed bytes, including the advisory object, remain bound
+to authentication, retained identity, and installed contract storage. A
+reader limited to entry schemas 1 and 2 refuses a schema-3 entry, so use
+schema 3 only after the intended clients have received the reader and the
+#246 publication route has qualified it. The normal inspection path can
+check a proposed bundle before that rollout.
+
 Staged-source creation versions 6, 7, 9, 13 and 14 are absent from that inventory. Serialized identifiers
 and historical meanings are preserved; version numbers are not reused.
 

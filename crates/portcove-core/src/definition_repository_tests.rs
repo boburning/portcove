@@ -2493,6 +2493,46 @@ async fn replay_evaluation_allows_independent_monotonic_metadata_advance() {
 }
 
 #[tokio::test]
+async fn signed_named_advice_preserves_operational_and_installed_contracts() {
+    let fixture = RepositoryFixture::new();
+    let catalog = metadata_catalog();
+    let port_id = &catalog.ports()[0].id;
+    let bundle =
+        crate::test_fixture::IndexedCatalogFixture::new(&catalog, port_id).with_entry(7, |entry| {
+            entry["definition_schema"] = 3.into();
+            entry["required_features"] = serde_json::json!([]);
+            entry["advisory"] = serde_json::json!({"future-summary": ["descriptive content"]});
+        });
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let root = fixture
+        .publish(&targets, true, &DEFINITION_ROLE_PATHS, later())
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let projection = candidate
+        .inspect_catalog_projection("official", port_id)
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
+        serde_json::to_value(catalog.authoritative_document()).unwrap(),
+    );
+    let installed =
+        crate::installed_contract::InstalledContract::capture(projection.catalog(), port_id)
+            .unwrap();
+    let bytes = serde_json::to_vec(&installed).unwrap();
+    let decoded: crate::installed_contract::InstalledContract =
+        serde_json::from_slice(&bytes).unwrap();
+    let restored = decoded.catalog(port_id).unwrap();
+    assert_eq!(
+        serde_json::to_vec(
+            &crate::installed_contract::InstalledContract::capture(&restored, port_id).unwrap()
+        )
+        .unwrap(),
+        bytes,
+    );
+}
+
+#[tokio::test]
 async fn unsupported_sibling_does_not_block_a_supported_definition() {
     let fixture = RepositoryFixture::new();
     let (port_id, mut targets) = repository_targets();
@@ -2509,12 +2549,8 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
     incompatible["stable_id"] = "future-incompatible".into();
     incompatible["revision"] = 8.into();
     incompatible["port"]["id"] = "future-incompatible".into();
-    incompatible["required_capabilities"]
-        .as_array_mut()
-        .unwrap()
-        .push(serde_json::json!({
-            "template":"future-template","minimum_version":1,"maximum_version":1
-        }));
+    incompatible["definition_schema"] = 3.into();
+    incompatible["required_features"] = serde_json::json!(["native.future-layout-v7"]);
     let incompatible = serde_json::to_vec_pretty(&incompatible).unwrap();
     let digest = hex::encode(Sha256::digest(&incompatible));
     let target = format!("sha256/{digest}.json");

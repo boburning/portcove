@@ -2712,3 +2712,81 @@ fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers
         }
     }
 }
+
+#[test]
+fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    for schema in [1, 2] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+    }
+    entry["definition_schema"] = json!(3);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("native.linux-tar-xz")
+    );
+    entry["required_features"] = json!(["native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 8"));
+    entry["required_features"] = json!(["native.linux-tar-xz", "native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap_err().message.contains("duplicate"));
+    entry["required_features"] = json!(["native.future-layout-v7"]);
+    assert_eq!(
+        inspect(&entry).unwrap_err().code,
+        crate::ErrorCode::Unsupported
+    );
+}
+
+#[test]
+fn named_entry_ignores_only_bounded_top_level_advice() {
+    let mut entry = fixture();
+    let legacy = inspect(&entry).unwrap();
+    let advisory = json!({"future-reader": {"downloaded_implementation": true}});
+    entry["advisory"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    entry["definition_schema"] = json!(2);
+    assert!(inspect(&entry).is_err());
+    entry["definition_schema"] = json!(3);
+    entry["required_features"] = json!(null);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    let newer = inspect(&entry).unwrap();
+    assert_eq!(
+        serde_json::to_value(newer.port()).unwrap(),
+        serde_json::to_value(legacy.port()).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(newer.capabilities()).unwrap(),
+        serde_json::to_value(legacy.capabilities()).unwrap()
+    );
+    entry["future_required_field"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    entry
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    entry["port"]["future_required_field"] = advisory;
+    assert!(inspect(&entry).is_err());
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    for invalid in [
+        json!(null),
+        json!([]),
+        json!({"over-size": "x".repeat(16 * 1024)}),
+    ] {
+        entry["advisory"] = invalid;
+        assert!(inspect(&entry).is_err());
+    }
+}
