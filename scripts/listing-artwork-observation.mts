@@ -68,8 +68,14 @@ async function hostedTransport(): Promise<CoverHealthTransport> {
     },
   });
   return {
-    read: async (path) =>
-      (await client.request({ method: "GET", url: `https://api.github.com${path}` })).data,
+    read: async (path): Promise<unknown> => {
+      const response = await client.request({
+        method: "GET",
+        url: `https://api.github.com${path}`,
+      });
+      const data: unknown = response.data;
+      return data;
+    },
     download: (id, bytes) =>
       downloadGitHubArtifactArchive(`repos/${repository}/actions/artifacts/${id}/zip`, {
         credential,
@@ -150,11 +156,12 @@ export async function readHostedCoverHealth(
     now - completed > day
   )
     return null;
+  const { id: runId, run_attempt: runAttempt } = run;
   const artifacts = await readCompleteRunArtifactInventoryAsync((page) =>
-    transport.read(`${prefix}/runs/${run.id}/artifacts?per_page=100&page=${page}`),
+    transport.read(`${prefix}/runs/${runId}/artifacts?per_page=100&page=${page}`),
   );
   const matches = artifacts.artifacts.filter(
-    (row) => row.name === `maintenance-report-${run.id}-${run.run_attempt}`,
+    (row) => row.name === `maintenance-report-${runId}-${runAttempt}`,
   );
   if (!matches.length || (matches.length === 1 && matches[0]!.expired === true)) return null;
   const artifact = matches[0]!;
@@ -260,8 +267,10 @@ export function applicableCoverHealth(
     (source.listings as unknown[]).filter(isRecord).map((row) => [row.id, row]),
   );
   return current.listings.flatMap((row) => {
-    const originalRow = original.get(row.id);
-    if (typeof row.id !== "string" || !originalRow) return [];
+    const { id } = row;
+    if (typeof id !== "string") return [];
+    const originalRow = original.get(id);
+    if (!originalRow) return [];
     const covers = validArtworkMapping(row.artwork)
       ? [row.artwork]
       : validArtworkCollection(row.collection_covers)
@@ -269,7 +278,7 @@ export function applicableCoverHealth(
         : [];
     return covers.flatMap((artwork) => {
       const scope = coverDeclarationScope(row, artwork);
-      const fact = evidence.facts.get(`port:${row.id}@${artwork.image_id}`);
+      const fact = evidence.facts.get(`port:${id}@${artwork.image_id}`);
       if (
         !isRecord(fact) ||
         (fact.status !== "unchanged" && fact.status !== "gone" && fact.status !== "mismatch") ||
@@ -279,7 +288,7 @@ export function applicableCoverHealth(
         return [];
       return [
         {
-          id: row.id,
+          id,
           artwork,
           scope,
           observed_at: fact.observed_at,

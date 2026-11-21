@@ -5020,7 +5020,7 @@ void test(
   },
 );
 
-test("hosted cover proposals require the exact committed declaration and admitted report", async () => {
+void test("hosted cover proposals require the exact committed declaration and admitted report", async () => {
   const repository = "boburning/portcove";
   const workflow = ".github/workflows/maintenance-inventory.yml";
   const revision = "1".repeat(40);
@@ -5222,7 +5222,7 @@ test("hosted cover proposals require the exact committed declaration and admitte
   );
 });
 
-test("a full cover checkpoint defers new scopes and can still restore an admitted scope", async () => {
+void test("a full cover checkpoint defers new scopes and can still restore an admitted scope", async () => {
   const { coverDeclarationScope, readArtworkCheckpoint } =
     await import("./listing-artwork-checkpoint.mts");
   const artwork = {
