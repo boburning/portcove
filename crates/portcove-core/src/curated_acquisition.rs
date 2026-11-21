@@ -594,6 +594,9 @@ pub(crate) fn require_runtime_scope(
     port: &PortDefinition,
     scope: Option<&crate::DefinitionAcquisitionScope>,
 ) -> Result<()> {
+    if port.release.provider == crate::ReleaseSource::ReviewedForge {
+        return Err(crate::reviewed_forge::independent_admission_required());
+    }
     if port.release.curated.is_empty() {
         return Ok(());
     }

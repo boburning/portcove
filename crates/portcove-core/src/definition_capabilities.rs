@@ -39,6 +39,7 @@ macro_rules! definition_features {
 }
 
 definition_features! {
+    ReviewedForge => "release.reviewed-forge-v1", "projection.reviewed_forge";
     ModLoader => "mods.native-loader-binding-v1", "port.mod_loader";
     ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
     ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";

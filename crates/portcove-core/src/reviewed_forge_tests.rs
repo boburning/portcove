@@ -189,18 +189,40 @@ fn restricted_dns_addresses_fail_closed() {
 fn qualification_scope_refuses_an_unreviewed_host_before_http() {
     let (instance, mut artifact) = fixture("forgejo-v1");
     artifact.url = "https://unreviewed.test/fixture.zip".into();
-    let port = embedded_fixture_port();
+    let (port, selection) = fixture_subject(instance, artifact);
     let error = ReviewedForgeReleaseProvider::issue_fixture_scope(
-        instance,
-        artifact,
+        selection.clone(),
+        &selection,
         &port,
-        port.platforms[0],
-        port.channels[0],
         None,
     )
     .err()
     .unwrap();
     assert!(error.message.contains("outside its exact policy"));
+}
+
+fn fixture_subject(
+    instance: ReviewedForge,
+    artifact: ReviewedForgeArtifact,
+) -> (PortDefinition, ReviewedForgeSelection) {
+    let mut port = embedded_fixture_port();
+    let platform = port.platforms[0];
+    let channel = ReleaseChannel::Stable;
+    port.id = "reviewed-forge-fixture".into();
+    port.platforms = vec![platform];
+    port.channels = vec![channel];
+    port.release.repository = artifact.repository.clone();
+    port.release.provider = crate::ReleaseSource::ReviewedForge;
+    port.release.user_prepared.clear();
+    (
+        port,
+        ReviewedForgeSelection {
+            platform,
+            channel,
+            instance,
+            artifact,
+        },
+    )
 }
 
 fn embedded_fixture_port() -> PortDefinition {
@@ -270,22 +292,30 @@ async fn exact_forge_scope_resolves_downloads_and_verifies_through_shared_paths(
             ArchiveCase::ForeignRedirect,
         ] {
             let (instance, artifact) = fixture(dialect);
-            let mut port = embedded_fixture_port();
-            port.id = "reviewed-forge-fixture".into();
-            let platform = port.platforms[0];
-            let channel = port.channels[0];
+            let (port, selection) = fixture_subject(instance, artifact);
+            let platform = selection.platform;
+            let channel = selection.channel;
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let origin = format!("http://{}", listener.local_addr().unwrap());
             let worker = tokio::spawn(tokio::time::timeout(
                 std::time::Duration::from_secs(10),
-                serve_qualification(listener, instance.dialect, case),
+                serve_qualification(listener, selection.instance.dialect, case),
             ));
+            let mut substituted = selection.clone();
+            substituted.artifact.sha256 = "a".repeat(64);
+            assert!(
+                ReviewedForgeReleaseProvider::issue_fixture_scope(
+                    substituted,
+                    &selection,
+                    &port,
+                    Some(&origin),
+                )
+                .is_err()
+            );
             let scoped = ReviewedForgeReleaseProvider::issue_fixture_scope(
-                instance,
-                artifact,
+                selection.clone(),
+                &selection,
                 &port,
-                platform,
-                channel,
                 Some(&origin),
             )
             .unwrap();

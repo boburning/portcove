@@ -42,6 +42,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            return Err(crate::reviewed_forge::independent_admission_required());
+        }
         match scope {
             scope if port.release.provider == ReleaseSource::Github => {
                 self.github
@@ -69,6 +72,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         variant: &crate::ManagedPackageVariant,
     ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            return Err(crate::reviewed_forge::independent_admission_required());
+        }
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
@@ -131,7 +137,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
             ReleaseSource::Gitlab => self
                 .gitlab
                 .cached_release_notes(port, channel, platform, installed, offered),
-            ReleaseSource::DirectManifest | ReleaseSource::UserPrepared => None,
+            ReleaseSource::ReviewedForge
+            | ReleaseSource::DirectManifest
+            | ReleaseSource::UserPrepared => None,
         }
     }
 
@@ -147,6 +155,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         match port.release.provider {
             ReleaseSource::Github => self.github.resolve(port, channel, platform).await,
             ReleaseSource::Gitlab => self.gitlab.resolve(port, channel, platform).await,
+            ReleaseSource::ReviewedForge => {
+                Err(crate::reviewed_forge::independent_admission_required())
+            }
             ReleaseSource::DirectManifest => resolve_direct(port, channel, platform),
             ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(format!(
                 "{} has a user-prepared runtime; Portcove does not acquire it",

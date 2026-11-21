@@ -491,6 +491,7 @@ pub enum ReleaseSource {
     #[default]
     Github,
     Gitlab,
+    ReviewedForge,
     DirectManifest,
     UserPrepared,
 }

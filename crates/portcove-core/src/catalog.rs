@@ -1248,6 +1248,21 @@ impl Catalog {
                         )));
                     }
                 }
+                ReleaseSource::ReviewedForge => {
+                    if !valid_repository_path(&port.release.repository)
+                        || port.channels != [ReleaseChannel::Stable]
+                        || port.release.rolling_tag.is_some()
+                        || !port.release.direct.is_empty()
+                        || !port.release.user_prepared.is_empty()
+                        || !port.release.curated.is_empty()
+                        || !port.release.managed_build.is_empty()
+                        || !port.bundled_runtime.is_empty()
+                    {
+                        return Err(PortcoveError::verification(
+                            "reviewed forge requires one exact independently admitted stable acquisition",
+                        ));
+                    }
+                }
                 ReleaseSource::DirectManifest => {
                     if port.channels != [ReleaseChannel::Stable]
                         || port.release.rolling_tag.is_some()

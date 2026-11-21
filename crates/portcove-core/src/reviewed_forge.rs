@@ -1,23 +1,31 @@
+#[cfg(test)]
 use std::{
     future::Future,
-    net::IpAddr,
     path::{Path, PathBuf},
     sync::Arc,
 };
 
-use reqwest::{Client, Response, Url, dns, redirect};
-use serde::Deserialize;
+use std::net::IpAddr;
 
+use reqwest::Url;
+#[cfg(test)]
+use reqwest::{Client, Response, dns, redirect};
+use serde::{Deserialize, Serialize};
+
+#[cfg(test)]
 use crate::{
-    Installer, OperationCoordinator, Platform, PortDefinition, PortcoveError, ReleaseAsset,
-    ReleaseChannel, ReleaseProvider, ResolvedRelease, Result, ScopedResolvedRelease,
-    archive::{validate_download_progress, validate_download_size},
+    Installer, OperationCoordinator, ReleaseAsset, ReleaseProvider, ResolvedRelease,
+    ScopedResolvedRelease,
+    archive::validate_download_size,
     release::{PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, bounded_response_bytes},
 };
+use crate::{
+    Platform, PortDefinition, PortcoveError, ReleaseChannel, Result,
+    archive::validate_download_progress,
+};
 
-/// Test-only model for reviewed instance data. Production callers would need
-/// a signed definition and a separate acquisition grant.
-#[derive(Debug, Deserialize)]
+/// An exact instance selection. Executable acquisition requires a separate grant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReviewedForge {
     dialect: ForgeDialect,
@@ -26,7 +34,7 @@ struct ReviewedForge {
     asset_hosts: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 enum ForgeDialect {
     GithubV3,
@@ -35,7 +43,7 @@ enum ForgeDialect {
 }
 
 /// Exact acquisition evidence supplied independently of the forge's response.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ReviewedForgeArtifact {
     repository: String,
@@ -49,6 +57,42 @@ struct ReviewedForgeArtifact {
     sha256: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ReviewedForgeSelection {
+    platform: Platform,
+    channel: ReleaseChannel,
+    instance: ReviewedForge,
+    artifact: ReviewedForgeArtifact,
+}
+
+impl ReviewedForgeSelection {
+    pub(crate) fn validate_subject(&self, port: &PortDefinition) -> Result<()> {
+        if !matches!(
+            self.instance.dialect,
+            ForgeDialect::ForgejoV1 | ForgeDialect::GitlabV4
+        ) || port.release.provider != crate::ReleaseSource::ReviewedForge
+            || self.artifact.repository != port.release.repository
+            || port.platforms.as_slice() != [self.platform]
+            || self.channel != ReleaseChannel::Stable
+            || port.channels.as_slice() != [self.channel]
+        {
+            return Err(PortcoveError::verification(
+                "reviewed forge selector differs from the exact subject, platform, or channel",
+            ));
+        }
+        self.instance.validate(&self.artifact)?;
+        Ok(())
+    }
+}
+
+pub(crate) fn independent_admission_required() -> PortcoveError {
+    PortcoveError::unsupported(
+        "reviewed forge acquisition requires an independent exact publisher grant",
+    )
+}
+
+#[cfg(test)]
 struct ForgeRoute<'a> {
     instance: &'a ReviewedForge,
     artifact: &'a ReviewedForgeArtifact,
@@ -56,6 +100,7 @@ struct ForgeRoute<'a> {
     download: Url,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct Repository {
     id: u64,
@@ -65,6 +110,7 @@ struct Repository {
     web_url: Option<String>,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct Release {
     id: Option<u64>,
@@ -74,6 +120,7 @@ struct Release {
     assets: ReleaseAssets,
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum ReleaseAssets {
@@ -81,6 +128,7 @@ enum ReleaseAssets {
     Links { links: Vec<Attachment> },
 }
 
+#[cfg(test)]
 #[derive(Deserialize)]
 struct Attachment {
     id: u64,
@@ -92,7 +140,7 @@ struct Attachment {
 }
 
 impl ReviewedForge {
-    fn route<'a>(&'a self, artifact: &'a ReviewedForgeArtifact) -> Result<ForgeRoute<'a>> {
+    fn validate(&self, artifact: &ReviewedForgeArtifact) -> Result<(Url, Url)> {
         let api = Url::parse(&self.api_root).map_err(|_| invalid_instance())?;
         let path = match self.dialect {
             ForgeDialect::GithubV3 => "/",
@@ -143,6 +191,12 @@ impl ReviewedForge {
         if !allows_asset(&self.asset_hosts, &download) {
             return Err(invalid_destination());
         }
+        Ok((api, download))
+    }
+
+    #[cfg(test)]
+    fn route<'a>(&'a self, artifact: &'a ReviewedForgeArtifact) -> Result<ForgeRoute<'a>> {
+        let (api, download) = self.validate(artifact)?;
         Ok(ForgeRoute {
             instance: self,
             artifact,
@@ -152,11 +206,13 @@ impl ReviewedForge {
     }
 }
 
+#[cfg(test)]
 enum QualificationTransport {
     Reviewed,
     Loopback(Url),
 }
 
+#[cfg(test)]
 impl QualificationTransport {
     fn client(&self, asset_hosts: Option<Vec<String>>) -> Result<Client> {
         match self {
@@ -200,6 +256,7 @@ impl QualificationTransport {
 
 /// No production scope issuer exists. The fixture is explicitly authorized for
 /// only one exact subject and artifact, independently of returned provider data.
+#[cfg(test)]
 struct ReviewedForgeReleaseProvider {
     instance: ReviewedForge,
     accepted: ReviewedForgeArtifact,
@@ -209,21 +266,24 @@ struct ReviewedForgeReleaseProvider {
     transport: QualificationTransport,
 }
 
+#[cfg(test)]
 impl ReviewedForgeReleaseProvider {
     fn issue_fixture_scope(
-        instance: ReviewedForge,
-        accepted: ReviewedForgeArtifact,
+        selected: ReviewedForgeSelection,
+        independently_accepted: &ReviewedForgeSelection,
         port: &PortDefinition,
-        platform: Platform,
-        channel: ReleaseChannel,
         fixture_origin: Option<&str>,
     ) -> Result<Self> {
-        instance.route(&accepted)?;
-        if !port.platforms.contains(&platform) || !port.channels.contains(&channel) {
-            return Err(PortcoveError::verification(
-                "fixture scope is outside the exact subject",
-            ));
+        selected.validate_subject(port)?;
+        if &selected != independently_accepted {
+            return Err(independent_admission_required());
         }
+        let ReviewedForgeSelection {
+            platform,
+            channel,
+            instance,
+            artifact: accepted,
+        } = selected;
         let transport = if let Some(origin) = fixture_origin {
             crate::definition_acquisition::validate_fixture_origin(origin)?;
             QualificationTransport::Loopback(Url::parse(origin).map_err(|_| invalid_destination())?)
@@ -272,6 +332,7 @@ impl ReviewedForgeReleaseProvider {
     }
 }
 
+#[cfg(test)]
 #[async_trait::async_trait]
 impl ReleaseProvider for ReviewedForgeReleaseProvider {
     async fn resolve(
@@ -320,6 +381,7 @@ impl ReleaseProvider for ReviewedForgeReleaseProvider {
     }
 }
 
+#[cfg(test)]
 impl ForgeRoute<'_> {
     fn repository_url(&self) -> Url {
         let mut url = self.api.clone();
@@ -457,17 +519,20 @@ impl ForgeRoute<'_> {
 }
 
 /// A qualification download whose lifetime is limited to private scratch.
+#[cfg(test)]
 struct VerifiedForgeDownload {
     _directory: tempfile::TempDir,
     path: PathBuf,
 }
 
+#[cfg(test)]
 impl VerifiedForgeDownload {
     fn path(&self) -> &Path {
         &self.path
     }
 }
 
+#[cfg(test)]
 fn verify_artifact(artifact: &ReviewedForgeArtifact, digest: &str, size: u64) -> Result<()> {
     validate_download_size(size, artifact.size)?;
     if !digest.eq_ignore_ascii_case(&artifact.sha256) {
@@ -486,6 +551,7 @@ fn allows_asset(allowed: &[String], url: &Url) -> bool {
             .is_some_and(|host| allowed.iter().any(|value| value == host))
 }
 
+#[cfg(test)]
 fn parse_metadata<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T> {
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(bytes)?;
     Ok(serde_json::from_value(value.0)?)
@@ -532,10 +598,12 @@ fn invalid_destination() -> PortcoveError {
     PortcoveError::verification("reviewed forge asset host or URL is outside its exact policy")
 }
 
+#[cfg(test)]
 fn asset_mismatch() -> PortcoveError {
     PortcoveError::verification("reviewed forge asset identity differs or is ambiguous")
 }
 
+#[cfg(test)]
 fn request_client(asset_hosts: Option<Vec<String>>) -> Result<Client> {
     let bounds = PROVIDER_NETWORK_BOUNDS;
     let builder = Client::builder()
@@ -562,6 +630,7 @@ fn request_client(asset_hosts: Option<Vec<String>>) -> Result<Client> {
         .map_err(|_| PortcoveError::network("reviewed forge transport unavailable"))
 }
 
+#[cfg(test)]
 async fn request(client: &Client, url: Url) -> Result<Response> {
     client
         .get(url)
@@ -570,8 +639,10 @@ async fn request(client: &Client, url: Url) -> Result<Response> {
         .map_err(|_| PortcoveError::network("reviewed forge request failed"))
 }
 
+#[cfg(test)]
 struct PublicDns;
 
+#[cfg(test)]
 impl dns::Resolve for PublicDns {
     fn resolve(&self, name: dns::Name) -> dns::Resolving {
         let host = name.as_str().to_owned();
@@ -593,6 +664,7 @@ impl dns::Resolve for PublicDns {
     }
 }
 
+#[cfg(test)]
 fn public_address(address: IpAddr) -> bool {
     // The simple staging policy permits global unicast IPv4 and the currently
     // allocated IPv6 global-unicast range. Special-use and transition ranges fail closed.

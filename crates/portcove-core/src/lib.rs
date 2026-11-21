@@ -130,7 +130,6 @@ mod relative_file_set;
 mod release;
 mod release_notes;
 mod retained_build;
-#[cfg(test)]
 mod reviewed_forge;
 mod rom_patch;
 mod runtime;

@@ -83,8 +83,9 @@ Reviewed forge qualification models the API dialect, API root, web host and
 exact asset hosts separately from the reviewed repository, release and artifact
 identity. The alternate-forge route is currently exercised by qualification
 fixtures. Naev's Codeberg listing and upstream-owned registration keep their
-existing scope. Production use requires a named definition reader and
-independent acquisition approval.
+existing scope. An indexed `reviewed-forge` selector requires a named definition reader.
+The operational resolver holds acquisition until protected publisher policy
+can issue an independent exact executable grant.
 
 ## Descriptive compatibility advisories
 

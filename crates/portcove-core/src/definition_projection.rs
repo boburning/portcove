@@ -11,6 +11,18 @@ struct ProjectionDocument {
     contract_schema: u32,
     representation: String,
     catalog: Value,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_reviewed_forge"
+    )]
+    reviewed_forge: Option<crate::reviewed_forge::ReviewedForgeSelection>,
+}
+
+fn present_reviewed_forge<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<crate::reviewed_forge::ReviewedForgeSelection>, D::Error> {
+    crate::reviewed_forge::ReviewedForgeSelection::deserialize(deserializer).map(Some)
 }
 
 impl ProjectionDocument {
@@ -22,6 +34,22 @@ impl ProjectionDocument {
             ));
         }
         let catalog = Catalog::from_json(&catalog_json)?;
+        if let Some(selection) = &self.reviewed_forge {
+            let [subject] = catalog.ports() else {
+                return Err(PortcoveError::verification(
+                    "reviewed forge selection requires one exact projected subject",
+                ));
+            };
+            selection.validate_subject(subject)?;
+        } else if catalog
+            .ports()
+            .iter()
+            .any(|port| port.release.provider == crate::ReleaseSource::ReviewedForge)
+        {
+            return Err(PortcoveError::verification(
+                "reviewed forge source requires its typed projected selector",
+            ));
+        }
         if catalog
             .ports()
             .iter()
