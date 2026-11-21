@@ -163,6 +163,40 @@ fn read_plan(path: &Path, digest: &str) -> Result<GithubCompoundPlan> {
     Ok(plan)
 }
 
+fn verify_wrapper(
+    path: &Path,
+    plan: &GithubCompoundPlan,
+    source: ReviewedSource,
+    layout: CompanionLayout,
+) -> Result<()> {
+    if plan.repository_id != source.repository_id
+        || plan.repository != source.repository
+        || plan.build.platform != layout.platform
+        || plan.release_id == 0
+        || plan.asset_id == 0
+        || plan.release_tag.is_empty()
+    {
+        return Err(PortcoveError::verification(
+            "private compound plan differs from the retained reviewed source",
+        ));
+    }
+    let staged = recomp_companion_review::stage(
+        &path.join("wrapper.zip"),
+        plan.wrapper_bytes,
+        &plan.wrapper_sha256,
+        source.game,
+        layout,
+        source.companions,
+    )?;
+    check_runtime(&plan.runtime_version, &staged.review)?;
+    if reviewed_members(layout, &staged)? != plan.members {
+        return Err(PortcoveError::verification(
+            "private compound member inventory does not come from the exact wrapper",
+        ));
+    }
+    Ok(())
+}
+
 fn assert_plan_digest(digest: &str) -> Result<()> {
     if digest.len() != 64
         || !digest
@@ -392,15 +426,42 @@ impl PortcoveService {
         plan_digest: &str,
     ) -> Result<GithubCompoundPlan> {
         assert_plan_digest(plan_digest)?;
-        let plan = read_plan(
-            &storage(self.library(), port_id)?.join(plan_digest),
-            plan_digest,
-        )?;
+        let root = storage(self.library(), port_id)?.join(plan_digest);
+        let plan = read_plan(&root, plan_digest)?;
         if plan.build.port_id != port_id {
             return Err(PortcoveError::verification(
                 "compound plan escaped its port",
             ));
         }
+        let connection = self.library().connection()?;
+        profile::profile_by_id(&connection, port_id, &plan.profile_id)?;
+        let revision =
+            profile::revision_by_number(&connection, &plan.profile_id, plan.profile_revision)?;
+        check_revision(&plan, &revision)?;
+        let install = install_for_plan(self.library(), &revision)?;
+        if install.version != plan.runtime_version
+            || self
+                .profile_loader_binding(&revision.build, Some(&plan.loader), true)?
+                .as_ref()
+                != Some(&plan.loader)
+        {
+            return Err(PortcoveError::conflict(
+                "the admitted runtime or loader changed",
+            ));
+        }
+        let retained = crate::install::retained_catalog_for_install(&install)?
+            .ok_or_else(|| PortcoveError::unsupported("retained runtime catalog is unavailable"))?;
+        let source = reviewed_source(retained.port(port_id)?)
+            .ok_or_else(|| PortcoveError::unsupported("retained compound source is unavailable"))?;
+        let layout = source
+            .companions
+            .iter()
+            .copied()
+            .find(|layout| layout.platform == revision.build.platform)
+            .ok_or_else(|| {
+                PortcoveError::unsupported("retained companion layout is unavailable")
+            })?;
+        verify_wrapper(&root, &plan, source, layout)?;
         Ok(plan)
     }
 
@@ -605,6 +666,22 @@ mod tests {
                 &reloaded,
             )
             .unwrap();
+            verify_wrapper(&new_path, &new, source, *layout).unwrap();
+            let mut wrong_source = new.clone();
+            wrong_source.repository_id += 1;
+            assert!(verify_wrapper(&new_path, &wrong_source, source, *layout).is_err());
+            let mut forged = new.clone();
+            forged
+                .members
+                .get_mut(new_consent.native_libraries.keys().next().unwrap())
+                .unwrap()
+                .sha256 = "f".repeat(64);
+            let error = verify_wrapper(&new_path, &forged, source, *layout).unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("does not come from the exact wrapper")
+            );
             let name = new_consent.native_libraries.keys().next().unwrap();
             fs::write(new_path.join("members").join(name), b"changed").unwrap();
             assert!(read_plan(&new_path, &new_consent.plan_sha256).is_err());

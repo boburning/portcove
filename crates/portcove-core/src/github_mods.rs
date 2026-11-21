@@ -321,7 +321,7 @@ fn parse_asset(row: &Value, binding: ReviewedSource) -> Option<GithubModAsset> {
         digest => Some(
             digest
                 .as_str()?
-                .strip_prefix("sha256:")?
+                .strip_prefix("sha256:")
                 .filter(|hex| {
                     hex.len() == 64
                         && hex
