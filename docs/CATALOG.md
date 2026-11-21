@@ -2928,13 +2928,30 @@ The draft evidence format supports offline review. Controlled test fixtures
 exercise comparisons. The signed catalog reader and protected signer refuse
 draft successor-support declarations. No current production row qualifies.
 
-Production activation needs authenticated exact predecessor observations, a
-successor lifecycle and integrity receipt bound to the independently admitted
-release and asset, and a reviewed common method that derives both coordinate
-sets from those exact artifacts. A released reader must verify the new
-contract. A player label additionally needs a fresh successful scoped selector
-result. The latest local update snapshot is retained for history and cannot
-establish a current claim, particularly after another resolution fails.
+Core can prepare offline review operands with
+`PortcoveService::prepare_successor_support_evidence`. It reads two separately
+admitted official definitions from replay-checked libraries and resolves the
+current package through the ordinary provider. It checks exact grant, package
+and platform identity and derives a conservative setup, launch and
+player-data fingerprint from the typed operational rules and source graph.
+A changed operational field requires review. This first comparison covers a
+single invariant enforced game source contract with reviewed applicability,
+exact variant coverage and paired signed predecessor observations. The
+predecessor's existing admission must still verify in its evidence library
+and its exact asset must still be permitted for local use by current history.
+
+Production activation requires an appointed game-lifecycle evidence producer.
+Its immutable attestation must cover the preparation rule and both exact
+operands, the native platform, the reviewed check version and exact source
+identities, and the released reader used for the run. It must bind the
+protected run, job, check, attempt and source revision to verified report
+bytes recording the successor package integrity and tested lifecycle
+transition. The app-release hosted-native attestation describes Portcove
+itself. It supplies no reviewed game-lifecycle producer or game proof.
+A released reader must verify the game contract before publication. A player
+label requires a fresh successful scoped selector result and must expire after
+a later failed operation, withdrawal or scope change. Prior local update
+snapshots remain available as history.
 
 ### Qualification evidence preparation
 

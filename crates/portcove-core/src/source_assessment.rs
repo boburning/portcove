@@ -144,8 +144,6 @@ pub struct SourceEvidence {
     pub method: String,
     /// Reviewed catalog evidence IDs. A renderer must not treat these as URLs.
     pub evidence_ids: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub successor_support: Option<crate::SuccessorSupportReview>,
 }
 
 impl SourceEvidence {

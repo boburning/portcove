@@ -485,7 +485,9 @@ pub use store_install::{
     GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
     StoreOriginalFolder, SystemStoreInstallHost,
 };
-pub use successor_support::{SuccessorSupportReview, SupportCoordinates};
+pub use successor_support::{
+    SuccessorEvidencePreparation, SuccessorEvidenceSubject, SupportCoordinates,
+};
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
     SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,

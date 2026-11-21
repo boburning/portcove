@@ -454,9 +454,6 @@ impl SourceCatalog {
         let mut qualification_keys = HashSet::new();
         for record in &self.qualification {
             self.validate_qualification(record, &port_ids, &evidence)?;
-            if let Some(review) = &record.successor_support {
-                crate::successor_support::validate_review(self, record, review)?;
-            }
             let key = serde_json::to_string(&(
                 &record.scope,
                 record.kind,

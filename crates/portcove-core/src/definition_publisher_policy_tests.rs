@@ -1182,6 +1182,26 @@ async fn curated_transition_fixture() -> (
     )
 }
 
+#[tokio::test]
+async fn signed_curated_acceptance_cannot_supply_missing_successor_source_observations() {
+    let (_fixture, _key, _root, _directory, library, catalog, pin, _other) =
+        curated_transition_fixture().await;
+    let error = crate::successor_support::authenticated_subject(
+        &library,
+        &catalog,
+        ID,
+        pin.platform,
+        crate::ReleaseChannel::Stable,
+        policy::CuratedArtifactOperation::Acquisition,
+    )
+    .unwrap_err();
+    assert!(
+        error.message.contains("signed source catalog")
+            || error.message.contains("exact source applicability"),
+        "{error}"
+    );
+}
+
 async fn publish_curated_transition(
     fixture: &RepositoryFixture,
     key: &Key,

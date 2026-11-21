@@ -3058,6 +3058,35 @@ impl PortcoveService {
         Ok(if permits_saved { retained } else { None })
     }
 
+    /// Collect exact authenticated operands for offline successor review.
+    /// The predecessor service must use a separately retained, replay-checked
+    /// admission. Warming or failing resolution does not create a support claim.
+    pub async fn prepare_successor_support_evidence(
+        &self,
+        predecessor: &Self,
+        port_id: &str,
+    ) -> Result<crate::SuccessorEvidencePreparation> {
+        let platform = Platform::current()?;
+        let port = self.catalog.port(port_id)?;
+        let status = self.status(port_id)?;
+        if status.external_runtime.is_some() {
+            return Err(PortcoveError::unsupported(
+                "external runtime is outside managed successor review",
+            ));
+        }
+        let resolved = self
+            .resolve_release_for_status(port, status.channel, platform, &status)
+            .await?;
+        crate::successor_support::prepare_authenticated(
+            (&predecessor.library, &predecessor.catalog),
+            (&self.library, &self.catalog),
+            port_id,
+            platform,
+            status.channel,
+            &resolved,
+        )
+    }
+
     async fn resolve_release_for_status(
         &self,
         port: &PortDefinition,

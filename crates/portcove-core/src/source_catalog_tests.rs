@@ -132,156 +132,48 @@ fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> So
         portcove_version: Some("0.1.0-alpha.1".into()),
         portcove_commit: Some("a".repeat(40)),
         method: "isolated lifecycle fixture".into(),
-        successor_support: None,
         evidence_ids: vec!["portcove-qualification-run".into()],
     }
 }
 
 #[test]
-fn successor_support_requires_its_exact_reviewed_sources_and_revokes_on_drift() {
-    use crate::{Platform, SourceEvidenceKind::*, SourceEvidenceOutcome::*};
-    let mut catalog = fixture();
-    catalog.contracts[0].release_policy = Some(SourceReleasePolicy::IntegrationContractV1);
-    catalog.contracts[0]
-        .applicability
-        .push(SourceContractApplicability {
-            upstream_ref: "v-next".into(),
-            artifact_sha256: Some("4".repeat(64)),
-        });
-    let anchor = qualification(HandsOn, Passed);
-    let mut original_lifecycle = anchor.clone();
-    original_lifecycle.kind = AutomatedLifecycle;
-    let mut successor = original_lifecycle.clone();
-    successor.observed_at += 1;
-    successor.scope.upstream_ref = Some("v-next".into());
-    successor.scope.artifact_sha256 = Some("4".repeat(64));
-    let mut integrity = successor.clone();
-    integrity.kind = StructuralCheck;
-    let mut artifact_evidence = catalog.evidence[1].clone();
-    artifact_evidence.id = "successor-content-identity".into();
-    artifact_evidence.role = CatalogEvidenceRole::ByteIdentity;
-    integrity.evidence_ids.push(artifact_evidence.id.clone());
-    catalog.evidence.push(artifact_evidence);
-    let coordinates = crate::SupportCoordinates {
-        setup: "5".repeat(64),
-        launch: "6".repeat(64),
-        data: "7".repeat(64),
-    };
-    let definition = "8".repeat(64);
-    successor.successor_support = Some(crate::SuccessorSupportReview {
-        rule_version: 1,
-        anchor: anchor.scope.clone(),
-        anchor_coordinates: coordinates.clone(),
-        successor_coordinates: coordinates,
-        channel: crate::ReleaseChannel::Stable,
-        release_id: 20,
-        asset_id: 30,
-        integrity_evidence_id: "successor-content-identity".into(),
-        definition_sha256: definition.clone(),
-    });
-    let old_observation = serde_json::to_value(&anchor).unwrap();
-    assert!(old_observation.get("successor_support").is_none());
-    catalog.qualification = vec![anchor, original_lifecycle, integrity, successor.clone()];
-    catalog.validate(["sample-port"]).unwrap();
-    let mut port = crate::Catalog::embedded().unwrap().ports()[0].clone();
+fn successor_coordinates_compare_actual_definition_and_source_facts() {
+    let embedded = crate::Catalog::embedded().unwrap();
+    let mut port = embedded.ports()[0].clone();
     port.id = "sample-port".into();
-    let derive =
-        |catalog: &SourceCatalog, platform, version: &str, artifact: &str, digest: &str| {
-            crate::successor_support::derive(
-                catalog,
-                &port,
-                &crate::successor_support::SelectedSuccessor {
-                    platform,
-                    channel: crate::ReleaseChannel::Stable,
-                    version,
-                    sha256: artifact,
-                    release_id: 20,
-                    asset_id: 30,
-                    definition_sha256: digest,
-                },
-            )
-        };
-    assert_eq!(
-        derive(
-            &catalog,
-            Platform::WindowsX86_64,
-            "v-next",
-            &"4".repeat(64),
-            &definition
-        ),
-        Some(crate::InheritedSupport {
-            inherited_from: "v1.0.0".into(),
-            successor_version: "v-next".into(),
-            platform: Platform::WindowsX86_64,
-        }),
-    );
-    assert_eq!(
-        catalog.assess_qualification(&successor.scope).hands_on,
-        QualificationEvidenceState::Missing
-    );
+    port.source_profile = None;
+    port.bios_source_profile = None;
+    let platform = crate::Platform::WindowsX86_64;
+    let mut sources = fixture();
+    let compute = |port, sources: &SourceCatalog| {
+        crate::successor_support::compatibility_coordinates(
+            &embedded,
+            port,
+            sources,
+            &sources.contracts[0],
+            platform,
+        )
+        .unwrap()
+    };
+    let coordinates = compute(&port, &sources);
+    let mut pin = crate::curated_acquisition::fixture_record();
+    port.release.curated.insert(platform, pin.clone());
+    pin.tag = "unseen-next".into();
+    port.release.curated.insert(platform, pin);
+    port.summary = "Changed display copy".into();
+    assert_eq!(coordinates, compute(&port, &sources));
 
-    for (platform, version, artifact, fingerprint) in [
-        (
-            Platform::LinuxX86_64,
-            "v-next",
-            "4".repeat(64),
-            definition.clone(),
-        ),
-        (
-            Platform::WindowsX86_64,
-            "v-other",
-            "4".repeat(64),
-            definition.clone(),
-        ),
-        (
-            Platform::WindowsX86_64,
-            "v-next",
-            "9".repeat(64),
-            definition.clone(),
-        ),
-        (
-            Platform::WindowsX86_64,
-            "v-next",
-            "4".repeat(64),
-            "9".repeat(64),
-        ),
-    ] {
-        assert_eq!(
-            derive(&catalog, platform, version, &artifact, &fingerprint),
-            None
-        );
-    }
-
-    let proof = catalog.qualification[3].successor_support.as_mut().unwrap();
-    proof.successor_coordinates.launch = "9".repeat(64);
-    assert_eq!(
-        derive(
-            &catalog,
-            Platform::WindowsX86_64,
-            "v-next",
-            &"4".repeat(64),
-            &definition
-        ),
-        None
-    );
-    catalog.qualification[3] = successor.clone();
-
-    let mut failure = successor;
-    failure.successor_support = None;
-    failure.kind = KnownFailure;
-    failure.outcome = Failed;
-    catalog.qualification.push(failure);
-    catalog.validate(["sample-port"]).unwrap();
-    assert_eq!(
-        derive(
-            &catalog,
-            Platform::WindowsX86_64,
-            "v-next",
-            &"4".repeat(64),
-            &definition
-        ),
-        None
-    );
+    let mut changed = port.clone();
+    changed.launch_arguments.push("--different".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    let mut changed = port.clone();
+    changed.setup_arguments.push("--different".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    let mut changed = port.clone();
+    changed.persistent_paths.push("new-save-path".into());
+    assert_ne!(coordinates, compute(&changed, &sources));
+    sources.identities[0].variants[0].id = "unseen-variant".into();
+    assert_ne!(coordinates, compute(&port, &sources));
 }
 
 #[test]
