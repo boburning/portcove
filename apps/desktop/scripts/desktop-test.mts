@@ -4289,6 +4289,75 @@ try {
       );
     }
 
+    const shortcut = async (key: string) => {
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    };
+    const palette = By.css('[aria-labelledby="command-palette-title"]');
+    const searchPalette = async (query: string) => {
+      await shortcut("k");
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const field = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, field, query);
+      return field;
+    };
+    const choosePalette = async (label: string, optionId: string) => {
+      await searchPalette(label);
+      const option = await browser.wait(until.elementLocated(By.id(optionId)), 5_000);
+      await browser.wait(until.elementIsEnabled(option), 5_000);
+      assert.equal(await option.findElement(By.css("strong")).getText(), label);
+      await option.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    };
+    await selectPrimaryNavigation(browser, "Library");
+    for (const route of ["Library", "Discover"] as const) {
+      if (route === "Discover") await selectPrimaryNavigation(browser, route);
+      assert.notEqual(
+        await executeBrowserScript(browser, () => document.activeElement?.id),
+        "port-search",
+        "The current search must start unfocused",
+      );
+      await shortcut("f");
+      await browser.wait(
+        () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+        5_000,
+        `Find did not focus the current ${route} search`,
+      );
+      const selected = await executeBrowserScript(browser, () =>
+        document
+          .querySelector('[data-navigation-destination][aria-current="page"]')
+          ?.getAttribute("data-navigation-destination"),
+      );
+      assert.equal(
+        selected,
+        route === "Library" ? "library" : "catalog",
+        "Find must preserve the current catalog route",
+      );
+    }
+    const categories = [
+      ["appearance", "Appearance"],
+      ["library-storage", "Library and storage"],
+      ["game-files", "Game files"],
+      ["updates", "Updates"],
+      ["integrations", "Integrations"],
+      ["controls", "Keyboard and controller"],
+      ["advanced", "Advanced"],
+      ["about", "About"],
+    ] as const;
+    for (const [id, label] of categories) {
+      await choosePalette(`Open ${label} settings`, `command-settings-${id}`);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (heading) => document.activeElement?.id === heading,
+            `settings-${id}-heading`,
+          ),
+        5_000,
+        `The palette did not focus the ${label} settings heading`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
@@ -4481,6 +4550,44 @@ try {
         { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
+    await verifyDetailActionHierarchy();
+    const unavailablePlay = await searchPalette("Play this game");
+    assert.equal(
+      (await browser.findElements(By.id("command-current-game-play"))).length,
+      0,
+      "A game without the required files must have no palette Play command",
+    );
+    await unavailablePlay.sendKeys(Key.ESCAPE);
+    await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    await revealDetailSection(browser, "Manage");
+    await choosePalette("Open Game files for this game", "command-current-game-files");
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const detail = document.querySelector('[data-detail-port-id="ghostship"]');
+          const selected = detail?.querySelector('[role="tab"][aria-selected="true"]');
+          return selected?.textContent?.trim() === "Game files";
+        }),
+      5_000,
+      "The contextual palette must keep Ghostship selected and open Game files",
+    );
+    const commandEvidence = path.join(output, "keyboard-layout-contextual-commands.json");
+    await writeFile(
+      commandEvidence,
+      JSON.stringify(
+        {
+          local_find: ["library", "catalog"],
+          focused_settings_headings: categories.map(([id]) => id),
+          contextual_port: "ghostship",
+          contextual_tab: "Game files",
+          blocked_play_command_absent: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(commandEvidence);
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
     await browser.manage().window().setRect({ width: 960, height: 640 });
