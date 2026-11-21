@@ -2336,6 +2336,10 @@ impl N64ReleaseInputProof {
             self.canonical_size,
             checkpoint,
         )?;
+        self.require_normalized_identity(&sha256, size)
+    }
+
+    pub(crate) fn require_normalized_identity(&self, sha256: &str, size: u64) -> Result<()> {
         if sha256 != self.canonical_sha256 || size != self.canonical_size {
             return Err(PortcoveError::verification(
                 "The installed N64 game file differs from the checked original. Repair the game files before playing.",
@@ -2920,6 +2924,17 @@ mod tests {
         proof
             .require_materialized(&runtime_file, &|| Ok(()))
             .unwrap();
+
+        let original = fs::read(&big).unwrap();
+        fs::write(&big, fs::read(&rejected).unwrap()).unwrap();
+        assert_eq!(
+            prepare(Some(&proof)).unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        proof
+            .require_materialized(&runtime_file, &|| Ok(()))
+            .unwrap();
+        fs::write(&big, original).unwrap();
 
         let other_asset = "b".repeat(64);
         for release in [

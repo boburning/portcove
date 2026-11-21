@@ -1066,7 +1066,7 @@ fn prepare_runtime_source_input(
 
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => {
-            prepare_n64_source(source, destination, checkpoint)?
+            prepare_n64_source(source, destination, n64_input, checkpoint)?
         }
         RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc => {
             match &admitted_zip {
@@ -1153,7 +1153,7 @@ fn prepare_transient_n64_launch_source(
     cleanup_transient_n64_launch_sources(parent)?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
-    let prepared = prepare_n64_source(source, &temporary, checkpoint)
+    let prepared = prepare_n64_source(source, &temporary, None, checkpoint)
         .and_then(|()| checkpoint())
         .and_then(|()| {
             let (actual_sha256, actual_size) = hash_file_with_checkpoint(&temporary, checkpoint)?;
@@ -1335,7 +1335,7 @@ pub(crate) fn prepare_runtime_source_set_member(
     let size = entry.size();
     if materialization == RuntimeSourceMaterialization::N64BigEndian {
         let rom = read_runtime_bytes(entry, 512 * 1024 * 1024, checkpoint)?;
-        write_n64_big_endian(rom, destination, checkpoint)?;
+        write_n64_big_endian(rom, destination, None, checkpoint)?;
     } else {
         copy_runtime_reader(entry, destination, size, checkpoint)?;
     }
@@ -2780,6 +2780,7 @@ fn replace_directory_transactional(temporary: &Path, destination: &Path) -> Resu
 fn prepare_n64_source(
     source: &Path,
     destination: &Path,
+    proof: Option<&crate::source_inspection::N64ReleaseInputProof>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
@@ -2811,12 +2812,13 @@ fn prepare_n64_source(
             checkpoint,
         )?
     };
-    write_n64_big_endian(rom, destination, checkpoint)
+    write_n64_big_endian(rom, destination, proof, checkpoint)
 }
 
 fn write_n64_big_endian(
     mut rom: Vec<u8>,
     destination: &Path,
+    proof: Option<&crate::source_inspection::N64ReleaseInputProof>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
@@ -2855,6 +2857,10 @@ fn write_n64_big_endian(
         }
     }
 
+    if let Some(proof) = proof {
+        let (sha256, size) = hash_reader_with_checkpoint(rom.as_slice(), checkpoint)?;
+        proof.require_normalized_identity(&sha256, size)?;
+    }
     copy_runtime_reader(rom.as_slice(), destination, rom.len() as u64, checkpoint)
 }
 
@@ -5279,7 +5285,7 @@ mod tests {
         assert_eq!(record.size, rom.len() as u64);
 
         let destination = temporary.path().join("materialized.z64");
-        prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
+        prepare_n64_source(&record.path, &destination, None, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
     }
 
@@ -6236,7 +6242,7 @@ mod tests {
             let source = temporary.path().join(name);
             let destination = temporary.path().join(format!("stored-{index}.z64"));
             std::fs::write(&source, bytes).unwrap();
-            prepare_n64_source(&source, &destination, &|| Ok(())).unwrap();
+            prepare_n64_source(&source, &destination, None, &|| Ok(())).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
         }
     }
