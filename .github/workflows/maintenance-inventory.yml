@@ -4,7 +4,7 @@ run-name: Maintenance inventory / ${{ inputs.purpose || 'schedule' }}
 # #4129 hosted operation: one unattended daily collection into the maintenance
 # store, a dated report and changes-only digest, a verified backup, and an
 # independent restore proof. See docs/MAINTENANCE-STORE.md#hosted-operation.
-# Nothing here dispatches an executor, posts a digest or publishes anything.
+# The scheduled run can resume an existing owner-authorized, receipt-bound final intake audit.
 
 on:
   schedule:
@@ -27,8 +27,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  reconcile-intake-receipts:
+    if: github.event_name == 'schedule' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      issues: read
+    concurrency:
+      group: portcove-hosted-discovery-intake-receipts
+      cancel-in-progress: false
+    outputs:
+      audit_continuations: ${{ steps.execute.outputs.audit_continuations }}
+      receipt_revision: ${{ steps.execute.outputs.receipt_revision }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Install trusted locked GitHub dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Ensure the maintenance PostgreSQL client is available
+        run: command -v psql || sudo apt-get install -y --no-install-recommends postgresql-client
+      - name: Verify original receipts and select bound audit tickets
+        id: execute
+        run: node scripts/hosted-discovery-intake-runner.mts
+        env:
+          REPOSITORY_TOKEN: ${{ github.token }}
+          PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
+          PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
+          PORTCOVE_MAINTENANCE_PURPOSE: schedule
+          HOSTED_INTAKE_MODE: scheduled-receipts
+      - name: Retain bounded receipt diagnostics
+        if: always()
+        run: |
+          file=work/hosted-discovery-intake/scheduled-receipts.json
+          if [[ -f "$file" && "$(wc -c < "$file")" -le 262144 ]]; then cat "$file"; fi
+
   collect:
-    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    needs: reconcile-intake-receipts
+    if: ${{ !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
       actions: read
@@ -108,6 +152,20 @@ jobs:
           started=$EPOCHSECONDS
           cargo build --locked -p portcove-cli
           printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Verify a bounded window of accepted cover references
+        if: github.event_name == 'schedule'
+        timeout-minutes: 4
+        continue-on-error: true
+        run: |
+          scratch=$(mktemp -d)
+          trap 'rm -rf "$scratch"' EXIT
+          env -i PATH="$PATH" HOME="$scratch" TMPDIR="$scratch" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_WORKFLOW_REF="$GITHUB_WORKFLOW_REF" \
+            GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_SHA="$GITHUB_SHA" \
+            GITHUB_REF="$GITHUB_REF" GITHUB_WORKFLOW_SHA="$GITHUB_WORKFLOW_SHA" \
+            GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            node scripts/maintenance-artwork-health.mts target/debug/portcove \
+            work/maintenance-report/cover-artwork-health.json
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:
@@ -137,14 +195,17 @@ jobs:
           PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PORTCOVE_ROADMAP_GH_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+          INTAKE_RECEIPT_REVISION: ${{ needs.reconcile-intake-receipts.outputs.receipt_revision }}
         run: |
           started=$EPOCHSECONDS
           rc=0
           sources=(--catalog-only)
           if [[ "$PORTCOVE_MAINTENANCE_PURPOSE" == schedule ]]; then
             sources=(--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN
-              --release-health --release-content --publication --delivery --upstream --hosted-intake --reconcile-intake
-              --progress scripts/upstream-progress/sources-v1.json)
+              --release-health --release-content --publication --delivery --upstream --hosted-intake
+              --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
+              --progress scripts/upstream-progress/sources-v1.json
+              --artwork-health work/maintenance-report/cover-artwork-health.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi
@@ -350,7 +411,11 @@ jobs:
               "report_snapshot_at": (manifest or load(work / "maintenance-report/previous-recovery.json") or {}).get("created_at")
                                     if inventory else None,
               "report_scope": inventory.get("scope"),
-              "intake_receipts": (collected.get("hosted_intake") or {}).get("receipts"),
+              "intake_receipts": (
+                  {"status": "delegated", "job": "reconcile-intake-receipts"}
+                  if os.environ["GITHUB_EVENT_NAME"] == "schedule" and os.environ["COLLECT_COMPLETED"] == "true"
+                  else None
+              ),
               "subjects": len(inventory.get("subjects", [])),
               "pending_changes": len(digest.get("entries", [])),
               "sources": sources,
@@ -415,11 +480,29 @@ jobs:
           path: work/maintenance-backup/store/
           if-no-files-found: error
           retention-days: 30
-      - name: Check original intake receipt reconciliation
-        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' }}
-        run: |
-          jq '.hosted_intake.receipts' work/maintenance-evidence/collect.json
-          jq -e '.hosted_intake.receipts.status == "passed"' work/maintenance-evidence/collect.json > /dev/null
+
+      - name: Check that collection kept the reconciled intake fence
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' && needs.reconcile-intake-receipts.result == 'success' }}
+        run: jq -e '.hosted_intake.receipt_fence == "verified"' work/maintenance-evidence/collect.json > /dev/null
+
+  resume-intake-audits:
+    needs: [collect, reconcile-intake-receipts]
+    if: >-
+      !cancelled() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' &&
+      needs.reconcile-intake-receipts.outputs.audit_continuations != '' &&
+      needs.reconcile-intake-receipts.outputs.audit_continuations != '[]'
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    uses: ./.github/workflows/hosted-discovery-intake.yml
+    with:
+      mode: resume-audits
+      audit_continuations: ${{ needs.reconcile-intake-receipts.outputs.audit_continuations }}
+    secrets:
+      PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+      PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
+      PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
 
   restore-proof:
     needs: collect

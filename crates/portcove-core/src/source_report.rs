@@ -56,6 +56,9 @@ pub struct SourceInspectionReport {
     pub expected_identity: Option<SourceIdentityProfile>,
     #[serde(default)]
     pub applications: Vec<SourceApplicationInspection>,
+    /// Descriptive matches for this current registered observation only.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub original_editions: Vec<crate::VerifiedOriginalEdition>,
     #[serde(default)]
     pub evidence: Vec<SourceEvidenceLink>,
     pub legacy: SourceLegacyCoverage,
@@ -333,6 +336,39 @@ fn assemble_report(
             .then_with(|| role_order(left.role).cmp(&role_order(right.role)))
     });
 
+    let original_editions = inspection
+        .as_ref()
+        .map(|inspection| {
+            applications
+                .iter()
+                .filter(|application| application.role == PortSourceRole::Game)
+                .filter_map(|application| {
+                    let SourceClassification::Recognized { identity } =
+                        &inspection.assessment.classification
+                    else {
+                        return None;
+                    };
+                    // An informational launch rule still has reviewed source
+                    // identities. Artwork does not change that launch rule.
+                    if !source_catalog?
+                        .current_source_identities(&application.contract)
+                        .ok()?
+                        .contains(identity)
+                    {
+                        return None;
+                    }
+                    let listing = catalog.listing(&application.port_id).ok()?;
+                    let original = listing.original_game.as_ref()?;
+                    let edition = original.verified_edition(&inspection.assessment)?;
+                    Some(crate::VerifiedOriginalEdition {
+                        port_id: application.port_id.clone(),
+                        original_game_id: original.id.clone(),
+                        source_edition_id: edition.id.clone(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
     let evidence = referenced_evidence(
         source_catalog,
         expected_identity.as_ref(),
@@ -362,6 +398,7 @@ fn assemble_report(
         problem: status.problem,
         expected_identity,
         applications,
+        original_editions,
         evidence,
         dump_identification: None,
     })
@@ -737,6 +774,93 @@ mod tests {
         assert!(parsed.registered.is_none());
         assert!(parsed.inspection.is_none());
         assert!(parsed.expected_identity.is_none());
+    }
+
+    #[test]
+    fn current_registered_edition_uses_exact_descriptive_binding_even_for_informational_game_rule()
+    {
+        let embedded = Catalog::embedded().unwrap();
+        let mut listings = embedded.listing_document().clone();
+        listings.format_version = 14;
+        let listing = listings
+            .listings
+            .iter_mut()
+            .find(|listing| listing.id == "zelda64-recomp")
+            .unwrap();
+        let original = listing.original_game.as_mut().unwrap();
+        let edition = original
+            .source_editions
+            .iter_mut()
+            .find(|edition| edition.id == "majoras-mask-n64-usa-1-0")
+            .unwrap();
+        let identity = SourceIdentity {
+            game_id: "majoras-mask".into(),
+            variant_id: "ntsc-u-1-0".into(),
+            representation_id: "canonical-rom".into(),
+        };
+        edition.verified_sources = vec![crate::OriginalEditionSourceBinding {
+            game_id: identity.game_id.clone(),
+            variant_id: identity.variant_id.clone(),
+            representation_id: identity.representation_id.clone(),
+        }];
+        let catalog = embedded.with_listing_document(listings).unwrap();
+
+        let draft = report_for(
+            &catalog,
+            &identity.game_id,
+            SourceClassification::Recognized {
+                identity: identity.clone(),
+            },
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity,
+            },
+        );
+        assert!(draft.original_editions.is_empty());
+        let checked = draft.inspection.unwrap();
+        let baseline = SourceRecord {
+            profile_id: identity.game_id.clone(),
+            path: checked.path.clone(),
+            sha256: "0".repeat(64),
+            size: 1,
+            storage_sha256: "0".repeat(64),
+            storage_size: 1,
+            updated_at: 1,
+            observed_identity: None,
+        };
+        let report = available_report(&catalog, Some(baseline.clone()), checked.clone()).unwrap();
+        assert!(
+            report
+                .applications
+                .iter()
+                .any(|application| application.port_id == "zelda64-recomp"
+                    && matches!(
+                        application.contract_result,
+                        SourceContractResult::Informational { .. }
+                    ))
+        );
+        assert_eq!(report.health, SourceHealth::Current);
+        assert_eq!(report.original_editions.len(), 1);
+        assert_eq!(report.original_editions[0].port_id, "zelda64-recomp");
+        assert_eq!(
+            report.original_editions[0].source_edition_id,
+            "majoras-mask-n64-usa-1-0"
+        );
+
+        let mut other = checked.clone();
+        other.assessment.classification = SourceClassification::Recognized {
+            identity: SourceIdentity {
+                representation_id: "unreviewed".into(),
+                ..identity
+            },
+        };
+        let report = available_report(&catalog, Some(baseline.clone()), other).unwrap();
+        assert!(report.original_editions.is_empty());
+
+        let mut changed = baseline;
+        changed.sha256 = "1".repeat(64);
+        let report = available_report(&catalog, Some(changed), checked).unwrap();
+        assert_eq!(report.health, SourceHealth::Changed);
+        assert!(report.original_editions.is_empty());
     }
 
     #[test]

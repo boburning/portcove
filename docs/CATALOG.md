@@ -74,6 +74,20 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+### Exact release withdrawal in status
+
+Status reports curated distribution withdrawal only for the exact recommended
+artifact or exact active installation. In machine output, the Install
+assessment identifies the installed copy with `retained: true`. The reason
+is `curated_distribution_withdrawn`. The badge and details use the catalog
+maintainer when no further explanation is recorded. Both appear when both
+releases are withdrawn. Status omits an actionable cached update offer only
+when the cached metadata identifies one exact admitted artifact whose
+distribution is withdrawn. The stored check remains available as historical
+evidence, even after a different artifact becomes the recommendation.
+Installed launch and rollback keep their existing checks. Local files and
+saves are preserved.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
@@ -1825,7 +1839,18 @@ missing, invalid and then oldest observed references automatically against the
 28-day refresh target. Unknown dates remain due. Explicit
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
-Ordinary executable updates do not refresh artwork.
+Due refresh of a retained cover revalidates its approved IGDB game ID, slug
+and cover role. An accepted mapping can be revalidated by exact ID and slug
+even when the listing lacks an original title. This does not establish a new
+artwork relationship or runtime eligibility. If the exact identity cannot be
+confirmed, retain its allowed mapping. A different game or role needs separate reviewed preparation. Exact
+confirmed Gone still removes the affected image references.
+For a bounded retained-cover pass, add `--artwork-retained-limit COUNT` to
+`@due`. This selects up to 400 due rows with an accepted cover or cover collection
+and reports how many due rows were outside the current pass. An attempted row
+goes behind rows with older attempts so unresolved identity holds do not starve
+the rest of that workset. New and ambiguous cover identities keep their separate
+review path. Ordinary executable updates do not refresh artwork.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
 runs a larger workset as consecutive operations of at most 400 IDs over the same
@@ -1844,9 +1869,10 @@ after interruption or provider recovery: unchanged successful IDs are reused;
 changed per-ID identity, relevant accepted-original mappings or validator bytes
 invalidate the affected result. Ordinary preparation and explicit or due refresh
 retain separate per-ID results so an ordinary run preserves the last live
-refresh observation. Earlier attempt receipts remain available.
-The exact old whole-batch reader serves pre-#3766 checkpoints with no per-ID
-progress. It can retire when those checkpoints no longer need to resume.
+refresh observation. Explicit and due refreshes reuse completed live observations
+for up to 28 days. An older or unknown observation requires a new bounded read.
+Earlier attempt receipts remain available. The exact old whole-batch reader
+serves ordinary preparation in pre-#3766 checkpoints with no per-ID progress. It can retire when those checkpoints no longer need to resume.
 A provider-blocked operation leaves its IDs pending while later unrelated or
 offline work continues. A fully deferred operation is never blindly retried.
 Provider Retry-After dates remain durable, and incomplete work never claims
@@ -2604,6 +2630,13 @@ original game inputs or bundled runtimes:
 - `missing_persistent_parents`: parents of declared persistent paths the
   package does not ship.
 
+For a declared Linux portable data directory, a missing directory and an empty
+directory beside the selected executable represent the same package shape. Core
+checks the staged path before excluding it from the top-level directory set.
+Aliases, links and any packaged contents still fail the portable data checks.
+Existing recorded shapes stay intact, and future generated baselines for such a
+route must use the updated derivation inputs.
+
 Managed extraction never creates links: ZIP links are refused and an allowed
 TAR.XZ file link is written as a copy of its in-archive target, so every
 shipped file is a regular file the shape sees and links are not a blind spot.
@@ -3133,6 +3166,16 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Use an exact `integration.mod_provider_bindings` scope with an already reviewed
+loader. Shipwright declares its GameBanana game ID and Zelda 64: Recompiled
+declares its Thunderstore community. Ordinary projects, files and compatible
+updates within those scopes use the existing provider selectors. Retained
+package references can still replay their original compiled binding. When an
+indexed provider selection expires or is withdrawn, new provider operations
+wait for a current authenticated selection. Use the
+[indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
+when delivering a binding through the signed feed.
 
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored
@@ -3674,8 +3717,9 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
-and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
+(as a string) for portable routes with matching GitHub lineage,
+reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,
 reviewed package layout, external SDL profile and qualification explicit.
@@ -3971,6 +4015,13 @@ IGDB image metadata, explicit `edition_neutral` evidence or a second header requ
 format 5; current readers retain formats 1–4. New optional fields preserve old
 records, not old strict readers' ability to consume new fields or enum values.
 Normal audience/reader compatibility review remains required before publication.
+Typed IGDB backgrounds use the existing `header` role with an `artwork` record
+positively classified as Key Art Without Logo and a fit of at least 3:2.
+Typed screenshots use `screenshot` and its distinct IGDB endpoint identity.
+Both use the bounded `720p` PNG derivative. These records require directory
+format 13. Author them in the port listing. Strict operational packages,
+retained user-selected runtime contracts, pending downloads and exports through
+format 12 omit these new records while preserving legacy media.
 Legacy strict presentation with
 no `media` field may use reviewed directory media for the same exact identity;
 an explicit empty array clears it. An existing local artwork override takes
@@ -3987,32 +4038,48 @@ original/edition. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-The Desktop currently has no validated binding from Core's source game/variant/
-representation identity to these descriptive original-edition IDs. Production
-original media therefore requires explicitly reviewed edition neutrality; exact
-port media and the existing Cover/text fallback remain available. Offered editions
-or similar ID strings must not manufacture a selection.
+Desktop has no validated binding from Core's source game, variant and
+representation IDs to these descriptive original-edition IDs. Automatic
+original media therefore requires reviewed edition neutrality. Players can use
+**Screenshot source** to view reviewed screenshots for an original release.
+This choice applies only to the gallery. Exact port media and the Cover and
+text fallbacks remain available. Offered editions and similar ID strings do not
+establish a selected source edition.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
-image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
-bounded authenticated transport. Key art requires a positive `image_type.id/name`
-classification; conceptual art and unknown classifications do not qualify. Source
-image-type IDs are observed rather than hard-coded.
+image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
+the same paced, bounded authenticated transport. Key art and backgrounds share the
+artwork query for the exact game. Key art requires a positive `image_type.id/name`
+classification. A background specifically requires Key Art Without Logo and a
+decoded image at least 3:2. An original-game screenshot identifies its subject in
+the caption. Source image-type IDs are observed rather than hard-coded.
 
 The optional image-type inventory uses IGDB's maximum 500-record page and a
 separate one-record overflow query when the page is full. Overflow, malformed
 responses and provider failures remain unknown; they never establish missing key
 art. Role preparation classifies each image using its expanded `image_type.id/name`
 relationship and does not require a separate inventory request.
-Original identity facts bind `source_edition_id` explicitly; optional
-`hero_media_edition_neutral` records reviewed
-applicability. Image records are bound to the verified game ID before download.
+Original identity facts bind `source_edition_id` explicitly. Optional
+`hero_media_edition_neutral` records reviewed applicability for logo and key art.
+Proposed backgrounds and screenshots retain their exact edition binding.
+Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
-candidate chains and independent role failures. Exact HTTP410 observations sweep
+candidate chains and independent role failures. Preparation may fill a missing
+background and propose one screenshot when a subject has none. It preserves
+reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal. Preparation proposes remote URLs,
-provenance, hashes and provider terms; it grants no admission, signing, publication
+requests do not establish absence or withdrawal.
+
+The artwork evidence includes background and screenshot coverage by port,
+original release and IGDB game identity. It records existing catalog images,
+fresh proposals and exact observed withdrawals separately. An empty provider
+inventory is missing evidence for that role in that provider. A failed,
+incomplete or unrun query remains unknown. Conflicting provider identities
+stay visible for review. The default report also retains listing-only entries
+outside the proposal input, including their already reviewed media.
+
+Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
 
@@ -4731,3 +4798,29 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Package-only settings defaults
+
+Use `game_settings.format_version: 2` for one independent whole-file setting
+that a verified Windows package ships. Declare its exact persistent path,
+format, byte bound and release archive identities. Leave the file's `settings`
+array empty. This authorizes the existing Core settings update and recovery
+protocol for a supported managed package and keeps scalar editing unavailable.
+
+For a ready staged-source GitHub package, the declaration applies when the
+file is a standalone persistent path, the runtime uses the existing mirrored
+data contract, and no partitioned or runtime-data policy owns the file. Check
+the exact package member and the upstream code that reads it. Core captures
+the bytes from verified acquisition, before persistence restoration can
+replace the packaged file. A later stable patch in an enrolled numeric
+major/minor series uses the same declaration when the normal acquisition
+path independently admits its ZIP. An explicitly enrolled release retains
+its exact archive digest. A new series needs review of the package layout
+and configuration consumer. Previously installed packages without a captured
+baseline remain held if activation needs that baseline. Retain the ordinary
+settings recovery and guarded backup receipts.
+
+The change from Super Mario World Recompiled v0.15.9 to v0.15.10 has an exact
+Windows archive and independent `config.ini` comparison. v0.15.11 retains the
+v0.15.10 settings bytes. The scopes and evidence are in
+[the package settings observation](qualification/smw-package-settings-defaults-2026-11-21.md).

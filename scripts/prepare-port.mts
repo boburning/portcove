@@ -283,7 +283,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
   if (record.openx_portable_v1) {
     projections.push({
       field: "openx_portable_v1",
-      scope: "Reviewed OpenXW and OpenXvT archive selectors and local config.yaml.",
+      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
       next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
     });
   }
@@ -1401,6 +1401,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -1432,10 +1433,11 @@ export async function prepareArtworkBatch(
   const identities = options.identities ?? {};
   openCheckpoint(root);
   try {
-    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    // Old batch receipts have no per-ID live clock and cannot satisfy a refresh.
     let artworkResult;
     if (
       !options.maintenance &&
+      refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
     ) {
@@ -1471,6 +1473,9 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.retainedCoverLimit === undefined
+          ? {}
+          : { retainedCoverLimit: options.retainedCoverLimit }),
         ...(options.now ? { now: options.now } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -1496,7 +1501,11 @@ export async function prepareArtworkBatch(
     for (const record of artworkResult.records) {
       if (!isRecord(record) || typeof record.port_id !== "string" || !known.has(record.port_id))
         throw new Error("Malformed artwork batch record identity.");
-      if (record.mapping === null) pendingPortIds.push(record.port_id);
+      if (
+        record.mapping === null &&
+        (!Array.isArray(record.collection) || record.collection.length === 0)
+      )
+        pendingPortIds.push(record.port_id);
     }
     if (
       isRecord(artworkResult.continuation) &&
@@ -1549,6 +1558,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--output-dir",
     "--artwork-ids",
     "--refresh-artwork",
+    "--artwork-retained-limit",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1571,6 +1581,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
   const refreshIds = values.get("--refresh-artwork");
+  const retainedLimit = values.get("--artwork-retained-limit");
+  if (
+    retainedLimit !== undefined &&
+    (artworkIds !== "@due" ||
+      !/^[1-9][0-9]{0,2}$/u.test(retainedLimit) ||
+      Number(retainedLimit) > 400)
+  )
+    throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
   if (
     observationHandoff &&
@@ -1588,6 +1606,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--artwork-ids",
           "--refresh-artwork",
+          "--artwork-retained-limit",
           "--identities",
           "--validator-cli",
           "--credentials-file",
@@ -1631,6 +1650,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             ? { maintenance: true }
             : { selectedPortIds: artworkIds.split(",") }),
           ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+          ...(retainedLimit ? { retainedCoverLimit: Number(retainedLimit) } : {}),
         })
       : await preparePort({
           ...common,

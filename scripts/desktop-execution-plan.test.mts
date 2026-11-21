@@ -433,6 +433,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
+            "native-reviewed-screenshot-display",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -1647,6 +1648,26 @@ void test("Linux interruption is standalone, production-featured and retains nam
     );
 });
 
+void test("publication checkpoint waits for the observed clock and keeps the full exit margin", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
+  );
+  runDesktopModuleFixture(
+    entry,
+    `
+    const {checkpointClockReady}=await import(entry);
+    const marker={entered_unix_ms:1001,deadline_unix_ms:50000};
+    assert.equal(checkpointClockReady(marker,1000),false);
+    assert.equal(checkpointClockReady(marker,1001),true);
+    assert.equal(checkpointClockReady(marker,19999),true);
+    assert.throws(()=>checkpointClockReady(marker,20000),/remaining/);
+    assert.throws(()=>checkpointClockReady({...marker, entered_unix_ms:"1001"},1001),/entry timestamp/);
+    assert.throws(()=>checkpointClockReady({...marker, deadline_unix_ms:1000},1001),/deadline/);
+  `,
+  );
+});
+
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {
   const entry = new URL(
     "../apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -2353,6 +2374,21 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
   assert.deepEqual(
     resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
     [id],
+  );
+});
+
+void test("reviewed screenshot observation binds the embedded listing source", () => {
+  const source = "crates/portcove-core/catalog/listings.json";
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-reviewed-screenshot-display"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+    1,
   );
 });
 

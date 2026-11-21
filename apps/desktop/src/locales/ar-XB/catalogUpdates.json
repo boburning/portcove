@@ -79,6 +79,7 @@
     "noticeUpdateApplied": "تم تطبيق تحديث الكتالوج.",
     "noTrusted": "لا يوجد ناشرون موثوقون.",
     "originBuiltIn": "الكتالوج المضمَّن",
+    "originDefinitionSelected": "تُستخدم تعريفات الكتالوج المحددة",
     "originSigned": "كتالوج موقّع · الإصدار {{version}}",
     "originSignedPrevious": "كتالوج موقّع · الإصدار {{version}} · يُستخدم التحديث الصالح السابق",
     "planDetailsLabel": "التفاصيل التقنية لتسلسل تحديث الكتالوج {{sequence}}",

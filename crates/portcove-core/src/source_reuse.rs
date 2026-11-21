@@ -163,7 +163,14 @@ impl PortcoveService {
         let [contract] = contracts.as_slice() else {
             return Ok(());
         };
-        if listed_variant_support(contract, classification) != Some(false) {
+        let compatibility = listed_variant_support(contract, classification);
+        let requires_legacy_edition = self
+            .catalog()
+            .n64_legacy_migrations(profile_id)
+            .next()
+            .is_some();
+        if compatibility != Some(false) && (!requires_legacy_edition || compatibility == Some(true))
+        {
             return Ok(());
         }
         let required = catalog

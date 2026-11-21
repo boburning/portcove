@@ -133,7 +133,7 @@ function gameUpdateCompletionMessage(
 ) {
   if (result && acquired)
     return acquired.phase === "acquired"
-      ? "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged."
+      ? "Update archive downloaded. Your installed version and saves were preserved during the download."
       : "The download needs attention. Check its status before continuing.";
   if (result && selection.kind === "discard")
     return "Downloaded update deleted. Installed versions and saved data are unchanged.";
@@ -251,9 +251,17 @@ function useGameUpdateControl({
   const [intent, setIntent] = useState<UpdateIntent>("install");
   // A returned plan and its reviewed intent are one snapshot. Changing the
   // requested intent cannot reinterpret the previous preview during a read.
-  const [reviewedPlan, setPlan] = useState<{ plan: GameUpdatePlan; intent: UpdateIntent }>();
+  const [reviewedPlan, setPlan] = useState<{
+    plan: GameUpdatePlan;
+    intent: UpdateIntent;
+    generation: number;
+  }>();
   const reviewSnapshot = reviewScope?.active === false ? undefined : reviewedPlan;
   const plan = reviewSnapshot?.plan;
+  const reviewedArchiveDigest =
+    plan?.plan.port_id === portId && reviewSnapshot?.generation === generation
+      ? plan.archive_only_plan_sha256
+      : undefined;
   const [pendingState, setPending] = useState(false);
   const pending = pendingState && reviewScope?.active !== false;
   const [applying, setApplying] = useState(false);
@@ -326,7 +334,7 @@ function useGameUpdateControl({
           ? await desktopApi.planGameUpdateAcquisition(portId, generation)
           : await desktopApi.planGameUpdate(portId, nextIntent === "install", generation);
       if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) {
-        setPlan({ plan: value, intent: nextIntent });
+        setPlan({ plan: value, intent: nextIntent, generation });
       }
     } catch (error) {
       if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) {
@@ -378,6 +386,10 @@ function useGameUpdateControl({
     )
       return;
     if (selection.kind === "discard") reviewScope?.claim();
+    if (acquiring) {
+      setIntent("download");
+      setPlan({ plan: selection.plan, intent: "download", generation });
+    }
     pendingRequest.current = true;
     const current = requests.current.begin();
     const execution = Symbol();
@@ -500,6 +512,20 @@ function useGameUpdateControl({
       setMessage(undefined);
     },
     apply: () => plan && execute({ kind: downloadOnly ? "acquire" : "apply", plan }),
+    reviewedArchiveDigest,
+    downloadReviewedArchive: () => {
+      if (!plan || !reviewedArchiveDigest) return review("download");
+      return execute({
+        kind: "acquire",
+        plan: {
+          ...plan,
+          plan: { ...plan.plan, preservation_notices: [] },
+          activate: false,
+          data_transition: null,
+          plan_sha256: reviewedArchiveDigest,
+        },
+      });
+    },
     discard: () => discardReview && execute({ kind: "discard", acquisition: discardReview }),
   };
 }
@@ -713,6 +739,8 @@ function GameUpdateAlternativeActions({
     downloadOnly,
     hasRetainedArchive: existingArchive,
     acquireBusy,
+    downloadReviewedArchive,
+    reviewedArchiveDigest,
   } = control;
   return (
     <>
@@ -754,9 +782,9 @@ function GameUpdateAlternativeActions({
             data-focusable
             variant="outline"
             disabled={acquireBusy || pending}
-            onClick={() => void review("download")}
+            onClick={() => void downloadReviewedArchive()}
           >
-            Download for later
+            {reviewedArchiveDigest ? "Download archive for later" : "Download for later"}
           </Button>
         )}
     </>
@@ -791,10 +819,6 @@ function RetainedUpdateArchive({
         {formatBytes(acquisition.release.asset.size)}
       </p>
       {currentVersion && <p className="mt-2 text-sm">Version you’re using: {currentVersion}</p>}
-      <p className="mt-2 text-xs text-pc-muted-foreground">
-        Downloading an update leaves the installed version and its saves as they are. Prepare or
-        install the update separately.
-      </p>
       <details className="mt-2 text-xs">
         <summary data-focusable className="disclosure-pad-1 cursor-pointer">
           Download details
@@ -1077,6 +1101,17 @@ function gameUpdateActionLabel(
   return Object.hasOwn(labels, plan.plan.action) ? labels[plan.plan.action] : undefined;
 }
 
+function archiveSource(url: string) {
+  try {
+    const source = new URL(url);
+    if (source.protocol === "https:" || source.protocol === "http:")
+      return source.origin + source.pathname;
+  } catch {
+    // Unrecognized transport input falls back to a plain label.
+  }
+  return "Unavailable";
+}
+
 function GameUpdateReview({
   plan,
   currentVersion,
@@ -1089,6 +1124,8 @@ function GameUpdateReview({
   existingArchive: boolean;
 }) {
   const label = gameUpdateActionLabel(plan, downloadOnly, existingArchive);
+  const archives = [plan.plan.release.asset];
+  if (plan.plan.bundled_runtime) archives.push(plan.plan.bundled_runtime.asset);
   if (!installPlanActionLabel(plan.plan.action))
     return (
       <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
@@ -1136,6 +1173,24 @@ function GameUpdateReview({
             : gameUpdateHoldReason(plan)}
         </p>
       ) : null}
+      {(downloadOnly || plan.archive_only_plan_sha256) && plan.plan.action === "download" && (
+        <div className="col-span-full [overflow-wrap:anywhere]">
+          <span className="text-pc-muted-foreground">Archive files</span>
+          <ul className="my-1 space-y-2">
+            {archives.map((asset) => (
+              <li key={JSON.stringify([asset.url, asset.sha256])}>
+                <bdi>{asset.name}</bdi> · {formatBytes(asset.size)}
+                <span className="block text-xs">
+                  Source: <bdi>{archiveSource(asset.url)}</bdi>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {!downloadOnly && (
+            <p>Downloading the archive keeps your installed version and saves as they are.</p>
+          )}
+        </div>
+      )}
       {plan.release_notes && (
         <UpdateReleaseNotes notes={plan.release_notes} currentVersion={currentVersion} />
       )}

@@ -94,6 +94,7 @@ import type {
 } from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
+import { ReleaseWithdrawalBadge } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
@@ -1475,7 +1476,7 @@ function PortCardStatus({
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  const taskPrimary = Boolean(action.busy && action.pending?.context.operation !== "launch");
+  const taskPrimary = Boolean(action.pending && action.pending.context.operation !== "launch");
   const canLaunch = cardCanLaunch(port, status, action, onLaunch);
   const reviewOrigin = `${detailOrigin}:review`;
   const reviewSetup = Boolean(
@@ -1496,6 +1497,7 @@ function PortCardStatus({
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
+      <ReleaseWithdrawalBadge status={status} />
       {!taskPrimary && canLaunch && status?.external_runtime && (
         <ExternalLaunchWarnings portId={port.id} status={status} />
       )}
@@ -2126,7 +2128,7 @@ function BrowserCollectionTools({
         <CatalogFilters
           before={before}
           after={after}
-          advanced={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
+          readiness={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
