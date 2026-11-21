@@ -963,6 +963,18 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
         })
     }
 
+    fn legacy_row(library: &Library) -> (String, String, i64) {
+        let connection = library.connection().unwrap();
+        connection
+            .query_row(
+                "SELECT document_json,provenance_json,(SELECT max(version) FROM schema_migrations)
+             FROM listing_delivery WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap()
+    }
+
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
     let (_temp, library) = library();
@@ -971,6 +983,10 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     provision(&library, &root);
     let prior = refresh(&library, &fixture, &root).await.unwrap();
     assert_eq!(prior.transport_target_sha256, None);
+    let first_legacy = legacy_row(&library);
+    assert_eq!(first_legacy.0.as_bytes(), old.as_slice());
+    let earlier_reader: policy::PolicyProvenance = serde_json::from_str(&first_legacy.1).unwrap();
+    assert_eq!(Some(earlier_reader.target_sha256), prior.target_sha256);
     let next = serde_json::to_vec(&feed(2)).unwrap();
     let next_digest = hex::encode(Sha256::digest(&next));
 
@@ -1040,6 +1056,13 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
         }
     }
 
+    assert_eq!(legacy_row(&library), first_legacy);
+    let old_only = publish(&fixture, &key, 10, &feed(1)).await;
+    assert!(refresh(&library, &fixture, &old_only).await.is_err());
+    let current = library.listing_delivery_status().unwrap();
+    assert_eq!(current.revision, Some(2));
+    assert_eq!(current.transport_target_sha256, transport_digest);
+    assert_eq!(legacy_row(&library), first_legacy);
     let catalog = library.load_catalog().unwrap().0;
     assert!(catalog.listing("new-unmanaged-port").is_ok());
     assert!(catalog.port("new-unmanaged-port").is_err());

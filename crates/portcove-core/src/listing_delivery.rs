@@ -343,12 +343,51 @@ pub(crate) struct AuthenticatedListings {
 
 impl AuthenticatedListings {
     fn stored(connection: &Connection) -> Result<Option<Self>> {
-        let row: Option<(String, String)> = connection
-            .query_row(
-                "SELECT document_json,provenance_json FROM listing_delivery WHERE singleton=1",
+        let legacy = Self::stored_in(connection, false)?;
+        let compact = Self::stored_in(connection, true)?;
+        let (legacy, compact) = match (legacy, compact) {
+            (Some(legacy), Some(compact)) => (legacy, compact),
+            (Some(stored), None) | (None, Some(stored)) => return Ok(Some(stored)),
+            (None, None) => return Ok(None),
+        };
+        let legacy_proof = legacy.proof.provenance();
+        let compact_proof = compact.proof.provenance();
+        if legacy_proof.anchor_sha256 != compact_proof.anchor_sha256
+            || (legacy.document.revision == compact.document.revision
+                && legacy.bytes != compact.bytes)
+        {
+            return Err(PortcoveError::verification(
+                "stored listing carrier identity or equal-revision bytes differ",
+            ));
+        }
+        // Same-byte representations may have been refreshed by different readers.
+        // Keep the higher decoded revision, then the later authenticated timestamp.
+        if (legacy.document.revision, legacy_proof.roles[1].version)
+            > (compact.document.revision, compact_proof.roles[1].version)
+        {
+            Ok(Some(legacy))
+        } else {
+            Ok(Some(compact))
+        }
+    }
+
+    fn stored_in(connection: &Connection, compact: bool) -> Result<Option<Self>> {
+        if compact
+            && !connection.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='compact_listing_delivery')",
                 [],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
+                |row| row.get::<_, bool>(0),
+            )?
+        {
+            return Ok(None);
+        }
+        let select = if compact {
+            "SELECT document_json,provenance_json FROM compact_listing_delivery WHERE singleton=1"
+        } else {
+            "SELECT document_json,provenance_json FROM listing_delivery WHERE singleton=1"
+        };
+        let row: Option<(String, String)> = connection
+            .query_row(select, [], |row| Ok((row.get(0)?, row.get(1)?)))
             .optional()?;
         row.map(|(document, provenance)| {
             if provenance.len() > 16 * 1024 {
@@ -357,6 +396,11 @@ impl AuthenticatedListings {
                 ));
             }
             let proof: ListingAdmissionProof = serde_json::from_str(&provenance)?;
+            if matches!(proof, ListingAdmissionProof::Compact(_)) != compact {
+                return Err(PortcoveError::state(
+                    "stored listing carrier does not match its table",
+                ));
+            }
             proof.provenance().validate()?;
             if super::digest(document.as_bytes()) != proof.decoded_sha256() {
                 return Err(PortcoveError::state(
@@ -499,11 +543,23 @@ impl Library {
             // Dropping the transaction rolls it back; nothing was written.
             return Ok(candidate.status());
         }
-        transaction.execute(
+        let insert = if matches!(candidate.proof, ListingAdmissionProof::Compact(_)) {
+            // This optional, descriptive store introduces no library schema
+            // dependency. An older reader can still open and renew its separately
+            // authenticated row. Both remain subject to the same replay floor.
+            transaction.execute_batch(&format!(
+                "CREATE TABLE IF NOT EXISTS compact_listing_delivery(
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    document_json TEXT NOT NULL CHECK(length(CAST(document_json AS BLOB))<={MAX_BYTES}),
+                    provenance_json TEXT NOT NULL CHECK(length(CAST(provenance_json AS BLOB))<=16384));"
+            ))?;
+            "INSERT INTO compact_listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
+             ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json"
+        } else {
             "INSERT INTO listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
-             ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json",
-            params![document, proof],
-        )?;
+             ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json"
+        };
+        transaction.execute(insert, params![document, proof])?;
         transaction.execute(
             "UPDATE definition_publisher_authority SET replay_floor_json=?1 WHERE anchor_sha256=?2",
             params![serde_json::to_string(provenance)?, provenance.anchor_sha256],

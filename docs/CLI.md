@@ -409,7 +409,10 @@ when the compact target is absent from the signed repository. A failed compact
 read leaves the existing installation and admitted directory state available
 under their existing validity checks. The listing status digest identifies the
 exact decoded directory. For compact delivery, `transport_target_sha256`
-reports the independently authenticated carrier digest.
+reports the independently authenticated carrier digest. The optional compact directory record and the
+legacy record share one transaction and authority floor. Older releases with a
+compatible library schema can continue to read and renew their genuine legacy
+record. The higher admitted directory revision governs a capable reader.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
