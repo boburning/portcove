@@ -5,7 +5,7 @@ import { lstat, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:f
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import {
   derivationInputsDigest,
   MANAGED_PORTABLE_ADAPTERS,
@@ -36,6 +36,21 @@ function inspectionTrigger(value: string | undefined): InspectionTrigger {
   throw new Error("An exact observer workflow trigger is required");
 }
 
+interface PredecessorObservation {
+  repository_id: number;
+  release_id: number;
+  asset_id: number;
+  tag: string;
+  channel: "stable" | "beta";
+  url: string;
+}
+
+function predecessorScope(observation: unknown) {
+  return observation === undefined
+    ? undefined
+    : createHash("sha256").update(JSON.stringify(observation)).digest("hex");
+}
+
 export interface DriftTarget {
   portId: string;
   issue?: number;
@@ -44,6 +59,7 @@ export interface DriftTarget {
   definitionSha256: string;
   baselineSha256: string;
   baselineSource?: "reviewed_layout";
+  predecessorObservation?: PredecessorObservation;
   derivationSha256: string;
   shapeVersion: number;
   repositoryId: number;
@@ -68,6 +84,7 @@ interface DriftBaselineGap {
 
 type KnownRoute = Pick<DriftTarget, "issue" | "shapeVersion"> & {
   repository: string;
+  predecessors?: Record<string, unknown>[];
 } & (
     | Pick<DriftTarget, "baselineSha256" | "baselineSource" | "derivationSha256">
     | { noReviewedBaseline: true }
@@ -160,6 +177,9 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
             ...route,
             baselineSha256: createHash("sha256").update(JSON.stringify(layout)).digest("hex"),
             baselineSource: "reviewed_layout",
+            ...(isRecord(port.reviewed_predecessor_package_layouts_v1)
+              ? { predecessors: records(port.reviewed_predecessor_package_layouts_v1[platform]) }
+              : {}),
             derivationSha256: derivationInputsDigest(port, platform),
           });
         } else routes.set(`${port.id}/${platform}`, { ...route, noReviewedBaseline: true });
@@ -310,13 +330,37 @@ export function collectDriftTargets(
           gaps.set(key, { row: gap, identity });
           continue;
         }
+        const predecessorObservation: PredecessorObservation = {
+          repository_id: policy.repository_id,
+          release_id: selected.release_id,
+          asset_id: selected.asset_id,
+          tag: selected.release.version,
+          channel: projection.channel,
+          url: asset.url,
+        };
+        const predecessor = route.predecessors?.find(
+          (row) =>
+            row.repository_id === predecessorObservation.repository_id &&
+            row.release_id === predecessorObservation.release_id &&
+            row.asset_id === predecessorObservation.asset_id &&
+            row.tag === predecessorObservation.tag &&
+            row.channel === predecessorObservation.channel &&
+            isRecord(row.artifact) &&
+            row.artifact.asset_name === asset.name &&
+            row.artifact.size === asset.size &&
+            row.artifact.sha256 === asset.sha256 &&
+            isRecord(row.layout),
+        );
         const target: DriftTarget = {
           portId: policy.port_id,
           ...(route.issue === undefined ? {} : { issue: route.issue }),
           platform: projection.platform,
           channel: projection.channel,
           definitionSha256: policy.catalog_definition_sha256,
-          baselineSha256: route.baselineSha256,
+          baselineSha256: predecessor
+            ? createHash("sha256").update(JSON.stringify(predecessor.layout)).digest("hex")
+            : route.baselineSha256,
+          ...(predecessor ? { predecessorObservation } : {}),
           ...(route.baselineSource ? { baselineSource: route.baselineSource } : {}),
           derivationSha256: route.derivationSha256,
           shapeVersion: route.shapeVersion,
@@ -349,7 +393,7 @@ export function collectDriftTargets(
   };
 }
 
-export function driftTargetKey(target: DriftTarget): string {
+export function driftTargetKey<T extends { issue?: unknown }>(target: T): string {
   const { issue: _issue, ...inspectionInputs } = target;
   return createHash("sha256").update(JSON.stringify(inspectionInputs)).digest("hex");
 }
@@ -360,6 +404,7 @@ interface Inspection {
   derivationSha256: string;
   components: string[];
   layoutMatch?: true;
+  predecessorScopeSha256?: string;
 }
 
 interface DriftObservation {
@@ -427,6 +472,7 @@ export function inspectionFromResponse(value: unknown, target: DriftTarget): Ins
     data.sha256 !== target.asset.sha256 ||
     data.shape_version !== target.shapeVersion ||
     data.derivation_inputs_sha256 !== target.derivationSha256 ||
+    !isDeepStrictEqual(data.predecessor_observation, target.predecessorObservation) ||
     !isRecord(data.verdict)
   )
     throw new Error("Core did not return an inspection bound to the selected package");
@@ -465,6 +511,9 @@ export function inspectionFromResponse(value: unknown, target: DriftTarget): Ins
     derivationSha256: data.derivation_inputs_sha256,
     components: [...new Set(components)].sort(),
     ...(layoutMatch ? { layoutMatch: true } : {}),
+    ...(target.predecessorObservation
+      ? { predecessorScopeSha256: predecessorScope(target.predecessorObservation)! }
+      : {}),
   };
 }
 
@@ -484,6 +533,9 @@ async function inspect(archive: string, target: DriftTarget, cli: string, deadli
       String(target.asset.size),
       "--sha256",
       target.asset.sha256,
+      ...(target.predecessorObservation
+        ? ["--predecessor-observation", JSON.stringify(target.predecessorObservation)]
+        : []),
     ],
     { encoding: "utf8", timeout: callTimeout(180_000, deadline), maxBuffer: subprocessLimit },
   );
@@ -519,6 +571,7 @@ export async function scanDriftTargets(
     if (
       prior?.shapeVersion === target.shapeVersion &&
       prior.derivationSha256 === target.derivationSha256 &&
+      prior.predecessorScopeSha256 === predecessorScope(target.predecessorObservation) &&
       (prior.status !== "unknown" ||
         (target.baselineSource === "reviewed_layout" && prior.layoutMatch === true))
     ) {
@@ -585,7 +638,14 @@ export function completedInspections(
   for (const item of records(value.observations)) {
     if (typeof item.key !== "string" || !digest.test(item.key) || !isRecord(item.inspection))
       continue;
-    const { status, shapeVersion, derivationSha256, components, layoutMatch } = item.inspection;
+    const {
+      status,
+      shapeVersion,
+      derivationSha256,
+      components,
+      layoutMatch,
+      predecessorScopeSha256,
+    } = item.inspection;
     if (
       (status !== "compatible" &&
         status !== "drifted" &&
@@ -594,7 +654,9 @@ export function completedInspections(
       typeof derivationSha256 !== "string" ||
       !digest.test(derivationSha256) ||
       !isShapeComponentList(components) ||
-      (status === "unknown" && components.length > 0)
+      (status === "unknown" && components.length > 0) ||
+      (predecessorScopeSha256 !== undefined &&
+        (typeof predecessorScopeSha256 !== "string" || !digest.test(predecessorScopeSha256)))
     )
       continue;
     completed.set(item.key, {
@@ -603,6 +665,7 @@ export function completedInspections(
       derivationSha256,
       components,
       ...(status === "unknown" ? { layoutMatch: true } : {}),
+      ...(typeof predecessorScopeSha256 === "string" ? { predecessorScopeSha256 } : {}),
     });
   }
   return completed;
@@ -755,8 +818,22 @@ export function driftNotices(
       !positiveInteger(target.assetId) ||
       typeof key !== "string" ||
       !digest.test(key) ||
+      inspection.predecessorScopeSha256 !== predecessorScope(target.predecessorObservation) ||
       !isShapeComponentList(inspection.components) ||
       inspection.components.length === 0
+    )
+      continue;
+    if (
+      target.predecessorObservation !== undefined &&
+      (!isDeepStrictEqual(target.predecessorObservation, {
+        repository_id: target.repositoryId,
+        release_id: target.releaseId,
+        asset_id: target.assetId,
+        tag: target.version,
+        channel: target.channel,
+        url: target.asset.url,
+      }) ||
+        key !== driftTargetKey({ ...target, issue: target.issue }))
     )
       continue;
     const line = `- \`${target.portId}\` · ${target.platform} · ${target.channel} · \`${target.version}\` · release ${target.releaseId}, asset ${target.assetId} · SHA-256 \`${target.asset.sha256}\` · ${inspection.components.map((component) => component.replaceAll("_", " ")).join(", ")}`;

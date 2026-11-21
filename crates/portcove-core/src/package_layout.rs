@@ -323,6 +323,48 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
+/// Attribution from a completed provider observation. This input is suitable
+/// only for inert archive comparison and never confers acquisition authority.
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct PackageLayoutObservation {
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub tag: String,
+    pub channel: crate::ReleaseChannel,
+    pub url: String,
+}
+
+pub(crate) fn observed_predecessor_layout<'a>(
+    port: &'a PortDefinition,
+    platform: Platform,
+    observation: &PackageLayoutObservation,
+    artifact: &crate::ArtifactIdentity,
+) -> Option<&'a ReviewedPackageLayout> {
+    port.reviewed_predecessor_package_layouts_v1
+        .get(&platform)?
+        .iter()
+        .find(|rule| {
+            rule.repository_id == observation.repository_id
+                && rule.release_id == observation.release_id
+                && rule.asset_id == observation.asset_id
+                && rule.tag == observation.tag
+                && rule.channel == observation.channel
+                && rule.artifact.asset_name == artifact.asset_name
+                && rule.artifact.size == artifact.size
+                && rule.artifact.sha256.eq_ignore_ascii_case(&artifact.sha256)
+                && observation.url
+                    == format!(
+                        "https://github.com/{}/releases/download/{}/{}",
+                        port.release.repository, rule.tag, rule.artifact.asset_name,
+                    )
+        })
+        .map(|rule| &rule.layout)
+}
+
 pub(crate) fn layout_for_acquisition<'a>(
     port: &'a PortDefinition,
     platform: Platform,
@@ -334,29 +376,26 @@ pub(crate) fn layout_for_acquisition<'a>(
                 .require_selection(port, platform, resolution.release.channel)
                 .ok()?;
             let identity = resolution.github_identity.as_ref()?;
-            port.reviewed_predecessor_package_layouts_v1
-                .get(&platform)?
-                .iter()
-                .find(|rule| {
-                    rule.repository_id == identity.repository_id
-                        && rule.release_id == identity.release_id
-                        && rule.asset_id == identity.asset_id
-                        && rule.tag == identity.tag
-                        && identity
-                            .repository
-                            .eq_ignore_ascii_case(&port.release.repository)
-                        && rule.channel == resolution.release.channel
-                        && rule.tag == resolution.release.version
-                        && rule.artifact.asset_name == artifact.asset_name
-                        && rule.artifact.size == artifact.size
-                        && rule.artifact.sha256.eq_ignore_ascii_case(&artifact.sha256)
-                        && resolution.release.asset.url
-                            == format!(
-                                "https://github.com/{}/releases/download/{}/{}",
-                                identity.repository, rule.tag, rule.artifact.asset_name,
-                            )
-                })
-                .map(|rule| &rule.layout)
+            if !identity
+                .repository
+                .eq_ignore_ascii_case(&port.release.repository)
+                || identity.tag != resolution.release.version
+            {
+                return None;
+            }
+            observed_predecessor_layout(
+                port,
+                platform,
+                &PackageLayoutObservation {
+                    repository_id: identity.repository_id,
+                    release_id: identity.release_id,
+                    asset_id: identity.asset_id,
+                    tag: identity.tag.clone(),
+                    channel: resolution.release.channel,
+                    url: resolution.release.asset.url.clone(),
+                },
+                artifact,
+            )
         })
         .or_else(|| port.reviewed_package_layouts.get(&platform))
 }

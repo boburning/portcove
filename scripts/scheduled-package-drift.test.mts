@@ -103,7 +103,10 @@ const layoutPort = {
 };
 const layoutListings = { listings: [...listings.listings, { id: "layout" }] };
 
-function collectWithLayout(port = layoutPort, shapes = table) {
+function collectWithLayout(
+  port: typeof layoutPort & Record<string, unknown> = layoutPort,
+  shapes = table,
+) {
   return collectDriftTargets(
     { ports: [...catalog.ports, port] },
     layoutListings,
@@ -323,6 +326,73 @@ void test("a reviewed layout supplies an issue-free baseline only without a gene
     collectWithLayout({ ...layoutPort, adapter: "manual-setup" }),
     collect([observation()]),
   );
+});
+
+void test("exact predecessor observations bind the inspector and cached verdict to the selected release", async () => {
+  const [, current] = collectWithLayout();
+  assert.ok(current);
+  const record = {
+    repository_id: current.repositoryId,
+    release_id: current.releaseId,
+    asset_id: current.assetId,
+    tag: current.version,
+    channel: current.channel,
+    artifact: {
+      asset_name: current.asset.name,
+      size: current.asset.size,
+      sha256: current.asset.sha256,
+    },
+    layout: { directories: [], executables: ["example.exe"] },
+  };
+  const [, target] = collectWithLayout({
+    ...layoutPort,
+    reviewed_predecessor_package_layouts_v1: { [platform]: [record] },
+  });
+  assert.ok(target?.predecessorObservation);
+  assert.notEqual(driftTargetKey(target), driftTargetKey(current));
+  assert.notEqual(target.baselineSha256, current.baselineSha256);
+  const response = coreResponse(target, comparedLayout);
+  assert.throws(() => inspectionFromResponse(response, target), /bound to the selected package/u);
+  const observed = inspectionFromResponse(
+    {
+      ...response,
+      data: { ...response.data, predecessor_observation: target.predecessorObservation },
+    },
+    target,
+  );
+  assert.equal(observed.layoutMatch, true);
+  assert.ok(observed.predecessorScopeSha256);
+  const mismatched = { ...observed, predecessorScopeSha256: "a".repeat(64) };
+  const stale = new Map([[driftTargetKey(target), mismatched]]);
+  let inspections = 0;
+  const dependencies = {
+    async download() {},
+    async inspect() {
+      inspections++;
+      return observed;
+    },
+    now: () => 1,
+  };
+  const rerun = await scanDriftTargets([target], stale, 1000, dependencies);
+  assert.equal(inspections, 1);
+  assert.equal(
+    rerun.observations[0]?.inspection.predecessorScopeSha256,
+    observed.predecessorScopeSha256,
+  );
+  const valid = new Map([[driftTargetKey(target), observed]]);
+  const reused = await scanDriftTargets([target], valid, 1000, dependencies);
+  assert.equal(inspections, 1);
+  assert.equal(
+    reused.observations[0]?.inspection.predecessorScopeSha256,
+    observed.predecessorScopeSha256,
+  );
+  const [, changed] = collectWithLayout({
+    ...layoutPort,
+    reviewed_predecessor_package_layouts_v1: {
+      [platform]: [{ ...record, asset_id: record.asset_id + 1 }],
+    },
+  });
+  assert.equal(changed?.predecessorObservation, undefined);
 });
 
 void test("Core must report the bound explicit layout and only its two known components", () => {

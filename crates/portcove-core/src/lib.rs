@@ -344,6 +344,7 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
+pub use package_layout::PackageLayoutObservation;
 pub use package_layout::{
     PackageProgramFilter, inspect_package_archive, inspect_package_archive_with_program_filter,
 };
@@ -351,6 +352,7 @@ pub use package_shape::{
     InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
     PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
     ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+    inspect_package_shape_archive_observed,
 };
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,

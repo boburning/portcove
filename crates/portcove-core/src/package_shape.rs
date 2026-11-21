@@ -289,6 +289,8 @@ pub struct PackageShapeInspection {
     /// the catalog it records against.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub derivation_inputs_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub predecessor_observation: Option<crate::PackageLayoutObservation>,
 }
 
 /// Whether an installation's manifest holds a package shape this build reads.
@@ -1083,6 +1085,51 @@ pub fn inspect_package_shape_archive(
     expected_size: u64,
     expected_sha256: &str,
 ) -> Result<PackageShapeInspection> {
+    inspect_package_shape_archive_observed(
+        source,
+        port,
+        platform,
+        expected_size,
+        expected_sha256,
+        None,
+    )
+}
+
+/// Compare an observed predecessor with its exact declared layout. A supplied
+/// observation must match or the dry comparison is unavailable.
+pub fn inspect_package_shape_archive_observed(
+    source: &Path,
+    port: &PortDefinition,
+    platform: Platform,
+    expected_size: u64,
+    expected_sha256: &str,
+    predecessor: Option<&crate::PackageLayoutObservation>,
+) -> Result<PackageShapeInspection> {
+    let reviewed_layout = predecessor
+        .map(|observation| {
+            let filename = source
+                .file_name()
+                .and_then(|value| value.to_str())
+                .ok_or_else(|| {
+                    PortcoveError::usage("package observation requires its exact provider filename")
+                })?;
+            crate::package_layout::observed_predecessor_layout(
+                port,
+                platform,
+                observation,
+                &crate::ArtifactIdentity {
+                    asset_name: filename.into(),
+                    size: expected_size,
+                    sha256: expected_sha256.into(),
+                },
+            )
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "observed package does not match a reviewed predecessor",
+                )
+            })
+        })
+        .transpose()?;
     if !port.platforms.contains(&platform) {
         return Err(PortcoveError::usage(format!(
             "{} has no route for {platform:?}",
@@ -1112,7 +1159,14 @@ pub fn inspect_package_shape_archive(
     crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
-    let (verdict, provenance) = evaluate(port, platform, expected_sha256, &shape, None, None);
+    let (verdict, provenance) = evaluate(
+        port,
+        platform,
+        expected_sha256,
+        &shape,
+        None,
+        reviewed_layout,
+    );
     Ok(PackageShapeInspection {
         port_id: port.id.clone(),
         platform,
@@ -1122,6 +1176,7 @@ pub fn inspect_package_shape_archive(
         provenance,
         verdict,
         derivation_inputs_sha256: embedded_derivation_inputs_sha256(&port.id, platform),
+        predecessor_observation: predecessor.cloned(),
     })
 }
 

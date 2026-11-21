@@ -357,21 +357,35 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
+                predecessor_observation,
             },
     } = &cli.command
     {
         let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
             .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let observation = predecessor_observation
+            .as_deref()
+            .map(|input| {
+                if input.len() > 2048 {
+                    return Err(portcove_core::PortcoveError::usage(
+                        "package observation exceeds its size bound",
+                    ));
+                }
+                serde_json::from_str::<portcove_core::PackageLayoutObservation>(input)
+                    .map_err(|_| portcove_core::PortcoveError::usage("invalid package observation"))
+            })
+            .transpose()?;
         let catalog = portcove_core::Catalog::embedded()?;
         render_read_success(
             mode,
             "catalog.inspect-package-shape",
-            portcove_core::inspect_package_shape_archive(
+            portcove_core::inspect_package_shape_archive_observed(
                 archive,
                 catalog.port(port)?,
                 platform,
                 *size,
                 sha256,
+                observation.as_ref(),
             )?,
             |inspection| {
                 format!(
