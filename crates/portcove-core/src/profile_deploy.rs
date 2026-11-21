@@ -1414,7 +1414,10 @@ pub struct LocalModPackagePlan {
     pub plan_sha256: String,
 }
 
-fn copy_local_package(layout: &Layout, source: &Path) -> Result<(tempfile::TempDir, PathBuf)> {
+fn copy_local_package(
+    layout: &Layout,
+    source: &Path,
+) -> Result<(tempfile::TempDir, PathBuf, Option<dfu_deploy::LocalDfuZip>)> {
     use crate::mod_package::MAX_ARCHIVE_BYTES;
     crate::path::refuse_symlink_ancestors(source)?;
     let invalid =
@@ -1440,7 +1443,17 @@ fn copy_local_package(layout: &Layout, source: &Path) -> Result<(tempfile::TempD
         &|| Ok(()),
         &mut |bytes| output.write_all(bytes).map_err(Into::into),
     )?;
-    Ok((staging, private))
+    if layout.dfu_platform.is_some()
+        && source
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|value| value.eq_ignore_ascii_case("zip"))
+    {
+        drop(output);
+        let (member, binding) = dfu_deploy::stage_local_zip(&private, staging.path())?;
+        return Ok((staging, member, Some(binding)));
+    }
+    Ok((staging, private, None))
 }
 
 fn validate_staged_mod(layout: &Layout, inspection: &crate::ModPackageInspection) -> Result<()> {
@@ -1475,6 +1488,7 @@ fn plan_local_mod_package(
     current: &ProfileRevision,
     staged: &StagedPackage,
     recorded_code: &BTreeSet<String>,
+    local_zip: Option<&dfu_deploy::LocalDfuZip>,
 ) -> Result<LocalModPackagePlan> {
     use sha2::{Digest, Sha256};
     let inspection = &staged.inspection;
@@ -1577,7 +1591,11 @@ fn plan_local_mod_package(
         missing_required_mods,
         plan_sha256: String::new(),
     };
-    plan.plan_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&plan)?));
+    let review = match local_zip {
+        Some(binding) => serde_json::to_vec(&("dfu-local-zip-v1", binding, &plan))?,
+        None => serde_json::to_vec(&plan)?,
+    };
+    plan.plan_sha256 = hex::encode(Sha256::digest(review));
     Ok(plan)
 }
 
@@ -1664,10 +1682,11 @@ impl PortcoveService {
         }
         let layout = self.require_layout_for_revision(&current)?;
         self.require_dfu_target_clean(&layout, &current)?;
-        let (_staging, private) = copy_local_package(&layout, source)?;
+        let (_staging, private, local_zip) = copy_local_package(&layout, source)?;
         let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
-        let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
+        let plan =
+            plan_local_mod_package(&layout, &current, &staged, &recorded, local_zip.as_ref())?;
         if !workspace && let Some(recomp) = &staged.recomp {
             self.review_recomp_changes(
                 &layout,
@@ -1696,10 +1715,11 @@ impl PortcoveService {
         let current = profile_current(&self.library.connection()?, port_id, profile_id)?;
         let layout = self.require_layout_for_revision(&current)?;
         self.require_dfu_target_clean(&layout, &current)?;
-        let (_staging, private) = copy_local_package(&layout, source)?;
+        let (_staging, private, local_zip) = copy_local_package(&layout, source)?;
         let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
-        let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
+        let plan =
+            plan_local_mod_package(&layout, &current, &staged, &recorded, local_zip.as_ref())?;
         if plan.plan_sha256 != expected_plan_sha256 {
             return Err(PortcoveError::conflict(
                 "the package or setup changed; review it again",
@@ -1730,10 +1750,10 @@ impl PortcoveService {
         file: &LocalModDraftFile,
         allow_code: bool,
     ) -> Result<(tempfile::TempDir, StagedPackage)> {
-        let (staging, private) = copy_local_package(layout, &file.path)?;
+        let (staging, private, local_zip) = copy_local_package(layout, &file.path)?;
         let staged = inspect_for_port(layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(layout).unwrap_or_default();
-        let plan = plan_local_mod_package(layout, current, &staged, &recorded)?;
+        let plan = plan_local_mod_package(layout, current, &staged, &recorded, local_zip.as_ref())?;
         if plan.plan_sha256 != file.expected_plan_sha256 {
             return Err(PortcoveError::conflict(
                 "the local file or setup changed; review the file again",
@@ -1772,7 +1792,7 @@ impl PortcoveService {
     ) -> Result<Option<ModCodeReview>> {
         let layout = self.deploy_layout(port_id)?;
         if let Some(platform) = layout.dfu_platform {
-            let (_staging, private) = copy_local_package(&layout, source)?;
+            let (_staging, private, _) = copy_local_package(&layout, source)?;
             crate::dfu_mod::inspect_data_only(&private, platform)?;
             return Ok(None);
         }
@@ -2902,11 +2922,14 @@ impl PortcoveService {
             port_id: port_id.into(),
             supported: true,
             later_mods_take_priority: matches!(layout.loader_list(), Some(LoaderList::Ship(_))),
-            package_types: layout
-                .package_extensions()
-                .iter()
-                .map(|extension| (*extension).to_owned())
-                .collect(),
+            package_types: if layout.dfu_platform.is_some() {
+                &["dfmod", "zip"]
+            } else {
+                layout.package_extensions()
+            }
+            .iter()
+            .map(|extension| (*extension).to_owned())
+            .collect(),
             live,
             applied_package_count,
             inventory: has_profiles.then_some(inventory),

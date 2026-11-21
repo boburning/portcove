@@ -19,3 +19,10 @@ EasyNPCBehavior contains C# source alongside its manifest and settings.
 The publisher's ZIP digest was verified before isolating this member.
 [EasyNPCBehavior source](https://github.com/BigDeal0716/Easy-NPC-Behavior/tree/8fc29e0770852c55f1906c8d36a287c922e023fe)
 · [Published ZIPs](https://github.com/BigDeal0716/Easy-NPC-Behavior/releases/tag/v1.0.0tr)
+
+The original release wrappers are retained for normal ZIP review and apply fixtures.
+
+| Fixture | Exact SHA-256 |
+| --- | --- |
+| `pointycursor-linux.zip` | `a4a794a5593240db34f2fb50fcbfd66c56caedd6f75326f320008f108b7aa22e` |
+| `pointycursor-windows.zip` | `4d192510bc20b405b83c8420fd06a6ca21909184a7daf4fa7da8972396f9878a` |

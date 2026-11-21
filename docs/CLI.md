@@ -2929,9 +2929,10 @@ permission for the exact package's code, apply also requires
 `--allow-mod-code`. A reviewed replacement preserves its previous enabled
 state. Package store contents remain available to setup history.
 
-For Daggerfall Unity, download the package from its source, extract the
-original platform-specific `.dfmod` outside the game folder, and select that
-file. Portcove accepts only the reviewed data-only texture bundle format and
+For Daggerfall Unity, select the original release ZIP for your platform or
+its original `.dfmod` file. A ZIP must contain a single `Mods/*.dfmod` bundle.
+If the ZIP changes after review, review it again before applying.
+Portcove accepts only the reviewed data-only texture bundle format and
 requires the matching Windows or Linux version of the managed
 `v1.1.1-cve-2025` runtime in its existing `Portable.txt` mode. Nexus account
 registration is independent of this local file path.

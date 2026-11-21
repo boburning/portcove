@@ -3701,14 +3701,16 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     const PORT: &str = "interkarma-daggerfall-unity";
     const NAME: &str = "wandererhud - pointycursor.dfmod";
     let platform = crate::Platform::current().unwrap();
-    let (data, opposite) = match platform {
+    let (data, opposite, wrapper) = match platform {
         crate::Platform::WindowsX86_64 => (
             include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
             include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.zip").as_slice(),
         ),
         crate::Platform::LinuxX86_64 => (
             include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
             include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.zip").as_slice(),
         ),
         _ => return,
     };
@@ -3813,9 +3815,43 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     fs::remove_file(&unmanaged).unwrap();
     fs::remove_dir(unmanaged.parent().unwrap()).unwrap();
 
+    let raw = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    let candidate = temporary.path().join("PointyCursor.zip");
+    fs::write(&candidate, wrapper).unwrap();
     let review = service
         .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
         .unwrap();
+    assert_eq!(review.sha256, raw.sha256);
+    assert_eq!(review.native_id, raw.native_id);
+    assert_ne!(review.plan_sha256, raw.plan_sha256);
+
+    let member = format!("Mods/{NAME}");
+    let repack = archive(temporary.path(), "repacked.zip", &[(&member, data)]);
+    fs::copy(&repack, &candidate).unwrap();
+    let repacked = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    assert_eq!(repacked.sha256, review.sha256);
+    assert_ne!(repacked.plan_sha256, review.plan_sha256);
+    assert!(
+        service
+            .apply_local_mod_package(PORT, &profile.id, &candidate, &review.plan_sha256, false)
+            .is_err()
+    );
+    assert!(!live_mods.join(NAME).exists());
+    let ambiguous = archive(
+        temporary.path(),
+        "ambiguous.zip",
+        &[(&member, data), ("Mods/other.dfmod", data)],
+    );
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &ambiguous, 1)
+            .is_err()
+    );
+    fs::write(&candidate, wrapper).unwrap();
     assert!(!review.needs_code_permission);
     let applied = service
         .apply_local_mod_package(PORT, &profile.id, &candidate, &review.plan_sha256, false)

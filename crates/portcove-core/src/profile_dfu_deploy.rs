@@ -98,6 +98,85 @@ fn portable_marker(path: &Path) -> Result<bool> {
     }
 }
 
+#[derive(Serialize)]
+pub(super) struct LocalDfuZip {
+    archive_sha256: String,
+    member: String,
+}
+
+pub(super) fn stage_local_zip(source: &Path, destination: &Path) -> Result<(PathBuf, LocalDfuZip)> {
+    use sha2::{Digest, Sha256};
+    use std::io::{Cursor, Read};
+
+    let invalid = || {
+        PortcoveError::verification(
+            "Daggerfall Unity mod ZIP must contain one original Mods/*.dfmod file",
+        )
+    };
+    let bytes =
+        crate::external_runtime::read_single_link_metadata(source, crate::dfu_mod::MAX_BYTES)?;
+    let archive_sha256 = hex::encode(Sha256::digest(&bytes));
+    let limits = crate::zip_read::Limits {
+        bytes: crate::dfu_mod::MAX_BYTES,
+        entries: 2,
+        metadata: 64 * 1024,
+        ..crate::zip_read::CARTRIDGE
+    };
+    let mut archive = crate::zip_read::open(Cursor::new(bytes), limits, &mut |_| Ok(()))?;
+    let mut candidate = None;
+    for index in 0..archive.len() {
+        let entry = archive.by_index(index).map_err(|_| invalid())?;
+        let name = entry.name().map_err(|_| invalid())?;
+        let directory = entry.is_dir();
+        let kind = entry.unix_mode().unwrap_or_default() & 0o170000;
+        let (_, _) = crate::archive::validate_relative_path(name, directory)?;
+        if directory && name == "Mods/" && entry.size() == 0 && matches!(kind, 0 | 0o040000) {
+            continue;
+        }
+        let leaf = name
+            .strip_prefix("Mods/")
+            .filter(|leaf| profile::valid_native_id(leaf) && leaf.ends_with(".dfmod"))
+            .ok_or_else(invalid)?;
+        if candidate.is_some()
+            || !entry.is_file()
+            || !matches!(kind, 0 | 0o100000)
+            || !matches!(
+                entry.compression(),
+                zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated
+            )
+            || !(1..=crate::dfu_mod::MAX_BYTES).contains(&entry.size())
+            || entry.size() > entry.compressed_size().saturating_mul(128)
+        {
+            return Err(invalid());
+        }
+        candidate = Some((index, name.to_owned(), leaf.to_owned(), entry.size()));
+    }
+    let (index, member, leaf, size) = candidate.ok_or_else(invalid)?;
+    let mut member_bytes = Vec::new();
+    archive
+        .by_index(index)
+        .map_err(|_| invalid())?
+        .take(size + 1)
+        .read_to_end(&mut member_bytes)?;
+    if member_bytes.len() as u64 != size {
+        return Err(invalid());
+    }
+    let path = destination.join(leaf);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&path)?
+        .write_all(&member_bytes)?;
+    Ok((
+        path,
+        LocalDfuZip {
+            archive_sha256,
+            member,
+        },
+    ))
+}
+
 pub(super) fn store_reviewed_package(
     layout: &Layout,
     source: &Path,
