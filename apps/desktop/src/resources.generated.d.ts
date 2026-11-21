@@ -502,6 +502,7 @@ export default interface Resources {
       "noticePublisherTrusted": "Publisher trusted.",
       "noticeUpdateApplied": "Catalog update applied.",
       "originBuiltIn": "Built-in catalog",
+      "originDefinitionSelected": "Using selected catalog definitions",
       "originSigned": "Signed catalog · version {{version}}",
       "originSignedPrevious": "Signed catalog · version {{version}} · using the previous valid update",
       "planDetailsLabel": "Technical details for catalog update sequence {{sequence}}",
