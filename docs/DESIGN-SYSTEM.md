@@ -54,7 +54,7 @@ or dialog keeps that focus.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts port entries, including separate ports for one game, and labels those counts as ports. Discover counts explicitly identified games and ungrouped projects separately; port counts stay on each game's comparison (#5058 F3).
 While Library results are loading, its loading surface owns the pending explanation;
 result counts and unavailable-result copy wait for settlement. A settled unread
 result remains unavailable, and a known empty result remains distinct.
@@ -664,7 +664,11 @@ leaves the viewport; returning to an alternative mounts and expands that exact
 group before focus restoration. Accepted background reordering retains the logical
 reading anchor and exact focused control within the same query and generation;
 a newer player intent cancels restoration. Pending actions can retain focus while
-refusing activation. Saved membership never implies installation.
+refusing activation. Favorite membership never implies installation.
+A Library overflow menu belongs to the exact port supplying its group's card
+actions. Retire it when that port is no longer the action target in the logical
+results, including after a collection membership change. Returning to an earlier
+view must not reopen the menu or revive its focus return.
 Singleton styling follows the logical result count, including a final partial
 virtual row, and both layouts keep their existing responsive sizing rules.
 

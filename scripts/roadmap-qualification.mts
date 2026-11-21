@@ -386,11 +386,44 @@ export function planPortStageReconciliation(
   return changes;
 }
 
+/** Use the generated listing that describes the exact operational port identity.
+ * Older catalogs or unmatched listings keep the ordinary canonical issue requirement. */
+export function issueFreeCatalogIds(catalog: QualificationCatalogObservation, directory: unknown) {
+  if (!isRecord(directory) || !Array.isArray(directory.listings))
+    throw new Error("Catalog diagnostic input requires a listing array");
+  const listings = new Map<string, Record<string, unknown>>();
+  for (const listing of directory.listings as unknown[]) {
+    if (!isRecord(listing) || typeof listing.id !== "string" || listings.has(listing.id))
+      throw new Error("Catalog listing diagnostic identity is missing or repeated");
+    listings.set(listing.id, listing);
+  }
+  return new Set(
+    (catalog.ports ?? [])
+      .filter((port) => {
+        const listing = listings.get(port.id);
+        return (
+          listing &&
+          typeof port.project_url === "string" &&
+          listing.project_url === port.project_url &&
+          !("issue_number" in listing) &&
+          isRecord(listing.original_game) &&
+          listing.original_game.format_version === 1 &&
+          typeof listing.original_game.id === "string" &&
+          listing.original_game.id.length > 0 &&
+          Array.isArray(listing.original_game.evidence_urls) &&
+          listing.original_game.evidence_urls.length > 0
+        );
+      })
+      .map((port) => port.id),
+  );
+}
+
 export function validatePortIssueCoverage(
   catalog: QualificationCatalogObservation | null | undefined,
   items: readonly RoadmapIssueItem[] | null | undefined,
   repository: string,
   repositoryIssues: readonly RoadmapIssueItem[] | null = null,
+  issueFreeIds: ReadonlySet<string> = new Set(),
 ) {
   const errors = [];
   const catalogIds = new Set((catalog?.ports ?? []).map((port) => port.id));
@@ -521,7 +554,8 @@ export function validatePortIssueCoverage(
   }
   for (const id of catalogIds) {
     const matches = issuesByCatalogId.get(id) ?? [];
-    if (matches.length === 0) errors.push(`Catalog port lacks a canonical Project issue: ${id}`);
+    if (matches.length === 0 && !issueFreeIds.has(id))
+      errors.push(`Catalog port lacks a canonical Project issue: ${id}`);
     if (matches.length > 1)
       errors.push(`Two live issues represent catalog ID ${id}: ${matches.join(", ")}`);
   }

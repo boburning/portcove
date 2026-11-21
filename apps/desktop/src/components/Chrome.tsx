@@ -381,7 +381,7 @@ export function PageHeader({
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
-            {libraryCount} in your library
+            {libraryCount} {libraryCount === 1 ? "port" : "ports"} in your library
           </p>
         )}
         {copy.description && (

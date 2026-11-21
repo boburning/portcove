@@ -33,8 +33,14 @@ export interface UniverseEntry {
   /** Display labels only; never identity evidence. */
   name: string | null;
   game: string | null;
-  /** Lineage target, for grouping distinct implementations of one game. */
+  /** Retained lineage scope; never a fallback original-game identity. */
   target_key: string | null;
+  /** Reviewed descriptive game identity, independent of implementation lineage. */
+  original_game_id: string | null;
+  /** Missing or contradictory descriptive grouping facts; no runtime admission consequence. */
+  grouping_gap: string | null;
+  grouping_disposition: string | null;
+  grouping_reason: string | null;
   /** Candidate port keys an issue or intake request names; never a `port:` identity. */
   port_keys: string[];
   relations: UniverseRelation[];
@@ -43,7 +49,12 @@ export interface UniverseEntry {
 }
 
 interface AuthoredRecord extends PortIdentity {
-  listing: PortIdentity["listing"] & { name?: string; original_game_title?: string };
+  original_game_review?: { disposition: string; reason: string };
+  listing: PortIdentity["listing"] & {
+    name?: string;
+    original_game_title?: string;
+    original_game?: { id: string };
+  };
 }
 
 interface IssueFact {
@@ -95,6 +106,10 @@ export function buildUniverse(input: {
       name: null,
       game: null,
       target_key: null,
+      original_game_id: null,
+      grouping_gap: null,
+      grouping_disposition: null,
+      grouping_reason: null,
       port_keys: [],
       relations: [],
       identity_gap: null,
@@ -115,6 +130,14 @@ export function buildUniverse(input: {
     const port = entry(`port:${record.listing.id}`, "port");
     port.name = record.listing.name ?? null;
     port.game = record.listing.original_game_title ?? null;
+    port.original_game_id = record.listing.original_game?.id ?? null;
+    port.grouping_disposition =
+      record.original_game_review?.disposition ??
+      (port.original_game_id ? "single-game" : "legacy-unreviewed");
+    port.grouping_reason = record.original_game_review?.reason ?? null;
+    if (!port.original_game_id && !record.original_game_review)
+      port.grouping_gap =
+        "No reviewed original-game identity; this entry remains a separate project.";
     if (record.listing.issue_number !== undefined) {
       const issue = `issue:${record.listing.issue_number}`;
       issueReferences.add(issue);
@@ -129,7 +152,7 @@ export function buildUniverse(input: {
       const assessment = assessUpstreamLineage(record);
       decisions = assessment.decisions;
       identities = lineageIdentityKeys(record);
-      // Only a validated lineage target groups entries as one game.
+      // A validated target groups maintenance implementation scope only.
       if (assessment.status === "recorded") {
         port.target_key = record.upstream_lineage?.target_key ?? null;
         const { repository, project_url: url } = assessment.current;
@@ -148,6 +171,9 @@ export function buildUniverse(input: {
     for (const identity of identities) {
       const implementation = entry(`implementation:${identity}`, "implementation");
       implementation.target_key = port.target_key;
+      implementation.original_game_id = port.original_game_id;
+      implementation.grouping_disposition = port.grouping_disposition;
+      implementation.grouping_reason = port.grouping_reason;
       relate(port, "retains-implementation", implementation.key);
       relate(implementation, "implemented-by", port.key);
     }
@@ -202,12 +228,33 @@ export function buildUniverse(input: {
 
   for (const key of input.definitions ?? []) entry(key, "definition");
 
+  for (const group of universeGroups([...entries.values()]).values()) {
+    const members = group.filter(({ kind }) => kind === "port");
+    const ids = new Set(
+      members.flatMap(({ original_game_id }) => (original_game_id ? [original_game_id] : [])),
+    );
+    if (ids.size > 1)
+      for (const member of members)
+        member.grouping_gap =
+          "One lineage target names multiple original-game IDs; review the target and game scopes.";
+    else if (
+      ids.size &&
+      members.some(
+        ({ original_game_id, grouping_disposition }) =>
+          !original_game_id && grouping_disposition === "legacy-unreviewed",
+      )
+    )
+      for (const member of members)
+        member.grouping_gap =
+          "Partial original-game mapping within this lineage target; review unmapped members.";
+  }
+
   return [...entries.values()]
     .map((value) => ({ ...value, relations: [...value.relations].sort(byKey) }))
     .sort(byKey);
 }
 
-/** Entries grouped by game: one group per lineage target, else per entry. */
+/** Retained maintenance scopes: one group per lineage target, else per entry. */
 export function universeGroups(entries: readonly UniverseEntry[]) {
   const groups = new Map<string, UniverseEntry[]>();
   for (const value of entries) {

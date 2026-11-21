@@ -1,6 +1,7 @@
 import { createRef, useState } from "react";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page, userEvent } from "vite-plus/test/browser";
+import { cdp, page, userEvent } from "vite-plus/test/browser";
+import type {} from "vite-plus/test/browser-playwright";
 import { cleanup, render } from "vitest-browser-react/pure";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
 import { Field } from "@base-ui/react/field";
@@ -21,6 +22,17 @@ import { DesignCompatibilityFixture } from "../design-compatibility/DesignCompat
 
 // The current-build guard rejects this if test source discovery leaks into shipping CSS.
 const discoverySentinel = <span className="w-[12345px]" />;
+
+async function enableMotion(onTestFinished: (cleanup: () => Promise<void>) => void) {
+  const media = cdp();
+  onTestFinished(async () => {
+    await media.send("Emulation.setEmulatedMedia", { features: [] });
+  });
+  await media.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+  });
+  expect(matchMedia("(prefers-reduced-motion: no-preference)").matches).toBe(true);
+}
 
 it("lets a distinct Escape close the fixture dialog while its nested select is still exiting", async () => {
   const style = document.createElement("style");
@@ -89,7 +101,10 @@ it("lets a distinct Escape close the fixture dialog while its nested select is s
   }
 });
 
-it("keeps measured progress stationary and reserves the sweep for unknown progress", async () => {
+it("keeps measured progress stationary and reserves the sweep for unknown progress", async ({
+  onTestFinished,
+}) => {
+  await enableMotion(onTestFinished);
   const screen = await render(
     <StatusLayer
       busy="install"
@@ -179,7 +194,10 @@ it("keeps long diagnostics and dismissal reachable in an enlarged dialog", async
   }
 });
 
-it("reverses a closing dialog when controlled application state reopens it", async () => {
+it("reverses a closing dialog when controlled application state reopens it", async ({
+  onTestFinished,
+}) => {
+  await enableMotion(onTestFinished);
   const interrupted: string[] = [];
   let armed = true;
   function Review() {

@@ -483,6 +483,35 @@ fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
 }
 
 #[test]
+fn indexed_projection_cannot_supply_reviewed_package_choices() {
+    let mut document = projection();
+    let port_index = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    let untreated = serde_json::to_vec(&document).unwrap();
+    assert!(inspect(&entry(&document, &untreated, port_index), &untreated).is_ok());
+    document["catalog"]["ports"][port_index]["release"]["reviewed_package_choices_v2"] = json!({
+        "repository_id": 51_711_866,
+        "prefix": "ja2-stracciatella_",
+        "choices": {
+            "mingw64-cross": "_win-mingw64-cross.zip",
+            "msvc64-142": "_win-msvc64-142.zip"
+        },
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let error = inspect(&entry(&document, &contract, port_index), &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(
+        error
+            .message
+            .contains("cannot deliver reviewed package choices")
+    );
+}
+
+#[test]
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({
@@ -559,6 +588,90 @@ fn generic_projection() -> Value {
     })
 }
 
+#[test]
+fn original_recognition_projection_requires_the_explicit_reader_capability() {
+    let mut document = generic_projection();
+    let source = &mut document["catalog"]["source_catalog"]["contracts"][0];
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Optional upstream recognition for this artifact.");
+    source["variant_list_recognition_only"] = json!(true);
+    source["applicability"] = json!([{
+        "upstream_ref": "fixture-1", "artifact_sha256": "a".repeat(64)
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("libultraship-portable capability version 7")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "libultraship-portable", "minimum_version": 7, "maximum_version": 7
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
+#[test]
+fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
+    let mut document = generic_projection();
+    let port = &mut document["catalog"]["ports"][0];
+    port["adapter"] = json!("n64-recomp-portable");
+    port["runtime_source_filename"] = json!("fixture.us.z64");
+    port["persistent_paths"] = json!(["saves", "config.json", "fixture.us.z64"]);
+    let sources = &mut document["catalog"]["source_catalog"];
+    sources["evidence"].as_array_mut().unwrap().push(json!({
+        "id": "fixture-upstream-input",
+        "role": "upstream_support",
+        "authority": "Synthetic runtime input fixture",
+        "authority_ref": "test-release",
+        "reviewed_at": "2026-09-30",
+        "claim": "Synthetic upstream input requirement",
+        "immutable_url": "https://example.invalid/fixtures/runtime-v1",
+        "live_url": null
+    }));
+    let source = &mut sources["contracts"][0];
+    source["evidence_ids"] = json!(["fixture-upstream-input"]);
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Requires the upstream release input check.");
+    source["supported_variant_ids"] = json!([]);
+    source["n64_recomp_inputs_v1"] = json!([{
+        "upstream_ref": "test-release",
+        "artifact_sha256": "a".repeat(64),
+        "game_id": "fixture.us",
+        "rom_xxh3_64": "0123456789abcdef"
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 9, "maximum_version": 9
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }
@@ -567,8 +680,10 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if crate::managed_runtime_policy::has_exact_exclusions(&typed) {
-        crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+    let version = if let Some((_, minimum)) =
+        crate::managed_runtime_policy::exact_exclusion_capability(&typed)
+    {
+        minimum
     } else if typed.optional_game_source {
         // An optional game source needs staged-source capability version 31. Keep this
         // branch first: a later capability chain that matched earlier would silently

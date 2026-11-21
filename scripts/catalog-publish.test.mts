@@ -659,6 +659,61 @@ void test("observation publication retains applicable earlier rows before admitt
   assert.equal(capped.canonical_records, 2);
 });
 
+void test("descriptive delivery encodes an exact GitHub slash tag from a retained observation", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const candidate = fixturePolicy().listing_update;
+  const observation = fixtureRecord(candidate.upstream_observation);
+  const release = requiredFixture(fixtureRecords(observation.releases)[0]);
+  const asset = requiredFixture(fixtureRecords(release.assets)[0]);
+  const tag = "preview-builds/1.2.0-preview1";
+  const root = "https://github.com/owner/game/releases";
+  const name = "game-windows-x64.zip";
+  const raw = `${root}/download/${tag}/${name}`;
+  const encoded = `${root}/download/${encodeURIComponent(tag)}/${name}`;
+  const listing = { format_version: 11, listings: [fixtureListing] };
+  const deliver = (url: string) =>
+    projectListingDelivery(
+      listing,
+      [
+        {
+          ...candidate,
+          upstream_observation: {
+            ...observation,
+            releases: [
+              {
+                ...release,
+                version: tag,
+                release_url: `${root}/tag/${encodeURIComponent(tag)}`,
+                assets: [{ ...asset, url }],
+              },
+            ],
+          },
+        },
+      ],
+      null,
+    );
+  const result = deliver(raw);
+  assert.deepEqual(result.bytes, deliver(encoded).bytes);
+  const directory = fixtureRecord(fixtureRecord(JSON.parse(result.bytes.toString())).directory);
+  const published = requiredFixture(fixtureRecords(directory.listings)[0]);
+  const publishedObservation = fixtureRecord(published.upstream_observation);
+  const publishedRelease = requiredFixture(fixtureRecords(publishedObservation.releases)[0]);
+  assert.deepEqual(publishedRelease.assets, [{ ...asset, url: encoded }]);
+  assert.equal(publishedObservation.facts_sha256, observation.facts_sha256);
+  assert.equal(publishedObservation.observed_at, observation.observed_at);
+  assert.equal(asset.url, `${root}/download/v1.0/${name}`);
+  for (const invalid of [
+    raw.replace("owner/game", "other/game"),
+    raw.replace(tag, "preview-builds/1.2.0-preview2"),
+    raw.replace(name, "other.zip"),
+    `${raw}?unexpected=1`,
+  ]) {
+    assert.ok(deliver(invalid).bytes.toString().includes(invalid));
+  }
+});
+
 void test("only the dynamic listing target is excluded from fixed input comparison", async () => {
   const { sameStaticPublicationTargets } = await import("./catalog-publish.mts");
   const fixed = { "definitions/index.json": "a".repeat(64) };
@@ -687,7 +742,7 @@ void test("only the dynamic listing target is excluded from fixed input comparis
 
 void test("last-good data must be referenced in the verified role and exact physical inventory", async (t) => {
   const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
-  const { verifiedPriorListing, listingDeliveryTarget } =
+  const { verifiedPriorListing, priorListingForRenewal, listingDeliveryTarget } =
     await import("./listing-observation-delivery.mts");
   const { createHash } = await import("node:crypto");
   const prior = temp(t),
@@ -702,9 +757,14 @@ void test("last-good data must be referenced in the verified role and exact phys
     files: [{ target, sha256: sha, bytes: bytes.length }],
   };
   assert.deepEqual(await verifiedPriorListing(prior, report), bytes);
+  const renewal = await priorListingForRenewal(prior, 1);
+  assert.deepEqual(renewal.bytes, bytes);
+  assert.equal(renewal.changed, false);
+  assert.equal(renewal.updated, 0);
   await assert.rejects(verifiedPriorListing(prior, { ...report, files: [] }), /not referenced/u);
   put(prior, target, bytes.toString() + " ");
   await assert.rejects(verifiedPriorListing(prior, report), /bytes differ/u);
+  await assert.rejects(priorListingForRenewal(prior, 1), /target digest differs/u);
   site(prior, {});
   assert.equal(
     await verifiedPriorListing(prior, report),
@@ -755,5 +815,80 @@ void test("completed source observations stay bound to current canonical provide
     ).length,
     0,
     "an observation of a listing cannot acquire a new managed-route binding",
+  );
+});
+
+void test("reviewed operational listings survive absent observations before optional expired enrichment", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const first = fixturePolicy().listing_update;
+  const initial = projectListingDelivery(
+    { format_version: 11, listings: [fixtureListing] },
+    [first],
+    null,
+  );
+  const registered = {
+    ...fixtureListing,
+    id: "new-reviewed",
+    download_block_reason: "External only",
+  };
+  const discovery = { ...fixtureListing, id: "other-candidate" };
+  const current = { format_version: 11, listings: [fixtureListing, registered, discovery] };
+  const ids = new Set([String(fixtureListing.id), registered.id]);
+  const base = projectListingDelivery(current, [], null, 0, 8 * 1024 * 1024, undefined, ids);
+  assert.ok(typeof first.upstream_observation.fresh_until === "string");
+  const expiry = Date.parse(first.upstream_observation.fresh_until);
+  assert.ok(Number.isFinite(expiry));
+  const constrained = projectListingDelivery(
+    current,
+    [],
+    initial.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  const doc = fixtureRecord(JSON.parse(constrained.bytes.toString()));
+  const rows = fixtureRecords(fixtureRecord(doc.directory).listings);
+  assert.deepEqual(new Set(rows.map((row) => row.id)), ids);
+  assert.deepEqual(
+    rows.find((row) => row.id === registered.id),
+    registered,
+  );
+  assert.deepEqual(constrained.omittedObservations, [
+    { id: fixtureListing.id, reason: "expired-observation-byte-budget" },
+  ]);
+  assert.deepEqual(doc.withdrawn_ids, []);
+  assert.throws(
+    () =>
+      projectListingDelivery(
+        current,
+        [],
+        initial.bytes,
+        0,
+        base.bytes.length,
+        undefined,
+        ids,
+        expiry - 1,
+      ),
+    /unexpired prior observations/,
+  );
+  const replay = projectListingDelivery(
+    current,
+    [],
+    constrained.bytes,
+    0,
+    base.bytes.length,
+    undefined,
+    ids,
+    expiry,
+  );
+  assert.deepEqual(replay.bytes, constrained.bytes);
+  assert.equal(replay.changed, false);
+  assert.throws(
+    () => projectListingDelivery({ format_version: 11, listings: [registered] }, [], initial.bytes),
+    /without an explicit withdrawal/,
   );
 });

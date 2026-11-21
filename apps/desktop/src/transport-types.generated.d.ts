@@ -2832,6 +2832,7 @@ export interface ReleaseSpec {
   };
   provider: "github" | "gitlab" | "direct-manifest" | "user-prepared";
   repository: string;
+  reviewed_package_choices_v2?: ReviewedPackageChoicesV2 | null;
   rolling_tag: string | null;
   /**
    * GeneratedCache3: select a checked TAR.XZ player archive on the declared Mac routes.
@@ -2891,6 +2892,17 @@ export interface DirectReleaseSpec {
   url: string;
   version: string;
   [k: string]: unknown;
+}
+/**
+ * Reviewed same-target Windows ZIP families. The GitHub tag commit fills the
+ * seven-hex filename slot between the numeric release and the chosen suffix.
+ */
+export interface ReviewedPackageChoicesV2 {
+  choices: {
+    [k: string]: string;
+  };
+  prefix: string;
+  repository_id: number;
 }
 export interface UserPreparedRuntimeSpec {
   archive_name: string;
@@ -3048,6 +3060,11 @@ export interface PortSourceContract {
   id: string;
   immutable_review_url: string;
   live_review_url: string | null;
+  /**
+   * Required ROM identity for the selected upstream game and exact artifact.
+   * This digests the padded, normalized N64 bytes the runtime checks.
+   */
+  n64_recomp_inputs_v1?: N64RecompOriginalInput[];
   port_id: string;
   profile_id: string;
   /**
@@ -3060,9 +3077,20 @@ export interface PortSourceContract {
   supported_variant_ids: string[];
   tombstones: string[];
   validator_contract_id: string | null;
+  /**
+   * Upstream enumerates recognizable variants for an exact release. A
+   * missing variant cannot reject setup. Historical lists keep their policy.
+   */
+  variant_list_recognition_only?: boolean;
 }
 export interface SourceContractApplicability {
   artifact_sha256: string | null;
+  upstream_ref: string;
+}
+export interface N64RecompOriginalInput {
+  artifact_sha256: string;
+  game_id: string;
+  rom_xxh3_64: string;
   upstream_ref: string;
 }
 export interface CatalogEvidence {
@@ -4197,6 +4225,7 @@ export interface SourceDiscoveryIssue {
  * Exact registered-input review for the first managed installation.
  */
 export interface GameInstallPlan {
+  package_choice?: string | null;
   plan: InstallPlan;
   plan_sha256: string;
   /**

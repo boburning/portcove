@@ -30,6 +30,7 @@ import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-window
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -114,9 +115,10 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
-    | "technically-computers";
+    | "technically-computers"
+    | "technically-computers-input-files";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
-  n64_recomp_persistence_v1?: true;
+  n64_recomp_persistence_v1?: true | "config-directory" | "technical-settings";
   /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */
@@ -131,6 +133,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   rsdkv4_portable_data_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
+  /** Reviewed OpenXW and OpenXvT package selectors and local config path. */
+  openx_portable_v1?: true;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -431,7 +435,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
   const inherit = record.listing_inherit_asset_hints;
   if (inherit === undefined) return authored;
   const listing = record.listing;
-  const integration = projectOpenMohaaPortable(record).integration;
+  const integration = projectOpenXPortable(projectOpenMohaaPortable(record)).integration;
   const release = integration?.release;
   const invalid = () =>
     new Error(
@@ -737,7 +741,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
   const integration = projectExternalRegistration(
-    projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
+    projectOpenXPortable(
+      projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
+    ),
   ).integration;
   if (integration !== undefined) {
     if (
@@ -850,7 +856,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(
     projectRazeWindowsProfile(
-      projectOpenGoalSetup(projectNativeManagedProfile(projectAlephOnePinnedWindows(input))),
+      projectOpenGoalSetup(
+        projectNativeManagedProfile(projectAlephOnePinnedWindows(projectOpenXPortable(input))),
+      ),
     ),
   );
   const record = projectSettingsQualification(
@@ -922,6 +930,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listings = records
     .map(projectRouteFacts)
     .map(projectOpenMohaaPortable)
+    .map(projectOpenXPortable)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);

@@ -12,6 +12,7 @@ import {
 import { portDefinition } from "../../test-fixtures";
 import { groupCatalog } from "./original-game";
 import { VirtualCollectionRows } from "./VirtualCollectionRows";
+import { observeCollectionLayoutReady } from "../../../scripts/browser-readiness.mts";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -131,6 +132,46 @@ const card = (index: number) =>
   host.querySelector<HTMLElement>(`[data-detail-return-group="port:game-${index}"]`);
 const details = (index: number) =>
   card(index)?.querySelector<HTMLButtonElement>("button:last-child");
+
+it.each([false, true])(
+  "finishes overlapping resizes without stealing newer focus: %s",
+  async (outsideFocus) => {
+    await render();
+    expect(await mountDestination({ portId: "game-1200" })).toBe(true);
+    await act(async () => details(1200)!.focus({ preventScroll: true }));
+    await frames();
+    const collection = host.querySelector<HTMLElement>("[data-virtual-collection]")!;
+    const outside = host.querySelector<HTMLButtonElement>("#before-collection")!;
+    await act(async () => {
+      host.style.width = "720px";
+      window.dispatchEvent(new Event("resize"));
+      expect(collection.dataset.collectionLayoutPending).toBe("true");
+    });
+    await act(async () => {
+      host.style.width = "640px";
+      window.dispatchEvent(new Event("resize"));
+      expect(collection.dataset.collectionLayoutPending).toBe("true");
+      if (outsideFocus) outside.focus({ preventScroll: true });
+    });
+    await expect
+      .poll(async () => {
+        await frames();
+        return observeCollectionLayoutReady();
+      })
+      .toBe(true);
+    expect(Number(collection.dataset.collectionLayoutWidth)).toBe(
+      collection.getBoundingClientRect().width,
+    );
+    expect(document.activeElement).toBe(outsideFocus ? outside : details(1200));
+    const settledScroll = workspace.scrollTop;
+    for (let frame = 0; frame < 3; frame++) {
+      await frames();
+      expect(observeCollectionLayoutReady()).toBe(true);
+      expect(workspace.scrollTop).toBe(settledScroll);
+      expect(document.activeElement).toBe(outsideFocus ? outside : details(1200));
+    }
+  },
+);
 
 it.each(["covers", "rows"] as const)(
   "bounds mounted %s rows and mounts exact deep destinations",

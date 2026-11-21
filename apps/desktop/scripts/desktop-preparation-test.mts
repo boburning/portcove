@@ -1036,7 +1036,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} ${installed.length === 1 ? "port" : "ports"} in your library`,
+  );
 }
 
 export interface LibraryFooterKeyboardPoint {

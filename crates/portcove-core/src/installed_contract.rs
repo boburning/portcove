@@ -83,16 +83,29 @@ pub(crate) struct InstalledContract {
     admission: Option<DefinitionSelectionIdentity>,
 }
 
-/// Keep newer native relative-source contracts out of unrelated legacy
-/// captures. Older readers enforce their file-set bounds on the entire retained
-/// catalog, even when the selected port does not use those originals.
+/// Keep unrelated source contracts with newer reader requirements out of
+/// legacy captures. Older readers decode the whole retained source graph before
+/// selecting the port, and the selected port can still use a shared profile.
 fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::CatalogDocument {
     let mut document = catalog.authoritative_document();
     let excluded_ports = document
         .ports
         .iter()
-        .filter(|port| port.id != selected && crate::preparation::source::native_relative(port))
-        .map(|port| port.id.clone())
+        .filter(|port| crate::preparation::source::native_relative(port))
+        .map(|port| &port.id)
+        .chain(
+            document
+                .source_catalog
+                .iter()
+                .flat_map(|sources| &sources.contracts)
+                .filter(|contract| {
+                    contract.variant_list_recognition_only
+                        || !contract.n64_recomp_inputs_v1.is_empty()
+                })
+                .map(|contract| &contract.port_id),
+        )
+        .filter(|port_id| port_id.as_str() != selected)
+        .cloned()
         .collect::<std::collections::BTreeSet<_>>();
     if excluded_ports.is_empty() {
         return document;
@@ -1148,6 +1161,61 @@ mod tests {
         assert_eq!(
             serde_json::to_value(own.source_profile(newer_profile).unwrap()).unwrap(),
             serde_json::to_value(catalog.source_profile(newer_profile).unwrap()).unwrap(),
+        );
+    }
+
+    #[test]
+    fn unrelated_legacy_capture_keeps_shared_identity_without_optional_recognition() {
+        let baseline = Catalog::embedded().unwrap();
+        let optional_port = "zelda64-recomp";
+        let legacy_port = "2ship2harkinian";
+        let mut document = baseline.authoritative_document();
+        let contract = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| {
+                contract.port_id == optional_port && contract.role == crate::PortSourceRole::Game
+            })
+            .unwrap();
+        contract.variant_list_recognition_only = true;
+        contract.applicability = vec![crate::SourceContractApplicability {
+            upstream_ref: "fixture-v1".into(),
+            artifact_sha256: Some("a".repeat(64)),
+        }];
+        let catalog = Catalog::from_document(document).unwrap();
+
+        let captured = InstalledContract::capture(&catalog, legacy_port).unwrap();
+        assert!(
+            !captured
+                .catalog_json
+                .contains("variant_list_recognition_only")
+        );
+        let retained = captured.catalog(legacy_port).unwrap();
+        assert!(retained.port(optional_port).is_err());
+        assert_eq!(
+            serde_json::to_value(retained.port(legacy_port).unwrap()).unwrap(),
+            serde_json::to_value(baseline.port(legacy_port).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            serde_json::to_value(retained.source_profile("majoras-mask").unwrap()).unwrap(),
+            serde_json::to_value(baseline.source_profile("majoras-mask").unwrap()).unwrap(),
+        );
+        let selected = InstalledContract::capture(&catalog, optional_port)
+            .unwrap()
+            .catalog(optional_port)
+            .unwrap();
+        assert!(
+            selected
+                .source_catalog()
+                .unwrap()
+                .contracts
+                .iter()
+                .any(|contract| {
+                    contract.port_id == optional_port && contract.variant_list_recognition_only
+                })
         );
     }
 

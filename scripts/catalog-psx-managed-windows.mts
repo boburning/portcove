@@ -116,8 +116,26 @@ const technicallyComputersAssets = {
   "macos-aarch64": "macos-arm64",
 } as const;
 const technicallyComputersPlatforms = Object.entries(technicallyComputersAssets);
+const technicallyComputersInputFiles = new Map([
+  [
+    "bomberman-party-edition-recompiled",
+    {
+      repository: "TechnicallyComputers/BombermanPartyEditionRecomp",
+      sourceProfile: "bomberman-party-edition-psx",
+      rawDiscSet: false,
+    },
+  ],
+  [
+    "final-fantasy-vii-recompiled",
+    {
+      repository: "TechnicallyComputers/Final-Fantasy-VII",
+      sourceProfile: "final-fantasy-vii-psx",
+      rawDiscSet: true,
+    },
+  ],
+]);
 
-function technicallyComputersRoute(record: AuthoredPort) {
+function technicallyComputersRoute(record: AuthoredPort, inputFiles: boolean) {
   const { integration } = record;
   const release = integration?.release;
   const platforms = integration?.platforms;
@@ -158,14 +176,32 @@ function technicallyComputersRoute(record: AuthoredPort) {
     })
   )
     return undefined;
+  const reviewed = technicallyComputersInputFiles.get(record.listing.id);
+  if (inputFiles !== Boolean(reviewed)) return undefined;
   if (
-    ["bios_source_profile", ...multidiscFields].some((field) =>
-      Object.hasOwn(integration, field),
-    ) ||
+    reviewed &&
+    (release.repository !== reviewed.repository ||
+      integration.source_profile !== reviewed.sourceProfile ||
+      integration.runtime_subdirectory !== runtimeLayout.runtime_subdirectory ||
+      !Array.isArray(integration.runtime_mutable_paths))
+  )
+    return undefined;
+  if (
+    reviewed?.rawDiscSet
+      ? integration.runtime_source_filename !== "runtime-discs" ||
+        integration.runtime_source_materialization !== "psx-raw-set" ||
+        Object.hasOwn(integration, "launch_disc_choice")
+      : multidiscFields.some((field) => Object.hasOwn(integration, field))
+  )
+    return undefined;
+  if (
+    Object.hasOwn(integration, "bios_source_profile") ||
     Object.keys(integration).some(
       (field) =>
         field !== "persistent_paths" &&
         field !== "runtime_subdirectory" &&
+        !(inputFiles && field === "runtime_mutable_paths") &&
+        !(reviewed?.rawDiscSet && field === "launch_arguments") &&
         !explicitFields.has(field),
     )
   )
@@ -173,26 +209,32 @@ function technicallyComputersRoute(record: AuthoredPort) {
   return integration;
 }
 
-function projectTechnicallyComputers(record: AuthoredPort): AuthoredPort {
-  const explicit = technicallyComputersRoute(record);
+function projectTechnicallyComputers(record: AuthoredPort, inputFiles: boolean): AuthoredPort {
+  const explicit = technicallyComputersRoute(record, inputFiles);
   if (!explicit)
     throw new PsxLayoutMismatch(
-      "TechnicallyComputers PSX persistence requires its reviewed Windows and macOS kit route.",
+      inputFiles
+        ? "TechnicallyComputers PSX input files require the exact reviewed Bomberman Party Edition or Final Fantasy VII kit route."
+        : "TechnicallyComputers PSX persistence requires its reviewed Windows and macOS kit route.",
     );
   if (
     Object.hasOwn(explicit, "persistent_paths") ||
-    Object.hasOwn(explicit, "runtime_subdirectory")
+    (!inputFiles && Object.hasOwn(explicit, "runtime_subdirectory"))
   )
     throw new PsxLayoutMismatch(
-      "TechnicallyComputers PSX persistence already owns the runtime root and persistent paths.",
+      inputFiles
+        ? "TechnicallyComputers PSX input files already own the persistent paths."
+        : "TechnicallyComputers PSX persistence already owns the runtime root and persistent paths.",
     );
   const integration: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(explicit)) {
-    if (field === "presentation") {
+    if (!inputFiles && field === "presentation") {
       integration.persistent_paths = [...technicallyComputersPaths];
       integration.runtime_subdirectory = runtimeLayout.runtime_subdirectory;
     }
     integration[field] = value;
+    if (inputFiles && field === "executable_hints")
+      integration.persistent_paths = [...technicallyComputersPaths, "input.ini", "keybinds.ini"];
   }
   return { ...record, integration };
 }
@@ -253,15 +295,19 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const { integration } = record;
   if (record.psx_managed_windows_v1 !== undefined || integration?.adapter !== "psx-recomp-managed")
     return record;
-  if (technicallyComputersRoute(record)) {
-    const { persistent_paths: _paths, runtime_subdirectory: _root, ...explicit } = integration;
+  const inputFiles = technicallyComputersRoute(record, true) !== undefined;
+  if (inputFiles || technicallyComputersRoute(record, false)) {
+    const { persistent_paths: _paths, ...explicit } = integration;
+    if (!inputFiles) delete explicit.runtime_subdirectory;
     const proposal: AuthoredPort = {
       ...record,
-      psx_managed_windows_v1: "technically-computers",
+      psx_managed_windows_v1: inputFiles
+        ? "technically-computers-input-files"
+        : "technically-computers",
       integration: explicit,
     };
     if (
-      JSON.stringify(projectTechnicallyComputers(proposal).integration) ===
+      JSON.stringify(projectTechnicallyComputers(proposal, inputFiles).integration) ===
       JSON.stringify(integration)
     )
       return proposal;
@@ -295,7 +341,8 @@ export function compactPsxManagedWindows(record: AuthoredPort): AuthoredPort {
 export function projectPsxManagedWindows(record: AuthoredPort): AuthoredPort {
   const layout = record.psx_managed_windows_v1;
   if (layout === undefined) return record;
-  if (layout === "technically-computers") return projectTechnicallyComputers(record);
+  if (layout === "technically-computers" || layout === "technically-computers-input-files")
+    return projectTechnicallyComputers(record, layout === "technically-computers-input-files");
   const bundledOpenBios = layout === "bundled-openbios" || layout === "split-mods-openbios";
   const overlayDirectoryOnly = layout === "split-mods-overlay-directory";
   const withoutCrashLog = layout === "split-mods-no-crash-log";

@@ -11748,6 +11748,7 @@
           }
         ]
       },
+      "variant_label": "Prebuilt player",
       "platforms": [
         "windows-x86-64"
       ]
@@ -11845,7 +11846,8 @@
             ]
           }
         ]
-      }
+      },
+      "variant_label": "Build from setup kit"
     },
     {
       "id": "alexbeav-medievil-recomp",
@@ -24074,12 +24076,6 @@
       "issue_number": 6126,
       "listed_at": "2026-11-14",
       "original_game_title": "Celeste 64: Fragments of the Mountain",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "release_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
       "download_asset_hints": {
@@ -24111,7 +24107,7 @@
           },
           {
             "title": "Extract the complete folder and start Celeste 64",
-            "instruction": "Run Celeste64.exe on Windows or Celeste64 on Linux and Mac, with its containing folder as the start folder. Keep Content/ and the adjacent libraries with the player. The official package includes the game and needs no separate Celeste installation."
+            "instruction": "Keep Content/ and the adjacent libraries with the player. The official package includes the game. In Portcove, select Celeste64.exe on Windows or Celeste64 on Linux and Mac. Choose its containing folder as the working directory. Keep any arguments you already use. Review the registration, then choose Play."
           }
         ],
         "references": [
@@ -24129,7 +24125,13 @@
           "https://github.com/EXOK/Celeste64"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "celosia-henrykun55-shadow-of-the-colossus",
@@ -24228,7 +24230,7 @@
           }
         ],
         "warnings": [
-          "The existing managed-artifact integrity hold remains unresolved. No publisher-authenticated expected digest, curated trust approval or native/gameplay acceptance is established by these instructions.",
+          "This guide covers a copy you manage yourself. On Windows, if Chameleon Twist JP Recompiled appears in the game’s available ports, choose it for the verified v0.1 package. Both routes need the supported Japanese original.",
           "Keep that actual location and originals recoverable before replacing anything. Registration and Play stay separate; Portcove does not adopt, back up, roll back or delete these external files."
         ],
         "help_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
@@ -24239,7 +24241,7 @@
           }
         ]
       },
-      "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced.",
+      "download_block_reason": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
       "original_game": {
         "format_version": 1,
         "id": "chameleon-twist",
@@ -43463,13 +43465,8 @@
       "project_url": "https://github.com/in0finite/SanAndreasUnity",
       "issue_number": 6134,
       "listed_at": "2026-11-15",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
-      "download_block_reason": "Portcove downloads are paused while the cover artwork bundled in the Windows, Linux and Android packages is reviewed. Use these instructions for copies you already trust and are permitted to use.",
       "manual_setup": {
         "help_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
         "steps": [
@@ -43479,11 +43476,12 @@
           },
           {
             "title": "Start an existing Windows or Linux copy",
-            "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data folder together in a writable directory. Launch SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64 from that directory. If the Linux ZIP extracted with no permissions, restore owner read and directory access on that private copy and make SanAndreasUnity.x86_64 executable."
+            "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data together in a writable folder. On Linux, the v4.0 ZIP may need owner read permission on files, owner access on directories and execute permission on SanAndreasUnity.x86_64. In Portcove, select SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64. Choose that folder as the working directory, review the registration and select Play."
           }
         ],
         "warnings": [
-          "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy."
+          "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy.",
+          "The upstream menu and app icons use Grand Theft Auto: San Andreas cover art. You need your own installed PC game for its game data."
         ],
         "references": [
           {
@@ -43504,7 +43502,24 @@
           "https://github.com/in0finite/SanAndreasUnity"
         ],
         "source_editions": []
-      }
+      },
+      "release_url": "https://github.com/in0finite/SanAndreasUnity/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "SanAndreasUnity-",
+          "-windows.zip"
+        ],
+        "linux-x86-64": [
+          "SanAndreasUnity-",
+          "-linux.zip"
+        ]
+      },
+      "download_block_reason": "Portcove cannot yet limit Download to the reviewed v4.0 desktop packages. Earlier releases and the Android debug package need separate checks. You can get v4.0 from upstream and register your own prepared Windows or Linux copy.",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -44011,7 +44026,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. The archived project explicitly declines to license its code. Downloads can resume after review identifies the re3 project’s own GTA III package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted re3 copy with its original PC game files.",
       "artwork": {
         "game_id": 730,
         "cover_id": 120932,
@@ -44062,7 +44077,7 @@
         "windows-x86-64",
         "linux-x86-64"
       ],
-      "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+      "download_block_reason": "Downloads are paused. The archived mirror carries both Vice City and GTA III. The archived project explicitly declines to license its code. Downloads can resume after review identifies the reVC project’s own Vice City package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted reVC copy with its original PC game files.",
       "artwork": {
         "game_id": 733,
         "cover_id": 120935,
@@ -52460,6 +52475,65 @@
           }
         ]
       }
+    },
+    {
+      "id": "linewars-ii-sdl3",
+      "project_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL",
+      "name": "LineWars II SDL3",
+      "summary": "Fly combat missions in LineWars II using the freeware SDL3 port for Windows and Linux.",
+      "issue_number": 6090,
+      "listed_at": "2026-11-20",
+      "original_game_title": "LineWars II",
+      "availability": "packages",
+      "release_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/releases",
+      "setup_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/tree/v1.0.0",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "LineWars2-SDL3-",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "LineWars2-SDL3-",
+          "-linux-x86_64.tar.gz"
+        ]
+      },
+      "original_game": {
+        "format_version": 1,
+        "id": "linewars-ii",
+        "evidence_urls": [
+          "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/NOTICE.md",
+          "https://github.com/fredangstadt-lang/LineWarsII-SDL"
+        ],
+        "source_editions": []
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/README.md",
+        "steps": [
+          {
+            "title": "Extract the publisher package",
+            "instruction": "Choose the Windows x64 ZIP or the Linux x64 archive. The Linux build requires glibc 2.39 or later. Keep game.dat and the matching SDL3 library in the LineWars2 folder with the player."
+          },
+          {
+            "title": "Register the extracted player",
+            "instruction": "In Portcove, select linewars2.exe on Windows or linewars2 on Linux. Use the writable LineWars2 folder as the working directory. Review the registration, then select Play."
+          }
+        ],
+        "warnings": [
+          "The original game and its data are supplied with permission for freeware use. Keep the bundled notices. The player includes the AT&T PC 6300 and IBM VGA bitmap fonts."
+        ],
+        "references": [
+          {
+            "title": "Keep your settings",
+            "instruction": "The player stores settings.dat beside its executable. When replacing a copy, preserve that file, the complete working folder and the separate LW2/LineWars2 preferences folder."
+          }
+        ]
+      },
+      "download_block_reason": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "linkssy2-darkwatchdarkeredition",
@@ -67998,7 +68072,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -68019,12 +68093,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-blue",
@@ -68043,7 +68111,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-crystal-gen1recomp",
@@ -68219,7 +68293,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -68240,12 +68314,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-emerald",
@@ -68264,7 +68332,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-firered-fireredleafgreenrecomp",
@@ -68382,7 +68456,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -68403,12 +68477,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-firered",
@@ -68427,7 +68495,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-gold-gen1recomp",
@@ -68606,7 +68680,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -68627,12 +68701,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-leafgreen",
@@ -68651,7 +68719,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-legends-z-a-pokez-arecomp",
@@ -68945,7 +69019,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -68966,12 +69040,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-ruby",
@@ -68990,7 +69058,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-ruby-rubysapphirerecomp",
@@ -69101,7 +69175,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -69122,12 +69196,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-sapphire",
@@ -69146,7 +69214,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-sapphire-rubysapphirerecomp",
@@ -69445,7 +69519,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
           },
           {
             "title": "Add the game and manage updates",
@@ -69466,12 +69540,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-yellow",
@@ -69490,7 +69558,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-yellow-recomp",
@@ -72810,7 +72884,7 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+      "download_block_reason": "Downloads are paused. The Windows package includes a native engine linked with Redux code. The project’s distribution notes say the combined engine still needs its native-engine terms and source obligations resolved. A clarified release or a package without that engine can be reviewed. You can register a permitted existing launcher and keep your own ROM and data folder.",
       "artwork": {
         "game_id": 2899,
         "cover_id": 320119,
@@ -105148,6 +105222,10 @@
             "instruction": "On Debian-based Linux, install the upstream DEB for your CPU through your package manager, then launch /usr/games/gzdoom. Upstream publishes both amd64 and arm64 packages. On Intel and Apple Silicon Macs, extract the universal macOS ZIP and open the complete GZDoom.app through macOS. Use your operating system or upstream to update these players."
           },
           {
+            "title": "Play from an installation you maintain",
+            "instruction": "On x64 Linux, select /opt/gzdoom/gzdoom in Portcove. On an Intel or Apple Silicon Mac, select GZDoom.app/Contents/MacOS/gzdoom inside the complete app. Choose the folder containing the executable as the working directory. Review any launch arguments you use, then choose Play. You maintain this installation and its game files."
+          },
+          {
             "title": "Choose your original game",
             "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
           }
@@ -105167,6 +105245,14 @@
         "linux-x86-64": [
           "gzdoom_",
           "_amd64.deb"
+        ],
+        "macos-x86-64": [
+          "gzdoom-",
+          "-macos.zip"
+        ],
+        "macos-aarch64": [
+          "gzdoom-",
+          "-macos.zip"
         ]
       }
     },
