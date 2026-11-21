@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: https://images.gamebanana.com https://ccdn.thunderstore.io; style-src 'self' 'unsafe-inline'"
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: https://images.gamebanana.com https://ccdn.thunderstore.io https://raw.githubusercontent.com https://jakmods.dev; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

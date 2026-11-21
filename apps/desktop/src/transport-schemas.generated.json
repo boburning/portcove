@@ -21486,6 +21486,219 @@
     "title": "InstallPlan",
     "type": "object"
   },
+  "jakmods_catalog": {
+    "$defs": {
+      "JakModsBuild": {
+        "properties": {
+          "downloads": {
+            "description": "The upstream download count for this release asset alone.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          }
+        },
+        "required": [
+          "platform",
+          "downloads"
+        ],
+        "type": "object"
+      },
+      "JakModsBuildStatus": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsProject": {
+        "properties": {
+          "artwork_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "build_status": {
+            "$ref": "#/$defs/JakModsBuildStatus"
+          },
+          "external_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/JakModsProjectKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/JakModsRelease"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_games": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "website_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "artwork_url",
+          "website_url",
+          "external_url",
+          "supported_games",
+          "kind",
+          "build_status",
+          "releases"
+        ],
+        "type": "object"
+      },
+      "JakModsProjectKind": {
+        "enum": [
+          "open_goal_build",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsRelease": {
+        "properties": {
+          "builds": {
+            "items": {
+              "$ref": "#/$defs/JakModsBuild"
+            },
+            "type": "array"
+          },
+          "published_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "published_at",
+          "builds"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "complete": {
+        "type": "boolean"
+      },
+      "feed_url": {
+        "type": "string"
+      },
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "game": {
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "projects": {
+        "items": {
+          "$ref": "#/$defs/JakModsProject"
+        },
+        "type": "array"
+      },
+      "setup_url": {
+        "type": "string"
+      },
+      "source_url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "game",
+      "platform",
+      "projects",
+      "complete",
+      "observed_at",
+      "freshness",
+      "source_url",
+      "feed_url",
+      "setup_url"
+    ],
+    "title": "JakModsCatalog",
+    "type": "object"
+  },
   "launch_request": {
     "$defs": {
       "DotnetFramework": {
