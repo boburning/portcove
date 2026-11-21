@@ -383,8 +383,10 @@ export default interface Resources {
       "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
     },
     "media": {
+      "availableScreenshots": "Available screenshots",
       "captionUnavailable": "<caption/> · Image unavailable",
       "choose": "Choose a screenshot",
+      "chooseRelease": "Choose an original release",
       "creditOriginal": "Original release · <edition/> · <credit/>",
       "creditPort": "Port image · <credit/>",
       "enlarge": "Enlarge screenshot {{number, number}}: {{caption}}",
@@ -399,6 +401,7 @@ export default interface Resources {
       "previous": "Previous",
       "retry": "Retry image",
       "retryScreenshot": "Retry screenshot {{number, number}}",
+      "screenshotSource": "Screenshot source",
       "screenshots": "Screenshots",
       "show": "Show screenshot {{number, number}}: {{caption}}",
       "source": "Source",

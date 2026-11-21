@@ -190,7 +190,13 @@ history and relaunches that installation; it does not load a save automatically.
 Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
 851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
 filmstrip with an exposed current selection; per-slot attribution,
-errors and lightbox focus remain with the media owner. Forced colors suppress
+errors and lightbox focus remain with the media owner. **Screenshot source**
+offers original releases with reviewed images. The gallery loads these images
+when the player chooses a release. That choice applies only to this gallery.
+Original screenshots show the release title in the thumbnail and viewer.
+When a refresh changes the active screenshot's bytes or admitted subject, the viewer
+closes and focus returns to a surviving control.
+Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
@@ -380,7 +386,13 @@ Display game release streams as **Stable**, **Preview** and **Rolling**. Use the
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
-- External-installation folder choices and open reviews belong to the selected game, library generation, and registration; a context change discards them, and late or superseded picker results cannot open a new review.
+- External launch drafts retain the program, start folder and arguments when the
+  player leaves and returns to the same details in the current library workspace.
+  Replacing the library or launch target retires the old draft. Returning to an
+  editor requires a fresh review. Ignore late picker results from a retired context.
+- Keep a confirmed external registration result in the workspace after the player
+  leaves the editor. Offer **Open game** only after a current library read confirms
+  the same registration. An older launch action stays unavailable while that read is pending.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
 
@@ -519,16 +531,19 @@ Use **Activity** for the combined workspace, opening to **Tasks** with
 separate **Game updates** and **History** sections. An available or saved update opens the existing
 fresh Core review directly from its row.
 Play is independent and uses the current version when Core permits launch.
-Reviewing an immediate update defaults to installation; keeping it for later
-requires a new download-only plan and confirmation. Neither choice changes the
-saved update policy. A successful launch activity says **Process exited**, with
+Reviewing an immediate update starts with the installation option. If Core supplies
+a separate archive digest for the release, files and size already displayed,
+**Download archive for later** starts that reviewed download. Without a matching
+digest, Portcove fetches an archive plan for review first. The saved update policy
+applies to future runs. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
 For an available game update, **Update now** and **Download for later** select
 the immediate action. A saved policy governs future updates. Review the release
-and its consequences for the selected action. If the player switches actions,
-get a new plan before applying it.
+and its consequences for the selected action. When switching actions, use a digest
+Core provided for that action and the exact displayed candidate. Otherwise, fetch
+a new plan before confirming.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
@@ -1213,13 +1228,14 @@ global events cannot assign that identity. Exact terminal Activity readback reti
 late progress, even when it precedes the first channel event.
 
 Game updates expose direct Update now and Download for later entry actions;
-Prepare for later remains an advanced choice. Each action requests the existing
-Core plan before confirmation or execution. Compact mode and future update policy
-do not choose the current action. Initial controls remain mounted while review
-hides them, so cancellation restores the actual initiating control when available;
-a connected contextual region is the fallback. Changing disposition inside review
-re-plans before confirmation; a downloaded update remains
-separate from the current playable installation. Without an observed candidate,
+Prepare for later remains an advanced choice. An entry action requests the Core
+plan before confirmation. Inside review, Core's matching archive digest enables an
+explicit archive download from the release and file details already displayed.
+Core revalidates that digest before downloading. Compact mode and saved policy
+preserve the player's current choice. Initial controls remain mounted while review
+hides them, so cancellation restores the initiating control when available. A
+connected contextual region is the fallback. A downloaded update remains separate
+from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
 error banner.
