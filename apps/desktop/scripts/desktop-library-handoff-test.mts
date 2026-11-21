@@ -70,7 +70,46 @@ export async function prepareLibraryRecoveryBundleFixture({
   await writeFile(save, "owned save before backup", { flag: "wx" });
   const backup = transportValue("backup", command(["backup", "create", portId]));
   const originalBackup = await fileIdentity(path.join(backup.path, "data", path.basename(save)));
-  return { source: library, portId, active, save, backup, originalBackup };
+  const originalRelative = path.join("source-inbox", "star-fox-64", "owned-recovery.z64");
+  const toolRelative = path.join("toolchains", "owned-recovery-fixture", "tool-data.bin");
+  for (const relative of [originalRelative, toolRelative])
+    await mkdir(path.dirname(path.join(library, relative)), { recursive: true });
+  // Inert fixture input records the real storage identity through the production registry.
+  await writeFile(
+    path.join(library, originalRelative),
+    Buffer.from([0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4]),
+    { flag: "wx" },
+  );
+  await writeFile(path.join(library, toolRelative), "Owned preparation fixture data", {
+    flag: "wx",
+  });
+  const registeredOriginal = transportValue(
+    "source",
+    command(["source", "add", "star-fox-64", path.join(library, originalRelative)]),
+  );
+  const carried = [
+    {
+      kind: "source_inbox",
+      relative: originalRelative,
+      source: await fileIdentity(path.join(library, originalRelative)),
+    },
+    {
+      kind: "toolchains",
+      relative: toolRelative,
+      source: await fileIdentity(path.join(library, toolRelative)),
+    },
+  ];
+  return {
+    source: library,
+    portId,
+    active,
+    save,
+    backup,
+    originalBackup,
+    registeredOriginal,
+    originalRelative,
+    carried,
+  };
 }
 
 export type LibraryRecoveryBundleFixture = Awaited<
@@ -95,7 +134,17 @@ export async function libraryRecoveryBundleScenario({
     const bundle = path.join(output, "verified-bundle");
     const corrupt = path.join(output, "tampered-bundle");
     const destination = path.join(output, "restored-library");
-    const { source, portId, active, save, backup, originalBackup } = required(fixture);
+    const {
+      source,
+      portId,
+      active,
+      save,
+      backup,
+      originalBackup,
+      registeredOriginal,
+      originalRelative,
+      carried,
+    } = required(fixture);
     const metadataLeaf = "portcove-recovery-bundle.json";
     const saveRelative = path.relative(await realpath(source), await realpath(save));
     assert.ok(saveRelative && !path.isAbsolute(saveRelative) && !saveRelative.startsWith(".."));
@@ -206,6 +255,8 @@ export async function libraryRecoveryBundleScenario({
       "Installed game versions",
       "Library saves and settings",
       "Game-save backups",
+      "Imported game files",
+      "Preparation tools",
       "Original game files and BIOS outside the library",
       "Sign-in credentials",
     ])
@@ -220,6 +271,15 @@ export async function libraryRecoveryBundleScenario({
     const manifestIdentity = await fileIdentity(path.join(bundle, metadataLeaf));
     const captured = await fileIdentity(save);
     assert.equal((await fileIdentity(bundleSave(bundle))).sha256, captured.sha256);
+    const publishedContent = await Promise.all(
+      carried.map(async (entry) => {
+        const coverage = required(verified.coverage.find(({ kind }) => kind === entry.kind));
+        assert.ok(coverage.files > 0 && coverage.bytes > 0, entry.kind);
+        const published = await fileIdentity(path.join(bundle, "content", entry.relative));
+        assert.equal(published.sha256, entry.source.sha256, entry.relative);
+        return { ...entry, published };
+      }),
+    );
     await close();
 
     // The app has no open handle to this separate copy after inspection returns.
@@ -242,6 +302,18 @@ export async function libraryRecoveryBundleScenario({
     await field("Recovery bundle folder", bundle);
     await controls.click(controls.button("Verify bundle"));
     await waitText("Bundle verified");
+    const occupied = path.join(output, "occupied-recovery-destination");
+    await mkdir(occupied);
+    const occupiedFile = path.join(occupied, "keep.txt");
+    await writeFile(occupiedFile, "Keep existing destination data", { flag: "wx" });
+    const occupiedIdentity = await fileIdentity(occupiedFile);
+    await field("Restore destination", occupied);
+    await controls.click(controls.button("Review restore"));
+    await waitText("import requires a new or empty library; existing data was retained");
+    await refuses("Restore library");
+    assert.deepEqual(await fileIdentity(occupiedFile), occupiedIdentity);
+    assert.equal((await identity(source)).id, initial.id);
+
     await field("Restore destination", destination);
     await controls.click(controls.button("Review restore"));
     await waitText("Review the restore destination");
@@ -269,6 +341,26 @@ export async function libraryRecoveryBundleScenario({
     assert.equal(
       (await fileIdentity(path.join(restoredBackup.path, "data", path.basename(save)))).sha256,
       originalBackup.sha256,
+    );
+    const restoredOriginal = required(
+      transportValues("source", command(["source", "list"], destination)).find(
+        ({ profile_id }) => profile_id === registeredOriginal.profile_id,
+      ),
+    );
+    assert.equal(
+      await realpath(restoredOriginal.path),
+      await realpath(path.join(destination, originalRelative)),
+    );
+    assert.equal(restoredOriginal.sha256, registeredOriginal.sha256);
+    assert.equal(restoredOriginal.storage_sha256, registeredOriginal.storage_sha256);
+    const restoredContent = await Promise.all(
+      publishedContent.map(async (entry) => {
+        const restored = await fileIdentity(path.join(destination, entry.relative));
+        assert.equal(restored.sha256, entry.source.sha256, entry.relative);
+        assert.deepEqual(await fileIdentity(entry.source.path), entry.source);
+        assert.deepEqual(await fileIdentity(entry.published.path), entry.published);
+        return { ...entry, restored };
+      }),
     );
     assert.deepEqual(await fileIdentity(path.join(bundle, metadataLeaf)), manifestIdentity);
     assert.deepEqual(await fileIdentity(save), captured);
@@ -314,7 +406,15 @@ export async function libraryRecoveryBundleScenario({
           restored_save: restoredSave,
           restored_install_id: restoredActive.id,
           restored_backup_id: restoredBackup.id,
-          refusals: ["overlapping-destination", "source-changed-after-review", "tampered-copy"],
+          restored_original: restoredOriginal,
+          carried_content: restoredContent,
+          occupied_destination: occupiedIdentity,
+          refusals: [
+            "overlapping-destination",
+            "source-changed-after-review",
+            "tampered-copy",
+            "nonempty-restore-destination",
+          ],
         },
         null,
         2,
