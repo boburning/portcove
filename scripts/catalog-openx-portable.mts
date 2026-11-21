@@ -1,34 +1,51 @@
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { isRecord } from "./runtime-values.mts";
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
 
-const reviewed = new Map([
-  ["star-wars-x-wing-openxw", { player: "OpenXW", repositoryId: "1393268483" }],
-  [
-    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
-    { player: "OpenXvT", repositoryId: "1367490590" },
-  ],
-]);
 const windows = "windows-x86-64";
 const linux = "linux-x86-64";
 
+// Retained boolean recipes predate data-bound repository IDs. Preparation only
+// writes the repository-bound form.
+const historicalBooleanBindings = new Map([
+  ["star-wars-x-wing-openxw", { repository: "elyosh/OpenXW", id: "1393268483", player: "OpenXW" }],
+  [
+    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+    { repository: "elyosh/OpenXvT", id: "1367490590", player: "OpenXvT" },
+  ],
+]);
+
+function hasReviewedExecutable(layout: unknown, executable: string) {
+  return (
+    isRecord(layout) &&
+    Array.isArray(layout.executables) &&
+    layout.executables.includes(executable.toLowerCase())
+  );
+}
+
 function reviewedRoute(record: AuthoredPort) {
-  const { player, repositoryId } = reviewed.get(record.listing.id) ?? {};
   const { integration } = record;
   const release = integration?.release;
   const hints = integration?.executable_hints;
   const presentation = integration?.presentation;
   const layouts = integration?.reviewed_package_layouts;
-  const repository = record.upstream_lineage?.origin?.repository;
+  if (!record.upstream_lineage || integration?.adapter !== "native-portable") return undefined;
+  const { current } = assessUpstreamLineage(record);
+  const repository = current.repository;
+  const linuxHints = isRecord(hints) ? hints[linux] : undefined;
+  const player: unknown = Array.isArray(linuxHints) ? linuxHints[0] : undefined;
   if (
-    !player ||
-    integration?.adapter !== "native-portable" ||
+    typeof player !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(player) ||
     JSON.stringify(integration.channels) !== '["stable"]' ||
     JSON.stringify(integration.platforms) !== JSON.stringify([windows, linux]) ||
     integration.source_profile !== undefined ||
     repository?.host !== "github.com" ||
-    repository.id !== repositoryId ||
+    typeof repository.id !== "string" ||
+    !/^[1-9][0-9]*$/u.test(repository.id) ||
     !isRecord(release) ||
-    release.repository !== `elyosh/${player}` ||
+    typeof release.repository !== "string" ||
+    !/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/u.test(release.repository) ||
     record.listing.project_url !== `https://github.com/${release.repository}` ||
     Object.keys(release).some(
       (field) => !["repository", "asset_hints", "linux_tar_xz"].includes(field),
@@ -36,8 +53,8 @@ function reviewedRoute(record: AuthoredPort) {
     !isRecord(hints) ||
     JSON.stringify(hints) !== JSON.stringify({ [windows]: [`${player}.exe`], [linux]: [player] }) ||
     !isRecord(layouts) ||
-    !isRecord(layouts[windows]) ||
-    !isRecord(layouts[linux]) ||
+    !hasReviewedExecutable(layouts[windows], `${player}.exe`) ||
+    !hasReviewedExecutable(layouts[linux], player) ||
     !isRecord(presentation) ||
     presentation.installation_method !== "portable-package" ||
     !Array.isArray(presentation.source_requirements) ||
@@ -45,14 +62,29 @@ function reviewedRoute(record: AuthoredPort) {
     presentation.saves_and_settings !== "external-user-owned"
   )
     return undefined;
-  return { integration, release };
+  return { integration, release, repositoryId: repository.id, player };
 }
 
 export function projectOpenXPortable(record: AuthoredPort): AuthoredPort {
   if (record.openx_portable_v1 === undefined) return record;
   const route = reviewedRoute(record);
-  if (record.openx_portable_v1 !== true || !route)
-    throw new Error("OpenX portable facts require a reviewed OpenXW or OpenXvT GitHub route.");
+  if (!route)
+    throw new Error(
+      "Portable package facts require matching GitHub lineage, executable hints and reviewed layouts.",
+    );
+  const binding = record.openx_portable_v1;
+  if (binding === true) {
+    const historical = historicalBooleanBindings.get(record.listing.id);
+    if (
+      !historical ||
+      historical.id !== route.repositoryId ||
+      historical.repository !== route.release.repository ||
+      historical.player !== route.player
+    )
+      throw new Error("Historical portable package identity differs from its reviewed binding.");
+  } else if (binding !== route.repositoryId) {
+    throw new Error("Portable package repository ID differs from its reviewed binding.");
+  }
   if (
     Object.hasOwn(route.release, "asset_hints") ||
     Object.hasOwn(route.release, "linux_tar_xz") ||
@@ -89,7 +121,7 @@ export function compactOpenXPortable(record: AuthoredPort): AuthoredPort {
   const { asset_hints: _hints, linux_tar_xz: _tar, ...release } = route.release;
   const candidate: AuthoredPort = {
     ...record,
-    openx_portable_v1: true,
+    openx_portable_v1: route.repositoryId,
     integration: { ...integration, release },
   };
   return JSON.stringify(projectOpenXPortable(candidate).integration) ===
