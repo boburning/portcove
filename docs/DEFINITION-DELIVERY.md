@@ -34,8 +34,9 @@ For example, `port.release.linux_tar_xz` requires `native.linux-tar-xz`.
 A reader refuses unfamiliar required names and known operational uses that
 omit their feature. All operational fields still pass the complete typed
 entry and catalog projection checks. New operational behavior needs a new
-feature name and its validator. It can keep the adapter range when the
-feature itself is the reader gate.
+feature name and its validator. When the feature itself is the reader gate,
+the validator requires entry schema 3 and the declared feature while the
+adapter range can stay the same.
 
 An advisory object may contain up to 64 keys. Each key must have between 1
 and 128 UTF-8 bytes. The compact encoded object may occupy up to 16 KiB

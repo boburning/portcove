@@ -663,6 +663,16 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
         "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
     }]);
     inspect(&selected, &contract).unwrap();
+    selected["definition_schema"] = json!(3);
+    selected["required_features"] = json!([]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("n64.release-inputs-v1")
+    );
+    selected["required_features"] = json!(["n64.release-inputs-v1"]);
+    inspect(&selected, &contract).unwrap();
     let sibling = entry(&document, &contract, 1);
     assert!(
         inspect(&sibling, &contract)
