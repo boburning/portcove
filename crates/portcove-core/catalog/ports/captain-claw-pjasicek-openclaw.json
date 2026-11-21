@@ -16,7 +16,7 @@
     "project_url": "https://github.com/pjasicek/OpenClaw",
     "issue_number": 5913,
     "listed_at": "2026-11-15",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "source-only",
     "setup_url": "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
     "download_block_reason": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",

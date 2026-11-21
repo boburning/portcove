@@ -81,6 +81,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
         listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -144,6 +145,7 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
                 .media
                 .iter()
                 .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+            || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -305,6 +307,7 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -777,6 +780,7 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         })
     }
@@ -790,6 +794,7 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -1829,12 +1834,20 @@ impl Library {
         .collect()
     }
 
+    #[cfg(test)]
     pub(crate) fn store_update_snapshot(&self, check: &UpdateCheck) -> Result<UpdateSnapshot> {
+        Self::store_update_snapshot_from(&self.connection()?, check)
+    }
+
+    pub(crate) fn store_update_snapshot_from(
+        connection: &Connection,
+        check: &UpdateCheck,
+    ) -> Result<UpdateSnapshot> {
         let snapshot = UpdateSnapshot {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        self.connection()?.execute(
+        connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
              VALUES (?1, ?2, ?3)
              ON CONFLICT(port_id) DO UPDATE SET

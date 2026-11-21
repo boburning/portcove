@@ -502,6 +502,7 @@ export default interface Resources {
       "noticePublisherTrusted": "Publisher trusted.",
       "noticeUpdateApplied": "Catalog update applied.",
       "originBuiltIn": "Built-in catalog",
+      "originDefinitionSelected": "Using selected catalog definitions",
       "originSigned": "Signed catalog · version {{version}}",
       "originSignedPrevious": "Signed catalog · version {{version}} · using the previous valid update",
       "planDetailsLabel": "Technical details for catalog update sequence {{sequence}}",
@@ -875,6 +876,17 @@ export default interface Resources {
       "overview": "Overview",
       "saves": "Saves & backups",
       "versions": "Versions & updates"
+    },
+    "withdrawal": {
+      "installedBadge": "Installed release withdrawn",
+      "installedNext": "You can keep your installed copy and its saves.",
+      "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+      "label": "Withdrawn release",
+      "recommendedBadge": "Recommended release withdrawn",
+      "recommendedNext": "Wait for a compatible release or review the available versions.",
+      "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+      "rollback": "Review rollback",
+      "versions": "View versions"
     }
   },
   "gameFiles": {
@@ -1213,6 +1225,25 @@ export default interface Resources {
       "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
       "reset": "Reset to default…",
       "review": "Review change"
+    },
+    "jakMods": {
+      "browse": "Browse JakMods",
+      "builds": "Versions and platform builds",
+      "downloads": "Downloads for this file: {{value}}",
+      "empty": "No matching projects in this catalog.",
+      "external": "This project is available on its own website.",
+      "feed": "Add this community source in the OpenGOAL Launcher’s Mods settings: {{url}}",
+      "games": "Games: {{games}}",
+      "loading": "Loading JakMods…",
+      "ownership": "JakMods is a community catalog. The OpenGOAL Launcher installs and updates its mod packages.",
+      "partial": "Some projects could not be read.",
+      "refresh": "Refresh JakMods",
+      "search": "Find a mod",
+      "setup": "Set up JakMods in the OpenGOAL Launcher",
+      "source": "Visit project website",
+      "standalone": "Standalone OpenGOAL build",
+      "unavailable": "This project has no listed build for this platform.",
+      "unknown": "The source does not confirm a compatible build."
     },
     "mods": {
       "add": "Add mod file…",

@@ -154,7 +154,7 @@ impl DefinitionContentIndex {
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let document: EntryDocument = serde_json::from_value(value.0)?;
-        if !matches!(document.definition_schema, 1 | 2) {
+        if !matches!(document.definition_schema, 1 | 2 | 3) {
             return Err(PortcoveError::unsupported(
                 "unsupported definition entry schema",
             ));
@@ -173,9 +173,15 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
-        if port.upstream_active_reviewed && document.definition_schema != 2 {
+        if port.upstream_active_reviewed && document.definition_schema < 2 {
             return Err(PortcoveError::unsupported(
                 "a reviewed active project requires indexed definition schema 2",
+            ));
+        }
+        crate::profile_loader::validate(&port)?;
+        if port.mod_loader.is_some() && document.definition_schema != 3 {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings require indexed definition schema 3",
             ));
         }
         if let Some(settings) = &port.game_settings {
