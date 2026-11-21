@@ -13,8 +13,8 @@ use tokio::sync::RwLock;
 mod catalog_download;
 
 use crate::{
-    Library, Platform, PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel,
-    ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    ExactReleaseSelection, Library, Platform, PortDefinition, PortcoveError, ReleaseAsset,
+    ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
     library::HttpCacheEntry,
     release::{
         PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
@@ -515,6 +515,26 @@ impl GitlabReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for GitlabReleaseProvider {
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        pin.require_context(port, channel, platform, scope)?;
+        let selected = tokio::time::timeout(
+            self.network_bounds.request,
+            self.resolve_exact_observed(port, channel, platform, pin),
+        )
+        .await
+        .map_err(|_| {
+            PortcoveError::network("the exact GitLab release exceeded the provider request budget")
+        })??;
+        crate::ScopedResolvedRelease::legacy(selected).for_selection(port, platform, channel)
+    }
+
     async fn resolve(
         &self,
         port: &PortDefinition,
@@ -652,6 +672,17 @@ struct GitlabProject {
     path_with_namespace: Option<String>,
     #[serde(default)]
     archived: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct GitlabTag {
+    name: String,
+    commit: GitlabCommit,
+}
+
+#[derive(Deserialize)]
+struct GitlabCommit {
+    id: String,
 }
 
 #[derive(Debug, Deserialize)]

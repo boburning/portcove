@@ -25,12 +25,14 @@ use crate::{
 
 mod catalog_download;
 mod catalog_download_observation;
+mod exact;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod managed_variant;
 mod observation;
 mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
+pub use exact::{ExactReleaseIdentity, ExactReleaseSelection};
 pub use managed_variant::ManagedPackageVariant;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
@@ -68,6 +70,21 @@ pub trait ReleaseProvider: Send + Sync {
             .and_then(|release| {
                 crate::ScopedResolvedRelease::legacy(release).for_selection(port, platform, channel)
             })
+    }
+
+    /// Resolve only the identified historical release and package. Providers
+    /// without exact selection support refuse instead of following the channel.
+    async fn resolve_exact(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _scope: Option<&crate::DefinitionAcquisitionScope>,
+        _pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        Err(PortcoveError::unsupported(
+            "the release provider cannot resolve an exact historical release",
+        ))
     }
 
     async fn resolve_saved_variant(
@@ -1363,6 +1380,18 @@ fn merge_checksum_entries(
 
 #[async_trait]
 impl ReleaseProvider for GithubReleaseProvider {
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        self.resolve_scoped_selection(port, channel, platform, scope, GithubSelection::Exact(pin))
+            .await
+    }
+
     async fn resolve(
         &self,
         port: &PortDefinition,
@@ -1573,6 +1602,7 @@ impl ReleaseProvider for GithubReleaseProvider {
 #[derive(Clone, Copy)]
 enum GithubSelection<'a> {
     Ordinary,
+    Exact(&'a ExactReleaseSelection),
     ReviewedFallback(&'a ResolvedRelease),
     Saved(&'a ManagedPackageVariant),
     ExplicitFirst(&'a ManagedPackageVariant),
@@ -1623,7 +1653,7 @@ impl<'a> GithubSelection<'a> {
                 &release.assets,
                 Some((variant, &release.tag_name)),
             ),
-            Self::Ordinary | Self::ReviewedFallback(_) => {
+            Self::Ordinary | Self::Exact(_) | Self::ReviewedFallback(_) => {
                 choose_asset(port, platform, &release.assets)
             }
         }
@@ -1776,6 +1806,19 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         selection: GithubSelection<'_>,
     ) -> Result<ResolvedGithub> {
+        if let GithubSelection::Exact(pin) = selection {
+            pin.require_context(port, channel, platform, scope)?;
+            return tokio::time::timeout(
+                self.network_bounds.request,
+                self.resolve_exact_observed(port, channel, platform, pin),
+            )
+            .await
+            .map_err(|_| {
+                PortcoveError::network(
+                    "the exact GitHub release exceeded the provider request budget",
+                )
+            })?;
+        }
         if selection
             .variant()
             .is_some_and(|variant| variant.explicit_id().is_some())

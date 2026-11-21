@@ -3,8 +3,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::{
-    GithubReleaseProvider, GitlabReleaseProvider, Library, Platform, PortDefinition, PortcoveError,
-    ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource, ResolvedRelease, Result,
+    ExactReleaseSelection, GithubReleaseProvider, GitlabReleaseProvider, Library, Platform,
+    PortDefinition, PortcoveError, ReleaseAsset, ReleaseChannel, ReleaseProvider, ReleaseSource,
+    ResolvedRelease, Result,
 };
 
 #[derive(Clone)]
@@ -32,6 +33,38 @@ impl CompositeReleaseProvider {
 
 #[async_trait]
 impl ReleaseProvider for CompositeReleaseProvider {
+    async fn resolve_exact(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        pin: &ExactReleaseSelection,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        match port.release.provider {
+            ReleaseSource::Github => {
+                self.github
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::Gitlab => {
+                self.gitlab
+                    .resolve_exact(port, channel, platform, scope, pin)
+                    .await
+            }
+            ReleaseSource::DirectManifest => {
+                pin.require_context(port, channel, platform, scope)?;
+                let selected = resolve_direct(port, channel, platform)?;
+                pin.require_artifact(&selected)?;
+                crate::ScopedResolvedRelease::legacy(selected)
+                    .for_selection(port, platform, channel)
+            }
+            ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
+                "a user-prepared runtime has no managed release selection",
+            )),
+        }
+    }
+
     async fn resolve_scoped(
         &self,
         port: &PortDefinition,
@@ -306,3 +339,6 @@ mod tests {
         assert_eq!(release.asset.sha256, "a".repeat(64));
     }
 }
+
+#[cfg(test)]
+mod exact_tests;
