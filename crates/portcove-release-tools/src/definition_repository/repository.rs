@@ -1,5 +1,9 @@
-use super::{public_history::PublicHistory, *};
+use super::{
+    public_history::{PublicFile, PublicHistory},
+    *,
+};
 use futures_util::TryStreamExt;
+use std::borrow::Cow;
 use tough::{
     RepositoryLoader, TargetName, Transport, TransportError, TransportErrorKind, TransportStream,
     schema::{Role, Snapshot, Timestamp as TufTimestamp},
@@ -77,6 +81,27 @@ fn current_roles(files: &PublicHistory) -> Result<Files> {
     }
     Ok(roles)
 }
+#[derive(Default)]
+struct AuthenticatedTargets {
+    files: Files,
+    digests: BTreeMap<String, String>,
+}
+
+impl AuthenticatedTargets {
+    fn historical_body<'a>(&'a self, target: &str, raw: &PublicFile) -> Result<Cow<'a, [u8]>> {
+        if self
+            .digests
+            .get(target)
+            .is_some_and(|digest| digest == raw.digest())
+            && let Some(bytes) = self.files.get(target)
+            && bytes.len() as u64 == raw.bytes()
+        {
+            return Ok(Cow::Borrowed(bytes.as_slice()));
+        }
+        Ok(Cow::Owned(raw.read()?))
+    }
+}
+
 /// Full Tough verification of a complete catalog site. `Unsafe` expiry enforcement
 /// is used only to read an already-published prior as history: signatures,
 /// version floors and immutable-history checks still apply, so the publisher can
@@ -85,7 +110,7 @@ async fn authenticate(
     root: &[u8],
     files: &PublicHistory,
     expiration: tough::ExpirationEnforcement,
-) -> Result<Files> {
+) -> Result<AuthenticatedTargets> {
     let repository = RepositoryLoader::new(
         &root,
         url::Url::parse("https://catalog.invalid/metadata/").unwrap(),
@@ -107,7 +132,7 @@ async fn authenticate(
     if top.signed.canonical_form()? != repository.targets().signed.canonical_form()? {
         return invalid("catalog Tough loaded different top-level Targets");
     }
-    let mut logical = Files::new();
+    let mut logical = AuthenticatedTargets::default();
     for role in ["official-definitions", "official-policy"] {
         let signed: Signed<Targets> = serde_json::from_slice(at(&roles, &format!("{role}.json"))?)?;
         if signed.signed.spec_version != "1.0.0"
@@ -148,16 +173,16 @@ async fn authenticate(
                     TufRepositoryError::Invalid("catalog authenticated target absent".into())
                 })?;
             let bytes = stream.map_ok(|b| b.to_vec()).try_concat().await?;
-            if bytes.len() as u64 != target.length
-                || sha(&bytes) != hex::encode(&target.hashes.sha256)
-            {
+            let digest = sha(&bytes);
+            if bytes.len() as u64 != target.length || digest != hex::encode(&target.hashes.sha256) {
                 return invalid("catalog prior target hash/length differs");
             }
-            if logical.insert(name.raw().into(), bytes).is_some() {
+            logical.digests.insert(name.raw().into(), digest);
+            if logical.files.insert(name.raw().into(), bytes).is_some() {
                 return invalid("catalog prior target ownership overlap");
             }
-            if logical.len() > BUNDLE_FILES
-                || logical.values().map(|v| v.len() as u64).sum::<u64>() > BUNDLE_MAX
+            if logical.files.len() > BUNDLE_FILES
+                || logical.files.values().map(|v| v.len() as u64).sum::<u64>() > BUNDLE_MAX
             {
                 return invalid("catalog prior bundle bound exceeded");
             }
@@ -215,7 +240,10 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Publ
     )
     .await?;
     let roles = current_roles(&files)?;
-    verify_history(context, &files)?;
+    let mut floors = HistoricalRevisionFloors::default();
+    verify_history(context, &files, |role, targets| {
+        floors.observe(&files, &logical, role, targets)
+    })?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
     // The prior is history: its offline Targets keeps its key inventory check, but
     // not its lifetime window, so a late offline re-sign can still be published.
@@ -255,14 +283,14 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Publ
         }
     }
     // Hash-addressed leaves are immutable across every retained generation.
-    for (name, bytes) in &logical {
+    for (name, bytes) in &logical.files {
         if name.starts_with("sha256/")
             && context.targets.get(name).is_some_and(|next| next != bytes)
         {
             return invalid("catalog immutable content changed");
         }
     }
-    historical_revision_floors(&files, &context.targets)?;
+    floors.check(&context.targets)?;
     Ok(files)
 }
 
@@ -338,17 +366,23 @@ fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json
     }
     Ok(map)
 }
-fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> {
-    let mut definitions: BTreeMap<(String, String), serde_json::Value> = BTreeMap::new();
-    let mut policies: BTreeMap<String, (u64, String)> = BTreeMap::new();
-    let mut seen = BTreeSet::new();
-    for (name, file) in files.iter().filter(|(n, _)| {
-        n.starts_with("metadata/")
-            && (n.ends_with(".official-definitions.json") || n.ends_with(".official-policy.json"))
-    }) {
-        let role: Signed<Targets> = serde_json::from_slice(&file.read()?)?;
-        let definition_role = name.ends_with(".official-definitions.json");
-        for (target, identity) in &role.signed.targets {
+#[derive(Default)]
+struct HistoricalRevisionFloors {
+    definitions: BTreeMap<(String, String), serde_json::Value>,
+    policies: BTreeMap<String, (u64, String)>,
+    seen: BTreeSet<String>,
+}
+
+impl HistoricalRevisionFloors {
+    fn observe(
+        &mut self,
+        files: &PublicHistory,
+        current: &AuthenticatedTargets,
+        role: &str,
+        targets: &Targets,
+    ) -> Result<()> {
+        let definition_role = role == "official-definitions.json";
+        for (target, identity) in &targets.targets {
             if definition_role && target.raw() != "definitions/index.json" {
                 continue;
             }
@@ -360,9 +394,6 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                 hex::encode(&identity.hashes.sha256),
                 target.raw()
             );
-            if !seen.insert(path.clone()) {
-                continue;
-            }
             let raw = files.get(&path).ok_or_else(|| {
                 TufRepositoryError::Invalid(format!(
                     "catalog public repository file missing: {path}"
@@ -383,9 +414,15 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
             {
                 return invalid("catalog historical target identity/bound differs");
             }
+            // The physical body is immutable, but every signed reference must
+            // independently agree with its measured length and digest.
+            if !self.seen.insert(path) {
+                continue;
+            }
+            let body = current.historical_body(target.raw(), raw)?;
             if definition_role {
-                for (id, entry) in indexed_entries(&raw.read()?)? {
-                    if let Some(old) = definitions.get(&id) {
+                for (id, entry) in indexed_entries(&body)? {
+                    if let Some(old) = self.definitions.get(&id) {
                         let old_revision = old["revision"].as_u64().unwrap();
                         let new_revision = entry["revision"].as_u64().unwrap();
                         if new_revision == old_revision && old != &entry {
@@ -395,10 +432,10 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                             continue;
                         }
                     }
-                    definitions.insert(id, entry);
+                    self.definitions.insert(id, entry);
                 }
             } else {
-                let policy: serde_json::Value = serde_json::from_slice(&raw.read()?)?;
+                let policy: serde_json::Value = serde_json::from_slice(&body)?;
                 let field = if target.raw().ends_with(".launch.json")
                     || target.raw() == "policy/official/catalog.listings.json"
                 {
@@ -411,7 +448,7 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                         "catalog historical policy/launch revision absent".into(),
                     )
                 })?;
-                if let Some((old_revision, old_bytes)) = policies.get(target.raw()) {
+                if let Some((old_revision, old_bytes)) = self.policies.get(target.raw()) {
                     if revision == *old_revision && old_bytes != raw.digest() {
                         return invalid("catalog retained policy/launch history equivocates");
                     }
@@ -419,41 +456,48 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                         continue;
                     }
                 }
-                policies.insert(target.raw().into(), (revision, raw.digest().to_owned()));
+                self.policies
+                    .insert(target.raw().into(), (revision, raw.digest().to_owned()));
             }
         }
+        Ok(())
     }
-    let current = indexed_entries(at(new, "definitions/index.json")?)?;
-    for (id, old) in definitions {
-        if let Some(next) = current.get(&id) {
-            let a = old["revision"].as_u64().unwrap();
-            let b = next["revision"].as_u64().unwrap();
-            if b < a || (b == a && next != &old) {
-                return invalid("catalog historical definition revision rollback/equivocation");
+
+    fn check(self, new: &Files) -> Result<()> {
+        let current = indexed_entries(at(new, "definitions/index.json")?)?;
+        for (id, old) in self.definitions {
+            if let Some(next) = current.get(&id) {
+                let a = old["revision"].as_u64().unwrap();
+                let b = next["revision"].as_u64().unwrap();
+                if b < a || (b == a && next != &old) {
+                    return invalid("catalog historical definition revision rollback/equivocation");
+                }
             }
         }
-    }
-    for (name, (revision, bytes)) in policies {
-        if let Some(next) = new.get(&name) {
-            let value: serde_json::Value = serde_json::from_slice(next)?;
-            let field = if name.ends_with(".launch.json")
-                || name == "policy/official/catalog.listings.json"
-            {
-                "revision"
-            } else {
-                "policy_revision"
-            };
-            let next_revision = value[field].as_u64().ok_or_else(|| {
-                TufRepositoryError::Invalid("catalog current policy/launch revision absent".into())
-            })?;
-            if next_revision < revision || (next_revision == revision && sha(next) != bytes) {
-                return invalid(
-                    "catalog historical policy/launch rollback or equal-revision replacement",
-                );
+        for (name, (revision, bytes)) in self.policies {
+            if let Some(next) = new.get(&name) {
+                let value: serde_json::Value = serde_json::from_slice(next)?;
+                let field = if name.ends_with(".launch.json")
+                    || name == "policy/official/catalog.listings.json"
+                {
+                    "revision"
+                } else {
+                    "policy_revision"
+                };
+                let next_revision = value[field].as_u64().ok_or_else(|| {
+                    TufRepositoryError::Invalid(
+                        "catalog current policy/launch revision absent".into(),
+                    )
+                })?;
+                if next_revision < revision || (next_revision == revision && sha(next) != bytes) {
+                    return invalid(
+                        "catalog historical policy/launch rollback or equal-revision replacement",
+                    );
+                }
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 pub(super) fn check_proposed_role(
     context: &Context,
@@ -550,14 +594,14 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         files.len(),
         files.iter().map(|(_, file)| file.bytes()).sum(),
     )?;
-    verify_history(&context, &files)?;
+    verify_history(&context, &files, |_, _| Ok(()))?;
     let logical = authenticate(
         &context.root_bytes,
         &files,
         tough::ExpirationEnforcement::Safe,
     )
     .await?;
-    if logical != context.targets {
+    if logical.files != context.targets {
         return invalid("catalog full Tough readback differs from prepared bundle");
     }
     recheck(&context)?;
@@ -706,7 +750,7 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");
     }
-    let index_sha256 = sha(at(&logical, "definitions/index.json")?);
+    let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);
     if io::read(path, CONFIG_MAX)? != config_raw
         || io::read(&root_path, ROOT_MAX)? != root_bytes
         || io::read(&top_path, ROLE_MAX)? != top_bytes
@@ -717,7 +761,11 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     repository_report(&files, &root_bytes, &top_bytes, &index_sha256, false)
 }
 
-fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
+fn verify_history(
+    context: &Context,
+    files: &PublicHistory,
+    mut visit_delegated_targets: impl FnMut(&str, &Targets) -> Result<()>,
+) -> Result<()> {
     for (name, file) in files
         .iter()
         .filter(|(n, _)| n.starts_with("metadata/") && n.as_str() != "metadata/timestamp.json")
@@ -782,9 +830,16 @@ fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
                         return invalid("catalog historical Snapshot inventory differs");
                     }
                     for (role, identity) in signed.signed.meta {
-                        let bytes =
-                            files.file(&format!("metadata/{}.{}", identity.version, role))?;
-                        signing::same(&identity, &signing::meta(&bytes, identity.version)?)?;
+                        let file = files
+                            .get(&format!("metadata/{}.{}", identity.version, role))
+                            .ok_or_else(|| {
+                                TufRepositoryError::Invalid(
+                                    "catalog historical Snapshot role missing".into(),
+                                )
+                            })?;
+                        let measured =
+                            signing::meta_identity(file.bytes(), file.digest(), identity.version)?;
+                        signing::same(&identity, &measured)?;
                     }
                 }
             }
@@ -797,6 +852,7 @@ fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
                     .as_ref()
                     .unwrap()
                     .verify_role(&signed, role.trim_end_matches(".json"))?;
+                visit_delegated_targets(role, &signed.signed)?;
             }
             _ => return invalid("catalog historical metadata kind differs"),
         }
@@ -807,6 +863,77 @@ fn verify_history(context: &Context, files: &PublicHistory) -> Result<()> {
 #[cfg(test)]
 mod capacity_tests {
     use super::*;
+
+    #[test]
+    fn repeated_historical_target_reference_still_checks_signed_length() {
+        let name = "policy/official/catalog.listings.json";
+        let bytes = br#"{"revision":1}"#;
+        let path = public_target_path(name, bytes).unwrap();
+        let mut files = PublicHistory::default();
+        files.insert(path, bytes);
+        let descriptor = |length| -> Targets {
+            serde_json::from_value(serde_json::json!({
+                "_type":"targets",
+                "spec_version":"1.0.0",
+                "version":1,
+                "expires":"2030-01-01T00:00:00Z",
+                "targets":{(name):{"length":length,"hashes":{"sha256":sha(bytes)}}}
+            }))
+            .unwrap()
+        };
+        let mut floors = HistoricalRevisionFloors::default();
+        let role = "official-policy.json";
+        let current = AuthenticatedTargets::default();
+        floors
+            .observe(&files, &current, role, &descriptor(bytes.len()))
+            .unwrap();
+        floors
+            .observe(&files, &current, role, &descriptor(bytes.len()))
+            .unwrap();
+        let error = floors
+            .observe(&files, &current, role, &descriptor(bytes.len() + 1))
+            .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("historical target identity/bound differs")
+        );
+    }
+
+    #[test]
+    fn historical_body_reuses_only_an_exact_authenticated_current_identity() {
+        let name = "policy/official/catalog.listings.json";
+        let mut inventory = PublicHistory::default();
+        inventory.insert("old".into(), b"old");
+        inventory.insert("current".into(), b"new");
+        let targets = AuthenticatedTargets {
+            files: Files::from([(name.into(), b"new".to_vec())]),
+            digests: BTreeMap::from([(name.into(), sha(b"new"))]),
+        };
+        let live = targets
+            .historical_body(name, inventory.get("current").unwrap())
+            .unwrap();
+        assert_eq!(live.as_ref(), b"new");
+        assert!(matches!(live, Cow::Borrowed(_)));
+        let archived = targets
+            .historical_body(name, inventory.get("old").unwrap())
+            .unwrap();
+        assert_eq!(archived.as_ref(), b"old");
+        assert!(matches!(archived, Cow::Owned(_)));
+    }
+
+    #[test]
+    fn snapshot_descriptor_matches_measured_role_identity() {
+        let bytes = b"verified role";
+        let version = NonZeroU64::new(1).unwrap();
+        let raw = signing::meta_identity(bytes.len() as u64, &sha(bytes), version).unwrap();
+        let captured_length =
+            signing::meta_identity(bytes.len() as u64 + 1, &sha(bytes), version).unwrap();
+        let changed =
+            signing::meta_identity(bytes.len() as u64, &sha(b"other content"), version).unwrap();
+        assert!(signing::same(&raw, &captured_length).is_err());
+        assert!(signing::same(&raw, &changed).is_err());
+    }
 
     #[test]
     fn retained_bound_allows_the_observed_release_and_remains_finite() {

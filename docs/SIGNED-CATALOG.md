@@ -144,7 +144,12 @@ It retains matching immutable files in place and stages only added repository
 files, the new timestamp and the browse update. A stale prior digest, a missing
 retained file, an immutable replacement or a changed assembled body stops the
 run before the Pages push. Signers and the keyless assembler still validate
-retained history under the existing TUF root and role keys.
+retained history under the existing TUF root and role keys. The signer extracts
+historical revision floors from the delegated role body it already verified.
+It checks each signed descriptor against a fresh SHA-256 inventory and parses
+each referenced historical target body once. If Tough has already authenticated
+that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
+own inventory and keeps the existing write-time and post-write readbacks.
 
 Each descriptive target remains limited to 8 MiB per directory revision.
 
