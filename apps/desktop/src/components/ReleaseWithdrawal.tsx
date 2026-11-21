@@ -10,7 +10,7 @@ function withdrawal(status: PortStatus | undefined) {
       eligibility.reason === "curated_distribution_withdrawn",
   );
   return {
-    installed: Boolean(status?.active && holds?.some(({ retained }) => retained)),
+    installed: holds?.some(({ retained }) => retained) ? status?.active : undefined,
     recommended: Boolean(holds?.some(({ retained }) => !retained)),
   };
 }
@@ -19,7 +19,8 @@ export function ReleaseWithdrawalBadge({ status }: { status: PortStatus | undefi
   const { t } = useAppTranslation("detail");
   const { installed, recommended } = withdrawal(status);
   if (!installed && !recommended) return null;
-  const style = "inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold";
+  const style =
+    "inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold";
   return (
     <span className="inline-flex flex-wrap gap-1">
       {installed && <span className={style}>{t("withdrawal.installedBadge")}</span>}
@@ -52,7 +53,7 @@ export function ReleaseWithdrawalNotice({
       {installed && (
         <div className="grid gap-1">
           <p className="m-0 font-semibold">
-            {t("withdrawal.installedReason", { version: status?.active?.version })}
+            {t("withdrawal.installedReason", { version: installed.version })}
           </p>
           <p className="m-0 text-sm text-pc-muted-foreground">{t("withdrawal.installedNext")}</p>
         </div>
