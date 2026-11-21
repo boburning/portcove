@@ -48,6 +48,9 @@ interface ItemState {
 }
 const stateBytes = 8 * 1024 * 1024;
 const refreshMs = 28 * 24 * 60 * 60 * 1000;
+const currentLiveObservation = (state: ItemState, now: number) =>
+  state.last_live_observation_at !== null &&
+  now - Date.parse(state.last_live_observation_at) < refreshMs;
 const safeId = (id: string) => /^[a-z0-9][a-z0-9-]{0,127}$/u.test(id);
 function readOwned(root: string, name: string): unknown {
   const filename = join(root, name);
@@ -368,8 +371,7 @@ export async function prepareArtworkWorkset(
       referenced.some((value) => gone.has(value)) ||
       !state ||
       state.input_sha256 !== baseKey(id, true) ||
-      !state.last_live_observation_at ||
-      now() - Date.parse(state.last_live_observation_at) >= refreshMs
+      !currentLiveObservation(state, now())
     );
   };
   const selected = options.maintenance
@@ -410,8 +412,7 @@ export async function prepareArtworkWorkset(
         state?.input_sha256 === baseKey(id, true) &&
         state.complete &&
         finished(state.result.record, gone) &&
-        state.last_live_observation_at !== null &&
-        now() - Date.parse(state.last_live_observation_at) < refreshMs
+        currentLiveObservation(state, now())
       ) {
         apply(id, state.result);
         carried.push(id);
@@ -425,9 +426,7 @@ export async function prepareArtworkWorkset(
       state?.input_sha256 === baseKey(id, refresh(id)) &&
       state.complete &&
       finished(state.result.record, gone) &&
-      (!options.maintenance ||
-        (state.last_live_observation_at !== null &&
-          now() - Date.parse(state.last_live_observation_at) < refreshMs))
+      (!refresh(id) || currentLiveObservation(state, now()))
     ) {
       apply(id, state.result);
       cacheHits++;

@@ -184,6 +184,9 @@ impl DefinitionContentIndex {
                 "native mod loader bindings require indexed definition schema 3",
             ));
         }
+        if let Some(settings) = &port.game_settings {
+            settings.validate_port(&port)?;
+        }
         crate::provider_binding::validate(&port)?;
         port.release.validate_github_streams(&port.platforms)?;
         if port.mod_provider_bindings.is_some() {

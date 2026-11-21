@@ -457,6 +457,22 @@ void test("legacy signer refuses a native mod loader binding before key access",
   assert.equal(existsSync(item.output), false);
 });
 
+void test("legacy signer refuses package-only settings before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({
+      ports: [{ id: "super-mario-world-recomp", game_settings: { format_version: 2 } }],
+    }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver package-only settings/u);
+  assert.equal(existsSync(item.output), false);
+});
+
 void test("legacy signer refuses Shipwright working-directory persistence before key access", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));

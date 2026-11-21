@@ -308,11 +308,10 @@ pub(crate) fn parse_files(body: &[u8]) -> Result<Vec<FileNotice>, &'static str> 
             }
             Event::Decl(decl) if !declaration && !feed.root => {
                 declaration = true;
-                if decl
+                let version = decl
                     .version()
-                    .map_err(|_| "Mod DB XML declaration is invalid")?
-                    .as_ref()
-                    != "1.0"
+                    .map_err(|_| "Mod DB XML declaration is invalid")?;
+                if &*version != "1.0"
                     || decl
                         .encoding()
                         .is_some_and(|enc| !enc.is_ok_and(|v| v.eq_ignore_ascii_case("utf-8")))

@@ -320,6 +320,15 @@ pub(crate) fn legacy_opentyrian_indexed_port(
 
 pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::CatalogDocument {
     let mut document = catalog.authoritative_document();
+    for port in &mut document.ports {
+        if port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+        {
+            port.game_settings = None;
+        }
+    }
     if let Some(port) = document
         .ports
         .iter_mut()
@@ -343,9 +352,9 @@ pub(crate) fn indexed_fixture_document_for_port(
         .iter_mut()
         .find(|port| port.id == port_id)
         .unwrap();
-    selected
-        .mod_loader
-        .clone_from(&catalog.port(port_id).unwrap().mod_loader);
+    let port = catalog.port(port_id).unwrap();
+    selected.mod_loader.clone_from(&port.mod_loader);
+    selected.game_settings.clone_from(&port.game_settings);
     document
 }
 
@@ -418,9 +427,9 @@ pub(crate) struct IndexedCatalogFixture<'a> {
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
         use sha2::{Digest, Sha256};
+        let port = catalog.port(port_id).unwrap();
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
-        let port = catalog.port(port_id).unwrap();
         let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
             "contract_schema":schema,"representation":"catalog_projection",
