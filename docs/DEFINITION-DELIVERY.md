@@ -1809,6 +1809,51 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+### Prepare a literal launch declaration transition
+
+Use the exact current authenticated bundle as `PRIOR`. The candidate changes
+only the representation of an existing nonempty launch argument list. Asset
+hints, archive layout, runtime executable, data roots and provider scope
+remain the same. Run the following from the repository with a validated
+capable Core CLI and an existing private output directory.
+
+```sh
+node scripts/catalog-literal-launch-publication.mts draft --prior "$PRIOR" --port "$PORT" > "$OUT/draft.json"
+"$CORE_CLI" --json catalog canonical-definition-projection "$OUT/draft.json" |
+  jq -jr 'if .ok then .data else error(.error.message) end' > "$OUT/typed.json"
+node scripts/catalog-literal-launch-publication.mts bind --prior "$PRIOR" --port "$PORT"   --projection "$OUT/typed.json" --feature native.package-layouts-v1 --output-parent "$OUT"
+```
+
+For the Resurrection of Evil DUDE entry, also repeat `--feature` for
+`native.external-profile-policy-v1` and `runtime.windows-path-policy-v1`.
+Dungeon Crawl Stone Soup requires only the package layout feature alongside
+the new named feature, which the authoring command adds. Recheck the published
+index and its selected definition before using these feature lists.
+
+The generated request and bundle are keyless review inputs. For normal
+`catalog-prepare-publication.mts prepare`, extract the proposed `catalog` from
+the typed projection for `--catalog`, and use the same projection with an
+empty `catalog.ports` array for `--projection-template`. Supply the generated
+directory as `--reviewed` only after independent review of all bindings. The
+existing Core inspector and protected workflow own qualification and signing.
+Release and verify the capable reader before this publication step.
+
+Reopen both affected platforms and the retained old installation on the
+same released capable binary. Check the previous released reader with the old
+bundle, the staged successor and the forward rollback. A refused successor is
+expected on the older reader. A rollback must publish a newer index/entry and
+rebound policy with the original projection bytes, rather than replaying a
+lower revision. Once a transition has been published, take a new authenticated
+bundle as `CURRENT`, then prepare its rollback with:
+
+```sh
+node scripts/catalog-literal-launch-publication.mts rollback --prior "$CURRENT"   --baseline "$PRIOR" --port "$PORT" --output-parent "$OUT"
+```
+
+Run the same independent review and protected publication procedure for the
+rollback candidate. Keep the baseline and rollback receipts available to the
+unchanged-client evidence for [#246](https://github.com/boburning/portcove/issues/246).
+
 ### Stage an observed N64 original-input amendment
 
 Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
