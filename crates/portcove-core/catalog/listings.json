@@ -72271,7 +72271,7 @@
           },
           {
             "title": "Choose the official ioquake3 build",
-            "instruction": "From a successful upstream Build workflow run, download the Linux or macOS artifact. On Linux x64 unpack the archive and run ioquake3 from its folder. On macOS 11 or newer use the universal ioquake3.app in the upstream artifact."
+            "instruction": "Use the Linux or macOS artifact from a successful push build on the official ioquake/ioq3 main branch. On Linux x86-64 keep the unpacked player and its companion files together. Select ioquake3 and its containing folder. On macOS 11 or later keep the complete Intel or Apple Silicon ioquake3.app and select Contents/MacOS/ioquake3 and its containing folder. Use the baseq3 game without a missionpack argument. To keep a private player profile, add +set, fs_homepath, and the absolute profile path on separate lines. Keep the actual profile, game data, mods and settings under external ownership."
           },
           {
             "title": "Set up the correct game data",
@@ -72294,12 +72294,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "quake-iii-arena",
@@ -72308,7 +72302,13 @@
           "https://github.com/ioquake/ioq3"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "quake-iii-team-arena-ioquake3",
@@ -72351,7 +72351,7 @@
           },
           {
             "title": "Choose the official ioquake3 build",
-            "instruction": "From a successful upstream Build workflow run, download the Linux or macOS artifact. On Linux x64 unpack the archive and run ioquake3 from its folder. On macOS 11 or newer use the universal ioquake3.app in the upstream artifact."
+            "instruction": "Use the Linux or macOS artifact from a successful push build on the official ioquake/ioq3 main branch. On Linux x86-64 keep the unpacked player and its companion files together. Select ioquake3 and its containing folder. On macOS 11 or later keep the complete Intel or Apple Silicon ioquake3.app and select Contents/MacOS/ioquake3 and its containing folder. Enter +set, fs_game, and missionpack on separate argument lines. To keep a private player profile, add +set, fs_homepath, and the absolute profile path on separate lines. Keep the actual profile, game data, mods and settings under external ownership."
           },
           {
             "title": "Set up the correct game data",
@@ -72374,12 +72374,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "quake-iii-team-arena",
@@ -72388,7 +72382,13 @@
           "https://github.com/ioquake/ioq3"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "quake-ironwail",
