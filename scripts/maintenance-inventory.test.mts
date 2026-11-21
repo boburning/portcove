@@ -15,12 +15,15 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import vm from "node:vm";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   encodeManagedInterventionEvidence,
   readManagedInterventionEvidence,
 } from "./maintenance-interventions.mts";
+
 import {
   clockWindowCrossed,
   coreReuseKey,
@@ -5015,3 +5018,145 @@ void test(
     ]);
   },
 );
+
+test("hosted cover proposals require the exact committed declaration and admitted report", async () => {
+  const repository = "boburning/portcove";
+  const workflow = ".github/workflows/maintenance-inventory.yml";
+  const revision = "1".repeat(40);
+  const observed = "2026-11-21T12:05:00.000Z";
+  const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const artwork = (image_id: string) => ({
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "known-original",
+    match_kind: "underlying-game",
+    image_id,
+    image_sha256: "a".repeat(64),
+  });
+  const directory = {
+    listings: [
+      { id: "native-one", project_url: "https://example.com/port", artwork: artwork("old") },
+      { id: "native-two", collection_covers: [artwork("changed")] },
+    ],
+  };
+  const listings = Buffer.from(JSON.stringify(directory));
+  const receipt = Buffer.from(
+    JSON.stringify({
+      format: 1,
+      authority: "none",
+      producer: {
+        workflow: `${repository}/${workflow}@refs/heads/main`,
+        run: "42",
+        attempt: "1",
+        revision,
+      },
+      listings_sha256: sha(listings),
+      cli_sha256: "c".repeat(64),
+      observed_at: observed,
+      images: [
+        {
+          image_id: "changed",
+          status: "read",
+          content: { sha256: "b".repeat(64), bytes: 240, width: 90, height: 120 },
+        },
+        { image_id: "old", status: "gone" },
+      ],
+    }),
+  );
+  const manifest = {
+    format: "portcove-maintenance-hosted-evidence",
+    format_version: 1,
+    purpose: "schedule",
+    run: { id: 42, attempt: 1, event: "schedule", head_sha: revision },
+    outcomes: { collect: "success", report: "success" },
+    files: {
+      "maintenance-report/cover-artwork-health.json": {
+        bytes: receipt.length,
+        sha256: sha(receipt),
+      },
+    },
+    sources: [
+      {
+        source: "cover-artwork-health",
+        coverage: "complete",
+        source_revision: `scheduled-artwork-health:42-1@${revision}#sha256:${sha(receipt)}`,
+      },
+    ],
+  };
+  const run = {
+    id: 42,
+    run_attempt: 1,
+    path: workflow,
+    event: "schedule",
+    head_branch: "main",
+    status: "completed",
+    head_repository: { full_name: repository, id: 1354613114 },
+    head_sha: revision,
+    conclusion: "success",
+    run_started_at: "2026-11-21T12:00:00.000Z",
+    updated_at: "2026-11-21T12:12:00.000Z",
+  };
+  const options = (evidence = manifest, identity = run, corrupt = false) => {
+    const archive = createAuditZip([
+      ["evidence.json", JSON.stringify(evidence)],
+      ["cover-artwork-health.json", receipt],
+    ]);
+    return {
+      now: Date.parse("2026-11-21T12:30:00.000Z"),
+      transport: {
+        read: async (path: string) =>
+          path.includes("/workflows/")
+            ? { workflow_runs: [identity] }
+            : {
+                total_count: 1,
+                artifacts: [
+                  {
+                    id: 77,
+                    name: "maintenance-report-42-1",
+                    expired: false,
+                    size_in_bytes: archive.length,
+                    digest: `sha256:${sha(archive)}`,
+                    workflow_run: {
+                      id: 42,
+                      repository_id: 1354613114,
+                      head_repository_id: 1354613114,
+                      head_branch: "main",
+                      head_sha: revision,
+                    },
+                  },
+                ],
+              },
+        download: async () => (corrupt ? Buffer.alloc(archive.length) : archive),
+      },
+    };
+  };
+  const read = (commit: string, file: string) => {
+    assert.equal(commit, revision);
+    assert.equal(file, "crates/portcove-core/catalog/listings.json");
+    return listings;
+  };
+  const evidence = await readHostedCoverHealth(read, options());
+  assert.ok(evidence);
+  assert.deepEqual(
+    applicableCoverHealth(directory, evidence).map(({ status }) => status),
+    ["propose_fallback", "hold_changed_bytes"],
+  );
+  const independent = structuredClone(directory);
+  independent.listings[0]!.project_url = "https://example.com/other";
+  assert.deepEqual(
+    applicableCoverHealth(independent, evidence).map(({ id }) => id),
+    ["native-two"],
+  );
+  assert.equal(
+    await readHostedCoverHealth(read, options(manifest, { ...run, conclusion: "failure" })),
+    null,
+  );
+  await assert.rejects(
+    readHostedCoverHealth(read, options({ ...manifest, sources: [] })),
+    /did not admit/u,
+  );
+  await assert.rejects(
+    readHostedCoverHealth(read, options(manifest, run, true)),
+    /digest differs/u,
+  );
+});
