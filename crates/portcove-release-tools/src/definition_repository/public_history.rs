@@ -118,7 +118,7 @@ mod tests {
 
     #[test]
     fn retained_bytes_are_rebound_before_use_and_overlays_keep_exact_inventory() {
-        let input = tempfile::tempdir().unwrap();
+        let input = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let file = input.path().join("retained.json");
         fs::write(&file, b"original").unwrap();
         let mut history = PublicHistory::read(input.path()).unwrap();

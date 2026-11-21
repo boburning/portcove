@@ -823,7 +823,7 @@ mod capacity_tests {
     fn proposed_floor_reuses_identical_hash_addressed_bytes() {
         let name = "policy/official/catalog.listings.json";
         let existing = b"retained directory".to_vec();
-        let sandbox = tempfile::tempdir().unwrap();
+        let sandbox = tempfile::tempdir_in(std::env::temp_dir().canonicalize().unwrap()).unwrap();
         let retained_target = public_target_path(name, &existing).unwrap();
         for (path, bytes) in [
             ("metadata/timestamp.json", vec![1; 10]),
