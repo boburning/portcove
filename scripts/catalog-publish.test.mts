@@ -964,7 +964,11 @@ void test("a quiet listing renewal reuses the exact covered fallback after an am
   };
   const gone = advanceArtworkCheckpoint(null, [observed]);
   const removed = write(prior.bytes, gone);
-  assert.equal(decodedListingDelivery(removed.bytes).directory.listings[0].artwork, undefined);
+  const removedRow = decodedListingDelivery(removed.bytes).directory.listings.find(
+    (listing) => listing.id === row.id,
+  );
+  assert.ok(removedRow);
+  assert.equal(removedRow.artwork, undefined);
   const checkpoint = gone.finish(removed.bytes)!;
   assert.deepEqual(write(prior.bytes, gone).bytes, removed.bytes);
   const reopen = advanceArtworkCheckpoint({ bytes: checkpoint, listing: removed.bytes }, []);
@@ -976,7 +980,11 @@ void test("a quiet listing renewal reuses the exact covered fallback after an am
   ]);
   const recovery = write(renewed.bytes, restored);
   assert.equal(recovery.revision, removed.revision + 1);
-  assert.deepEqual(decodedListingDelivery(recovery.bytes).directory.listings[0].artwork, artwork);
+  const recoveryRow = decodedListingDelivery(recovery.bytes).directory.listings.find(
+    (listing) => listing.id === row.id,
+  );
+  assert.ok(recoveryRow);
+  assert.deepEqual(recoveryRow.artwork, artwork);
 });
 
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
