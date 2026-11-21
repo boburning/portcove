@@ -770,7 +770,7 @@ function DetailBody(model: {
                   {hasCommunitySource && (
                     <JakModsBrowser
                       setupUrl={communitySource.url}
-                      key={modsKey}
+                      key={`community-${modsKey}`}
                       portId={model.port.id}
                       generation={model.libraryGeneration}
                     />

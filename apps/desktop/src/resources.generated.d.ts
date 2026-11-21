@@ -1216,6 +1216,7 @@ export default interface Resources {
       "empty": "No matching projects in this catalog.",
       "external": "This project is available on its own website.",
       "feed": "Add this community source in the OpenGOAL Launcher’s Mods settings: {{url}}",
+      "games": "Games: {{games}}",
       "loading": "Loading JakMods…",
       "ownership": "JakMods is a community catalog. The OpenGOAL Launcher installs and updates its mod packages.",
       "partial": "Some projects could not be read.",
@@ -1223,6 +1224,7 @@ export default interface Resources {
       "search": "Find a mod",
       "setup": "Set up JakMods in the OpenGOAL Launcher",
       "source": "Visit project website",
+      "standalone": "Standalone OpenGOAL build",
       "unavailable": "This project has no listed build for this platform.",
       "unknown": "The source does not confirm a compatible build."
     },

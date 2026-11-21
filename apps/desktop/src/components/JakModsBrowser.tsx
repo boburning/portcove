@@ -6,6 +6,12 @@ import { errorText, platformLabel } from "../view-model";
 import { ExternalLink } from "./ExternalLink";
 import { Button } from "./ui/button";
 
+const gameLabels = new Map([
+  ["jak1", "Jak and Daxter"],
+  ["jak2", "Jak II"],
+  ["jak3", "Jak 3"],
+]);
+
 export function JakModsBrowser({
   portId,
   generation,
@@ -84,6 +90,14 @@ export function JakModsBrowser({
                     />
                   )}
                   <strong>{project.name}</strong>
+                  <p>
+                    {t("jakMods.games", {
+                      games: new Intl.ListFormat(i18n.language).format(
+                        project.supported_games.map((game) => gameLabels.get(game) ?? game),
+                      ),
+                    })}
+                  </p>
+                  {project.kind === "open_goal_build" && <p>{t("jakMods.standalone")}</p>}
                   {project.summary && <p>{project.summary}</p>}
                   {project.build_status === "unknown" && <p>{t("jakMods.unknown")}</p>}
                   {project.build_status === "unavailable" && <p>{t("jakMods.unavailable")}</p>}

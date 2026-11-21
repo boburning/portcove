@@ -30,6 +30,7 @@
     "empty": "No hay proyectos coincidentes en este catálogo.",
     "external": "Este proyecto está disponible en su propio sitio web.",
     "feed": "Añade esta fuente comunitaria en los ajustes de mods del lanzador OpenGOAL: {{url}}",
+    "games": "Juegos: {{games}}",
     "loading": "Cargando JakMods…",
     "ownership": "JakMods es un catálogo comunitario. El lanzador OpenGOAL instala y actualiza sus paquetes de mods.",
     "partial": "No se pudieron leer algunos proyectos.",
@@ -37,6 +38,7 @@
     "search": "Buscar un mod",
     "setup": "Configurar JakMods en el lanzador OpenGOAL",
     "source": "Visitar el sitio web del proyecto",
+    "standalone": "Versión independiente de OpenGOAL",
     "unavailable": "Este proyecto no incluye una versión para esta plataforma.",
     "unknown": "La fuente no confirma una versión compatible."
   },

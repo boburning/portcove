@@ -59,6 +59,9 @@ it("browses only on request and keeps cached release counts scoped to their file
   expect(read).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Browse JakMods" }).click();
   await expect.element(page.getByText("Bullet Hell")).toBeVisible();
+  await expect.element(page.getByText("Games: Jak and Daxter")).toBeVisible();
+  await expect.element(page.getByText("Standalone OpenGOAL build")).toBeVisible();
+  await expect.element(page.getByRole("status")).toHaveTextContent("Showing saved results");
   expect(read).toHaveBeenCalledExactlyOnceWith("opengoal-jak1", 7);
   await page.getByText("Versions and platform builds").click();
   await expect
