@@ -869,6 +869,19 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
     let assembly = fixture.assembly("history-next");
     let mut assembly_json: serde_json::Value =
         serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
+    assembly_json["history_output"] = if cfg!(windows) {
+        json!("HISTORY-NEXT")
+    } else {
+        json!("history-next")
+    };
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    assert!(
+        assemble_definition_repository(&assembly)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("assembly outputs overlap")
+    );
     assembly_json["history_output"] = json!("checkpoint-objects");
     fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
     let assembled = assemble_definition_repository(&assembly).await.unwrap();

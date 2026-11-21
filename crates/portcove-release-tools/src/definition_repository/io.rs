@@ -71,11 +71,11 @@ pub(super) fn relative(value: &str) -> Result<()> {
     }
     Ok(())
 }
-pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
-    let normalized_output = if output.try_exists()? {
-        output.canonicalize()?
+fn normalize_output(output: &Path) -> Result<PathBuf> {
+    if output.try_exists()? {
+        output.canonicalize().map_err(Into::into)
     } else {
-        output
+        Ok(output
             .parent()
             .ok_or_else(|| TufRepositoryError::Invalid("output parent absent".into()))?
             .canonicalize()?
@@ -83,8 +83,12 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
                 output
                     .file_name()
                     .ok_or_else(|| TufRepositoryError::Invalid("output name absent".into()))?,
-            )
-    };
+            ))
+    }
+}
+
+pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
+    let normalized_output = normalize_output(output)?;
     let inputs = inputs
         .iter()
         .map(|p| p.canonicalize())
@@ -101,6 +105,44 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
         .ok_or_else(|| TufRepositoryError::Invalid("output has no parent".into()))?;
     ancestry(parent)
 }
+pub(super) fn no_output_overlap(first: &Path, second: &Path) -> Result<()> {
+    let first = normalize_output(first)?;
+    let second = normalize_output(second)?;
+    if output_contains(&first, &second) || output_contains(&second, &first) {
+        return invalid("catalog assembly outputs overlap");
+    }
+    Ok(())
+}
+#[cfg(not(windows))]
+fn output_contains(path: &Path, prefix: &Path) -> bool {
+    path.starts_with(prefix)
+}
+
+#[cfg(windows)]
+fn output_contains(path: &Path, prefix: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt as _;
+    use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
+
+    let mut components = path.components();
+    prefix.components().all(|expected| {
+        components.next().is_some_and(|actual| {
+            let wide = |component: Component<'_>| {
+                let mut bytes: Vec<u16> = component.as_os_str().encode_wide().collect();
+                while matches!(bytes.last(), Some(32 | 46)) {
+                    bytes.pop();
+                }
+                bytes.push(0);
+                bytes
+            };
+            let actual = wide(actual);
+            let expected = wide(expected);
+            // SAFETY: Both component buffers have a trailing NUL.
+            (unsafe { CompareStringOrdinal(actual.as_ptr(), -1, expected.as_ptr(), -1, 1) })
+                == CSTR_EQUAL
+        })
+    })
+}
+
 pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
     if path.try_exists()? {
         if read(path, ROLE_MAX)? == bytes {

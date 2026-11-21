@@ -721,7 +721,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         (Some(history), Some(path)) => {
             let directory = io::resolve(base, path)?;
             io::no_overlap(&directory, &inputs)?;
-            io::no_overlap(&directory, std::slice::from_ref(&output))?;
+            io::no_output_overlap(&directory, &output)?;
             Some((history, directory))
         }
         (None, None) => None,
@@ -1094,7 +1094,7 @@ mod capacity_tests {
     #[test]
     fn repeated_historical_target_reference_still_checks_signed_length() {
         let name = "policy/official/catalog.listings.json";
-        let bytes = br#"{"revision":1}"#;
+        let bytes = br#"{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{"listings":[]}}"#;
         let path = public_target_path(name, bytes).unwrap();
         let mut files = PublicHistory::default();
         files.insert(path, bytes);
