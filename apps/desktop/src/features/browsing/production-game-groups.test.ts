@@ -35,7 +35,7 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
     const game = selectedExtra?.game_id ?? canonical?.presentation?.original_game?.id;
     const title = selectedExtra?.game_title ?? canonical?.presentation?.original_game_title;
     const reviewedFamily = Object.entries(reviewed).find(([key]) => key === game)?.[1];
-    expect(game !== undefined || Object.hasOwn(expected.intentionally_separate, id)).toBe(true);
+    expect(game !== undefined || Object.hasOwn(expected.project_entries, id)).toBe(true);
     expect(title).toBeDefined();
     const projected = catalogEntries(
       {
