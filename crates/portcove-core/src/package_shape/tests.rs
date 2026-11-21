@@ -110,6 +110,58 @@ fn shape_records_every_part_through_a_wrapper() {
 }
 
 #[test]
+fn only_the_verified_empty_portable_directory_is_neutral_to_shape() {
+    const PLATFORM: Platform = Platform::LinuxX86_64;
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let package = package(&["OpenSC2K.x86_64", "licenses/fixture.txt"]);
+    let root = package.path().join("game-1.0");
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    fs::write(root.join("OpenSC2K.x86_64"), elf).unwrap();
+    crate::permissions::normalize_archive_entry(&root.join("OpenSC2K.x86_64"), false, true)
+        .unwrap();
+    let qualification = crate::install::InstallQualification::from_port(port, PLATFORM).unwrap();
+    let observed = || {
+        let roots = roots(port, &qualification, PLATFORM, package.path())?;
+        derive(port, PLATFORM, &roots)
+    };
+    let absent = observed().unwrap();
+    fs::create_dir(root.join("data")).unwrap();
+    assert_eq!(observed().unwrap(), absent);
+    fs::create_dir(root.join("data/empty")).unwrap();
+    assert!(
+        observed().is_err(),
+        "even a nested empty directory populates the data slot"
+    );
+    fs::remove_dir(root.join("data/empty")).unwrap();
+    fs::remove_dir(root.join("data")).unwrap();
+
+    fs::create_dir(root.join("DATA")).unwrap();
+    assert!(
+        observed().is_err(),
+        "a case alias is not the declared directory"
+    );
+    fs::remove_dir(root.join("DATA")).unwrap();
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("licenses", root.join("data")).unwrap();
+        assert!(
+            observed().is_err(),
+            "a linked directory is not the declared slot"
+        );
+        fs::remove_file(root.join("data")).unwrap();
+    }
+    fs::create_dir(root.join("other")).unwrap();
+    let unknown = observed().unwrap();
+    assert!(matches!(
+        evaluate(port, PLATFORM, SHA, &unknown, None).0,
+        ShapeVerdict::Drifted { .. }
+    ));
+}
+
+#[test]
 fn a_compatible_release_with_the_same_shape_passes_without_edits() {
     let mut files = REVIEWED.to_vec();
     files.extend([
