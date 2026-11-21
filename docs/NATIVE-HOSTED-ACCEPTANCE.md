@@ -224,6 +224,13 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The manual `reviewed-game-settings` operation runs only the existing `game-settings-review`
+matrix entry on Windows. It uses the same exact source and interactive
+session as `product-workflows`. The full product matrix keeps its original
+entries. The focused job checks the owned fixture settings review, save
+and refusal after an outside change. It retains the same evidence and
+process cleanup.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
