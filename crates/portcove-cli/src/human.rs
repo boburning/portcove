@@ -4397,6 +4397,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                recovery_review: None,
                 automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
@@ -4547,6 +4548,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        recovery_review: None,
                         automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),

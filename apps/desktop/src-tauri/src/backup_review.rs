@@ -180,6 +180,7 @@ mod tests {
                 action,
                 backup: BackupRecord {
                     automatic: None,
+                    recovery_review: None,
                     id: "selected".to_owned(),
                     port_id: "sample-port".to_owned(),
                     path: PathBuf::from("backups/sample-port/selected"),

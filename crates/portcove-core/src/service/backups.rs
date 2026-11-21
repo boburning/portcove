@@ -926,7 +926,8 @@ impl PortcoveService {
     ) -> Result<BackupInventory> {
         let port = self.catalog.port(port_id)?;
         let status = self.library.status(port_id, super::default_channel(port))?;
-        let history = self.backup_history_with_operations(port_id, operations)?;
+        let mut history = self.backup_history_with_operations(port_id, operations)?;
+        self.project_legacy_backup_reviews(&status, &mut history.backups)?;
         Ok(BackupInventory {
             port_id: port_id.into(),
             protection: Some(self.player_data_protection(port, &status, &history.backups)?),
@@ -2211,6 +2212,7 @@ fn require_restorable(backup: &BackupRecord) -> Result<()> {
 
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
+        recovery_review: None,
         automatic: manifest.automatic_v1,
         id: manifest.id,
         port_id: manifest.port_id,

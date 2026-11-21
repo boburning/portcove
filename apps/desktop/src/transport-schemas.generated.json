@@ -4342,6 +4342,12 @@
         ],
         "type": "object"
       },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
+      },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
         "enum": [
@@ -4382,6 +4388,17 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "recovery_review": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BackupRecoveryReview"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
       },
       "sha256": {
         "type": "string"
@@ -4474,6 +4491,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4499,6 +4527,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -4661,6 +4695,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4686,6 +4731,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DefinitionEligibility": {
         "properties": {
@@ -19882,6 +19933,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -19907,6 +19969,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -20432,6 +20500,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -20457,6 +20536,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
@@ -27857,6 +27942,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -27882,6 +27978,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -39088,6 +39190,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -39113,6 +39226,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -41982,6 +42101,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -42007,6 +42137,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -52198,6 +52334,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -52223,6 +52370,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
