@@ -892,3 +892,41 @@ void test("reviewed operational listings survive absent observations before opti
     /without an explicit withdrawal/,
   );
 });
+
+void test("signed directory retains equivalent completed evidence until its recorded midpoint", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const canonical = { format_version: 11, listings: [fixtureListing] };
+  const old = fixturePolicy().listing_update;
+  const first = projectListingDelivery(canonical, [old], null);
+  const observation = {
+    ...old.upstream_observation,
+    attempted_at: "2026-11-10T03:00:01Z",
+    observed_at: "2026-11-10T03:00:00Z",
+    fresh_until: "2026-11-10T15:00:00Z",
+  };
+  const candidate = { ...old, upstream_observation: observation };
+  const advance = (hours: number, proposed = candidate) =>
+    projectListingDelivery(
+      canonical,
+      [proposed],
+      first.bytes,
+      0,
+      undefined,
+      undefined,
+      new Set(),
+      Date.parse(`2026-11-10T0${hours}:00:02Z`),
+    );
+  assert.deepEqual(advance(3).bytes, first.bytes);
+  const renewal = advance(6);
+  assert.equal(renewal.revision, first.revision + 1);
+  const directory = fixtureRecord(fixtureRecord(JSON.parse(renewal.bytes.toString())).directory);
+  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, observation);
+  for (const changed of [
+    { ...observation, facts_sha256: "b".repeat(64) },
+    { ...observation, fresh_until: "2026-11-10T14:00:00Z" },
+  ]) {
+    assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
+  }
+});
