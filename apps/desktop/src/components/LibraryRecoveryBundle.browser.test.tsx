@@ -253,7 +253,8 @@ it.for([
     cause: "changed payload",
     key: "verification_failed",
     summary: "Required verification did not pass.",
-    expected: "Portcove couldn’t verify this bundle.",
+    expected:
+      "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle.",
   },
   {
     cause: "locked credential store",
@@ -289,7 +290,7 @@ it.for([
   await verifyButton.click();
 
   const alert = dialog.getByRole("alert");
-  await expect.element(alert.getByText(expected)).toBeVisible();
+  await expect.element(alert.getByText(expected, { exact: true })).toBeVisible();
   await expect.element(alert.getByText(/confirm whether anything changed/)).not.toBeInTheDocument();
   await expect.element(folder).toHaveValue(destination);
   await expect.element(verifyButton).toBeEnabled();
