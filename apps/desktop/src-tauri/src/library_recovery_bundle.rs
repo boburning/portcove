@@ -163,9 +163,9 @@ pub(crate) async fn plan_library_recovery_bundle(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let plan = service.plan_library_recovery_bundle(&destination)?;
+        let review = service.plan_library_recovery_bundle(&destination);
         require_library_generation(state_generation(&state), generation)?;
-        Ok(plan)
+        Ok(review?)
     })
     .await
 }
@@ -243,9 +243,18 @@ pub(crate) async fn plan_library_recovery_restore(
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        let plan = reviewed_destination(service.library().root(), &path, &destination)?;
+        let active = service.library().root();
+        if let Ok(existing) = std::fs::canonicalize(&destination) {
+            require_separate_destination(active, &existing)?;
+        }
+        let review = PortcoveService::review_library_recovery_restore(&path, &destination)
+            .and_then(|plan| {
+                require_separate_destination(active, &plan.destination_root)?;
+                Ok(plan)
+            });
+        // A structured recovery offer is also a review result. Fence it before use.
         require_library_generation(state_generation(&state), generation)?;
-        Ok(plan)
+        Ok(review?)
     })
     .await
 }

@@ -194,7 +194,15 @@ impl PortcoveService {
         path: &Path,
         destination: &Path,
     ) -> Result<LibraryRecoveryRestorePlan> {
-        prepare_restore(path, destination).map(|(review, _)| review)
+        prepare_restore(path, destination, Restore::Apply).map(|(review, _)| review)
+    }
+
+    /// Preview a restore or discover a retained transfer for this exact bundle.
+    pub fn review_library_recovery_restore(
+        path: &Path,
+        destination: &Path,
+    ) -> Result<LibraryRecoveryRestorePlan> {
+        prepare_restore(path, destination, Restore::Review).map(|(review, _)| review)
     }
 
     pub fn restore_library_recovery_bundle(
@@ -216,7 +224,7 @@ impl PortcoveService {
         expected_plan: &str,
         mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
     ) -> Result<LibraryImportResult> {
-        let (review, import) = prepare_restore(path, destination)?;
+        let (review, import) = prepare_restore(path, destination, Restore::Apply)?;
         if review.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
                 "recovery bundle or restore destination changed; review recovery again",
@@ -251,16 +259,30 @@ impl PortcoveService {
     }
 }
 
+enum Restore {
+    Review,
+    Apply,
+}
+
 fn prepare_restore(
     path: &Path,
     destination: &Path,
+    restore: Restore,
 ) -> Result<(LibraryRecoveryRestorePlan, LibraryImportPlan)> {
     let (bundle, manifest) = inspect(path)?;
     let import = PortcoveService::plan_library_import(
         &bundle.path.join(METADATA_FILE),
         &bundle.path.join(CONTENT_DIR),
         destination,
-    )?;
+    )
+    .map_err(|error| {
+        if matches!(restore, Restore::Review) && error.code == crate::ErrorCode::Conflict {
+            crate::import_journal::ImportJournal::review_bundle_recovery(destination, &bundle)
+                .unwrap_or(error)
+        } else {
+            error
+        }
+    })?;
     if [&bundle.path, &import.metadata.original_root]
         .iter()
         .any(|root| {
@@ -1089,11 +1111,58 @@ mod tests {
         .unwrap_err();
         assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
         assert!(Library::open(&restored).is_err());
+        let apply = PortcoveService::restore_library_recovery_bundle(
+            &destination,
+            &restored,
+            &restore_plan.plan_sha256,
+        )
+        .unwrap_err();
+        assert!(!apply.details.contains_key("recovery_action"));
+        let pending =
+            PortcoveService::review_library_recovery_restore(&destination, &restored).unwrap_err();
+        assert_eq!(
+            pending.details["recovery_action"],
+            "resume_library_recovery_restore"
+        );
+        assert_eq!(
+            pending.details["transfer_id"],
+            cancelled.details["transfer_id"]
+        );
+        assert_eq!(pending.details["recovery_bundle_id"], bundle.bundle_id);
+        assert_eq!(
+            pending.details["recovery_bundle_receipt_sha256"],
+            bundle.receipt_sha256
+        );
+        assert!(!pending.details.contains_key("recovery_restore_plan_sha256"));
         let outcome = PortcoveService::resume_library_recovery_restore(
             &restored,
             Some(&cancelled.details["transfer_id"]),
         )
         .unwrap();
+        let found =
+            PortcoveService::review_library_recovery_restore(&destination, &restored).unwrap_err();
+        assert_eq!(
+            found.details["recovery_action"],
+            "read_published_recovery_restore"
+        );
+        assert_eq!(found.details["transfer_id"], outcome.transfer_id);
+        assert_eq!(
+            found.details["recovery_restore_plan_sha256"],
+            restore_plan.plan_sha256
+        );
+        let read = PortcoveService::read_library_recovery_restore(
+            &outcome.destination_root,
+            &found.details["recovery_restore_plan_sha256"],
+        )
+        .unwrap();
+        assert_eq!(read.transfer_id, outcome.transfer_id);
+        assert!(read.completed);
+        let relocated_bundle = workspace.path().join("relocated-bundle");
+        fs::rename(&bundle.path, &relocated_bundle).unwrap();
+        let unrelated =
+            PortcoveService::review_library_recovery_restore(&relocated_bundle, &restored)
+                .unwrap_err();
+        assert!(!unrelated.details.contains_key("recovery_action"));
         assert!(outcome.completed);
         assert!(outcome.input_retained);
         assert_eq!(
@@ -1271,7 +1340,7 @@ mod tests {
         .unwrap();
         let restore_root = workspace.path().join("restored");
         let manual_root = workspace.path().join("manual");
-        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root).unwrap();
+        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root, Restore::Apply).unwrap();
         let interrupt = |phase| {
             if phase == TransferPhase::Copying {
                 return Err(PortcoveError::state("fixture interruption before copy"));
@@ -1281,7 +1350,8 @@ mod tests {
         crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
         assert!(PortcoveService::resume_library_recovery_restore(&manual_root, None).is_err());
 
-        let (restore_review, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
+        let (restore_review, restore_plan) =
+            prepare_restore(&bundle.path, &restore_root, Restore::Apply).unwrap();
         crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
             .unwrap_err();
         assert!(PortcoveService::resume_library_import(&restore_root).is_err());
@@ -1307,7 +1377,7 @@ mod tests {
 
         let published_root = workspace.path().join("published-restore");
         let (publish_review, publish_plan) =
-            prepare_restore(&bundle.path, &published_root).unwrap();
+            prepare_restore(&bundle.path, &published_root, Restore::Apply).unwrap();
         crate::import_execution::start_reviewed_import(publish_plan, Some(&bundle), &|phase| {
             if phase == TransferPhase::Published {
                 return Err(PortcoveError::state(

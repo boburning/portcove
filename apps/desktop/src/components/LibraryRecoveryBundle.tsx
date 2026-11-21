@@ -39,6 +39,10 @@ type CreationReadback = Pick<
   "destination_root" | "source_library_id" | "plan_sha256"
 > & { bundle_id?: string };
 
+type RestoreReadback = Pick<LibraryRecoveryRestorePlan, "destination_root" | "plan_sha256"> & {
+  transfer_id?: string;
+};
+
 const titles = {
   create: "Create recovery bundle",
   inspect: "Inspect or restore a bundle",
@@ -216,7 +220,7 @@ function RecoveryBundleDialog({
   const [createReceipt, setCreateReceipt] = useState<CreationReadback>();
   const [verified, setVerified] = useState<LibraryRecoveryBundle>();
   const [restore, setRestore] = useState<LibraryRecoveryRestorePlan>();
-  const [restoreReceipt, setRestoreReceipt] = useState<LibraryRecoveryRestorePlan>();
+  const [restoreReceipt, setRestoreReceipt] = useState<RestoreReadback>();
   const [restored, setRestored] = useState<string>();
   const [transferred, setTransferred] = useState(false);
   const [pending, setPending] = useState("");
@@ -256,6 +260,8 @@ function RecoveryBundleDialog({
 
   const editPath = (value: string) => {
     setPath(value);
+    setRestoreReceipt(undefined);
+    setRecovery(undefined);
     setVerified(undefined);
     setRestore(undefined);
     setError(undefined);
@@ -264,6 +270,7 @@ function RecoveryBundleDialog({
     setDestination(value);
     setCreation(undefined);
     setCreateReceipt(undefined);
+    setRestoreReceipt(undefined);
     setRecovery(undefined);
     setRestore(undefined);
     setError(undefined);
@@ -341,7 +348,12 @@ function RecoveryBundleDialog({
             ),
           target.operation,
         );
-        if (!result.completed) throw new Error("Portcove could not verify the restored library.");
+        if (
+          !result.completed ||
+          (target.transferId &&
+            (result.transfer_id !== target.transferId || result.destination_root !== target.path))
+        )
+          throw new Error("Portcove could not verify the restored library.");
         setRestored(result.destination_root);
       }
     });
@@ -550,12 +562,12 @@ function RecoveryBundleDialog({
               {createReceipt.bundle_id ? "Verify published bundle" : "Check reviewed bundle again"}
             </Button>
           )}
-        {error !== undefined && restoreReceipt && !restored && (
+        {restoreReceipt && (restoreReceipt.transfer_id || error !== undefined) && !restored && (
           <Button
             data-focusable
             variant="outline"
             className="justify-self-start"
-            disabled={Boolean(pending)}
+            aria-disabled={Boolean(pending)}
             onClick={() =>
               void run("Checking the reviewed restore destination…", async () => {
                 const expected = restoreReceipt.destination_root;
@@ -564,17 +576,23 @@ function RecoveryBundleDialog({
                     expected,
                     restoreReceipt.plan_sha256,
                   );
+                  if (
+                    restoreReceipt.transfer_id &&
+                    result.transfer_id !== restoreReceipt.transfer_id
+                  )
+                    throw new Error("The restored library does not match the reviewed transfer.");
                   acceptRestoredDestination(result, expected);
+                  setTransferred(true);
                   setRecovery(undefined);
                 } catch (failure) {
                   const step = recoveryStep(failure, "resumeRestore");
-                  if (step?.path === expected) setRecovery(step);
+                  if (!restoreReceipt.transfer_id && step?.path === expected) setRecovery(step);
                   throw failure;
                 }
               })
             }
           >
-            Check reviewed restore again
+            {restoreReceipt.transfer_id ? "Check restored library" : "Check reviewed restore again"}
           </Button>
         )}
         {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
@@ -607,6 +625,9 @@ function RecoveryBundleDialog({
             label="Recorded bundle folder"
             value={errorDetail(error, "recovery_destination") ?? ""}
           />
+        )}
+        {restoreReceipt?.transfer_id && !restored && (
+          <PathValue label="Recorded restore destination" value={restoreReceipt.destination_root} />
         )}
         {recovery && (
           <PathValue
@@ -694,7 +715,7 @@ function RecoveryBundleDialog({
               Verify bundle
             </Button>
           )}
-          {reviewingRestore && (
+          {reviewingRestore && !recovery && !restoreReceipt?.transfer_id && (
             <Button
               data-focusable
               variant="primary"
@@ -718,16 +739,34 @@ function RecoveryBundleDialog({
                   });
                 } else {
                   void run("Checking the restore destination…", async () => {
-                    const review = await desktopApi.planLibraryRecoveryRestore(
-                      verified.path,
-                      destination,
-                      generation,
-                    );
-                    if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
-                      setVerified(undefined);
-                      throw new Error("The bundle changed. Verify it again before restoring.");
+                    try {
+                      const review = await desktopApi.planLibraryRecoveryRestore(
+                        verified.path,
+                        destination,
+                        generation,
+                      );
+                      if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
+                        setVerified(undefined);
+                        throw new Error("The bundle changed. Verify it again before restoring.");
+                      }
+                      setRestore(review);
+                    } catch (failure) {
+                      const step = recoveryStep(failure, "resumeRestore");
+                      const readback = publishedRestoreReadback(failure);
+                      if (
+                        (step || readback) &&
+                        (errorDetail(failure, "recovery_bundle_id") !== verified.bundle_id ||
+                          errorDetail(failure, "recovery_bundle_path") !== verified.path ||
+                          errorDetail(failure, "recovery_bundle_receipt_sha256") !==
+                            verified.receipt_sha256)
+                      ) {
+                        setVerified(undefined);
+                        throw new Error("The bundle changed. Verify it again before restoring.");
+                      }
+                      setRecovery(step);
+                      setRestoreReceipt(readback);
+                      throw failure;
                     }
-                    setRestore(review);
                   });
                 }
               }}
@@ -836,6 +875,15 @@ function publishedCreationReadback(error: unknown): CreationReadback | undefined
       plan_sha256: digest,
       bundle_id: bundleId,
     };
+}
+
+function publishedRestoreReadback(error: unknown): RestoreReadback | undefined {
+  if (errorDetail(error, "recovery_action") !== "read_published_recovery_restore") return;
+  const destination = errorDetail(error, "import_destination");
+  const digest = errorDetail(error, "recovery_restore_plan_sha256");
+  const transferId = errorDetail(error, "transfer_id");
+  if (destination && digest && transferId)
+    return { destination_root: destination, plan_sha256: digest, transfer_id: transferId };
 }
 
 function recoveryStep(
