@@ -689,7 +689,9 @@ export async function prepareObservationBundle(options: {
   const diagnostics: string[] = [];
   const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
-  const canonicalInput = parseCatalogSource(canonicalBytes.toString("utf8"));
+  const canonicalInput = parseCatalogSource(
+    new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(canonicalBytes),
+  );
   const futureCanonical =
     isRecord(canonicalInput) &&
     Number.isSafeInteger(canonicalInput.format_version) &&
@@ -815,7 +817,6 @@ export async function prepareObservationBundle(options: {
   const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
   const implicitElevation =
     priorCompact &&
-    !automatic &&
     !options.compact &&
     previousDocument !== null &&
     candidateFormat > previousDocument.directory.format_version;
