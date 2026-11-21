@@ -918,7 +918,7 @@ mod capacity_tests {
         let archived = targets
             .historical_body(name, inventory.get("old").unwrap())
             .unwrap();
-        assert_eq!(archived.as_ref(), b"old");
+        assert_eq!(&*archived, b"old");
         assert!(matches!(archived, Cow::Owned(_)));
     }
 
