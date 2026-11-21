@@ -627,6 +627,12 @@ must declare a staged-source minimum version of 35. Earlier readers reject
 the capability. Holds that omit this field keep their existing behavior and
 capability requirements. The new field grants no additional acquisition authority.
 
+Managed PSX version 6 admits the same exact-artifact exclusion and reviewed
+fallback for GitHub release packages. Fresh and retained definitions containing
+these exclusions must declare a minimum of `psx-recomp-managed` version 6.
+Existing installations keep their executable, original disc and BIOS, settings
+and save data until the player chooses a compatible replacement.
+
 Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
 copier header (the `snes-copier-header-optional` source representation and its
 `snes-headerless-content` digest scope) and the `snes-headerless` source

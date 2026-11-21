@@ -186,6 +186,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("psx-recomp-managed", 3),
         ("psx-recomp-managed", 4),
         ("psx-recomp-managed", 5),
+        ("psx-recomp-managed", 6),
         ("native-portable", 2),
         ("native-portable", 3),
         ("native-portable", 4),

@@ -147,6 +147,10 @@ impl EngineTemplateCapability {
             contract_version: crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::managed_runtime_policy::EXACT_EXCLUSION_PSX_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -1078,7 +1082,8 @@ mod tests {
             (4, 4, true, 4),
             (3, 4, true, 4),
             (5, 5, true, 5),
-            (6, 6, false, 5),
+            (6, 6, true, 6),
+            (7, 7, false, 6),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
