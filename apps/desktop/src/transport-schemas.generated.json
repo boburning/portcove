@@ -34067,6 +34067,17 @@
           "null"
         ]
       },
+      "github_native_import_offered": {
+        "description": "This host has a reviewed native companion layout for the upstream ZIP.",
+        "type": "boolean"
+      },
+      "github_release_url": {
+        "description": "Reviewed upstream GitHub Releases page for browsing and native setup.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "held_updates": {
         "default": [],
         "description": "Unattended provider updates waiting for the player's review, for each\nsetup's current revision.",
@@ -34137,7 +34148,7 @@
         "type": "array"
       },
       "supported": {
-        "description": "False when the game has no reviewed mod package contract; nothing else is\noffered then.",
+        "description": "False when the game has no reviewed managed mod package contract.",
         "type": "boolean"
       }
     },

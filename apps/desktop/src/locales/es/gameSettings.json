@@ -130,6 +130,11 @@
     },
     "fromProvider": "<name /> (de <provider />)",
     "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
+    "github": {
+      "browse": "Ver mods en GitHub",
+      "platform": "Puedes ver las versiones. No se ha revisado la instalación nativa del ZIP de esta fuente en esta plataforma.",
+      "setup": "Descarga el ZIP completo. Abre una copia separada del juego y selecciona el ZIP en Install Mods. Actualiza esa copia cuando quieras una versión más reciente."
+    },
     "heading": "Perfiles y mods",
     "held": {
       "intro_one": "Portcove mantuvo la versión actual de un mod porque su actualización necesita tu revisión:",

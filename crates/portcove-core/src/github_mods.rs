@@ -73,6 +73,26 @@ pub fn has_github_mod_source(port: &PortDefinition) -> bool {
     reviewed_source(port).is_some()
 }
 
+pub(crate) fn github_mod_handoff(
+    port: &PortDefinition,
+    platform: Option<Platform>,
+) -> (Option<String>, bool) {
+    let Some(source) = reviewed_source(port) else {
+        return (None, false);
+    };
+    let native_import = platform.is_some_and(|platform| {
+        port.platforms.contains(&platform)
+            && source
+                .companions
+                .iter()
+                .any(|layout| layout.platform == platform)
+    });
+    (
+        Some(format!("https://github.com/{}/releases", source.repository)),
+        native_import,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct GithubModRelease {
     pub release_id: u64,
@@ -169,11 +189,7 @@ impl PortcoveService {
             repository: binding.repository.into(),
             repository_id: binding.repository_id,
             source_url: format!("https://github.com/{}/releases", binding.repository),
-            native_import_offered: binding
-                .companions
-                .iter()
-                .any(|layout| layout.platform == platform)
-                && port.platforms.contains(&platform),
+            native_import_offered: github_mod_handoff(port, Some(platform)).1,
             releases,
             complete,
             observed_at: identity.observed_at.min(listing.observed_at),
@@ -430,6 +446,23 @@ mod tests {
         let mut port = catalog.port("zelda64-recomp").unwrap().clone();
         assert!(has_github_mod_source(&port));
         assert!(!has_github_mod_source(catalog.port("shipwright").unwrap()));
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            let (url, native) = github_mod_handoff(&port, Some(platform));
+            assert_eq!(
+                url.as_deref(),
+                Some("https://github.com/RecompRando/MMRecompRando/releases")
+            );
+            assert!(native);
+        }
+        for platform in [
+            Some(Platform::MacosX86_64),
+            Some(Platform::MacosAarch64),
+            None,
+        ] {
+            let (url, native) = github_mod_handoff(&port, platform);
+            assert!(url.is_some());
+            assert!(!native);
+        }
         port.release.repository = "unrelated/unreviewed".into();
         assert!(!has_github_mod_source(&port));
     }

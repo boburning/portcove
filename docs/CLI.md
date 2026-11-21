@@ -2676,6 +2676,10 @@ Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRunti
 
 ### Browsing reviewed GitHub mod releases
 
+In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
+The link opens the reviewed Releases page. The view shows the native ZIP setup
+when the current platform has a reviewed companion layout.
+
 Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
 randomizer releases recommended by Zelda64Recomp. With `--json`, the response
 includes the repository, release and asset IDs and the published SHA-256 when

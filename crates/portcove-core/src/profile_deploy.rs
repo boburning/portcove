@@ -2523,8 +2523,7 @@ pub struct ModSetupPackageEdit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ModSetupsView {
     pub port_id: String,
-    /// False when the game has no reviewed mod package contract; nothing else is
-    /// offered then.
+    /// False when the game has no reviewed managed mod package contract.
     pub supported: bool,
     /// Package file types the game loads, such as `o2r`.
     pub package_types: Vec<String>,
@@ -2549,6 +2548,12 @@ pub struct ModSetupsView {
     /// Reviewed provider choices when the game offers more than one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
+    /// Reviewed upstream GitHub Releases page for browsing and native setup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_release_url: Option<String>,
+    /// This host has a reviewed native companion layout for the upstream ZIP.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub github_native_import_offered: bool,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2579,6 +2584,8 @@ impl PortcoveService {
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
         let port = self.catalog().port(port_id)?;
+        let (github_release_url, github_native_import_offered) =
+            crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
@@ -2590,6 +2597,8 @@ impl PortcoveService {
                 held_updates: Vec::new(),
                 last_automatic_checks: Vec::new(),
                 provider: None,
+                github_release_url,
+                github_native_import_offered,
                 providers: Vec::new(),
                 applied_package_count: None,
                 current_install_id: None,
@@ -2615,6 +2624,8 @@ impl PortcoveService {
             })
             .transpose()?;
         Ok(ModSetupsView {
+            github_release_url,
+            github_native_import_offered,
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)

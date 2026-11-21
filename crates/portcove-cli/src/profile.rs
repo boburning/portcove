@@ -965,7 +965,10 @@ pub(crate) async fn execute(
                         file.sha256
                     ));
                 }
-                lines.push("Use the game's own installer with the intact ZIP.".into());
+                lines.push(
+                    "Open a separate copy of the game and choose the intact ZIP in Install Mods."
+                        .into(),
+                );
                 lines.join("\n")
             })
         }

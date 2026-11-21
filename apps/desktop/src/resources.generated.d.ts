@@ -1311,6 +1311,11 @@ export default interface Resources {
       },
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
+      "github": {
+        "browse": "Browse mods on GitHub",
+        "platform": "You can browse releases. This platform has no reviewed native ZIP setup for this source.",
+        "setup": "Download the intact ZIP. Open a separate copy of the game and use Install Mods to select the ZIP. Update it in that copy when you want a newer release."
+      },
       "heading": "Setups and mods",
       "held": {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
