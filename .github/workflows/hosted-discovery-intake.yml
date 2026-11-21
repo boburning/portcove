@@ -49,7 +49,8 @@ jobs:
   contracts:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # The normal contract suite takes almost four minutes after setup.
+    timeout-minutes: 10
     # Job-level so issue-comment and dispatch intake runs are never grouped with it.
     concurrency:
       group: hosted-discovery-intake-contracts-${{ github.event.pull_request.number }}

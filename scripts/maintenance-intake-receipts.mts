@@ -1,6 +1,6 @@
 import { isRecord } from "./runtime-values.mts";
 import { queryJson, runSql, sqlLiteral } from "./maintenance-store.mts";
-import { readHostedIntake } from "./maintenance-hosted-intake.mts";
+import { readHostedIntake, ReceiptReconciliationFailure } from "./maintenance-hosted-intake.mts";
 import type { HostedRequestStatus } from "./hosted-discovery-intake.mts";
 
 interface IntakePlan {
@@ -96,16 +96,29 @@ export function intakeOperationReceipt(plan: IntakePlan, row: HostedRequestStatu
   };
 }
 
+function receiptStoreOperation<T>(
+  phase: ReceiptReconciliationFailure["phase"],
+  operation: () => T,
+): T {
+  try {
+    return operation();
+  } catch (error) {
+    throw new ReceiptReconciliationFailure(phase, error);
+  }
+}
+
 /** Acknowledge already executed work. The native executor retains all mutation authority. */
 export async function reconcileIntakeHandoffReceipts(
   environment: NodeJS.ProcessEnv,
   read = readHostedIntake,
 ) {
   const executor = "SET LOCAL ROLE portcove_maintenance_executor;";
-  const plans = queryJson(
-    environment,
-    `SELECT coalesce(json_agg(p ORDER BY p.operation_id), '[]') FROM (${openPlans}) p;`,
-    { executor: true },
+  const plans = receiptStoreOperation("read-plans", () =>
+    queryJson(
+      environment,
+      `SELECT coalesce(json_agg(p ORDER BY p.operation_id), '[]') FROM (${openPlans}) p;`,
+      { executor: true },
+    ),
   ) as IntakePlan[];
   if (!plans.length) return { inspected: 0, completed: [] };
   const queue = await read();
@@ -152,9 +165,10 @@ export async function reconcileIntakeHandoffReceipts(
       JOIN portcove_maintenance.subject_current c ON c.subject_key=p.subject_key
         AND c.sequence=p.sequence AND c.applicable_assessment_id=p.assessment AND c.verified_run_id=p.generation
       LEFT JOIN portcove_maintenance.discovery_intake_batches b ON b.request_comment=p.request`;
-  const output = runSql(
-    environment,
-    `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+  const output = receiptStoreOperation("record-receipts", () =>
+    runSql(
+      environment,
+      `SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
     ${executor}
     SET LOCAL standard_conforming_strings = on;
     UPDATE portcove_maintenance.operations o
@@ -173,22 +187,27 @@ export async function reconcileIntakeHandoffReceipts(
          AND o.receipt_reference=p.reference AND o.receipt_sha256=p.sha256
       RETURNING o.operation_id, o.receipt_reference, o.receipt_sha256, p.run, p.attempt)
     SELECT coalesce(json_agg(row_to_json(c) ORDER BY operation_id), '[]') FROM completed c;`,
+    ),
   );
-  const completed = JSON.parse(output) as { operation_id: string }[];
+  const completed = receiptStoreOperation("record-receipts", (): unknown => JSON.parse(output)) as {
+    operation_id: string;
+  }[];
   if (completed.length) {
     // A new session reads the committed operation. Only returned operation identities are queried.
     const ids = completed.map(({ operation_id }) => sqlLiteral(operation_id)).join(",");
-    const committed = runSql(
-      environment,
-      `${executor}
+    const committed = receiptStoreOperation("verify-recorded", () =>
+      runSql(
+        environment,
+        `${executor}
       SELECT coalesce(json_agg(row_to_json(v) ORDER BY operation_id), '[]') FROM (
         SELECT o.operation_id, o.receipt_reference, o.receipt_sha256, p.run, p.attempt
           FROM portcove_maintenance.operations o JOIN ${proofTable} ON o.operation_id=p.operation_id
          WHERE o.operation_id IN (${ids}) AND o.state='completed' AND o.revision=p.revision+2
            AND o.receipt_reference=p.reference AND o.receipt_sha256=p.sha256
            AND o.fence_sequence=p.sequence AND o.fence_assessment_id=p.assessment) v;`,
+      ),
     );
-    if (committed !== output) throw new Error("Committed hosted intake operation receipt differs");
+    if (committed !== output) throw new ReceiptReconciliationFailure("verify-recorded", null);
   }
   return { inspected: plans.length, completed };
 }

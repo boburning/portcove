@@ -21,6 +21,27 @@ export interface HostedIntakeGap {
   message: string;
 }
 
+type ReceiptReconciliationPhase = "read-plans" | "record-receipts" | "verify-recorded";
+
+export class ReceiptReconciliationFailure extends Error {
+  readonly phase: ReceiptReconciliationPhase;
+  readonly reason: "executor-role-denied" | "store-error" | "readback-mismatch" | "unexpected";
+
+  constructor(phase: ReceiptReconciliationPhase, error: unknown) {
+    const reason =
+      error === null
+        ? "readback-mismatch"
+        : error instanceof MaintenanceStoreError
+          ? /permission denied to set role "portcove_maintenance_executor"/u.test(error.message)
+            ? "executor-role-denied"
+            : "store-error"
+          : "unexpected";
+    super(`Original intake receipt reconciliation failed during ${phase} (${reason})`);
+    this.phase = phase;
+    this.reason = reason;
+  }
+}
+
 export interface HostedIntakeObservation {
   revision: string;
   failed: boolean;
@@ -32,6 +53,8 @@ export interface HostedIntakeObservation {
     status: "unavailable" | "failed" | "passed";
     inspected?: number;
     completed?: unknown[];
+    phase?: ReceiptReconciliationPhase;
+    reason?: ReceiptReconciliationFailure["reason"];
   };
 }
 
@@ -165,7 +188,7 @@ export async function hostedIntakeObservation(
     try {
       const receipts = await reconcile(queue);
       return { ...observation, receipts: { status: "passed", ...receipts } };
-    } catch {
+    } catch (error) {
       // Keep the original operation current so the next complete read can retry.
       // Unrelated sources and all positively observed native facts still commit.
       observation.gaps.push({
@@ -174,7 +197,15 @@ export async function hostedIntakeObservation(
         message:
           "Original maintenance handoff receipts could not be verified and recorded. The next collection retries.",
       });
-      return { ...observation, receipts: { status: "failed" } };
+      return {
+        ...observation,
+        receipts: {
+          status: "failed",
+          ...(error instanceof ReceiptReconciliationFailure
+            ? { phase: error.phase, reason: error.reason }
+            : { reason: "unexpected" as const }),
+        },
+      };
     }
   } catch (error) {
     const changed = (error as { code?: unknown } | null)?.code === "inventory_changed";
