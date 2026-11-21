@@ -1510,7 +1510,17 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use flate2::write::GzEncoder;
     use std::io::Write as _;
-    let fixture = |first: Option<&str>, last: &str, candidate: &serde_json::Value| {
+    let mapping = |id, image: &str, digest: &str| {
+        json!({
+            "game_id": 1, "game_slug": "original-game", "match_kind": "underlying-game",
+            "cover_id": id, "image_id": image, "image_sha256": digest.repeat(64),
+        })
+    };
+    let a = mapping(1, "covera", "b");
+    let fixture = |first: Option<&str>,
+                   last: &str,
+                   prior: &serde_json::Value,
+                   candidate: &serde_json::Value| {
         let mut packets: Vec<_> = first.into_iter().map(str::to_owned).collect();
         packets.push(last.into());
         json!({
@@ -1519,7 +1529,9 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
             "approvals": [{
                 "id": "example",
                 "scope": "a".repeat(64),
-                "authored": { "image_sha256": "b".repeat(64) },
+                "authored": a,
+                "prior": prior,
+                "role": "cover",
                 "candidate": candidate,
                 "bytes": 25,
                 "packet": last,
@@ -1529,11 +1541,16 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
         })
     };
     let compact = |artwork: &serde_json::Value| {
+        let listing = if artwork.is_null() {
+            json!({"id": "example"})
+        } else {
+            json!({"id": "example", "artwork": artwork})
+        };
         let directory = serde_json::to_vec(&json!({
             "listing_delivery_schema": 1,
             "revision": 5,
             "withdrawn_ids": [],
-            "directory": { "format_version": 13, "listings": [{ "id": "example", "artwork": artwork }] }
+            "directory": { "format_version": 13, "listings": [listing] }
         }))
         .unwrap();
         let mut encoder = GzEncoder::new(Vec::new(), flate2::Compression::default());
@@ -1548,18 +1565,108 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
     };
     let packet_b = "1".repeat(64);
     let packet_c = "2".repeat(64);
-    let b = json!({"image_sha256": "3".repeat(64)});
-    let c = json!({"image_sha256": "4".repeat(64)});
-    let approved_b = fixture(None, &packet_b, &b);
-    let approved_c = fixture(Some(&packet_b), &packet_c, &c);
-    super::check_cover_approval_successor(None, &approved_b, &compact(&b)).unwrap();
-    super::check_cover_approval_successor(Some(&approved_b), &approved_c, &compact(&c)).unwrap();
+    let b = mapping(2, "coverb", "3");
+    let c = mapping(3, "coverc", "4");
+    let approved_b = fixture(None, &packet_b, &a, &b);
+    let approved_c = fixture(Some(&packet_b), &packet_c, &b, &c);
+    super::check_cover_approval_successor(None, &approved_b, &compact(&a), None, &compact(&b))
+        .unwrap();
+    super::check_cover_approval_successor(
+        Some(&approved_b),
+        &approved_c,
+        &compact(&b),
+        None,
+        &compact(&c),
+    )
+    .unwrap();
     assert!(
-        super::check_cover_approval_successor(Some(&approved_b), &approved_c, &compact(&b))
-            .is_err()
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &approved_c,
+            &compact(&b),
+            None,
+            &compact(&b)
+        )
+        .is_err()
     );
     assert!(
-        super::check_cover_approval_successor(Some(&approved_b), &approved_b, &compact(&b))
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &approved_b,
+            &compact(&b),
+            None,
+            &compact(&b)
+        )
+        .is_err()
+    );
+    for (key, value) in [
+        ("game_id", json!(17)),
+        ("unexpected", json!("unknown mapping field")),
+        ("image_sha256", a["image_sha256"].clone()),
+        ("image_id", b["image_id"].clone()),
+    ] {
+        let mut invalid = c.clone();
+        invalid[key] = value;
+        let journal = fixture(Some(&packet_b), &packet_c, &b, &invalid);
+        assert!(
+            super::check_cover_approval_successor(
+                Some(&approved_b),
+                &journal,
+                &compact(&b),
+                None,
+                &compact(&invalid)
+            )
             .is_err()
+        );
+    }
+    let gone_scope =
+        sha(&serde_json::to_vec(&json!(["example", null, null, null, "single", b])).unwrap());
+    let gone = serde_json::to_vec(&json!({"entries": [{
+        "id": "example", "scope": gone_scope, "image_id": "coverb",
+        "prior_sha256": b["image_sha256"], "state": "gone"
+    }]}))
+    .unwrap();
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &approved_c,
+            &compact(&serde_json::Value::Null),
+            Some(&gone),
+            &compact(&c),
+        )
+        .is_ok()
+    );
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &approved_c,
+            &compact(&serde_json::Value::Null),
+            None,
+            &compact(&c),
+        )
+        .is_err()
+    );
+    let wrong_preimage = fixture(Some(&packet_b), &packet_c, &a, &c);
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &wrong_preimage,
+            &compact(&b),
+            None,
+            &compact(&c)
+        )
+        .is_err()
+    );
+    let mut wrong_role = approved_c;
+    wrong_role["approvals"][0]["role"] = json!("logo");
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &wrong_role,
+            &compact(&b),
+            None,
+            &compact(&c)
+        )
+        .is_err()
     );
 }

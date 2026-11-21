@@ -7,8 +7,8 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { isDeepStrictEqual } from "node:util";
-import { readApprovedCoverJournal } from "./catalog-cover-approval.mts";
-import { requireExactReleasedCoverInspection } from "./listing-observation-delivery.mts";
+import { readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
+import { requireExactReleasedCoverInspection } from "./listing-cover-reader-proof.mts";
 import { publishedTargets } from "./catalog-publish.mts";
 import {
   acquireCatalogReleasedReader,

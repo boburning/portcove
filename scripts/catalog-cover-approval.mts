@@ -3,7 +3,19 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parseCatalogSource, readCatalogSource } from "./catalog-authoring.mts";
-import { validArtworkMapping } from "./catalog-cover-mapping.mts";
+import {
+  bounded,
+  digest,
+  exact,
+  fixedId,
+  mapping,
+  readApprovedCoverJournal,
+  replacement,
+  type Approval,
+  type ApprovedCoverJournal,
+  type Mapping,
+} from "./catalog-cover-approval-journal.mts";
+export { readApprovedCoverJournal } from "./catalog-cover-approval-journal.mts";
 import {
   createCoreImageValidator,
   createIgdbInspector,
@@ -14,103 +26,9 @@ import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
 
 const maxInput = 60 * 1024;
-const maxJournal = 256 * 1024;
-const maxEntries = 256;
 const sha = /^[a-f0-9]{64}$/u;
-const commit = /^[a-f0-9]{40}$/u;
-const subject = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 const originalGameUrl = (slug: string) => `https://www.igdb.com/games/${slug}`;
-const digest = (value: unknown): value is string => typeof value === "string" && sha.test(value);
-const fixedId = (value: unknown): value is string =>
-  typeof value === "string" && value.length <= 128 && subject.test(value);
-const exact = (value: unknown, keys: string) =>
-  isRecord(value) && Object.keys(value).sort().join(",") === keys;
-const bounded = (value: unknown, bound: number): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0 && value <= bound;
-
-type Mapping = {
-  game_id: number;
-  game_slug: string;
-  cover_id: number;
-  image_id: string;
-  image_sha256: string;
-  match_kind: "underlying-game";
-};
-function mapping(value: unknown): value is Mapping {
-  return (
-    validArtworkMapping(value) &&
-    exact(value, "cover_id,game_id,game_slug,image_id,image_sha256,match_kind") &&
-    value.match_kind === "underlying-game"
-  );
-}
-function replacement(prior: Mapping, candidate: Mapping) {
-  return (
-    prior.game_id === candidate.game_id &&
-    prior.game_slug === candidate.game_slug &&
-    prior.cover_id !== candidate.cover_id &&
-    prior.image_id !== candidate.image_id &&
-    prior.image_sha256 !== candidate.image_sha256
-  );
-}
-interface Approval {
-  id: string;
-  scope: string;
-  authored: Mapping;
-  candidate: Mapping;
-  bytes: number;
-  packet: string;
-  source: string;
-  run: string;
-}
-export interface ApprovedCoverJournal {
-  format_version: 1;
-  approvals: Approval[];
-  consumed_packets: string[];
-}
-const empty: ApprovedCoverJournal = { format_version: 1, approvals: [], consumed_packets: [] };
-
-export function readApprovedCoverJournal(raw: unknown): ApprovedCoverJournal {
-  if (raw === undefined) return empty;
-  if (
-    !isRecord(raw) ||
-    !exact(raw, "approvals,consumed_packets,format_version") ||
-    raw.format_version !== 1 ||
-    !Array.isArray(raw.approvals) ||
-    !Array.isArray(raw.consumed_packets) ||
-    raw.approvals.length > maxEntries ||
-    raw.consumed_packets.length > maxEntries ||
-    Buffer.byteLength(JSON.stringify(raw)) > maxJournal
-  )
-    throw new Error("Invalid signed cover replacement journal");
-  const consumed = (raw.consumed_packets as unknown[]).filter(digest);
-  const consumedSet = new Set(consumed);
-  if (consumed.length !== raw.consumed_packets.length || consumed.length !== consumedSet.size)
-    throw new Error("Invalid consumed cover replacement packets");
-  const seen = new Set();
-  for (const row of raw.approvals as unknown[]) {
-    if (
-      !isRecord(row) ||
-      !exact(row, "authored,bytes,candidate,id,packet,run,scope,source") ||
-      !fixedId(row.id) ||
-      seen.has(row.id) ||
-      !digest(row.scope) ||
-      !mapping(row.authored) ||
-      !mapping(row.candidate) ||
-      !replacement(row.authored, row.candidate) ||
-      !bounded(row.bytes, 16 * 1024 * 1024) ||
-      !digest(row.packet) ||
-      !consumedSet.has(row.packet) ||
-      typeof row.source !== "string" ||
-      !commit.test(row.source) ||
-      typeof row.run !== "string" ||
-      !/^[1-9][0-9]{0,15}$/u.test(row.run)
-    )
-      throw new Error("Invalid or duplicate signed cover replacement");
-    seen.add(row.id);
-  }
-  return raw as unknown as ApprovedCoverJournal;
-}
 
 function matches(row: Record<string, unknown> | undefined, entry: Approval) {
   return (
@@ -182,6 +100,7 @@ export async function acceptApprovedCovers(options: {
   prior: ApprovedCoverJournal;
   canonical: { listings: Record<string, unknown>[] };
   compatibleCanonical: { listings: Record<string, unknown>[] };
+  authenticatedPriorSha: string;
   previous: { listings: Record<string, unknown>[] };
   priorWasWithdrawn: (row: Record<string, unknown>, artwork: Mapping) => boolean;
   canonicalSha: string;
@@ -211,6 +130,9 @@ export async function acceptApprovedCovers(options: {
     packet.source_commit !== source ||
     packet.authored_catalog_sha256 !== options.catalogSha ||
     packet.authored_listings_sha256 !== options.canonicalSha ||
+    (packet.signed_prior_repository_sha256 !== undefined &&
+      (!digest(packet.signed_prior_repository_sha256) ||
+        packet.signed_prior_repository_sha256 !== options.authenticatedPriorSha)) ||
     !Array.isArray(packet.selected_port_ids) ||
     !Array.isArray(packet.replacements) ||
     !bounded(packet.selected_port_ids.length, 32) ||
@@ -267,7 +189,9 @@ export async function acceptApprovedCovers(options: {
     const old = previousRows.get(value.port_id);
     const currentApproval = entries.get(value.port_id);
     const approvedPrior =
-      currentApproval && matches(row, currentApproval) ? currentApproval.candidate : value.prior;
+      currentApproval && matches(compatible, currentApproval)
+        ? currentApproval.candidate
+        : value.prior;
     if (
       !row ||
       !old ||
@@ -324,8 +248,10 @@ export async function acceptApprovedCovers(options: {
       throw new Error("Reviewed cover differs from the verified CDN bytes");
     entries.set(value.port_id, {
       id: value.port_id,
-      scope: coverDeclarationScope(row, value.prior),
+      scope: coverDeclarationScope(compatible, value.prior),
       authored: value.prior,
+      prior: approvedPrior,
+      role: "cover",
       candidate: value.candidate,
       bytes: content.bytes,
       packet: input.digest,
@@ -352,7 +278,6 @@ export function activeApprovedCovers(
  * already-pinned bytes returned, never propose different bytes here. */
 export async function observeApprovedCoverHealth(options: {
   journal: ApprovedCoverJournal;
-  canonical: { listings: Record<string, unknown>[] };
   compatible: { listings: Record<string, unknown>[] };
   now: number;
   cli: string;
@@ -360,7 +285,7 @@ export async function observeApprovedCoverHealth(options: {
   inspectImage?: (image: string, byteLimit: number) => Promise<unknown>;
 }) {
   const compatible = new Map(options.compatible.listings.map((listing) => [listing.id, listing]));
-  const active = activeApprovedCovers(options.journal, options.canonical);
+  const active = activeApprovedCovers(options.journal, options.compatible);
   const batchSize = 8;
   const slots = Math.ceil(active.length / batchSize);
   const cursor = slots ? Math.floor(options.now / (12 * 60 * 60 * 1000)) % slots : 0;

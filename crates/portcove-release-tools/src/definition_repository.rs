@@ -330,19 +330,7 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
         let (prior, history, prior_approvals) =
             repository::inspect_prior(&context, &previous).await?;
         context.prior = prior;
-        if let Some(next) = &context.cover_approvals {
-            let compact = context
-                .targets
-                .get(portcove_listing_carrier::COMPACT_TARGET);
-            if !context
-                .targets
-                .contains_key(portcove_listing_carrier::COVER_CHECKPOINT_TARGET)
-                || compact.is_none()
-            {
-                return invalid("catalog cover approval requires active cover and compact targets");
-            }
-            check_cover_approval_successor(prior_approvals.as_ref(), next, compact.unwrap())?;
-        } else {
+        if context.cover_approvals.is_none() {
             context.cover_approvals = prior_approvals;
         }
         if let Some(prepared) = history {
@@ -444,6 +432,56 @@ fn cover_hash(raw: &serde_json::Value, length: usize) -> bool {
     })
 }
 
+#[derive(Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+struct CoverApprovalMapping {
+    cover_id: u64,
+    game_id: u64,
+    game_slug: String,
+    image_id: String,
+    image_sha256: String,
+    match_kind: String,
+}
+
+impl CoverApprovalMapping {
+    fn parse(raw: &serde_json::Value) -> Option<Self> {
+        let mapping: Self = serde_json::from_value(raw.clone()).ok()?;
+        let id = |value| (1..=9_007_199_254_740_991).contains(&value);
+        let lowercase_alphanumeric = |byte: u8| byte.is_ascii_lowercase() || byte.is_ascii_digit();
+        (id(mapping.cover_id)
+            && id(mapping.game_id)
+            && mapping.match_kind == "underlying-game"
+            && !mapping.game_slug.is_empty()
+            && mapping.game_slug.len() <= 255
+            && mapping
+                .game_slug
+                .bytes()
+                .all(|byte| lowercase_alphanumeric(byte) || byte == b'-')
+            && !mapping.image_id.is_empty()
+            && mapping.image_id.len() <= 128
+            && mapping.image_id.bytes().all(lowercase_alphanumeric)
+            && cover_hash(&raw["image_sha256"], 64))
+        .then_some(mapping)
+    }
+
+    fn replaced_by(&self, next: &Self) -> bool {
+        self.game_id == next.game_id
+            && self.game_slug == next.game_slug
+            && self.cover_id != next.cover_id
+            && self.image_id != next.image_id
+            && self.image_sha256 != next.image_sha256
+    }
+}
+
+fn approved_cover_mappings(row: &serde_json::Value) -> bool {
+    let [Some(authored), Some(prior), Some(candidate)] =
+        ["authored", "prior", "candidate"].map(|name| CoverApprovalMapping::parse(&row[name]))
+    else {
+        return false;
+    };
+    authored.replaced_by(&candidate) && prior.replaced_by(&candidate)
+}
+
 fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[serde_json::Value]> {
     let invalid_value =
         || TufRepositoryError::Invalid("catalog cover approval journal differs".into());
@@ -462,15 +500,15 @@ fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[serde_json::V
         || packets.iter().any(|packet| !cover_hash(packet, 64))
         || (0..packets.len()).any(|index| packets[index + 1..].contains(&packets[index]))
         || rows.iter().any(|row| {
-            row.as_object().map(serde_json::Map::len) != Some(8)
+            row.as_object().map(serde_json::Map::len) != Some(10)
                 || !row["id"]
                     .as_str()
                     .is_some_and(|id| !id.is_empty() && id.len() <= 128 && ids.insert(id))
                 || !packets.contains(&row["packet"])
                 || !cover_hash(&row["scope"], 64)
                 || !cover_hash(&row["source"], 40)
-                || !cover_hash(&row["candidate"]["image_sha256"], 64)
-                || !cover_hash(&row["authored"]["image_sha256"], 64)
+                || row["role"] != "cover"
+                || !approved_cover_mappings(row)
                 || !row["run"].as_str().is_some_and(|run| {
                     !run.is_empty()
                         && run.len() <= 16
@@ -490,6 +528,8 @@ fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[serde_json::V
 fn check_cover_approval_successor(
     prior: Option<&serde_json::Value>,
     next: &serde_json::Value,
+    prior_compact: &[u8],
+    prior_cover: Option<&[u8]>,
     compact: &[u8],
 ) -> Result<()> {
     let new_packets = cover_approval_packets(next)?;
@@ -516,8 +556,65 @@ fn check_cover_approval_successor(
     {
         return invalid("catalog cover approval altered an unrelated journal row");
     }
-    let (decoded, _) = portcove_listing_carrier::decode(compact)
-        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    let decode = |bytes| {
+        portcove_listing_carrier::decode(bytes)
+            .map_err(|error| TufRepositoryError::Invalid(error.to_string()))
+    };
+    let (decoded_prior, _) = decode(prior_compact)?;
+    let prior_directory: serde_json::Value = serde_json::from_slice(&decoded_prior)?;
+    let prior_listings = prior_directory["directory"]["listings"]
+        .as_array()
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog approved cover prior listing differs".into())
+        })?;
+    let prior_checkpoint = prior_cover
+        .map(serde_json::from_slice::<serde_json::Value>)
+        .transpose()?;
+    for row in approved.iter().filter(|row| &row["packet"] == final_packet) {
+        let former = previous.iter().find(|old| {
+            old["id"] == row["id"]
+                && old["scope"] == row["scope"]
+                && old["authored"] == row["authored"]
+        });
+        let expected = former
+            .map(|old| &old["candidate"])
+            .unwrap_or(&row["authored"]);
+        let Some(held) = prior_listings
+            .iter()
+            .find(|listing| listing["id"] == row["id"])
+        else {
+            return invalid("catalog cover approval subject missing from signed compact prior");
+        };
+        let gone = if held.get("artwork").is_none() && !held["collection_covers"].is_array() {
+            let scope = serde_json::json!([
+                held["id"],
+                held["project_url"],
+                held["original_game_title"],
+                held["original_game"],
+                "single",
+                row["prior"],
+            ]);
+            let scope = sha(&serde_json::to_vec(&scope)?);
+            prior_checkpoint
+                .as_ref()
+                .and_then(|checkpoint| checkpoint["entries"].as_array())
+                .is_some_and(|entries| {
+                    entries.iter().any(|entry| {
+                        entry["id"] == row["id"]
+                            && entry["scope"] == scope
+                            && entry["image_id"] == row["prior"]["image_id"]
+                            && entry["prior_sha256"] == row["prior"]["image_sha256"]
+                            && entry["state"] == "gone"
+                    })
+                })
+        } else {
+            false
+        };
+        if &row["prior"] != expected || (held["artwork"] != row["prior"] && !gone) {
+            return invalid("catalog cover approval does not bind the effective preimage");
+        }
+    }
+    let (decoded, _) = decode(compact)?;
     let directory: serde_json::Value = serde_json::from_slice(&decoded)?;
     let listings = directory["directory"]["listings"]
         .as_array()

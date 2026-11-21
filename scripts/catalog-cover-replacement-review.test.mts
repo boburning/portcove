@@ -18,6 +18,7 @@ import {
   readApprovedCoverJournal,
 } from "./catalog-cover-approval.mts";
 import { validArtworkMapping } from "./catalog-cover-mapping.mts";
+import { stripVerifiedSourceBindings } from "./listing-observation-delivery.mts";
 import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -362,6 +363,7 @@ void test("protected cover approval binds the review packet, actual source, prei
     prior: readApprovedCoverJournal(undefined),
     canonical: authored.directory,
     compatibleCanonical: authored.directory,
+    authenticatedPriorSha: "b".repeat(64),
     priorWasWithdrawn: () => false,
     catalogSha: observationHash(authored.catalog),
     canonicalSha: observationHash(authored.directory),
@@ -378,6 +380,31 @@ void test("protected cover approval binds the review packet, actual source, prei
   const approved = await acceptApprovedCovers(options);
   assert.equal(requests, 1);
   assert.deepEqual(projectApprovedCovers(previous, approved).listings[0]?.artwork, candidate);
+  const originalGame = sourceRow.original_game;
+  assert.ok(originalGame && Array.isArray(originalGame.source_editions));
+  const sourceWithVerifiedBindings = {
+    ...sourceRow,
+    original_game: {
+      ...originalGame,
+      source_editions: originalGame.source_editions.map((edition: object) => ({
+        ...edition,
+        verified_sources: [
+          {
+            game_id: "mortal-kombat-4",
+            variant_id: "playstation",
+            representation_id: "original-disc",
+          },
+        ],
+      })),
+    },
+  };
+  const compatibleV14 = stripVerifiedSourceBindings(sourceWithVerifiedBindings);
+  assert.deepEqual(compatibleV14, sourceRow);
+  assert.deepEqual(
+    projectApprovedCovers({ listings: [compatibleV14] }, approved).listings[0]?.artwork,
+    candidate,
+  );
+
   assert.deepEqual(
     projectApprovedCovers(
       { listings: [{ ...sourceRow, original_game_title: "Changed subject" }] },
@@ -530,6 +557,10 @@ void test("protected cover approval binds the review packet, actual source, prei
   await assert.rejects(
     acceptApprovedCovers({ ...nextOptions, previous }),
     /authenticated preimage/u,
+  );
+  await assert.rejects(
+    acceptApprovedCovers({ ...nextOptions, authenticatedPriorSha: "d".repeat(64) }),
+    /current CI-green source/u,
   );
   const acceptedC = await acceptApprovedCovers(nextOptions);
   assert.deepEqual(acceptedC.consumed_packets, [input.digest, nextInput.digest]);

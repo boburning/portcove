@@ -2651,6 +2651,8 @@ void test("publication classifies assembled operational requirements alongside s
         id: "existing",
         scope: "d".repeat(64),
         authored: a,
+        prior: a,
+        role: "cover",
         candidate: { ...a, image_id: "coverb", cover_id: 2, image_sha256: "c".repeat(64) },
         bytes: 250,
         packet,

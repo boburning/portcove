@@ -341,6 +341,20 @@ pub(super) async fn inspect_prior(
             return invalid("catalog proposed version rolls back authenticated floor");
         }
     }
+    if let Some(next) = &context.cover_approvals {
+        let prior_compact = at(&logical.files, portcove_listing_carrier::COMPACT_TARGET)?;
+        let compact = at(&context.targets, portcove_listing_carrier::COMPACT_TARGET)?;
+        if next_cover.is_none() {
+            return invalid("catalog cover approval requires the active cover checkpoint");
+        }
+        super::check_cover_approval_successor(
+            cover_approvals.as_ref(),
+            next,
+            prior_compact,
+            prior_cover.as_ref().map(|(bytes, _)| *bytes),
+            compact,
+        )?;
+    }
     // Hash-addressed leaves are immutable across every retained generation.
     for (name, bytes) in &logical.files {
         if name.starts_with("sha256/")
