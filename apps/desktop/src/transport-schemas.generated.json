@@ -27632,6 +27632,13 @@
           "null"
         ]
       },
+      "transport_target_sha256": {
+        "description": "Digest of the authenticated compact transport target, when applicable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "withdrawn_ids": {
         "items": {
           "type": "string"
@@ -34265,6 +34272,13 @@
             "type": "boolean"
           },
           "target_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transport_target_sha256": {
+            "description": "Digest of the authenticated compact transport target, when applicable.",
             "type": [
               "string",
               "null"
