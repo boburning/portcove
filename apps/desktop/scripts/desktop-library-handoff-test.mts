@@ -8,6 +8,7 @@ import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import type { LibraryContentKind } from "../src/transport-types.generated.d.ts";
 interface HandoffContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   library: string;
@@ -23,6 +24,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   access,
   copyFile,
@@ -87,6 +89,20 @@ export async function prepareLibraryRecoveryBundleFixture({
     "source",
     command(["source", "add", "star-fox-64", path.join(library, originalRelative)]),
   );
+  const artworkInput = fileURLToPath(
+    new URL("./testdata/catalog-artwork-red.jpg", import.meta.url),
+  );
+  const artwork = transportValue(
+    "artwork_state",
+    command(["artwork", "import", portId, artworkInput, "--slot", "cover"]),
+  );
+  assert.equal(artwork.availability, "available");
+  assert.equal(artwork.resolved_source.kind, "local_import");
+  const artworkDigest = required(artwork.choice.asset_sha256);
+  assert.equal(artworkDigest, (await fileIdentity(artworkInput)).sha256);
+  const artworkRelative = path.join("artwork", artworkDigest);
+  const artworkFile = await fileIdentity(path.join(library, artworkRelative));
+  assert.equal(artworkFile.sha256, artworkDigest);
   const carried = [
     {
       kind: "source_inbox",
@@ -98,7 +114,16 @@ export async function prepareLibraryRecoveryBundleFixture({
       relative: toolRelative,
       source: await fileIdentity(path.join(library, toolRelative)),
     },
-  ];
+    {
+      kind: "local_artwork",
+      relative: artworkRelative,
+      source: artworkFile,
+    },
+  ] satisfies {
+    kind: LibraryContentKind;
+    relative: string;
+    source: Awaited<ReturnType<typeof fileIdentity>>;
+  }[];
   return {
     source: library,
     portId,
@@ -108,6 +133,7 @@ export async function prepareLibraryRecoveryBundleFixture({
     originalBackup,
     registeredOriginal,
     originalRelative,
+    artworkChoice: artwork.choice,
     carried,
   };
 }
@@ -143,6 +169,7 @@ export async function libraryRecoveryBundleScenario({
       originalBackup,
       registeredOriginal,
       originalRelative,
+      artworkChoice,
       carried,
     } = required(fixture);
     const metadataLeaf = "portcove-recovery-bundle.json";
@@ -257,6 +284,7 @@ export async function libraryRecoveryBundleScenario({
       "Game-save backups",
       "Imported game files",
       "Preparation tools",
+      "Local artwork",
       "Original game files and BIOS outside the library",
       "Sign-in credentials",
     ])
@@ -391,7 +419,16 @@ export async function libraryRecoveryBundleScenario({
     const opened = await identity(destination);
     assert.ok(opened.generation > afterRestore.generation);
     browser = await restartApplication("restored-library-explicitly-opened");
-    assert.equal((await identity(destination)).id, opened.id);
+    const reopened = await identity(destination);
+    assert.equal(reopened.id, opened.id);
+    const restoredArtwork = await read("artwork_state", "get_artwork", {
+      generation: reopened.generation,
+      portId,
+      slot: "cover",
+    });
+    assert.equal(restoredArtwork.availability, "available");
+    assert.equal(restoredArtwork.resolved_source.kind, "local_import");
+    assert.deepEqual(restoredArtwork.choice, artworkChoice);
 
     const report = path.join(output, "native-recovery-bundle-result.json");
     await writeFile(
@@ -412,6 +449,7 @@ export async function libraryRecoveryBundleScenario({
           restored_install_id: restoredActive.id,
           restored_backup_id: restoredBackup.id,
           restored_original: restoredOriginal,
+          restored_artwork_choice: restoredArtwork.choice,
           carried_content: restoredContent,
           occupied_destination: occupiedIdentity,
           refusals: [

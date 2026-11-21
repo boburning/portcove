@@ -261,7 +261,10 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 Recovery bundle creation, verification, restore and explicit activation run in
-one standalone group. Interruption and resume run in a second group with a
+one standalone group. The create and restore fixture compares the exact
+imported Cover bytes in the source, bundle and restored library. It reads the
+same Cover choice through native IPC after explicitly opening and restarting
+the restored library. Interruption and resume run in a second group with a
 fresh runner, library and preferences.
 This preserves the planner's standalone and incompatible-fixture refusals.
 
