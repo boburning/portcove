@@ -67466,6 +67466,19 @@
           "DaggerfallUnity.x86_64"
         ]
       },
+      "mod_loader": {
+        "contract": {
+          "id": "daggerfall-unity-data",
+          "version": "1"
+        },
+        "repository": "Interkarma/daggerfall-unity",
+        "minimum_version": "v1.1.1-cve-2025",
+        "settings_file": "PortableAppdata/Mods/GameData/Mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
       "persistent_paths": [
         "Portable.txt",
         "PortableAppdata",

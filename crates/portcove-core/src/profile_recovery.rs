@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     Layout, NativeModListStatus, mark_restore_pending, native_status, observe, require_clean,
-    require_code_allowed, require_projectable,
+    require_code_allowed, require_dfu_basename_stability, require_projectable,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -137,6 +137,8 @@ impl PortcoveService {
             &target,
             setup.is_default,
         ));
+        check(require_dfu_basename_stability(&current, &target));
+        check(self.require_dfu_target_clean(layout, &target));
         check(require_projectable(layout, &target));
         if setup.is_default && current.originals != target.originals {
             check(Err(PortcoveError::unsupported(
@@ -287,6 +289,17 @@ fn verify_retained_package(layout: &Layout, package: &ResolvedPackage) -> Result
     let changed = || PortcoveError::verification("Stored mod bytes differ from the earlier setup.");
     if !metadata.is_file() || metadata.len() != package.size {
         return Err(changed());
+    }
+    if let Some(platform) = layout.dfu_platform {
+        let inspection = crate::dfu_mod::inspect_data_only(&path, platform)?;
+        return if inspection.package.sha256 == package.sha256
+            && inspection.package.size == package.size
+            && inspection.package.file_name == package.native_id
+        {
+            Ok(())
+        } else {
+            Err(changed())
+        };
     }
     let file = fs::File::open(path)?;
 

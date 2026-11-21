@@ -15,6 +15,35 @@ use crate::{
 };
 
 pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
+pub(crate) const DFU_MODS: &str = "DaggerfallUnity_Data/StreamingAssets/Mods";
+pub(crate) const DFU_CAPABILITY: u32 = 40;
+const DFU_REPOSITORY: &str = "Interkarma/daggerfall-unity";
+const DFU_TAG: &str = "v1.1.1-cve-2025";
+const DFU_SETTINGS: &str = "PortableAppdata/Mods/GameData/Mods.json";
+
+fn dfu_package(platform: Platform) -> Option<(&'static str, &'static str, u64, &'static str)> {
+    match platform {
+        Platform::WindowsX86_64 => Some((
+            "DaggerfallUnity.exe",
+            "dfu_windows_64bit-v1.1.1.zip",
+            50_240_819,
+            "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd",
+        )),
+        Platform::LinuxX86_64 => Some((
+            "DaggerfallUnity.x86_64",
+            "dfu_linux_64bit-v1.1.1.zip",
+            58_809_717,
+            "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a",
+        )),
+        _ => None,
+    }
+}
+
+pub(crate) fn declares_dfu_loader(port: &PortDefinition) -> bool {
+    port.mod_loader
+        .as_ref()
+        .is_some_and(|binding| binding.contract == ModEngine::DaggerfallUnity.reference())
+}
 
 /// Package and native-state behavior implemented by Core. A family is usable
 /// only when an admitted definition and its exact runtime select the contract.
@@ -22,6 +51,7 @@ pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
 pub(crate) enum ModEngine {
     Libultraship,
     N64Recomp,
+    DaggerfallUnity,
 }
 
 impl ModEngine {
@@ -29,6 +59,7 @@ impl ModEngine {
         match self {
             Self::Libultraship => &["o2r", "otr"],
             Self::N64Recomp => &["nrm"],
+            Self::DaggerfallUnity => &["dfmod"],
         }
     }
 
@@ -37,6 +68,7 @@ impl ModEngine {
             id: match self {
                 Self::Libultraship => "libultraship",
                 Self::N64Recomp => "n64-recomp",
+                Self::DaggerfallUnity => "daggerfall-unity-data",
             }
             .into(),
             version: "1".into(),
@@ -129,6 +161,9 @@ fn definition_matches(loader: &ReviewedLoader, port: &PortDefinition) -> bool {
 
 fn authored_loader(port: &PortDefinition) -> Option<ReviewedLoader> {
     let binding = port.mod_loader.as_ref()?;
+    if binding.contract == ModEngine::DaggerfallUnity.reference() {
+        return authored_dfu_loader(port, binding);
+    }
     let engine = match port.adapter {
         AdapterKind::LibultrashipPortable if binding.native_game.is_none() => {
             ModEngine::Libultraship
@@ -180,6 +215,62 @@ fn authored_loader(port: &PortDefinition) -> Option<ReviewedLoader> {
         platforms: Cow::Owned(binding.platforms.clone()),
     };
     definition_matches(&loader, port).then_some(loader)
+}
+
+fn authored_dfu_loader(
+    port: &PortDefinition,
+    binding: &crate::ModLoaderBinding,
+) -> Option<ReviewedLoader> {
+    let paths = [DFU_MODS, "Portable.txt", "PortableAppdata"];
+    if port.adapter != AdapterKind::NativePortable
+        || port.release.provider != ReleaseSource::Github
+        || binding.repository != DFU_REPOSITORY
+        || port.release.repository != DFU_REPOSITORY
+        || binding.minimum_version != DFU_TAG
+        || binding.settings_file != DFU_SETTINGS
+        || binding.native_game.is_some()
+        || port.runtime_data_policy.is_some()
+        || !paths.iter().all(|path| {
+            port.persistent_paths
+                .iter()
+                .any(|declared| declared == path)
+        })
+        || binding.platforms.is_empty()
+        || binding
+            .platforms
+            .iter()
+            .enumerate()
+            .any(|(index, platform)| {
+                !port.platforms.contains(platform)
+                    || binding.platforms[..index].contains(platform)
+                    || !dfu_package(*platform).is_some_and(|(executable, _, _, _)| {
+                        port.executable_hints
+                            .get(platform)
+                            .is_some_and(|hints| hints.as_slice() == [executable])
+                    })
+            })
+    {
+        return None;
+    }
+    Some(ReviewedLoader {
+        engine: ModEngine::DaggerfallUnity,
+        adapter: AdapterKind::NativePortable,
+        repository: Cow::Borrowed(DFU_REPOSITORY),
+        minimum: [1, 1, 1],
+        settings_file: Cow::Borrowed(DFU_SETTINGS),
+        native_game: None,
+        platforms: Cow::Owned(binding.platforms.clone()),
+    })
+}
+
+fn exact_dfu_build(install_version: &str, build: &RetainedBuildIdentity) -> bool {
+    install_version == DFU_TAG
+        && dfu_package(build.platform).is_some_and(|(executable, archive, size, sha256)| {
+            build.selected_executable == Path::new(executable)
+                && build.artifact.asset_name == archive
+                && build.artifact.size == size
+                && build.artifact.sha256.eq_ignore_ascii_case(sha256)
+        })
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
@@ -297,6 +388,12 @@ fn installed_loader(
     let Some(loader) = definition_loader(port, build.platform) else {
         return Ok(None);
     };
+    if loader.engine == ModEngine::DaggerfallUnity {
+        return Ok(
+            (install.runtime.is_none() && exact_dfu_build(&install.version, build))
+                .then_some(loader),
+        );
+    }
     Ok((install.runtime.is_none()
         && contract_matches(
             &loader,
@@ -508,7 +605,9 @@ impl PortcoveService {
         }
         let build = crate::install::retained_build_identity_for_install(install)?;
         Ok(installed_loader(install, &build)?.map(|loader| {
-            Layout::for_user(&self.library.user_dir(&install.port_id)).with_loader(loader)
+            Layout::for_user(&self.library.user_dir(&install.port_id))
+                .with_loader(loader)
+                .for_dfu_platform(build.platform)
         }))
     }
 
@@ -522,7 +621,9 @@ impl PortcoveService {
             needs_loader,
         )?;
         Ok(loader.map(|loader| {
-            Layout::for_user(&self.library.user_dir(&revision.build.port_id)).with_loader(loader)
+            Layout::for_user(&self.library.user_dir(&revision.build.port_id))
+                .with_loader(loader)
+                .for_dfu_platform(revision.build.platform)
         }))
     }
 
@@ -767,6 +868,45 @@ mod tests {
             service.profile_revisions("starship", &profile.id).unwrap(),
             initial
         );
+    }
+
+    #[test]
+    fn dfu_loader_covers_only_the_two_exact_managed_security_release_packages() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("interkarma-daggerfall-unity").unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            assert_eq!(
+                definition_loader(port, platform).unwrap().engine,
+                ModEngine::DaggerfallUnity
+            );
+            let (executable, name, size, sha256) = dfu_package(platform).unwrap();
+            let mut build = RetainedBuildIdentity {
+                install_id: "dfu-fixture".into(),
+                port_id: port.id.clone(),
+                artifact: crate::ArtifactIdentity {
+                    asset_name: name.into(),
+                    size,
+                    sha256: sha256.into(),
+                },
+                manifest_sha256: "a".repeat(64),
+                selected_executable: executable.into(),
+                runtime: None,
+                installed_contract_sha256: "b".repeat(64),
+                definition: None,
+                platform,
+            };
+            assert!(exact_dfu_build(DFU_TAG, &build));
+            assert!(!exact_dfu_build("v1.1.1", &build));
+            build.selected_executable = Path::new("other").join(executable);
+            assert!(!exact_dfu_build(DFU_TAG, &build));
+            build.selected_executable = executable.into();
+            build.artifact.sha256 = "c".repeat(64);
+            assert!(!exact_dfu_build(DFU_TAG, &build));
+        }
+        assert!(definition_loader(port, Platform::MacosX86_64).is_none());
+        let mut historical = port.clone();
+        historical.mod_loader = None;
+        assert!(definition_loader(&historical, Platform::WindowsX86_64).is_none());
     }
 
     #[test]

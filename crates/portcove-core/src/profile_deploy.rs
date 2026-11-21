@@ -37,8 +37,12 @@ use crate::{
 
 pub(crate) const STORE: &str = ".portcove-profiles";
 const MODS: &str = "mods";
+const MAX_DFU_PACKAGES: usize = 32;
+const MAX_DFU_OBSERVED_FILES: usize = 2 * MAX_DFU_PACKAGES;
 const OVERRIDE_DOMAIN: &str = "asset-override";
 
+#[path = "profile_dfu_deploy.rs"]
+mod dfu_deploy;
 /// Reviewed per-game binding: which archive extensions a loader accepts in `mods`.
 #[path = "profile_recovery.rs"]
 mod recovery;
@@ -52,6 +56,7 @@ pub(crate) struct Layout {
     /// outside them, so per-port backups and restores never carry or replace it.
     store: PathBuf,
     loader: Option<crate::profile_loader::ReviewedLoader>,
+    dfu_platform: Option<crate::Platform>,
 }
 
 impl Layout {
@@ -74,14 +79,30 @@ impl Layout {
             user: user.into(),
             store,
             loader: None,
+            dfu_platform: None,
         }
     }
     pub(crate) fn with_loader(mut self, loader: crate::profile_loader::ReviewedLoader) -> Self {
         self.loader = Some(loader);
         self
     }
+    pub(crate) fn for_dfu_platform(mut self, platform: crate::Platform) -> Self {
+        if self.loader.as_ref().is_some_and(|loader| {
+            loader.engine == crate::profile_loader::ModEngine::DaggerfallUnity
+        }) {
+            self.dfu_platform = Some(platform);
+        }
+        self
+    }
+    fn mods_relative(&self) -> &str {
+        if self.dfu_platform.is_some() {
+            crate::profile_loader::DFU_MODS
+        } else {
+            MODS
+        }
+    }
     pub(crate) fn loader_list(&self) -> Option<LoaderList<'_>> {
-        self.loader.as_ref().map(native_mod_list::loader_list)
+        self.loader.as_ref().and_then(native_mod_list::loader_list)
     }
     pub(crate) fn recomp_game(&self) -> Option<&str> {
         self.loader.as_ref()?.native_game.as_deref()
@@ -115,7 +136,7 @@ impl Layout {
         self.store().join("tmp")
     }
     pub(crate) fn mods(&self) -> PathBuf {
-        self.user.join(MODS)
+        self.user.join(self.mods_relative())
     }
     pub(crate) fn journal(&self) -> PathBuf {
         self.store().join("switch.json")
@@ -373,6 +394,9 @@ fn code_not_allowed(recomp: &crate::RecompModInspection) -> PortcoveError {
 /// switch or deployment changes anything, and again inside `deploy`. Packages
 /// whose bytes are neither stored nor live are left to the missing-bytes checks.
 pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
+    if let Some(platform) = layout.dfu_platform {
+        return require_dfu_packages(layout, revision, platform);
+    }
     let Some(game) = layout.recomp_game() else {
         return Ok(());
     };
@@ -422,6 +446,107 @@ pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) 
     Ok(())
 }
 
+fn inspect_retained_dfu_packages(
+    layout: &Layout,
+    revision: &ProfileRevision,
+    platform: crate::Platform,
+) -> Result<Vec<(crate::dfu_mod::DfuModInspection, bool)>> {
+    if revision.packages.len() > MAX_DFU_PACKAGES
+        || revision
+            .packages
+            .iter()
+            .fold(0_u64, |size, package| size.saturating_add(package.size))
+            > 256 * 1024 * 1024
+    {
+        return Err(PortcoveError::unsupported(
+            "Daggerfall Unity setup exceeds the data-only review bounds",
+        ));
+    }
+    revision.packages.iter().map(|package| {
+        let stored = layout.package(&package.sha256, &package.native_id);
+        let inspected = crate::dfu_mod::inspect_data_only(&stored, platform)?;
+        if package.provider.is_some()
+            || package.sha256 != inspected.package.sha256
+            || package.size != inspected.package.size
+            || package.native_id != inspected.package.file_name
+        {
+            return Err(PortcoveError::verification(
+                "Daggerfall Unity mod bytes or native identity no longer match the reviewed setup",
+            ));
+        }
+        Ok((inspected, package.enabled))
+    }).collect()
+}
+
+fn require_dfu_metadata(rows: &[(crate::dfu_mod::DfuModInspection, bool)]) -> Result<()> {
+    if rows.len() > MAX_DFU_PACKAGES
+        || rows.iter().fold(0_u64, |size, (row, _)| {
+            size.saturating_add(row.package.size)
+        }) > 256 * 1024 * 1024
+    {
+        return Err(PortcoveError::unsupported(
+            "Daggerfall Unity setup exceeds the data-only review bounds",
+        ));
+    }
+    let mut names = BTreeSet::new();
+    let mut guids = BTreeSet::new();
+    let mut titles = BTreeSet::new();
+    let enabled = rows
+        .iter()
+        .filter(|(_, enabled)| *enabled)
+        .map(|(review, _)| native_mod_list::native_name(&review.package.file_name))
+        .collect::<BTreeSet<_>>();
+    for (review, is_enabled) in rows {
+        if !names.insert(review.package.file_name.to_ascii_lowercase())
+            || !guids.insert(&review.guid)
+            || !titles.insert(review.title.to_lowercase())
+        {
+            return Err(PortcoveError::conflict(
+                "Daggerfall Unity mod filename, GUID or title collides with another package",
+            ));
+        }
+        if *is_enabled
+            && let Some(dependency) = review
+                .optional_dependencies
+                .iter()
+                .find(|dependency| enabled.contains(dependency.as_str()))
+        {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity mod ordering with its optional dependency needs review",
+            )
+            .detail("dependency", dependency));
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn require_dfu_basename_stability(
+    from: &ProfileRevision,
+    to: &ProfileRevision,
+) -> Result<()> {
+    if to.loader != Some(crate::profile_loader::ModEngine::DaggerfallUnity.reference()) {
+        return Ok(());
+    }
+    if from.packages.iter().any(|old| {
+        to.packages.iter().any(|new| {
+            old.native_id != new.native_id && old.native_id.eq_ignore_ascii_case(&new.native_id)
+        })
+    }) {
+        return Err(PortcoveError::conflict(
+            "Daggerfall Unity mod replacement must preserve the exact native filename",
+        ));
+    }
+    Ok(())
+}
+
+fn require_dfu_packages(
+    layout: &Layout,
+    revision: &ProfileRevision,
+    platform: crate::Platform,
+) -> Result<()> {
+    require_dfu_metadata(&inspect_retained_dfu_packages(layout, revision, platform)?)
+}
+
 /// What a mod package would run, shown before the player allows its code.
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
@@ -456,6 +581,24 @@ pub(crate) fn inspect_for_port(
     provider: Option<crate::ProviderPackageRef>,
     code: CodePolicy<'_>,
 ) -> Result<StagedPackage> {
+    if let Some(platform) = layout.dfu_platform {
+        if provider.is_some() {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity mods require a player-selected file",
+            ));
+        }
+        let review = crate::dfu_mod::inspect_data_only(&private, platform)?;
+        return Ok(StagedPackage {
+            private,
+            recomp: None,
+            inspection: review.package,
+            provider: None,
+            provider_requires: Vec::new(),
+            native_version: None,
+            requires: Vec::new(),
+            code_consent: false,
+        });
+    }
     let Some(game) = layout.recomp_game() else {
         let inspection = inspect_asset_archive(&private)?;
         return Ok(StagedPackage {
@@ -563,25 +706,44 @@ pub(crate) fn is_runtime_mod_marker(layout: &Layout, file_name: &str, size: u64)
 fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservation> {
     let mut observation = ModsObservation::default();
     let mods = layout.mods();
+    crate::path::refuse_symlink_ancestors(&mods)?;
     if !mods.try_exists()? {
         return Ok(observation);
     }
-    let mut expected: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
+    let mut expected: std::collections::BTreeMap<&str, BTreeSet<(&str, u64)>> = Default::default();
     for owner in owners {
         for package in enabled(owner) {
             expected
                 .entry(package.native_id.as_str())
                 .or_default()
-                .insert(package.sha256.as_str());
+                .insert((package.sha256.as_str(), package.size));
         }
     }
-    for entry in fs::read_dir(&mods)? {
+    for (index, entry) in fs::read_dir(&mods)?.enumerate() {
+        if layout.dfu_platform.is_some() && index >= MAX_DFU_OBSERVED_FILES {
+            return Err(PortcoveError::conflict(
+                "Daggerfall Unity Mods contains too many files to verify ownership",
+            ));
+        }
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
         let metadata = fs::symlink_metadata(entry.path())?;
         match expected.get(name.as_str()) {
             Some(shas) if metadata.is_file() => {
-                if !shas.contains(sha256_file(&entry.path())?.as_str()) {
+                let matches_size = shas.iter().any(|(_, size)| *size == metadata.len());
+                let unchanged = if layout.dfu_platform.is_some() {
+                    matches_size
+                        && crate::external_runtime::hash_stable_regular(
+                            &entry.path(),
+                            metadata.len(),
+                            &|| Ok(()),
+                        )
+                        .is_ok_and(|(hash, bytes)| shas.contains(&(hash.as_str(), bytes)))
+                } else {
+                    let digest = sha256_file(&entry.path())?;
+                    shas.iter().any(|(expected, _)| *expected == digest)
+                };
+                if !unchanged {
                     observation.drifted.push(name);
                 }
             }
@@ -626,6 +788,12 @@ fn stage_copy(layout: &Layout, source: &Path, destination: &Path) -> Result<()> 
 fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision) -> Result<()> {
     require_distinct_native_names(layout, to)?;
     require_code_allowed(layout, to)?;
+    if layout.dfu_platform.is_some() {
+        if let Some(from) = from {
+            require_dfu_basename_stability(from, to)?;
+        }
+        return dfu_deploy::deploy_owned_files(layout, from, to);
+    }
     let wanted = enabled(to)
         .map(|package| package.native_id.as_str())
         .collect::<BTreeSet<_>>();
@@ -983,7 +1151,7 @@ fn require_exact_managed_packages(
     let mut remaining = enabled(revision)
         .map(|package| (package.native_id.as_str(), package))
         .collect::<std::collections::BTreeMap<_, _>>();
-    let mods = root.join(MODS);
+    let mods = root.join(layout.mods_relative());
     crate::path::refuse_symlink_ancestors(&mods)?;
     let ship_loader = matches!(layout.loader_list(), Some(LoaderList::Ship(_)));
     match fs::read_dir(&mods) {
@@ -1052,6 +1220,9 @@ impl PortcoveService {
         })?;
         match native_status_at(root, &layout, &revision) {
             NativeModListStatus::InSync => {}
+            NativeModListStatus::NotApplicable if layout.dfu_platform.is_some() => {
+                require_code_allowed(&layout, &revision)?;
+            }
             NativeModListStatus::NotWritten if enabled(&revision).next().is_none() => {}
             _ => {
                 return Err(restore_projection_hold(&revision)
@@ -1125,11 +1296,20 @@ fn adopted_order(
     Some(orderings)
 }
 
-fn declared_state_paths(service: &PortcoveService, port_id: &str) -> Result<Vec<String>> {
+fn declared_state_paths(
+    service: &PortcoveService,
+    port_id: &str,
+    layout: &Layout,
+) -> Result<Vec<String>> {
+    if layout.dfu_platform.is_some() {
+        // Keep the portable marker and supplied originals in place. Only the
+        // declared PortableAppdata lives in a separate setup save group.
+        return Ok(vec!["PortableAppdata".into()]);
+    }
     Ok(service
         .profile_persistent_paths(port_id)?
         .into_iter()
-        .filter(|path| path != MODS)
+        .filter(|path| path != layout.mods_relative())
         .collect())
 }
 
@@ -1239,8 +1419,13 @@ fn copy_local_package(layout: &Layout, source: &Path) -> Result<(tempfile::TempD
     crate::path::refuse_symlink_ancestors(source)?;
     let invalid =
         || PortcoveError::unsupported("choose a regular mod archive within the size limit");
+    let limit = if layout.dfu_platform.is_some() {
+        crate::dfu_mod::MAX_BYTES
+    } else {
+        MAX_ARCHIVE_BYTES
+    };
     let metadata = fs::symlink_metadata(source)?;
-    if !metadata.is_file() || metadata.len() > MAX_ARCHIVE_BYTES {
+    if !metadata.is_file() || metadata.len() > limit {
         return Err(invalid());
     }
     let file_name = source.file_name().ok_or_else(invalid)?;
@@ -1251,7 +1436,7 @@ fn copy_local_package(layout: &Layout, source: &Path) -> Result<(tempfile::TempD
     let mut output = fs::File::create(&private)?;
     crate::external_runtime::stream_single_link_metadata(
         source,
-        MAX_ARCHIVE_BYTES,
+        limit,
         &|| Ok(()),
         &mut |bytes| output.write_all(bytes).map_err(Into::into),
     )?;
@@ -1294,7 +1479,7 @@ fn plan_local_mod_package(
     use sha2::{Digest, Sha256};
     let inspection = &staged.inspection;
     validate_staged_mod(layout, inspection)?;
-    let named_loader = layout.loader_list().is_some();
+    let named_loader = layout.loader_list().is_some() || layout.dfu_platform.is_some();
     let replaces = current
         .packages
         .iter()
@@ -1305,11 +1490,30 @@ fn plan_local_mod_package(
         })
         .collect::<Vec<_>>();
     let replaces_enabled = replaces.iter().all(|package| package.enabled);
+    if let Some(platform) = layout.dfu_platform {
+        let candidate = crate::dfu_mod::inspect_data_only(&staged.private, platform)?;
+        let mut inspected = inspect_retained_dfu_packages(layout, current, platform)?;
+        for (existing, _) in inspected.iter().filter(|(existing, _)| {
+            native_mod_list::same_mod(&existing.package.file_name, &candidate.package.file_name)
+        }) {
+            if existing.package.file_name != candidate.package.file_name
+                || existing.guid != candidate.guid
+                || existing.title != candidate.title
+            {
+                return Err(PortcoveError::conflict(
+                    "Daggerfall Unity replacement changes the mod filename, GUID or title",
+                ));
+            }
+        }
+        inspected.retain(|(existing, _)| existing.package.file_name != candidate.package.file_name);
+        inspected.push((candidate, replaces_enabled));
+        require_dfu_metadata(&inspected)?;
+    }
     let assets = inspection.asset_paths.iter().collect::<BTreeSet<_>>();
     let mut overlapping_mods = Vec::new();
     let mut conflicts_truncated = false;
     let mut comparison_bytes = 0u64;
-    if replaces_enabled && !assets.is_empty() {
+    if replaces_enabled && !assets.is_empty() && layout.dfu_platform.is_none() {
         for (index, package) in current
             .packages
             .iter()
@@ -1459,6 +1663,7 @@ impl PortcoveService {
             ));
         }
         let layout = self.require_layout_for_revision(&current)?;
+        self.require_dfu_target_clean(&layout, &current)?;
         let (_staging, private) = copy_local_package(&layout, source)?;
         let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
@@ -1490,6 +1695,7 @@ impl PortcoveService {
         self.recover_switch_locked(port_id, &layout)?;
         let current = profile_current(&self.library.connection()?, port_id, profile_id)?;
         let layout = self.require_layout_for_revision(&current)?;
+        self.require_dfu_target_clean(&layout, &current)?;
         let (_staging, private) = copy_local_package(&layout, source)?;
         let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
@@ -1565,6 +1771,11 @@ impl PortcoveService {
         source: &Path,
     ) -> Result<Option<ModCodeReview>> {
         let layout = self.deploy_layout(port_id)?;
+        if let Some(platform) = layout.dfu_platform {
+            let (_staging, private) = copy_local_package(&layout, source)?;
+            crate::dfu_mod::inspect_data_only(&private, platform)?;
+            return Ok(None);
+        }
         let Some(game) = layout.recomp_game() else {
             return Ok(None);
         };
@@ -1694,6 +1905,7 @@ impl PortcoveService {
             ));
         }
         require_reviewed_or_reordered(&connection, &current, expected_revision)?;
+        self.require_dfu_target_clean(&layout, &current)?;
         let selected = profile::selection(&connection, port_id)?;
         let live = selected.as_ref().is_some_and(|(id, _)| id == profile_id);
         if live {
@@ -1706,6 +1918,10 @@ impl PortcoveService {
             let inspection = &item.inspection;
             if edits.is_some() && item.code_consent {
                 draft_consent.push(inspection.sha256.clone());
+            }
+            if layout.dfu_platform.is_some() {
+                dfu_deploy::store_reviewed_package(&layout, &item.private, inspection)?;
+                continue;
             }
             let stored = layout.package(&inspection.sha256, &inspection.file_name);
             if !stored.try_exists()? || sha256_file(&stored)? != inspection.sha256 {
@@ -1729,6 +1945,9 @@ impl PortcoveService {
                     ));
                 }
             }
+        }
+        if let Some(platform) = layout.dfu_platform {
+            require_dfu_packages(&layout, &next, platform)?;
         }
         if edits.is_some() {
             self.require_revision_loader(&next)?;
@@ -1818,6 +2037,7 @@ impl PortcoveService {
         self.recover_switch_locked(port_id, &layout)?;
         let connection = self.library.connection()?;
         let current = profile_current(&connection, port_id, profile_id)?;
+        self.require_dfu_target_clean(&layout, &current)?;
         require_reviewed_or_reordered(&connection, &current, expected_revision)?;
 
         let mut packages = current.packages.clone();
@@ -1888,9 +2108,27 @@ impl PortcoveService {
         }
         let layout = target_layout.as_ref().unwrap_or(&path_layout);
         // Refuse before anything is parked or marked, so a refusal changes nothing.
+        if departing_layout
+            .as_ref()
+            .is_some_and(|layout| layout.dfu_platform.is_some())
+            != target_layout
+                .as_ref()
+                .is_some_and(|layout| layout.dfu_platform.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity setup switches require the reviewed local mod loader on both builds",
+            ));
+        }
         self.require_revision_loader(&target)?;
         require_projectable(layout, &target)?;
         require_code_allowed(layout, &target)?;
+        if layout.dfu_platform.is_some() && departing.build != target.build {
+            return Err(PortcoveError::unsupported(
+                "Daggerfall Unity save-group switches require the same exact managed runtime",
+            ));
+        }
+        require_dfu_basename_stability(&departing, &target)?;
+        self.require_dfu_target_clean(layout, &target)?;
         if let Some(game) = layout.recomp_game()
             && (current_id != profile_id || current_revision != target.revision)
         {
@@ -1925,7 +2163,8 @@ impl PortcoveService {
         let (current_id, current_revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("the port has no selected profile"))?;
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
-        let paths = declared_state_paths(self, port_id)?;
+        self.preflight_dfu_save_switch(layout, &departing, &target)?;
+        let paths = declared_state_paths(self, port_id, layout)?;
         fs::create_dir_all(layout.store())?;
         write_journal(
             layout,
@@ -1958,7 +2197,7 @@ impl PortcoveService {
         current: &ProfileRevision,
     ) -> Result<()> {
         if self.reconcile_selected_projection(port_id, layout, connection, current)? {
-            self.sync_build_after_change(port_id, layout);
+            self.sync_build_after_change(port_id, layout)?;
         }
         Ok(())
     }
@@ -2026,13 +2265,17 @@ impl PortcoveService {
         if phase == Phase::Deployed {
             move_paths(paths, &layout.parked(to), &layout.user)?;
         }
+        self.restore_dfu_save_group(layout, departing, target)?;
         // The arriving configuration is in place; make its list match the target.
         self.project_native_mod_list(target, None)?;
         let connection = self.library.connection()?;
         profile::set_selection(&connection, port_id, to, target.revision)?;
         fs::remove_file(layout.journal())?;
-        self.sync_build_after_change(port_id, layout);
-        Ok(())
+        self.sync_build_after_change(port_id, layout)
+            .map_err(|mut error| {
+                error.failure.mutation_state = crate::MutationState::Committed;
+                error
+            })
     }
 
     /// Finishes a switch interrupted after its journal was written. The journal
@@ -2100,9 +2343,11 @@ impl PortcoveService {
             )?;
         }
         let target_layout = target_layout.as_ref().unwrap_or(layout);
+        self.require_dfu_target_clean(target_layout, &target)?;
+        require_dfu_basename_stability(&departing, &target)?;
         require_projectable(target_layout, &target)?;
         require_code_allowed(target_layout, &target)?;
-        let paths = declared_state_paths(self, port_id)?;
+        let paths = declared_state_paths(self, port_id, target_layout)?;
         if let Some(recorded_paths) = value.get("paths") {
             if recorded_paths != &serde_json::to_value(&paths)? {
                 return Err(PortcoveError::conflict(
@@ -2293,6 +2538,23 @@ impl PortcoveService {
             crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             return Ok(());
         };
+        if layout.dfu_platform.is_some() {
+            if !self.dfu_projection_selected(port_id)? {
+                return Ok(());
+            }
+            let connection = self.library.connection()?;
+            if let Some((id, _)) = profile::selection(&connection, port_id)? {
+                let current = profile_current(&connection, port_id, &id)?;
+                self.require_dfu_target_clean(&layout, &current)?;
+                self.reconcile_selected_projection(port_id, &layout, &connection, &current)?;
+                require_exact_managed_packages(&layout.user, &layout, &current, || {
+                    PortcoveError::conflict(
+                        "Daggerfall Unity canonical mods do not match the selected setup",
+                    )
+                })?;
+            }
+            return Ok(());
+        }
         let Some(loader) = layout.loader_list() else {
             return Ok(());
         };
@@ -2398,7 +2660,22 @@ impl PortcoveService {
     /// Refreshes the active build from canonical data and clears the pending mark
     /// only when that succeeded. Otherwise the mark keeps collection from copying
     /// the stale build over the profile until launch restores it.
-    fn sync_build_after_change(&self, port_id: &str, layout: &Layout) {
+    fn sync_build_after_change(&self, port_id: &str, layout: &Layout) -> Result<()> {
+        if layout.dfu_platform.is_some() && self.dfu_projection_selected(port_id)? {
+            let connection = self.library.connection()?;
+            if selected_profile_uses_active_build(&connection, port_id)? {
+                let install = crate::Library::install_by_id(
+                    &connection,
+                    profile::active_install_id(&connection, port_id)?.as_deref(),
+                )?
+                .ok_or_else(|| {
+                    PortcoveError::state("Daggerfall Unity active runtime disappeared")
+                })?;
+                self.dfu_restore_projection(&install, &install.path)?;
+                clear_restore_pending(&layout.user)?;
+            }
+            return Ok(());
+        }
         let can_refresh = self
             .library
             .connection()
@@ -2407,6 +2684,7 @@ impl PortcoveService {
         if can_refresh && self.restore_active_user_data_if_launched(port_id) {
             let _ = clear_restore_pending(&layout.user);
         }
+        Ok(())
     }
 
     /// The build a launch should use. The default profile follows the active build,
@@ -2783,7 +3061,7 @@ pub(crate) fn proposed_mod_setup(
         }
         // A package the game loads as the same mod (for example `.otr` replaced
         // by `.o2r`) is replaced and keeps its place in the order.
-        let named = layout.loader_list().is_some();
+        let named = layout.loader_list().is_some() || layout.dfu_platform.is_some();
         let same_package = |existing: &&ResolvedPackage| {
             existing.native_id == package.native_id
                 || (named && native_mod_list::same_mod(&existing.native_id, &package.native_id))
@@ -2804,7 +3082,7 @@ pub(crate) fn proposed_mod_setup(
         packages.push(package);
     }
     packages.sort_by(|a, b| a.native_id.cmp(&b.native_id));
-    if layout.loader_list().is_some()
+    if (layout.loader_list().is_some() || layout.dfu_platform.is_some())
         && let Some((first, second)) = native_mod_list::identity_collision(
             packages.iter().map(|package| package.native_id.as_str()),
         )

@@ -99,6 +99,7 @@ mod provider_observation;
 mod providers;
 mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
+mod dfu_mod;
 mod disc_filesystem;
 mod disc_product;
 mod gamebanana;

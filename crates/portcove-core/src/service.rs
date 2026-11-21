@@ -132,6 +132,7 @@ struct PersistenceContract {
     writes_directly: bool,
     archive_sha256: Option<String>,
     regaiden_graphics_exports: bool,
+    dfu_install: Option<InstallRecord>,
 }
 
 #[cfg(test)]
@@ -5398,6 +5399,7 @@ impl PortcoveService {
 
     pub fn preview_removal(&self, port_id: &str) -> Result<PortRemovalPreview> {
         self.catalog.port(port_id)?;
+        self.preflight_dfu_runtime_ownership(port_id)?;
         crate::retained_build::require_no_references(&self.library.connection()?, port_id)?;
         let mut installs = self
             .library
@@ -7122,6 +7124,7 @@ impl PortcoveService {
         port_id: &str,
         excluded: Option<&str>,
     ) -> Result<Vec<PathBuf>> {
+        self.preflight_dfu_runtime_ownership(port_id)?;
         let Some(active) = self.collectible_active_install(port_id)? else {
             return Ok(Vec::new());
         };
@@ -7465,11 +7468,17 @@ impl PortcoveService {
                 &self.library.user_dir(&port.id),
             )?;
         }
+        let dfu_install = port
+            .persistent_paths
+            .iter()
+            .any(|path| path == crate::profile_loader::DFU_MODS)
+            .then(|| install.clone());
         Ok(PersistenceContract {
             port,
             writes_directly,
             archive_sha256: Some(install.artifact.sha256.clone()),
             regaiden_graphics_exports,
+            dfu_install,
         })
     }
 
@@ -7505,6 +7514,7 @@ impl PortcoveService {
             writes_directly: writes_directly_to_user_root(fallback),
             archive_sha256: None,
             regaiden_graphics_exports: false,
+            dfu_install: None,
         })
     }
 
@@ -7625,10 +7635,39 @@ impl PortcoveService {
         ))
     }
 
+    fn preflight_dfu_runtime_ownership(&self, port_id: &str) -> Result<bool> {
+        let port = self.catalog.port(port_id)?;
+        if !port
+            .persistent_paths
+            .iter()
+            .any(|path| path == crate::profile_loader::DFU_MODS)
+            || !self.dfu_projection_selected(port_id)?
+        {
+            return Ok(false);
+        }
+        for (root, contract) in self.retained_persistence_contracts(port_id)? {
+            if contract
+                .port
+                .persistent_paths
+                .iter()
+                .any(|path| path == crate::profile_loader::DFU_MODS)
+            {
+                let runtime = self.persistence_root(&contract.port, &root)?;
+                self.require_dfu_runtime_ownership(
+                    port_id,
+                    contract.dfu_install.as_ref(),
+                    &runtime,
+                )?;
+            }
+        }
+        Ok(true)
+    }
+
     pub(crate) fn synchronize_restored_user_data(&self, port_id: &str) -> Result<()> {
         self.library.require_no_ghostship_recovery(port_id)?;
         let port = self.catalog.port(port_id)?;
         let user_root = self.library.user_dir(port_id);
+        let dfu_projection = self.preflight_dfu_runtime_ownership(port_id)?;
         let mut mods = self.preflight_psx_mod_restores(port_id, &user_root)?;
         for path in self.library.port_install_paths(port_id)? {
             refuse_symlink_ancestors(&path)?;
@@ -7655,6 +7694,12 @@ impl PortcoveService {
                 crate::archive_data::initialize(port, &user_root)?;
                 for entry in entries {
                     let relative = entry.relative;
+                    if relative == crate::profile_loader::DFU_MODS && dfu_projection {
+                        if let Some(install) = &contract.dfu_install {
+                            self.dfu_restore_projection(install, &persistent_root)?;
+                        }
+                        continue;
+                    }
                     let source = entry.canonical;
                     let destination = persistent_root.join(&relative);
                     refuse_symlink_ancestors(&source)?;
@@ -7710,6 +7755,15 @@ impl PortcoveService {
         self.library.require_no_ghostship_recovery(&port.id)?;
         let contract = self.persistence_contract(port, install_root)?;
         let port = &contract.port;
+        let dfu_projection = port
+            .persistent_paths
+            .iter()
+            .any(|path| path == crate::profile_loader::DFU_MODS)
+            && self.dfu_projection_selected(&port.id)?;
+        if dfu_projection {
+            let runtime = self.persistence_root(port, install_root)?;
+            self.require_dfu_runtime_ownership(&port.id, contract.dfu_install.as_ref(), &runtime)?;
+        }
         // A profile change made the canonical data newer than this build's copy.
         // Collecting now would copy the stale build over the selected profile.
         // Chocolate has no reviewed profile deployment: an unrelated marker
@@ -7766,6 +7820,11 @@ impl PortcoveService {
         crate::archive_data::initialize(port, &user_root)?;
         for entry in entries {
             let relative = entry.relative;
+            if relative == crate::profile_loader::DFU_MODS && dfu_projection {
+                // A managed DFU profile owns individual reviewed mods. Native
+                // changes are left in place for explicit review.
+                continue;
+            }
             if excluded == Some(relative.as_str()) {
                 continue;
             }
@@ -7850,6 +7909,18 @@ impl PortcoveService {
         crate::preparation::source::require_canonical_originals(port, &self.library)?;
         crate::native_temp::require_canonical_data(port, &self.library)?;
         self.require_psx_data_receipt_readable(port, &install_root)?;
+        let dfu_projection = port
+            .persistent_paths
+            .iter()
+            .any(|path| path == crate::profile_loader::DFU_MODS)
+            && self.dfu_projection_selected(&port.id)?;
+        if dfu_projection {
+            self.require_dfu_runtime_ownership(
+                &port.id,
+                contract.dfu_install.as_ref(),
+                &persistent_root,
+            )?;
+        }
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
@@ -7879,6 +7950,12 @@ impl PortcoveService {
             crate::archive_data::initialize(port, &user_root)?;
             for entry in entries {
                 let relative = entry.relative;
+                if relative == crate::profile_loader::DFU_MODS && dfu_projection {
+                    if let Some(install) = &contract.dfu_install {
+                        self.dfu_restore_projection(install, &persistent_root)?;
+                    }
+                    continue;
+                }
                 if excluded == Some(relative.as_str()) {
                     continue;
                 }

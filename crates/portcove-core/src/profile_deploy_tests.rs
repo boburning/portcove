@@ -3695,3 +3695,257 @@ fn finishing_a_same_name_replacement_keeps_bytes_already_deployed_by_apply() {
         Some((w.default, after.revision))
     );
 }
+
+#[test]
+fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery() {
+    const PORT: &str = "interkarma-daggerfall-unity";
+    const NAME: &str = "wandererhud - pointycursor.dfmod";
+    let platform = crate::Platform::current().unwrap();
+    let (data, opposite) = match platform {
+        crate::Platform::WindowsX86_64 => (
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
+        ),
+        crate::Platform::LinuxX86_64 => (
+            include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod").as_slice(),
+            include_bytes!("fixtures/dfu-mods/pointycursor-windows.dfmod").as_slice(),
+        ),
+        _ => return,
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let catalog = crate::Catalog::embedded().unwrap();
+    let const_port = catalog.port(PORT).unwrap();
+    let executable = &const_port.executable_hints[&platform][0];
+    let (asset_name, size, sha256) = match platform {
+        crate::Platform::WindowsX86_64 => (
+            "dfu_windows_64bit-v1.1.1.zip",
+            50_240_819,
+            "b4eb2620cdf31f973ed1105d06be8a31f21796915d65c253a93eeb02cb1d64bd",
+        ),
+        _ => (
+            "dfu_linux_64bit-v1.1.1.zip",
+            58_809_717,
+            "be3c476ae92972f42448757719266ad82c04868eb7b6f3a3c90fcfcf1490849a",
+        ),
+    };
+    // An inert executable stands in for the previously reviewed runtime. The
+    // test exercises normal manifest and library custody, and never launches it.
+    let version = "v1.1.1-cve-2025";
+    let id = "dfu-test-runtime";
+    let path = library.versions_dir().join(PORT).join(id);
+    fs::create_dir_all(&path).unwrap();
+    fs::write(path.join(executable), b"inert retained test runtime").unwrap();
+    crate::permissions::normalize_archive_entry(&path.join(executable), false, true).unwrap();
+    let artifact = crate::ArtifactIdentity {
+        asset_name: asset_name.into(),
+        size,
+        sha256: sha256.into(),
+    };
+    let qualification =
+        crate::InstallQualification::from_catalog(&catalog, PORT, platform).unwrap();
+    let (manifest_sha256, selected_executable, runtime) = crate::Installer::new(library.clone())
+        .unwrap()
+        .create_manifest(id, PORT, version, &artifact, &qualification, &path)
+        .unwrap();
+    let install = crate::InstallRecord {
+        id: id.into(),
+        port_id: PORT.into(),
+        version: version.into(),
+        path: path.clone(),
+        channel: crate::ReleaseChannel::Stable,
+        installed_at: Library::now(),
+        verified: true,
+        staged: false,
+        artifact,
+        manifest_sha256,
+        selected_executable,
+        runtime,
+    };
+    library.register_install(&install, true).unwrap();
+
+    let service = PortcoveService::new_read_only(library.clone()).unwrap();
+    let profile = service.ensure_default_profile(PORT).unwrap();
+    let user = library.user_dir(PORT);
+    fs::create_dir_all(user.join("PortableAppdata")).unwrap();
+    fs::write(
+        user.join("PortableAppdata/progress"),
+        b"keep newer progress",
+    )
+    .unwrap();
+    fs::write(user.join("Portable.txt"), []).unwrap();
+    let runtime_progress = path.join("PortableAppdata/progress");
+    fs::create_dir_all(runtime_progress.parent().unwrap()).unwrap();
+    fs::write(&runtime_progress, b"keep newer progress").unwrap();
+    let candidate = temporary.path().join(NAME);
+    fs::write(&candidate, opposite).unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    let code = temporary.path().join("easynpcbehavior.dfmod");
+    fs::write(
+        &code,
+        include_bytes!("fixtures/dfu-mods/easynpcbehavior-linux.dfmod"),
+    )
+    .unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &code, 1)
+            .is_err()
+    );
+
+    fs::write(&candidate, data).unwrap();
+    let live_mods = path.join(crate::profile_loader::DFU_MODS);
+    let unmanaged = live_mods.join("outside/manual.dfmod");
+    fs::create_dir_all(unmanaged.parent().unwrap()).unwrap();
+    fs::write(&unmanaged, b"player files outside ownership").unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(&unmanaged).unwrap(),
+        b"player files outside ownership"
+    );
+    fs::remove_file(&unmanaged).unwrap();
+    fs::remove_dir(unmanaged.parent().unwrap()).unwrap();
+
+    let review = service
+        .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+        .unwrap();
+    assert!(!review.needs_code_permission);
+    let applied = service
+        .apply_local_mod_package(PORT, &profile.id, &candidate, &review.plan_sha256, false)
+        .unwrap();
+    assert_eq!(applied.packages[0].sha256, review.sha256);
+    assert!(applied.packages[0].provider.is_none());
+    let runtime_mod = live_mods.join(NAME);
+    let canonical_mod = user.join(crate::profile_loader::DFU_MODS).join(NAME);
+    assert_eq!(fs::read(&canonical_mod).unwrap(), data);
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    service.dfu_restore_projection(&install, &path).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    service
+        .require_restore_profile_projection(PORT, &user)
+        .unwrap();
+
+    let clean = service
+        .create_clean_profile(PORT, &profile.id, "Clean", applied.revision)
+        .unwrap();
+    service.activate_profile(PORT, &clean.id).unwrap();
+    let reopened = PortcoveService::new_read_only(library).unwrap();
+    reopened.dfu_restore_projection(&install, &path).unwrap();
+    assert!(live_mods.is_dir());
+    assert!(!runtime_mod.exists());
+    assert!(!canonical_mod.exists());
+    assert!(!user.join("PortableAppdata/progress").exists());
+    assert!(!runtime_progress.exists());
+
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(
+        fs::read(user.join("PortableAppdata/progress")).unwrap(),
+        b"keep newer progress"
+    );
+
+    reopened.dfu_restore_projection(&install, &path).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    fs::write(path.join("Portable.txt"), []).unwrap();
+    fs::write(path.join(".portcove-launched"), []).unwrap();
+    reopened.activate_profile(PORT, &clean.id).unwrap();
+    assert!(!runtime_progress.exists());
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    let clean_revision = reopened
+        .profile_revisions(PORT, &clean.id)
+        .unwrap()
+        .last()
+        .unwrap()
+        .clone();
+    let projection = reopened.require_layout_for_revision(&applied).unwrap();
+    // The selected setup is already durable. Model loss immediately before
+    // publication and immediately after the full file reached its final name.
+    for prepublication in [true, false] {
+        dfu_deploy::record_test_pending(&projection, &install, &clean_revision, &applied).unwrap();
+        if prepublication {
+            fs::remove_file(&runtime_mod).unwrap();
+        }
+        reopened.dfu_restore_projection(&install, &path).unwrap();
+        assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    }
+    let outside = live_mods.join("manual/keep.dfmod");
+    fs::create_dir_all(outside.parent().unwrap()).unwrap();
+    fs::write(&outside, b"retained unmanaged nested file").unwrap();
+    assert!(reopened.synchronize_restored_user_data(PORT).is_err());
+    assert!(reopened.collect_active_user_data_if_launched(PORT).is_err());
+    assert!(reopened.preview_removal(PORT).is_err());
+    assert_eq!(
+        fs::read(&outside).unwrap(),
+        b"retained unmanaged nested file"
+    );
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    fs::remove_file(&outside).unwrap();
+    fs::remove_dir(outside.parent().unwrap()).unwrap();
+
+    // A stale, unnamed sibling from a stopped projection is outside the Mods
+    // scan. Reopening never adopts or clears it.
+    let abandoned = live_mods
+        .parent()
+        .unwrap()
+        .join(".portcove-dfu-interrupted-test");
+    fs::create_dir(&abandoned).unwrap();
+    fs::write(abandoned.join("staged"), b"abandoned staged bytes").unwrap();
+    reopened.activate_profile(PORT, &clean.id).unwrap();
+    reopened.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_mod).unwrap(), data);
+    assert_eq!(
+        fs::read(abandoned.join("staged")).unwrap(),
+        b"abandoned staged bytes"
+    );
+    let mut case_only = applied.clone();
+    case_only.packages[0].native_id = NAME.to_ascii_uppercase();
+    assert!(require_dfu_basename_stability(&applied, &case_only).is_err());
+
+    fs::write(&runtime_mod, b"outside edit").unwrap();
+    assert!(reopened.activate_profile(PORT, &clean.id).is_err());
+    assert_eq!(fs::read(&runtime_mod).unwrap(), b"outside edit");
+}
+
+#[test]
+fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() {
+    let temporary = tempfile::tempdir().unwrap();
+    let path = temporary.path().join("wandererhud - pointycursor.dfmod");
+    fs::write(
+        &path,
+        include_bytes!("fixtures/dfu-mods/pointycursor-linux.dfmod"),
+    )
+    .unwrap();
+    let make = || crate::dfu_mod::inspect_data_only(&path, crate::Platform::LinuxX86_64).unwrap();
+    let first = make();
+    assert_eq!(first.optional_dependencies.len(), 1);
+    let target = first.optional_dependencies[0].clone();
+    let mut dependency = make();
+    dependency.package.file_name = format!("{target}.dfmod");
+    dependency.guid = "fixture-dependency-guid".into();
+    dependency.title = "Fixture dependency".into();
+    dependency.optional_dependencies.clear();
+    let mut rows = vec![(first, true), (dependency, false)];
+    require_dfu_metadata(&rows).unwrap();
+    rows[1].1 = true;
+    assert!(require_dfu_metadata(&rows).is_err());
+    rows.clear();
+    for i in 0..MAX_DFU_PACKAGES + 1 {
+        let mut package = make();
+        package.package.file_name = format!("fixture-{i}.dfmod");
+        package.guid = format!("fixture-guid-{i}");
+        package.title = format!("Fixture {i}");
+        package.optional_dependencies.clear();
+        rows.push((package, true));
+    }
+    require_dfu_metadata(&rows[..MAX_DFU_PACKAGES]).unwrap();
+    assert!(require_dfu_metadata(&rows).is_err());
+    assert_eq!(MAX_DFU_OBSERVED_FILES, 2 * MAX_DFU_PACKAGES);
+}

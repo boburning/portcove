@@ -591,6 +591,7 @@ impl PortcoveService {
         let needs_loader = next.packages.iter().any(|package| package.enabled);
         next.loader =
             self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
+        crate::profile_deploy::require_dfu_basename_stability(current, &next)?;
         // A revision the game could not load unambiguously is never recorded.
         if let Some(layout) = self.layout_for_revision(&next)? {
             crate::profile_deploy::require_projectable(&layout, &next)?;
