@@ -105,6 +105,64 @@ fn observed_rollout_releases(id: &str) -> Vec<serde_json::Value> {
         .clone()
 }
 
+/// Asset names, size and provider digest observed on 2026-11-15 for
+/// flyngmt/Nookery (repository 1177228792) release 431880276, tag v1.0.0.
+/// The renamed managed route selects only the Windows x64 ZIP. The playtest
+/// asset no longer matches, so a playtest-only listing never stands in for it.
+#[tokio::test]
+async fn nookery_selects_only_the_stable_windows_x64_package() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("animal-crossing-pc-port").unwrap();
+    let selected = "Nookery-v1.0.0-windows-x86_64.zip";
+    let digest = "542fe6fc9a216b209fea5a75314d7bc453ce9d91d32a098ebab06a52455d9d68";
+    let mut windows = asset(selected, None);
+    windows["digest"] = serde_json::json!(format!("sha256:{digest}"));
+    windows["size"] = serde_json::json!(32_404_132);
+    let mut stable_assets = [
+        "Nookery-v1.0.0-android-arm64.apk",
+        "Nookery-v1.0.0-ios-arm64.ipa",
+        "Nookery-v1.0.0-linux-arm64.AppImage",
+        "Nookery-v1.0.0-linux-x86_64.AppImage",
+        "Nookery-v1.0.0-macos-arm64.zip",
+        "Nookery-v1.0.0-macos-x86_64.zip",
+        "Nookery-v1.0.0-windows-arm64.zip",
+    ]
+    .map(|name| asset(name, Some('b')))
+    .to_vec();
+    stable_assets.push(windows);
+    let mut playtest = release(
+        "v0.9.3-playtest",
+        vec![asset("ACGC-PC-Port0.9.3.zip", Some('c'))],
+    );
+    playtest["prerelease"] = true.into();
+    let (root, requests, server) = serve_http(vec![
+        metadata(),
+        releases(&[release("v1.0.0", stable_assets), playtest.clone()]),
+        metadata(),
+        releases(&[playtest]),
+    ]);
+    let resolved = GithubReleaseProvider::with_api_root(root.clone())
+        .unwrap()
+        .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+        .await
+        .unwrap();
+    assert_eq!(resolved.asset.name, selected);
+    assert_eq!(resolved.asset.sha256, digest);
+    assert_eq!(resolved.asset.size, 32_404_132);
+    let playtest_only = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        playtest_only.code,
+        crate::ErrorCode::NotFound,
+        "{playtest_only}"
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 4);
+}
+
 #[tokio::test]
 async fn opensc2k_selects_linux_tarballs_with_an_unchanged_definition() {
     let catalog = crate::Catalog::embedded().unwrap();
