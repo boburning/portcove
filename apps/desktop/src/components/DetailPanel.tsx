@@ -1301,9 +1301,6 @@ function SavesStorageGroup({
         readState={backupReadState}
       >
         {externalCoverage}
-        {status?.active && !status.external_runtime && (
-          <AutomaticSnapshotsSummary generation={libraryGeneration} />
-        )}
         <header className="detail-saved-data-header">
           <div className="min-w-0 flex-1">
             <h3 ref={heading} tabIndex={-1} className="m-0 text-base font-semibold">
@@ -1319,6 +1316,9 @@ function SavesStorageGroup({
           </div>
           <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
         </header>
+        {status?.active && !status.external_runtime && (
+          <AutomaticSnapshotsSummary generation={libraryGeneration} />
+        )}
         <div className="detail-saved-data-summary">
           <div className="detail-saved-data-fact">
             <Icon glyph={FileArchive} size="lg" />

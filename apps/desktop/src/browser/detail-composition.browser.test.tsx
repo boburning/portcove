@@ -140,7 +140,7 @@ it("keeps the Settings snapshot policy current across navigation during a save",
     await setting.click();
     await expect.element(setting).toBeDisabled();
     expect(savePolicy).toHaveBeenCalledOnce();
-    await navigation.getByRole("button", { name: "Library", exact: true }).click();
+    await navigation.getByRole("button", { name: /^Library\b/ }).click();
     await open();
     await page.getByRole("tab", { name: versionsName, exact: true }).click();
     await expect
