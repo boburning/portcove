@@ -123,6 +123,14 @@ const catalog: unknown = JSON.parse(
 if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArray(catalog.ports)) {
   for (const port of catalog.ports as unknown[]) {
     if (!port || typeof port !== "object") continue;
+    if (
+      "release" in port &&
+      port.release &&
+      typeof port.release === "object" &&
+      "reviewed_package_choices_v2" in port.release
+    ) {
+      throw new Error("Format-1 signed catalogs cannot deliver reviewed package choices.");
+    }
     if ("mod_provider_bindings" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",

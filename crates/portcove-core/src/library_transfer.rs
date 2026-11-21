@@ -36,7 +36,7 @@ impl PortcoveService {
     pub fn plan_library_move(&self, destination: &Path) -> Result<LibraryMovePlan> {
         let source_root = fs::canonicalize(self.library().root())?;
         let destination_root = transfer_destination(&source_root, destination)?;
-        ensure_idle(self.library())?;
+        require_transfer_idle(self.library(), LibraryTransferPurpose::Move)?;
         crate::artwork_eviction::prepare_transfer(self.library())?;
         let metadata = self.export_library_metadata()?;
         let catalogs =
@@ -50,8 +50,12 @@ impl PortcoveService {
                 .port(&install.port_id)?
                 .windows_runtime_path_policy
                 == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+                || crate::runtime_path_policy::has_bundled_manifest_path_limit(
+                    &install.port_id,
+                    &install.artifact.sha256,
+                )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &recorded,
                     &destination_root.join(&install.path),
                 )?;
@@ -64,20 +68,7 @@ impl PortcoveService {
                     .join(&install.selected_executable),
             )?;
         }
-        let content = metadata
-            .content_roots
-            .iter()
-            .map(|root| {
-                let source = source_root.join(&root.relative_path);
-                let copy = reviewed_tree(&source)?;
-                Ok(LibraryTreePlan {
-                    kind: root.kind,
-                    relative_path: root.relative_path.clone(),
-                    copy,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
+        let content = plan_portable_content(&metadata, &source_root)?;
         let copied_bytes = content.iter().try_fold(0_u64, |total, tree| {
             total
                 .checked_add(tree.copy.total_bytes)
@@ -147,6 +138,26 @@ pub(crate) fn transfer_destination(source: &Path, destination: &Path) -> Result<
     Ok(destination)
 }
 
+/// Inventory only the canonical roots admitted by the portable metadata schema.
+pub(crate) fn plan_portable_content(
+    metadata: &LibraryMetadata,
+    source_root: &Path,
+) -> Result<Vec<LibraryTreePlan>> {
+    let content = metadata
+        .content_roots
+        .iter()
+        .map(|root| {
+            Ok(LibraryTreePlan {
+                kind: root.kind,
+                relative_path: root.relative_path.clone(),
+                copy: reviewed_tree(&source_root.join(&root.relative_path))?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    crate::artwork_store::validate_transfer_inventory(metadata, &content)?;
+    Ok(content)
+}
+
 pub(crate) fn reviewed_tree(root: &Path) -> Result<AdoptionCopyPlan> {
     let metadata = match fs::symlink_metadata(root) {
         Ok(metadata) => metadata,
@@ -213,7 +224,7 @@ pub(crate) fn move_fingerprint(plan: &LibraryMovePlan) -> Result<String> {
 }
 
 pub(crate) fn verify_source_plan(library: &crate::Library, plan: &LibraryMovePlan) -> Result<()> {
-    ensure_idle(library)?;
+    require_transfer_idle(library, LibraryTransferPurpose::Move)?;
     let mut current = plan.clone();
     current.metadata = library.metadata_for_root(&plan.source_root)?;
     for tree in &mut current.content {
@@ -227,20 +238,37 @@ pub(crate) fn verify_source_plan(library: &crate::Library, plan: &LibraryMovePla
     Ok(())
 }
 
-fn ensure_idle(library: &crate::Library) -> Result<()> {
+pub(crate) enum LibraryTransferPurpose {
+    Move,
+    RecoveryBundle,
+}
+
+pub(crate) fn require_transfer_idle(
+    library: &crate::Library,
+    purpose: LibraryTransferPurpose,
+) -> Result<()> {
     let operations = crate::operation::OperationStore::new(library.clone()).all()?;
     if let Some(acquisition) = operations
         .iter()
         .find(|operation| operation.kind == crate::operation::LifecycleOperationKind::AcquireUpdate)
     {
-        return Err(PortcoveError::conflict("finish or cancel the archive transfer, discard its exact private acquisition, then review the library move again")
+        let review = match purpose {
+            LibraryTransferPurpose::Move => "library move",
+            LibraryTransferPurpose::RecoveryBundle => "library recovery bundle",
+        };
+        return Err(PortcoveError::conflict(format!("finish or cancel the archive transfer, discard its exact private acquisition, then review the {review} again"))
             .detail("acquisition_id",&acquisition.id).detail("port_id",&acquisition.port_id)
             .detail("recovery_action","discard_game_update_acquisition"));
     }
     if !library.launch_sessions()?.is_empty() || !operations.is_empty() {
-        return Err(PortcoveError::conflict(
-            "finish launch and lifecycle recovery before moving the library",
-        ));
+        return Err(PortcoveError::conflict(match purpose {
+            LibraryTransferPurpose::Move => {
+                "finish launch and lifecycle recovery before moving the library"
+            }
+            LibraryTransferPurpose::RecoveryBundle => {
+                "finish launch and lifecycle recovery before copying a library recovery bundle"
+            }
+        }));
     }
     Ok(())
 }

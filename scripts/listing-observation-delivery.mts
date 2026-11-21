@@ -8,7 +8,7 @@ import { parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource } from "./catalog-authoring.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
-import { observationHash } from "./upstream-observer.mts";
+import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -168,7 +168,7 @@ export function projectListingDelivery(
       continue;
     if (updates.has(String(candidate.id)))
       throw new Error("Conflicting descriptive observation candidates");
-    updates.set(String(candidate.id), candidate.upstream_observation);
+    updates.set(String(candidate.id), compatibleObservation(candidate.upstream_observation));
   }
   const withdrawn = previousDocument?.withdrawn_ids ?? [];
   const withdrawalSet = new Set(withdrawn);
@@ -295,6 +295,40 @@ export function projectListingDelivery(
     omitted,
     canonical_records: raw.listings.length,
     delivered_records: listings.length,
+  };
+}
+
+function compatibleObservation(observation: Record<string, unknown>) {
+  const { repository, releases } = observation;
+  if (
+    (observation.provider ?? "github") !== "github" ||
+    typeof repository !== "string" ||
+    !Array.isArray(releases)
+  )
+    return observation;
+  return {
+    ...observation,
+    releases: releases.map((release: unknown) => {
+      if (
+        !isRecord(release) ||
+        typeof release.version !== "string" ||
+        !release.version.includes("/") ||
+        !Array.isArray(release.assets)
+      )
+        return release;
+      const tag = release.version;
+      return {
+        ...release,
+        assets: release.assets.map((asset: unknown) =>
+          isRecord(asset) && typeof asset.url === "string" && typeof asset.name === "string"
+            ? {
+                ...asset,
+                url: compatibleGithubListingAssetUrl(asset.url, repository, tag, asset.name),
+              }
+            : asset,
+        ),
+      };
+    }),
   };
 }
 

@@ -286,6 +286,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     let release = crate::ReleaseSpec {
         accepted_uploaders: Vec::new(),
         github_other_stream_tag_prefixes: Default::default(),
+        reviewed_package_choices_v2: None,
         ..release.clone()
     };
     let mut compatibility = serde_json::json!({

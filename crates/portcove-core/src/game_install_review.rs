@@ -7,11 +7,25 @@ use crate::{
 
 impl PortcoveService {
     pub async fn plan_game_install(&self, port_id: &str) -> Result<GameInstallPlan> {
-        let _guard = self.library.try_lock_port(port_id, "review-install")?;
-        self.plan_game_install_locked(port_id).await
+        self.plan_game_install_with_package(port_id, None).await
     }
 
-    async fn plan_game_install_locked(&self, port_id: &str) -> Result<GameInstallPlan> {
+    pub async fn plan_game_install_with_package(
+        &self,
+        port_id: &str,
+        package_id: Option<&str>,
+    ) -> Result<GameInstallPlan> {
+        let _guard = self.library.try_lock_port(port_id, "review-install")?;
+        self.plan_game_install_locked(port_id, package_id)
+            .await
+            .map(|(plan, _)| plan)
+    }
+
+    async fn plan_game_install_locked(
+        &self,
+        port_id: &str,
+        package_id: Option<&str>,
+    ) -> Result<(GameInstallPlan, crate::ScopedResolvedRelease)> {
         let status = self.status(port_id)?;
         self.require_managed_runtime_ownership(&status)?;
         if status.active.is_some() {
@@ -19,7 +33,9 @@ impl PortcoveService {
                 "this game is already installed; refresh before choosing setup, Play or an explicit update",
             ));
         }
-        let plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let (plan, resolution) = self
+            .plan_install_resolution(port_id, Some(status.channel), None, package_id)
+            .await?;
         let selected_install = match plan.action {
             crate::InstallPlanAction::UseStaged => status.staged.clone(),
             crate::InstallPlanAction::ReuseRetained
@@ -46,11 +62,27 @@ impl PortcoveService {
             &selected_install,
             definition,
         ))?);
-        Ok(GameInstallPlan {
-            plan,
-            selected_install,
-            plan_sha256,
-        })
+        let plan_sha256 = if let Some(id) = package_id {
+            crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove first game install explicit package v2",
+                plan_sha256,
+                id,
+                &resolution.saved_variant,
+                &resolution.github_identity,
+                &resolution.explicit_tag_commit,
+            ))?)
+        } else {
+            plan_sha256
+        };
+        Ok((
+            GameInstallPlan {
+                plan,
+                package_choice: package_id.map(str::to_owned),
+                selected_install,
+                plan_sha256,
+            },
+            resolution,
+        ))
     }
 
     pub async fn authorize_game_install(
@@ -68,7 +100,20 @@ impl PortcoveService {
         expected_plan: &str,
         acknowledged: Option<&str>,
     ) -> Result<DestructiveAuthorization> {
-        let reviewed = self.plan_game_install(port_id).await?;
+        self.authorize_game_install_with_package(port_id, expected_plan, acknowledged, None)
+            .await
+    }
+
+    pub async fn authorize_game_install_with_package(
+        &self,
+        port_id: &str,
+        expected_plan: &str,
+        acknowledged: Option<&str>,
+        package_id: Option<&str>,
+    ) -> Result<DestructiveAuthorization> {
+        let reviewed = self
+            .plan_game_install_with_package(port_id, package_id)
+            .await?;
         if reviewed.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
                 "installation inputs changed; review installation again",
@@ -93,6 +138,17 @@ impl PortcoveService {
         &self,
         port_id: &str,
         authorization: &str,
+        emit: impl FnMut(OperationEvent),
+    ) -> Result<InstallRecord> {
+        self.apply_game_install_with_package(port_id, authorization, None, emit)
+            .await
+    }
+
+    pub async fn apply_game_install_with_package(
+        &self,
+        port_id: &str,
+        authorization: &str,
+        package_id: Option<&str>,
         mut emit: impl FnMut(OperationEvent),
     ) -> Result<InstallRecord> {
         let (activity, operation) = self.begin_cancellable_activity(
@@ -103,8 +159,8 @@ impl PortcoveService {
         emit(operation.started());
         let result = async {
             let _guard = self.library.try_lock_port(port_id, "reviewed-install")?;
-            let reviewed = operation
-                .interruptible(self.plan_game_install_locked(port_id))
+            let (reviewed, resolution) = operation
+                .interruptible(self.plan_game_install_locked(port_id, package_id))
                 .await?;
             Self::require_registered_install_inputs(&reviewed)?;
             self.library.consume_authorization(
@@ -119,27 +175,43 @@ impl PortcoveService {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_resolved_release(
-                self.catalog.port(port_id)?,
-                status,
-                InstallOverrides {
-                    source: None,
-                    bios: None,
-                    output_directory: None,
-                },
-                reviewed.plan.release,
-                ReleaseIntent {
-                    acquired: None,
-                    activate: true,
-                    shared_preferences: reviewed
-                        .plan
-                        .shared_preferences
-                        .as_ref()
-                        .map(crate::managed_shared_preferences::Acceptance::after_review),
-                },
-                &mut reporter,
-            )
-            .await
+            let port = self.catalog.port(port_id)?;
+            let overrides = InstallOverrides {
+                source: None,
+                bios: None,
+                output_directory: None,
+            };
+            let intent = ReleaseIntent {
+                acquired: None,
+                explicit_package_proof_sha256: None,
+                activate: true,
+                shared_preferences: reviewed
+                    .plan
+                    .shared_preferences
+                    .as_ref()
+                    .map(crate::managed_shared_preferences::Acceptance::after_review),
+            };
+            if package_id.is_some() {
+                self.apply_scoped_release_with_shared(
+                    port,
+                    status,
+                    overrides,
+                    resolution,
+                    intent,
+                    &mut reporter,
+                )
+                .await
+            } else {
+                self.apply_resolved_release(
+                    port,
+                    status,
+                    overrides,
+                    reviewed.plan.release,
+                    intent,
+                    &mut reporter,
+                )
+                .await
+            }
         }
         .await;
         let result = self.finish_activity(activity, result);

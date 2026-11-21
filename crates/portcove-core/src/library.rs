@@ -296,6 +296,8 @@ impl StoredInstallRow {
 pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
+    pub(crate) artwork_catalog:
+        std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -464,7 +466,7 @@ impl LibraryChangeObserver {
     }
 }
 
-fn data_version(connection: &Connection) -> Result<i64> {
+pub(crate) fn data_version(connection: &Connection) -> Result<i64> {
     Ok(connection.query_row("PRAGMA data_version", [], |row| row.get(0))?)
 }
 
@@ -740,6 +742,38 @@ impl Library {
         Self::initialize(root.to_path_buf(), lease)
     }
 
+    /// Bind an existing current library without layout creation or migration.
+    pub(crate) fn open_current_for_recovery_bundle(root: &Path) -> Result<Self> {
+        fn require_current(root: &Path) -> Result<()> {
+            if crate::library_authority::authority(root)?.is_some() {
+                return Err(PortcoveError::conflict(
+                    "finish library relocation or recovery before creating a bundle",
+                ));
+            }
+            crate::import_journal::check_open(root)?;
+            if database::requires_migration(root)? {
+                return Err(PortcoveError::conflict(
+                    "open and update the library before creating a recovery bundle",
+                ));
+            }
+            Ok(())
+        }
+
+        crate::path::unicode(root, "recovery source library")?;
+        require_current(root)?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?);
+        require_current(root)?;
+        Ok(Self {
+            root: root.to_path_buf(),
+            authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
+            _lease: lease,
+        })
+    }
+
     pub(crate) fn initialize(
         root: PathBuf,
         lease: std::sync::Arc<crate::library_access::LibraryLease>,
@@ -748,6 +782,7 @@ impl Library {
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -929,7 +964,7 @@ impl Library {
     pub(crate) fn recovery_dir(&self) -> PathBuf {
         self.root.join("recovery")
     }
-    fn locks_dir(&self) -> PathBuf {
+    pub(crate) fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
     }
 

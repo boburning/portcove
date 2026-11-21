@@ -220,3 +220,27 @@ describe("native source drag coordination", () => {
     expect(elementAt).toHaveBeenCalledWith(10, 20);
   });
 });
+
+it("retains an ambiguous game drop without inventing a port or source profile", () => {
+  const accept = vi.fn();
+  const update = vi.fn();
+  const card = document.createElement("article");
+  card.dataset.sourceDropGameId = "game:original";
+  const child = document.createElement("span");
+  card.append(child);
+  const target = sourceDropTargetAt(position, () => child, 1);
+  expect(target).toEqual({ gameId: "game:original" });
+  const handle = createNativeSourceDropCoordinator(update, accept, () => target);
+  handle(native({ type: "enter", paths: ["D:/Game.z64"], position }));
+  expect(update).toHaveBeenLastCalledWith({
+    active: true,
+    pathCount: 1,
+    targetGameId: "game:original",
+  });
+  expect(accept).not.toHaveBeenCalled();
+  handle(native({ type: "drop", paths: ["D:/Game.z64"], position }));
+  expect(accept).toHaveBeenCalledExactlyOnceWith({
+    gameId: "game:original",
+    paths: ["D:/Game.z64"],
+  });
+});

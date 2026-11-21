@@ -739,6 +739,7 @@ impl Catalog {
             validate_portable_marker_file(port)?;
             validate_accepted_uploaders(port)?;
             port.release.validate_github_streams(&port.platforms)?;
+            crate::ManagedPackageVariant::validate_explicit_choices(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,

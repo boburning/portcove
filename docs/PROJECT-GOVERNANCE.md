@@ -44,6 +44,16 @@ Project field.
 
 ## Port-stage contract
 
+Close a title's finite work when the delivered operations meet the applicable
+catalog contract. When a canonical issue exists, record the platform, ownership,
+released route and relevant qualification there. Issue-free additions follow
+the existing catalog preparation and delivery path. A port can be Done at the
+Cataloged stage. A pending shared capability keeps its canonical
+engineering owner and its applicable consumers. Discovery, a watch and a product
+exclusion contribute to inventory coverage only. When an older specification
+requires more than the offered operation, link its dated evidence and identify
+the superseded requirement separately from any passed check.
+
 `Port stage` is a workflow and evidence summary, not a synonym for release
 channel, catalog maturity, or Project Status:
 
@@ -657,15 +667,15 @@ restart after it stops.
 
 The saved views are entry points into one Project, not independent authorities:
 
-| View                                     | Question answered                                                                                                             |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Product Outcomes                         | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
-| Required for Beta / Required through 1.0 | Which direct Required outcomes remain?                                                                                        |
-| In Progress                              | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
-| Next Queue                               | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
-| Planned Additions                        | Which approved non-gating additions remain, across releases?                                                                  |
-| Port Pipeline / Active Port Work         | What is the complete durable port inventory, and which port work is active?                                                   |
-| Blocked & Deferred / Product Triage      | What has a resume condition, and which product reports or requests need triage?                                               |
+| View                                                 | Question answered                                                                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Product Outcomes                                     | What meaningful outcomes are planned or delivered, grouped by release?                                                        |
+| Required for Beta / Required through 1.0             | Which direct Required outcomes remain?                                                                                        |
+| In Progress                                          | Which issues are marked In progress or Validating? Confirm current ownership and actual writer activity on owning issues/PRs. |
+| Next Queue                                           | Which selected or executable Now/Next work follows, including Required and Planned?                                           |
+| Planned Additions                                    | Which approved non-gating additions remain, across releases?                                                                  |
+| Port Pipeline / Active Port Work / Blocked Port Work | Which ports are in the inventory, actively being worked on, or blocked?                                                       |
+| Blocked & Deferred / Product Triage                  | What has a resume condition, and which product reports or requests need triage?                                               |
 
 `roadmap-outcome` is a presentation-only label on canonical finite product and
 engineering outcomes, including completed outcomes. It does not classify every
@@ -910,19 +920,22 @@ Use `node scripts/roadmap.mts capture-port` for direct maintainer port intake,
 `doctor` exposes the actual checkout root, HEAD/branch and catalog hash before
 reading GitHub. After delivery, use verified current main containing the merge
 and pass `doctor --expected-head <verified-main-sha>`; a different HEAD or modified
-catalog/configuration stops before network checks. Input changes during the check
+catalog, listings or configuration stops before network checks. Input changes during the check
 invalidate success. `--json` returns the context and diagnostic report; raw reports
 remain under ignored `work/roadmap-doctor`. Checkout mismatches are distinct from
 Project drift.
 
 `doctor` verifies machine-readable identity, visibility, repository linkage,
 field types/options, view layout/filter/visible fields, the one-port/one-issue
-coverage contract across both repository issues and Project items, honest
+coverage contract for issue-linked ports across repository issues and Project items, honest
 Port-stage evidence and exact Supported platform intersections, final UX
 origin ownership, supported-source plan ownership, active-release commitment
 classification, and dependency-graph consistency. It requires every
 canonical issue and every open repository issue whose title begins `[Port]` to
-have exactly one Port item. It rejects missing markers, duplicate catalog IDs,
+have exactly one Port item. A matching generated listing with a reviewed original
+game and no issue assignment can represent an issue-free catalog port. The
+doctor still checks every canonical issue it finds, including duplicate claims
+on an issue-free catalog ID. It rejects missing markers, duplicate catalog IDs,
 candidate keys, normalized title identities, same-upstream/same-target
 identities, unsupported stage claims, Blocked entries without usable resume
 conditions, and Rejected entries that still claim catalog support. Distinct

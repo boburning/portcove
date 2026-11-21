@@ -272,6 +272,10 @@ pub struct PortSourceContract {
     pub admission_mode: CatalogAdmissionMode,
     #[serde(default)]
     pub supported_variant_ids: Vec<String>,
+    /// Upstream enumerates recognizable variants for an exact release. A
+    /// missing variant cannot reject setup. Historical lists keep their policy.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub variant_list_recognition_only: bool,
     pub validator_contract_id: Option<String>,
     #[serde(default)]
     pub evidence_ids: Vec<String>,
@@ -538,6 +542,22 @@ impl SourceCatalog {
                     )));
                 }
                 _ => {}
+            }
+            if contract.variant_list_recognition_only
+                && (contract.admission_mode != CatalogAdmissionMode::Informational
+                    || contract.supported_variant_ids.is_empty()
+                    || contract.role != PortSourceRole::Game
+                    || profile.kind != SourceIdentityKind::File
+                    || contract.validator_contract_id.is_some()
+                    || contract.applicability.is_empty()
+                    || contract
+                        .applicability
+                        .iter()
+                        .any(|binding| binding.artifact_sha256.is_none()))
+            {
+                return Err(PortcoveError::usage(
+                    "an optional recognition list requires an informational single-file game contract with exact artifact bindings",
+                ));
             }
             if contract.release_policy.is_some()
                 && (contract.admission_mode != CatalogAdmissionMode::Enforced

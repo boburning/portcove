@@ -27,11 +27,29 @@ import type {
   ProviderObservation,
 } from "./upstream-observer.mts";
 import { advanceObservation } from "./observe-configured-upstream.mts";
+import {
+  observeModProviderRegistry,
+  validateModProviderRegistryProgress,
+  type ModProviderRegistryProgress,
+} from "./upstream-mod-provider-registry.mts";
+import {
+  inputEvidenceKey,
+  n64RuntimeSourceCache,
+  observeN64RuntimeHashSource,
+  observeN64RuntimeSource,
+  observeOriginalSource,
+  type OriginalSourceFamily,
+  readOriginalSourceProgress,
+  revalidateOriginalSource,
+  selectOriginalSourceTarget,
+} from "./upstream-original-recognition.mts";
+import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
   kind?: "listing";
   listing?: Record<string, unknown>;
+  original_source_family?: OriginalSourceFamily;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -44,6 +62,35 @@ export interface ObservableSource {
   ports: ObservablePort[];
   scope_sha256: string;
 }
+function listingOnly(source: ObservableSource) {
+  return source.ports.every((port) => port.kind === "listing");
+}
+
+function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
+  const clocks = new Map<string, string>();
+  for (const policy of progress.last_complete_policies) {
+    const update = policy.listing_update;
+    const observation = isRecord(update) ? update.upstream_observation : null;
+    if (
+      policy.format === 2 &&
+      policy.authority === "descriptive-listing-observation-only" &&
+      policy.repository_id === progress.repository_id &&
+      policy.facts_sha256 === progress.last_complete_facts_sha256 &&
+      typeof policy.port_id === "string" &&
+      isRecord(observation) &&
+      observation.provider === "gitlab" &&
+      observation.repository === source.repository &&
+      typeof observation.attempted_at === "string" &&
+      progress.completed_at !== null &&
+      Date.parse(observation.attempted_at) <= Date.parse(progress.completed_at)
+    ) {
+      if (clocks.has(policy.port_id)) return null;
+      clocks.set(policy.port_id, observation.attempted_at);
+    }
+  }
+  return source.ports.every(({ id }) => clocks.has(id)) ? clocks : null;
+}
+
 interface SelectionProgress {
   binding: string;
   facts_sha256: string;
@@ -92,12 +139,14 @@ export interface SourceProgress {
  * such a stop never notifies.
  */
 export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
+const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
   authority: "catalog-upstream-observation-only";
   sequence: number;
   provider_retry_at: string | null;
   provider_capacities?: Record<string, ProviderCapacity>;
+  mod_provider_registry?: ModProviderRegistryProgress;
   /** Historical provenance only; never a successful observation/freshness clock. */
   baseline?: {
     id: string;
@@ -167,7 +216,16 @@ export function catalogObservationSources(input: unknown) {
       ports: [],
       scope_sha256: "",
     };
+    const originalSourceFamily =
+      provider === "github" && typeof port.source_profile === "string"
+        ? port.adapter === "libultraship-portable"
+          ? "libultraship"
+          : port.adapter === "n64-recomp-portable"
+            ? "n64-recomp"
+            : undefined
+        : undefined;
     source.ports.push({
+      ...(originalSourceFamily ? { original_source_family: originalSourceFamily } : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -260,9 +318,11 @@ export function validateCatalogObserverCheckpoint(
       (typeof value.provider_retry_at !== "string" ||
         !Number.isFinite(Date.parse(value.provider_retry_at)))) ||
     !isRecord(value.sources) ||
-    Buffer.byteLength(JSON.stringify(value)) > 32 * 1024 * 1024
+    Buffer.byteLength(JSON.stringify(value)) > catalogCheckpointByteLimit
   )
     throw new Error("Invalid catalog observer checkpoint");
+  if (value.mod_provider_registry !== undefined)
+    validateModProviderRegistryProgress(value.mod_provider_registry, now);
   if (value.baseline !== undefined) {
     const baseline = value.baseline;
     if (
@@ -448,6 +508,7 @@ export interface CatalogObservationOptions extends Pick<
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
+  modProviderRegistryFetch?: typeof fetch;
   projectProvider?: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   exportProvider?: (
     source: ObservableSource,
@@ -462,6 +523,14 @@ export interface CatalogObservationOptions extends Pick<
   load: (config: ObserverConfig) => Promise<unknown>;
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
+  observeN64Runtime?: boolean;
+  readOriginalRecognition?: (
+    repository: string,
+    endpoint: string,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<unknown>;
   repositoryId: (
     source: ObservableSource,
     transport: Required<
@@ -493,9 +562,21 @@ export async function advanceCatalogObservations(
     prior === null
       ? newCatalogObserverCheckpoint()
       : validateCatalogObserverCheckpoint(prior, now());
+  const commitCheckpoint = () => {
+    if (
+      state.mod_provider_registry &&
+      Buffer.byteLength(JSON.stringify(state)) > catalogCheckpointByteLimit
+    )
+      throw new ObservationFailure(
+        "checkpoint-size",
+        "Catalog progress and retained mod registry exceed the checkpoint envelope. The last complete checkpoint remains.",
+      );
+    return options.commit(structuredClone(state));
+  };
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
   const template = validateObserverConfig(options.config);
+  const requestCeiling = options.requestLimit ?? Infinity;
   const policyIdentity = options.policyIdentity;
   if (!/^[a-f0-9]{64}$/u.test(policyIdentity))
     throw new Error("Exact Core policy input identity is required");
@@ -517,16 +598,27 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) =>
-    observationHash({
+  const scopeBinding = (source: ObservableSource) => {
+    const provider = source.provider ?? "github";
+    if (listingOnly(source)) {
+      // The declaration scope already binds the exact descriptive projector.
+      return observationHash({
+        contract: "normalized-current-catalog-listing-policy-v1",
+        source: source.key,
+        provider,
+        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+        scope: source.scope_sha256,
+        stale_after_hours: template.stale_after_hours,
+      });
+    }
+    return observationHash({
       contract: "normalized-current-catalog-core-policy-v1",
-      ...((source.provider ?? "github") !== "github"
-        ? { provider_proof: "explicit-page-coverage-v2" }
-        : {}),
+      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
       policy: policyIdentity,
       scope: source.scope_sha256,
       definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
     });
+  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -552,6 +644,15 @@ export async function advanceCatalogObservations(
   let remaining: number | null = null;
   let resetAt: number | null = null;
   let providerLimit: number | null = null;
+  const extendProviderDeferral = (retryAt: string | null) => {
+    if (
+      retryAt !== null &&
+      (state.provider_retry_at === null ||
+        Date.parse(retryAt) > Date.parse(state.provider_retry_at))
+    )
+      state.provider_retry_at = retryAt;
+    return state.provider_retry_at;
+  };
   const consumeResponseBytes = (bytes: number | null) => {
     if (bytes !== null && (!Number.isSafeInteger(bytes) || bytes < 0))
       throw new ObservationFailure("invalid-metadata", "Provider response size is invalid");
@@ -611,6 +712,7 @@ export async function advanceCatalogObservations(
     (progress.exception_rule !== null && partialProgressRules.includes(progress.exception_rule));
   const servesManagedPort = (source: ObservableSource) =>
     healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
+  const n64RuntimeCache = n64RuntimeSourceCache();
   const pending = sources
     .filter((source) => {
       if (options.excludedSources?.has(source.key)) return false;
@@ -645,7 +747,7 @@ export async function advanceCatalogObservations(
             remaining === null
               ? template.budget.requests - requests
               : remaining - Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05)),
-            (options.requestLimit ?? Infinity) - requests,
+            requestCeiling - requests,
             Math.floor(
               (deadline - now()) /
                 (sampledRequests
@@ -660,18 +762,65 @@ export async function advanceCatalogObservations(
     const providerDepleted =
       remaining !== null &&
       remaining <= Math.max(1, Math.ceil((providerLimit ?? remaining) * 0.05));
-    if (providerDepleted && resetAt !== null)
-      state.provider_retry_at = new Date(resetAt).toISOString();
+    const retryAt = providerDepleted
+      ? extendProviderDeferral(resetAt === null ? null : new Date(resetAt).toISOString())
+      : null;
     if (now() >= deadline || capacity() < 1)
       throw new ObservationFailure(
         "budget",
         "Shared provider reserve or runtime exhausted",
-        providerDepleted && resetAt !== null ? new Date(resetAt).toISOString() : null,
+        retryAt,
       );
     requestStartedAt = now();
     requests++;
     if (remaining !== null) remaining--;
   };
+  let registryProgress: ModProviderRegistryProgress | undefined;
+  const registryFits = (progress: ModProviderRegistryProgress) =>
+    Buffer.byteLength(JSON.stringify({ ...state, mod_provider_registry: progress })) <=
+    catalogCheckpointByteLimit;
+  // A due registry read uses the same opportunity and request accounting.
+  // Thunderstore's independent reserve does not decrement GitHub's quota.
+  if (
+    options.modProviderRegistryFetch &&
+    !options.signal?.aborted &&
+    deadline - now() >= 1000 &&
+    Math.min(template.budget.requests, requestCeiling) > 1 &&
+    (!state.mod_provider_registry || Date.parse(state.mod_provider_registry.next_due_at) <= now())
+  ) {
+    // Reserve space for Retry-After before spending the request. The longest
+    // ISO representation covers even a provider delay in an extended year.
+    if (
+      registryFits({
+        last_complete: state.mod_provider_registry?.last_complete ?? null,
+        next_due_at: "+275760-09-13T00:00:00.000Z",
+        exception: "rate-limit",
+      })
+    ) {
+      const result = await observeModProviderRegistry(state.mod_provider_registry, {
+        now,
+        cadenceMs: template.cadence_hours * 3600000,
+        staleAfterMs: template.stale_after_hours * 3600000,
+        timeout: Math.min(10000, deadline - now()),
+        responseBytes: template.budget.response_bytes,
+        fetch: options.modProviderRegistryFetch,
+        ...(options.signal ? { signal: options.signal } : {}),
+      });
+      requests++;
+      responseBytes += result.bytes;
+      if (result.progress.exception === "rate-limit") {
+        state.mod_provider_registry = result.progress;
+        await commitCheckpoint();
+      } else if (!options.signal?.aborted) registryProgress = result.progress;
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "A registry retry deadline would exceed the checkpoint envelope.",
+      });
+    }
+  }
   const projectBound = async (
     port: ObservablePort,
     repositoryId: number,
@@ -722,11 +871,37 @@ export async function advanceCatalogObservations(
     if (options.signal?.aborted || now() >= deadline) break;
     // Completed provider reads may still admit offline Core continuation while the provider is unavailable.
     const previousProgress = state.sources[source.key];
+    const descriptive = listingOnly(source);
+    const retainedListingCompletion =
+      descriptive &&
+      previousProgress?.completed_scope_sha256 &&
+      previousProgress.completed_at &&
+      previousProgress.freshness_observed_at &&
+      previousProgress.last_complete_facts_sha256 &&
+      previousProgress.next_due_at
+        ? {
+            completed_at: previousProgress.completed_at,
+            observed_at: previousProgress.freshness_observed_at,
+            facts_sha256: previousProgress.last_complete_facts_sha256,
+            next_due_at: new Date(
+              Math.min(
+                Date.parse(previousProgress.next_due_at),
+                Date.parse(previousProgress.freshness_observed_at) +
+                  template.stale_after_hours * 3600000 -
+                  template.budget.duration_ms,
+              ),
+            ).toISOString(),
+          }
+        : null;
+    const canReuseListing =
+      retainedListingCompletion !== null &&
+      Date.parse(retainedListingCompletion.next_due_at) > now();
     const scheduledRefreshDue =
       isScheduledPriority(source) &&
       (!previousProgress?.next_due_at || Date.parse(previousProgress.next_due_at) <= now());
     const reprojectFreshFacts =
       !scheduledRefreshDue &&
+      (!descriptive || canReuseListing) &&
       previousProgress !== undefined &&
       previousProgress.completed_scope_sha256 !== scopeBinding(source) &&
       previousProgress.last_complete_facts_sha256 !== null;
@@ -770,7 +945,7 @@ export async function advanceCatalogObservations(
       throw new Error("Source scheduling sequence exhausted");
     progress.attempted_sequence = ++state.sequence;
     state.sources[source.key] = progress;
-    await options.commit(structuredClone(state));
+    await commitCheckpoint();
     attempted.push(source.key);
     const earlyCollection = earlyTurns.delete(source.key);
     if (source.provider === "gitlab" || source.provider === "direct-manifest") {
@@ -788,11 +963,13 @@ export async function advanceCatalogObservations(
           delete progress.provider_progress;
           progress.policy_progress = null;
           progress.completed_scope_sha256 = null;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
         }
 
+        const listingClocks = canReuseListing ? retainedListingClocks(source, progress) : null;
         const reuseComplete =
           previousComplete &&
+          (!descriptive || listingClocks !== null) &&
           progress.freshness_observed_at !== null &&
           now() - Date.parse(progress.freshness_observed_at) <
             template.stale_after_hours * 3600000 &&
@@ -801,7 +978,7 @@ export async function advanceCatalogObservations(
           progress.provider_previous_progress = progress.provider_progress;
           delete progress.provider_progress;
           progress.completed_scope_sha256 = null;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
         }
         const result = await observeProviderSource(
           { ...source, provider: source.provider },
@@ -809,7 +986,11 @@ export async function advanceCatalogObservations(
           {
             now,
             deadline,
-            maximumRequests: Math.min(64, template.budget.requests),
+            maximumRequests: Math.min(
+              64,
+              template.budget.requests,
+              Math.max(0, requestCeiling - requests),
+            ),
             maximumBytes: template.budget.total_bytes,
             ...(options.signal ? { signal: options.signal } : {}),
             ...(options.providerFetch ? { fetch: options.providerFetch } : {}),
@@ -821,10 +1002,21 @@ export async function advanceCatalogObservations(
                   "GitLab numeric project identity changed; preserve the declared source and historical evidence",
                 );
               progress.repository_id = identity;
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
             },
             reuseComplete,
+            ...(reuseComplete && retainedListingCompletion && listingClocks
+              ? {
+                  retainedCompletion: {
+                    observed_at: retainedListingCompletion.observed_at,
+                    facts_sha256: retainedListingCompletion.facts_sha256,
+                    completed_by_port: listingClocks,
+                  },
+                }
+              : {}),
             admit: () => {
+              if (requests >= requestCeiling)
+                throw new ObservationFailure("budget", "Shared provider request budget exhausted");
               requests++;
             },
             charge: (bytes) => {
@@ -832,7 +1024,7 @@ export async function advanceCatalogObservations(
             },
             commit: async (checkpoint) => {
               progress.provider_progress = checkpoint;
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
             },
             project: async (portId, observation) => {
               const port = source.ports.find((consumer) => consumer.id === portId)!;
@@ -899,7 +1091,7 @@ export async function advanceCatalogObservations(
                 );
               progress.policy_progress.policies.push(structuredClone(policy));
               progress.policy_progress.sha256 = observationHash(progress.policy_progress.policies);
-              await options.commit(structuredClone(state));
+              await commitCheckpoint();
               return policy;
             },
           },
@@ -911,6 +1103,11 @@ export async function advanceCatalogObservations(
           );
         await options.exportProvider(source, result.observations, result.policies);
         const factsHash = String(result.observations[0]!.facts_sha256);
+        const retainedTiming =
+          reuseComplete &&
+          retainedListingCompletion !== null &&
+          listingClocks !== null &&
+          result.requests === 0;
         if (progress.last_complete_facts_sha256 !== factsHash) {
           if (progress.last_change_at) {
             const interval = Math.max(1, now() - Date.parse(progress.last_change_at));
@@ -923,20 +1120,24 @@ export async function advanceCatalogObservations(
           }
           progress.last_change_at = new Date(now()).toISOString();
         }
-        progress.completed_at = new Date(now()).toISOString();
+        progress.completed_at = retainedTiming
+          ? retainedListingCompletion.completed_at
+          : new Date(now()).toISOString();
         progress.freshness_observed_at = result.observed_at;
-        progress.next_due_at = new Date(
-          Math.min(
-            now() +
-              Math.max(
-                template.cadence_hours * 3600000,
-                (progress.mean_change_interval_ms ?? 0) / 2,
+        progress.next_due_at = retainedTiming
+          ? retainedListingCompletion.next_due_at
+          : new Date(
+              Math.min(
+                now() +
+                  Math.max(
+                    template.cadence_hours * 3600000,
+                    (progress.mean_change_interval_ms ?? 0) / 2,
+                  ),
+                Date.parse(result.observed_at) +
+                  template.stale_after_hours * 3600000 -
+                  template.budget.duration_ms,
               ),
-            Date.parse(result.observed_at) +
-              template.stale_after_hours * 3600000 -
-              template.budget.duration_ms,
-          ),
-        ).toISOString();
+            ).toISOString();
         progress.completed_scope_sha256 = binding;
         progress.last_complete_facts_sha256 = String(result.observations[0]!.facts_sha256);
         progress.last_complete_policies = result.policies.map((p) => p as Record<string, unknown>);
@@ -992,7 +1193,7 @@ export async function advanceCatalogObservations(
         )
           pending.push(source);
       }
-      await options.commit(structuredClone(state));
+      await commitCheckpoint();
       continue;
     }
     try {
@@ -1020,7 +1221,7 @@ export async function advanceCatalogObservations(
             "Provider repository identity is unavailable",
           );
         progress.repository_id = identity;
-        await options.commit(structuredClone(state));
+        await commitCheckpoint();
       }
       const config: ObserverConfig = legacy
         ? template
@@ -1052,7 +1253,7 @@ export async function advanceCatalogObservations(
       )
         progress.retired_configs.push(progress.current_config);
       progress.current_config = config;
-      await options.commit(structuredClone(state));
+      await commitCheckpoint();
       const policies: unknown[] = [];
       const scoped = (observation: ProviderObservation, portId: string) => ({
         ...observation,
@@ -1093,7 +1294,7 @@ export async function advanceCatalogObservations(
             await projectBound(port, config.repository_id, scoped(observation, port.id)),
           );
           pendingPolicies.sha256 = observationHash(pendingPolicies.policies);
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
           coreProgress++;
         }
         policies.splice(0, policies.length, ...pendingPolicies.policies);
@@ -1129,6 +1330,16 @@ export async function advanceCatalogObservations(
             : Math.max(fairShare, Math.min(minimumTurn, available)),
         ),
       );
+      const admitSourceRequest = () => {
+        if (sourceRequests >= quantum)
+          throw new ObservationFailure(
+            "budget",
+            "Fair source batch admission exhausted; continue after other admitted source turns",
+            null,
+          );
+        admitRequest();
+        sourceRequests++;
+      };
       const selectAssetReleases = async (headers: ProviderObservation) => {
         if (
           progress.selection_progress?.binding !== binding ||
@@ -1179,7 +1390,7 @@ export async function advanceCatalogObservations(
           selection.release_ids = [...candidates].sort((a, b) => a - b);
           selection.sha256 = observationHash(selection.release_ids);
           selection.cursor = index + 1;
-          await options.commit(structuredClone(state));
+          await commitCheckpoint();
           coreProgress++;
         }
         return selection.release_ids;
@@ -1215,16 +1426,7 @@ export async function advanceCatalogObservations(
           now,
           catalogIds,
           reprojectFreshFacts,
-          admitRequest: () => {
-            if (sourceRequests >= quantum)
-              throw new ObservationFailure(
-                "budget",
-                "Fair source batch admission exhausted; continue after other admitted source turns",
-                null,
-              );
-            admitRequest();
-            sourceRequests++;
-          },
+          admitRequest: admitSourceRequest,
           observeResponse,
           consumeResponseBytes,
           selectAssetReleases,
@@ -1245,6 +1447,147 @@ export async function advanceCatalogObservations(
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
         const fallback = progress.last_complete_policies;
+        const readOriginalRecognition = options.readOriginalRecognition;
+        if (!result.report.exception && readOriginalRecognition) {
+          const account = {
+            admitRequest: admitSourceRequest,
+            observeResponse,
+            consumeResponseBytes,
+          };
+          const freshByRelease = new Map<
+            string,
+            Awaited<ReturnType<typeof observeOriginalSource>>
+          >();
+          const tagMatches = new Map<string, boolean>();
+          const read = (endpoint: string) =>
+            readOriginalRecognition(source.repository, endpoint, account);
+          for (const policy of policies) {
+            if (!isRecord(policy)) continue;
+            const port = source.ports.find((port) => port.id === policy.port_id);
+            const family = port?.original_source_family;
+            if (!family) continue;
+            const evidenceKey = inputEvidenceKey(family);
+            const target = selectOriginalSourceTarget(
+              policy,
+              source.repository,
+              config.repository_id,
+            );
+            const previous = readOriginalSourceProgress(
+              fallback.find((prior) => prior.port_id === policy.port_id)?.[evidenceKey],
+              { repository: source.repository, repository_id: config.repository_id },
+              family,
+            );
+            const retained = previous?.last_complete ?? null;
+            let recognitionState: string;
+            let complete = retained;
+            if (!target) {
+              recognitionState = "exact-artifact-unavailable";
+            } else {
+              const binding = observationHash(target);
+              try {
+                if (retained?.binding === binding) {
+                  const key = JSON.stringify([
+                    family,
+                    target.release_id,
+                    target.release_tag,
+                    retained.fact.source_tag_sha1,
+                    retained.fact.source_tag_type,
+                    retained.fact.source_commit,
+                  ]);
+                  let matches = tagMatches.get(key);
+                  if (matches === undefined) {
+                    matches = await revalidateOriginalSource(retained.fact, read);
+                    tagMatches.set(key, matches);
+                  }
+                  recognitionState = matches ? "observed" : "source-tag-changed";
+                } else {
+                  const release = JSON.stringify([
+                    family,
+                    target.repository_id,
+                    target.release_id,
+                    target.release_tag,
+                  ]);
+                  const fresh = freshByRelease.get(release);
+                  const fact = fresh
+                    ? { ...fresh, ...target }
+                    : await observeOriginalSource(target, read, family);
+                  if (!fresh) freshByRelease.set(release, fact);
+                  complete = { binding, observed_at: new Date(now()).toISOString(), fact };
+                  recognitionState = "observed";
+                }
+              } catch (error) {
+                recognitionState =
+                  error instanceof ObservationFailure ? error.rule : "source-metadata-unavailable";
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  extendProviderDeferral(error.retryAt);
+                }
+              }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              (!complete.fact.runtime_source ||
+                complete.fact.runtime_source.state === "unavailable")
+            ) {
+              const fact = complete.fact;
+              // Runtime evidence is optional until its own lookup completes.
+              // A timeout must keep the release's checked GameEntry observation.
+              try {
+                const runtime = await observeN64RuntimeSource(fact, read, n64RuntimeCache);
+                complete = { ...complete, fact: { ...fact, runtime_source: runtime } };
+              } catch (error) {
+                complete = {
+                  ...complete,
+                  fact: { ...fact, runtime_source: { state: "unavailable" } },
+                };
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  state.provider_retry_at = error.retryAt;
+                }
+              }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              complete.fact.runtime_source?.state === "observed"
+            ) {
+              const fact = complete.fact;
+              const runtime = complete.fact.runtime_source.source;
+              if (
+                runtime.matched_input_blocks &&
+                (!runtime.hash_source || runtime.hash_source.state === "unavailable")
+              ) {
+                let hashSource: N64RuntimeHashSourceObservation = { state: "unavailable" };
+                try {
+                  hashSource = await observeN64RuntimeHashSource(
+                    runtime.revision,
+                    read,
+                    n64RuntimeCache,
+                  );
+                } catch (error) {
+                  if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                    remaining = 0;
+                    state.provider_retry_at = error.retryAt;
+                  }
+                }
+                complete = {
+                  ...complete,
+                  fact: {
+                    ...fact,
+                    runtime_source: {
+                      state: "observed",
+                      source: { ...runtime, hash_source: hashSource },
+                    },
+                  },
+                };
+              }
+            }
+            policy[evidenceKey] = { state: recognitionState, last_complete: complete };
+          }
+        }
         await options.export(source, config, result, result.report.exception ? fallback : policies);
         return result;
       });
@@ -1268,7 +1611,7 @@ export async function advanceCatalogObservations(
         progress.retry_at = result.report.exception.retry_at;
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
-          state.provider_retry_at = result.report.exception.retry_at;
+          extendProviderDeferral(result.report.exception.retry_at);
         }
         failures.push({
           source: source.key,
@@ -1281,10 +1624,17 @@ export async function advanceCatalogObservations(
         });
       } else {
         const sameScope = progress.completed_scope_sha256 === binding;
+        const retainedTiming =
+          reprojectFreshFacts &&
+          retainedListingCompletion !== null &&
+          sourceRequests === 0 &&
+          result.report.last_complete_at === retainedListingCompletion.completed_at &&
+          result.report.freshness_observed_at === retainedListingCompletion.observed_at &&
+          result.report.observation?.facts_sha256 === retainedListingCompletion.facts_sha256;
         const changed =
           sameScope &&
           progress.last_complete_facts_sha256 !== result.report.observation?.facts_sha256;
-        if (!sameScope) {
+        if (!sameScope && !retainedTiming) {
           progress.last_change_at = new Date(now()).toISOString();
           progress.change_intervals = 0;
           progress.mean_change_interval_ms = null;
@@ -1305,9 +1655,12 @@ export async function advanceCatalogObservations(
           progress.last_change_at = new Date(now()).toISOString();
         }
         progress.completed_at = result.report.last_complete_at;
-        progress.next_due_at = result.report.next_observation_due_at;
+        progress.next_due_at = retainedTiming
+          ? retainedListingCompletion.next_due_at
+          : result.report.next_observation_due_at;
         progress.freshness_observed_at = result.report.freshness_observed_at;
         if (
+          !retainedTiming &&
           progress.mean_change_interval_ms &&
           progress.freshness_observed_at &&
           source.repository !== template.repository
@@ -1350,7 +1703,7 @@ export async function advanceCatalogObservations(
       progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
       if (error instanceof ObservationFailure && error.rule === "rate-limit") {
         remaining = 0;
-        state.provider_retry_at = error.retryAt;
+        extendProviderDeferral(error.retryAt);
       }
       const rule = error instanceof ObservationFailure ? error.rule : "source-operation-failed";
       const key = exceptionKey(source, rule);
@@ -1372,7 +1725,22 @@ export async function advanceCatalogObservations(
             : "Source operation failed before an observation could be completed; inspect its exact scope and retained execution evidence.",
       });
     }
-    await options.commit(structuredClone(state));
+    await commitCheckpoint();
+  }
+  // Preserve the source checkpoint first. This optional registry must fit in
+  // the space remaining after required release progress.
+  if (registryProgress && !options.signal?.aborted) {
+    if (registryFits(registryProgress)) {
+      state.mod_provider_registry = registryProgress;
+      await commitCheckpoint();
+    } else {
+      failures.push({
+        source: "thunderstore-ecosystem",
+        repository: "thunderstore.io",
+        rule: "checkpoint-size",
+        details: "The mod registry does not fit the catalog checkpoint. Prior evidence remains.",
+      });
+    }
   }
   return {
     checkpoint: state,
@@ -1382,9 +1750,21 @@ export async function advanceCatalogObservations(
       authority: "catalog-upstream-observation-only",
       generated_at: new Date(now()).toISOString(),
       total_sources: sources.length,
+      ...(state.mod_provider_registry
+        ? {
+            mod_provider_registry: {
+              observed_at: state.mod_provider_registry.last_complete?.observed_at ?? null,
+              expires_at: state.mod_provider_registry.last_complete?.expires_at ?? null,
+              communities: state.mod_provider_registry.last_complete?.communities.length ?? null,
+              response_sha256: state.mod_provider_registry.last_complete?.response_sha256 ?? null,
+              next_due_at: state.mod_provider_registry.next_due_at,
+              exception: state.mod_provider_registry.exception,
+            },
+          }
+        : {}),
       checkpoint_storage: {
         bytes: Buffer.byteLength(JSON.stringify(state)),
-        limit_bytes: 32 * 1024 * 1024,
+        limit_bytes: catalogCheckpointByteLimit,
         provider_read_cache_bytes: Object.values(state.sources).reduce(
           (sum, progress) =>
             sum +

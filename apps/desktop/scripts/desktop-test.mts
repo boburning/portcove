@@ -3188,6 +3188,47 @@ try {
       packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
+    const {
+      readGameFirstCatalogObservation,
+      readGameFirstRelationships,
+      inspectGameFirstRelationships,
+    } = await import("./desktop-game-first-test.mts");
+    const readbacks: unknown[] = [];
+    const report: Record<string, unknown> = {
+      outcome: "failed",
+      source_revision: revision,
+      package: required(packageEvidence),
+      application: required(inputs[0]),
+      readbacks,
+      interpretation:
+        "Actual normal-package loaded catalog relationship readback; not installed game runtime or gameplay acceptance.",
+    };
+    try {
+      const relationships = await readGameFirstRelationships();
+      report.expected_baseline_sha256 = relationships.sha256;
+      report.audited_revision = relationships.expected.audited_revision;
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
+      report.catalog_digest = observation.workspace.catalog_digest ?? null;
+      report.catalog_status = observation.catalog_status;
+      report.listing_delivery_status = observation.listing_delivery_status;
+      report.generation = observation.bootstrap.generation;
+      const production = inspectGameFirstRelationships(
+        observation.workspace,
+        relationships.expected,
+        observation.catalog_status.provenance,
+      );
+      report.families = production.reviewed_families;
+      report.audited_records = production.provenance.length;
+      report.provenance = production.provenance;
+      report.outcome = "passed";
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "normal-package-game-first-catalog.json");
+      await writeFile(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    }
   });
   await scenario("native-linux-packaged-webview-boundary", async () => {
     const browser = requiredInspector();

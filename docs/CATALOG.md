@@ -188,6 +188,21 @@ offered. Fixtures, actual setup/launch and optional gameplay/device observations
 remain separate; known relevant failures remain visible. A link, catalog
 placeholder, research record or deferral is not a delivered integration.
 
+An integration can finish when a released client offers an actionable operation
+on an applicable platform and its required checks pass. An upstream-managed
+registration can be the finished title scope. Record which operations Portcove
+offers and who owns each one. Record the Portcove handoff at the boundary
+actually observed. Showing a picker, importing an original and completing
+setup each need evidence when the offered operation depends on that event.
+
+Reuse a shared capability result when the title fits its tested contract.
+Verify the title's package, platform, source and ownership facts and exercise
+unique behavior or a known failure affecting the offered operation. A player's
+matching original is required at the operation that consumes it. Runner custody
+of originals, completed campaigns and natural successors are separate evidence
+unless the specific operation depends on them. Previously failed checks keep
+their outcomes when a narrower operation becomes available.
+
 Ordinary fitting additions use reviewed definition facts and existing behavior.
 Compatible upstream updates normally change artifact facts. Reuse a policy only
 after checking the behavior it relies on; a checksum or filename alone is
@@ -1058,6 +1073,14 @@ validator that has not run. The [shared inspector](ARCHITECTURE.md#original-game
 owns these conclusions; a filename or descriptive label cannot supply them.
 The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
+
+An informational contract for a single game file can declare
+`variant_list_recognition_only` with exact release and artifact bindings.
+Setup review leaves compatibility open for these lists and continues to use the
+ordinary input-admission checks. An installed build receives the informational
+result only when its release and artifact match the declaration. The source
+profile still owns the user's exact registered-file identity. Existing contracts
+without this field retain their compatibility rules.
 
 Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
 host preference. If the import rejects the Logiqx format, Settings prompts
@@ -2262,13 +2285,14 @@ narrow combination. This adds no acquisition, modification, backup or removal
 authority over the external runtime or original files, and implies no particular
 port's admission or actual operation acceptance.
 
-Hosted
-installation still requires a provider digest or verified checksum sidecar;
-an exact direct manifest still requires an accepted HTTPS URL, size, version and
-SHA-256 for each declared platform. The owner has approved catalog-curated
-exact-byte acquisition under [#315](https://github.com/boburning/portcove/issues/315),
-but its protected authority and runtime route must be implemented before use.
-No client may accept bytes by hashing an arbitrary first download.
+For ordinary hosted installations, Core checks a provider digest or verifies a
+checksum sidecar. For an exact direct manifest, each platform needs an accepted
+HTTPS URL, size, version and SHA-256. For a curated GitHub artifact, Core obtains
+the expected identity from an independently admitted record under authenticated
+publisher policy. It checks the selected upstream release and asset, then verifies
+the acquired bytes against the accepted size and digest. A client-computed hash
+alone cannot establish provenance. See the [acquisition decision](DEFINITION-DELIVERY.md#acquisition-decision)
+and the [remaining shared rollout acceptance](https://github.com/boburning/portcove/issues/315).
 
 Every declared platform must provide at least one executable hint. A hint is an
 ASCII safe relative path under the declared runtime root; a basename remains a
@@ -3587,14 +3611,17 @@ The Ruby and Sapphire example shows when explicit variant and fallback paths
 can use the same staged behavior. [Shared lifecycle evidence](qualification/gba-versioned-mod-preservation-2026-10-25.md),
 [explicit-layout example](qualification/gba-ruby-sapphire-managed-2026-11-06.md).
 
-Optional authoring-only `n64_recomp_persistence_v1: true` expands the reviewed
-root-level N64Recomp persistence layout for managed GitHub packages. It supplies
-the shared mod, save and settings paths and includes the explicit
-`runtime_source_filename`. Keep the source profile, ROM filename, repository,
-asset selectors and executable hints in the integration. A nested layout,
-different provider, optional settings declaration or different writer set uses
-an explicit integration. URL preparation proposes the family form when its
-expanded integration reproduces the reviewed explicit bytes.
+Optional authoring-only `n64_recomp_persistence_v1` expands the reviewed
+root-level N64Recomp persistence layout for managed GitHub packages. Use `true`
+for the shared mod, save and settings paths with the declared
+`runtime_source_filename`. Dinosaur Planet's `config-directory` adds `config`
+after `saves`. Donkey Kong 64's `technical-settings` adds `technical.json` and
+`technical.json.bak` before the original file. Keep the source profile, ROM
+filename, repository, asset selectors and executable hints in the integration.
+Dinosaur Planet and Donkey Kong 64 require their named variants when using the
+recipe. A nested layout, different provider, optional settings declaration or
+different writer set uses an explicit integration. URL preparation proposes the
+family form when its expanded integration reproduces the reviewed explicit bytes.
 
 Optional authoring-only `reflectionhle_portable_paths_v1: true` expands the
 shared portable-root persistence list for the reviewed ReflectionHLE route.
@@ -3694,7 +3721,11 @@ kits with Windows x64, Intel macOS and Apple silicon macOS selectors. This
 variant supplies only the `build-portcove` runtime root and eight persistent
 paths. Each record retains its repository, asset selectors, executable hints,
 original disc profile, guide and qualification. A different upstream or writer
-layout uses explicit fields.
+layout uses explicit fields. Bomberman Party Edition and Final Fantasy VII can
+use `"technically-computers-input-files"` for the same eight persistent paths
+plus `input.ini` and `keybinds.ini`. Both keep the runtime root and mutable
+files explicit. Final Fantasy VII also keeps its three-disc source
+materialization and launch arguments explicit.
 
 A Linux sibling uses the same generated player basename without `.exe`, its
 own asset selector and artifact-bound source applicability.
@@ -3707,6 +3738,12 @@ needs the explicit form and applicable qualification.
 `prepare-port.mts` proposes the compact PSX form automatically when its
 expanded integration matches the explicit declaration byte for byte. A
 different layout, selector or setting stays explicit.
+
+The stock Diablo Windows v0.1.6 kit enumerates bundled mod manifests using
+legacy Windows paths. Core checks the longest bundled manifest at the proposed
+installation or relocation destination and again before launch. The rule follows
+the reviewed archive digest into retained installations. The same stock player
+reached the game on a shorter managed path. [Windows path receipt](https://github.com/boburning/portcove/issues/435#issuecomment-6899919050)
 
 Core's managed PS1 builder runs with `--no-toolchain-download` and with
 `HTTPS_PROXY` and `HTTP_PROXY` set to a closed local address. PSXRecomp
@@ -3874,6 +3911,42 @@ the projected fields without granting installation, execution or media rights.
 Game and edition IDs are maintained explicitly, not inferred from project names,
 artwork mappings or a frozen prototype registry. Unknown editions remain unknown
 until their own upstream evidence has been reviewed.
+
+Repository authoring also accepts an optional top-level `original_game_review` with
+`disposition` (`unresolved`, `multi-game`, `helper`, `framework` or `separate`), a
+specific `reason`, and one to eight public HTTPS `evidence_urls`. This review stays
+outside operational definitions and listings. Use it to explain missing identity
+evidence, an engine/collection scope, or deliberate separation from a plausible
+same-name family. A clear single-game relationship uses the existing
+`listing.original_game`; a different source edition or implementation alone is
+not a reason to invent another game ID. Keep established IDs because Saved,
+preferred implementations and original-game media already refer to them.
+
+`node scripts/catalog-game-identity.mts report` derives a complete authored-port
+report, including source hashes, retained source/lineage facts, title candidates,
+partial/conflicting mappings and generated-definition/listing identity drift.
+Maintenance universe entries separately expose canonical game ID and retained
+lineage target. Neither candidate similarity nor a lineage target assigns a game.
+Implementation entries in that universe do not inflate port coverage counts.
+
+For descriptive batches, use the tool's `apply --assignments <file>` dry-run,
+then `--write` after relationship review. Each assignment binds the complete
+input-file SHA-256 and explicitly supplies `original_game`,
+`original_game_title` and/or `original_game_review`. Existing IDs cannot be
+replaced through this helper. It preflights the entire catalog and every changed
+projection before writing, retains partial-publication recovery evidence, and
+preserves unrelated source, runtime and lineage fields. Regenerate with
+`node scripts/generate-catalog.mts`; identity-only work does not need another
+release, package, artwork or gameplay investigation when applicable evidence is
+already retained. Preparation reports missing grouping decisions without
+pretending that preliminary research admits a mapping; promotion requires the
+decision. The standard generator’s `--check` gate requires every current authored
+record to carry a game identity or explicit review, checks known-family candidates
+for conflicting new IDs, and refuses unexplained partial lineage groups.
+Older accepted catalogs and installations keep their optional-metadata
+compatibility. Repeated edition IDs are checked within their original-game scope;
+conflicting specified systems refuse authoring, while naming/provenance aliases
+and unspecified edition details remain valid.
 
 Optional authored `media` carries at most two `header`, two `key_art`, two `logo`
 and eight `screenshot` assets through the same listing and operational presentation

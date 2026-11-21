@@ -290,13 +290,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     steps: Step[];
   };
   const workflow = parse(source) as {
-    on: { schedule: { cron: string }[]; workflow_dispatch: unknown };
+    on: {
+      schedule: { cron: string }[];
+      workflow_dispatch: { inputs: { purpose: { default: string; options: string[] } } };
+    };
     permissions: unknown;
     concurrency: { "cancel-in-progress": boolean };
     jobs: Record<string, Job>;
   };
   assert.deepEqual(workflow.on.schedule, [{ cron: "47 4 * * *" }]);
-  assert.equal(workflow.on.workflow_dispatch, null, "dispatch takes no inputs");
+  assert.equal(workflow.on.workflow_dispatch.inputs.purpose.default, "status");
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.purpose.options, [
+    "status",
+    "collect-changed",
+    "report",
+    "recover",
+    "verify-recovery",
+    "recovery-full",
+  ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
@@ -327,8 +338,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       )
       .map((step) => step.name);
   assert.deepEqual(using("PORTCOVE_ROADMAP_TOKEN"), [
-    "Require hosted configuration without exposing credentials",
-    "Collect every declared source in one transaction",
+    "Collect changed sources and periodically reassess all Core subjects",
   ]);
   assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
   // The secret is exposed to the store commands under their default variable name.
@@ -343,10 +353,11 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "the restore target is local",
   );
   const collection = collect!.steps.find(
-    (step) => step.name === "Collect every declared source in one transaction",
+    (step) => step.name === "Collect changed sources and periodically reassess all Core subjects",
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
   for (const flag of [
     "--all",
@@ -357,8 +368,14 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--upstream",
     "--hosted-intake",
     "--targets",
+    "--reassess changed",
   ])
     assert.ok(collection.run!.includes(flag), flag);
+  const render = collect!.steps.find(
+    (step) => step.name === "Render the report and digest on local PostgreSQL",
+  )!;
+  assert.equal(render.env, undefined);
+  assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
@@ -463,6 +480,47 @@ void test("only Core-verified delivery records published definitions", () => {
       ),
     /Duplicate/u,
   );
+});
+
+void test("publication and delivery preserve long Core definition identities within storage bounds", () => {
+  const readBoth = (namespace: string, stable_id: string) => {
+    const definition = { namespace, stable_id, revision: 1, target: "sha256/x.json" };
+    const delivery = verifiedDelivery([definition]);
+    delivery.definitions[0]!.namespace = namespace;
+    return [
+      () =>
+        publicationFacts({
+          inspection: {
+            index_sha256: "f".repeat(64),
+            definitions: [{ ...definition, definition_target: definition.target }],
+          },
+        }),
+      () => deliveryFacts(delivery),
+    ];
+  };
+
+  const roe = "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine";
+  assert.equal(roe.length, 74);
+  const longest = "-".repeat(255);
+  for (const [namespace, stableId] of [
+    ["official", roe],
+    ["official", longest],
+    ["n".repeat(33), longest],
+  ] as const)
+    for (const read of readBoth(namespace, stableId)) {
+      const { facts } = read();
+      assert.deepEqual([...facts.keys()], [`definition:${namespace}/${stableId}`]);
+    }
+
+  for (const invalid of ["", "a".repeat(256), "a/b", "a:b", "A", "é", "x\n"])
+    for (const [namespace, stableId] of [
+      [invalid, roe],
+      ["official", invalid],
+    ] as const)
+      for (const read of readBoth(namespace, stableId))
+        assert.throws(read, /Unsupported definition identity/u);
+  for (const read of readBoth("n".repeat(34), longest))
+    assert.throws(read, /exceeds the maintenance key bound/u);
 });
 
 void test("publication entries compare main with the last verified publication by identity", () => {
@@ -638,6 +696,81 @@ void test("reads the producing CLI platform independently of the launcher's arch
     /did not identify a supported host platform/u,
   );
 });
+
+void test(
+  "unsupported publication facts retain the last good facts and other source updates",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("store");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const collectPublication = (id: string, publishedRevision: number) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        publication: () =>
+          Promise.resolve({
+            inspection: {
+              index_sha256: "f".repeat(64),
+              definitions: [
+                {
+                  namespace: "official",
+                  stable_id: id,
+                  revision: 1,
+                  definition_target: "sha256/a.json",
+                },
+              ],
+            },
+          }),
+        delivery: () =>
+          Promise.resolve(
+            verifiedDelivery([
+              { stable_id: "example", revision: publishedRevision, target: "sha256/a.json" },
+            ]),
+          ),
+        environment: store.owner,
+        runner: "fixture",
+      });
+
+    await collectPublication("example", 1);
+    await collectPublication("bad/id", 2);
+    const failed = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_build_object('coverage', coverage, 'gaps', gaps)
+           FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication'
+           ORDER BY acquisition DESC LIMIT 1;`,
+      ),
+    ) as { coverage: string; gaps: { subject_key: string; code: string }[] };
+    assert.equal(failed.coverage, "failed");
+    assert.deepEqual(
+      failed.gaps.map(({ subject_key, code }) => [subject_key, code]),
+      [["source:definition-publication", "unavailable"]],
+    );
+    const inventory = buildReport(store.owner);
+    const definition = inventory.publication.definitions?.find(
+      (entry) => entry.definition === "definition:official/example",
+    );
+    assert.ok(definition);
+    assert.equal(definition.comparison, "published-differs-from-main");
+    assert.deepEqual(definition.facts, {
+      main: {
+        index_sha256: "f".repeat(64),
+        revision: 1,
+        definition_target: "sha256/a.json",
+        policy_target: null,
+        policy_revision: null,
+        launch_revision: null,
+      },
+    });
+    assert.deepEqual(definition.published, {
+      published: { revision: 2, target: "sha256/a.json", sha256: "d".repeat(64), length: 10 },
+    });
+  },
+);
 
 void test(
   "declared records flow through Core assessment, the store and a static report",
@@ -3126,8 +3259,8 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
-      "bound to the assessing Core binary, with its unrecorded source visible",
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified;catalog=unverified$/u,
+      "records the assessing Core binary, the unrecorded source and the unverified catalog",
     );
     const inventory = buildReport(store.owner);
     const ship = (inventory.subjects as { port_key: string; target_routes: unknown }[]).find(
@@ -3857,6 +3990,72 @@ void test("managed observation coverage keeps stale or unverified membership out
     { port_key: "port:fixed", platform: "windows-x86-64", evidence: "fixed" },
     { port_key: "port:old", platform: "windows-x86-64", evidence: "gap", reason: "scope-changed" },
   ]);
+  // Older target fixtures omit one of the two operation rows. Absence is unknown.
+  assert.equal(coverage.catalog_operation_offers_by_platform, null);
+  const withDecisions = structuredClone(ports);
+  for (const input of withDecisions) {
+    for (const target of input.targets!.targets) {
+      for (const action of ["install", "register_external"]) {
+        if (target.routes.some((route) => route.action === action)) continue;
+        const offered = action === "register_external" && input.port_key === "port:covered";
+        target.routes.push({ action, offered, reason: offered ? null : "route_not_offered" });
+      }
+    }
+  }
+  const held = structuredClone(withDecisions[0]!.targets!.targets[0]!);
+  held.platform = "macos-aarch64";
+  for (const route of held.routes) {
+    route.offered = false;
+    route.reason = "route_not_offered";
+  }
+  withDecisions[0]!.targets!.targets.push(held);
+  withDecisions[0]!.targets!.declared_platforms.push(held.platform);
+  const operations = managedRouteObservationCoverage(
+    withDecisions,
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.deepEqual(operations.catalog_operation_offers_by_platform, [
+    {
+      platform: "linux-x86-64",
+      managed_install_only: 0,
+      external_registration_only: 1,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 2,
+    },
+    {
+      platform: "macos-aarch64",
+      managed_install_only: 0,
+      external_registration_only: 0,
+      both_operations: 0,
+      neither_operation: 1,
+      distinct_offered_pairs: 0,
+    },
+    {
+      platform: "windows-x86-64",
+      managed_install_only: 2,
+      external_registration_only: 0,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 3,
+    },
+  ]);
+  for (const malformed of [undefined, "false"]) {
+    const corrupted = structuredClone(withDecisions);
+    Object.assign(corrupted[0]!.targets!.targets[0]!.routes[0]!, { offered: malformed });
+    assert.equal(
+      managedRouteObservationCoverage(corrupted, [catalog, targets, upstream], members)
+        .catalog_operation_offers_by_platform,
+      null,
+    );
+  }
+  withDecisions[0]!.targets!.declared_platforms.push("unobserved-platform");
+  assert.equal(
+    managedRouteObservationCoverage(withDecisions, [catalog, targets, upstream], members)
+      .catalog_operation_offers_by_platform,
+    null,
+  );
   const withoutChannel = managedRouteObservationCoverage(
     [
       port("covered", [["linux-x86-64"]], [{ platform: "linux-x86-64", state: "eligible" }]),
@@ -3915,6 +4114,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     members,
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
+  assert.equal(oldProjection.catalog_operation_offers_by_platform, null);
   assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
   assert.equal(oldProjection.routes, null);
 });
