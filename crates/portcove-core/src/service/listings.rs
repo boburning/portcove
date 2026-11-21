@@ -1,5 +1,8 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
+};
 
 mod recommendations;
 
@@ -91,8 +94,8 @@ impl PortcoveService {
             .launch_sessions()?
             .iter()
             .any(|session| session.port_id == port_id && session.outcome.is_none());
-        let hold = crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id);
-        let mut projected = Self::assess_listing_status(status, owned, launching, hold);
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut projected = Self::assess_listing_status(status, owned, launching, &restrictions);
         projected.library_membership = self
             .library
             .library_memberships()?
@@ -198,11 +201,9 @@ impl PortcoveService {
                 };
                 let has_owner = owned.contains(&status.port_id);
                 let launching = launching.contains(&status.port_id);
-                let hold = crate::managed_runtime_policy::acquisition_hold_reason(
-                    catalog,
-                    &status.port_id,
-                );
-                let mut projected = Self::assess_listing_status(status, has_owner, launching, hold);
+                let restrictions = EffectiveRestrictions::of(catalog, &status.port_id);
+                let mut projected =
+                    Self::assess_listing_status(status, has_owner, launching, &restrictions);
                 projected.library_membership = members.get(&projected.port_id).cloned();
                 if let Some(report) = projected.capabilities.as_mut() {
                     report.add_setup_context(
@@ -220,7 +221,7 @@ impl PortcoveService {
         status: PortStatus,
         has_managed_owner: bool,
         launching: bool,
-        acquisition_hold: Option<&str>,
+        restrictions: &EffectiveRestrictions,
     ) -> crate::PortListingStatus {
         use crate::ListingAction;
         let selected = status
@@ -235,12 +236,26 @@ impl PortcoveService {
         } else {
             "Close the game and resolve its pending launch before selecting an installation."
         };
-        let available =
-            |action: ListingAction, allowed: bool, reason: &str| crate::ListingActionAssessment {
+        // Attaching an existing copy is an external registration; Launch is
+        // Launch. A restriction naming either withholds the listing action.
+        let available = |action: ListingAction, allowed: bool, reason: &str| {
+            let operation = match action {
+                ListingAction::AttachExisting => Some(RestrictedOperation::RegisterExternal),
+                ListingAction::Launch => Some(RestrictedOperation::Launch),
+                _ => None,
+            };
+            let held = operation.and_then(|operation| {
+                restrictions
+                    .evaluate(&RestrictionSubject::deferred(operation).on_current_host())
+                    .explanation()
+            });
+            let allowed = allowed && held.is_none();
+            crate::ListingActionAssessment {
                 action,
                 allowed,
-                reason: (!allowed).then(|| reason.to_owned()),
-            };
+                reason: (!allowed).then(|| held.unwrap_or_else(|| reason.to_owned())),
+            }
+        };
         let actions = vec![
             available(
                 ListingAction::AttachExisting,
@@ -272,7 +287,7 @@ impl PortcoveService {
             capabilities: Some(crate::PortCapabilityReport::from_status(
                 &status,
                 &actions,
-                acquisition_hold,
+                restrictions,
             )),
             status,
             actions,

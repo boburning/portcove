@@ -7,6 +7,26 @@ use super::*;
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, Knowledge, RestrictedOperation, RestrictionSubject, SubjectArtifact,
+};
+
+fn download_artifact_subject<'a>(
+    release_tag: &'a str,
+    asset_name: &'a str,
+    sha256: Option<&'a str>,
+) -> RestrictionSubject<'a> {
+    let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host();
+    subject.release = Knowledge::Known(release_tag);
+    if let Some(sha256) = sha256 {
+        subject = subject.artifact(SubjectArtifact {
+            version: release_tag,
+            sha256,
+            asset_name: Some(asset_name),
+        });
+    }
+    subject
+}
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
@@ -537,11 +557,65 @@ impl PortcoveService {
         Ok(managed_route_refusal(&status.port_actions))
     }
 
-    fn require_download_available(&self, port_id: &str) -> Result<()> {
-        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
-        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
-            return Err(PortcoveError::unsupported(reason.clone()));
+    fn require_download_artifact(
+        &self,
+        port_id: &str,
+        release_tag: &str,
+        asset_name: &str,
+        sha256: Option<&str>,
+    ) -> Result<()> {
+        EffectiveRestrictions::of(&self.catalog, port_id).require(&download_artifact_subject(
+            release_tag,
+            asset_name,
+            sha256,
+        ))
+    }
+
+    /// Held sibling assets leave the offer and are explained as limitations. A
+    /// provider-reported digest decides the offer only; the downloaded bytes
+    /// are checked again before anything is moved into place.
+    fn withhold_restricted_candidates(
+        &self,
+        port_id: &str,
+        candidates: Vec<CatalogDownloadCandidate>,
+        mut coverage: CatalogDownloadCoverage,
+    ) -> (
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Option<String>,
+    ) {
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut kept = Vec::with_capacity(candidates.len());
+        let mut first = None;
+        for candidate in candidates {
+            let subject = download_artifact_subject(
+                &candidate.release_tag,
+                &candidate.name,
+                candidate.sha256.as_deref(),
+            );
+            match restrictions.evaluate(&subject).explanation() {
+                Some(explanation) => {
+                    coverage
+                        .limitations
+                        .push(format!("{}: {explanation}", candidate.name));
+                    first.get_or_insert(explanation);
+                }
+                None => kept.push(candidate),
+            }
         }
+        let every_asset_held = if kept.is_empty() { first } else { None };
+        (kept, coverage, every_asset_held)
+    }
+
+    fn require_download_available(&self, port_id: &str) -> Result<()> {
+        self.catalog.listing(port_id)?;
+        // Both carriers; a hold that a scoped permit may still cancel is
+        // decided per artifact in the offer and again on the actual bytes.
+        crate::acquisition_restriction::require(
+            &self.catalog,
+            port_id,
+            &RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host(),
+        )?;
         if let Some(refusal) = self.listing_download_refusal(port_id)? {
             return Err(PortcoveError::unsupported(refusal.message())
                 .detail("refusal", enum_value(refusal)?));
@@ -757,6 +831,12 @@ impl PortcoveService {
                     .await?
             }
         };
+        let (candidates, coverage, every_asset_held) =
+            self.withhold_restricted_candidates(port_id, candidates, coverage);
+        if let Some(reason) = every_asset_held {
+            result.reason = Some(reason);
+            return Ok(result);
+        }
         result.releases = releases;
         result.selected_release_id = selected.clone();
         let hints = definition
@@ -925,14 +1005,12 @@ impl PortcoveService {
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
         }
-        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
-            crate::managed_runtime_policy::require_artifact_available(
-                &self.catalog,
-                &request.port_id,
-                &artifact.release_tag,
-                digest,
-            )?;
-        }
+        self.require_download_artifact(
+            &request.port_id,
+            &artifact.release_tag,
+            &artifact.name,
+            artifact.sha256.as_deref().or(expected.as_deref()),
+        )?;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
             request,
@@ -1175,11 +1253,12 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
-                crate::managed_runtime_policy::require_artifact_available(
-                    &self.catalog,
+                // The downloaded bytes, not the provider report, decide a permit.
+                self.require_download_artifact(
                     &request.port_id,
                     &record.artifact.release_tag,
-                    &archive_sha256,
+                    &record.artifact.name,
+                    Some(&archive_sha256),
                 )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()

@@ -2999,6 +2999,7 @@ fn install_assessment(
         availability,
         reason,
         definition: None,
+        restriction: None,
     }
 }
 
@@ -3465,4 +3466,147 @@ async fn fresh_browse_observation_works_offline_but_unknown_release_and_preview_
             )
             .is_none()
     );
+}
+
+const SCOPED_HOLD: &str = "Sibling packages bundle original game data.";
+
+/// A whole download hold with one reviewed package permitted through data alone.
+fn permit_reviewed_package(service: &mut PortcoveService, sha256: &str) {
+    let mut document = service.catalog.listing_document().clone();
+    document.format_version = 14;
+    let listing = &mut document.listings[0];
+    listing.download_block_reason = Some(SCOPED_HOLD.into());
+    listing.restrictions = serde_json::from_value(json!([
+        {"id":"download","effect":"hold","operations":["download"],
+         "reason":"bundled-game-data","explanation":SCOPED_HOLD},
+        {"id":"reviewed-package","effect":"permit","operations":["download"],
+         "scope":{"artifacts":[{"version":"v1.0","sha256":sha256,"asset_name":"game.zip"}]}}
+    ]))
+    .unwrap();
+    service.catalog = service
+        .catalog
+        .clone()
+        .with_listing_document(document)
+        .unwrap();
+}
+
+#[tokio::test]
+async fn a_reviewed_package_is_offered_while_its_held_siblings_stay_withheld() {
+    let (_temporary, mut service, request) = fixture();
+    let bytes = archive();
+    let sha256 = crate::signed_catalog::digest(&bytes);
+    let github = GithubFixture::new(bytes, Some(format!("sha256:{sha256}")), None);
+    {
+        let mut assets = github.assets.lock().unwrap();
+        let url = assets[0]["browser_download_url"]
+            .as_str()
+            .unwrap()
+            .replace("game.zip", "other.zip");
+        assets.push(json!({
+            "id":13,"name":"other.zip","size":1,"browser_download_url":url,
+            "digest":format!("sha256:{}", "1".repeat(64))
+        }));
+    }
+    permit_reviewed_package(&mut service, &sha256);
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(options.allowed, "{:?}", options.reason);
+    let names: Vec<_> = options.candidates.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(names, ["game.zip"]);
+    assert!(
+        options
+            .coverage
+            .unwrap()
+            .limitations
+            .contains(&format!("other.zip: {SCOPED_HOLD}"))
+    );
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending.archive_sha256, sha256);
+    // Older readers keep the whole legacy hold.
+    let legacy = service
+        .catalog
+        .listing_document()
+        .export_format(13)
+        .unwrap();
+    assert!(legacy.listings[0].restrictions.is_empty());
+    assert_eq!(
+        legacy.listings[0].download_block_reason.as_deref(),
+        Some(SCOPED_HOLD)
+    );
+}
+
+#[tokio::test]
+async fn a_permitted_package_whose_downloaded_digest_differs_is_refused() {
+    let (_temporary, mut service, request) = fixture();
+    // No published digest: the offer cannot prove the identity, so the actual
+    // bytes decide, and they are not the reviewed package.
+    let github = GithubFixture::new(archive(), None, None);
+    permit_reviewed_package(&mut service, &"2".repeat(64));
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(options.allowed);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    let error = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(error.message, SCOPED_HOLD);
+    assert_eq!(
+        fs::read_dir(&request.destination_parent).unwrap().count(),
+        0
+    );
+    assert!(service.pending_setups().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn every_held_asset_refuses_the_offer_with_its_explanation() {
+    let (_temporary, mut service, request) = fixture();
+    let github = GithubFixture::new(archive(), Some(format!("sha256:{}", "3".repeat(64))), None);
+    permit_reviewed_package(&mut service, &"2".repeat(64));
+    let options = service
+        .catalog_download_options_with_provider(
+            &request.port_id,
+            None,
+            None,
+            Some(&github.provider),
+        )
+        .await
+        .unwrap();
+    assert!(!options.allowed);
+    assert_eq!(options.reason.as_deref(), Some(SCOPED_HOLD));
+    assert!(options.candidates.is_empty());
 }

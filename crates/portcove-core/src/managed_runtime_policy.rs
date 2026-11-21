@@ -62,104 +62,88 @@ pub(crate) fn validate_exact_exclusions(port: &PortDefinition) -> Result<()> {
     Ok(())
 }
 
-/// Catalog-owned containment for a managed route whose upstream release still
-/// matches its selector but changed reviewed behavior. Ports absent from the
-/// catalog have no hold; their retained definitions keep their own checks.
-pub(crate) fn acquisition_hold<'a>(
-    catalog: &'a crate::Catalog,
-    port_id: &str,
-) -> Option<&'a crate::ManagedAcquisitionHold> {
-    catalog
-        .port(port_id)
-        .ok()?
-        .managed_acquisition_hold
-        .as_ref()
+// The entry points below keep their signatures and delegate to the one
+// restriction evaluator. Ports absent from the catalog have no restriction;
+// their retained definitions keep their own checks.
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionSubject, SubjectArtifact,
+};
+
+/// The explanation of a hold on fresh managed acquisition, if one applies
+/// before the release is resolved.
+pub(crate) fn acquisition_hold_reason(catalog: &crate::Catalog, port_id: &str) -> Option<String> {
+    crate::acquisition_restriction::evaluate(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Install),
+    )
+    .explanation()
 }
 
-pub(crate) fn acquisition_hold_reason<'a>(
-    catalog: &'a crate::Catalog,
-    port_id: &str,
-) -> Option<&'a str> {
-    acquisition_hold(catalog, port_id)
-        .filter(|hold| hold.excluded_artifacts.is_empty())
-        .map(|hold| hold.reason.as_str())
-}
-
-/// The routes a catalog acquisition hold withdraws: fresh managed acquisition,
-/// whether a first install or an update. Shared by a library's action table and
-/// library-free target inspection so both report the same offering.
+/// Port actions an acquisition hold withdraws: fresh managed acquisition,
+/// whether a first install or an update.
 pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
     matches!(
-        action,
-        crate::PortAction::Install | crate::PortAction::Update
+        RestrictedOperation::from_port_action(action),
+        Some(RestrictedOperation::Install | RestrictedOperation::Update)
     )
 }
 
 pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
-    match acquisition_hold_reason(catalog, port_id) {
-        Some(reason) => Err(PortcoveError::unsupported(reason)),
-        None => Ok(()),
-    }
+    crate::acquisition_restriction::require(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Install),
+    )
 }
 
+/// An adopted folder cannot prove its release package, so a hold scoped to
+/// exact artifacts fails closed. Route-wide holds are enforced separately by
+/// [`require_acquisition_available`].
 pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
-    if acquisition_hold(catalog, port_id).is_some_and(|hold| !hold.excluded_artifacts.is_empty()) {
-        return Err(PortcoveError::unsupported(
-            "Install through Portcove to verify the release archive. An extracted folder cannot prove which release package it came from.",
-        ));
+    let outcome = crate::acquisition_restriction::evaluate(
+        catalog,
+        port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt).unverifiable_artifact(),
+    );
+    if outcome.unverifiable {
+        return outcome.into_result();
     }
     Ok(())
 }
 
-impl crate::ManagedAcquisitionHold {
-    pub(crate) fn excludes(&self, version: &str, sha256: &str) -> bool {
-        self.excluded_artifacts
-            .iter()
-            .any(|artifact| artifact.matches(version, sha256))
-    }
-
-    pub(crate) fn reviewed(&self, version: &str, sha256: &str) -> bool {
-        self.reviewed_artifacts
-            .iter()
-            .any(|artifact| artifact.matches(version, sha256))
-    }
-}
-
-impl crate::ReviewedHoldArtifact {
-    fn matches(&self, version: &str, sha256: &str) -> bool {
-        self.version == version && self.sha256.eq_ignore_ascii_case(sha256)
-    }
-}
-
+/// Refuses an exact artifact that an artifact-scoped hold names.
 pub(crate) fn require_artifact_available(
     catalog: &crate::Catalog,
     port_id: &str,
     version: &str,
     sha256: &str,
 ) -> Result<()> {
-    if let Some(hold) = acquisition_hold(catalog, port_id)
-        && hold.excludes(version, sha256)
-    {
-        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    match EffectiveRestrictions::of(catalog, port_id).artifact_hold(
+        RestrictedOperation::Install,
+        version,
+        sha256,
+    ) {
+        Some(outcome) => outcome.into_result(),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 pub(crate) fn require_managed_activation_available(
     catalog: &crate::Catalog,
     install: &crate::InstallRecord,
 ) -> Result<()> {
-    let Some(hold) = acquisition_hold(catalog, &install.port_id) else {
-        return Ok(());
-    };
-    let version = &install.version;
-    let sha256 = &install.artifact.sha256;
-    if !hold.excludes(version, sha256)
-        && (!hold.excluded_artifacts.is_empty() || hold.reviewed(version, sha256))
-    {
-        return Ok(());
-    }
-    Err(PortcoveError::unsupported(hold.activation_reason.clone()))
+    crate::acquisition_restriction::require(
+        catalog,
+        &install.port_id,
+        &RestrictionSubject::deferred(RestrictedOperation::Activate)
+            .on_current_host()
+            .artifact(SubjectArtifact {
+                version: &install.version,
+                sha256: &install.artifact.sha256,
+                asset_name: Some(&install.artifact.asset_name),
+            }),
+    )
 }
 
 pub(crate) fn requires_provider_resolution(port: &PortDefinition) -> bool {
@@ -522,7 +506,12 @@ mod tests {
             "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
         );
         assert!(require_managed_activation_available(&catalog, &linux).is_ok());
-        let hold = acquisition_hold(&catalog, id).unwrap();
+        let hold = catalog
+            .port(id)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_ref()
+            .unwrap();
         for (version, package, sha256) in [
             (
                 "v0.4.6",

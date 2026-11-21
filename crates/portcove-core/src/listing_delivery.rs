@@ -302,6 +302,67 @@ mod projection_tests {
     }
 
     #[test]
+    fn older_delivery_keeps_typed_restrictions_only_for_the_same_legacy_scope() {
+        let baseline = Catalog::embedded().unwrap();
+        let original = baseline
+            .listings()
+            .iter()
+            .find(|listing| {
+                listing.restrictions.len() == 1
+                    && listing.original_game.is_some()
+                    && baseline.port(&listing.id).is_err()
+            })
+            .unwrap()
+            .clone();
+        let legacy = baseline.listing_document().export_format(11).unwrap();
+        let legacy = legacy
+            .listings
+            .iter()
+            .find(|listing| listing.id == original.id)
+            .unwrap();
+        assert!(legacy.restrictions.is_empty());
+        for case in ["same", "changed-reason", "cleared", "changed-project"] {
+            let mut delivered = legacy.clone();
+            match case {
+                "changed-reason" => {
+                    delivered.download_block_reason = Some("A delivered condition.".into())
+                }
+                "cleared" => delivered.download_block_reason = None,
+                "changed-project" => delivered.project_url = "https://example.invalid/other".into(),
+                _ => {}
+            }
+            let document = ListingDeliveryDocument {
+                listing_delivery_schema: 1,
+                revision: 1,
+                withdrawn_ids: vec![],
+                directory: CatalogListingDocument {
+                    format_version: 11,
+                    listings: vec![delivered.clone()],
+                },
+            };
+            let document =
+                ListingDeliveryDocument::parse(&serde_json::to_vec(&document).unwrap()).unwrap();
+            let projected = document.project(baseline.clone()).unwrap();
+            let listing = projected.listing(&original.id).unwrap();
+            assert_eq!(
+                listing.download_block_reason, delivered.download_block_reason,
+                "{case}"
+            );
+            match case {
+                "same" => assert_eq!(listing.restrictions, original.restrictions),
+                "cleared" => assert!(listing.restrictions.is_empty()),
+                _ => assert_eq!(
+                    listing.restrictions,
+                    crate::acquisition_restriction::normalize_legacy_listing(
+                        delivered.download_block_reason.as_deref()
+                    ),
+                    "{case}"
+                ),
+            }
+        }
+    }
+
+    #[test]
     fn restricted_delivery_promotes_a_legacy_directory_without_granting_managed_authority() {
         let document = ListingDeliveryDocument::parse(
             &serde_json::to_vec(&serde_json::json!({
@@ -430,6 +491,16 @@ impl ListingDeliveryDocument {
                     && same_scope
                 {
                     replacement.implementation = current.implementation.clone();
+                }
+                // An older delivery cannot express typed restrictions. When it
+                // repeats the current legacy projection for the same project and
+                // game, keep the typed form; otherwise its legacy value wins.
+                if self.directory.format_version
+                    < crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT
+                    && same_scope
+                    && replacement.download_block_reason == current.download_block_reason
+                {
+                    replacement.restrictions = current.restrictions.clone();
                 }
                 if self.directory.format_version < crate::catalog_media::IGDB_SCENE_LISTING_FORMAT
                     && same_scope
