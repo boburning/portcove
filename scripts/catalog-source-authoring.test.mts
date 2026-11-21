@@ -896,6 +896,23 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
 });
 
+void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { id: "legacy", role: "header" };
+  for (const strict of [[legacy], []]) {
+    const projection = assembleCatalogRecords(shared, [
+      { ...authored, listing: { ...authored.listing, media: [...strict, typed] } },
+    ]);
+    assert.equal(projection.directory.format_version, 13);
+    assert.deepEqual(projection.directory.listings[0]?.media, [...strict, typed]);
+    const presentation = projection.catalog.ports[0]?.presentation as Record<string, unknown>;
+    assert.deepEqual(presentation.media, strict.length ? strict : undefined);
+  }
+});
+
 void test("inherits only reviewed descriptive selectors for the same package scope", () => {
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
   const record = checkedAuthoredPort(
