@@ -1597,6 +1597,15 @@ export async function selectedSetupCompletionScenario({
       await selectPrimaryNavigation(browser, "Settings", clickOptions);
       await selectGameFilesSettings(browser, clickOptions);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      // Settings owns saved folders. Its read-only continuation opens the
+      // retained results and their setup choices in Add games.
+      const scanActivityBeforeReturn = await read("get_activities");
+      assert.ok(
+        scanActivityBeforeReturn.active_and_actionable_complete &&
+          scanActivityBeforeReturn.terminal_history_complete,
+      );
+      await restartClick(restartButton("View scan results"));
+      await browser.wait(until.elementLocated(By.id(setupHeading)), 15_000);
       await browser.wait(
         async () => {
           const controls = await browser.findElements(
@@ -1619,6 +1628,19 @@ export async function selectedSetupCompletionScenario({
         "Selection is ephemeral across restart",
       );
       assert.doesNotMatch(await browser.findElement(queue).getText(), /\b3 selected\b/);
+      assert.deepEqual(await read("get_game_file_scan_snapshot"), restoredSnapshot);
+      const scanActivityAfterReturn = await read("get_activities");
+      assert.ok(
+        scanActivityAfterReturn.active_and_actionable_complete &&
+          scanActivityAfterReturn.terminal_history_complete,
+      );
+      assert.deepEqual(
+        scanActivityAfterReturn.records.filter(({ operation }) => operation === "discover_sources"),
+        scanActivityBeforeReturn.records.filter(
+          ({ operation }) => operation === "discover_sources",
+        ),
+        "Opening the saved results must not scan again",
+      );
       await restartClick(
         By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
       );
