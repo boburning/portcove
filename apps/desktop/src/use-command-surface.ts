@@ -29,6 +29,7 @@ type CurrentGameCommands = {
   port: CatalogEntry;
   destinations: readonly DetailDestination[];
   open: (destination: DetailDestination) => void;
+  play?: (() => void) | undefined;
 };
 
 const detailCommandLabels: Record<DetailDestination, string> = {
@@ -189,6 +190,18 @@ export function commandSurfaceCommands({
           icon: Settings,
           action: () => openSettingsCategory(id),
         }))
+      : []),
+    ...(currentGame?.play
+      ? [
+          {
+            id: "current-game-play",
+            group: "Current game",
+            label: "Play this game",
+            description: gameIdentityLabel(currentGame.port),
+            icon: Gamepad2,
+            action: currentGame.play,
+          },
+        ]
       : []),
     ...(currentGame
       ? currentGame.destinations.map((destination) => ({

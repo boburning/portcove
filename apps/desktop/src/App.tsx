@@ -57,6 +57,7 @@ import {
   type LibraryBrowsingContext,
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import { CurrentGamePlayControl, currentGamePlayKey } from "./features/app-shell/current-game-play";
 import type { DetailOpening } from "./features/game-details/detail-sections";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
@@ -808,6 +809,15 @@ function useWorkspace(props: WorkspaceProps) {
     [model.searchableGames, hiddenPortIds],
   );
   const currentGame = model.entry;
+  const playKey = currentGame
+    ? currentGamePlayKey(currentGame.id, bootstrap.generation, model.status)
+    : undefined;
+  const [playControl, setPlayControl] = useState<HTMLButtonElement | null>(null);
+  const canActivatePlay = () =>
+    playControl?.isConnected &&
+    playControl.dataset.currentGamePlay === playKey &&
+    !playControl.disabled &&
+    playControl.getAttribute("aria-disabled") !== "true";
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
@@ -838,6 +848,12 @@ function useWorkspace(props: WorkspaceProps) {
               ? ["files", "saves", "manage"]
               : ["files"],
           open: (destination) => switchPortDetails(currentGame.id, destination),
+          play:
+            playControl && canActivatePlay()
+              ? () => {
+                  if (canActivatePlay()) playControl.click();
+                }
+              : undefined,
         }
       : undefined,
     openSettingsCategory: (category) => {
@@ -974,7 +990,12 @@ function useWorkspace(props: WorkspaceProps) {
       />
     </>
   );
-  const renderWorkspaceView = () =>
+  const renderWorkspaceView = () => (
+    <CurrentGamePlayControl.Provider value={setPlayControl}>
+      {renderWorkspaceContent()}
+    </CurrentGamePlayControl.Provider>
+  );
+  const renderWorkspaceContent = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
         backLabel={detailBackLabel}

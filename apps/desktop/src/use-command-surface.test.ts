@@ -42,6 +42,7 @@ describe("command surface player-facing copy", () => {
 
   it("routes current-game destinations and named Settings categories to their owners", () => {
     const open = vi.fn();
+    const play = vi.fn();
     const openSettingsCategory = vi.fn();
     const current = {
       ...portDefinition(),
@@ -57,10 +58,11 @@ describe("command surface player-facing copy", () => {
       checkAll: vi.fn(async () => undefined),
       focusSearch: vi.fn(),
       focusLibrarySearch: vi.fn(),
-      currentGame: { port: current, destinations: ["files", "saves"], open },
+      currentGame: { port: current, destinations: ["files", "saves"], open, play },
       openSettingsCategory,
     });
     expect(available.filter(({ group }) => group === "Current game").map(({ id }) => id)).toEqual([
+      "current-game-play",
       "current-game-files",
       "current-game-saves",
     ]);
@@ -68,6 +70,9 @@ describe("command surface player-facing copy", () => {
     expect(saves?.description).toBe("Selected port");
     saves?.action();
     expect(open).toHaveBeenCalledExactlyOnceWith("saves");
+    expect(play).not.toHaveBeenCalled();
+    available.find(({ id }) => id === "current-game-play")?.action();
+    expect(play).toHaveBeenCalledOnce();
 
     const deepSettings = available.filter(({ id }) => id.startsWith("settings-"));
     expect(deepSettings).toHaveLength(8);
