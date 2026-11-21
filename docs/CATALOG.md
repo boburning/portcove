@@ -1883,14 +1883,43 @@ reclaims only its own recorded lock after the owner PID disappears. Live,
 anonymous and other ambiguous locks require reconciliation. A change in
 bytes under an unchanged IGDB cover or image ID requires separate source evidence.
 
-Review the decoded candidate against the accepted cover before grouping the
-resulting artwork-only changes through ordinary catalog acceptance. The packet
-has no authority and includes no image payload. The signed cover-health
-checkpoint can withdraw or restore the same accepted bytes. Accepting different
-bytes through a protected batch input would require an independently
-authenticated approval under the existing catalog authority and a reviewed
-consumer bound to the current preimage. Player artwork choices retain
-precedence.
+Review the decoded candidate against the accepted cover. A cover replacement
+packet records the authored cover and the current signed cover separately.
+When a signed replacement is already active, supply
+`--prior-repository VERIFIED_CATALOG_DIRECTORY --release-tools TRUSTED_TOOLS`
+to preparation. The release tools authenticate the active compact directory,
+cover checkpoint and official policy metadata against the existing root. The
+publisher independently checks the exact current authenticated preimage. It
+accepts a new batch only while the exact reviewed source is CI-green and the
+existing compact and cover checkpoint paths are active.
+
+The current repository owner authorizes a batch by dispatching **Catalog
+publish** on `main` with the unchanged packet text, its SHA-256, and a JSON
+object mapping each replacement's port ID to the accepted cover SHA-256 the
+owner reviewed. The original and triggering actor must both be the existing
+authorized artwork owner. Put the packet in an input JSON file as a string so
+newlines survive, then use `gh workflow run catalog-publish.yml --ref main
+--json < dispatch-input.json`. The input keys are `cover_replacement_packet`,
+`cover_replacement_sha256` and `cover_replacement_preimages`. The preimage
+value is a JSON string. Review one packet for the entire batch.
+
+The protected publisher verifies the exact candidate length, SHA-256 and
+image decode from the fixed IGDB source. It records consumed packet digests
+and approved mappings in the signed official policy target metadata. Older
+listing and cover readers keep their existing targets and wire formats. The
+released-reader gate must pass on the exact signed candidate before the
+Pages push. The newest signed copy persists across scheduled renewals. Review
+packets and signed metadata contain no image payloads. Player artwork
+choices retain precedence. If the author's original game or cover binding
+changes, the replacement ceases to apply. The journal holds at most 256
+approvals and 256 consumed packets. When full, it refuses new approvals while
+ordinary publication and existing cover health continue.
+
+Maintenance checks the effective approved images in rotating groups of up to
+eight. The existing checkpoint withdraws only from an exact Gone response
+and restores only the approved bytes. A failed or mismatched response keeps
+the last accepted state. The canonical cover stays eligible for ordinary
+authoring when a signed replacement no longer applies.
 
 The full input retains its bounded 10,000-record authoring contract. Each provider
 operation retains 800 metadata queries, 400 image queries, 32 MiB metadata,

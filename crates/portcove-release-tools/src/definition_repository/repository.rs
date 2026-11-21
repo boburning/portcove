@@ -38,6 +38,27 @@ fn at<'a>(files: &'a Files, name: &str) -> Result<&'a Vec<u8>> {
         TufRepositoryError::Invalid(format!("catalog public repository file missing: {name}"))
     })
 }
+fn cover_approvals_from_policy(bytes: &[u8]) -> Result<Option<serde_json::Value>> {
+    let policy: Signed<Targets> = serde_json::from_slice(bytes)?;
+    let target = TargetName::new(portcove_listing_carrier::COMPACT_TARGET)?;
+    let value = policy
+        .signed
+        .targets
+        .get(&target)
+        .and_then(|target| target.custom.get(super::COVER_APPROVALS_CUSTOM));
+    if let Some(journal) = value {
+        super::cover_approval_packets(journal)?;
+    }
+    Ok(value.cloned())
+}
+
+pub(super) fn authenticated_cover_approvals(
+    prior: &PublicHistory,
+) -> Result<Option<serde_json::Value>> {
+    let roles = current_roles(prior)?;
+    cover_approvals_from_policy(at(&roles, "official-policy.json")?)
+}
+
 fn current_roles(files: &PublicHistory) -> Result<Files> {
     let timestamp_bytes = files.file("metadata/timestamp.json")?;
     let timestamp: Signed<TufTimestamp> = serde_json::from_slice(&timestamp_bytes)?;
@@ -930,6 +951,7 @@ fn repository_report(
         snapshot_sha256: sha(at(&actual_roles, "snapshot.json")?),
         versions,
         expires,
+        cover_approvals: cover_approvals_from_policy(at(&actual_roles, "official-policy.json")?)?,
         index_sha256: index_sha256.to_owned(),
         authority: "none",
     })
