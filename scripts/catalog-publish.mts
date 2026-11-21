@@ -272,7 +272,7 @@ export function limitSignerHistory(work: string) {
   for (const [original, replacement] of [
     [prior, thin],
     [history, thinHistory],
-  ]) {
+  ] as const) {
     const full = `${original}-verified-full`;
     renameSync(original, full);
     renameSync(replacement, original);

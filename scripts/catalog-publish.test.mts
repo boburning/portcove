@@ -48,6 +48,8 @@ function overlayFile(root: string, target: string, bytes: string) {
 }
 
 function overlayReport(entries: Record<string, string>) {
+  const timestamp = entries[overlayTimestamp];
+  assert.ok(timestamp);
   const files = Object.entries(entries).map(([target, bytes]) => ({
     target,
     bytes: Buffer.byteLength(bytes),
@@ -58,7 +60,7 @@ function overlayReport(entries: Record<string, string>) {
     authority: "none",
     files,
     repository_sha256: overlaySha256(JSON.stringify(files)),
-    timestamp_sha256: overlaySha256(entries[overlayTimestamp]),
+    timestamp_sha256: overlaySha256(timestamp),
   };
 }
 
