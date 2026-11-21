@@ -2935,9 +2935,18 @@ and host-authenticated receipt without opening a library. The receipt uses a sep
 proof domain from historical installation admissions. A different host cannot use
 that receipt to establish local verification or publisher authority. Restore binds
 the verified receipt and checked import plan to a new or empty destination outside
-both the bundle and its source library. The import journal owns the restore and its
-recovery. The player opens the recovered library through the separate library
+both the bundle and its source library. The import journal retains an authenticated
+bundle admission tied to the exact transfer and restore plan. Resume checks the
+bundle receipt again before publication. After publication, the retained activity
+and destination own completion of bookkeeping. The player opens the recovered library through the separate library
 selection operation.
+
+In Desktop, open **Settings**, then **Library and storage**. Select **Create
+recovery bundle** to review coverage and the destination before copying. Select
+**Inspect or restore a bundle** to verify a finished copy and review a separate
+restore. After a restore completes, choose the restored folder through library
+selection when you are ready to use it. The Settings page keeps the individual
+library information export and manual copy controls alongside the bundle flow.
 
 ## Library imports
 

@@ -830,6 +830,12 @@ export type LibraryMembershipOrigin = "game_file_discovery" | "manual";
  * application is owned by the provider/standing-policy work, not this module.
  */
 export type ProfileUpdatePolicy = "keep_current" | "review_updates" | "automatic_eligible";
+export type LibraryRecoveryExclusion =
+  | "external_installations"
+  | "external_originals_and_bios"
+  | "external_saves"
+  | "unknown_save_locations"
+  | "host_credentials";
 export type LibrarySelectionSource = "invocation" | "saved" | "platform_default";
 export type ListingAction = "attach-existing" | "relink-existing" | "launch" | "remove-registration";
 export type AdvisoryApplicability = "current-route" | "historical" | "context-required";
@@ -1333,6 +1339,9 @@ export interface TransportOutputs {
   library_metadata_file: LibraryMetadataFile;
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
+  library_recovery_bundle: LibraryRecoveryBundle;
+  library_recovery_bundle_plan: OutputLibraryRecoveryBundlePlan;
+  library_recovery_restore_plan: OutputLibraryRecoveryRestorePlan;
   library_selection: LibrarySelection;
   listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
@@ -5079,6 +5088,48 @@ export interface OutputLibraryMoveResult {
   source_root: string;
   transfer_id: string;
   [k: string]: unknown;
+}
+export interface LibraryRecoveryBundle {
+  bundle_id: string;
+  coverage: LibraryRecoveryCoverage[];
+  created_at: number;
+  exclusions: LibraryRecoveryExclusion[];
+  format_version: number;
+  path: string;
+  receipt_sha256: string;
+  source_library_id: string;
+}
+/**
+ * Content in one verified managed root. This count does not claim that an
+ * unmanaged game writes its saves into the library.
+ */
+export interface LibraryRecoveryCoverage {
+  bytes: number;
+  directories: number;
+  files: number;
+  kind: LibraryContentKind;
+  relative_path: string;
+}
+/**
+ * A read-only observation. A creator must acquire the exclusive source lease
+ * and recompute this binding before copying the identified trees.
+ */
+export interface OutputLibraryRecoveryBundlePlan {
+  available_bytes: number;
+  coverage: LibraryRecoveryCoverage[];
+  destination_root: string;
+  exclusions: LibraryRecoveryExclusion[];
+  plan_sha256: string;
+  required_bytes: number;
+  source_library_id: string;
+  source_root: string;
+}
+export interface OutputLibraryRecoveryRestorePlan {
+  available_bytes: number;
+  bundle: LibraryRecoveryBundle;
+  destination_root: string;
+  plan_sha256: string;
+  required_bytes: number;
 }
 export interface LibrarySelection {
   root: string;

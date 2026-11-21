@@ -358,6 +358,12 @@ export function BootstrapRecovery({
           {importRoot && (
             <LibraryImportRecovery
               destination={importRoot}
+              bundle={error.details.recovery_action === "resume_library_recovery_restore"}
+              onOpenRestored={
+                switchLibrary && !invalidPreferences
+                  ? () => setSelectionReview({ kind: "switch", path: importRoot })
+                  : undefined
+              }
               disabled={pending}
               onBusyChange={setTransferPending}
             />
