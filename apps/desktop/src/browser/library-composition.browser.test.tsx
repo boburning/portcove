@@ -1378,12 +1378,14 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
 
 it("opens the Cover editor from the game card and returns focus to the same More actions button", async () => {
   await page.viewport(430, 740);
-  await mount("light", "collection");
-  const opener = page.elementLocator(
-    document.querySelector<HTMLButtonElement>(
-      '[data-detail-origin="library:card-more:collection-0"]',
-    )!,
-  );
+  const snapshot = workspace("collection");
+  snapshot.statuses = snapshot.statuses.slice(0, 3);
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  await mount("light", "collection", 3);
+  const opener = page.getByRole("button", { name: /^More actions for/ }).first();
+  await expect
+    .element(opener)
+    .toHaveAttribute("data-detail-origin", "library:card-more:collection-0");
   opener.element().focus();
   await userEvent.keyboard("{Enter}");
   const menu = page.getByRole("menu", { name: /^More actions for/ });
