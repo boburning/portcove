@@ -1,3 +1,4 @@
+import { downloadPinnedPortcoveReleaseAsset } from "./portcove-release-download.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
@@ -45,43 +46,6 @@ function verifyBytes(bytes: Buffer, pin: FilePin) {
   return bytes;
 }
 
-async function download(pin: FilePin) {
-  let url = `https://github.com/boburning/portcove/releases/download/${release.release_tag}/${pin.name}`;
-  const signal = AbortSignal.timeout(120_000);
-  for (let redirects = 0; redirects <= 1; redirects++) {
-    const response = await fetch(url, { redirect: "manual", signal });
-    if (response.status === 302) {
-      const location = response.headers.get("location");
-      await response.body?.cancel();
-      assert.ok(location && redirects === 0, "Historical release redirect limit");
-      const next = new URL(location, url);
-      assert.ok(
-        next.protocol === "https:" &&
-          next.hostname === "release-assets.githubusercontent.com" &&
-          !next.username &&
-          !next.password &&
-          !next.port,
-        "Historical release redirect refused",
-      );
-      url = next.href;
-      continue;
-    }
-    assert.equal(response.status, 200, "Historical public release unavailable");
-    assert.ok(response.body);
-    const chunks: Uint8Array[] = [];
-    let count = 0;
-    for await (const raw of response.body) {
-      const chunk: unknown = raw;
-      assert.ok(chunk instanceof Uint8Array, "Historical download stream representation");
-      count += chunk.byteLength;
-      assert.ok(count <= pin.bytes, "Historical download byte bound");
-      chunks.push(chunk);
-    }
-    return verifyBytes(Buffer.concat(chunks), pin);
-  }
-  throw new Error("Historical release redirect limit");
-}
-
 /** This fixed, integrity-checked archive has exactly one known CLI member.
  * No archive-controlled name, size or extension is parsed or extracted. */
 export function extractHistoricalLinuxCli(archive: Buffer) {
@@ -96,8 +60,14 @@ export async function prepareHistoricalLinuxInputs(projectRoot: string, director
   assert.equal(process.arch, "x64");
   const root = await assertOwnedUnlinkedPath(projectRoot, directory, "historical fixture");
   await mkdir(root, { mode: 0o700 });
-  const appimage = await download(packagePins.appimage);
-  const archive = await download(packagePins.cli_archive);
+  const appimage = await downloadPinnedPortcoveReleaseAsset(
+    release.release_tag,
+    packagePins.appimage,
+  );
+  const archive = await downloadPinnedPortcoveReleaseAsset(
+    release.release_tag,
+    packagePins.cli_archive,
+  );
   const cli = extractHistoricalLinuxCli(archive);
   for (const [kind, bytes] of [
     ["appimage", appimage],

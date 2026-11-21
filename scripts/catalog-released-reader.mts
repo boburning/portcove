@@ -1,3 +1,5 @@
+import { createGitHubClient } from "./github-client.mts";
+import { downloadPinnedPortcoveReleaseAsset } from "./portcove-release-download.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -73,21 +75,6 @@ function asset(release: Record<string, unknown>, name: string, max: number) {
   return { id: item.id, size: item.size, sha256: item.digest.slice(7) };
 }
 
-function download(identity: ReturnType<typeof asset>) {
-  const bytes = gh(
-    [
-      "api",
-      `repos/${repository}/releases/assets/${identity.id}`,
-      "-H",
-      "Accept: application/octet-stream",
-    ],
-    identity.size,
-  );
-  if (bytes.length !== identity.size || digest(bytes) !== identity.sha256)
-    throw new Error("Immutable release asset bytes differ from provider identity");
-  return bytes;
-}
-
 export function requireCatalogReleaseAttestation(
   verified: unknown,
   expected: { tag: string; tagObject: string; releaseId: number; subjects: Record<string, string> },
@@ -148,14 +135,24 @@ export function requireCurrentCatalogReaderSelection(expected: unknown, site: st
 }
 
 /** Only the checked-out protected Pages pointer may select an official immutable release. */
-export function acquireCatalogReleasedReader(privateRoot: string) {
+export async function acquireCatalogReleasedReader(privateRoot: string) {
   if (process.platform !== "linux" || process.arch !== "x64")
     throw new Error("Released catalog reader acquisition requires Linux x86-64");
   const siteRevision = git("rev-parse", "refs/remotes/origin/gh-pages").trim();
   const { version, tag } = previewAt(siteRevision);
-  const release: unknown = JSON.parse(
-    gh(["api", `repos/${repository}/releases/tags/${tag}`]).toString("utf8"),
-  );
+  const endpoint = `/repos/${repository}/releases/tags/${tag}`;
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  const api = await createGitHubClient({
+    credential: token ? { kind: "explicit", token } : { kind: "anonymous" },
+    deadline: performance.now() + 30000,
+    maxBytes: metadataMaximum,
+    allowRequest: (method, url) => method === "GET" && url.pathname === endpoint && !url.search,
+  });
+  const release: unknown = (
+    await api.request(`GET ${endpoint}`, {
+      request: { portcove: { replay: "safe-read", attempts: 0 } },
+    })
+  ).data;
   if (
     !isRecord(release) ||
     typeof release.id !== "number" ||
@@ -190,11 +187,21 @@ export function acquireCatalogReleasedReader(privateRoot: string) {
   const filename = `portcove-cli-${version}-linux-x86_64.tar.gz`;
   const archiveIdentity = asset(release, filename, packageMaximum);
   const checksumIdentity = asset(release, "SHA256SUMS", 64 * 1024);
-  const checksums = download(checksumIdentity).toString("utf8");
+  const checksums = (
+    await downloadPinnedPortcoveReleaseAsset(tag, {
+      name: "SHA256SUMS",
+      bytes: checksumIdentity.size,
+      sha256: checksumIdentity.sha256,
+    })
+  ).toString("utf8");
   const lines = checksums.split("\n").filter((line) => line.endsWith(`  ${filename}`));
   if (lines.length !== 1 || lines[0] !== `${archiveIdentity.sha256}  ${filename}`)
     throw new Error("Published checksum manifest differs from exact Linux CLI identity");
-  const archive = download(archiveIdentity);
+  const archive = await downloadPinnedPortcoveReleaseAsset(tag, {
+    name: filename,
+    bytes: archiveIdentity.size,
+    sha256: archiveIdentity.sha256,
+  });
   const directory = mkdtempSync(path.join(privateRoot, "official-catalog-reader-"));
   const archivePath = path.join(directory, filename);
   writeFileSync(archivePath, archive, { flag: "wx", mode: 0o600 });
