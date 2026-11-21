@@ -411,6 +411,16 @@ for (const [file, tests] of [
   ],
   ["scripts/prepare-port.mts", catalogPreparationContractTests],
   ["scripts/catalog-cover-mapping.mts", catalogPreparationContractTests],
+  ...["catalog-cover-approval-journal", "listing-cover-reader-proof"].map(
+    (name): [string, string[]] => [
+      `scripts/${name}.mts`,
+      ["scripts/catalog-cover-replacement-review.test.mts", "scripts/catalog-publish.test.mts"],
+    ],
+  ),
+  [
+    "scripts/catalog-cover-approval.mts",
+    ["scripts/catalog-cover-replacement-review.test.mts", "scripts/catalog-publish.test.mts"],
+  ],
   [
     "scripts/catalog-cover-replacement-review.mts",
     ["scripts/catalog-cover-replacement-review.test.mts"],

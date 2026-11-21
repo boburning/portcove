@@ -1,7 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
 import {
@@ -12,6 +21,7 @@ import {
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { positiveId, validArtworkMapping } from "./catalog-cover-mapping.mts";
 import { readArtworkInput, readArtworkJson } from "./inspect-igdb-artwork.mts";
+import { readAuthenticatedCoverPreimages } from "./listing-observation-delivery.mts";
 import { acquireCheckpointProcessLock } from "./process-lock.mts";
 import { prepareArtworkBatch } from "./prepare-port.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -51,14 +61,14 @@ function coveredSubjects(records: readonly AuthoredPort[], ids: readonly string[
   });
 }
 
-/** Review data is separate from the controller's authority. The catalog still
- * accepts replacement mappings through its ordinary protected Git path. */
+/** Review data remains separate from the protected approval authority. */
 export function reviewCoverReplacementBatch(
   current: readonly AuthoredPort[],
   proposed: readonly AuthoredPort[],
   selectedIds: readonly string[],
   observations: readonly unknown[],
   validatorSha: string,
+  effectiveCovers: ReadonlyMap<string, unknown> = new Map(),
 ) {
   const subjects = coveredSubjects(current, selectedIds);
   const results = new Map<string, Record<string, unknown>>();
@@ -76,6 +86,14 @@ export function reviewCoverReplacementBatch(
     replacements.set(entry.listing.id, entry);
   }
   return subjects.flatMap(({ id, record, prior }) => {
+    const effective = effectiveCovers.get(id) ?? prior;
+    if (
+      !validArtworkMapping(effective) ||
+      effective.game_id !== prior.game_id ||
+      effective.game_slug !== prior.game_slug ||
+      effective.match_kind !== prior.match_kind
+    )
+      throw new Error(`Signed effective cover differs from its authored identity: ${id}`);
     const observation = results.get(id);
     const replacement = replacements.get(id);
     const proposedMapping = replacement?.listing.artwork ?? prior;
@@ -111,7 +129,13 @@ export function reviewCoverReplacementBatch(
       throw new Error(
         `Cover observation is incomplete or differs from the accepted subject: ${id}`,
       );
-    if (!replacement) return [];
+    if (!replacement || isDeepStrictEqual(proposedMapping, effective)) return [];
+    if (
+      proposedMapping.cover_id === effective.cover_id ||
+      proposedMapping.image_id === effective.image_id ||
+      proposedMapping.image_sha256 === effective.image_sha256
+    )
+      throw new Error(`Changed effective cover bytes need independent source evidence: ${id}`);
     if (proposedMapping.cover_id === prior.cover_id || proposedMapping.image_id === prior.image_id)
       throw new Error(`Changed cover bytes need independent source evidence: ${id}`);
     const withPriorCover = { ...replacement, listing: { ...replacement.listing, artwork: prior } };
@@ -125,6 +149,7 @@ export function reviewCoverReplacementBatch(
         prior_record_sha256: observationHash(record),
         proposed_record_sha256: observationHash(replacement),
         prior,
+        accepted_prior: effective,
         candidate: proposedMapping,
         content: {
           sha256: content.sha256,
@@ -197,6 +222,7 @@ async function prepare(
   ids: string[],
   validatorCli: string,
   output: string,
+  signedPrior?: { repository: string; releaseTools: string },
 ) {
   function requireSource() {
     if (
@@ -223,11 +249,37 @@ async function prepare(
       },
     ]),
   );
+  let effective: Awaited<ReturnType<typeof readAuthenticatedCoverPreimages>> | undefined;
+  if (signedPrior) {
+    const workspace = mkdtempSync(path.join(tmpdir(), "cover-review-prior-"));
+    try {
+      effective = await readAuthenticatedCoverPreimages(
+        {
+          site: signedPrior.repository,
+          tools: signedPrior.releaseTools,
+          root: path.join(catalogRoot, "official-definition-root.json"),
+          offlineTargets: path.join(
+            root,
+            "release/bootstrap-public-inputs/catalog/offline-targets.json",
+          ),
+          workspace,
+        },
+        authored.directory,
+        ids,
+      );
+    } finally {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+  }
   const scope = {
     rule,
     source_commit: source,
     validator_sha256: validatorSha,
-    subjects: subjects.map(({ id, record }) => ({ id, sha256: observationHash(record) })),
+    subjects: subjects.map(({ id, record, prior }) => ({
+      id,
+      sha256: observationHash(record),
+      effective: observationHash(effective?.preimages.get(id) ?? prior),
+    })),
   };
   await withCoverReviewCheckpoint(output, scope, async (workset, lockScope) => {
     const result = await prepareArtworkBatch({
@@ -258,6 +310,7 @@ async function prepare(
       ids,
       evidence.records,
       validatorSha,
+      effective?.preimages,
     );
     const catalogSha = sha(readArtworkInput(report.files.catalog, maximumProduct).bytes);
     const listingsSha = sha(readArtworkInput(report.files.listings, maximumProduct).bytes);
@@ -279,6 +332,7 @@ async function prepare(
       source_commit: source,
       validator_sha256: validatorSha,
       selected_port_ids: ids,
+      ...(effective ? { signed_prior_repository_sha256: effective.identity } : {}),
       authored_catalog_sha256: report.accepted_catalog_sha256,
       authored_listings_sha256: report.accepted_listings_sha256,
       preparation_sha256: sha(readArtworkInput(result.path, maximumProduct).bytes),
@@ -304,6 +358,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "artwork-ids": { type: "string" },
       "validator-cli": { type: "string" },
       "output-dir": { type: "string" },
+      "prior-repository": { type: "string" },
+      "release-tools": { type: "string" },
     },
   });
   const source = values["source-commit"];
@@ -314,11 +370,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     throw new Error(
       "Expected --source-commit SHA --artwork-ids ID[,ID] --validator-cli CLI --output-dir CHECKPOINT.",
     );
+  const repository = values["prior-repository"];
+  const tools = values["release-tools"];
+  if (Boolean(repository) !== Boolean(tools))
+    throw new Error("--prior-repository and --release-tools must be supplied together.");
   await prepare(
     fileURLToPath(new URL("../", import.meta.url)),
     source,
     ids.split(","),
     path.resolve(validator),
     path.resolve(output),
+    repository && tools
+      ? { repository: path.resolve(repository), releaseTools: path.resolve(tools) }
+      : undefined,
   );
 }

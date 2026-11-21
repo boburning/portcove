@@ -146,6 +146,8 @@ export function inspectionReport(stdout: string): string {
  */
 export function contextConfig(work: string, now: Date) {
   const plan = readPlan(work);
+  const approval = path.join(work, "cover-approvals.json");
+  const coverApprovals: unknown = existsSync(approval) ? readJson(approval) : undefined;
   return {
     schema_version: 1,
     initial_root_profile: "single-owner-one-of-one-v1",
@@ -160,6 +162,7 @@ export function contextConfig(work: string, now: Date) {
     previous_repository: plan.prior ? "prior" : null,
     ...(plan.history === "bootstrap" ? { bootstrap_history: true } : {}),
     ...(plan.history === "segmented" ? { history_store: "history" } : {}),
+    ...(coverApprovals === undefined ? {} : { cover_approvals: coverApprovals }),
     versions: plan.versions,
     expires: plan.expires,
   };
@@ -366,7 +369,10 @@ export function bundleTargets(bundle: string): Record<string, string> {
 }
 
 /** Targets the published site currently serves through its delegated roles. */
-export function publishedTargets(site: string): Record<string, string> {
+export function publishedTargets(
+  site: string,
+  onTarget?: (role: string, target: string, metadata: Record<string, unknown>) => void,
+): Record<string, string> {
   const versions = priorVersions(site);
   if (!versions) return {};
   const files: Record<string, string> = {};
@@ -381,6 +387,7 @@ export function publishedTargets(site: string): Record<string, string> {
       const digest = isRecord(entry) && isRecord(entry.hashes) ? entry.hashes.sha256 : undefined;
       if (typeof digest !== "string") throw new Error(`prior catalog ${role} target is malformed`);
       files[name] = digest;
+      if (onTarget && isRecord(entry)) onTarget(role, name, entry);
     }
   }
   return files;
@@ -465,6 +472,15 @@ async function main(argv: string[]) {
       path.join(work, "inspection.json"),
       inspectionReport(readFileSync(flag(args, "inspection-stdout"), "utf8")),
     );
+    const observation = args.includes("--observation-report")
+      ? readJson(flag(args, "observation-report"))
+      : undefined;
+    if (isRecord(observation) && observation.cover_approvals !== undefined) {
+      const approval = JSON.stringify(observation.cover_approvals);
+      if (Buffer.byteLength(approval) > 256 * 1024)
+        throw new Error("Cover approval publisher journal exceeds its byte bound");
+      writeFileSync(path.join(work, "cover-approvals.json"), approval, { flag: "wx" });
+    }
     const site = prior === "none" || !existsSync(prior) ? null : prior;
     const versions = priorVersions(site);
     if (versions) copyPriorRepository(site!, path.join(work, "prior"));

@@ -10,6 +10,11 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  readerProofHint,
+  recheckReaderGate,
+  strengthenedReaderSubjects,
+} from "./catalog-definition-reader-gate.mts";
 import { overlayCatalogPages } from "./catalog-pages-overlay.mts";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
@@ -675,6 +680,39 @@ void test("catalog keys reach only one signing step per role, from main", async 
     "sign-policy",
   ]);
   assert.deepEqual(publish.jobs["sign-timestamp"]!.needs, ["prepare", "sign-snapshot"]);
+  const readerGate = publish.jobs["verify-definition-reader"]!;
+  assert.deepEqual(readerGate.needs, ["prepare", "sign-timestamp"]);
+  assert.equal(readerGate.if, "needs.prepare.outputs.definition_reader_proof == 'true'");
+  const publisher = publish.jobs.publish!;
+  assert.match(publisher.if!, /needs.sign-timestamp.result == 'success'/u);
+  assert.match(
+    publisher.if!,
+    /needs.verify-definition-reader.result == 'skipped' && needs.prepare.outputs.definition_reader_proof == 'false'/u,
+  );
+  const receiptDownload = publisher.steps!.find(
+    (step) => step.with?.name === "catalog-definition-reader-gate",
+  );
+  assert.equal(receiptDownload?.if, "needs.verify-definition-reader.result == 'success'");
+  assert.equal(
+    publisher.steps!.filter((step) => step.run?.includes("assemble-definition-repository")).length,
+    1,
+  );
+  assert.deepEqual(readerGate.permissions, { contents: "read", attestations: "read" });
+  assert.equal(readerGate.environment, undefined);
+  assert.equal(readerGate.secrets, undefined);
+  assert.deepEqual(publish.jobs.publish!.needs, [
+    "prepare",
+    "sign-timestamp",
+    "verify-definition-reader",
+  ]);
+  const push = publish.jobs.publish!.steps!.find((step) =>
+    step.run?.includes("git -C site push"),
+  )!.run!;
+  assert.ok(push.indexOf("catalog-definition-reader-gate.mts recheck") > 0);
+  assert.ok(
+    push.indexOf("catalog-definition-reader-gate.mts recheck") <
+      push.indexOf("catalog-pages-overlay.mts"),
+  );
   // Only the publish job writes, and it holds no catalog key.
   assert.deepEqual(publish.jobs.publish!.permissions, { contents: "write" });
   assert.doesNotMatch(JSON.stringify(publish), /\bsecrets\./u);
@@ -2417,4 +2455,236 @@ void test("a Pages push retry refuses a reader withdrawn after preparation", asy
   git(publisher, "checkout", "--detach", "origin/gh-pages");
   assert.throws(() => requireCurrentCatalogReaderSelection(prepared, publisher), /withdrawn/);
   assert.equal(existsSync(path.join(upstream, "catalog/timestamp")), false);
+});
+
+function readerBundle({
+  id = "existing",
+  entrySchema = 1,
+  projectionSchema = 1,
+  features = [],
+  min = 18,
+  max = 25,
+  template = "native-portable",
+  policy = 3,
+  launch = 0,
+}: {
+  id?: string;
+  entrySchema?: number;
+  projectionSchema?: number;
+  features?: string[];
+  min?: number;
+  max?: number;
+  template?: string;
+  policy?: number;
+  launch?: number;
+} = {}) {
+  const leaf = JSON.stringify({ contract_schema: projectionSchema });
+  const leafTarget = `sha256/${overlaySha256(leaf)}.json`;
+  const entry = JSON.stringify({
+    definition_schema: entrySchema,
+    execution_contract: leafTarget,
+    required_features: features,
+    required_capabilities: [{ template, minimum_version: min, maximum_version: max }],
+  });
+  const target = `sha256/${overlaySha256(entry)}.json`;
+  const files = new Map(
+    Object.entries({
+      "definitions/index.json": JSON.stringify({
+        definitions: [{ stable_id: id, namespace: "official", target }],
+      }),
+      [target]: entry,
+      [leafTarget]: leaf,
+      [`policy/official/${id}.json`]: JSON.stringify({ policy_schema: policy }),
+    }),
+  );
+  if (launch)
+    files.set(`policy/official/${id}.launch.json`, JSON.stringify({ assessment_schema: launch }));
+  return files;
+}
+
+function readerBytes(files: Map<string, string>) {
+  return new Map([...files].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+}
+
+void test("released reader gate classifies signed subject requirements and permits forward recovery", () => {
+  const fixture = (
+    entrySchema: number,
+    projectionSchema: number,
+    features: string[],
+    min = 18,
+    max = 25,
+    policy = 3,
+  ) => readerBytes(readerBundle({ entrySchema, projectionSchema, features, min, max, policy }));
+  const prior = fixture(1, 1, []);
+  const named = fixture(4, 3, ["runtime.reviewed-package-and-launch-v1"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, prior), []);
+  assert.deepEqual(strengthenedReaderSubjects(null, prior), []);
+  assert.deepEqual(strengthenedReaderSubjects(null, named), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, named), ["existing"]);
+  assert.deepEqual(
+    strengthenedReaderSubjects(named, fixture(4, 4, ["runtime.reviewed-package-and-launch-v1"])),
+    ["existing"],
+  );
+  assert.deepEqual(
+    strengthenedReaderSubjects(
+      named,
+      fixture(4, 3, ["runtime.reviewed-package-and-launch-v1", "tools.psx-toolchain-v1"]),
+    ),
+    ["existing"],
+  );
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 19)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 18, 24)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 18, 25, 4)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(named, prior), []);
+  assert.throws(() => strengthenedReaderSubjects(prior, fixture(1, 1, [], 26, 25)), /range/u);
+});
+
+void test("new or readded legacy subjects require proof when their requirements exceed the prior catalog", () => {
+  const prior = readerBytes(readerBundle());
+  assert.deepEqual(
+    strengthenedReaderSubjects(prior, readerBytes(readerBundle({ id: "added" }))),
+    [],
+  );
+  for (const stronger of [
+    { entrySchema: 2 },
+    { projectionSchema: 3 },
+    { min: 19 },
+    { max: 24 },
+    { template: "different-template" },
+    { policy: 4 },
+    { launch: 1 },
+  ]) {
+    const next = readerBytes(readerBundle({ id: "added", ...stronger }));
+    assert.deepEqual(strengthenedReaderSubjects(prior, next), ["added"]);
+    assert.deepEqual(strengthenedReaderSubjects(null, next), []);
+  }
+});
+
+void test("publication classifies assembled operational requirements alongside signed listing and history targets", async (t) => {
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+  const { compactListingDeliveryTarget, listingDeliveryTarget } =
+    await import("./listing-directory-carrier.mts");
+  const work = temp(t);
+  function withSeparateTargets(files: Map<string, string>, revision: number) {
+    files.set(listingDeliveryTarget, JSON.stringify({ revision: 1 }));
+    files.set(compactListingDeliveryTarget, JSON.stringify({ revision }));
+    files.set(artworkCheckpointTarget, JSON.stringify({ checkpoint_schema: 1, revision }));
+    return files;
+  }
+  const prior = withSeparateTargets(readerBundle(), 1);
+  const renewal = withSeparateTargets(readerBundle(), 2);
+  const published = path.join(work, "prior");
+  const repository = path.join(work, "repository");
+  const receipt = path.join(work, "reader-receipt.json");
+  function writeRepository(root: string, files: Map<string, string>) {
+    // Release tools add the history pointer during signed assembly, outside logical inspection.
+    const signed = new Map(files).set("policy/official/catalog.history-checkpoint.json", "{}");
+    const targets = Object.fromEntries(
+      [...signed].map(([target, bytes]) => [target, overlaySha256(bytes)]),
+    );
+    const inventory = Object.fromEntries(
+      [...signed].map(([target, bytes]) => [`targets/${targets[target]}.${target}`, bytes]),
+    );
+    site(root, targets);
+    for (const [name, bytes] of Object.entries(inventory)) put(root, name, bytes);
+    return {
+      ...overlayReport({
+        ...inventory,
+        [overlayTimestamp]: readFileSync(path.join(root, overlayTimestamp), "utf8"),
+      }),
+      index_sha256: targets["definitions/index.json"]!,
+    };
+  }
+  function inspect(files: Map<string, string>) {
+    put(work, "inspection.json", {
+      files: [...files].map(([target, bytes]) => ({
+        target,
+        bytes: Buffer.byteLength(bytes),
+        sha256: overlaySha256(bytes),
+      })),
+    });
+  }
+  put(work, "plan.json", { prior: true });
+  writeRepository(published, prior);
+  inspect(renewal);
+  for (const [name, bytes] of renewal) put(work, `bundle/${name}`, bytes);
+  assert.equal(await readerProofHint(work), false);
+
+  put(work, "assembly-report.json", writeRepository(repository, renewal));
+  await recheckReaderGate(work, receipt, "unused");
+
+  const stronger = withSeparateTargets(readerBundle({ id: "added", min: 19 }), 3);
+  const assembly = writeRepository(repository, stronger);
+  put(work, "assembly-report.json", assembly);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /inspected logical bundle/u);
+  inspect(stronger);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /ENOENT/u);
+  put(work, "reader-receipt.json", { reader: null });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /different signed candidate/u);
+  put(work, "reader-receipt.json", {
+    repository_sha256: assembly.repository_sha256,
+    index_sha256: assembly.index_sha256,
+    timestamp_sha256: assembly.timestamp_sha256,
+    prior_index_sha256: overlaySha256(prior.get("definitions/index.json")!),
+    prior_timestamp_sha256: assembly.timestamp_sha256,
+    subjects: ["added"],
+    reader: {},
+    reader_sha256: "a".repeat(64),
+  });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /reader identity is malformed/u);
+  for (const [name, bytes] of stronger) put(work, `bundle/${name}`, bytes);
+  assert.equal(await readerProofHint(work), true);
+
+  const packet = "a".repeat(64);
+  const a = {
+    image_id: "covera",
+    cover_id: 1,
+    image_sha256: "b".repeat(64),
+    game_id: 1,
+    game_slug: "title",
+    match_kind: "underlying-game",
+  };
+  const approved = {
+    format_version: 1,
+    approvals: [
+      {
+        id: "existing",
+        scope: "d".repeat(64),
+        authored: a,
+        prior: a,
+        role: "cover",
+        candidate: { ...a, image_id: "coverb", cover_id: 2, image_sha256: "c".repeat(64) },
+        bytes: 250,
+        packet,
+        source: "1".repeat(40),
+        run: "1",
+      },
+    ],
+    consumed_packets: [packet],
+  };
+  function writeApprovals(root: string) {
+    const name = "metadata/4.official-policy.json";
+    const policy = JSON.parse(readFileSync(path.join(root, name), "utf8")) as {
+      signed: { targets: Record<string, Record<string, unknown>> };
+    };
+    policy.signed.targets[compactListingDeliveryTarget]!.custom = {
+      portcove_cover_approvals_v1: approved,
+    };
+    put(root, name, policy);
+  }
+  inspect(renewal);
+  for (const [name, bytes] of renewal) put(work, `bundle/${name}`, bytes);
+  const coverAssembly = writeRepository(repository, renewal);
+  writeApprovals(repository);
+  put(work, "assembly-report.json", { ...coverAssembly, cover_approvals: approved });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /ENOENT/u);
+  put(work, "cover-approvals.json", approved);
+  assert.equal(await readerProofHint(work), true);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /different signed candidate/u);
+  writeApprovals(published);
+  rmSync(path.join(work, "cover-approvals.json"));
+  assert.equal(await readerProofHint(work), false);
+  await recheckReaderGate(work, receipt, "unused");
+  put(work, "assembly-report.json", coverAssembly);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /exact signed policy/u);
 });

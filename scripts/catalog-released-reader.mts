@@ -134,6 +134,51 @@ export function requireCurrentCatalogReaderSelection(expected: unknown, site: st
     throw new Error("Official reader release selection changed before publication");
 }
 
+/** Check the served pointers as well as the Git tree used by the publisher.
+ * Reading the feed must not disclose the publisher job's GitHub credentials. */
+export async function requireServedCatalogReaderSelection(expected: unknown) {
+  const base = "https://boburning.github.io/portcove/updates/";
+  async function read(relative: string, optional = false) {
+    const response = await fetch(base + relative, {
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
+      signal: AbortSignal.timeout(15000),
+    });
+    if (optional && (response.status === 404 || response.status === 410)) return [];
+    if (!response.ok || !response.body)
+      throw new Error("Official released reader pointer is unavailable");
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let bytes = 0;
+    try {
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        const chunk: unknown = next.value;
+        if (!(chunk instanceof Uint8Array))
+          throw new Error("Official released reader pointer is not a byte stream");
+        bytes += chunk.byteLength;
+        if (bytes > metadataMaximum)
+          throw new Error("Official released reader pointer exceeds its bound");
+        chunks.push(chunk);
+      }
+    } finally {
+      await reader.cancel();
+    }
+    return JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks)),
+    ) as unknown;
+  }
+  const [feed, withdrawn] = await Promise.all([
+    read("preview/latest.json"),
+    read("withdrawn.json", true),
+  ]);
+  const served = selectedPreview(feed, withdrawn);
+  if (!isRecord(expected) || served.version !== expected.version || served.tag !== expected.tag)
+    throw new Error("The deployed Preview feed and the approved released reader differ");
+}
+
 /** Only the checked-out protected Pages pointer may select an official immutable release. */
 export async function acquireCatalogReleasedReader(privateRoot: string) {
   if (process.platform !== "linux" || process.arch !== "x64")
