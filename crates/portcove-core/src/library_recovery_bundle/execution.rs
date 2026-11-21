@@ -344,9 +344,7 @@ fn start_creation(
             MAX_JOURNAL_BYTES,
         )
     }) {
-        // This is the only cleanup of a stage. It succeeds only while empty.
-        let _ = fs::remove_dir(&stage);
-        return Err(creation_error(error, &stage));
+        return Err(initial_creation_error(error, &stage, &intent));
     }
     crate::durability::sync_publication(stage.parent().expect("staging has parent"))
         .map_err(|error| creation_error(error, &stage))?;
@@ -861,6 +859,25 @@ fn sha256(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+fn initial_creation_error(
+    error: PortcoveError,
+    stage: &Path,
+    expected: &CreationIntent,
+) -> PortcoveError {
+    // An atomic journal write can fail after publication. Offer continuation
+    // only when the original authenticated intent is already readable.
+    if read_creation_intent(stage).is_ok_and(|intent| {
+        intent.bundle_id == expected.bundle_id
+            && intent.created_at == expected.created_at
+            && intent.plan.plan_sha256 == expected.plan.plan_sha256
+    }) {
+        return creation_error(error, stage);
+    }
+    // Empty staging is the only directory we may remove on journal failure.
+    let _ = fs::remove_dir(stage);
+    error
+}
+
 fn creation_error(error: PortcoveError, staging: &Path) -> PortcoveError {
     error.detail("recovery_staging", staging.display().to_string())
 }
@@ -878,6 +895,95 @@ mod tests {
             service.library().identity().unwrap(),
             service.plan_library_recovery_bundle(destination).unwrap(),
         )
+    }
+
+    #[test]
+    fn initial_journal_failure_names_only_authenticated_staging() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let intent = CreationIntent {
+            format_version: FORMAT,
+            bundle_id: Uuid::new_v4(),
+            plan,
+            created_at: 1,
+        };
+        let stage = staging_path(&intent.plan.destination_root, intent.bundle_id).unwrap();
+        let disk_full =
+            || PortcoveError::from(std::io::Error::from(std::io::ErrorKind::StorageFull));
+
+        create_private_directory(&stage).unwrap();
+        let error = initial_creation_error(disk_full(), &stage, &intent);
+        assert!(!error.details.contains_key("recovery_staging"));
+        assert!(!stage.exists());
+        assert!(!destination.exists());
+
+        create_private_directory(&stage).unwrap();
+        fs::write(stage.join(JOURNAL_FILE), b"incomplete journal").unwrap();
+        let error = initial_creation_error(disk_full(), &stage, &intent);
+        assert!(!error.details.contains_key("recovery_staging"));
+        assert_eq!(
+            fs::read(stage.join(JOURNAL_FILE)).unwrap(),
+            b"incomplete journal"
+        );
+        fs::remove_file(stage.join(JOURNAL_FILE)).unwrap();
+
+        write_authenticated(
+            &stage.join(JOURNAL_FILE),
+            &stage,
+            JOURNAL_DOMAIN,
+            &intent,
+            MAX_JOURNAL_BYTES,
+        )
+        .unwrap();
+        let error = initial_creation_error(disk_full(), &stage, &intent);
+        assert_eq!(Path::new(&error.details["recovery_staging"]), stage);
+        assert!(!destination.exists());
+        let resumed = PortcoveService::resume_library_recovery_bundle(&stage).unwrap();
+        assert_eq!(resumed.source_library_id, intent.plan.source_library_id);
+        assert_eq!(
+            fs::read(source.join("user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
+    }
+
+    #[test]
+    fn a_storage_full_copy_retains_its_exact_unpublished_intent() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (source_id, plan) = plan_fixture(&source, &destination);
+        let disk_full = std::io::Error::from(std::io::ErrorKind::StorageFull).to_string();
+        let error = PortcoveService::create_library_recovery_bundle_with_progress(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            |progress| match progress {
+                LibraryRecoveryProgress::Copying {
+                    copied_bytes: 1.., ..
+                } => Err(std::io::Error::from(std::io::ErrorKind::StorageFull).into()),
+                _ => Ok(()),
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.message, disk_full);
+        let stage = Path::new(&error.details["recovery_staging"]);
+        let intent = read_creation_intent(stage).unwrap();
+        assert_eq!(intent.plan.plan_sha256, plan.plan_sha256);
+        assert!(!destination.exists());
+        assert!(!stage.join(PAYLOAD_DIR).join(MANIFEST_FILE).exists());
+        assert_eq!(
+            fs::read(source.join("user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
+        let resumed = PortcoveService::resume_library_recovery_bundle(stage).unwrap();
+        assert_eq!(resumed.source_library_id, source_id);
+        assert_eq!(resumed.bundle_id, intent.bundle_id.to_string());
+        assert_eq!(
+            fs::read(source.join("user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
     }
 
     #[test]
@@ -1063,8 +1169,29 @@ mod tests {
                 .receipt_sha256,
             bundle.receipt_sha256,
         );
+        fs::write(source.join("user/progress.bin"), b"newer saved progress").unwrap();
         let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
-        assert!(service.plan_library_recovery_bundle(&destination).is_ok());
+        let next = service.plan_library_recovery_bundle(&destination).unwrap();
+        drop(service);
+        let newer = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &next.plan_sha256,
+        )
+        .unwrap();
+        assert_ne!(newer.bundle_id, bundle.bundle_id);
+        assert!(PortcoveService::resume_library_recovery_bundle(&stage).is_err());
+        let retained = PortcoveService::inspect_library_recovery_bundle(&destination).unwrap();
+        assert_eq!(retained.bundle_id, newer.bundle_id);
+        assert_eq!(retained.receipt_sha256, newer.receipt_sha256);
+        assert_eq!(
+            fs::read(destination.join("content/user/progress.bin")).unwrap(),
+            b"newer saved progress"
+        );
+        assert_eq!(
+            fs::read(moved.join("content/user/progress.bin")).unwrap(),
+            b"saved progress"
+        );
     }
 
     #[test]
@@ -1246,6 +1373,90 @@ mod tests {
         fs::write(destination.join("content/user/progress.bin"), b"corrupted").unwrap();
         assert!(PortcoveService::inspect_library_recovery_bundle(&destination).is_err());
         assert!(PortcoveService::plan_library_recovery_restore(&destination, &restore).is_err());
+    }
+
+    #[test]
+    fn recovery_carries_registered_inbox_bios_and_tool_payload_into_the_restored_root() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let restored = workspace.path().join("restored");
+        let library = Library::open(&source).unwrap();
+        let bios_relative = Path::new("source-inbox/psx-scph-1001-bios/recovery-fixture.bin");
+        let bios = source.join(bios_relative);
+        let bios_bytes = b"inert BIOS storage fixture";
+        let tool_relative = Path::new("toolchains/recovery-fixture/payload.bin");
+        let tool_bytes = b"inert preparation tool payload";
+        for (path, bytes) in [
+            (bios.clone(), bios_bytes.as_slice()),
+            (source.join(tool_relative), tool_bytes.as_slice()),
+        ] {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        let identity = sha256(bios_bytes);
+        // Seed an existing legacy registration to exercise storage portability;
+        // these inert bytes are not an eligible BIOS for launch.
+        library
+            .register_source(&crate::SourceRecord {
+                profile_id: "psx-scph-1001-bios".into(),
+                path: fs::canonicalize(&bios).unwrap(),
+                sha256: identity.clone(),
+                size: bios_bytes.len() as u64,
+                storage_sha256: identity.clone(),
+                storage_size: bios_bytes.len() as u64,
+                updated_at: 1,
+                observed_identity: None,
+            })
+            .unwrap();
+        let service = PortcoveService::new(library).unwrap();
+        let plan = service.plan_library_recovery_bundle(&destination).unwrap();
+        drop(service);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        assert!(
+            bundle
+                .coverage
+                .iter()
+                .any(|entry| entry.kind == crate::LibraryContentKind::SourceInbox
+                    && entry.files == 1)
+        );
+        assert!(
+            bundle.coverage.iter().any(
+                |entry| entry.kind == crate::LibraryContentKind::Toolchains && entry.files == 1
+            )
+        );
+        let review =
+            PortcoveService::plan_library_recovery_restore(&destination, &restored).unwrap();
+        let result = PortcoveService::restore_library_recovery_bundle(
+            &destination,
+            &restored,
+            &review.plan_sha256,
+        )
+        .unwrap();
+        assert!(result.completed);
+        let recovered = Library::open(&restored).unwrap();
+        let registered = recovered.source("psx-scph-1001-bios").unwrap().unwrap();
+        assert_eq!(registered.path, result.destination_root.join(bios_relative));
+        assert_eq!(registered.storage_sha256, identity);
+        for (relative, bytes) in [
+            (bios_relative, bios_bytes.as_slice()),
+            (tool_relative, tool_bytes.as_slice()),
+        ] {
+            assert_eq!(fs::read(source.join(relative)).unwrap(), bytes);
+            assert_eq!(
+                fs::read(bundle.path.join("content").join(relative)).unwrap(),
+                bytes
+            );
+            assert_eq!(
+                fs::read(result.destination_root.join(relative)).unwrap(),
+                bytes
+            );
+        }
     }
 
     #[test]

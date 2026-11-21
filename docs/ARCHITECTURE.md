@@ -2892,7 +2892,10 @@ selection operation.
 In Desktop, open **Settings**, then **Library and storage**. Select **Create
 recovery bundle** to review coverage and the destination before copying. After
 a restart, review the same destination from the same library. A matching
-interrupted intent offers **Resume bundle creation**. When the authenticated
+interrupted intent offers **Resume bundle creation**. If a write fails before
+Core can authenticate the journal, the error does not offer a staging resume.
+After authentication, copy failure preserves the journal and copied data for
+another attempt. When the authenticated
 intent matches a publication at that destination, **Verify published bundle**
 reads the exact receipt and checks its contents without replaying the copy.
 Select **Inspect or restore a bundle** to verify a finished copy and review a
