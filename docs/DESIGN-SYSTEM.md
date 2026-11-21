@@ -1247,7 +1247,8 @@ connected contextual region is the fallback. A downloaded update remains separat
 from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
-error banner.
+error banner. Archive status describes the stored download through preparation
+and activation. Installed and prepared version records describe the runtime.
 
 Activity groups authoritative attention IDs, running records and recent outcomes.
 Target identity leads each row. Unfinished setup opens a read-only file account;
