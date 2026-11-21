@@ -18,6 +18,7 @@ use std::{
 use tough::schema::{Root, Signed, Targets};
 
 mod bundle;
+mod history_checkpoint;
 mod io;
 mod key_inventory;
 mod policy;
@@ -165,6 +166,8 @@ struct ContextConfig {
     prepared_bundle: String,
     inspection: String,
     inspection_sha256: String,
+    #[serde(default)]
+    bootstrap_history: bool,
     previous_repository: serde_json::Value,
     versions: Four<u64>,
     expires: Four<String>,
@@ -189,6 +192,8 @@ struct Context {
     expires: [Timestamp; 4],
     at: Timestamp,
     inputs: Vec<PathBuf>,
+    bootstrap_history: bool,
+    history: Option<history_checkpoint::PreparedHistory>,
     prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
@@ -284,13 +289,29 @@ async fn load_context(path: &Path) -> Result<Context> {
         expires,
         at,
         inputs: vec![],
+        bootstrap_history: config.bootstrap_history,
+        history: None,
         prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        context.prior = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history) = repository::inspect_prior(&context, &previous).await?;
+        context.prior = prior;
+        if let Some(prepared) = history {
+            if context
+                .targets
+                .insert(
+                    history_checkpoint::TARGET.into(),
+                    prepared.pointer_bytes.clone(),
+                )
+                .is_some()
+            {
+                return invalid("catalog bundle cannot appoint its own history checkpoint");
+            }
+            context.history = Some(prepared);
+        }
         repository::check_proposed_target_capacity(&context.prior, &context.targets)?;
         trees.push((
             previous.clone(),
@@ -299,6 +320,8 @@ async fn load_context(path: &Path) -> Result<Context> {
             sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
+    } else if context.bootstrap_history {
+        return invalid("catalog history bootstrap requires an authenticated predecessor");
     } else if !config.previous_repository.is_null() {
         return invalid("catalog prior repository must be an explicit path or null");
     } else if context.versions.iter().any(|v| v.get() != 1)

@@ -167,6 +167,23 @@ are fixed historical schema values.
 See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
 for the release prerequisite and the supported player path.
 
+## Authenticated publication history checkpoints
+
+The checkpoint prototype uses one standard official-policy target under the
+existing scoped delegation. The target names an active checkpoint by length and
+SHA-256. The checkpoint binds its predecessor timestamp, compiled root,
+delegated authority and exact revision floors. Immutable segments carry old
+file identities outside the legacy TUF URL tree. There are no custom Snapshot
+or Timestamp fields, which earlier release tools would refuse.
+
+The normal publication workflow still uses full verification. A local
+keyless assembly can exercise a bounded checkpoint bootstrap with an explicitly
+selected authenticated predecessor. Do not publish that checkpoint until
+incremental signing, full keyless readback and continuity recovery are wired.
+The read-only verifier accepts a `history_store` path to verify the current
+signed pointer and check the exact active checkpoint and tip segment.
+An expected missing checkpoint, authority mismatch or changed object fails.
+
 ## Capacity diagnostics and retained representations
 
 Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the

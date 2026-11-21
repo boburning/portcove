@@ -846,6 +846,70 @@ async fn authenticated_catalog_prior_advances_without_erasing_immutable_history(
 }
 
 #[tokio::test]
+async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
+    let mut fixture = Fixture::new().await;
+    fixture.sign_all().await;
+    let original = assemble_definition_repository(&fixture.assembly("history-base"))
+        .await
+        .unwrap();
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("history-base");
+    context["bootstrap_history"] = json!(true);
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    fixture.roles = fixture.root().join("history-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let assembly = fixture.assembly("history-next");
+    let mut assembly_json: serde_json::Value =
+        serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
+    assembly_json["history_output"] = json!("checkpoint-objects");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    let assembled = assemble_definition_repository(&assembly).await.unwrap();
+    assert!(
+        assembled
+            .files
+            .iter()
+            .any(|row| row.target.ends_with(history_checkpoint::TARGET))
+    );
+    assert!(
+        original
+            .files
+            .iter()
+            .filter(|row| row.target != "metadata/timestamp.json")
+            .all(|row| assembled.files.contains(row))
+    );
+
+    let mut verify = json!({
+        "schema_version":1,
+        "trusted_root":"root.json","trusted_root_sha256":original.root_sha256,
+        "offline_targets":"targets.json","offline_targets_sha256":original.offline_targets_sha256,
+        "repository":"history-next"
+    });
+    let config = json_file(fixture.root(), "history-verification.json", verify.clone());
+    verify_definition_repository(&config).await.unwrap();
+    verify["history_store"] = json!("checkpoint-objects");
+    let config = json_file(fixture.root(), "history-verification.json", verify);
+    verify_definition_repository(&config).await.unwrap();
+    assert!(
+        !assemble_definition_repository(&assembly)
+            .await
+            .unwrap()
+            .changed
+    );
+    let path = fs::read_dir(fixture.root().join("checkpoint-objects/sha256"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    fs::remove_file(path).unwrap();
+    assert!(verify_definition_repository(&config).await.is_err());
+}
+
+#[tokio::test]
 async fn physical_root_key_alias_cannot_supply_a_second_catalog_quorum_member() {
     use aws_lc_rs::signature::Ed25519KeyPair;
     use tough::schema::Role;

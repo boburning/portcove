@@ -230,7 +230,13 @@ fn validate_public_paths(files: &PublicHistory) -> Result<()> {
     }
     Ok(())
 }
-pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<PublicHistory> {
+pub(super) async fn inspect_prior(
+    context: &Context,
+    path: &Path,
+) -> Result<(
+    PublicHistory,
+    Option<super::history_checkpoint::PreparedHistory>,
+)> {
     let files = PublicHistory::read(path)?;
     validate_public_paths(&files)?;
     let logical = authenticate(
@@ -291,7 +297,60 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<Publ
         }
     }
     floors.check(&context.targets)?;
-    Ok(files)
+    if logical
+        .files
+        .contains_key(super::history_checkpoint::TARGET)
+    {
+        return invalid(
+            "catalog checkpointed history requires an incremental context; retain the prior generation",
+        );
+    }
+    let history = if context.bootstrap_history {
+        let timestamp_bytes = at(&roles, "timestamp.json")?;
+        let timestamp: Signed<TufTimestamp> = serde_json::from_slice(timestamp_bytes)?;
+        let input = super::history_checkpoint::BootstrapInput {
+            timestamp_version: timestamp.signed.version.get(),
+            timestamp_sha256: sha(timestamp_bytes),
+            root_sha256: sha(&context.root_bytes),
+            delegation_sha256: delegation_digest(&context.top.signed)?,
+            definitions: floors
+                .definitions
+                .into_iter()
+                .map(|((namespace, stable_id), entry)| {
+                    Ok(super::history_checkpoint::DefinitionFloor {
+                        namespace,
+                        stable_id,
+                        revision: entry["revision"].as_u64().unwrap(),
+                        entry_sha256: sha(&io::canonical(&serde_json::to_vec(&entry)?)?),
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?,
+            policies: floors
+                .policies
+                .into_iter()
+                .map(
+                    |(target, (revision, target_sha256))| super::history_checkpoint::PolicyFloor {
+                        target,
+                        revision,
+                        target_sha256,
+                    },
+                )
+                .collect(),
+            files: files
+                .identities()
+                .into_iter()
+                .filter(|file| file.target != "metadata/timestamp.json")
+                .collect(),
+        };
+        Some(super::history_checkpoint::bootstrap(
+            input,
+            context.versions[3].get(),
+            context.versions[1].get(),
+        )?)
+    } else {
+        None
+    };
+    Ok((files, history))
 }
 
 fn public_identities(path: &Path) -> Result<Vec<DefinitionFile>> {
@@ -463,19 +522,19 @@ impl HistoricalRevisionFloors {
         Ok(())
     }
 
-    fn check(self, new: &Files) -> Result<()> {
+    fn check(&self, new: &Files) -> Result<()> {
         let current = indexed_entries(at(new, "definitions/index.json")?)?;
-        for (id, old) in self.definitions {
-            if let Some(next) = current.get(&id) {
+        for (id, old) in &self.definitions {
+            if let Some(next) = current.get(id) {
                 let a = old["revision"].as_u64().unwrap();
                 let b = next["revision"].as_u64().unwrap();
-                if b < a || (b == a && next != &old) {
+                if b < a || (b == a && next != old) {
                     return invalid("catalog historical definition revision rollback/equivocation");
                 }
             }
         }
-        for (name, (revision, bytes)) in self.policies {
-            if let Some(next) = new.get(&name) {
+        for (name, (revision, bytes)) in &self.policies {
+            if let Some(next) = new.get(name) {
                 let value: serde_json::Value = serde_json::from_slice(next)?;
                 let field = if name.ends_with(".launch.json")
                     || name == "policy/official/catalog.listings.json"
@@ -489,7 +548,8 @@ impl HistoricalRevisionFloors {
                         "catalog current policy/launch revision absent".into(),
                     )
                 })?;
-                if next_revision < revision || (next_revision == revision && sha(next) != bytes) {
+                if next_revision < *revision || (next_revision == *revision && &sha(next) != bytes)
+                {
                     return invalid(
                         "catalog historical policy/launch rollback or equal-revision replacement",
                     );
@@ -523,6 +583,8 @@ struct AssemblyConfig {
     context: String,
     signed_roles: String,
     output: String,
+    #[serde(default)]
+    history_output: Option<String>,
 }
 /// Keyless exact role assembly followed by Tough full target verification, with no network transport.
 pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRepositoryReport> {
@@ -539,6 +601,20 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     let mut inputs = context.inputs.clone();
     inputs.extend([path.to_path_buf(), roles_path]);
     io::no_overlap(&output, &inputs)?;
+    let history_output = match (&context.history, config.history_output.as_deref()) {
+        (Some(history), Some(path)) => {
+            let directory = io::resolve(base, path)?;
+            io::no_overlap(&directory, &inputs)?;
+            io::no_overlap(&directory, std::slice::from_ref(&output))?;
+            Some((history, directory))
+        }
+        (None, None) => None,
+        _ => {
+            return invalid(
+                "catalog history assembly output requires an exact checkpoint context and path",
+            );
+        }
+    };
     let mut files = context.prior.clone();
     files.insert(
         format!("metadata/{}.root.json", context.root.signed.version),
@@ -640,6 +716,20 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         }
         true
     };
+    if let Some((history, directory)) = history_output {
+        fs::create_dir_all(directory.join("sha256"))?;
+        for (name, bytes) in &history.objects {
+            io::write_new(&directory.join(name), bytes)?;
+        }
+        super::history_checkpoint::read_current(
+            &history.pointer_bytes,
+            &directory,
+            &sha(&context.root_bytes),
+            &delegation_digest(&context.top.signed)?,
+            context.versions[3].get(),
+            context.versions[1].get(),
+        )?;
+    }
     recheck(&context)?;
     repository_report(
         &files,
@@ -716,6 +806,12 @@ struct VerificationConfig {
     offline_targets: String,
     offline_targets_sha256: String,
     repository: String,
+    #[serde(default)]
+    history_store: Option<String>,
+}
+
+fn delegation_digest(top: &Targets) -> Result<String> {
+    Ok(sha(&io::canonical(&serde_json::to_vec(&top.delegations)?)?))
 }
 
 /// Read-only current Tough verification of already published bytes. No signing
@@ -749,6 +845,21 @@ pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepos
     let roles = current_roles(&files)?;
     if at(&roles, "targets.json")? != &top_bytes {
         return invalid("catalog public offline Targets differs from appointed bytes");
+    }
+    if let Some(store) = config.history_store.as_deref() {
+        let store = io::resolve(base, store)?;
+        let timestamp: Signed<TufTimestamp> =
+            serde_json::from_slice(at(&roles, "timestamp.json")?)?;
+        let policy: Signed<Targets> = serde_json::from_slice(at(&roles, "official-policy.json")?)?;
+        let delegation_sha256 = delegation_digest(&top.signed)?;
+        super::history_checkpoint::read_current(
+            at(&logical.files, super::history_checkpoint::TARGET)?,
+            &store,
+            &sha(&root_bytes),
+            &delegation_sha256,
+            timestamp.signed.version.get(),
+            policy.signed.version.get(),
+        )?;
     }
     let index_sha256 = sha(at(&logical.files, "definitions/index.json")?);
     if io::read(path, CONFIG_MAX)? != config_raw
