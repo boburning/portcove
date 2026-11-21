@@ -2630,6 +2630,13 @@ original game inputs or bundled runtimes:
 - `missing_persistent_parents`: parents of declared persistent paths the
   package does not ship.
 
+For a declared Linux portable data directory, a missing directory and an empty
+directory beside the selected executable represent the same package shape. Core
+checks the staged path before excluding it from the top-level directory set.
+Aliases, links and any packaged contents still fail the portable data checks.
+Existing recorded shapes stay intact, and future generated baselines for such a
+route must use the updated derivation inputs.
+
 Managed extraction never creates links: ZIP links are refused and an allowed
 TAR.XZ file link is written as a copy of its in-archive target, so every
 shipped file is a regular file the shape sees and links are not a blind spot.
