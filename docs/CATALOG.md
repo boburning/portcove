@@ -4745,7 +4745,11 @@ file is a standalone persistent path, the runtime uses the existing mirrored
 data contract, and no partitioned or runtime-data policy owns the file. Check
 the exact package member and the upstream code that reads it. Core captures
 the bytes from verified acquisition, before persistence restoration can
-replace the packaged file. Previously installed packages without a captured
+replace the packaged file. A later stable patch in an enrolled numeric
+major/minor series uses the same declaration when the normal acquisition
+path independently admits its ZIP. An explicitly enrolled release retains
+its exact archive digest. A new series needs review of the package layout
+and configuration consumer. Previously installed packages without a captured
 baseline remain held if activation needs that baseline. Retain the ordinary
 settings recovery and guarded backup receipts.
 

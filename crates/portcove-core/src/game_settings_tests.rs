@@ -240,6 +240,7 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
         capture_shipped_settings(
             &port,
             release.platform,
+            ReleaseChannel::Stable,
             &release.version,
             &release.archive_sha256,
             root.path(),
@@ -282,6 +283,7 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
         verify_shipped_defaults(
             port,
             release.platform,
+            ReleaseChannel::Stable,
             version,
             archive,
             defaults,
@@ -571,6 +573,7 @@ fn package_only_settings_need_an_independent_declaration_and_exact_archive() {
     let capture = capture_shipped_settings(
         port,
         release.platform,
+        ReleaseChannel::Stable,
         &release.version,
         &release.archive_sha256,
         temporary.path(),
@@ -584,6 +587,7 @@ fn package_only_settings_need_an_independent_declaration_and_exact_archive() {
         capture_shipped_settings(
             port,
             release.platform,
+            ReleaseChannel::Stable,
             &release.version,
             &"0".repeat(64),
             temporary.path(),
@@ -594,5 +598,29 @@ fn package_only_settings_need_an_independent_declaration_and_exact_archive() {
     assert!(descriptor.validate(&["Config".to_owned()]).is_err());
     let mut undeclared = port.clone();
     undeclared.adapter = crate::AdapterKind::LibultrashipPortable;
+    let later = capture_shipped_settings(
+        port,
+        release.platform,
+        ReleaseChannel::Stable,
+        "v0.15.12",
+        &"b".repeat(64),
+        temporary.path(),
+    );
+    assert_eq!(
+        later.defaults[&file.path].verified_bytes(file).unwrap(),
+        bytes
+    );
+    for (tag, channel) in [
+        ("v0.15.12", ReleaseChannel::Beta),
+        ("v0.15.12-rc1", ReleaseChannel::Stable),
+        ("v0.16.0", ReleaseChannel::Stable),
+    ] {
+        assert!(!descriptor.accepts_archive_receipt(
+            release.platform,
+            channel,
+            tag,
+            &"b".repeat(64)
+        ));
+    }
     assert!(descriptor.validate_port(&undeclared).is_err());
 }

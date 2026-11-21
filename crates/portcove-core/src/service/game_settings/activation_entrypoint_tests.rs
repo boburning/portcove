@@ -98,9 +98,10 @@ fn settings_fixture_packages_for_contract(
 ) -> Fixture {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
+    let incoming = if package_only { "v1.0.1" } else { "v2.0.0" };
     let inputs = [
         ("v1.0.0", archive("v1.0.0", defaults[0])),
-        ("v2.0.0", archive("v2.0.0", defaults[1])),
+        (incoming, archive(incoming, defaults[1])),
     ];
     assert_eq!(inputs[0].1, archive("v1.0.0", defaults[0]));
     let hashes = inputs
@@ -123,7 +124,7 @@ fn settings_fixture_packages_for_contract(
     }
     port.game_settings = Some(serde_json::from_value(serde_json::json!({
         "format_version": if package_only { 2 } else { 1 },
-        "releases": inputs.iter().zip(&hashes).map(|((version, _), digest)| serde_json::json!({
+        "releases": inputs.iter().zip(&hashes).take(if package_only { 1 } else { 2 }).map(|((version, _), digest)| serde_json::json!({
             "version":version,"platform":"windows-x86-64","archive_sha256":digest,
             "source_commit":"a".repeat(40),"evidence_urls":["https://example.invalid/inert-fixture"]
         })).collect::<Vec<_>>(),
