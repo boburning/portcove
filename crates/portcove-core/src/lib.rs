@@ -122,6 +122,7 @@ mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
+mod quaddicted;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
