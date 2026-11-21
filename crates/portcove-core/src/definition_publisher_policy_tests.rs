@@ -3143,7 +3143,31 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         RetainedCuratedOperation::Status | RetainedCuratedOperation::Launch
     ) {
         let affected = &artifacts[1].0;
-        let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+        let mut transition_artifacts = vec![
+            serde_json::json!({"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}),
+        ];
+        let stale_offer = (status == "distribution_withdrawn"
+            && operation == RetainedCuratedOperation::Status)
+            .then(|| {
+                let previous = &artifacts[0].0;
+                assert_ne!(previous.asset_id, affected.asset_id);
+                transition_artifacts.push(serde_json::json!({
+                    "asset_id":previous.asset_id,"sha256":previous.sha256,"status":status
+                }));
+                serde_json::from_value::<crate::UpdateCheck>(serde_json::json!({
+                    "port_id": ID, "channel": "stable", "update_available": true,
+                    "release": {
+                        "version": previous.tag, "channel": "stable",
+                        "asset": {"name": previous.filename, "url": previous.acquisition_url,
+                            "size": previous.size, "sha256": previous.sha256}
+                    }
+                }))
+                .unwrap()
+            });
+        let transitions = serde_json::json!({
+            "future_acceptance_lost": false,
+            "artifacts": transition_artifacts,
+        });
         let (candidate, admission) =
             publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions)).await;
         library
@@ -3216,7 +3240,97 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
         phase("launch baseline admitted");
+        if let Some(stale) = &stale_offer {
+            let mut unrelated = stale.clone();
+            unrelated.release.asset.sha256 = "f".repeat(64);
+            library.store_update_snapshot(&unrelated).unwrap();
+            assert_eq!(
+                service
+                    .status(ID)
+                    .unwrap()
+                    .last_update_check
+                    .unwrap()
+                    .check
+                    .release,
+                unrelated.release
+            );
+            let status = service.status(ID).unwrap();
+            let before = library.update_snapshot(ID).unwrap().unwrap();
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert_eq!(refused.code, crate::ErrorCode::Conflict);
+            assert_eq!(
+                refused.message,
+                "curated artifact distribution is withdrawn"
+            );
+            let after = library.update_snapshot(ID).unwrap().unwrap();
+            assert_eq!(after.checked_at, before.checked_at);
+            assert_eq!(after.check.release, unrelated.release);
+
+            let connection = library.connection().unwrap();
+            let transition_count: i64 = connection
+                .query_row(
+                    "SELECT transition_count FROM curated_artifact_history",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=257",
+                    [],
+                )
+                .unwrap();
+            // Intact admission and scope history can rule out this different
+            // digest even while authenticated transition history is unusable.
+            let advised = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap();
+            assert_eq!(advised.release, unrelated.release);
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated transition history"));
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=?1, scope_count=scope_count+1",
+                    [transition_count],
+                )
+                .unwrap();
+            // With missing scopes, a plausible GitHub package could have
+            // participated. A download from a different origin cannot have.
+            let refused = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated artifact scope history"));
+            let mut outside = unrelated.release.clone();
+            outside.asset.url = "https://downloads.example.org/package.zip".into();
+            let advised = service
+                .record_update_check(ID, &status, &outside, None)
+                .unwrap();
+            assert_eq!(advised.release, outside);
+            assert_eq!(
+                library.update_snapshot(ID).unwrap().unwrap().check.release,
+                outside
+            );
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET scope_count=scope_count-1",
+                    [],
+                )
+                .unwrap();
+
+            library.store_update_snapshot(stale).unwrap();
+        }
         let projected = service.status(ID).unwrap();
+        if let Some(stale) = &stale_offer {
+            assert!(projected.last_update_check.is_none());
+            assert_eq!(
+                library.update_snapshot(ID).unwrap().unwrap().check.release,
+                stale.release
+            );
+        }
         let expected_reason = if status == "revoked" {
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         } else {
@@ -3269,6 +3383,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap();
             assert_eq!(bulk.definition_operations, projected.definition_operations);
             assert_eq!(bulk.port_actions, projected.port_actions);
+            if stale_offer.is_some() {
+                assert!(bulk.last_update_check.is_none());
+            }
         }
         let rollback = projected
             .port_actions

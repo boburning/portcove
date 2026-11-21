@@ -74,6 +74,20 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+### Exact release withdrawal in status
+
+Status reports curated distribution withdrawal only for the exact recommended
+artifact or exact active installation. In machine output, the Install
+assessment identifies the installed copy with `retained: true`. The reason
+is `curated_distribution_withdrawn`. The badge and details use the catalog
+maintainer when no further explanation is recorded. Both appear when both
+releases are withdrawn. Status omits an actionable cached update offer only
+when the cached metadata identifies one exact admitted artifact whose
+distribution is withdrawn. The stored check remains available as historical
+evidence, even after a different artifact becomes the recommendation.
+Installed launch and rollback keep their existing checks. Local files and
+saves are preserved.
+
 ## Package and launch declaration compatibility
 
 Existing asset hints narrow supported package names. Reviewed release-stream
