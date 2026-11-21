@@ -144,13 +144,13 @@
     "versions": "Versions & updates"
   },
   "withdrawal": {
-    "label": "Withdrawn release",
     "installedBadge": "Installed release withdrawn",
-    "recommendedBadge": "Recommended release withdrawn",
-    "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
-    "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
     "installedNext": "You can keep your installed copy and its saves.",
+    "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+    "label": "Withdrawn release",
+    "recommendedBadge": "Recommended release withdrawn",
     "recommendedNext": "Wait for a compatible release or review the available versions.",
+    "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
     "rollback": "Review rollback",
     "versions": "View versions"
   }

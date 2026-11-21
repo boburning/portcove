@@ -144,13 +144,13 @@
     "versions": "الإصدارات والتحديثات"
   },
   "withdrawal": {
-    "label": "إصدار مسحوب",
     "installedBadge": "سُحب الإصدار المثبت",
-    "recommendedBadge": "سُحب الإصدار الموصى به",
-    "installedReason": "سحب مسؤول الفهرس الإصدار {{version}}.",
-    "recommendedReason": "سحب مسؤول الفهرس الإصدار الموصى به.",
     "installedNext": "يمكنك الاحتفاظ بنسختك المثبتة وملفات الحفظ.",
+    "installedReason": "سحب مسؤول الفهرس الإصدار {{version}}.",
+    "label": "إصدار مسحوب",
+    "recommendedBadge": "سُحب الإصدار الموصى به",
     "recommendedNext": "انتظر إصدارًا متوافقًا أو راجع الإصدارات المتاحة.",
+    "recommendedReason": "سحب مسؤول الفهرس الإصدار الموصى به.",
     "rollback": "مراجعة الرجوع إلى الإصدار السابق",
     "versions": "عرض الإصدارات"
   }
