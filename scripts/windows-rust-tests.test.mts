@@ -750,7 +750,7 @@ void test("ordinary Windows Rust compiles once and joins every execution and liv
       "fast_rust_transport",
       "Compare live CLI and headless and native Desktop serialization",
     ).run,
-    "node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts",
+    "node scripts/run-rust-tests.mts --guard-command node scripts/check-transport-contract.mts --retain-drift",
   );
   const aggregate = workflowJob("rust");
   assert.ok(Array.isArray(aggregate.needs));

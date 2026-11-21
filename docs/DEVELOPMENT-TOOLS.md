@@ -3961,6 +3961,15 @@ separate from execution, and times out admission with exit 75. Cancellation is
 130/143. Neither means a completed test. Execution budgets begin after admission;
 outer callers must allow the bounded queue as well as setup and execution.
 
+Each local source-bound checkout scan has a 30-second default budget. Under
+measured filesystem pressure, a local caller can set
+`PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
+120 for one command. The override applies separately to the before-admission
+and after-admission scans. Allow both scans and the existing queue wait in
+the outer command budget. A timeout stops the scan and the payload does not
+start. The existing source identity comparison and reservation limits still
+apply.
+
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
 represent independent supervised descendants or remote-engine work. Coordinate a

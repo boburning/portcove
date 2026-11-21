@@ -2333,6 +2333,9 @@ pub struct GameUpdatePlan {
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+    /// Archive-only review for the same candidate. Acquisition still revalidates it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_only_plan_sha256: Option<String>,
     /// Informational upstream notes for this review. Read from cached provider
     /// metadata only, excluded from `plan_sha256`, never authority. Absent when
     /// the provider has no hosted release page.
