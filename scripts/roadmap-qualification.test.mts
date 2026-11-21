@@ -622,3 +622,140 @@ void test("migration preserves each manual and historical stage across active an
     /Derived Port-stage drift.*Project has Cataloged.*Supported/u,
   );
 });
+
+void test("historical migration preserves exact evidence and recommends only evidenced dispositions", () => {
+  const ordinary = [
+    "## Dependencies and blockers",
+    "",
+    "- Blocker: An attributable exact package digest is required.",
+    "- Resume condition: Verify the current artifact against the published digest.",
+    "",
+    "## Required tests",
+    "",
+    "Verify the selected native runtime and retained nonempty player save.",
+    "",
+    "[Actual prior player evidence](https://example.test/observed-runtime)",
+  ].join("\n");
+  const pending = ordinary.replace(
+    /- Blocker:[^\n]*\n- Resume condition:[^\n]*/u,
+    "No current blocker has been established. Exact resume condition pending triage.",
+  );
+  const cases = [
+    { status: "Done", state: "CLOSED", reason: "COMPLETED", output: "retire_completed_assignment" },
+    {
+      status: "Done",
+      state: "CLOSED",
+      reason: "NOT_PLANNED",
+      output: "preserve_historical_assignment",
+    },
+    {
+      status: "Done",
+      state: "CLOSED",
+      reason: "COMPLETED",
+      output: "preserve_historical_assignment",
+      directoryLink: true,
+    },
+    {
+      status: "Done",
+      state: "CLOSED",
+      reason: "COMPLETED",
+      output: "preserve_historical_assignment",
+      key: "operational",
+    },
+    {
+      status: "Done",
+      state: "CLOSED",
+      reason: "COMPLETED",
+      output: "review_project_assignment",
+      catalogId: "operational",
+      target: "Cataloged",
+    },
+    {
+      status: "Blocked",
+      state: "OPEN",
+      reason: null,
+      output: "review_project_assignment",
+      target: "Blocked",
+    },
+    {
+      status: "Blocked",
+      state: "OPEN",
+      reason: null,
+      output: "preserve_historical_assignment",
+      body: pending,
+    },
+    {
+      status: "In progress",
+      state: "OPEN",
+      reason: null,
+      output: "review_project_assignment",
+      target: "Researching",
+    },
+    {
+      status: "Validating",
+      state: "OPEN",
+      reason: "REOPENED",
+      output: "preserve_historical_assignment",
+      body: pending,
+    },
+    { status: "Triage", state: "OPEN", reason: null, output: "preserve_historical_assignment" },
+  ];
+  const items = cases.map((entry, index) => {
+    const number = index + 1;
+    const body = [
+      "<!-- portcove-port -->",
+      (entry.catalogId
+        ? "<!-- portcove-catalog-id: " + entry.catalogId
+        : "<!-- portcove-port-key: " + (entry.key ?? "candidate-" + number)) + " -->",
+      "",
+      entry.body ?? ordinary,
+    ].join("\n");
+    return {
+      id: "project-" + number,
+      isArchived: false,
+      "Work type": "Port",
+      "Port stage": "Release integrity qualified",
+      Status: entry.status,
+      content: {
+        id: "issue-" + number,
+        type: "Issue",
+        number,
+        title: "[Port] Candidate " + number,
+        url: "https://github.com/boburning/portcove/issues/" + number,
+        state: entry.state,
+        stateReason: entry.reason,
+        body,
+      },
+    };
+  });
+  const directory = {
+    listings: [{ id: "operational", issue_number: 3 }],
+  };
+  const report = planPortStageMigration(
+    { ports: [{ id: "operational", platforms: ["windows"] }] },
+    items,
+    "boburning/portcove",
+    items.map((item) => item.content),
+    new Set(),
+    directory,
+  );
+  assert.deepEqual(report.historical_assignment_counts, {
+    review_replacement: 3,
+    retire_completed: 1,
+    preserve_historical: 6,
+  });
+  for (const [index, entry] of cases.entries()) {
+    const row = fixtureElement(report.rows, index);
+    assert.ok("historical_preservation" in row);
+    assert.equal(row.current_stage, "Release integrity qualified");
+    assert.deepEqual(row.historical_preservation, {
+      original_stage: row.current_stage,
+      issue_body: fixtureElement(items, index).content.body,
+      issue_state: entry.state,
+      issue_state_reason: entry.reason,
+      project_status: entry.status,
+    });
+    assert.equal(row.proposed_action?.kind, entry.output);
+    assert.equal(row.proposed_action?.target_stage, entry.target ?? null);
+  }
+});

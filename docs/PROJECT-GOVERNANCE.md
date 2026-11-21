@@ -976,6 +976,18 @@ Changing the Project value set requires the owner's confirmation. Migrating
 existing assignments requires approval of the reviewed assignment plan,
 including preservation of the supporting evidence in their owning issues.
 
+For each historical assignment, the dry run retains the exact old value and
+issue body with the Project and issue IDs, observed revision, and body digest.
+It proposes leaving Port stage unset after evidence preservation when the
+owning issue is closed as Completed, Project Status is Done, and neither the
+issue markers nor an admitted listing establish an operational catalog binding.
+This preserves the recorded completion of limited work, including an
+upstream-owned player route. For open issues, a recorded Blocked status needs
+the existing issue blocker and resume evidence. Active investigation can map
+to Researching when the issue specifies pending qualification work and tests.
+A Triage status alone leaves the historical value on hold. An ambiguous catalog
+binding or insufficient current evidence also retains the historical value.
+
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under
 `docs/releases/`. It records what the Project and catalog said at one commit;

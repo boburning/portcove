@@ -286,14 +286,125 @@ export function inspectRoadmapPortStages(
   return { rows, ports };
 }
 
+type PortStageRow = ReturnType<typeof inspectRoadmapPortStages>["rows"][number];
+
+function historicalStageRecommendation(
+  row: PortStageRow,
+  item: RoadmapIssueItem,
+  possibleCatalogBinding: boolean,
+) {
+  const status = fieldValue(item, "Status");
+  const issue = item.content;
+  const body = itemBody(item);
+  const hold = (reason: string) => ({
+    kind: "preserve_historical_assignment" as const,
+    target_stage: null,
+    reason,
+  });
+  if (row.work_type !== "Port" || !row.content_id || !row.issue_url)
+    return hold("canonical_port_issue_required");
+  if (row.catalog_evidence)
+    return {
+      kind: "review_project_assignment" as const,
+      target_stage: row.catalog_evidence.stage,
+      reason: "historical_stage_with_exact_catalog_binding",
+    };
+  if (row.unresolved_reason !== "no_catalog_marker" || possibleCatalogBinding)
+    return hold("unresolved_operational_catalog_binding");
+  if (issue?.state === "CLOSED" && issue.stateReason === "COMPLETED" && status === "Done")
+    return {
+      kind: "retire_completed_assignment" as const,
+      target_stage: null,
+      reason: "completed_issue_and_done_project_without_operational_catalog_binding",
+    };
+  if (row.archived !== false || issue?.state !== "OPEN")
+    return hold("no_confirmed_open_work_or_completed_disposition");
+  if (status === "Blocked") {
+    if (!hasBlockedEvidence(body)) return hold("blocked_status_without_governed_resume_evidence");
+    return {
+      kind: "review_project_assignment" as const,
+      target_stage: "Blocked" as const,
+      reason: "blocked_project_status_with_issue_blocker_and_resume_condition",
+    };
+  }
+  if (status === "In progress" || status === "Validating") {
+    const next = blockerSection(body);
+    if (
+      !usableBlockerField(next) ||
+      /(?:no current blocker (?:has been )?established|resume condition pending triage)/iu.test(
+        next,
+      ) ||
+      !usableBlockerField(issueSection(body, "Required tests"))
+    )
+      return hold("active_status_without_specific_current_qualification_work");
+    return {
+      kind: "review_project_assignment" as const,
+      target_stage: "Researching" as const,
+      reason: "active_project_status_with_pending_qualification_and_test_requirements",
+    };
+  }
+  return hold("no_current_manual_stage_established");
+}
+
+function operationalListingIssues(
+  directory: unknown,
+  ports: ReadonlyMap<string, unknown>,
+): ReadonlySet<number> {
+  if (!isRecord(directory) || !Array.isArray(directory.listings)) return new Set();
+  const listings: readonly unknown[] = directory.listings;
+  return new Set(
+    listings.flatMap((listing) =>
+      isRecord(listing) &&
+      typeof listing.id === "string" &&
+      ports.has(listing.id) &&
+      typeof listing.issue_number === "number" &&
+      Number.isSafeInteger(listing.issue_number) &&
+      listing.issue_number > 0
+        ? [listing.issue_number]
+        : [],
+    ),
+  );
+}
+
 export function planPortStageMigration(
   catalog: QualificationCatalogObservation,
   items: readonly RoadmapIssueItem[],
   repository: string,
   repositoryIssues: readonly RoadmapIssueItem[],
   issueFreeIds: ReadonlySet<string>,
+  directory?: unknown,
 ) {
   const { rows, ports } = inspectRoadmapPortStages(catalog, items, repository, repositoryIssues);
+  const itemsById = new Map(items.map((item) => [item.id, item]));
+  const listingIssues = operationalListingIssues(directory, ports);
+  const reportRows = rows.map((row) => {
+    if (row.classification !== "review_historical") return row;
+    const item = row.item_id ? itemsById.get(row.item_id) : undefined;
+    if (!item) throw new Error("Historical Project record lacks retained item identity");
+    const historicalBody = itemBody(item);
+    const keyClaims = portKeyMarkers(historicalBody);
+    const number = issueNumber(item);
+    const possibleCatalogBinding =
+      (number !== null && listingIssues.has(number)) ||
+      keyClaims.length > 1 ||
+      keyClaims.some((key) => ports.has(key));
+    return {
+      ...row,
+      proposed_action: historicalStageRecommendation(row, item, possibleCatalogBinding),
+      historical_preservation: {
+        original_stage: row.current_stage,
+        issue_body: historicalBody,
+        issue_state: item.content?.state ?? null,
+        issue_state_reason:
+          typeof item.content?.stateReason === "string" ? item.content.stateReason : null,
+        project_status: fieldValue(item, "Status") ?? null,
+      },
+    };
+  });
+  const historicalCount = (kind: string) =>
+    reportRows.filter(
+      (row) => row.classification === "review_historical" && row.proposed_action?.kind === kind,
+    ).length;
   const count = (classification: (typeof rows)[number]["classification"]) =>
     rows.filter((row) => row.classification === classification).length;
   return {
@@ -311,7 +422,12 @@ export function planPortStageMigration(
       unresolved: count("unresolved"),
       issue_free_catalog_ports: issueFreeIds.size,
     },
-    rows,
+    historical_assignment_counts: {
+      review_replacement: historicalCount("review_project_assignment"),
+      retire_completed: historicalCount("retire_completed_assignment"),
+      preserve_historical: historicalCount("preserve_historical_assignment"),
+    },
+    rows: reportRows,
     issue_free_catalog_ports: [...issueFreeIds].sort().map((id) => {
       const evidence = ports.get(id);
       if (!evidence) throw new Error("Issue-free diagnostic lacks matching catalog identity");

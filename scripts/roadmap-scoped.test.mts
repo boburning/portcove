@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDocument } from "yaml";
 import {
+  RoadmapClient,
   executeSetMany,
   validateConfig,
   executionSnapshot as cliSnapshot,
@@ -228,6 +229,25 @@ void test("legacy doctor rejects overstated stages and reports only catalog-back
     );
     assert.equal(f.mutations(), 0);
   }
+});
+
+void test("migration-specific Project read requires an observed issue closure reason", async () => {
+  const f = await fixture();
+  f.client.itemList = RoadmapClient.prototype.itemList;
+  const options = {
+    details: { id: "PVT" },
+    itemIds: [f.item().id],
+    includeIssueStateReason: true,
+  };
+  await assert.rejects(
+    f.client.itemList(config.project.number, options),
+    /Project issue closure reason is unavailable/u,
+  );
+  Object.assign(f.issue, { state: "CLOSED", stateReason: "COMPLETED" });
+  const [item] = await f.client.itemList(config.project.number, options);
+  assert.equal(item?.content?.stateReason, "COMPLETED");
+  assert.match(f.queries.join("\n"), /url state stateReason/u);
+  assert.equal(f.mutations(), 0);
 });
 
 for (const ownerType of ["User", "Organization"] as const) {

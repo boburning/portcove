@@ -2542,6 +2542,7 @@ export class RoadmapClient {
       details: suppliedDetails = null,
       itemIds,
       includeItemRevision = false,
+      includeIssueStateReason = false,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
@@ -2551,6 +2552,7 @@ export class RoadmapClient {
       details?: ProjectDetails | null;
       itemIds?: readonly string[];
       includeItemRevision?: boolean;
+      includeIssueStateReason?: boolean;
     } = {},
   ) {
     const details = suppliedDetails ?? (await this.projectDetails(number));
@@ -2564,7 +2566,8 @@ export class RoadmapClient {
     const fields = includeFields
       ? "fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } }"
       : "";
-    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
+    const stateReason = includeIssueStateReason ? "stateReason" : "";
+    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${stateReason} ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
     let nodes: unknown[];
     if (itemIds !== undefined) {
       nodes = [];
@@ -2611,6 +2614,16 @@ export class RoadmapClient {
       if (!isRecord(node) || typeof node.id !== "string")
         throw new Error("incomplete GitHub inventory: malformed Project item identity");
       const sourceContent = completeProjectContent(node.content, includeBodies);
+      if (
+        includeIssueStateReason &&
+        sourceContent.__typename === "Issue" &&
+        sourceContent.stateReason !== null &&
+        typeof sourceContent.stateReason !== "string"
+      )
+        throw new InventoryError(
+          "inventory_incomplete",
+          "Project issue closure reason is unavailable",
+        );
       const content = sourceContent
         ? {
             ...sourceContent,
@@ -4895,7 +4908,7 @@ export function roadmapCommandHelp(command: string, config?: RoadmapConfig) {
 
 async function runStageMigrationDryRun(config: RoadmapConfig, client: RoadmapClient) {
   const inventory = requireRoadmapInventory(
-    await collectRoadmapInventory(client),
+    await collectRoadmapInventory(client, undefined, { scope: "port-stage-migration" }),
     config.repository,
     client,
   );
@@ -4907,16 +4920,15 @@ async function runStageMigrationDryRun(config: RoadmapConfig, client: RoadmapCli
       "Project Port stage field identity is unavailable",
     );
   const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
-  const issueFreeIds = issueFreeCatalogIds(
-    catalog,
-    JSON.parse(await readFile(listingsPath, "utf8")),
-  );
+  const directory: unknown = JSON.parse(await readFile(listingsPath, "utf8"));
+  const issueFreeIds = issueFreeCatalogIds(catalog, directory);
   const report = planPortStageMigration(
     catalog,
     [...inventory.items, ...inventory.archivedItems],
     config.repository,
     inventory.issues,
     issueFreeIds,
+    directory,
   );
   return {
     scope: { kind: "port-stage-migration", archive: "active-and-archived" },
@@ -5092,7 +5104,10 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
           global_health: "scope" in checked.result ? "not_evaluated" : "passed",
           counts:
             "stageMigration" in checked.result
-              ? checked.result.stageMigration.counts
+              ? {
+                  ...checked.result.stageMigration.counts,
+                  ...checked.result.stageMigration.historical_assignment_counts,
+                }
               : "fields" in checked.result
                 ? {
                     fields: checked.result.fields.length,
