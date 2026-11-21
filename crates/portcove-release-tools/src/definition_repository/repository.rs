@@ -588,8 +588,9 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         for (name, file) in files.iter() {
             let destination = output.join(name);
             fs::create_dir_all(destination.parent().unwrap())?;
-            io::write_new(&destination, &file.read()?)?;
+            io::create_synced(&destination, &file.read()?)?;
         }
+        // This single readback checks all written bytes and the exact file set.
         if public_identities(&output)? != files.identities() {
             return invalid("catalog complete assembly retained readback differs");
         }
