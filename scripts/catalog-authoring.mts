@@ -702,7 +702,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (listing.implementation !== undefined) checkImplementationMetadata(listing.implementation);
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
-    const identity = (value: unknown) =>
+    const identity = (value: unknown): value is string =>
       typeof value === "string" && value.length <= 128 && stableId.test(value);
     const evidence = (value: unknown) => {
       if (
