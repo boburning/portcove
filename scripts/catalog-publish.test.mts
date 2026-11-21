@@ -630,6 +630,25 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(corrected.revision, first.revision + 1);
 });
 
+void test("observation delivery accepts format-13 canonical input and uses Core's format-11 projection", async () => {
+  const { fixtureListing, fixturePolicy, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const authored = {
+    ...fixtureListing,
+    media: [{ id: "scene", role: "screenshot", igdb: { kind: "screenshot" } }],
+  };
+  const result = projectListingDelivery(
+    { format_version: 13, listings: [authored] },
+    [{ ...fixturePolicy().listing_update, media: authored.media }],
+    null,
+    0,
+    8 * 1024 * 1024,
+    { format_version: 11, listings: [fixtureListing] },
+  );
+  assert.deepEqual(result.bytes, fixtureDelivery());
+});
+
 void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");

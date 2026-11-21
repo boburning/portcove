@@ -443,7 +443,7 @@ export type ModProviderBinding =
       community: string;
       provider: "thunderstore";
     };
-export type IgdbGameImageKind = "logo" | "artwork";
+export type IgdbGameImageKind = "logo" | "artwork" | "screenshot";
 export type CatalogMediaRole = "header" | "screenshot" | "logo" | "key_art";
 export type CatalogMediaSubject =
   | {
@@ -2737,7 +2737,7 @@ export interface CatalogMediaAsset {
   width: number;
 }
 /**
- * A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+ * A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
  * public descriptive IDs, never API credentials or installation authority.
  */
 export interface IgdbGameImage {

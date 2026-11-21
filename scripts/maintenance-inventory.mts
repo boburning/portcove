@@ -2349,6 +2349,9 @@ export async function collect(options: {
               ? "partial"
               : "complete",
           ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
+          ...(hostedIntake.auditContinuations
+            ? { audit_continuations: hostedIntake.auditContinuations }
+            : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -4433,7 +4436,9 @@ export async function main(argv = process.argv.slice(2)) {
               ),
             )
           : undefined,
-        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        hostedIntake: hostedSource
+          ? () => readHostedIntake(reconcileIntake ? environment : undefined)
+          : undefined,
         reconcileIntake: reconcileIntake
           ? async (queue) => {
               const { reconcileIntakeHandoffReceipts } =

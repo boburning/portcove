@@ -1,4 +1,8 @@
 import { desktopApi } from "../api";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
@@ -44,7 +48,7 @@ import {
 import { ArtworkControls } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -2447,6 +2451,7 @@ function InstalledPlayActions({
   pendingSetup,
   stagedVersion,
   selectableDiscs = 0,
+  commandPlayKey,
   busy,
   actions,
 }: {
@@ -2458,9 +2463,13 @@ function InstalledPlayActions({
   pendingSetup: boolean;
   stagedVersion?: string | undefined;
   selectableDiscs?: number | undefined;
+  commandPlayKey?: string | undefined;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  const registerPlay = useContext(CurrentGamePlayControl);
+  const confirmedPlay = launchReady && !trial && !pendingSetup;
+  const paletteTarget = confirmedPlay && !busy ? commandPlayKey : undefined;
   // Per-view choice: Core records it as the game's own saved disc when this
   // launch starts. The default sends no disc, so the game starts its saved disc.
   const [disc, setDisc] = useState(SAVED_DISC);
@@ -2498,7 +2507,9 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
-        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
+        data-confirmed-play={confirmedPlay ? "" : undefined}
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
@@ -4532,6 +4543,7 @@ function DetailHeaderAction({
     <InstalledPlayActions
       hero
       compact
+      commandPlayKey={currentGamePlayKey(model.port.id, model.libraryGeneration, model.status)}
       trial={
         hasUnconfirmedLaunchInput(model.status, model.port) ||
         Boolean(

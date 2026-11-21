@@ -3674,8 +3674,9 @@ compacts a route only when the generated integration reproduces it byte for
 byte. A different source, package, launcher or writer layout uses an explicit
 integration.
 
-Use the authoring-only `openx_portable_v1: true` for the reviewed OpenXW
-and OpenXvT portable routes. It supplies the stable Windows ZIP and Linux
+Set the authoring-only `openx_portable_v1` to the reviewed numeric GitHub repository ID
+(as a string) for portable routes with matching GitHub lineage,
+reviewed Windows and Linux package layouts and the same executable basename. It supplies the stable Windows ZIP and Linux
 TAR.XZ selectors, TAR.XZ handling, and the local `config.yaml` persistence
 path. Each title keeps its original-data picker instructions, executable,
 reviewed package layout, external SDL profile and qualification explicit.
@@ -3971,6 +3972,13 @@ IGDB image metadata, explicit `edition_neutral` evidence or a second header requ
 format 5; current readers retain formats 1–4. New optional fields preserve old
 records, not old strict readers' ability to consume new fields or enum values.
 Normal audience/reader compatibility review remains required before publication.
+Typed IGDB backgrounds use the existing `header` role with an `artwork` record
+positively classified as Key Art Without Logo and a fit of at least 3:2.
+Typed screenshots use `screenshot` and its distinct IGDB endpoint identity.
+Both use the bounded `720p` PNG derivative. These records require directory
+format 13. Author them in the port listing. Strict operational packages,
+retained user-selected runtime contracts, pending downloads and exports through
+format 12 omit these new records while preserving legacy media.
 Legacy strict presentation with
 no `media` field may use reviewed directory media for the same exact identity;
 an explicit empty array clears it. An existing local artwork override takes
@@ -3987,29 +3995,36 @@ original/edition. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-The Desktop currently has no validated binding from Core's source game/variant/
-representation identity to these descriptive original-edition IDs. Production
-original media therefore requires explicitly reviewed edition neutrality; exact
-port media and the existing Cover/text fallback remain available. Offered editions
-or similar ID strings must not manufacture a selection.
+Desktop has no validated binding from Core's source game, variant and
+representation IDs to these descriptive original-edition IDs. Automatic
+original media therefore requires reviewed edition neutrality. Players can use
+**Screenshot source** to view reviewed screenshots for an original release.
+This choice applies only to the gallery. Exact port media and the Cover and
+text fallbacks remain available. Offered editions and similar ID strings do not
+establish a selected source edition.
 
 Maintainer `--prepare-artwork`/`--prepare-proposal` can additionally use
 `--hero-media igdb` with the existing identity facts, private credentials and Core
-image validator. It queries `/v4/logos` and `/v4/artworks` through the same paced,
-bounded authenticated transport. Key art requires a positive `image_type.id/name`
-classification; conceptual art and unknown classifications do not qualify. Source
-image-type IDs are observed rather than hard-coded.
+image validator. It queries `/v4/logos`, `/v4/artworks` and `/v4/screenshots` through
+the same paced, bounded authenticated transport. Key art and backgrounds share the
+artwork query for the exact game. Key art requires a positive `image_type.id/name`
+classification. A background specifically requires Key Art Without Logo and a
+decoded image at least 3:2. An original-game screenshot identifies its subject in
+the caption. Source image-type IDs are observed rather than hard-coded.
 
 The optional image-type inventory uses IGDB's maximum 500-record page and a
 separate one-record overflow query when the page is full. Overflow, malformed
 responses and provider failures remain unknown; they never establish missing key
 art. Role preparation classifies each image using its expanded `image_type.id/name`
 relationship and does not require a separate inventory request.
-Original identity facts bind `source_edition_id` explicitly; optional
-`hero_media_edition_neutral` records reviewed
-applicability. Image records are bound to the verified game ID before download.
+Original identity facts bind `source_edition_id` explicitly. Optional
+`hero_media_edition_neutral` records reviewed applicability for logo and key art.
+Proposed backgrounds and screenshots retain their exact edition binding.
+Image records are bound to the verified game ID before download.
 Fit variants are PNG `logo_med_2x` and `720p`, with Core content validation, finite
-candidate chains and independent role failures. Exact HTTP410 observations sweep
+candidate chains and independent role failures. Preparation may fill a missing
+background and propose one screenshot when a subject has none. It preserves
+reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
 requests do not establish absence or withdrawal. Preparation proposes remote URLs,
 provenance, hashes and provider terms; it grants no admission, signing, publication

@@ -4,7 +4,7 @@ run-name: Maintenance inventory / ${{ inputs.purpose || 'schedule' }}
 # #4129 hosted operation: one unattended daily collection into the maintenance
 # store, a dated report and changes-only digest, a verified backup, and an
 # independent restore proof. See docs/MAINTENANCE-STORE.md#hosted-operation.
-# Nothing here dispatches an executor, posts a digest or publishes anything.
+# The scheduled run can resume an existing owner-authorized, receipt-bound final intake audit.
 
 on:
   schedule:
@@ -37,6 +37,7 @@ jobs:
     # Preserve the existing operation budget plus the optional throughput read.
     timeout-minutes: 94
     outputs:
+      audit_continuations: ${{ steps.collect.outputs.audit_continuations }}
       postgres_major: ${{ steps.postgres.outputs.major }}
       backup_artifact: ${{ steps.backup.outputs.artifact }}
     env:
@@ -156,6 +157,7 @@ jobs:
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
           else
+            jq -cr '"audit_continuations=" + ((.hosted_intake.audit_continuations // []) | tojson)' work/maintenance-evidence/collect.json >> "$GITHUB_OUTPUT"
             echo completed=true >> "$GITHUB_OUTPUT"
           fi
           printf 'collect\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
@@ -420,6 +422,24 @@ jobs:
         run: |
           jq '.hosted_intake.receipts' work/maintenance-evidence/collect.json
           jq -e '.hosted_intake.receipts.status == "passed"' work/maintenance-evidence/collect.json > /dev/null
+
+  resume-intake-audits:
+    needs: collect
+    if: >-
+      !cancelled() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' &&
+      needs.collect.outputs.audit_continuations != '' && needs.collect.outputs.audit_continuations != '[]'
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    uses: ./.github/workflows/hosted-discovery-intake.yml
+    with:
+      mode: resume-audits
+      audit_continuations: ${{ needs.collect.outputs.audit_continuations }}
+    secrets:
+      PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
+      PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
+      PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
 
   restore-proof:
     needs: collect

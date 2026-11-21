@@ -134,81 +134,97 @@ pub(super) fn canonical(bytes: &[u8]) -> Result<Vec<u8>> {
     Ok([serde_json::to_vec_pretty(&value)?.as_slice(), b"\n"].concat())
 }
 pub(super) fn tree(root: &Path, max_files: usize, max_bytes: u64) -> Result<Files> {
-    ancestry(root)?;
-    let mut files = Files::new();
-    let mut entries = 0;
-    let mut total = 0;
-    walk(
-        root,
-        "",
-        &mut files,
-        &mut entries,
-        &mut total,
-        max_files,
-        max_bytes,
-    )?;
-    Ok(files)
+    collect_tree(root, max_files, max_bytes, |_, bytes| bytes)
 }
-fn walk(
+/// Retain exact identities, reading at most one bounded file body at a time.
+pub(super) fn inventory(
     root: &Path,
-    prefix: &str,
-    files: &mut Files,
-    entries: &mut usize,
-    total: &mut u64,
     max_files: usize,
     max_bytes: u64,
-) -> Result<()> {
-    if prefix.split('/').count() > 8 || !fs::symlink_metadata(root)?.is_dir() {
-        return invalid("catalog tree kind/depth differs");
+) -> Result<Vec<DefinitionFile>> {
+    Ok(
+        collect_tree(root, max_files, max_bytes, |target, bytes| DefinitionFile {
+            target: target.to_owned(),
+            bytes: bytes.len() as u64,
+            sha256: sha(&bytes),
+        })?
+        .into_values()
+        .collect(),
+    )
+}
+fn collect_tree<T>(
+    root: &Path,
+    max_files: usize,
+    max_bytes: u64,
+    collect: impl Fn(&str, Vec<u8>) -> T,
+) -> Result<BTreeMap<String, T>> {
+    ancestry(root)?;
+    let mut walk = TreeWalk {
+        files: BTreeMap::new(),
+        entries: 0,
+        total: 0,
+        max_files,
+        max_bytes,
+        collect,
+    };
+    walk.visit(root, "")?;
+    Ok(walk.files)
+}
+struct TreeWalk<T, F> {
+    files: BTreeMap<String, T>,
+    entries: usize,
+    total: u64,
+    max_files: usize,
+    max_bytes: u64,
+    collect: F,
+}
+impl<T, F: Fn(&str, Vec<u8>) -> T> TreeWalk<T, F> {
+    fn visit(&mut self, root: &Path, prefix: &str) -> Result<()> {
+        if prefix.split('/').count() > 8 || !fs::symlink_metadata(root)?.is_dir() {
+            return invalid("catalog tree kind/depth differs");
+        }
+        for entry in fs::read_dir(root)? {
+            let entry = entry?;
+            self.entries += 1;
+            if self.entries > self.max_files * 2 + 16 {
+                return invalid("catalog tree entry bound exceeded");
+            }
+            let name = entry
+                .file_name()
+                .into_string()
+                .map_err(|_| TufRepositoryError::Invalid("catalog tree name nonUTF8".into()))?;
+            let relative = if prefix.is_empty() {
+                name
+            } else {
+                format!("{prefix}/{name}")
+            };
+            self::relative(&relative)?;
+            let metadata = fs::symlink_metadata(entry.path())?;
+            if metadata.file_type().is_symlink() {
+                return invalid("catalog tree includes link");
+            }
+            #[cfg(windows)]
+            {
+                use std::os::windows::fs::MetadataExt;
+                if metadata.file_attributes() & 0x400 != 0 {
+                    return invalid("catalog tree includes reparse point");
+                }
+            }
+            if metadata.is_dir() {
+                self.visit(&entry.path(), &relative)?;
+            } else {
+                if self.files.len() >= self.max_files {
+                    return invalid("catalog tree file bound exceeded");
+                }
+                let bytes = read(&entry.path(), ROLE_MAX)?;
+                self.total += bytes.len() as u64;
+                if self.total > self.max_bytes {
+                    return invalid("catalog tree total byte bound exceeded");
+                }
+                let value = (self.collect)(&relative, bytes);
+                self.files.insert(relative, value);
+            }
+        }
+        Ok(())
     }
-    for entry in fs::read_dir(root)? {
-        let entry = entry?;
-        *entries += 1;
-        if *entries > max_files * 2 + 16 {
-            return invalid("catalog tree entry bound exceeded");
-        }
-        let name = entry
-            .file_name()
-            .into_string()
-            .map_err(|_| TufRepositoryError::Invalid("catalog tree name nonUTF8".into()))?;
-        let relative = if prefix.is_empty() {
-            name
-        } else {
-            format!("{prefix}/{name}")
-        };
-        self::relative(&relative)?;
-        let metadata = fs::symlink_metadata(entry.path())?;
-        if metadata.file_type().is_symlink() {
-            return invalid("catalog tree includes link");
-        }
-        #[cfg(windows)]
-        {
-            use std::os::windows::fs::MetadataExt;
-            if metadata.file_attributes() & 0x400 != 0 {
-                return invalid("catalog tree includes reparse point");
-            }
-        }
-        if metadata.is_dir() {
-            walk(
-                &entry.path(),
-                &relative,
-                files,
-                entries,
-                total,
-                max_files,
-                max_bytes,
-            )?;
-        } else {
-            if files.len() >= max_files {
-                return invalid("catalog tree file bound exceeded");
-            }
-            let bytes = read(&entry.path(), ROLE_MAX)?;
-            *total += bytes.len() as u64;
-            if *total > max_bytes {
-                return invalid("catalog tree total byte bound exceeded");
-            }
-            files.insert(relative, bytes);
-        }
-    }
-    Ok(())
 }
