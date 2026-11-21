@@ -47,10 +47,10 @@ export function readScummvmGameData(
   if (!Array.isArray(rows) || !rows.length || rows.length > 512)
     throw new Error("ScummVM game data requires a complete bounded row array");
   const byGame = new Map<string, Set<string>>();
+  let gameRows = 0;
   for (const row of rows) {
     if (!isRecord(row) || !["addons", "games"].includes(String(row.category)))
       throw new Error("ScummVM game data has an unsupported category");
-    if (row.category === "addons") continue;
     const { game_id: game, name, url } = row;
     if (
       typeof game !== "string" ||
@@ -59,30 +59,39 @@ export function readScummvmGameData(
       typeof url !== "string"
     )
       throw new Error("ScummVM game data row lacks its exact identity, label or path");
-    // The games category also carries add-ons and installers. Neither supplies
-    // a game data edition for this projection. External links never enter it.
-    if (
-      !url.toLowerCase().endsWith(".zip") ||
-      /^[a-z][a-z0-9+.-]*:/iu.test(url) ||
-      /\badd-?on\b/iu.test(name)
-    )
-      continue;
+    const external = /^[a-z][a-z0-9+.-]*:/iu.test(url);
+    const parsed = external && URL.canParse(url) ? new URL(url) : null;
     const parts = url.split("/");
     const filename = parts.at(-1);
     if (
-      !filename ||
-      !archiveName.test(filename) ||
-      parts.some((part) => !part || part === "." || part === ".." || /[?#\\\p{Cc}]/u.test(part)) ||
       !editionLabel.test(name) ||
-      /https?:|[<>{}]/iu.test(name)
+      /https?:|[<>{}]/iu.test(name) ||
+      url.length > 512 ||
+      url !== url.trim() ||
+      (external
+        ? !parsed ||
+          parsed.protocol !== "https:" ||
+          !!parsed.username ||
+          !!parsed.password ||
+          /[\\\p{Cc}]/u.test(url)
+        : parts.some(
+            (part) => !part || part === "." || part === ".." || /[?#\\\p{Cc}]/u.test(part),
+          ))
     )
+      throw new Error("ScummVM game data contains ambiguous edition text or archive paths");
+    // Add-ons never demonstrate a complete game data table. A validated table
+    // of other game packages can authoritatively withdraw every prior ZIP.
+    if (row.category === "addons" || /\badd-?on\b/iu.test(name)) continue;
+    gameRows += 1;
+    if (external || !url.toLowerCase().endsWith(".zip")) continue;
+    if (!filename || !archiveName.test(filename))
       throw new Error("ScummVM game data contains ambiguous edition text or archive paths");
     const editions = byGame.get(game) ?? new Set<string>();
     editions.add(`${name} (${filename})`);
     if (editions.size > 12) throw new Error("ScummVM game data exceeds the per-game edition bound");
     byGame.set(game, editions);
   }
-  if (!byGame.size) throw new Error("ScummVM game data has no observed game archives");
+  if (!gameRows) throw new Error("ScummVM game data has no complete game rows");
   return {
     revision,
     blob: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
@@ -147,8 +156,10 @@ export async function observeScummvmGameData(
   )
     throw new Error("ScummVM game data content is unavailable");
   const bytes = Buffer.from(data.content, "base64");
+  if (bytes.length !== data.size)
+    throw new Error("ScummVM game data blob does not match its source identity");
   const observation = readScummvmGameData(bytes, revision);
-  if (bytes.length !== data.size || observation.blob !== data.sha)
+  if (observation.blob !== data.sha)
     throw new Error("ScummVM game data blob does not match its source identity");
   if ((await currentRevision()) !== revision)
     throw new Error("ScummVM game data changed during observation");
