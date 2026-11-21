@@ -1383,7 +1383,7 @@ it("opens the Cover editor from the game card and returns focus to the same More
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount("light", "collection", 3);
   const opener = page.getByRole("button", { name: /^More actions for/ }).first();
-  await expect.element(opener).toHaveAttribute("data-detail-origin", /^library:card-more:/);
+  await expect.element(opener).toBeVisible();
   const origin = opener.element().getAttribute("data-detail-origin");
   expect(origin).toMatch(/^library:card-more:collection-\d+$/);
   opener.element().focus();
