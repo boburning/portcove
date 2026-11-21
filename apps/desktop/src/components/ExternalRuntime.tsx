@@ -4,6 +4,7 @@ import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { useSetupLaunchDrafts } from "../features/browsing/setup-launch-drafts";
 import {
   readSetupChoice,
   writeSetupChoice,
@@ -191,6 +192,7 @@ function ExternalRuntimeContext({
   generation,
   busy,
   onChanged,
+  libraryRoot,
 }: ExternalRuntimeControlProps) {
   const [review, setReview] = useState<
     { kind: "register" | "relink"; path: string } | { kind: "remove" }
@@ -210,6 +212,7 @@ function ExternalRuntimeContext({
         generation={generation}
         busy={busy}
         onChanged={onChanged}
+        libraryRoot={libraryRoot}
       />
     );
   }
@@ -302,19 +305,17 @@ type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
-  return (
-    <UserSelectedRuntimeEditor
-      key={JSON.stringify([
-        props.port.id,
-        props.generation,
-        props.status?.external_runtime,
-        props.initialDirectory,
-        props.port.pendingSetup?.id,
-        props.libraryRoot,
-      ])}
-      {...props}
-    />
-  );
+  const scope = JSON.stringify([
+    props.port.id,
+    props.generation,
+    props.status?.external_runtime,
+    props.initialDirectory,
+    props.port.pendingSetup?.id,
+    props.port.pendingSetup?.state,
+    props.port.listing?.project_url ?? props.port.project_url,
+    props.libraryRoot,
+  ]);
+  return <UserSelectedRuntimeEditor key={scope} {...props} scope={scope} />;
 }
 
 function useUserSelectedRuntimeEditor({
@@ -328,12 +329,24 @@ function useUserSelectedRuntimeEditor({
   initialDirectory,
   libraryRoot,
   openGuide,
-}: UserSelectedRuntimeProps) {
+  scope,
+}: UserSelectedRuntimeProps & { scope: string }) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
   const registered = status?.external_runtime;
   const finishingDownload = port.pendingSetup?.state === "downloaded";
-  const [restored] = useState(() => readSetupChoice(libraryRoot, port.id, port.pendingSetup?.id));
+  const workspaceDrafts = useSetupLaunchDrafts();
+  const pendingId = port.pendingSetup?.id;
+  const drafts = pendingId ? undefined : workspaceDrafts;
+  const slot = port.id;
+  const [restored] = useState(() => {
+    const choice = drafts?.read(slot, scope);
+    return choice ? { choice } : readSetupChoice(libraryRoot, port.id, pendingId);
+  });
+  useLayoutEffect(
+    () => workspaceDrafts?.retireOtherTarget(slot, scope),
+    [workspaceDrafts, slot, scope],
+  );
   const [choiceWarning, setChoiceWarning] = useState(restored.warning);
   const defaults = initialRuntimeValues(restored, registered, finishingDownload, initialDirectory);
   const [executable, setExecutable] = useState(defaults.executable);
@@ -343,7 +356,7 @@ function useUserSelectedRuntimeEditor({
   const savedArguments = registered?.user_selected?.arguments ?? [];
   const preserveStructuredArguments =
     !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
-  const [editing, setEditing] = useState(finishingDownload);
+  const [editing, setEditing] = useState(finishingDownload || Boolean(drafts && restored.choice));
   const [launchDetailsOpen, setLaunchDetailsOpen] = useState(!finishingDownload);
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
@@ -352,20 +365,24 @@ function useUserSelectedRuntimeEditor({
   const markTargetEdited = () => {
     targetEdited.current = true;
   };
-  const pendingId = port.pendingSetup?.id;
   const pendingState = port.pendingSetup?.state;
   const hasRegistered = Boolean(registered && !finishingDownload);
   const rememberSetup = (change: Partial<SetupChoice>) => {
-    setChoiceWarning(
-      writeSetupChoice(libraryRoot, port.id, pendingId, {
-        executable,
-        workingDirectory,
-        argumentLines,
-        argumentsEdited,
-        targetEdited: targetEdited.current,
-        ...change,
-      }),
-    );
+    const choice = {
+      executable,
+      workingDirectory,
+      argumentLines,
+      argumentsEdited,
+      targetEdited: targetEdited.current,
+      ...change,
+    };
+    drafts?.write(slot, scope, choice);
+    setChoiceWarning(writeSetupChoice(libraryRoot, port.id, pendingId, choice));
+  };
+  const clearDraft = () => drafts?.clear(slot, scope);
+  const registrationChanged = () => {
+    clearDraft();
+    onChanged?.();
   };
   const { suggestions, scanning, refreshTargets } = useRuntimeLaunchTargets({
     portId: port.id,
@@ -438,7 +455,8 @@ function useUserSelectedRuntimeEditor({
     port,
     generation,
     busy,
-    onChanged,
+    onChanged: registrationChanged,
+    clearDraft,
     workingDirectoryId,
     launchDetailsId,
     registered,
@@ -1132,6 +1150,7 @@ function RuntimeRegistrationForm({
   | "generation"
   | "busy"
   | "onChanged"
+  | "clearDraft"
   | "workingDirectoryId"
   | "launchDetailsId"
   | "registered"
@@ -1222,6 +1241,7 @@ function RuntimeRegistrationForm({
           variant="ghost"
           onClick={() => {
             model.pickerRequests.current.begin();
+            model.clearDraft();
             model.setExecutable(registered.executable);
             model.setWorkingDirectory(registered.path);
             model.setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");

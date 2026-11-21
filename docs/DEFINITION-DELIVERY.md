@@ -1756,6 +1756,44 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+### Stage an observed N64 original-input amendment
+
+Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
+--original-input-checkpoint CHECKPOINT --observer-cli OBSERVER_CORE --validator CORE_CLI` with the complete
+configured observer checkpoint and the retained official managed bundle.
+The same inputs work with `prepare`, plus the existing
+`--reviewed REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` options. Both
+commands derive the amendment from the current checkout's authored catalog,
+observer selection and reviewed package receipts. The source completion must
+cover the current scope and remain fresh under the configured observer policy.
+Supply the exact Core binary used by the observation. Preparation fingerprints it
+and reuses its normalized definition inspection over the current catalog and
+listing files to reproduce the collector's scope binding.
+The Core producer validates
+the resulting projection, and the existing prepare step inspects the complete
+prior and proposed bundles.
+
+The amendment requires an existing official schema-4 managed grant. Every
+effective package must match the retained curated repository, release, commit,
+platform, digest and reviewed runtime layout. Every retained platform needs
+curated coverage. Shared packages need evidence for every applicable platform.
+The candidate preserves the port,
+older input bindings, publisher grant, launch assessments, and the full
+existing capability range. The prior minimum must already require capability
+10 for an informational original or 11 for an enforced legacy contract.
+Preparation holds while the existing range admits an older reader. The existing protected publisher authenticates the
+prior publication and controls signing. New curated identities remain on the
+independent acquisition admission route.
+
+This preparation mode is opt-in and the scheduled publisher does not invoke it.
+The current managed index has one N64 definition, Chameleon Twist JP
+Recompiled, with an independently accepted Windows v0.1 archive and a
+capability-1 ceiling. Its authored catalog row is descriptive, so the configured
+observer supplies no operational original-file fact for that port. Harvest Moon
+64 Recompiled has checked input receipts
+for its managed selections, but has no entry in the official managed bundle.
+Neither supplies an eligible publication candidate for this mode.
+
 ### Historical coordinator
 
 The automatic catalog authoring boundary is the fixed inert source subtree

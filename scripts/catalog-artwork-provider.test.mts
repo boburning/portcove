@@ -434,33 +434,42 @@ void test("game media uses dedicated relationships and fit PNG assets through th
   );
   await provider.inspectGameMedia(7, "logo");
   await provider.inspectGameMedia(7, "key_art");
+  await provider.inspectGameMedia(7, "screenshot");
   await provider.inspectImageTypes();
   await provider.inspectMediaImage("logofixture", "logo");
   await provider.inspectMediaImage("artfixture", "key_art");
+  await provider.inspectMediaImage("shotfixture", "screenshot");
   assert.deepEqual(
     calls.map((call) => call.url),
     [
       "https://id.twitch.tv/oauth2/token",
       "https://api.igdb.com/v4/logos",
       "https://api.igdb.com/v4/artworks",
+      "https://api.igdb.com/v4/screenshots",
       "https://api.igdb.com/v4/image_types",
       "https://images.igdb.com/igdb/image/upload/t_logo_med_2x/logofixture.png",
       "https://images.igdb.com/igdb/image/upload/t_720p/artfixture.png",
+      "https://images.igdb.com/igdb/image/upload/t_720p/shotfixture.png",
     ],
   );
   assert.ok(text(requiredFixture(calls[1]).options.body).includes("where game = 7;"));
   assert.ok(text(requiredFixture(calls[2]).options.body).includes("image_type.name"));
   assert.equal(
     text(requiredFixture(calls[3]).options.body),
+    "fields id,game,image_id,width,height,alpha_channel,animated; where game = 7; sort id asc; limit 21;",
+  );
+  assert.equal(
+    text(requiredFixture(calls[4]).options.body),
     "fields id,name; sort id asc; limit 500;",
   );
   assert.ok(calls.every((call) => call.options.redirect === "error"));
-  assert.equal(decoded, 2);
+  for (const call of calls.slice(5)) assert.equal(call.options.headers, undefined);
+  assert.equal(decoded, 3);
   assert.equal(provider.providerMetrics.authentication_requests, 1);
-  assert.equal(provider.providerMetrics.game_requests, 3);
-  assert.equal(provider.providerMetrics.image_requests, 2);
+  assert.equal(provider.providerMetrics.game_requests, 4);
+  assert.equal(provider.providerMetrics.image_requests, 3);
   await assert.rejects(provider.inspectGameMedia(0, "logo"), /Invalid game media identity/);
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, 8);
 });
 
 void test("image-type inventory respects the provider page cap and proves completeness at the boundary", async () => {
@@ -543,9 +552,10 @@ void test("unavailable image-type overflow stays unknown without disabling game-
   assert.equal(provider.providerMetrics.game_requests, 3);
 });
 
-void test("hero preparation validates identity without requiring a cover and rejects generic or foreign artwork", async () => {
+void test("game media preparation binds each typed role to the same exact game", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
   const inspected: string[] = [];
+  const relationships: string[] = [];
   const result = await prepareCatalogGameMedia(
     {
       ports: [
@@ -567,42 +577,56 @@ void test("hero preparation validates identity without requiring a cover and rej
             websites: [{ url: "https://example.org/sample" }],
           },
         ],
-        inspectGameMedia: async (_id, kind) =>
-          kind === "logo"
-            ? [{ id: 9, game: 7, image_id: "logo" }]
-            : [
-                {
-                  id: 1,
-                  game: 7,
-                  image_id: "concept",
-                  image_type: { id: 991, name: "Concept art" },
-                },
-                {
-                  id: 2,
-                  game: 8,
-                  image_id: "foreign",
-                  image_type: { id: 992, name: "Key art with logo" },
-                },
-                {
-                  id: 3,
-                  game: 7,
-                  image_id: "without",
-                  image_type: { id: 993, name: "Key art without logo" },
-                },
-                {
-                  id: 4,
-                  game: 7,
-                  image_id: "with",
-                  image_type: { id: 992, name: "Key art with logo" },
-                },
-              ],
+        inspectGameMedia: async (id, kind) => {
+          relationships.push(kind);
+          assert.equal(id, 7);
+          if (kind === "logo") return [{ id: 9, game: 7, image_id: "logo" }];
+          if (kind === "screenshot")
+            return [
+              { id: 1, game: 8, image_id: "othergame" },
+              { id: 2, game: 7, image_id: "animated", animated: true },
+              { id: 3, game: 7, image_id: "shot" },
+            ];
+          return [
+            {
+              id: 1,
+              game: 7,
+              image_id: "concept",
+              image_type: { id: 991, name: "Concept art" },
+            },
+            {
+              id: 2,
+              game: 8,
+              image_id: "foreign",
+              image_type: { id: 992, name: "Key art with logo" },
+            },
+            {
+              id: 3,
+              game: 7,
+              image_id: "without",
+              image_type: { id: 993, name: "Key art without logo" },
+            },
+            {
+              id: 4,
+              game: 7,
+              image_id: "with",
+              image_type: { id: 992, name: "Key art with logo" },
+            },
+            {
+              id: 5,
+              game: 7,
+              image_id: "wide",
+              image_type: { id: 993, name: "Key art without logo" },
+            },
+          ];
+        },
         inspectMediaImage: async (id) => {
           inspected.push(id);
           if (id === "with") throw new Error("Fixture image unavailable");
           return {
             sha256: "a".repeat(64),
             bytes: 100,
-            width: 400,
+            width: id === "without" ? 260 : 400,
             height: 200,
             format: "png",
             validator: "portcove-core",
@@ -611,7 +635,8 @@ void test("hero preparation validates identity without requiring a cover and rej
       },
     },
   );
-  assert.deepEqual(inspected, ["with", "without", "logo"]);
+  assert.deepEqual(relationships, ["key_art", "logo", "screenshot"]);
+  assert.deepEqual(inspected, ["with", "without", "logo", "without", "wide", "shot"]);
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(
@@ -622,21 +647,37 @@ void test("hero preparation validates identity without requiring a cover and rej
     [
       ["key_art", "without"],
       ["logo", "logo"],
+      ["header", "wide"],
+      ["screenshot", "shot"],
     ],
   );
   const first: unknown = media[0];
   assert.ok(isRecord(first) && isRecord(first.igdb));
   assert.equal(first.igdb.image_type, 993);
   assert.equal(first.igdb.image_type_name, "Key art without logo");
+  const header: unknown = media[2];
+  assert.ok(isRecord(header) && isRecord(header.igdb));
+  assert.equal(header.igdb.kind, "artwork");
+  assert.equal(header.igdb.image_type, 993);
+  const screenshot: unknown = media[3];
+  assert.ok(isRecord(screenshot) && isRecord(screenshot.igdb));
+  assert.deepEqual(screenshot.igdb, {
+    kind: "screenshot",
+    game_id: 7,
+    game_slug: "sample",
+    record_id: 3,
+    image_id: "shot",
+  });
   assert.deepEqual(
     result.records.map((record) => record.reason),
-    ["role-selected", "role-selected"],
+    ["role-selected", "role-selected", "role-selected", "role-selected"],
   );
 });
 
 void test("incomplete key-art inventory preserves cached media and does not suppress the logo role", async () => {
   const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
-  const retained = { id: "retained-header", role: "header" };
+  const subject = { kind: "port", port_id: "sample" };
+  const retained = { id: "retained-header", role: "header", subject };
   const result = await prepareCatalogGameMedia(
     {
       ports: [
@@ -659,9 +700,9 @@ void test("incomplete key-art inventory preserves cached media and does not supp
           },
         ],
         inspectGameMedia: async (_id, kind) =>
-          kind === "key_art"
-            ? Array.from({ length: 21 }, () => ({}))
-            : [{ id: 9, game: 7, image_id: "logo" }],
+          kind === "logo"
+            ? [{ id: 9, game: 7, image_id: "logo" }]
+            : Array.from({ length: 21 }, () => ({})),
         inspectMediaImage: async () => ({
           sha256: "b".repeat(64),
           bytes: 100,
@@ -675,12 +716,125 @@ void test("incomplete key-art inventory preserves cached media and does not supp
   );
   assert.equal(result.records[0]?.reason, "media-provider-unavailable-or-incomplete");
   assert.equal(result.records[1]?.reason, "role-selected");
+  assert.equal(result.records[2]?.reason, "existing-scene-retained");
+  assert.equal(result.records[3]?.reason, "media-provider-unavailable-or-incomplete");
   const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
   assert.ok(Array.isArray(media));
   assert.deepEqual(media[0], retained);
   const second: unknown = media[1];
   assert.ok(isRecord(second));
   assert.equal(second.role, "logo");
+});
+
+void test("new scenes stay edition-bound and preserve other reviewed scopes", async () => {
+  const { prepareCatalogGameMedia } = await import("./inspect-igdb-artwork.mts");
+  const portScreenshot = {
+    id: "port-screenshot",
+    role: "screenshot",
+    subject: { kind: "port", port_id: "sample" },
+  };
+  const otherEditionScreenshot = {
+    id: "igdb-screenshot-original-8",
+    role: "screenshot",
+    subject: { kind: "original", game_id: "original", source_edition_id: "older" },
+  };
+  const lookedUp: number[] = [];
+  const result = await prepareCatalogGameMedia(
+    {
+      ports: [
+        {
+          id: "sample",
+          name: "Sample Port",
+          project_url: "https://example.org/sample",
+          underlying_game: {
+            game_id: 7,
+            slug: "sample-original",
+            names: ["Sample Original"],
+            evidence_url: "https://example.org/edition",
+            source_edition_id: "selected",
+            hero_media_edition_neutral: true,
+          },
+          presentation: {
+            original_game: {
+              id: "original",
+              source_editions: [{ id: "selected" }, { id: "older" }],
+            },
+            media: [portScreenshot, otherEditionScreenshot],
+          },
+        },
+      ],
+    },
+    {
+      inspector: {
+        inspectGame: async (declaration) => {
+          assert.ok(isRecord(declaration));
+          return declaration.game_id === 7
+            ? [{ id: 7, name: "Sample Original", slug: "sample-original" }]
+            : [
+                {
+                  id: 9,
+                  name: "Sample Port",
+                  slug: "sample-port",
+                  websites: [{ url: "https://example.org/sample" }],
+                },
+              ];
+        },
+        inspectGameMedia: async (id, role) => {
+          if (id === 7 && role === "logo") return [{ id: 7, game: 7, image_id: "logo" }];
+          if (id === 7 && role === "key_art")
+            return [
+              {
+                id: 5,
+                game: 7,
+                image_id: "background",
+                image_type: { id: 99, name: "Key Art Without Logo" },
+              },
+            ];
+          if (role !== "screenshot") return [];
+          lookedUp.push(id);
+          return [
+            { id: 8, game: 7, image_id: "otheredition" },
+            { id: 9, game: 7, image_id: "selectededition" },
+          ];
+        },
+        inspectMediaImage: async () => ({
+          sha256: "a".repeat(64),
+          bytes: 100,
+          width: 400,
+          height: 200,
+          format: "png",
+          validator: "portcove-core",
+        }),
+      },
+    },
+  );
+  assert.deepEqual(lookedUp, [7]);
+  const media = requiredFixture(result.catalog.ports[0]).presentation?.media;
+  assert.ok(Array.isArray(media));
+  assert.equal(media.length, 6);
+  assert.deepEqual(media.slice(0, 2), [portScreenshot, otherEditionScreenshot]);
+  const keyArt: unknown = media[2];
+  assert.ok(isRecord(keyArt));
+  assert.equal(keyArt.role, "key_art");
+  assert.equal(keyArt.edition_neutral, true);
+  const logo: unknown = media[3];
+  assert.ok(isRecord(logo));
+  assert.equal(logo.role, "logo");
+  assert.equal(logo.edition_neutral, true);
+  const background: unknown = media[4];
+  assert.ok(isRecord(background));
+  assert.equal(background.role, "header");
+  assert.equal(background.edition_neutral, undefined);
+  const added: unknown = media[5];
+  assert.ok(isRecord(added));
+  assert.equal(added.id, "igdb-screenshot-original-9");
+  assert.equal(added.caption, "Original game screenshot");
+  assert.equal(added.edition_neutral, undefined);
+  assert.deepEqual(added.subject, {
+    kind: "original",
+    game_id: "original",
+    source_edition_id: "selected",
+  });
 });
 
 void test("an observed Gone image sweeps earlier and unselected references and cannot be reselected in the batch", async () => {
@@ -713,7 +867,7 @@ void test("an observed Gone image sweeps earlier and unselected references and c
             },
           ]),
         );
-      if (url.endsWith("/artworks")) return new Response("[]");
+      if (url.endsWith("/artworks") || url.endsWith("/screenshots")) return new Response("[]");
       if (url.endsWith("/logos"))
         // Duplicate records for one exact image must not retry it after withdrawal.
         return new Response(
@@ -880,7 +1034,7 @@ for (const unavailableMedia of [false, true]) {
         },
       },
     });
-    assert.equal(mediaCalls, 2);
+    assert.equal(mediaCalls, 3);
     assert.equal(
       imageCalls,
       1,
@@ -898,7 +1052,9 @@ for (const unavailableMedia of [false, true]) {
     if (unavailableMedia)
       assert.ok(
         result.records.every(
-          (record) => record.reason === "media-provider-unavailable-or-incomplete",
+          (record) =>
+            record.reason === "media-provider-unavailable-or-incomplete" ||
+            (record.role === "header" && record.reason === "existing-scene-retained"),
         ),
       );
   });
