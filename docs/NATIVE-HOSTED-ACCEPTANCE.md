@@ -224,6 +224,12 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The manual `reviewed-recovery-bundles` operation runs only the existing recovery bundle
+create/restore and interruption matrix entries on Windows, each in its own
+isolated job. Both use the same clean source, checkpoint setup, owned process
+cleanup and lossless evidence as `product-workflows`. The full product matrix
+keeps its original entries.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
