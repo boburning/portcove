@@ -2698,6 +2698,21 @@ GitHub asset privately. The review compares the ZIP with the published SHA-256 a
 mods and companion libraries for the selected platform. Use the intact ZIP in
 the upstream installer. The report cannot activate a Portcove setup.
 
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text

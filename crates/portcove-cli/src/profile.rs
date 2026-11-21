@@ -326,6 +326,14 @@ pub(crate) enum ProfileCommand {
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
         platform: Option<String>,
     },
+    /// Browse the opt-in JakMods community catalog for an OpenGOAL game.
+    Jakmods {
+        /// Catalog port ID with reviewed OpenGOAL setup.
+        port_id: String,
+        /// View builds for this platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
         /// Catalog port ID with a reviewed provider binding.
@@ -455,6 +463,7 @@ impl ProfileCommand {
             Self::RecipeApply { .. } => "profile.recipe-apply",
             Self::GithubMods { .. } => "profile.github-mods",
             Self::GithubModReview { .. } => "profile.github-mod-review",
+            Self::Jakmods { .. } => "profile.jakmods",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
@@ -478,6 +487,7 @@ impl ProfileCommand {
                 | Self::RecipePlan { .. }
                 | Self::GithubMods { .. }
                 | Self::GithubModReview { .. }
+                | Self::Jakmods { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
@@ -921,6 +931,78 @@ fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
     lines.join("\n")
 }
 
+fn jakmods_text(catalog: &portcove_core::JakModsCatalog) -> String {
+    use portcove_core::{JakModsBuildStatus, ProviderFreshness};
+    let platform = crate::human::platform_name(catalog.platform);
+    let mut lines = vec![format!(
+        "JakMods community source · {} · {platform}",
+        clean(&catalog.game)
+    )];
+    if catalog.freshness == ProviderFreshness::Stale {
+        lines.push(format!(
+            "Showing cached results from {}.",
+            utc_time(catalog.observed_at)
+        ));
+    }
+    if !catalog.complete {
+        lines.push("Some listings or builds could not be read.".into());
+    }
+    if catalog.projects.is_empty()
+        && catalog.complete
+        && catalog.freshness != ProviderFreshness::Stale
+    {
+        lines.push("No mods are listed for this game.".into());
+    }
+    for project in &catalog.projects {
+        let status = match project.build_status {
+            JakModsBuildStatus::Available => "Standalone OpenGOAL mod build",
+            JakModsBuildStatus::Unavailable => "No listed build for this platform",
+            JakModsBuildStatus::Unknown => "Build availability unknown",
+            JakModsBuildStatus::External => "External project",
+        };
+        lines.push(format!(
+            "{} ({}) — {status}",
+            clean(&project.name),
+            clean(&project.id)
+        ));
+        if let Some(url) = project
+            .external_url
+            .as_deref()
+            .or(project.website_url.as_deref())
+        {
+            lines.push(format!("  View on source: {}", clean(url)));
+        }
+        if let Some((release, build)) = project.releases.iter().find_map(|release| {
+            release
+                .builds
+                .iter()
+                .find(|build| build.platform == catalog.platform)
+                .map(|build| (release, build))
+        }) {
+            let date = release
+                .published_at
+                .map(utc_time)
+                .unwrap_or_else(|| "date unknown".into());
+            let downloads = build.downloads.map_or_else(
+                || "download count unknown".into(),
+                |count| format!("{count} downloads for this build"),
+            );
+            lines.push(format!(
+                "  {} · {date} · {downloads}",
+                clean(&release.version)
+            ));
+        }
+    }
+    lines.push(format!("OpenGOAL setup: {}", clean(&catalog.setup_url)));
+    lines.push(format!(
+        "Add this source in OpenGOAL Launcher Settings > Mods: {}",
+        clean(&catalog.feed_url)
+    ));
+    lines
+        .push("The OpenGOAL Launcher manages supported mod installs, versions and updates.".into());
+    lines.join("\n")
+}
+
 pub(crate) async fn execute(
     command: ProfileCommand,
     service: &PortcoveService,
@@ -971,6 +1053,15 @@ pub(crate) async fn execute(
                 );
                 lines.join("\n")
             })
+        }
+        ProfileCommand::Jakmods { port_id, platform } => {
+            let platform = match platform {
+                Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+                    .map_err(|_| PortcoveError::usage("unsupported platform"))?,
+                None => Platform::current()?,
+            };
+            let catalog = service.jakmods_catalog(&port_id, platform).await?;
+            render_read_success(mode, name, catalog, jakmods_text)
         }
         ProfileCommand::ProviderBrowse {
             port_id,

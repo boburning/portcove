@@ -134,6 +134,47 @@ export function completedListingCandidates(
   return candidates;
 }
 
+function completeObservation(value: Record<string, unknown>) {
+  const { attempted_at, observed_at, fresh_until, ...facts } = value;
+  if (
+    facts.status !== "complete" ||
+    typeof attempted_at !== "string" ||
+    typeof observed_at !== "string" ||
+    typeof fresh_until !== "string"
+  )
+    return null;
+  const attempted = Date.parse(attempted_at);
+  const observed = Date.parse(observed_at);
+  const expires = Date.parse(fresh_until);
+  if (!Number.isFinite(attempted) || !(observed <= attempted && attempted < expires)) return null;
+  return { attempted, observed, expires, facts };
+}
+
+/**
+ * Keep an already signed observation through the first half of its original
+ * freshness window when the completed refresh only advances its clocks.
+ * Leaving the old clocks intact preserves the exact evidence readers received.
+ */
+function retainFreshObservation(
+  held: Record<string, unknown>,
+  proposed: Record<string, unknown>,
+  now: number,
+) {
+  const prior = completeObservation(held);
+  const next = completeObservation(proposed);
+  return (
+    prior !== null &&
+    next !== null &&
+    prior.observed <= now &&
+    now < prior.observed + (prior.expires - prior.observed) / 2 &&
+    next.observed >= prior.observed &&
+    next.attempted >= prior.attempted &&
+    next.expires >= prior.expires &&
+    next.expires - next.observed >= prior.expires - prior.observed &&
+    observationHash(prior.facts) === observationHash(next.facts)
+  );
+}
+
 export function projectListingDelivery(
   canonical: unknown,
   candidates: readonly Record<string, unknown>[],
@@ -210,7 +251,10 @@ export function projectListingDelivery(
       const proposed = updates.get(String(listing.id));
       if (
         proposed &&
-        (!held || (proposed.status === "complete" && observedAt(proposed) >= observedAt(held)))
+        (!held ||
+          (proposed.status === "complete" &&
+            observedAt(proposed) >= observedAt(held) &&
+            !retainFreshObservation(held, proposed, now)))
       )
         result.upstream_observation = structuredClone(proposed);
       return {

@@ -293,6 +293,7 @@ pub struct Library {
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
     pub(crate) github_mod_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -766,6 +767,7 @@ impl Library {
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
             github_mod_backoff: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         })
     }
@@ -780,6 +782,7 @@ impl Library {
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
             github_mod_backoff: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
