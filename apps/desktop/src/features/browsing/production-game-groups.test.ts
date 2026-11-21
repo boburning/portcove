@@ -56,15 +56,11 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
       ? [id]
       : (selectedExtra?.family_port_ids ?? reviewedFamily ?? [id]);
     expect(group?.ports.map((entry) => entry.id).sort()).toEqual([...expectedPortIds].sort());
-    const expectedIdentity = reviewedProject ? undefined : { game, title };
-    const actualIdentity =
-      reviewedProject && selected?.presentation?.original_game === undefined
-        ? undefined
-        : {
-            game: selected?.presentation?.original_game?.id,
-            title: group && gameGroupTitle(group),
-          };
-    expect(actualIdentity).toEqual(expectedIdentity);
+    expect(title).toBeDefined();
+    expect(group && gameGroupTitle(group)).toBe(title);
+    const original = selected?.presentation?.original_game;
+    expect(original === undefined).toBe(reviewedProject);
+    expect(original?.id).toBe(game);
     expect(projected).toHaveLength(entries.length + (canonical ? 0 : 1));
     expect(selectedGroups).toHaveLength(groups.length);
     expect(
