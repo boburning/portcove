@@ -1517,6 +1517,7 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
         })
     };
     let a = mapping(1, "covera", "b");
+    let scope = super::cover_approval_scope(&json!({"id":"example"}), &a).unwrap();
     let fixture = |first: Option<&str>,
                    last: &str,
                    prior: &serde_json::Value,
@@ -1528,7 +1529,7 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
             "consumed_packets": packets,
             "approvals": [{
                 "id": "example",
-                "scope": "a".repeat(64),
+                "scope": scope,
                 "authored": a,
                 "prior": prior,
                 "role": "cover",
@@ -1657,6 +1658,32 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
         )
         .is_err()
     );
+    let mut forged_scope = approved_c.clone();
+    forged_scope["approvals"][0]["scope"] = json!("0".repeat(64));
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &forged_scope,
+            &compact(&b),
+            None,
+            &compact(&c),
+        )
+        .is_err()
+    );
+    let mut wrong_anchor = approved_c.clone();
+    wrong_anchor["approvals"][0]["authored"] = b.clone();
+    wrong_anchor["approvals"][0]["scope"] =
+        json!(super::cover_approval_scope(&json!({"id":"example"}), &b).unwrap());
+    assert!(
+        super::check_cover_approval_successor(
+            Some(&approved_b),
+            &wrong_anchor,
+            &compact(&b),
+            None,
+            &compact(&c),
+        )
+        .is_err()
+    );
     let mut wrong_role = approved_c;
     wrong_role["approvals"][0]["role"] = json!("logo");
     assert!(
@@ -1668,5 +1695,30 @@ fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
             &compact(&c)
         )
         .is_err()
+    );
+}
+
+#[test]
+fn approval_scope_matches_the_publisher_vector_for_compatible_edition_identity() {
+    let listing = json!({
+        "id": "mortal-kombat-4-recompiled",
+        "project_url": "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+        "original_game_title": "Mortal Kombat 4 \u{2014} \u{65e5}\u{672c}",
+        "original_game": {
+            "format_version": 1, "id": "mortal-kombat-4",
+            "evidence_urls": ["https://www.igdb.com/games/mortal-kombat-4"],
+            "source_editions": [{
+                "id":"mortal-kombat-4-playstation", "title":"Mortal Kombat 4 (PlayStation)",
+                "system":"playstation", "evidence_urls":["https://example.com/edition"],
+            }],
+        },
+    });
+    let artwork = json!({
+        "cover_id": 237769, "game_id": 1622, "game_slug": "mortal-kombat-4",
+        "image_id": "co53gp", "image_sha256": "a".repeat(64), "match_kind": "underlying-game",
+    });
+    assert_eq!(
+        super::cover_approval_scope(&listing, &artwork).unwrap(),
+        "2f814ad1c3629bd5b9aa0a7b1a6d2abe83d22f1e088d9392f31a718702cf3287"
     );
 }

@@ -19,7 +19,7 @@ import {
 } from "./catalog-cover-approval.mts";
 import { validArtworkMapping } from "./catalog-cover-mapping.mts";
 import { stripVerifiedSourceBindings } from "./listing-observation-delivery.mts";
-import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
+import { advanceArtworkCheckpoint, coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import {
@@ -573,5 +573,35 @@ void test("protected cover approval binds the review packet, actual source, prei
     noResurrection.apply(projectApprovedCovers(previous, acceptedC).listings[0]!, sourceRow)
       .artwork,
     third,
+  );
+});
+
+void test("compatible artwork declaration scope matches the signer vector", () => {
+  const edition = {
+    id: "mortal-kombat-4-playstation",
+    title: "Mortal Kombat 4 (PlayStation)",
+    system: "playstation",
+    evidence_urls: ["https://example.com/edition"],
+    verified_sources: [
+      { game_id: "mortal-kombat-4", variant_id: "playstation", representation_id: "original-disc" },
+    ],
+  };
+  const row = {
+    id: "mortal-kombat-4-recompiled",
+    project_url: "https://github.com/alexbeavs-ps1-ports/mortal-kombat-4-recomp",
+    original_game_title: "Mortal Kombat 4 \u2014 \u65e5\u672c",
+    original_game: {
+      format_version: 1,
+      id: "mortal-kombat-4",
+      evidence_urls: ["https://www.igdb.com/games/mortal-kombat-4"],
+      source_editions: [edition],
+    },
+  };
+  assert.equal(
+    coverDeclarationScope(stripVerifiedSourceBindings(row), {
+      ...prior,
+      image_sha256: "a".repeat(64),
+    }),
+    "2f814ad1c3629bd5b9aa0a7b1a6d2abe83d22f1e088d9392f31a718702cf3287",
   );
 });

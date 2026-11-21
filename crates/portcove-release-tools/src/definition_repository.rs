@@ -525,6 +525,29 @@ fn cover_approval_packets(journal: &serde_json::Value) -> Result<&[serde_json::V
     Ok(packets)
 }
 
+// Matches coverDeclarationScope in scripts/listing-artwork-checkpoint.mts.
+// Both inputs are the actual assembled compatible listing shape. Explicitly
+// sort nested objects before hashing, including when serde_json preserves order.
+fn cover_approval_scope(
+    listing: &serde_json::Value,
+    artwork: &serde_json::Value,
+) -> Result<String> {
+    let mut scope = serde_json::json!([
+        listing["id"],
+        listing["project_url"],
+        listing["original_game_title"],
+        listing["original_game"],
+        if listing["collection_covers"].is_array() {
+            "collection"
+        } else {
+            "single"
+        },
+        artwork,
+    ]);
+    scope.sort_all_objects();
+    Ok(sha(&serde_json::to_vec(&scope)?))
+}
+
 fn check_cover_approval_successor(
     prior: Option<&serde_json::Value>,
     next: &serde_json::Value,
@@ -570,31 +593,47 @@ fn check_cover_approval_successor(
     let prior_checkpoint = prior_cover
         .map(serde_json::from_slice::<serde_json::Value>)
         .transpose()?;
-    for row in approved.iter().filter(|row| &row["packet"] == final_packet) {
-        let former = previous.iter().find(|old| {
-            old["id"] == row["id"]
-                && old["scope"] == row["scope"]
-                && old["authored"] == row["authored"]
-        });
-        let expected = former
-            .map(|old| &old["candidate"])
-            .unwrap_or(&row["authored"]);
-        let Some(held) = prior_listings
-            .iter()
-            .find(|listing| listing["id"] == row["id"])
-        else {
+    let (decoded, _) = decode(compact)?;
+    let directory: serde_json::Value = serde_json::from_slice(&decoded)?;
+    let listings = directory["directory"]["listings"]
+        .as_array()
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog approved cover directory differs".into())
+        })?;
+    let changed = approved
+        .iter()
+        .filter(|row| &row["packet"] == final_packet)
+        .collect::<Vec<_>>();
+    if changed.is_empty() {
+        return invalid("catalog cover approval packet has no signed cover changes");
+    }
+    for row in changed {
+        let subject = |listing: &&serde_json::Value| listing["id"] == row["id"];
+        let Some(held) = prior_listings.iter().find(subject) else {
             return invalid("catalog cover approval subject missing from signed compact prior");
         };
-        let gone = if held.get("artwork").is_none() && !held["collection_covers"].is_array() {
-            let scope = serde_json::json!([
-                held["id"],
-                held["project_url"],
-                held["original_game_title"],
-                held["original_game"],
-                "single",
-                row["prior"],
-            ]);
-            let scope = sha(&serde_json::to_vec(&scope)?);
+        let Some(proposed) = listings.iter().find(subject) else {
+            return invalid("catalog cover approval subject missing from signed compact successor");
+        };
+        if held["collection_covers"].is_array()
+            || proposed["collection_covers"].is_array()
+            || row["scope"] != cover_approval_scope(held, &row["authored"])?
+            || row["scope"] != cover_approval_scope(proposed, &row["authored"])?
+            || proposed["artwork"] != row["candidate"]
+        {
+            return invalid("catalog approved cover differs from the exact signed subject scope");
+        }
+        let mut expected = &row["authored"];
+        if let Some(former) = previous.iter().find(subject)
+            && former["scope"] == cover_approval_scope(held, &former["authored"])?
+        {
+            if row["authored"] != former["authored"] || row["scope"] != former["scope"] {
+                return invalid("catalog cover approval changed an active authored anchor");
+            }
+            expected = &former["candidate"];
+        }
+        let gone = if held.get("artwork").is_none() {
+            let scope = cover_approval_scope(held, &row["prior"])?;
             prior_checkpoint
                 .as_ref()
                 .and_then(|checkpoint| checkpoint["entries"].as_array())
@@ -613,26 +652,6 @@ fn check_cover_approval_successor(
         if &row["prior"] != expected || (held["artwork"] != row["prior"] && !gone) {
             return invalid("catalog cover approval does not bind the effective preimage");
         }
-    }
-    let (decoded, _) = decode(compact)?;
-    let directory: serde_json::Value = serde_json::from_slice(&decoded)?;
-    let listings = directory["directory"]["listings"]
-        .as_array()
-        .ok_or_else(|| {
-            TufRepositoryError::Invalid("catalog approved cover directory differs".into())
-        })?;
-    let mut changed = approved
-        .iter()
-        .filter(|row| &row["packet"] == final_packet)
-        .peekable();
-    if changed.peek().is_none()
-        || changed.any(|row| {
-            !listings
-                .iter()
-                .any(|listing| listing["id"] == row["id"] && listing["artwork"] == row["candidate"])
-        })
-    {
-        return invalid("catalog approved cover differs from the exact compact listing");
     }
     Ok(())
 }
