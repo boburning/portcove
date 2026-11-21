@@ -347,6 +347,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-managed-copy-result",
+    "A reviewed managed copy replaces an external registration while preserving its files, retains the exact completion, and opens only that installation without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-update-acquisition-lifecycle",
     "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
@@ -863,6 +873,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-update-acquisition-lifecycle requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-managed-copy-result") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-managed-copy-result requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
@@ -1109,6 +1124,7 @@ export function desktopHarnessDeadlineMs(
   // finish first. Harness only; product deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
     return 1_200_000;
+  if (selection.selected_scenarios.includes("native-managed-copy-result")) return 600_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,

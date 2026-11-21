@@ -636,6 +636,38 @@ test("update review serves its offered release from the owned fixture, not the p
   }
 });
 
+test("managed-copy fixture publishes a separate native-portable package for the owned executable", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-managed-copy-contract-"));
+  const tool = path.join(output, "owned-preparation-tool");
+  const bytes = Buffer.from("inert owned executable bytes");
+  try {
+    await writeFile(tool, bytes, { flag: "wx" });
+    const fixture = await createInstallFixture({
+      root,
+      output,
+      managedCopyJourney: true,
+      preparationTool: tool,
+    });
+    try {
+      assert.equal(fixture.managedCopyJourney, true);
+      const catalog = await readFixtureCatalog(fixture.catalogPath);
+      const port = present(catalog.ports.find(({ id }) => id === INSTALL_FIXTURE_PORT_ID));
+      assert.equal(port.adapter, "native-portable");
+      for (const platform of port.platforms) {
+        const release = present(port.release.direct[platform]);
+        assert.equal(release.url, fixture.url);
+        assert.equal(release.sha256, createHash("sha256").update(fixture.artifact).digest("hex"));
+      }
+      assert.deepEqual(gunzipSync(fixture.artifact).subarray(512, 512 + bytes.length), bytes);
+      assert.equal(fixture.requests.length, 0);
+    } finally {
+      await fixture.close();
+    }
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
 test("install fixture is isolated, pinned, interruptible, and retryable", async () => {
   const output = await mkdtemp(path.join(tmpdir(), "portcove-install-fixture-"));
   const fixture = await createInstallFixture({ root, output });
