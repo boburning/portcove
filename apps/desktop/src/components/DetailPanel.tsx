@@ -1,4 +1,5 @@
 import { useAppTranslation } from "../localization";
+import { desktopApi } from "../api";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";

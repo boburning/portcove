@@ -1084,8 +1084,8 @@ it.each(["uninstalled", "unsupported", "external"] as const)(
     await browse.click();
     expect(open).toHaveBeenCalledWith(url);
     expect(page.getByRole("button", { name: /create.*setup/i }).query()).toBeNull();
-    if (runtime === "unsupported") expect(read).toHaveBeenCalledWith(port.id, expect.any(Number));
-    else expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), true);
+    const browseOnly = runtime === "unsupported" ? [] : [true];
+    expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), ...browseOnly);
     read.mockRestore();
     open.mockRestore();
   },
