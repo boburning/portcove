@@ -33,6 +33,12 @@ Check which operations and schemas both the client and the CLI support. If
 either lacks support or the client cannot interpret a required field, keep the
 affected operation unavailable.
 
+Use the existing asset hints, per-platform archive declarations and launch
+fields on current readers. Keep asset pins and package layout evidence tied
+to the exact selection. Generic authored rules and launch paths require
+named-feature negotiation and an installed reader that preserves the
+creating contract. [Catalog declaration compatibility](CATALOG.md#package-and-launch-declaration-compatibility)
+
 ## Choose a CLI and fixture library
 
 1. Choose the standalone CLI for the actual operating system and processor from

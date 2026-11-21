@@ -74,6 +74,21 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+## Package and launch declaration compatibility
+
+Existing asset hints narrow supported package names. Reviewed release-stream
+exclusions separately filter tags for their declared platforms. Exact managed
+pins and package choices retain their own identity and authority checks.
+
+The archive dispatch accepts TAR.XZ and 7z on the player-owned setup route
+through the existing bounded extractors. Managed installation requires separate authority for the format. Existing managed TAR.XZ still requires
+its retained platform declaration. Launch resolution derives the installed
+source, per-game user data and cache paths from the trusted launch request.
+
+New declarative selection or launch behavior needs a definition reader that
+requires its named feature and retains the creating contract through reopen.
+Continue using the current authoring fields until that reader is qualified.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing

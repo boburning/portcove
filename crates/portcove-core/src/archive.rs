@@ -1028,6 +1028,37 @@ mod tests {
         assert!(fs::read_dir(&rejected).unwrap().next().is_none());
     }
 
+    #[test]
+    fn portable_tar_xz_refuses_traversal_before_writes() {
+        let scratch = tempdir().unwrap();
+        let input = scratch.path().join("unsafe.tar.gz");
+        write_tar_gz_raw_paths(
+            &input,
+            &[("../escaped.exe", tar::EntryType::Regular, b"fixture", 0o755)],
+        );
+        let mut raw = Vec::new();
+        GzDecoder::new(File::open(input).unwrap())
+            .read_to_end(&mut raw)
+            .unwrap();
+        let fixture = encode_xz_fixture(&raw);
+        let path = scratch.path().join("portable-Windows.tar.xz");
+        fs::write(&path, &fixture).unwrap();
+        let output = scratch.path().join("checked");
+        fs::create_dir(&output).unwrap();
+        assert!(
+            extract_download_archive_with_checkpoint(
+                &path,
+                &output,
+                "portable-Windows.tar.xz",
+                fixture.len() as u64,
+                &|| Ok(()),
+            )
+            .is_err()
+        );
+        assert!(fs::read_dir(&output).unwrap().next().is_none());
+        assert!(!scratch.path().join("escaped.exe").exists());
+    }
+
     // The pre-#989 implementation is retained only as a test oracle.
     fn reference_collision_insert(
         entries: &mut BTreeMap<String, bool>,
