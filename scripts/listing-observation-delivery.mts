@@ -721,7 +721,7 @@ export async function prepareObservationBundle(options: {
   const automatic =
     !options.compact && (options.compactIfCapable || options.officialReleasedReader);
   const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
-  let officialReader: ReturnType<typeof acquireCatalogReleasedReader> | undefined;
+  let officialReader: Awaited<ReturnType<typeof acquireCatalogReleasedReader>> | undefined;
   let releasedReader: { version: string; sha256: string } | undefined;
   if (
     !renewal &&
@@ -730,7 +730,7 @@ export async function prepareObservationBundle(options: {
   ) {
     try {
       officialReader = options.officialReleasedReader
-        ? acquireCatalogReleasedReader(workspace)
+        ? await acquireCatalogReleasedReader(workspace)
         : undefined;
       const reviewedReader = officialReader ?? options.releasedReader;
       if (!reviewedReader || !/^[a-f0-9]{64}$/u.test(reviewedReader.sha256))
