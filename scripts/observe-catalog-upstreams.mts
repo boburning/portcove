@@ -18,6 +18,7 @@ import type { GitHubRequestPolicy } from "./github-client.mts";
 import type { ObserveOptions } from "./upstream-observer.mts";
 import type { CatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import { downloadGitHubWorkflowStepLog } from "./github-artifact-download.mts";
 import { isRecord } from "./runtime-values.mts";
 import { advanceCatalogObservations } from "./catalog-upstream-observer.mts";
 import {
@@ -250,6 +251,7 @@ export async function runCatalogUpstreams(
     runtime.observer?.signal,
   );
   const repositoryMetadata = runtime.repositoryMetadata ?? githubMetadata;
+  let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;
   let health: unknown = null;
   try {
     health = await boundedJson(
@@ -420,6 +422,38 @@ export async function runCatalogUpstreams(
         }
       },
       observeN64Runtime: true,
+      readN64BuildStepLog: async (repository, job, step, account) => {
+        const deadline = Math.min(githubScope.deadline, performance.now() + 20_000);
+        stepLogCredential ??= localDeveloperCredential({ deadline });
+        try {
+          return await downloadGitHubWorkflowStepLog(
+            "repos/" + repository + "/actions/jobs/" + job + "/steps/" + step + "/logs",
+            {
+              credential: stepLogCredential,
+              deadline,
+              maxBytes: Math.min(512 * 1024, config.budget.response_bytes),
+              ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
+              lookup: {
+                reserve() {
+                  account.admitRequest();
+                  return {
+                    consumeBytes: (bytes) => account.consumeResponseBytes(bytes),
+                    settle(attempt) {
+                      if (attempt.dispatched)
+                        account.observeResponse(new Response(null, { headers: attempt.headers }));
+                    },
+                  };
+                },
+              },
+            },
+            (bytes) => account.consumeResponseBytes(bytes),
+          );
+        } catch (error) {
+          if (error instanceof GitHubApiError && error.code === "rate_limited")
+            throw observerGitHubRateLimit(error, now());
+          throw error;
+        }
+      },
       readOriginalRecognition: async (repository, endpoint, account) => {
         account.admitRequest();
         try {

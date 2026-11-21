@@ -524,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the accepted implementation format 12.
-    candidate["directory"]["format_version"] = json!(13);
+    // The next unknown format follows the accepted IGDB scene format 13.
+    candidate["directory"]["format_version"] = json!(14);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -1058,14 +1058,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
             // Reload still uses exactly the original decoded content and digest.
             assert_eq!(stored.target_sha256, prior.target_sha256);
         } else {
-            assert_eq!(
-                stored.target_sha256.as_deref(),
-                Some(
-                    carrier(&next[..next.len() - 1])["decoded_sha256"]
-                        .as_str()
-                        .unwrap()
-                )
-            );
+            assert_eq!(stored.target_sha256.as_deref(), Some(next_digest.as_str()));
         }
     }
 

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { fitListingAdmissions } from "./listing-admission-budget.mts";
 import { isRecord } from "./runtime-values.mts";
-import { parseCatalogSource } from "./catalog-authoring.mts";
+import { parseCatalogSource, typedIgdbScene } from "./catalog-authoring.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
 import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
@@ -20,6 +20,7 @@ import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
 import {
+  compactListingCarrier,
   compactListingDecodedMaximum,
   compactListingDeliveryTarget,
   decodeRetainedCompactListing,
@@ -30,6 +31,7 @@ import {
 
 export { listingDeliveryTarget };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+const legacyListingFormat = 11;
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -45,7 +47,7 @@ function directory(value: unknown): Directory {
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 12 ||
+    Number(value.format_version) > 13 ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )
@@ -176,6 +178,78 @@ export function completedListingCandidates(
   return candidates;
 }
 
+function completeObservation(value: Record<string, unknown>) {
+  const { attempted_at, observed_at, fresh_until, ...facts } = value;
+  if (
+    facts.status !== "complete" ||
+    typeof attempted_at !== "string" ||
+    typeof observed_at !== "string" ||
+    typeof fresh_until !== "string"
+  )
+    return null;
+  const attempted = Date.parse(attempted_at);
+  const observed = Date.parse(observed_at);
+  const expires = Date.parse(fresh_until);
+  if (!Number.isFinite(attempted) || !(observed <= attempted && attempted < expires)) return null;
+  return { attempted, observed, expires, facts };
+}
+
+/**
+ * Keep an already signed observation through the first half of its original
+ * freshness window when the completed refresh only advances its clocks.
+ * Leaving the old clocks intact preserves the exact evidence readers received.
+ */
+function retainFreshObservation(
+  held: Record<string, unknown>,
+  proposed: Record<string, unknown>,
+  now: number,
+) {
+  const prior = completeObservation(held);
+  const next = completeObservation(proposed);
+  return (
+    prior !== null &&
+    next !== null &&
+    prior.observed <= now &&
+    now < prior.observed + (prior.expires - prior.observed) / 2 &&
+    next.observed >= prior.observed &&
+    next.attempted >= prior.attempted &&
+    next.expires >= prior.expires &&
+    next.expires - next.observed >= prior.expires - prior.observed &&
+    observationHash(prior.facts) === observationHash(next.facts)
+  );
+}
+
+function compactDirectoryFormat(canonical: Directory, previous: Delivery | null) {
+  return Math.max(
+    legacyListingFormat,
+    canonical.format_version,
+    previous?.directory.format_version ?? 0,
+  );
+}
+
+export function requireCompactListingReader(report: unknown, format: number) {
+  if (
+    !isRecord(report) ||
+    report.ok !== true ||
+    report.command !== "capabilities" ||
+    !isRecord(report.data) ||
+    report.data.product !== "Portcove" ||
+    typeof report.data.product_version !== "string" ||
+    !report.data.product_version.length ||
+    !Array.isArray(report.data.listing_delivery_carriers) ||
+    !report.data.listing_delivery_carriers.includes(compactListingCarrier) ||
+    !Array.isArray(report.data.listing_formats) ||
+    !report.data.listing_formats.includes(format)
+  )
+    throw new Error(
+      "The reviewed released CLI must support " +
+        compactListingCarrier +
+        " and listing format " +
+        format,
+    );
+  return report.data.product_version;
+}
+
 export function projectListingDelivery(
   canonical: unknown,
   candidates: readonly Record<string, unknown>[],
@@ -189,17 +263,20 @@ export function projectListingDelivery(
   requireComplete = false,
 ) {
   const raw = directory(canonical);
-  const baseline = directory(compatible ?? raw);
-  const identities = new Set(raw.listings.map((listing) => listing.id));
-  if (
-    baseline.format_version !== 11 ||
-    baseline.listings.length !== raw.listings.length ||
-    baseline.listings.some((listing) => !identities.has(listing.id))
-  )
-    throw new Error("Core compatibility projection changed canonical identities");
   const previousDocument = previous
     ? delivery(parseCatalogSource(previous.toString("utf8")))
     : null;
+  const format = requireComplete
+    ? compactDirectoryFormat(raw, previousDocument)
+    : legacyListingFormat;
+  const baseline = directory(compatible ?? raw);
+  const identities = new Set(raw.listings.map((listing) => listing.id));
+  if (
+    baseline.format_version !== format ||
+    baseline.listings.length !== raw.listings.length ||
+    baseline.listings.some((listing) => !identities.has(listing.id))
+  )
+    throw new Error("Core compatibility projection changed canonical identities or format");
   const previousListings = new Map(
     previousDocument?.directory.listings.map((listing) => [listing.id, listing]) ?? [],
   );
@@ -246,9 +323,24 @@ export function projectListingDelivery(
     .map((listing) => {
       const result = structuredClone(listing);
       const old = previousListings.get(listing.id);
+      let comparable = listing;
+      // Pre-format-13 signed rows could not carry typed scenes.
+      if (
+        old &&
+        format >= 13 &&
+        previousDocument &&
+        previousDocument.directory.format_version < 13 &&
+        Array.isArray(listing.media) &&
+        listing.media.some(typedIgdbScene)
+      ) {
+        comparable = { ...listing };
+        const media = listing.media.filter((asset) => !typedIgdbScene(asset));
+        if (media.length > 0) comparable.media = media;
+        else delete comparable.media;
+      }
       const prior =
         old &&
-        listingDeclarationHash(old) === listingDeclarationHash(listing) &&
+        listingDeclarationHash(old) === listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -261,7 +353,10 @@ export function projectListingDelivery(
       const proposed = updates.get(String(listing.id));
       if (
         proposed &&
-        (!held || (proposed.status === "complete" && observedAt(proposed) >= observedAt(held)))
+        (!held ||
+          (proposed.status === "complete" &&
+            observedAt(proposed) >= observedAt(held) &&
+            !retainFreshObservation(held, proposed, now)))
       )
         result.upstream_observation = structuredClone(proposed);
       return {
@@ -289,7 +384,7 @@ export function projectListingDelivery(
     listing_delivery_schema: 1,
     revision: value,
     withdrawn_ids: withdrawn,
-    directory: { format_version: 11, listings },
+    directory: { format_version: format, listings },
   });
   const envelopeBytes = Buffer.byteLength(JSON.stringify(envelope([])));
   const maximumForMode = requireComplete ? compactListingDecodedMaximum : maximum;
@@ -471,6 +566,7 @@ export async function prepareObservationBundle(options: {
   offlineTargets: string;
   observe?: boolean;
   compact?: boolean;
+  releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
@@ -492,20 +588,6 @@ export async function prepareObservationBundle(options: {
     });
   const canonicalPath = path.join(workspace, "canonical.json");
   writeFileSync(canonicalPath, canonicalBytes, { flag: "wx" });
-  const baseline: unknown = JSON.parse(
-    cli([
-      "--json",
-      "catalog",
-      "inspect-listings",
-      "--path",
-      canonicalPath,
-      "--format-version",
-      "11",
-    ]),
-  );
-  if (!isRecord(baseline) || baseline.ok !== true)
-    throw new Error("Core could not export the exact canonical directory for format 11");
-  const compatible = directory(baseline.data);
   const authoredPath = path.join(options.bundle, listingDeliveryTarget);
   const authoredLegacy = existsSync(authoredPath)
     ? await readControllerToolFile(authoredPath, maximum)
@@ -591,6 +673,63 @@ export async function prepareObservationBundle(options: {
       );
       retainedLegacy = authoredLegacy;
     }
+  }
+  const previousDocument = previous
+    ? delivery(parseCatalogSource(previous.toString("utf8")))
+    : null;
+  const format = renewal
+    ? delivery(parseCatalogSource(renewal.bytes.toString("utf8"))).directory.format_version
+    : useCompact
+      ? compactDirectoryFormat(canonical, previousDocument)
+      : legacyListingFormat;
+  let releasedReader: { version: string; sha256: string } | undefined;
+  if (
+    !renewal &&
+    useCompact &&
+    (!priorCompact || format > (previousDocument?.directory.format_version ?? 0))
+  ) {
+    if (!options.releasedReader || !/^[a-f0-9]{64}$/u.test(options.releasedReader.sha256))
+      throw new Error(
+        "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
+      );
+    const bytes = await readControllerToolFile(options.releasedReader.cli);
+    const digest = hash(bytes);
+    if (digest !== options.releasedReader.sha256)
+      throw new Error("Reviewed released CLI SHA-256 differs");
+    const frozen = path.join(
+      workspace,
+      process.platform === "win32" ? "released-reader.exe" : "released-reader",
+    );
+    writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
+    const report: unknown = JSON.parse(
+      execFileSync(frozen, ["--json", "capabilities"], {
+        env: environment,
+        timeout: 30000,
+        maxBuffer: 1024 * 1024,
+        encoding: "utf8",
+      }),
+    );
+    releasedReader = {
+      version: requireCompactListingReader(report, format),
+      sha256: digest,
+    };
+  }
+  let compatible: Directory | undefined;
+  if (!renewal) {
+    const baseline: unknown = JSON.parse(
+      cli([
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        canonicalPath,
+        "--format-version",
+        String(format),
+      ]),
+    );
+    if (!isRecord(baseline) || baseline.ok !== true)
+      throw new Error("Core could not export the exact canonical directory for format " + format);
+    compatible = directory(baseline.data);
   }
   if (!isRecord(current) || !Array.isArray(current.ports))
     throw new Error("Operational catalog requires a complete port array");
@@ -698,6 +837,8 @@ export async function prepareObservationBundle(options: {
   const report = {
     bundle,
     revision: projected.revision,
+    listing_format: format,
+    ...(releasedReader ? { released_reader: releasedReader } : {}),
     changed: projected.changed,
     retained: projected.retained,
     updated: projected.updated,
@@ -750,6 +891,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "offline-targets": { type: "string" },
       offline: { type: "boolean", default: false },
       compact: { type: "boolean", default: false },
+      "released-reader": { type: "string" },
+      "released-reader-sha256": { type: "string" },
     },
   });
   for (const key of [
@@ -763,6 +906,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     "offline-targets",
   ] as const)
     if (!values[key]) throw new Error(`--${key} is required`);
+  if (Boolean(values["released-reader"]) !== Boolean(values["released-reader-sha256"]))
+    throw new Error("--released-reader and --released-reader-sha256 are required together");
   console.log(
     JSON.stringify(
       await prepareObservationBundle({
@@ -777,6 +922,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         compact: values.compact,
+        ...(values["released-reader"] && values["released-reader-sha256"]
+          ? {
+              releasedReader: {
+                cli: path.resolve(values["released-reader"]),
+                sha256: values["released-reader-sha256"],
+              },
+            }
+          : {}),
       }),
     ),
   );

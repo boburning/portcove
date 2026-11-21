@@ -215,6 +215,12 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   signed catalog and 900 MB for the complete Pages tree, including browse and
   application files. Publication reports the complete tree size before push.
   [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
+- **Descriptive refresh:** While a signed complete observation is in the first
+  half of its recorded freshness window, an equivalent completed provider check
+  keeps the exact prior clocks and payload. The next applicable pass can renew
+  the observation once half that window has elapsed. Authored guide changes,
+  new release facts, and changes to the permitted freshness window bypass this
+  deduplication. Existing incomplete collection and failure rules still apply.
 - **Signing:**
   - `prepare` builds the CLI and release tools, inspects the bundle with Core,
     reads the published catalog and plans the next version of every online role.

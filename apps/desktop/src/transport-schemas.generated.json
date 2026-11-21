@@ -6276,7 +6276,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -6330,7 +6330,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -9964,7 +9965,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -10018,7 +10019,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -27632,6 +27634,13 @@
           "null"
         ]
       },
+      "transport_target_sha256": {
+        "description": "Digest of the authenticated compact transport target, when applicable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "withdrawn_ids": {
         "items": {
           "type": "string"
@@ -34270,6 +34279,13 @@
               "null"
             ]
           },
+          "transport_target_sha256": {
+            "description": "Digest of the authenticated compact transport target, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "withdrawn_ids": {
             "items": {
               "type": "string"
@@ -35858,7 +35874,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -35912,7 +35928,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -37322,7 +37339,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -37376,7 +37393,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -56123,7 +56141,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -56177,7 +56195,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },

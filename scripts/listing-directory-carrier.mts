@@ -6,7 +6,7 @@ export const listingDeliveryTarget = "policy/official/catalog.listings.json";
 export const compactListingDeliveryTarget = "policy/official/catalog.listings.compact.json";
 export const listingDeliveryMaximum = 8 * 1024 ** 2;
 export const compactListingDecodedMaximum = 32 * 1024 ** 2;
-const carrier = "gzip-base64-json-v1";
+export const compactListingCarrier = "gzip-base64-json-v1";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function encodeCompactListing(bytes: Buffer) {
@@ -16,7 +16,7 @@ export function encodeCompactListing(bytes: Buffer) {
     );
   const result = Buffer.from(
     JSON.stringify({
-      carrier,
+      carrier: compactListingCarrier,
       decoded_bytes: bytes.length,
       decoded_sha256: sha256(bytes),
       gzip_base64: gzipSync(bytes).toString("base64"),
@@ -37,7 +37,7 @@ export function decodeRetainedCompactListing(raw: Buffer) {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !== "carrier,decoded_bytes,decoded_sha256,gzip_base64" ||
-    value.carrier !== carrier ||
+    value.carrier !== compactListingCarrier ||
     typeof value.decoded_bytes !== "number" ||
     !Number.isSafeInteger(value.decoded_bytes) ||
     value.decoded_bytes < 1 ||

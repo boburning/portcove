@@ -15,7 +15,7 @@ interface BuildTarget {
   artifacts: readonly { sha256: string }[];
 }
 
-interface OutputMatch {
+export interface OutputMatch {
   sha256: string;
   run_id: number;
   run_attempt: 1;
@@ -23,6 +23,7 @@ interface OutputMatch {
   workflow_path: string;
   artifact_id: number;
   size: number;
+  artifact_created_at?: string;
   observed_at: string;
 }
 
@@ -77,6 +78,7 @@ export function readUpstreamBuildObservation(
       !positiveId(match.artifact_id) ||
       artifactIds.has(match.artifact_id) ||
       !positiveId(match.size) ||
+      (match.artifact_created_at !== undefined && !timestamp(match.artifact_created_at)) ||
       !timestamp(match.observed_at)
     )
       return;
@@ -89,6 +91,9 @@ export function readUpstreamBuildObservation(
       workflow_path: match.workflow_path,
       artifact_id: match.artifact_id,
       size: match.size,
+      ...(timestamp(match.artifact_created_at)
+        ? { artifact_created_at: match.artifact_created_at }
+        : {}),
       observed_at: match.observed_at,
     });
   }
@@ -277,6 +282,7 @@ export async function advanceUpstreamArtifactBuildObservation(
       workflow_path: String(run.path),
       artifact_id: artifact.id,
       size: artifact.size_in_bytes,
+      artifact_created_at: artifact.created_at,
       observed_at: observedAt,
     });
   }
@@ -313,6 +319,8 @@ export async function advanceUpstreamArtifactBuildObservation(
 }
 
 export function isUpstreamBuildMetadataUrl(url: URL) {
+  if (/^\/repos\/[^/]+\/[^/]+\/actions\/artifacts\/[1-9]\d*$/u.test(url.pathname))
+    return url.search === "";
   const root = /^\/repos\/[^/]+\/[^/]+\/actions\/runs(.*)$/u.exec(url.pathname);
   if (!root) return false;
   if (root[1] === "") {
@@ -322,6 +330,7 @@ export function isUpstreamBuildMetadataUrl(url: URL) {
     return !!query && Number(query[1]) <= maxRunPages;
   }
   if (/^\/[1-9]\d*$/u.test(root[1] ?? "")) return url.search === "";
+  if (/^\/[1-9]\d*\/attempts\/1\/jobs$/u.test(root[1] ?? "")) return url.search === "?per_page=100";
   const query = /^\?per_page=100&page=([1-9]\d*)$/u.exec(url.search);
   return (
     /^\/[1-9]\d*\/artifacts$/u.test(root[1] ?? "") &&

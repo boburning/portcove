@@ -79,3 +79,28 @@ When adding another native WebDriver transport for the same interactions, share 
 For the qualification-only embedded Mac WebDriver transport, check the driver's input semantics before attributing a non-input element `sendKeys` failure to the product. Use WebDriver actions for supported keyboard paths and retain the failed transport run. Hosted generated keyboard events do not establish physical keyboard behavior or minimum OS support.
 
 For focus acceptance after a stateful action, inspect whether success replaces the opener, ancestor, route, or whole workspace. Test the successful replacement path separately from Escape or cancellation and verify focus on the new authoritative control. If the native fixture cannot safely perform the mutation, state that native limit and use a focused remount integration test; a native dismissal pass does not prove focus after replacement.
+
+## Checkpoints, handoffs and retained saves
+
+Before a host retry run `just resource-status --storage-only --storage-path EVIDENCE_DIRECTORY`.
+Add another `--storage-path` for each selected fallback directory. Use existing
+directories so free space is observed on the intended filesystem.
+
+Write one local checkpoint record per result or pause with
+`node scripts/native-audit-checkpoint.mts INPUT.json PRIMARY_DIRECTORY [FALLBACK_DIRECTORY]`.
+Supply an issue number, `build` or `launch_id`, absolute `evidence_path`, and
+`resume_condition`. Include the outstanding operator instruction in the record
+when it changes the next action. Retain the verified path and digest from stdout.
+
+While an operator handoff is outstanding, retain the owned session. Record
+`portcove --json launch show REQUEST_ID` to a file using the same library.
+Run `node scripts/handoff-evidence.mts native-status LAUNCH.json REQUEST_ID WINDOW UI_CONTROL`
+with a separately observed exact-window state (`open`, `closed`, `unknown`)
+and the automation state (`active`, `stopped`, `unknown`). A UI stop leaves the window and launch
+observations independent. Confirm the operator's intent before closing a
+handed-off runtime.
+
+For a managed retained-save control, use the ordinary backup and restore route
+described in [the CLI contract](../../../../docs/CLI.md#managed-saved-data-and-backups). Check the restored
+bytes where the executable reads them before asserting in-game load. Keep direct
+file placement scoped to a disposable engine control.

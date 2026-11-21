@@ -254,6 +254,17 @@ at the same repository and commit. This establishes a provider-reported build-to
 digest link. Effective checkout and dependency behavior, the job that produced
 the output, and native original-file acceptance need separate evidence.
 
+For outputs with an identifiable upload step, the observer reads that step
+and the earlier checkout step from the exact run attempt. The upload log must
+identify the same digest, artifact ID and size. The checkout log must report
+the selected repository, source commit, runtime and xxHash revisions. The
+checkpoint retains checked job and step identities and log digests. Missing
+or unusable job evidence leaves the affected package unknown and advances the
+search to other packages. Shared budget and rate-limit deferrals still apply.
+Raw logs and signed download addresses stay out of the checkpoint. This records
+checkout and upload observations from the same job. Later build steps and
+native behavior still require their own evidence.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag
@@ -1341,14 +1352,20 @@ because the fixed source bundle omits this derived target.
 The publisher can prepare a compact carrier at
 `policy/official/catalog.listings.compact.json` after compatible clients ship.
 It uses one gzip stream in a versioned JSON envelope with the decoded size and
-SHA-256. The carrier and its decoded directory each have an eight-MiB limit.
+SHA-256. The carrier has an eight-MiB limit and the decoded directory has a
+32-MiB limit. Compact delivery retains all applicable canonical listings,
+including implementation explanations and reviewed IGDB scenes when present.
 The existing policy role signs the exact carrier bytes. The last verified legacy
 directory remains signed for older clients and its bytes stay fixed. Later
 observations update only the compact target. Both carriers share a revision
 floor and must decode to the same bytes at equal revisions. The scheduled
 publisher keeps the existing representation until its first compact publication
-is explicitly enabled. After activation, a reviewed exact legacy target in the
-existing publication bundle can add an explicit safety withdrawal. It must
+is explicitly enabled. First activation and later format upgrades require the
+reviewed released CLI and its exact SHA-256. The preparation command checks
+that reader's carrier and directory-format capabilities before making a bundle.
+The publisher records the verified reader version and digest. After activation,
+a reviewed exact legacy target in the existing publication bundle can add an
+explicit safety withdrawal. It must
 preserve the other signed legacy rows and advance above the current revision.
 The compact successor carries the same withdrawals and preserves its other
 rows and prior withdrawals.

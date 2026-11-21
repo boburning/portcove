@@ -176,6 +176,44 @@ mod projection_tests {
     }
 
     #[test]
+    fn legacy_delivery_preserves_typed_igdb_scenes_only_for_an_unchanged_scope() {
+        let baseline = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#).unwrap();
+        let current = CatalogListingDocument::from_json(&serde_json::json!({
+            "format_version": 13,
+            "listings": [{
+                "id":"fixture","name":"Fixture game","summary":"Fixture description.",
+                "project_url":"https://example.com/project",
+                "media":[{
+                    "id":"typed-shot","role":"screenshot","subject":{"kind":"port","port_id":"fixture"},
+                    "caption":"Test scene","url":"https://images.igdb.com/igdb/image/upload/t_720p/fixture.png",
+                    "sha256":"a".repeat(64),"width":1280,"height":720,"attribution":"Fixture",
+                    "source_url":"https://www.igdb.com/games/fixture","license":"LicenseRef-IGDB-Terms",
+                    "rights_url":"https://www.twitch.tv/p/en/legal/developer-agreement/",
+                    "igdb":{"game_id":11,"record_id":21,"kind":"screenshot","image_id":"fixture","game_slug":"fixture"}
+                }]
+            }]
+        }).to_string()).unwrap();
+        let baseline = baseline.with_listing_document(current.clone()).unwrap();
+        for (format_version, same_scope, count) in [(11, true, 1), (11, false, 0), (13, true, 0)] {
+            let mut directory = current.export_format(11).unwrap();
+            directory.format_version = format_version;
+            if !same_scope {
+                directory.listings[0].project_url = "https://example.com/changed-project".into();
+            }
+            let delivery = ListingDeliveryDocument {
+                listing_delivery_schema: 1,
+                revision: 1,
+                withdrawn_ids: vec![],
+                directory,
+            };
+            let delivery =
+                ListingDeliveryDocument::parse(&serde_json::to_vec(&delivery).unwrap()).unwrap();
+            let projected = delivery.project(baseline.clone()).unwrap();
+            assert_eq!(projected.listing("fixture").unwrap().media.len(), count);
+        }
+    }
+
+    #[test]
     fn restricted_delivery_promotes_a_legacy_directory_without_granting_managed_authority() {
         let document = ListingDeliveryDocument::parse(
             &serde_json::to_vec(&serde_json::json!({
@@ -293,15 +331,43 @@ impl ListingDeliveryDocument {
             .collect();
         for listing in &self.directory.listings {
             let mut replacement = listing.clone();
-            // Older directories cannot express or withdraw format-12 explanations.
-            // Retain them only for the same project's exact game scope.
-            if self.directory.format_version < 12
-                && replacement.implementation.is_none()
-                && let Some(current) = listings.get(&listing.id)
-                && replacement.project_url == current.project_url
-                && replacement.original_game == current.original_game
-            {
-                replacement.implementation = current.implementation.clone();
+            if let Some(current) = listings.get(&listing.id) {
+                let same_scope = replacement.project_url == current.project_url
+                    && replacement.original_game == current.original_game;
+                // Older directories cannot express or withdraw format-12
+                // explanations. Retain only the same project's exact game
+                // scope; all fields that delivery understands remain its own.
+                if self.directory.format_version < 12
+                    && replacement.implementation.is_none()
+                    && same_scope
+                {
+                    replacement.implementation = current.implementation.clone();
+                }
+                if self.directory.format_version < crate::catalog_media::IGDB_SCENE_LISTING_FORMAT
+                    && same_scope
+                    && current
+                        .media
+                        .iter()
+                        .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                {
+                    let mut media = replacement.media.clone();
+                    media.extend(
+                        current
+                            .media
+                            .iter()
+                            .filter(|asset| asset.is_typed_igdb_scene())
+                            .cloned(),
+                    );
+                    if crate::catalog_media::validate_catalog_media(
+                        &replacement.id,
+                        replacement.original_game.as_ref(),
+                        &media,
+                    )
+                    .is_ok()
+                    {
+                        replacement.media = media;
+                    }
+                }
             }
             listings.insert(listing.id.clone(), replacement);
         }
@@ -589,10 +655,14 @@ impl Library {
             ));
         }
         let now = Self::now();
-        let (baseline, provenance) =
+        let (baseline, baseline_provenance) =
             crate::catalog_store::CatalogState::read(&transaction)?.resolve(now)?;
-        let (catalog, _) =
-            crate::catalog_store::resolve_before_listings(&transaction, baseline, provenance, now)?;
+        let (catalog, _) = crate::catalog_store::resolve_before_listings(
+            &transaction,
+            baseline,
+            baseline_provenance,
+            now,
+        )?;
         candidate.document.project(catalog)?;
         provenance.require_fresh()?;
         let proof = serde_json::to_string(&candidate.proof)?;
