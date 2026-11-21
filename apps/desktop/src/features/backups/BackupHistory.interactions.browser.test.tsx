@@ -630,21 +630,29 @@ it("keeps read retry focused and disables repeated clicks while a read is pendin
 function DetailReadHistory({
   portId = "sample",
   observe,
+  observeRestoreReadback,
 }: {
   portId?: string;
   observe?: (refresh: () => Promise<unknown>) => void;
+  observeRestoreReadback?: (refresh: () => Promise<void>) => void;
 }) {
   const port = { ...portDefinition(), id: portId };
   const current = usePortBackups(portId);
   observe?.(current.refresh);
+  observeRestoreReadback?.(current.refreshAfterCommit);
   const actions = detailActions({
     port,
     status: undefined,
     sourcePath: "",
     biosPath: "",
-    perform: async (_name, task) => task(),
+    perform: async (_name, task, options) => {
+      const result = await task();
+      if (result && options?.readbackAfterSuccess) void options.readbackAfterSuccess();
+      return result;
+    },
     close: vi.fn(),
     backupsChanged: current.refresh,
+    refreshRestoredBackups: current.refreshAfterCommit,
     libraryGeneration: 7,
   });
   return (
@@ -1269,6 +1277,70 @@ it("preserves a completed reviewed restore and its focus when inventory readback
     "restore",
     7,
   );
+});
+
+it("keeps restore readback pending when a newer backup history refresh takes ownership", async () => {
+  const first: BackupInventory = {
+    port_id: "sample",
+    state: "healthy",
+    backups,
+    problems: [],
+    create_assessment: { action: "backup_create", availability: "allowed", reason: "available" },
+    restore_assessment: { action: "backup_restore", availability: "allowed", reason: "available" },
+  };
+  let finishRestoreRead!: (inventory: BackupInventory) => void;
+  let finishCurrentRead!: (inventory: BackupInventory) => void;
+  const read = vi
+    .spyOn(desktopApi, "backups")
+    .mockResolvedValueOnce(first)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRestoreRead = resolve;
+      }),
+    )
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishCurrentRead = resolve;
+      }),
+    );
+  let refreshHistory!: () => Promise<unknown>;
+  let readRestoredBackups!: () => Promise<void>;
+  await root.rerender(
+    <DetailReadHistory
+      observe={(value) => {
+        refreshHistory = value;
+      }}
+      observeRestoreReadback={(value) => {
+        readRestoredBackups = value;
+      }}
+    />,
+  );
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+
+  let settled = false;
+  await act(async () => {
+    void readRestoredBackups().then(() => {
+      settled = true;
+    });
+  });
+  await act(async () => {
+    void refreshHistory();
+  });
+  await act(async () => finishRestoreRead(first));
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(settled).toBe(false);
+  await act(async () =>
+    finishCurrentRead({
+      ...first,
+      backups: [],
+      restore_assessment: {
+        action: "backup_restore",
+        availability: "waiting",
+        reason: "missing_backup",
+      },
+    }),
+  );
+  expect(settled).toBe(true);
 });
 
 it("lets the next selected port retry while the old port's retry is still pending", async () => {

@@ -1272,8 +1272,11 @@ restore can refresh backup history inside its review. The new review keeps the
 exact snapshot and the same managed save location, installation and setup. A
 removed or replaced snapshot stays unavailable. The player must confirm the
 fresh review before Portcove requests native consent. When the restore result
-is uncertain, the review directs the player to Activity. External saved data
-remains outside managed backups.
+is uncertain, the review directs the player to Activity. A confirmed restore
+closes its review while Portcove checks the workspace and backup history. The
+target remains guarded during readback. If a read fails, the player can refresh
+the result without restoring again. External saved data remains outside managed
+backups.
 
 Retained-setup inspection leads with the working object, completeness uncertainty
 and supported next step. Secondary installation/source/saves/backup/log locations

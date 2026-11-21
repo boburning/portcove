@@ -42,6 +42,7 @@ export interface DetailActionContext {
   close: () => void;
   reviewInstall?: DetailActions["reviewInstall"];
   backupsChanged?: () => Promise<unknown>;
+  refreshRestoredBackups?: () => Promise<unknown>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
   onInstallCommitted?: (install: InstallRecord) => void;
@@ -57,6 +58,7 @@ export function detailActions({
   close,
   reviewInstall = () => undefined,
   backupsChanged = () => Promise.resolve(),
+  refreshRestoredBackups = backupsChanged,
   libraryGeneration,
   dismissInstallReview = () => undefined,
   onInstallCommitted,
@@ -171,12 +173,14 @@ export function detailActions({
       const result = await perform(
         "restore backup",
         () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
-        { ...nullableNativeConsent, propagateFailure: true },
+        {
+          ...nullableNativeConsent,
+          propagateFailure: true,
+          readbackAfterSuccess: refreshRestoredBackups,
+        },
       );
       if (result === null) return "cancelled";
-      const completed = Boolean(result);
-      if (completed) await backupsChanged();
-      return completed;
+      return Boolean(result);
     },
     recoverGhostshipLegacy:
       port.id === "ghostship"
