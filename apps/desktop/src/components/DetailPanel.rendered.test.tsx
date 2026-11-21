@@ -2386,14 +2386,14 @@ it("explains the retained setup and saved-data contract after current metadata c
   expect(coverage).not.toContain("new-catalog-only");
 });
 
-it("separates the active version from a downloaded update without implying it is active", () => {
+it("separates the active version from a prepared update", () => {
   const active = installRecord({ version: "1.0" });
   const html = renderToStaticMarkup(
     <InstallationVersionSummary
       status={{
         ...portStatus(),
         active,
-        staged: { ...active, id: "downloaded", version: "2.0", staged: true },
+        staged: { ...active, id: "prepared", version: "2.0", staged: true },
       }}
       selectedChannel="stable"
     />,
@@ -2405,8 +2405,20 @@ it("separates the active version from a downloaded update without implying it is
   const candidate = html.slice(html.indexOf('class="detail-version-candidate"'));
   expect(current).toContain("<strong>1.0</strong>");
   expect(current).not.toContain("<strong>2.0</strong>");
-  expect(candidate).toContain("Update saved for later");
+  expect(candidate).toContain("Prepared update");
   expect(candidate).toContain("<strong>2.0</strong>");
+});
+
+it("distinguishes missing installation status from a known uninstalled game", () => {
+  const unknown = renderToStaticMarkup(<InstallationVersionSummary selectedChannel="stable" />);
+  const uninstalled = renderToStaticMarkup(
+    <InstallationVersionSummary selectedChannel="stable" status={portStatus()} />,
+  );
+  expect(unknown).toContain("Installed version unavailable");
+  expect(unknown).not.toContain("Not installed");
+  expect(unknown).not.toContain("Set up this game");
+  expect(uninstalled).toContain("Not installed");
+  expect(uninstalled).toContain("Set up this game");
 });
 
 it.each(["current", "pending", "failed"] as const)(

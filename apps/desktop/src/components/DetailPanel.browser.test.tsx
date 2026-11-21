@@ -1005,7 +1005,54 @@ it.each([
   },
 );
 
-it("routes the saved-update summary action to the existing activation review owner", async () => {
+it.each([
+  {
+    version: "user-managed",
+    userSelected: true,
+    expected: "Portcove launches the files you registered.",
+  },
+  { version: "1.2.3", userSelected: false, expected: "Registered version 1.2.3." },
+])(
+  "describes external version ownership for $version",
+  async ({ version, userSelected, expected }) => {
+    const port = portDefinition();
+    await render(
+      <DetailPanel
+        port={port}
+        status={{
+          ...portStatus(),
+          external_runtime: {
+            id: "versions-external",
+            port_id: port.id,
+            path: "C:/Games/External copy",
+            executable: "C:/Games/External copy/game.exe",
+            version,
+            platform: "windows-x86-64",
+            archive_sha256: userSelected ? "" : "a".repeat(64),
+            immutable_tree_sha256: userSelected ? "" : "b".repeat(64),
+            registered_at: 1,
+            ...(userSelected ? { user_selected: { arguments: [] } } : {}),
+          },
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+      />,
+    );
+    const versions = page.getByRole("tab", { name: "Versions & updates", exact: true });
+    await versions.click();
+    const panel = page.getByRole("tabpanel", { name: "Versions & updates", exact: true });
+    await expect.element(panel).toBeVisible();
+    await expect.element(panel).toHaveTextContent(expected);
+    await expect
+      .element(panel.getByRole("link", { name: "Open upstream project" }))
+      .toHaveAttribute("href", port.project_url);
+    expect(panel.element().textContent).not.toContain("user-managed");
+    expect(panel.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
+  },
+);
+
+it("routes the prepared update to the existing activation review owner", async () => {
   const port = portDefinition();
   const active = installRecord({ port_id: port.id });
   const activate = vi.fn();
@@ -1025,6 +1072,7 @@ it("routes the saved-update summary action to the existing activation review own
   );
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   const summary = page.getByRole("region", { name: "Installation and release versions" });
+  await expect.element(summary.getByText("Prepared update", { exact: true })).toBeVisible();
   await summary.getByRole("button", { name: "Apply update · 2.0", exact: true }).click();
   expect(activate).toHaveBeenCalledOnce();
   expect(page.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
