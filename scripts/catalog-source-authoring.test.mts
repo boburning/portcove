@@ -1,4 +1,13 @@
+import { createHash } from "node:crypto";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  observeV64recompProfiles,
+  readV64recompProfile,
+  v64recompCurrentLayout,
+  v64recompLegacyLayout,
+  requireV64recompTools,
+} from "./v64recomp-source-observation.mts";
+import type { V64recompObservation } from "./v64recomp-source-observation.mts";
 import { compactOpenXPortable, projectOpenXPortable } from "./catalog-openx-portable.mts";
 import {
   compactAlephOnePinnedWindows,
@@ -2258,4 +2267,290 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
     (changedArchive.integration!.release as Record<string, unknown>).linux_tar_xz = false;
     assert.equal(compactOpenXPortable(changedArchive), changedArchive);
   }
+});
+
+void test("v64recomp source guides use the retained shared workflow and preserve each listing scope", () => {
+  const source = readCatalogSource(catalogRoot);
+  const records = source.records.filter((record) => record.v64recomp_setup_v1 !== undefined);
+  assert.equal(records.length, 16);
+  for (const record of records) {
+    const { listing, v64recomp_setup_v1: profile } = record;
+    const built = source.directory.listings.find((row) => row.id === listing.id)!;
+    const prepared = built.manual_setup as {
+      steps: Array<{ instruction: string }>;
+      references: Array<{ instruction: string }>;
+    };
+    const authored = listing.manual_setup as { steps: Array<{ instruction: string }> };
+    if (listing.platforms?.includes("linux-x86-64")) {
+      assert.deepEqual(prepared.steps[0], authored.steps[0]);
+      assert.ok(
+        prepared.steps[1]!.instruction.includes(
+          `python3 tools/build.py ${profile} --release --rt64`,
+        ),
+      );
+      assert.ok(
+        prepared.steps[1]!.instruction.includes(`./build/${profile}-release/bin/${profile}`),
+      );
+      assert.ok(
+        prepared.references[0]!.instruction.includes(`-Game ${profile} -Configuration Release`),
+      );
+      assert.ok(prepared.references[1]!.instruction.includes(`build_steamdeck.sh ${profile}`));
+    } else {
+      assert.equal(prepared.references, undefined);
+      assert.match(prepared.steps[1]!.instruction, /hosts and build options that apply/u);
+      assert.doesNotMatch(
+        prepared.steps.map((step) => step.instruction).join(" "),
+        /tools\/build|\.exe|launch\.sh/u,
+      );
+      if (listing.original_game?.source_editions.length)
+        assert.deepEqual(prepared.steps[0], authored.steps[0]);
+      else assert.doesNotMatch(prepared.steps[0]!.instruction, /USA ROM/u);
+    }
+    assert.equal(record.integration, undefined);
+    assert.deepEqual(built.platforms, listing.platforms);
+    assert.deepEqual(built.original_game, listing.original_game);
+  }
+  const separate = records.find((record) => record.v64recomp_setup_v1 === "quake2-us")!;
+  assert.equal(separate.original_game_review?.disposition, "separate");
+  assert.deepEqual(separate.listing.original_game?.source_editions, []);
+  assert.throws(
+    () => checkedAuthoredPort({ ...separate, v64recomp_setup_v1: "quake-us" }),
+    /requires a reviewed v64recomp source profile/,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...separate,
+        upstream_lineage: {
+          ...separate.upstream_lineage,
+          origin: {
+            project_url: separate.listing.project_url,
+            repository: { host: "github.com", id: "9" },
+          },
+        },
+      }),
+    /requires a reviewed v64recomp source profile/,
+  );
+});
+
+void test("v64recomp observation refuses ambiguous cartridge paths and repository identity", async () => {
+  const profile = `[game]
+name = "Fixture N64 game (US)"
+rom = "../../local/fixture.z64"
+rom_sha1 = "${"e".repeat(40)}"
+rom_size = 0x800000
+[recompilation]
+rom = "irrelevant to the original game table"`;
+  assert.deepEqual(readV64recompProfile(profile), {
+    name: "Fixture N64 game (US)",
+    rom: "local/fixture.z64",
+    sha1: "e".repeat(40),
+    size: 8 * 1024 * 1024,
+  });
+  assert.throws(
+    () => readV64recompProfile(profile.replace("local/", "local/../")),
+    /game field rom/,
+  );
+  assert.throws(
+    () =>
+      readV64recompProfile(
+        profile.replace("rom_size =", 'rom\t= "../../local/wrong.z64"\nrom_size ='),
+      ),
+    /game field rom/,
+  );
+  const fetched: string[] = [];
+  const fetchRepository: typeof fetch = async (input) => {
+    fetched.push(new URL(input instanceof Request ? input.url : input).pathname);
+    return Response.json({
+      id: 1,
+      full_name: "polaco1782/v64recomp",
+      default_branch: "master",
+      archived: false,
+    });
+  };
+  await assert.rejects(
+    observeV64recompProfiles(["fixture"], undefined, fetchRepository),
+    /authority changed/,
+  );
+  assert.deepEqual(fetched, ["/repos/polaco1782/v64recomp"]);
+});
+
+void test("v64recomp binds exact presets and helpers from both reviewed source trees", async () => {
+  const retained = (
+    await import("../crates/portcove-core/catalog/v64recomp-source-guidance.json", {
+      with: { type: "json" },
+    })
+  ).default;
+  for (const layout of [v64recompLegacyLayout, v64recompCurrentLayout] as const) {
+    const trusted = retained.tool_layouts[layout];
+    const tree = new Map(Object.entries(trusted.files).map(([path, sha]) => [path, { sha }]));
+    tree.set("docs/windows.md", { sha: "d".repeat(40) });
+    assert.deepEqual(requireV64recompTools(tree), {
+      layout,
+      tool_revision: trusted.revision,
+      presets: { blob: trusted.files["CMakePresets.json"], sha256: trusted.preset_sha256 },
+    });
+  }
+  const scoping = "oot-us-v12";
+  const profile = retained.profiles[scoping];
+  const build = {
+    "tools/build.py":
+      "# parser.set_defaults(mode='Release', target='rt64')\n# V64_BUILD_SUFFIX='-' + variant\n# ['cmake', '--workflow', '--preset', args.game]\nprint('unrelated output')",
+    "tools/import_rom.py":
+      "def unused():\n  parser.add_argument('--profile', required=True)\n  parser.add_argument('--rom', required=True)\nprint('unrelated output')",
+    "tools/build_msvc_project.ps1":
+      '# build\\msvc\\$key\\$($Configuration.ToLowerInvariant())\n# "-DRECOMP_GAME=$Game"\n# @($Game)\nWrite-Output Elsewhere',
+    "tools/build_steamdeck.sh":
+      "# games/$game/profile.toml\n# build/steamdeck/GAME/package\nexit 0",
+  };
+  const fetchTree = (
+    layout: typeof v64recompLegacyLayout | typeof v64recompCurrentLayout,
+    changed?: [path: string, code: string | null],
+  ) => {
+    const trusted = retained.tool_layouts[layout];
+    const fetched: string[] = [];
+    const treeFiles: Record<string, string> = {
+      ...trusted.files,
+      "docs/windows.md": "d".repeat(40),
+      [`games/${scoping}/profile.toml`]: profile.blob,
+      [`games/${scoping}/CMakeLists.txt`]: profile.target_blob,
+    };
+    if (changed) {
+      const [path, code] = changed;
+      if (code === null) delete treeFiles[path];
+      else
+        treeFiles[path] = createHash("sha1")
+          .update(`blob ${Buffer.byteLength(code)}\0`)
+          .update(code)
+          .digest("hex");
+    }
+    const fetchImplementation: typeof fetch = async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      fetched.push(url.pathname);
+      if (url.pathname.endsWith("/git/ref/heads/master"))
+        return Response.json({
+          ref: "refs/heads/master",
+          object: { type: "commit", sha: trusted.revision },
+        });
+      if (url.pathname.endsWith(`/git/commits/${trusted.revision}`))
+        return Response.json({ sha: trusted.revision, tree: { sha: trusted.tree } });
+      if (url.pathname.endsWith(`/git/trees/${trusted.tree}`))
+        return Response.json({
+          sha: trusted.tree,
+          truncated: false,
+          tree: Object.entries(treeFiles).map(([path, sha]) => ({
+            path,
+            sha,
+            size: 1000,
+            type: "blob",
+            mode: "100644",
+          })),
+        });
+      assert.equal(url.pathname, "/repos/polaco1782/v64recomp");
+      return Response.json({
+        id: retained.repository_id,
+        full_name: retained.repository,
+        default_branch: "master",
+        archived: false,
+      });
+    };
+    return { fetched, fetchImplementation };
+  };
+  const baseline: V64recompObservation = { ...retained, layout: v64recompCurrentLayout };
+  for (const layout of [v64recompLegacyLayout, v64recompCurrentLayout] as const) {
+    const valid = fetchTree(layout);
+    const result = await observeV64recompProfiles(
+      [scoping],
+      undefined,
+      valid.fetchImplementation,
+      baseline,
+    );
+    assert.equal(result.layout, layout);
+    assert.equal(result.tool_revision, retained.tool_layouts[layout].revision);
+    assert.equal(valid.fetched.length, 6);
+  }
+  for (const changed of Object.entries(build)) {
+    const attempt = fetchTree(v64recompCurrentLayout, changed);
+    await assert.rejects(
+      observeV64recompProfiles([scoping], undefined, attempt.fetchImplementation, baseline),
+      new Error(`v64recomp executable helper changed outside the reviewed contract: ${changed[0]}`),
+    );
+    assert.equal(attempt.fetched.length, 4);
+  }
+
+  const fullPreset = {
+    version: 6,
+    configurePresets: [
+      {
+        name: "game",
+        hidden: true,
+        generator: "Ninja",
+        binaryDir: "${sourceDir}/build/${presetName}$penv{V64_BUILD_SUFFIX}",
+        cacheVariables: { RECOMP_GAME: "${presetName}" },
+      },
+      { name: scoping, inherits: "game", cacheVariables: { RECOMP_OPT_LEVEL: "3" } },
+      { name: "other", inherits: "game" },
+    ],
+    buildPresets: [
+      { name: `${scoping}-prepare`, configurePreset: scoping, targets: ["prepare_game"] },
+      { name: scoping, configurePreset: scoping },
+    ],
+    workflowPresets: [
+      {
+        name: scoping,
+        steps: [
+          { type: "configure", name: scoping },
+          { type: "build", name: `${scoping}-prepare` },
+          { type: "build", name: scoping },
+        ],
+      },
+    ],
+  };
+  const brokenPresets = [
+    null,
+    JSON.stringify({ ...fullPreset, buildPresets: fullPreset.buildPresets.slice(1) }),
+    JSON.stringify({
+      ...fullPreset,
+      buildPresets: [
+        { ...fullPreset.buildPresets[0], configurePreset: "other" },
+        fullPreset.buildPresets[1],
+      ],
+    }),
+    JSON.stringify({
+      ...fullPreset,
+      buildPresets: [
+        { ...fullPreset.buildPresets[0], condition: false },
+        fullPreset.buildPresets[1],
+      ],
+    }),
+    JSON.stringify({
+      ...fullPreset,
+      configurePresets: [
+        { ...fullPreset.configurePresets[0], condition: false },
+        ...fullPreset.configurePresets.slice(1),
+      ],
+    }),
+  ];
+  for (const preset of brokenPresets) {
+    const attempt = fetchTree(v64recompCurrentLayout, ["CMakePresets.json", preset]);
+    await assert.rejects(
+      observeV64recompProfiles([scoping], undefined, attempt.fetchImplementation, baseline),
+      /CMake presets changed outside the reviewed build contract/u,
+    );
+    assert.equal(attempt.fetched.length, 4);
+  }
+
+  const mixed = new Map(
+    Object.entries(retained.tool_layouts[v64recompCurrentLayout].files).map(([path, sha]) => [
+      path,
+      { sha },
+    ]),
+  );
+  mixed.set("CMakePresets.json", {
+    sha: retained.tool_layouts[v64recompLegacyLayout].files["CMakePresets.json"],
+  });
+  assert.throws(
+    () => requireV64recompTools(mixed),
+    /executable helper changed outside the reviewed contract/u,
+  );
 });

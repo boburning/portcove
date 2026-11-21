@@ -1,0 +1,227 @@
+{
+  "format_version": 1,
+  "repository": "polaco1782/v64recomp",
+  "repository_id": 1420121199,
+  "revision": "fb897d3c57a864c34e7ae2a652503a225ea0ef83",
+  "tree": "8fbf54c056f74602d1053d2a542a5809d1ea327b",
+  "layout": "rt64-release-msvc-deck",
+  "common": {
+    "CMakePresets.json": {
+      "blob": "88a3adfc3a2961ded5c46c2920a1cac74b742e38",
+      "sha256": "4eabdb3b3550261e4f67d7455da13db150dbb094faf81305734ee33142b2ca99"
+    },
+    "tools/import_rom.py": {
+      "blob": "3d6ca6b3fb050003b0babfcc19ee7d18df7cb33f",
+      "sha256": "4d86a76f6c5d9c957037922296592d38a61ac472cb96e0a72c1767380382d17d"
+    },
+    "tools/build.py": {
+      "blob": "7a764eca15e12538acc00c2dee3bb42b38d75520",
+      "sha256": "c85d7a19192de3cccf56c75145a288c2a5656e093f848597fc7f65974401290a"
+    },
+    "tools/build_msvc_project.ps1": {
+      "blob": "c8e16c99e084ebcc9f0c2fb2a5eaab32ab7db97d",
+      "sha256": "0ef1d635c358ba327189ac0323ad9c6223bc7f8bc9f3e3ef310c1e923894754a"
+    },
+    "tools/build_steamdeck.sh": {
+      "blob": "57b24fa61ae182898305bafec2b94f0b52f12ebc",
+      "sha256": "9da8d12fe72dd33693241bc62cd2db086222224491cc6a8a584cae076fe6ce7b"
+    },
+    "docs/windows.md": {
+      "blob": "8c0b37c6be7dd3116f4fd37dae63db6a8de3e287",
+      "sha256": "bc3ddd86202c00133e0e3cfbf82e55b46aef9a10c7f0770003f85393b60e1a41"
+    },
+    "docs/steamdeck.md": {
+      "blob": "741fa29695307b17d92be589a5b2308aae9b8dc4",
+      "sha256": "eb0e513b741620e5ca569a79504f2195979aa4a4535c64569bc8c5c1d0d1b86a"
+    }
+  },
+  "tool_layouts": {
+    "cmake-release-msvc-deck": {
+      "revision": "bc650d7cfa5e183cf57ea3252a6b00694b558681",
+      "tree": "c06dbdd76f3dd9f5147a1e4cc9505ecb61a731e2",
+      "files": {
+        "CMakePresets.json": "1938755b2694fda0d8770a3f11b31611f10bfe16",
+        "CMakeLists.txt": "3493f923bb1d7aca995f424f0ad1dc35e30bc8fa",
+        "cmake/Game.cmake": "e2a0562b537e65911b07b53000ba9ad825446ee9",
+        "tools/build_msvc_project.ps1": "c8e16c99e084ebcc9f0c2fb2a5eaab32ab7db97d",
+        "tools/build_steamdeck.sh": "8a2aa34a1c931a5dedfd74e31b7d6b4644ca04e6",
+        "tools/common.py": "fdbc872b5559ef269b5e1317eaeca69edc7ec688",
+        "tools/import_rom.py": "3d6ca6b3fb050003b0babfcc19ee7d18df7cb33f",
+        "tools/steamdeck/Dockerfile": "baab5a70cb9b6bf618d1a622f1ae8011934a3c8d",
+        "tools/steamdeck/build.sh": "c3a4d65b1a92cc2dd5777c68f3bce60040889bd6",
+        "tools/steamdeck/bwrap.sh": "87bec95dc9eafa4070fb7649b67ae1d6716058d7",
+        "tools/steamdeck/install-controls.sh": "47da1f76e7d3da4cc865198560c07d8d76149bfd",
+        "tools/steamdeck/package.py": "593aa6b661e480395f7ab208391f945de52a4913",
+        "tools/steamdeck/setup.sh": "6a653d6bad3fbc075e7c458585d1db9e80ecfbb9"
+      },
+      "preset_sha256": "8da9e61fb08bea6f27b6396ef1d6665694b41b2f5cb7b575b3455d737748b538"
+    },
+    "rt64-release-msvc-deck": {
+      "revision": "fb897d3c57a864c34e7ae2a652503a225ea0ef83",
+      "tree": "8fbf54c056f74602d1053d2a542a5809d1ea327b",
+      "files": {
+        "CMakePresets.json": "88a3adfc3a2961ded5c46c2920a1cac74b742e38",
+        "CMakeLists.txt": "95388d9171c37ba23e98f7760ecef1de1239813a",
+        "cmake/Game.cmake": "05cc638b47fb6556dfc5675e253e1037645a7773",
+        "tools/build.py": "7a764eca15e12538acc00c2dee3bb42b38d75520",
+        "tools/build_msvc_project.ps1": "c8e16c99e084ebcc9f0c2fb2a5eaab32ab7db97d",
+        "tools/build_steamdeck.sh": "57b24fa61ae182898305bafec2b94f0b52f12ebc",
+        "tools/common.py": "fdbc872b5559ef269b5e1317eaeca69edc7ec688",
+        "tools/import_rom.py": "3d6ca6b3fb050003b0babfcc19ee7d18df7cb33f",
+        "tools/steamdeck/Dockerfile": "baab5a70cb9b6bf618d1a622f1ae8011934a3c8d",
+        "tools/steamdeck/build.sh": "784b3a4bb249c5c330028d6ba8c4782416b0a2b2",
+        "tools/steamdeck/bwrap.sh": "3a8c11cda294410bbbd04b80155d991c4be71ec6",
+        "tools/steamdeck/install-controls.sh": "47da1f76e7d3da4cc865198560c07d8d76149bfd",
+        "tools/steamdeck/package.py": "6dd3c17cbd9324b8235b3402f98a835bbefef3c5",
+        "tools/steamdeck/setup.sh": "cf56843f5b31b61ba295ca7f85f74535b6e14ae8"
+      },
+      "preset_sha256": "4eabdb3b3550261e4f67d7455da13db150dbb094faf81305734ee33142b2ca99"
+    }
+  },
+  "profiles": {
+    "1080-us": {
+      "blob": "f3137e8002bcfa59c9ef83af2d079a690b0a5c20",
+      "sha256": "b504ed98866360cfef7376bd2e7b4bb3ca526f906e2ec0bc6ce964bdb070979f",
+      "target_blob": "37d7915d75eb578cc5db21d7921bc17cf32ce2ff",
+      "name": "1080 Snowboarding (JU, revision 0)",
+      "rom": "local/1080.ju.z64",
+      "sha1": "79cd1166c365e5809dec9b62e6d40d6032d5db3a",
+      "size": 16777216
+    },
+    "conker-us": {
+      "blob": "da467c58ed038068a38474a4f4b04ac3e20fdead",
+      "sha256": "28125a877b99ad7609aa616808746cfb4d80a7e84badf5b3d27b69a458f44f10",
+      "target_blob": "5c2c8f3f3fa129809ea1a5c594576b83f0f680ea",
+      "name": "Conker's Bad Fur Day (US revision 0)",
+      "rom": "local/conker.us.z64",
+      "sha1": "4cbadd3c4e0729dec46af64ad018050eada4f47a",
+      "size": 67108864
+    },
+    "duke-us": {
+      "blob": "840c5c2e61ead66c147b1f217b87335a1e237ed5",
+      "sha256": "f048187e3a5c6999439250abe8ff4a13fa2fd71272dbb46c868c739b77bec6e1",
+      "target_blob": "ae247223bdd8a84516beadb491e4c07840f9afbb",
+      "name": "Duke Nukem 64 (US)",
+      "rom": "local/duke.us.z64",
+      "sha1": "98d6778004becc672eba0a5e887f6e3f3d1b5c15",
+      "size": 8388608
+    },
+    "duke-zero-hour-us": {
+      "blob": "6247504982efc1090ddc267660b03f920ae40269",
+      "sha256": "e69445a1d127a732e14f6a66355370500132f9fb647fcff92750c6fadf13a25a",
+      "target_blob": "d1429dce3ec718d7fa4cff3bbfd833e768638a57",
+      "name": "Duke Nukem: Zero Hour (US)",
+      "rom": "local/duke-zero-hour.us.z64",
+      "sha1": "de4db292cc6cf5dd1dd1d3c9700cf8e5c3078410",
+      "size": 33554432
+    },
+    "goldeneye-us": {
+      "blob": "9bbcb07b80edd6cc6c12a275036f33c12c7246db",
+      "sha256": "9ac011ca072ec32e361ae487b1ffac1027f1001a8df686eefc32fd00faf7bbea",
+      "target_blob": "e10a19a58334231a442eda67e0ebfd59584125b4",
+      "name": "GoldenEye 007 (US region, supplied ROM)",
+      "rom": "local/goldeneye.us.z64",
+      "sha1": "a963ea5308a4dda41354bca7751446248302a099",
+      "size": 16777216
+    },
+    "hexen-us": {
+      "blob": "dd958bf69877fbbf4cca307d5ca56a4e385a1f70",
+      "sha256": "99b742d6e01e6e3ea559a073b00eb2a64b0f979ca346fb97a5fb0e14f63d6aee",
+      "target_blob": "9bb939680a6f61838625bd530ce8fa9d0b2c931f",
+      "name": "Hexen (US)",
+      "rom": "local/hexen.us.z64",
+      "sha1": "a602839132f6cca71f175fb72039897705ba4661",
+      "size": 8388608
+    },
+    "nightmare-us": {
+      "blob": "9e3d537e52f1cfb5e673d294fe27ff7a5c1b31d5",
+      "sha256": "4b94a29581c199bc0fe3b0aef3a4dce8a5c183b5113f383dbd759023a38e0962",
+      "target_blob": "25dc9f44da344048b91317e5681e66a4fdb44d3f",
+      "name": "Nightmare Creatures (US)",
+      "rom": "local/nightmare.us.z64",
+      "sha1": "bea6c21b3ef5950bdf8cdb255955da6c4746eea8",
+      "size": 16777216
+    },
+    "oot-us-v12": {
+      "blob": "f891613da9811ef083d24b6dbb808fdba01f3891",
+      "sha256": "d71a0a7fb236cdd92a52c5a5d53299858babc23810c83b172946cb6b36679ace",
+      "target_blob": "4eb00367d62775eb9b0c6c6058d60bb232cc8cab",
+      "name": "The Legend of Zelda: Ocarina of Time (US V1.2)",
+      "rom": "local/oot.us.v12.z64",
+      "sha1": "41b3bdc48d98c48529219919015a1af22f5057c2",
+      "size": 33554432
+    },
+    "perfectdark-us-v11": {
+      "blob": "a161917084a07e96c0ea24955a2ad21edacb85ee",
+      "sha256": "0b16ee8f68e5873f8422cf7d13c2337a7c66d39f44bcc4559cdb0346e39bbcf0",
+      "target_blob": "fa0c0fb9c6efdd466e1ad8da0d1d4739a3ee3cb7",
+      "name": "Perfect Dark (US revision 1.1)",
+      "rom": "local/perfectdark.us.v11.z64",
+      "sha1": "af8788ac4d1a57260eae9c53ffe851fcf2a3319b",
+      "size": 33554432
+    },
+    "quake-us": {
+      "blob": "09aac72c31bb8a50300aab34dc7cbf45999aad3c",
+      "sha256": "a7c8e9e5780b0b073c1188d211577fa0ff3b44c8e9b55725d2af93fccf836aac",
+      "target_blob": "abb36db886e4a3a75f68a9a928ddde94bc615af0",
+      "name": "Quake 64 (US)",
+      "rom": "local/quake.us.z64",
+      "sha1": "25a7fe0342490d3c23328040bb34f8748995537a",
+      "size": 12582912
+    },
+    "quake2-us": {
+      "blob": "2151042149552fac702a1140d94f928fccdb121f",
+      "sha256": "a841c9b3c1ab8ab55b95b7ea6d5023f7d4d2c59d9aa93fee6239ee291ceddeaf",
+      "target_blob": "1b7db454589f0a4d66809a70f8a9881629e8c456",
+      "name": "Quake II (US)",
+      "rom": "local/quake2.us.z64",
+      "sha1": "2edb00e602e7c2813a5d6a04dfec80487627237a",
+      "size": 12582912
+    },
+    "rayman2-us": {
+      "blob": "8694bfc2071581eaa9c397cdb104f87ab1c1d16f",
+      "sha256": "bc81371d81eb43b2d73276ca8bb5647b746b5b9713f3800bf96fc821a9850088",
+      "target_blob": "b616c94e74292624cd3ce0aec407424441cc0463",
+      "name": "Rayman 2: The Great Escape (US)",
+      "rom": "local/rayman2.us.z64",
+      "sha1": "50558356b059ad3fbaf5fe95380512b9dceaaf52",
+      "size": 33554432
+    },
+    "re2-us-v1": {
+      "blob": "89fdd9a3e38750ab07ee42ac45fd3b368b1e74c0",
+      "sha256": "caa43ac3df4775d6ba2e87140897472e5fd9d31e3d2277e8d0fc2d8400d8d12d",
+      "target_blob": "1ae723ba30439cdb63aac896f17a115947e9255d",
+      "name": "Resident Evil 2 (US, revision 1)",
+      "rom": "local/re2.us.rev1.z64",
+      "sha1": "62ec19bead748c12d38f6c5a7ab0831edbd3d44b",
+      "size": 67108864
+    },
+    "shadowman-us": {
+      "blob": "5f2832d75ea6b7968ae9c5f53733a8a9f69103cf",
+      "sha256": "29b4fb96a285c6629caab0772752c6401be87425bf28a0a1400e5430fe8fc8fe",
+      "target_blob": "2ed2f8d48f77928820996cdd81a8f54456663820",
+      "name": "Shadow Man (US)",
+      "rom": "local/shadowman.us.z64",
+      "sha1": "cfb99dd949fdb2b2a0002ef595ab1813fe865b2c",
+      "size": 33554432
+    },
+    "sm64-us": {
+      "blob": "16a77c9abedd17d95dc57fd214235179e3832a4e",
+      "sha256": "b30c0effbfa5498174f23a8fbfb08a053a25334f97abc6c013d41431481fb9ec",
+      "target_blob": "10c99f77528b0706236a47d6cba39f667b8d2073",
+      "name": "Super Mario 64 (US)",
+      "rom": "local/sm64.us.z64",
+      "sha1": "9bef1128717f958171a4afac3ed78ee2bb4e86ce",
+      "size": 8388608
+    },
+    "turok-us-v12": {
+      "blob": "3807151d337957ce3be6dd2d113bbd4e1e27c409",
+      "sha256": "69d146e0706224e6dd850aeb91de3b8ade2a6ea2ae553cf65a7c8578c5e47e6f",
+      "target_blob": "9002e4548a927ca2a17531251a1dbd3c7990c8c4",
+      "name": "Turok: Dinosaur Hunter (US v1.2)",
+      "rom": "local/turok.us.v12.z64",
+      "sha1": "c7ed00dee20f4235823bcf50d32fa5d6862d6fce",
+      "size": 8388608
+    }
+  }
+}

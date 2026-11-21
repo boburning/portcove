@@ -2019,3 +2019,102 @@ void test("ScummVM game data observer binds official repository and byte-exact c
     /changed during/u,
   );
 });
+
+void test("v64recomp publication reconciles the observed tool and retains the exact scoped guide", async () => {
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { v64recompCurrentLayout, v64recompLegacyLayout } =
+    await import("./v64recomp-source-observation.mts");
+  const known = (
+    await import("../crates/portcove-core/catalog/v64recomp-source-guidance.json", {
+      with: { type: "json" },
+    })
+  ).default;
+  const { readCatalogSource } = await import("./catalog-authoring.mts");
+  const directory = readCatalogSource(
+    fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+  ).directory;
+  const listings = directory.listings.filter((listing) =>
+    [
+      "v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time",
+      "v64recomp-quake2-us-polaco1782-quake-ii-n64",
+      "v64recomp-sm64-us-polaco1782-super-mario-64",
+    ].includes(listing.id),
+  );
+  assert.equal(listings.length, 3);
+  const canonical = { format_version: 11, listings };
+  const operational = new Set(listings.map(({ id }) => id));
+  const run = (
+    previous: Buffer | null,
+    layout: typeof v64recompCurrentLayout | typeof v64recompLegacyLayout,
+    rom?: string,
+    sha1?: string,
+  ) => {
+    const observed = rom && {
+      ...known,
+      layout,
+      profiles: {
+        ...known.profiles,
+        "oot-us-v12": {
+          ...known.profiles["oot-us-v12"],
+          rom,
+          sha1: sha1 ?? known.profiles["oot-us-v12"].sha1,
+        },
+      },
+    };
+    return projectListingDelivery(
+      canonical,
+      [],
+      previous,
+      0,
+      undefined,
+      undefined,
+      operational,
+      undefined,
+      [],
+      false,
+      undefined,
+      observed || undefined,
+    );
+  };
+  const previous = run(null, v64recompLegacyLayout, "local/oot.us.v12.z64");
+  assert.match(previous.bytes.toString(), /cmake --workflow --preset oot-us-v12-release/u);
+  const next = run(previous.bytes, v64recompCurrentLayout, "local/oot.us.v12.z64");
+  assert.match(next.bytes.toString(), /python3 tools\/build\.py oot-us-v12 --release --rt64/u);
+  assert.match(next.bytes.toString(), /Supply your matching ROM at local\/oot\.us\.v12\.z64/u);
+  assert.equal(next.v64recomp_guides, 1);
+  assert.deepEqual(run(next.bytes, v64recompCurrentLayout).bytes, next.bytes);
+  const held = run(next.bytes, v64recompCurrentLayout, "local/refused.z64", "a".repeat(40));
+  assert.deepEqual(held.v64recomp_held_profiles, ["oot-us-v12"]);
+  assert.deepEqual(held.bytes, next.bytes);
+  const relocated = run(next.bytes, v64recompCurrentLayout, "local/changed-path.z64");
+  assert.deepEqual(relocated.v64recomp_held_profiles, ["oot-us-v12"]);
+  assert.deepEqual(relocated.bytes, next.bytes);
+  const alternatives = decodedListingDelivery(next.bytes).directory.listings.filter(
+    ({ id }) => id !== "v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time",
+  );
+  assert.equal(alternatives.length, 2);
+  for (const listing of alternatives) {
+    assert.deepEqual(listing.platforms, []);
+    assert.doesNotMatch(JSON.stringify(listing.manual_setup), /tools\/build|\.exe|launch\.sh/u);
+  }
+  // A changed authored warning prevents the previously observed guide from crossing the scope.
+  const { listings: changed } = structuredClone(canonical);
+  const allowed = changed.find(
+    ({ id }) => id === "v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time",
+  )!;
+  const setup = allowed.manual_setup as { warnings: string[] };
+  setup.warnings.push("Changed reviewed scope.");
+  const rebound = projectListingDelivery(
+    { ...canonical, listings: changed },
+    [],
+    next.bytes,
+    0,
+    undefined,
+    undefined,
+    operational,
+  );
+  assert.doesNotMatch(
+    rebound.bytes.toString(),
+    /Supply your matching ROM at local\/oot\.us\.v12\.z64/u,
+  );
+});

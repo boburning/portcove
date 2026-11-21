@@ -32,6 +32,7 @@ import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { scummvmSetupGuide } from "./catalog-scummvm-game-setup.mts";
 import { projectOpenXPortable } from "./catalog-openx-portable.mts";
+import { projectV64recompSetup } from "./catalog-v64recomp-setup.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -103,6 +104,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   route_facts_v1?: RouteFactsV1;
   /** Reviewed bundled scenario launch and externally owned player profiles. */
   alephone_pinned_windows_v1?: true;
+  /** Descriptive source-build guidance for an observed upstream v64recomp profile. */
+  v64recomp_setup_v1?: string;
   /** Shared extractor, launcher and portable data for reviewed OpenGOAL discs. */
   opengoal_setup_v1?: true;
   /** Shared official Raze Windows package and portable-profile layout. */
@@ -844,6 +847,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   projectNativeManagedProfile(record);
   projectReviewedFlatPackageLayout(record);
   projectOpenGoalSetup(record);
+  projectV64recompSetup(record);
   projectRazeWindowsProfile(record);
   projectGbaArchive(record);
   projectPsxManagedWindows(record);
@@ -982,6 +986,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     .map(projectRouteFacts)
     .map(projectOpenMohaaPortable)
     .map(projectOpenXPortable)
+    .map(projectV64recompSetup)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);

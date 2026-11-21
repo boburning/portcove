@@ -4095,6 +4095,31 @@ verified signed directory. The publisher records the observed commit,
 blob and content digest. Full catalog coverage uses the compact candidate
 path and its existing released-reader activation gate.
 
+### v64recomp source-build guides
+
+The `v64recomp_setup_v1` field selects an upstream profile for an existing
+v64recomp listing. The source record keeps its original-file requirements and
+title-specific warnings. Catalog generation supplies the shared instructions.
+A listing with no declared Linux platform offers upstream profile guidance only.
+The Windows and Deck references are conditional on upstream support, and do not
+establish those platforms in Portcove.
+
+During ordinary catalog publication, the descriptive worker checks the official
+repository, current ref and complete Git tree. It reuses reviewed facts for
+unchanged blobs and reads changed profiles within its bounded read budget.
+The Git tree must contain the exact reviewed CMake preset and executable helper
+blobs for one known layout. Documentation changes are outside that gate. The worker can project a supported build command and normalized
+ROM placement for the same reviewed original and target. Incomplete source reads, unknown
+tool layouts, changed build targets or original-file paths and changed originals retain the compatible guide from
+the authenticated prior listing. The report records the source revision, tree,
+layout and any held profiles. These observations follow the existing listing
+and signing gates and grant no package or launch operations.
+
+Use `node scripts/v64recomp-source-observation.mts` with selected profile IDs
+for an independent readback when reviewing a new original or tool layout.
+The committed source observation supplies the reviewed original bindings and
+offline fallback.
+
 ### Regenerate catalog projections
 
 `node scripts/generate-catalog.mts` deterministically assembles these sources into

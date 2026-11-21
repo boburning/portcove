@@ -27,6 +27,12 @@ import {
 } from "./scummvm-game-data-observation.mts";
 
 import {
+  observeV64recompGuides,
+  reconcileV64recompGuide,
+  withoutV64recompObservation,
+} from "./catalog-v64recomp-setup.mts";
+import type { V64recompObservation } from "./v64recomp-source-observation.mts";
+import {
   compactListingCarrier,
   compactListingDecodedMaximum,
   compactListingDeliveryTarget,
@@ -270,6 +276,7 @@ export function projectListingDelivery(
   reviewedWithdrawals: readonly string[] = [],
   requireComplete = false,
   scummvmGameData?: ScummvmGameDataObservation,
+  v64recomp?: V64recompObservation,
 ) {
   const raw = directory(canonical);
   const previousDocument = previous
@@ -319,6 +326,8 @@ export function projectListingDelivery(
   }
   const observedAt = (value: Record<string, unknown> | undefined) =>
     value && typeof value.observed_at === "string" ? Date.parse(value.observed_at) : -Infinity;
+  const appliedV64recompGuides = new Set<unknown>();
+  const heldV64recompProfiles = new Set<string>();
   const proposedRows = baseline.listings
     .filter(
       (listing) =>
@@ -349,8 +358,9 @@ export function projectListingDelivery(
       }
       const prior =
         old &&
-        listingDeclarationHash(withoutScummvmGameData(old, comparable)) ===
-          listingDeclarationHash(comparable) &&
+        listingDeclarationHash(
+          withoutV64recompObservation(withoutScummvmGameData(old, comparable), comparable),
+        ) === listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -370,6 +380,8 @@ export function projectListingDelivery(
       )
         result.upstream_observation = structuredClone(proposed);
       projectScummvmPreparation(result, old, scummvmGameData);
+      if (reconcileV64recompGuide(result, old, v64recomp, heldV64recompProfiles))
+        appliedV64recompGuides.add(listing.id);
       return {
         listing: result,
         prior,
@@ -435,6 +447,7 @@ export function projectListingDelivery(
     remaining -= used;
     scummvmGuides += 1;
   }
+  const v64recompGuides = listings.filter(({ id }) => appliedV64recompGuides.has(id)).length;
   const candidate = envelope(listings);
   const bytes = Buffer.from(JSON.stringify(candidate));
   if (bytes.length > byteLimit)
@@ -459,6 +472,8 @@ export function projectListingDelivery(
       canonical_records: raw.listings.length,
       delivered_records: listings.length,
       scummvm_guides: scummvmGuides,
+      v64recomp_guides: v64recompGuides,
+      v64recomp_held_profiles: [...heldV64recompProfiles].sort(),
     };
   return {
     bytes,
@@ -471,6 +486,8 @@ export function projectListingDelivery(
     canonical_records: raw.listings.length,
     delivered_records: listings.length,
     scummvm_guides: scummvmGuides,
+    v64recomp_guides: v64recompGuides,
+    v64recomp_held_profiles: [...heldV64recompProfiles].sort(),
   };
 }
 
@@ -606,6 +623,7 @@ export async function prepareObservationBundle(options: {
   releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
   readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
+  readV64recompObservation?: typeof observeV64recompGuides;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
@@ -809,9 +827,35 @@ export async function prepareObservationBundle(options: {
       );
     }
   }
+  let v64recomp: V64recompObservation | undefined;
+  if (!renewal && options.observe !== false) {
+    try {
+      const admitted = new Set([
+        ...(previousDocument?.directory.listings.map(({ id }) => id) ?? []),
+        ...operationalIds,
+        ...candidates.map(({ id }) => id),
+      ]);
+      const withdrawnIds = new Set([
+        ...(previousDocument?.withdrawn_ids ?? []),
+        ...(withdrawal?.withdrawn_ids ?? []),
+      ]);
+      const eligible = canonical.listings.filter(
+        (listing) =>
+          typeof listing.id === "string" &&
+          !withdrawnIds.has(listing.id) &&
+          (useCompact || admitted.has(listing.id) || isRecord(listing.upstream_observation)),
+      );
+      v64recomp = await (options.readV64recompObservation ?? observeV64recompGuides)(eligible);
+    } catch (error) {
+      diagnostics.push(
+        `v64recomp source guidance unavailable: ${error instanceof Error ? error.message.slice(0, 200) : "read failed"}. Compatible signed guidance retained.`,
+      );
+    }
+  }
   const project = (
     observations: readonly Record<string, unknown>[],
     scummvm?: ScummvmGameDataObservation,
+    sourceBuild?: V64recompObservation,
   ) =>
     projectListingDelivery(
       canonical,
@@ -825,8 +869,13 @@ export async function prepareObservationBundle(options: {
       withdrawal?.withdrawn_ids,
       useCompact,
       scummvm,
+      sourceBuild,
     );
-  let projected = renewal ?? project(candidates, gameData);
+  let projected = renewal ?? project(candidates, gameData, v64recomp);
+  if ("v64recomp_held_profiles" in projected && projected.v64recomp_held_profiles.length)
+    diagnostics.push(
+      `v64recomp profile, build target or ROM placement changed outside accepted scope: ${projected.v64recomp_held_profiles.join(", ")}. Compatible signed guidance retained.`,
+    );
   const inspect = (bytes: Buffer) => {
     const candidate = path.join(workspace, "listings.json");
     writeFileSync(candidate, bytes);
@@ -893,6 +942,16 @@ export async function prepareObservationBundle(options: {
           blob: gameData.blob,
           sha256: gameData.sha256,
           observed_game_keys: gameData.editions.size,
+        }
+      : null,
+    v64recomp_guides: "v64recomp_guides" in projected ? projected.v64recomp_guides : null,
+    v64recomp_source: v64recomp
+      ? {
+          revision: v64recomp.revision,
+          tree: v64recomp.tree,
+          layout: v64recomp.layout,
+          tool_revision: v64recomp.tool_revision,
+          reads: v64recomp.reads,
         }
       : null,
     canonical_sha256: hash(canonicalBytes),
